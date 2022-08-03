@@ -26,6 +26,51 @@ function isBlobLike (object) {
   )
 }
 
+function isObject (val) {
+  return val !== null && typeof val === 'object'
+}
+
+// this escapes all non-uri friendly characters
+function encode (val) {
+  return encodeURIComponent(val)
+}
+
+// based on https://github.com/axios/axios/blob/63e559fa609c40a0a460ae5d5a18c3470ffc6c9e/lib/helpers/buildURL.js (MIT license)
+function buildURL (url, queryParams) {
+  if (url.includes('?') || url.includes('#')) {
+    throw new Error('Query params cannot be passed when url already contains "?" or "#".')
+  }
+  if (!isObject(queryParams)) {
+    throw new Error('Query params must be an object')
+  }
+
+  const parts = []
+  for (let [key, val] of Object.entries(queryParams)) {
+    if (val === null || typeof val === 'undefined') {
+      continue
+    }
+
+    if (!Array.isArray(val)) {
+      val = [val]
+    }
+
+    for (const v of val) {
+      if (isObject(v)) {
+        throw new Error('Passing object as a query param is not supported, please serialize to string up-front')
+      }
+      parts.push(encode(key) + '=' + encode(v))
+    }
+  }
+
+  const serializedParams = parts.join('&')
+
+  if (serializedParams) {
+    url += '?' + serializedParams
+  }
+
+  return url
+}
+
 function parseURL (url) {
   if (typeof url === 'string') {
     url = new URL(url)
@@ -201,7 +246,7 @@ function parseHeaders (headers, obj = {}) {
 }
 
 function parseRawHeaders (headers) {
-  return headers.map(header => header.toString());
+  return headers.map(header => header.toString())
 }
 
 function isBuffer (buffer) {
@@ -263,7 +308,7 @@ function isErrored (body) {
     stream.isErrored
       ? stream.isErrored(body)
       : /state: 'errored'/.test(nodeUtil.inspect(body)
-  )))
+      )))
 }
 
 function isReadable (body) {
@@ -271,7 +316,7 @@ function isReadable (body) {
     stream.isReadable
       ? stream.isReadable(body)
       : /state: 'readable'/.test(nodeUtil.inspect(body)
-  )))
+      )))
 }
 
 function getSocketInfo (socket) {
@@ -324,6 +369,10 @@ function ReadableStreamFrom (iterable) {
   )
 }
 
+function isFormDataLike (chunk) {
+  return chunk && chunk.constructor && chunk.constructor.name === 'FormData'
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -352,5 +401,7 @@ module.exports = {
   ReadableStreamFrom,
   isBuffer,
   validateHandler,
-  getSocketInfo
+  getSocketInfo,
+  isFormDataLike,
+  buildURL
 }

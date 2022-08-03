@@ -94,9 +94,7 @@ bool FrameInspector::IsJavaScript() { return frame_->is_java_script(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     Handle<ScopeInfo> info, Handle<String> parameter_name) {
-  VariableLookupResult lookup_result;
-  return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &lookup_result) !=
-         -1;
+  return info->ContextSlotIndex(parameter_name) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,

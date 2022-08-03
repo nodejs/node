@@ -161,16 +161,17 @@ end
 set disable-randomization off
 
 # Install a handler whenever the debugger stops due to a signal. It walks up the
-# stack looking for V8_Dcheck and moves the frame to the one above it so it's
-# immediately at the line of code that triggered the DCHECK.
+# stack looking for V8_Dcheck / V8_Fatal / OS::DebugBreak frame and moves the
+# frame to the one above it so it's immediately at the line of code that
+# triggered the stop condition.
 python
-def dcheck_stop_handler(event):
+def v8_stop_handler(event):
   frame = gdb.selected_frame()
   select_frame = None
   message = None
   count = 0
-  # limit stack scanning since they're usually shallow and otherwise stack
-  # overflows can be very slow.
+  # Limit stack scanning since the frames we look for are near the top anyway,
+  # and otherwise stack overflows can be very slow.
   while frame is not None and count < 7:
     count += 1
     # If we are in a frame created by gdb (e.g. for `(gdb) call foo()`), gdb
@@ -186,6 +187,8 @@ def dcheck_stop_handler(event):
       break
     if frame.name() is not None and frame.name().startswith('V8_Fatal'):
       select_frame = frame.older()
+    if frame.name() == 'v8::base::OS::DebugBreak':
+      select_frame = frame.older()
     frame = frame.older()
 
   if select_frame is not None:
@@ -194,7 +197,7 @@ def dcheck_stop_handler(event):
     if message:
       print('DCHECK error: {}'.format(message))
 
-gdb.events.stop.connect(dcheck_stop_handler)
+gdb.events.stop.connect(v8_stop_handler)
 end
 
 # Code imported from chromium/src/tools/gdb/gdbinit

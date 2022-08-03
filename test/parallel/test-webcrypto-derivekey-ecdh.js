@@ -165,7 +165,7 @@ async function prepareKeys() {
         namedCurve: 'P-521'
       },
       false,
-      ['verify']);
+      ['sign', 'verify']);
 
     await assert.rejects(
       subtle.deriveKey(
@@ -175,7 +175,7 @@ async function prepareKeys() {
         },
         keys['P-521'].privateKey,
         ...otherArgs),
-      { message: /Keys must be ECDH keys/ });
+      { message: /Keys must be ECDH, X25519, or X448 keys/ });
   }
 
   {

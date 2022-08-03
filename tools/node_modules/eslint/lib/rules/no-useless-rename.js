@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow renaming import, export, and destructured assignments to the same name",
+            description: "Disallow renaming import, export, and destructured assignments to the same name",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-useless-rename"
         },

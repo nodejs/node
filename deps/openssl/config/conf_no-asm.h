@@ -5,6 +5,8 @@
 
 #if defined(OPENSSL_LINUX) && defined(__i386__)
 # include "./archs/linux-elf/no-asm/include/openssl/conf.h"
+#elif defined(OPENSSL_LINUX) && defined(__ILP32__)
+# include "./archs/linux-x32/no-asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__x86_64__)
 # include "./archs/linux-x86_64/no-asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__arm__)
@@ -33,14 +35,8 @@
 # include "./archs/solaris64-x86_64-gcc/no-asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__PPC64__)  && defined(L_ENDIAN)
 # include "./archs/linux-ppc64le/no-asm/include/openssl/conf.h"
-#elif defined(OPENSSL_LINUX) && defined(__PPC64__)
-# include "./archs/linux-ppc64/no-asm/include/openssl/conf.h"
-#elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
-# include "./archs/linux-ppc/no-asm/include/openssl/conf.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
 # include "./archs/aix64-gcc-as/no-asm/include/openssl/conf.h"
-#elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
-# include "./archs/aix-gcc/no-asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
 # include "./archs/linux64-s390x/no-asm/include/openssl/conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390__)

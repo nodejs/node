@@ -26,8 +26,12 @@ if (!common.hasCrypto) {
   common.skip('node compiled without OpenSSL.');
 }
 
-if (process.config.variables.arm_version === '7') {
-  common.skip('Too slow for armv7 bots');
+if (common.isPi) {
+  common.skip('Too slow for Raspberry Pi devices');
+}
+
+if (!common.hasOpenSSL3) {
+  common.skip('Too slow when dynamically linked against OpenSSL 1.1.1');
 }
 
 const assert = require('assert');
@@ -41,14 +45,15 @@ const hashes = {
   modp15: '7bdd39e5cdbb9748113933e5c2623b559c534e74',
   modp16: 'daea5277a7ad0116e734a8e0d2f297ef759d1161',
   modp17: '3b62aaf0142c2720f0bf26a9589b0432c00eadc1',
+  modp18: 'a870b491bbbec9b131ae9878d07449d32e54f160',
 };
 
 for (const name in hashes) {
   const group = crypto.getDiffieHellman(name);
-  const private_key = group.getPrime('hex');
+  const prime = group.getPrime('hex');
   const hash1 = hashes[name];
   const hash2 = crypto.createHash('sha1')
-                    .update(private_key.toUpperCase()).digest('hex');
+                    .update(prime.toUpperCase()).digest('hex');
   assert.strictEqual(hash1, hash2);
   assert.strictEqual(group.getGenerator('hex'), '02');
 }

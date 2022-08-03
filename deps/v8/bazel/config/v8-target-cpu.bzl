@@ -14,7 +14,7 @@ V8CpuTypeInfo = provider(
 )
 
 def _host_target_cpu_impl(ctx):
-    allowed_values = ["arm", "arm64", "ia32", "x64", "none"]
+    allowed_values = ["arm", "arm64", "ia32", "ppc64le", "riscv64", "s390x", "x64", "none"]
     cpu_type = ctx.build_setting_value
     if cpu_type in allowed_values:
         return V8CpuTypeInfo(value = cpu_type)

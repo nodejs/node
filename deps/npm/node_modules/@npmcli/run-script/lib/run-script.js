@@ -7,7 +7,8 @@ const runScript = options => {
   validateOptions(options)
   const { pkg, path } = options
   return pkg ? runScriptPkg(options)
-    : rpj(path + '/package.json').then(pkg => runScriptPkg({ ...options, pkg }))
+    : rpj(path + '/package.json')
+      .then(readPackage => runScriptPkg({ ...options, pkg: readPackage }))
 }
 
 module.exports = Object.assign(runScript, { isServerPackage })

@@ -425,7 +425,11 @@ void ConverterObject::Create(const FunctionCallbackInfo<Value>& args) {
                         nullptr, nullptr, nullptr, &status);
   }
 
-  new ConverterObject(env, obj, conv, flags);
+  auto converter = new ConverterObject(env, obj, conv, flags);
+  size_t sublen = ucnv_getMinCharSize(conv);
+  std::string sub(sublen, '?');
+  converter->set_subst_chars(sub.c_str());
+
   args.GetReturnValue().Set(obj);
 }
 
@@ -834,17 +838,17 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "toUnicode", ToUnicode);
-  env->SetMethod(target, "toASCII", ToASCII);
-  env->SetMethod(target, "getStringWidth", GetStringWidth);
+  SetMethod(context, target, "toUnicode", ToUnicode);
+  SetMethod(context, target, "toASCII", ToASCII);
+  SetMethod(context, target, "getStringWidth", GetStringWidth);
 
   // One-shot converters
-  env->SetMethod(target, "icuErrName", ICUErrorName);
-  env->SetMethod(target, "transcode", Transcode);
+  SetMethod(context, target, "icuErrName", ICUErrorName);
+  SetMethod(context, target, "transcode", Transcode);
 
   // ConverterObject
   {
-    Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate());
+    Local<FunctionTemplate> t = NewFunctionTemplate(env->isolate(), nullptr);
     t->Inherit(BaseObject::GetConstructorTemplate(env));
     t->InstanceTemplate()->SetInternalFieldCount(
         ConverterObject::kInternalFieldCount);
@@ -854,9 +858,9 @@ void Initialize(Local<Object> target,
     env->set_i18n_converter_template(t->InstanceTemplate());
   }
 
-  env->SetMethod(target, "getConverter", ConverterObject::Create);
-  env->SetMethod(target, "decode", ConverterObject::Decode);
-  env->SetMethod(target, "hasConverter", ConverterObject::Has);
+  SetMethod(context, target, "getConverter", ConverterObject::Create);
+  SetMethod(context, target, "decode", ConverterObject::Decode);
+  SetMethod(context, target, "hasConverter", ConverterObject::Has);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

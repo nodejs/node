@@ -85,6 +85,10 @@ class MachineRepresentationInferrer {
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
         return MachineRepresentation::kWord32;
+      case MachineRepresentation::kSandboxedPointer:
+        // A sandboxed pointer is a Word64 that uses an encoded representation
+        // when stored on the heap.
+        return MachineRepresentation::kWord64;
       default:
         break;
     }
@@ -996,7 +1000,7 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:

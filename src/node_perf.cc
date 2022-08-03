@@ -35,11 +35,9 @@ using v8::Value;
 
 // Microseconds in a millisecond, as a float.
 #define MICROS_PER_MILLIS 1e3
+// Nanoseconds in a millisecond, as a float.
+#define NANOS_PER_MILLIS 1e6
 
-// https://w3c.github.io/hr-time/#dfn-time-origin
-const uint64_t timeOrigin = PERFORMANCE_NOW();
-// https://w3c.github.io/hr-time/#dfn-time-origin-timestamp
-const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
 uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
@@ -159,17 +157,19 @@ void MarkGarbageCollectionEnd(
   if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
     return;
 
-  double start_time = state->performance_last_gc_start_mark / 1e6;
-  double duration = (PERFORMANCE_NOW() / 1e6) - start_time;
+  double start_time =
+      (state->performance_last_gc_start_mark - env->time_origin()) /
+      NANOS_PER_MILLIS;
+  double duration = (PERFORMANCE_NOW() / NANOS_PER_MILLIS) -
+                    (state->performance_last_gc_start_mark / NANOS_PER_MILLIS);
 
   std::unique_ptr<GCPerformanceEntry> entry =
       std::make_unique<GCPerformanceEntry>(
           "gc",
           start_time,
           duration,
-          GCPerformanceEntry::Details(
-            static_cast<PerformanceGCKind>(type),
-            static_cast<PerformanceGCFlags>(flags)));
+          GCPerformanceEntry::Details(static_cast<PerformanceGCKind>(type),
+                                      static_cast<PerformanceGCFlags>(flags)));
 
   env->SetImmediate([entry = std::move(entry)](Environment* env) {
     entry->Notify(env);
@@ -256,12 +256,15 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(Number::New(args.GetIsolate(), timeOrigin / 1e6));
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(
+      Number::New(args.GetIsolate(), env->time_origin() / 1e6));
 }
 
 void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(
-      Number::New(args.GetIsolate(), timeOriginTimestamp / MICROS_PER_MILLIS));
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(Number::New(
+      args.GetIsolate(), env->time_origin_timestamp() / MICROS_PER_MILLIS));
 }
 
 void Initialize(Local<Object> target,
@@ -288,19 +291,21 @@ void Initialize(Local<Object> target,
   target->Set(context, performanceEntryString, fn).Check();
   env->set_performance_entry_template(fn);
 
-  env->SetMethod(target, "markMilestone", MarkMilestone);
-  env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
-  env->SetMethod(target,
-                 "installGarbageCollectionTracking",
-                 InstallGarbageCollectionTracking);
-  env->SetMethod(target,
-                 "removeGarbageCollectionTracking",
-                 RemoveGarbageCollectionTracking);
-  env->SetMethod(target, "notify", Notify);
-  env->SetMethod(target, "loopIdleTime", LoopIdleTime);
-  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
-  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  env->SetMethod(target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(context, target, "markMilestone", MarkMilestone);
+  SetMethod(context, target, "setupObservers", SetupPerformanceObservers);
+  SetMethod(context,
+            target,
+            "installGarbageCollectionTracking",
+            InstallGarbageCollectionTracking);
+  SetMethod(context,
+            target,
+            "removeGarbageCollectionTracking",
+            RemoveGarbageCollectionTracking);
+  SetMethod(context, target, "notify", Notify);
+  SetMethod(context, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(context, target, "getTimeOrigin", GetTimeOrigin);
+  SetMethod(context, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  SetMethod(context, target, "createELDHistogram", CreateELDHistogram);
 
   Local<Object> constants = Object::New(isolate);
 

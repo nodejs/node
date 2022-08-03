@@ -24,15 +24,19 @@ DOM.defineCustomElement(
       }
 
       set nofChunks(count) {
-        const time = this.currentTime
         for (const track of this.timelineTracks) {
           track.nofChunks = count;
-          track.currentTime = time;
         }
       }
 
       get nofChunks() {
         return this.timelineTracks[0].nofChunks;
+      }
+
+      set currentTime(time) {
+        for (const track of this.timelineTracks) {
+          track.currentTime = time;
+        }
       }
 
       get currentTime() {
@@ -54,12 +58,23 @@ DOM.defineCustomElement(
         this.timeSelection = {start: event.start, end: event.end};
       }
 
-      set timeSelection(timeSelection) {
-        if (timeSelection.start > timeSelection.end) {
+      set timeSelection(selection) {
+        if (selection.start > selection.end) {
           throw new Error('Invalid time range');
         }
-        for (const track of this.timelineTracks) {
-          track.timeSelection = timeSelection;
+        const tracks = Array.from(this.timelineTracks);
+        if (selection.zoom) {
+          // To avoid inconsistencies copy the zoom/nofChunks from the first
+          // track
+          const firstTrack = tracks.pop();
+          firstTrack.timeSelection = selection;
+          selection.zoom = false;
+          for (const track of tracks) track.timeSelection = selection;
+          this.nofChunks = firstTrack.nofChunks;
+        } else {
+          for (const track of this.timelineTracks) {
+            track.timeSelection = selection;
+          }
         }
       }
     });

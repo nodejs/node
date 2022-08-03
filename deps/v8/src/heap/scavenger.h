@@ -7,8 +7,8 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/heap/base/worklist.h"
+#include "src/heap/evacuation-allocator.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/local-allocator.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/slot-set.h"
@@ -16,7 +16,6 @@
 namespace v8 {
 namespace internal {
 
-class OneshotBarrier;
 class RootScavengeVisitor;
 class Scavenger;
 
@@ -111,6 +110,8 @@ class Scavenger {
   size_t bytes_promoted() const { return promoted_size_; }
 
  private:
+  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
+
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.
   static const int kInterruptThreshold = 128;
@@ -135,7 +136,8 @@ class Scavenger {
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Map map, HeapObject source, HeapObject target,
-                               int size);
+                               int size,
+                               PromotionHeapChoice promotion_heap_choice);
 
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
@@ -144,8 +146,6 @@ class Scavenger {
   V8_INLINE CopyAndForwardResult
   SemiSpaceCopyObject(Map map, THeapObjectSlot slot, HeapObject object,
                       int object_size, ObjectFields object_fields);
-
-  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
 
   template <typename THeapObjectSlot,
             PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
@@ -197,13 +197,14 @@ class Scavenger {
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;
-  ConcurrentAllocator* shared_old_allocator_ = nullptr;
+  std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
   EphemeronRememberedSet ephemeron_remembered_set_;
   const bool is_logging_;
   const bool is_incremental_marking_;
   const bool is_compacting_;
+  const bool is_compacting_including_map_space_;
   const bool shared_string_table_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;

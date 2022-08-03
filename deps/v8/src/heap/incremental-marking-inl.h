@@ -41,14 +41,6 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   return false;
 }
 
-void IncrementalMarking::MarkRootObject(Root root, HeapObject obj) {
-  if (heap_->incremental_marking()->WhiteToGreyAndPush(obj)) {
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
-      heap_->AddRetainingRoot(root, obj);
-    }
-  }
-}
-
 void IncrementalMarking::RestartIfNotMarking() {
   if (state_ == COMPLETE) {
     state_ = MARKING;

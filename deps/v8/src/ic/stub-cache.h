@@ -78,12 +78,12 @@ class V8_EXPORT_PRIVATE StubCache {
 
   Isolate* isolate() { return isolate_; }
 
-  // Setting kCacheIndexShift to Name::kHashShift is convenient because it
+  // Setting kCacheIndexShift to Name::HashBits::kShift is convenient because it
   // causes the bit field inside the hash field to get shifted out implicitly.
   // Note that kCacheIndexShift must not get too large, because
   // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift (see
   // the STATIC_ASSERT below, in {entry(...)}).
-  static const int kCacheIndexShift = Name::kHashShift;
+  static const int kCacheIndexShift = Name::HashBits::kShift;
 
   static const int kPrimaryTableBits = 11;
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
@@ -123,7 +123,7 @@ class V8_EXPORT_PRIVATE StubCache {
 
   // Compute the entry for a given offset in exactly the same way as
   // we do in generated code.  We generate an hash code that already
-  // ends in Name::kHashShift 0s.  Then we multiply it so it is a multiple
+  // ends in Name::HashBits::kShift 0s.  Then we multiply it so it is a multiple
   // of sizeof(Entry).  This makes it easier to avoid making mistakes
   // in the hashed offset computations.
   static Entry* entry(Entry* table, int offset) {

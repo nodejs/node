@@ -77,6 +77,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
                                offset_in_code_buffer + ref.length());
     }
 
+    base::Optional<ModuleWireBytes> GetModuleBytes() const final { return {}; }
+
     uint32_t module_offset() const { return module_offset_; }
     base::Vector<uint8_t> bytes() const { return bytes_.as_vector(); }
     base::Vector<uint8_t> payload() const { return bytes() + payload_offset_; }

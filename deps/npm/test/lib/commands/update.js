@@ -17,7 +17,6 @@ const mocks = {
     reify () {}
   },
   '../../../lib/utils/reify-finish.js': noop,
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 t.afterEach(() => {

@@ -11,6 +11,8 @@
 namespace v8 {
 namespace base {
 
+void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap);
+
 class PosixTimezoneCache : public TimezoneCache {
  public:
   double DaylightSavingsOffset(double time_ms) override;

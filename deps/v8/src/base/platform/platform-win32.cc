@@ -90,6 +90,11 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
   return *pFile != nullptr ? 0 : 1;
 }
 
+int _wfopen_s(FILE** pFile, const wchar_t* filename, const wchar_t* mode) {
+  *pFile = _wfopen(filename, mode);
+  return *pFile != nullptr ? 0 : 1;
+}
+
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
   DCHECK(count == _TRUNCATE);
@@ -593,10 +598,25 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
   }
 }
 
+// Convert utf-8 encoded string to utf-16 encoded.
+static std::wstring ConvertUtf8StringToUtf16(const char* str) {
+  // On Windows wchar_t must be a 16-bit value.
+  static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
+  std::wstring utf16_str;
+  int name_length = static_cast<int>(strlen(str));
+  int len = MultiByteToWideChar(CP_UTF8, 0, str, name_length, nullptr, 0);
+  if (len > 0) {
+    utf16_str.resize(len);
+    MultiByteToWideChar(CP_UTF8, 0, str, name_length, &utf16_str[0], len);
+  }
+  return utf16_str;
+}
 
 FILE* OS::FOpen(const char* path, const char* mode) {
   FILE* result;
-  if (fopen_s(&result, path, mode) == 0) {
+  std::wstring utf16_path = ConvertUtf8StringToUtf16(path);
+  std::wstring utf16_mode = ConvertUtf8StringToUtf16(mode);
+  if (_wfopen_s(&result, utf16_path.c_str(), utf16_mode.c_str()) == 0) {
     return result;
   } else {
     return nullptr;
@@ -722,15 +742,29 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
 }
 
-typedef PVOID (*VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
-                                 MEM_EXTENDED_PARAMETER*, ULONG);
-VirtualAlloc2_t VirtualAlloc2;
+typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
+                                          MEM_EXTENDED_PARAMETER*, ULONG);
+VirtualAlloc2_t VirtualAlloc2 = nullptr;
+
+typedef PVOID(__stdcall* MapViewOfFile3_t)(HANDLE, HANDLE, PVOID, ULONG64,
+                                           SIZE_T, ULONG, ULONG,
+                                           MEM_EXTENDED_PARAMETER*, ULONG);
+MapViewOfFile3_t MapViewOfFile3 = nullptr;
+
+typedef PVOID(__stdcall* UnmapViewOfFile2_t)(HANDLE, PVOID, ULONG);
+UnmapViewOfFile2_t UnmapViewOfFile2 = nullptr;
 
 void OS::EnsureWin32MemoryAPILoaded() {
   static bool loaded = false;
   if (!loaded) {
     VirtualAlloc2 = (VirtualAlloc2_t)GetProcAddress(
         GetModuleHandle(L"kernelbase.dll"), "VirtualAlloc2");
+
+    MapViewOfFile3 = (MapViewOfFile3_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "MapViewOfFile3");
+
+    UnmapViewOfFile2 = (UnmapViewOfFile2_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "UnmapViewOfFile2");
 
     loaded = true;
   }
@@ -815,43 +849,47 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-void* VirtualAllocWrapper(void* hint, size_t size, DWORD flags, DWORD protect) {
+// Desired access parameter for MapViewOfFile
+DWORD GetFileViewAccessFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+    case OS::MemoryPermission::kRead:
+      return FILE_MAP_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return FILE_MAP_READ | FILE_MAP_WRITE;
+    default:
+      // Execute access is not supported
+      break;
+  }
+  UNREACHABLE();
+}
+
+void* VirtualAllocWrapper(void* address, size_t size, DWORD flags,
+                          DWORD protect) {
   if (VirtualAlloc2) {
-    return VirtualAlloc2(nullptr, hint, size, flags, protect, NULL, 0);
+    return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
   } else {
-    return VirtualAlloc(hint, size, flags, protect);
+    return VirtualAlloc(address, size, flags, protect);
   }
 }
 
-uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
-                                void* hint) {
-  LPVOID base = nullptr;
-  static BOOL use_aslr = -1;
-#ifdef V8_HOST_ARCH_32_BIT
-  // Don't bother randomizing on 32-bit hosts, because they lack the room and
-  // don't have viable ASLR anyway.
-  if (use_aslr == -1 && !IsWow64Process(GetCurrentProcess(), &use_aslr))
-    use_aslr = FALSE;
-#else
-  use_aslr = TRUE;
-#endif
-
-  if (use_aslr && protect != PAGE_READWRITE) {
-    // For executable or reserved pages try to randomize the allocation address.
-    base = VirtualAllocWrapper(hint, size, flags, protect);
-  }
+uint8_t* VirtualAllocWithHint(size_t size, DWORD flags, DWORD protect,
+                              void* hint) {
+  LPVOID base = VirtualAllocWrapper(hint, size, flags, protect);
 
   // On failure, let the OS find an address to use.
-  if (base == nullptr) {
+  if (hint && base == nullptr) {
     base = VirtualAllocWrapper(nullptr, size, flags, protect);
   }
+
   return reinterpret_cast<uint8_t*>(base);
 }
 
 void* AllocateInternal(void* hint, size_t size, size_t alignment,
                        size_t page_size, DWORD flags, DWORD protect) {
   // First, try an exact size aligned allocation.
-  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, hint);
+  uint8_t* base = VirtualAllocWithHint(size, flags, protect, hint);
   if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
   // If address is suitably aligned, we're done.
@@ -871,7 +909,7 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   const int kMaxAttempts = 3;
   aligned_base = nullptr;
   for (int i = 0; i < kMaxAttempts; ++i) {
-    base = RandomizedVirtualAlloc(padded_size, flags, protect, hint);
+    base = VirtualAllocWithHint(padded_size, flags, protect, hint);
     if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
     // Try to trim the allocation by freeing the padded allocation and then
@@ -909,18 +947,46 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+  CHECK_NE(0, VirtualFree(address, 0, MEM_RELEASE));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission permission,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(hint) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  DCHECK_EQ(0, offset % AllocatePageSize());
+
+  DWORD off_hi = static_cast<DWORD>(offset >> 32);
+  DWORD off_lo = static_cast<DWORD>(offset);
+  DWORD access = GetFileViewAccessFromMemoryPermission(permission);
+
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  void* result =
+      MapViewOfFileEx(file_mapping, access, off_hi, off_lo, size, hint);
+
+  if (!result) {
+    // Retry without hint.
+    result = MapViewOfFile(file_mapping, access, off_hi, off_lo, size);
+  }
+
+  return result;
+}
+
+// static
+void OS::FreeShared(void* address, size_t size) {
+  CHECK(UnmapViewOfFile(address));
+}
+
+// static
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+  CHECK_NE(0, VirtualFree(address, size, MEM_DECOMMIT));
 }
 
 // static
@@ -977,7 +1043,10 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
-bool OS::CanReserveAddressSpace() { return VirtualAlloc2 != nullptr; }
+bool OS::CanReserveAddressSpace() {
+  return VirtualAlloc2 != nullptr && MapViewOfFile3 != nullptr &&
+         UnmapViewOfFile2 != nullptr;
+}
 
 // static
 Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
@@ -1001,8 +1070,23 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
-  return OS::Free(reservation.base(), reservation.size());
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  OS::Free(reservation.base(), reservation.size());
+}
+
+// static
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+  HANDLE handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr,
+                                    PAGE_READWRITE, 0, size, nullptr);
+  if (!handle) return kInvalidSharedMemoryHandle;
+  return SharedMemoryHandleFromFileMapping(handle);
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  CHECK(CloseHandle(file_mapping));
 }
 
 // static
@@ -1077,8 +1161,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
   if (mode == FileMode::kReadWrite) {
     access |= GENERIC_WRITE;
   }
-  HANDLE file = CreateFileA(name, access, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            nullptr, OPEN_EXISTING, 0, nullptr);
+
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
+  HANDLE file = CreateFileW(utf16_name.c_str(), access,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                            OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
@@ -1101,8 +1188,9 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
   // Open a physical file.
-  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
+  HANDLE file = CreateFileW(utf16_name.c_str(), GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;
@@ -1159,12 +1247,32 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                     ? MEM_RESERVE | MEM_REPLACE_PLACEHOLDER
                     : MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER;
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
+  return VirtualAlloc2(nullptr, address, size, flags, protect, nullptr, 0);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
   DCHECK(Contains(address, size));
   return VirtualFree(address, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
+}
+
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  CHECK(MapViewOfFile3);
+
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  return MapViewOfFile3(file_mapping, nullptr, address, offset, size,
+                        MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
+}
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  CHECK(UnmapViewOfFile2);
+
+  return UnmapViewOfFile2(nullptr, address, MEM_PRESERVE_PLACEHOLDER);
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,

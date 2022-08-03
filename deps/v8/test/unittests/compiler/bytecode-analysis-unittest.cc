@@ -4,6 +4,7 @@
 
 #include "src/compiler/bytecode-analysis.h"
 
+#include "src/compiler/bytecode-liveness-map.h"
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -27,34 +28,19 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   BytecodeAnalysisTest(const BytecodeAnalysisTest&) = delete;
   BytecodeAnalysisTest& operator=(const BytecodeAnalysisTest&) = delete;
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     i::FLAG_ignition_elide_noneffectful_bytecodes = false;
     i::FLAG_ignition_reo = false;
 
-    TestWithIsolateAndZone::SetUpTestCase();
+    TestWithIsolateAndZone::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolateAndZone::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithIsolateAndZone::TearDownTestSuite();
     delete save_flags_;
     save_flags_ = nullptr;
-  }
-
-  std::string ToLivenessString(const BytecodeLivenessState* liveness) const {
-    const BitVector& bit_vector = liveness->bit_vector();
-
-    std::string out;
-    out.resize(bit_vector.length());
-    for (int i = 0; i < bit_vector.length(); ++i) {
-      if (bit_vector.Contains(i)) {
-        out[i] = 'L';
-      } else {
-        out[i] = '.';
-      }
-    }
-    return out;
   }
 
   void EnsureLivenessMatches(
@@ -69,12 +55,13 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
       ss << std::setw(4) << iterator.current_offset() << " : ";
       iterator.PrintTo(ss);
 
-      EXPECT_EQ(liveness.first, ToLivenessString(analysis.GetInLivenessFor(
-                                    iterator.current_offset())))
+      EXPECT_EQ(liveness.first,
+                ToString(*analysis.GetInLivenessFor(iterator.current_offset())))
           << " at bytecode " << ss.str();
 
-      EXPECT_EQ(liveness.second, ToLivenessString(analysis.GetOutLivenessFor(
-                                     iterator.current_offset())))
+      EXPECT_EQ(
+          liveness.second,
+          ToString(*analysis.GetOutLivenessFor(iterator.current_offset())))
           << " at bytecode " << ss.str();
 
       iterator.Advance();

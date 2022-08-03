@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -838,6 +838,9 @@ const OSSL_PARAM *evp_keymgmt_export_types(const EVP_KEYMGMT *keymgmt,
                                            int selection);
 void *evp_keymgmt_dup(const EVP_KEYMGMT *keymgmt,
                       const void *keydata_from, int selection);
+EVP_KEYMGMT *evp_keymgmt_fetch_from_prov(OSSL_PROVIDER *prov,
+                                         const char *name,
+                                         const char *properties);
 
 /* Pulling defines out of C source files */
 
@@ -893,14 +896,16 @@ int evp_pkey_ctx_get1_id_len_prov(EVP_PKEY_CTX *ctx, size_t *id_len);
 int evp_pkey_ctx_use_cached_data(EVP_PKEY_CTX *ctx);
 # endif /* !defined(FIPS_MODULE) */
 
-int evp_method_store_flush(OSSL_LIB_CTX *libctx);
+int evp_method_store_cache_flush(OSSL_LIB_CTX *libctx);
+int evp_method_store_remove_all_provided(const OSSL_PROVIDER *prov);
+
 int evp_default_properties_enable_fips_int(OSSL_LIB_CTX *libctx, int enable,
                                            int loadconfig);
 int evp_set_default_properties_int(OSSL_LIB_CTX *libctx, const char *propq,
                                    int loadconfig, int mirrored);
 char *evp_get_global_properties_str(OSSL_LIB_CTX *libctx, int loadconfig);
 
-void evp_md_ctx_clear_digest(EVP_MD_CTX *ctx, int force);
+void evp_md_ctx_clear_digest(EVP_MD_CTX *ctx, int force, int keep_digest);
 
 /* Three possible states: */
 # define EVP_PKEY_STATE_UNKNOWN         0

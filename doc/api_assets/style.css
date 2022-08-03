@@ -40,6 +40,17 @@
   --color-text-secondary: var(--green2);
 }
 
+h4 :target,
+h5 :target {
+  scroll-margin-top: 55px;
+}
+
+@supports not (content-visibility: auto) {
+  h3 :target {
+    scroll-margin-top: 55px;
+  }
+}
+
 .dark-mode {
   --background-color-highlight: var(--black2);
   --color-critical: var(--red4);
@@ -189,19 +200,23 @@ li.picker-header .expanded-arrow {
   display: none;
 }
 
-li.picker-header:hover .collapsed-arrow {
+li.picker-header.expanded .collapsed-arrow, 
+:root:not(.has-js) li.picker-header:hover .collapsed-arrow {
   display: none;
 }
 
-li.picker-header:hover .expanded-arrow {
+li.picker-header.expanded .expanded-arrow, 
+:root:not(.has-js) li.picker-header:hover .expanded-arrow {
   display: inline-block;
 }
 
-li.picker-header:hover > a {
+li.picker-header.expanded > a,
+:root:not(.has-js) li.picker-header:hover > a {
   border-radius: 2px 2px 0 0;
 }
 
-li.picker-header:hover > .picker {
+li.picker-header.expanded > .picker, 
+:root:not(.has-js) li.picker-header:hover > .picker {
   display: block;
   z-index: 1;
 }
@@ -807,11 +822,36 @@ kbd {
   background-color: var(--color-fill-app);
 }
 
-@media not screen, (max-height: 1000px) {
+@media not screen, (max-width: 600px) {
   .header {
     position: relative;
     top: 0;
   }
+}
+
+@media not screen, (max-height: 1000px) {
+  :root:not(.has-js) .header {
+    position: relative;
+    top: 0;
+  }
+}
+
+.header .pinned-header {
+  display: none;
+  margin-right: 0.4rem;
+  font-weight: 700;
+}
+
+.header.is-pinned .header-container {
+  display: none;
+}
+
+.header.is-pinned .pinned-header {
+  display: inline;
+}
+
+.header.is-pinned #gtoc {
+  margin: 0;
 }
 
 .header-container {
@@ -843,6 +883,14 @@ kbd {
     border-right: none;
     margin-right: 0;
     padding-right: 0;
+  }
+
+  .header #gtoc > ul > li.pinned-header {
+    display: none;
+  }
+
+  .header.is-pinned #gtoc > ul > li.pinned-header {
+    display: inline;
   }
 
   #gtoc > ul > li.gtoc-picker-header {
@@ -905,6 +953,9 @@ kbd {
   background-repeat: no-repeat;
   width: 142px;
   height: 20px;
+  display: block;
+  cursor: pointer;
+  margin: 0;
 }
 .js-flavor-selector:checked {
   background-image: url(./js-flavor-esm.svg);

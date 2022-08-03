@@ -288,7 +288,7 @@ StringMigrationResult MigrateStringMapUnderLockIfNeeded(
     CHECK(string.release_compare_and_swap_map_word(
         MapWord::FromMap(sentinel_map), MapWord::FromMap(target_map)));
   } else {
-    string.set_map(target_map, kReleaseStore);
+    string.set_map_safe_transition(target_map, kReleaseStore);
   }
 
   return StringMigrationResult::kThisThreadMigrated;
@@ -308,11 +308,12 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   Map initial_map = this->map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
-  // Another thread may have already migrated the string.
-  if (initial_shape.IsThin()) {
-    DCHECK(initial_shape.IsShared());
-    return;
-  }
+  // TODO(v8:12007): Support shared ThinStrings.
+  //
+  // Currently in-place migrations to ThinStrings are disabled for shared
+  // strings to unblock prototyping.
+  if (initial_shape.IsShared()) return;
+  DCHECK(!initial_shape.IsThin());
 
   bool has_pointers = initial_shape.IsIndirect();
   int old_size = this->SizeFromMap(initial_map);
@@ -336,7 +337,9 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
       break;
     case StringMigrationResult::kAnotherThreadMigrated:
       // Nothing to do.
-      return;
+      //
+      // TODO(v8:12007): Support shared ThinStrings.
+      UNREACHABLE();
   }
 
   ThinString thin = ThinString::cast(*this);
@@ -537,6 +540,10 @@ bool String::SupportsExternalization() {
   if (StringShape(*this).IsExternal()) {
     return false;
   }
+
+  // External strings in the shared heap conflicts with the heap sandbox at the
+  // moment. Disable it until supported.
+  if (InSharedHeap()) return false;
 
 #ifdef V8_COMPRESS_POINTERS
   // Small strings may not be in-place externalizable.
@@ -1552,6 +1559,35 @@ bool String::HasOneBytePrefix(base::Vector<const char> str) {
 namespace {
 
 template <typename Char>
+bool IsIdentifierVector(const base::Vector<Char>& vec) {
+  if (vec.empty()) {
+    return false;
+  }
+  if (!IsIdentifierStart(vec[0])) {
+    return false;
+  }
+  for (size_t i = 1; i < vec.size(); ++i) {
+    if (!IsIdentifierPart(vec[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+// static
+bool String::IsIdentifier(Isolate* isolate, Handle<String> str) {
+  str = String::Flatten(isolate, str);
+  DisallowGarbageCollection no_gc;
+  String::FlatContent flat = str->GetFlatContent(no_gc);
+  return flat.IsOneByte() ? IsIdentifierVector(flat.ToOneByteVector())
+                          : IsIdentifierVector(flat.ToUC16Vector());
+}
+
+namespace {
+
+template <typename Char>
 uint32_t HashString(String string, size_t start, int length, uint64_t seed,
                     PtrComprCageBase cage_base,
                     const SharedStringAccessGuardIfNeeded& access_guard) {
@@ -1629,7 +1665,7 @@ uint32_t String::ComputeAndSetHash(
 
   // Check the hash code is there.
   DCHECK(HasHashCode());
-  uint32_t result = raw_hash_field >> kHashShift;
+  uint32_t result = HashBits::decode(raw_hash_field);
   DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
   return result;
 }
@@ -1640,7 +1676,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     EnsureHash();  // Force computation of hash code.
     uint32_t field = raw_hash_field();
-    if ((field & kIsNotIntegerIndexMask) != 0) return false;
+    if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
@@ -1655,7 +1691,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     EnsureHash();  // Force computation of hash code.
     uint32_t field = raw_hash_field();
-    if ((field & kIsNotIntegerIndexMask) != 0) return false;
+    if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }

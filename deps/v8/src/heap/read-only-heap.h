@@ -147,13 +147,13 @@ class SoleReadOnlyHeap : public ReadOnlyHeap {
 // This class enables iterating over all read-only heap objects.
 class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
  public:
-  explicit ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap);
-  explicit ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space);
+  explicit ReadOnlyHeapObjectIterator(const ReadOnlyHeap* ro_heap);
+  explicit ReadOnlyHeapObjectIterator(const ReadOnlySpace* ro_space);
 
   HeapObject Next();
 
  private:
-  ReadOnlySpace* const ro_space_;
+  const ReadOnlySpace* const ro_space_;
   std::vector<ReadOnlyPage*>::const_iterator current_page_;
   Address current_addr_;
 };

@@ -245,6 +245,36 @@ err:
     return ret;
 }
 
+static int test_hmac_copy_uninited(void)
+{
+    const unsigned char key[24] = {0};
+    const unsigned char ct[166] = {0};
+    EVP_PKEY *pkey = NULL;
+    EVP_MD_CTX *ctx = NULL;
+    EVP_MD_CTX *ctx_tmp = NULL;
+    int res = 0;
+
+    if (!TEST_ptr(ctx = EVP_MD_CTX_new())
+            || !TEST_ptr(pkey = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                                     key, sizeof(key)))
+            || !TEST_true(EVP_DigestSignInit(ctx, NULL, EVP_sha1(), NULL, pkey))
+            || !TEST_ptr(ctx_tmp = EVP_MD_CTX_new())
+            || !TEST_true(EVP_MD_CTX_copy(ctx_tmp, ctx)))
+        goto err;
+    EVP_MD_CTX_free(ctx);
+    ctx = ctx_tmp;
+    ctx_tmp = NULL;
+
+    if (!TEST_true(EVP_DigestSignUpdate(ctx, ct, sizeof(ct))))
+        goto err;
+    res = 1;
+ err:
+    EVP_MD_CTX_free(ctx);
+    EVP_MD_CTX_free(ctx_tmp);
+    EVP_PKEY_free(pkey);
+    return res;
+}
+
 # ifndef OPENSSL_NO_MD5
 static char *pt(unsigned char *md, unsigned int len)
 {
@@ -266,6 +296,7 @@ int setup_tests(void)
     ADD_TEST(test_hmac_bad);
     ADD_TEST(test_hmac_run);
     ADD_TEST(test_hmac_copy);
+    ADD_TEST(test_hmac_copy_uninited);
     return 1;
 }
 

@@ -39,6 +39,9 @@ void ScriptContextTable::set_used(int used, ReleaseStoreTag tag) {
   set(kUsedSlotIndex, Smi::FromInt(used), tag);
 }
 
+ACCESSORS(ScriptContextTable, names_to_context_index, NameToIndexHashTable,
+          kHashTableOffset)
+
 // static
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
                                                Handle<ScriptContextTable> table,
@@ -109,9 +112,7 @@ void NativeContext::set(int index, Object value, WriteBarrierMode mode,
   Context::set(index, value, mode, tag);
 }
 
-void Context::set_scope_info(ScopeInfo scope_info, WriteBarrierMode mode) {
-  set(SCOPE_INFO_INDEX, scope_info, mode);
-}
+ACCESSORS(Context, scope_info, ScopeInfo, kScopeInfoOffset)
 
 Object Context::unchecked_previous() const { return get(PREVIOUS_INDEX); }
 
@@ -122,10 +123,6 @@ Context Context::previous() const {
 }
 void Context::set_previous(Context context, WriteBarrierMode mode) {
   set(PREVIOUS_INDEX, context, mode);
-}
-
-ScopeInfo Context::scope_info() const {
-  return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
 }
 
 Object Context::next_context_link() const {
@@ -271,13 +268,14 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 }
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   return reinterpret_cast<MicrotaskQueue*>(ReadExternalPointerField(
       kMicrotaskQueueOffset, isolate, kNativeContextMicrotaskQueueTag));
 }
 
 void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kMicrotaskQueueOffset, isolate);
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate,
+                           kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,
@@ -296,10 +294,6 @@ void NativeContext::synchronized_set_script_context_table(
 ScriptContextTable NativeContext::synchronized_script_context_table() const {
   return ScriptContextTable::cast(
       get(SCRIPT_CONTEXT_TABLE_INDEX, kAcquireLoad));
-}
-
-OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
-  return OSROptimizedCodeCache::cast(osr_code_cache());
 }
 
 void NativeContext::SetOptimizedCodeListHead(Object head) {

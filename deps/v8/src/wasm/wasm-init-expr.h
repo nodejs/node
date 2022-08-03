@@ -21,7 +21,9 @@ namespace wasm {
 struct WasmModule;
 class WasmFeatures;
 
-// Representation of an initializer expression.
+// Representation of an initializer expression. Unlike {ConstantExpression} in
+// wasm-module.h, this does not use {WireBytesRef}, i.e., it does not depend on
+// a wasm module's bytecode representation.
 class WasmInitExpr : public ZoneObject {
  public:
   enum Operator {
@@ -41,8 +43,6 @@ class WasmInitExpr : public ZoneObject {
     kArrayInit,
     kArrayInitStatic,
     kRttCanon,
-    kRttSub,
-    kRttFreshSub,
   };
 
   union Immediate {
@@ -147,25 +147,6 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr RttSub(Zone* zone, uint32_t index,
-                             WasmInitExpr supertype) {
-    WasmInitExpr expr(
-        kRttSub, zone->New<ZoneVector<WasmInitExpr>>(
-                     std::initializer_list<WasmInitExpr>{supertype}, zone));
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr RttFreshSub(Zone* zone, uint32_t index,
-                                  WasmInitExpr supertype) {
-    WasmInitExpr expr(
-        kRttFreshSub,
-        zone->New<ZoneVector<WasmInitExpr>>(
-            std::initializer_list<WasmInitExpr>{supertype}, zone));
-    expr.immediate_.index = index;
-    return expr;
-  }
-
   Immediate immediate() const { return immediate_; }
   Operator kind() const { return kind_; }
   const ZoneVector<WasmInitExpr>* operands() const { return operands_; }
@@ -209,10 +190,6 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kRttSub:
-      case kRttFreshSub:
-        return immediate().index == other.immediate().index &&
-               operands()[0] == other.operands()[0];
     }
   }
 

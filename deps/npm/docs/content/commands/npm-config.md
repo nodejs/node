@@ -156,6 +156,15 @@ The command to run for `npm edit` and `npm config edit`.
 
 When passed to `npm config` this refers to which config file to use.
 
+When set to "global" mode, packages are installed into the `prefix` folder
+instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
+
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
+* bin files are linked to `{prefix}/bin`
+* man pages are linked to `{prefix}/share/man`
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 

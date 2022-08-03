@@ -5,9 +5,7 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
-#include <map>
 #include <memory>
-#include <vector>
 
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
@@ -184,7 +182,21 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   explicit ReusableUnoptimizedCompileState(LocalIsolate* isolate);
   ~ReusableUnoptimizedCompileState();
 
-  Zone* zone() { return &zone_; }
+  // The AstRawString Zone stores the AstRawStrings in the AstValueFactory that
+  // can be reused across parses, and thereforce should stay alive between
+  // parses that reuse this reusable state and its AstValueFactory.
+  Zone* ast_raw_string_zone() { return &ast_raw_string_zone_; }
+
+  // The single parse Zone stores the data of a single parse, and can be cleared
+  // when that parse completes.
+  //
+  // This is in "reusable" state despite being wiped per-parse, because it
+  // allows us to reuse the Zone itself, and e.g. keep the same single parse
+  // Zone pointer in the AstValueFactory.
+  Zone* single_parse_zone() { return &single_parse_zone_; }
+
+  void NotifySingleParseCompleted() { single_parse_zone_.Reset(); }
+
   AstValueFactory* ast_value_factory() const {
     return ast_value_factory_.get();
   }
@@ -202,7 +214,8 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   Logger* logger_;
   LazyCompileDispatcher* dispatcher_;
   const AstStringConstants* ast_string_constants_;
-  Zone zone_;
+  Zone ast_raw_string_zone_;
+  Zone single_parse_zone_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
 };
 
@@ -226,7 +239,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                               ScriptOriginOptions origin_options,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
-  Zone* zone() const { return reusable_state_->zone(); }
+  Zone* zone() const { return reusable_state_->single_parse_zone(); }
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 

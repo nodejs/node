@@ -12,6 +12,7 @@ const hooks = initHooks();
 hooks.enable();
 
 const server = http.createServer(common.mustCall((req, res) => {
+  res.writeHead(200, { 'Connection': 'close' });
   res.end();
   server.close(common.mustCall());
 }));
@@ -44,7 +45,7 @@ process.on('exit', () => {
         triggerAsyncId: 'tcp:2' },
       { type: 'Timeout',
         id: 'timeout:1',
-        triggerAsyncId: 'httpincomingmessage:1' },
+        triggerAsyncId: null },
       { type: 'SHUTDOWNWRAP',
         id: 'shutdown:1',
         triggerAsyncId: 'tcp:2' } ]

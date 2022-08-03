@@ -181,6 +181,12 @@ parser.add_argument("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
+parser.add_argument("--openssl-conf-name",
+    action="store",
+    dest="openssl_conf_name",
+    default='nodejs_conf',
+    help="The OpenSSL config appname (config section name) used by Node.js")
+
 parser.add_argument('--openssl-default-cipher-list',
     action='store',
     dest='openssl_default_cipher_list',
@@ -423,11 +429,6 @@ static_optgroup.add_argument('--static-zoslib-gyp',
 
 parser.add_argument_group(static_optgroup)
 
-parser.add_argument('--systemtap-includes',
-    action='store',
-    dest='systemtap_includes',
-    help='directory containing systemtap header files')
-
 parser.add_argument('--tag',
     action='store',
     dest='tag',
@@ -506,18 +507,6 @@ parser.add_argument('--with-mips-float-abi',
     choices=valid_mips_float_abi,
     help='MIPS floating-point ABI ({0}) [default: %(default)s]'.format(
         ', '.join(valid_mips_float_abi)))
-
-parser.add_argument('--with-dtrace',
-    action='store_true',
-    dest='with_dtrace',
-    default=None,
-    help='build with DTrace (default is true on sunos and darwin)')
-
-parser.add_argument('--with-etw',
-    action='store_true',
-    dest='with_etw',
-    default=None,
-    help='build with ETW (default is true on Windows)')
 
 parser.add_argument('--use-largepages',
     action='store_true',
@@ -626,18 +615,6 @@ http2_optgroup.add_argument('--debug-nghttp2',
     help='build nghttp2 with DEBUGBUILD (default is false)')
 
 parser.add_argument_group(http2_optgroup)
-
-parser.add_argument('--without-dtrace',
-    action='store_true',
-    dest='without_dtrace',
-    default=None,
-    help='build without DTrace')
-
-parser.add_argument('--without-etw',
-    action='store_true',
-    dest='without_etw',
-    default=None,
-    help='build without ETW')
 
 parser.add_argument('--without-npm',
     action='store_true',
@@ -782,11 +759,25 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
+parser.add_argument('--v8-enable-short-builtin-calls',
+    action='store_true',
+    dest='v8_enable_short_builtin_calls',
+    default=None,
+    help='Enable V8 short builtin calls support. This feature is enabled '+
+         'on x86_64 platform by default.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
+
+parser.add_argument('--node-snapshot-main',
+    action='store',
+    dest='node_snapshot_main',
+    default=None,
+    help='Run a file when building the embedded snapshot. Currently ' +
+         'experimental.')
 
 # Create compile_commands.json in out/Debug and out/Release.
 parser.add_argument('-C',
@@ -1115,6 +1106,7 @@ def host_arch_win():
     'x86'    : 'ia32',
     'arm'    : 'arm',
     'mips'   : 'mips',
+    'ARM64'  : 'arm64'
   }
 
   return matchup.get(arch, 'ia32')
@@ -1216,13 +1208,25 @@ def configure_node(o):
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
+  if options.node_snapshot_main is not None:
+    if options.shared:
+      # This should be possible to fix, but we will need to refactor the
+      # libnode target to avoid building it twice.
+      error('--node-snapshot-main is incompatible with --shared')
+    if options.without_node_snapshot:
+      error('--node-snapshot-main is incompatible with ' +
+            '--without-node-snapshot')
+    if cross_compiling:
+      error('--node-snapshot-main is incompatible with cross compilation')
+    o['variables']['node_snapshot_main'] = options.node_snapshot_main
+
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
   else:
     o['variables']['node_use_node_snapshot'] = b(
       not cross_compiling and not options.shared)
 
-  if options.without_node_code_cache or options.node_builtin_modules_path:
+  if options.without_node_code_cache or options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
@@ -1278,22 +1282,6 @@ def configure_node(o):
 
   o['variables']['enable_lto'] = b(options.enable_lto)
 
-  if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
-    use_dtrace = not options.without_dtrace
-    # Don't enable by default on linux and freebsd
-    if flavor in ('linux', 'freebsd'):
-      use_dtrace = options.with_dtrace
-
-    if flavor == 'linux':
-      if options.systemtap_includes:
-        o['include_dirs'] += [options.systemtap_includes]
-    o['variables']['node_use_dtrace'] = b(use_dtrace)
-  elif options.with_dtrace:
-    raise Exception(
-       'DTrace is currently only supported on SunOS, MacOS or Linux systems.')
-  else:
-    o['variables']['node_use_dtrace'] = 'false'
-
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
          have no effect during build time. Support for mapping to large pages is
@@ -1303,14 +1291,6 @@ def configure_node(o):
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
-
-  # By default, enable ETW on Windows.
-  if flavor == 'win':
-    o['variables']['node_use_etw'] = b(not options.without_etw)
-  elif options.with_etw:
-    raise Exception('ETW is only supported on Windows.')
-  else:
-    o['variables']['node_use_etw'] = 'false'
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:
@@ -1419,6 +1399,7 @@ def configure_library(lib, output, pkgname=None):
 
 def configure_v8(o):
   o['variables']['v8_enable_webassembly'] = 1
+  o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
@@ -1430,6 +1411,7 @@ def configure_v8(o):
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
+  o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -1444,6 +1426,8 @@ def configure_v8(o):
   if flavor != 'linux' and options.v8_enable_hugepage:
     raise Exception('--v8-enable-hugepage is supported only on linux.')
   o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
+  if options.v8_enable_short_builtin_calls or o['variables']['target_arch'] == 'x64':
+    o['variables']['v8_enable_short_builtin_calls'] = 1
 
 def configure_openssl(o):
   variables = o['variables']
@@ -1456,6 +1440,8 @@ def configure_openssl(o):
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
+
+  o['defines'] += ['NODE_OPENSSL_CONF_NAME=' + options.openssl_conf_name]
 
   if options.without_ssl:
     def without_ssl_error(option):
@@ -1505,8 +1491,10 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
-  if options.openssl_is_fips and not options.shared_openssl:
+  if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
+
+  if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
   if options.shared_openssl:
@@ -1604,7 +1592,7 @@ def configure_intl(o):
 
   # write an empty file to start with
   write(icu_config_name, do_not_edit +
-        pprint.pformat(icu_config, indent=2) + '\n')
+        pprint.pformat(icu_config, indent=2, width=1024) + '\n')
 
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
@@ -1631,7 +1619,7 @@ def configure_intl(o):
     o['variables']['icu_small'] = b(True)
     locs = set(options.with_icu_locales.split(','))
     locs.add('root')  # must have root
-    o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
+    o['variables']['icu_locales'] = ','.join(str(loc) for loc in sorted(locs))
     # We will check a bit later if we can use the canned deps/icu-small
     o['variables']['icu_default_data'] = options.with_icu_default_data_dir or ''
   elif with_intl == 'full-icu':
@@ -1856,7 +1844,7 @@ def configure_intl(o):
 
   # write updated icu_config.gypi with a bunch of paths
   write(icu_config_name, do_not_edit +
-        pprint.pformat(icu_config, indent=2) + '\n')
+        pprint.pformat(icu_config, indent=2, width=1024) + '\n')
   return  # end of configure_intl
 
 def configure_inspector(o):
@@ -1985,7 +1973,7 @@ if make_global_settings:
 print_verbose(output)
 
 write('config.gypi', do_not_edit +
-      pprint.pformat(output, indent=2) + '\n')
+      pprint.pformat(output, indent=2, width=1024) + '\n')
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([pipes.quote(arg) for arg in original_argv]) + '\n')

@@ -112,6 +112,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<FixedArray> NewFixedArrayWithHoles(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocate a new fixed array with Smi(0) entries.
+  Handle<FixedArray> NewFixedArrayWithZeroes(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
@@ -157,7 +161,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
                                  int script_id);
 
-  Handle<ArrayList> NewArrayList(int size);
+  Handle<ArrayList> NewArrayList(
+      int size, AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);

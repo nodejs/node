@@ -3,6 +3,7 @@ const { resolve } = require('path')
 const { promisify } = require('util')
 const readFile = promisify(require('fs').readFile)
 
+const updateWorkspaces = require('../workspaces/update-workspaces.js')
 const BaseCommand = require('../base-command.js')
 
 class Version extends BaseCommand {
@@ -17,6 +18,7 @@ class Version extends BaseCommand {
     'sign-git-tag',
     'workspace',
     'workspaces',
+    'workspaces-update',
     'include-workspace-root',
   ]
 
@@ -81,6 +83,7 @@ class Version extends BaseCommand {
   async changeWorkspaces (args, filters) {
     const prefix = this.npm.config.get('tag-version-prefix')
     await this.setWorkspaces(filters)
+    const updatedWorkspaces = []
     for (const [name, path] of this.workspaces) {
       this.npm.output(name)
       const version = await libnpmversion(args[0], {
@@ -88,8 +91,10 @@ class Version extends BaseCommand {
         'git-tag-version': false,
         path,
       })
+      updatedWorkspaces.push(name)
       this.npm.output(`${prefix}${version}`)
     }
+    return this.update(updatedWorkspaces)
   }
 
   async list (results = {}) {
@@ -128,6 +133,22 @@ class Version extends BaseCommand {
       }
     }
     return this.list(results)
+  }
+
+  async update (workspaces) {
+    const {
+      config,
+      flatOptions,
+      localPrefix,
+    } = this.npm
+
+    await updateWorkspaces({
+      config,
+      flatOptions,
+      localPrefix,
+      npm: this.npm,
+      workspaces,
+    })
   }
 }
 

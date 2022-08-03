@@ -156,11 +156,8 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
   CanonicalHandleScope canonical(isolate);
 
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  const int argc_with_recv = (argc == kDontAdaptArgumentsSentinel)
-                                 ? 0
-                                 : argc + (kJSArgcIncludesReceiver ? 0 : 1);
-  compiler::CodeAssemblerState state(isolate, &zone, argc_with_recv,
-                                     CodeKind::BUILTIN, name, builtin);
+  compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
+                                     name, builtin);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
@@ -198,10 +195,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       Code code) {
   DCHECK_EQ(builtin, code.builtin_id());
-  builtins->set_code(builtin, code);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    builtins->set_codet(builtin, ToCodeT(code));
-  }
+  builtins->set_code(builtin, ToCodeT(code));
 }
 
 // static
@@ -232,7 +226,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     isolate->heap()->UnprotectAndRegisterMemoryChunk(
         code, UnprotectMemoryOrigin::kMainThread);
     bool flush_icache = false;
@@ -243,16 +237,16 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
                        Builtins::IsIsolateIndependent(target.builtin_id()));
         if (!target.is_builtin()) continue;
-        Code new_target = builtins->code(target.builtin_id());
+        CodeT new_target = builtins->code(target.builtin_id());
         rinfo->set_target_address(new_target.raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object(cage_base);
-        if (!object.IsCode(cage_base)) continue;
-        Code target = Code::cast(object);
+        if (!object.IsCodeT(cage_base)) continue;
+        CodeT target = CodeT::cast(object);
         if (!target.is_builtin()) continue;
-        Code new_target = builtins->code(target.builtin_id());
+        CodeT new_target = builtins->code(target.builtin_id());
         rinfo->set_target_object(isolate->heap(), new_target,
                                  UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
@@ -353,17 +347,12 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   ReplacePlaceholders(isolate);
 
+// TODO(v8:11880): avoid roundtrips between cdc and code.
 #define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  builtins->code(Builtin::k##Name).set_is_promise_rejection(true);
+  FromCodeT(builtins->code(Builtin::k##Name)).set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
-
-#define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
-  builtins->code(Builtin::k##Name).set_is_exception_caught(true);
-
-  BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
-#undef SET_EXCEPTION_CAUGHT_PREDICTION
 
   builtins->MarkInitialized();
 }

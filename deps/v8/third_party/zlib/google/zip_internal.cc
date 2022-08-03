@@ -342,7 +342,7 @@ zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag) {
                      zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 zipFile OpenFdForZipping(int zip_fd, int append_flag) {
   zlib_filefunc64_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);

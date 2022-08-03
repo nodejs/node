@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_locale_info
-
 // Check getter properties against the spec.
 function checkProperties(property) {
   let desc = Object.getOwnPropertyDescriptor(Intl.Locale.prototype, property);

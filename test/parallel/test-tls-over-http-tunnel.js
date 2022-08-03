@@ -62,7 +62,7 @@ const proxy = net.createServer((clientSocket) => {
                          'HTTP/1.1\r\n' +
                          'Proxy-Connections: keep-alive\r\n' +
                          `Host: localhost:${proxy.address().port}\r\n` +
-                         'Connection: close\r\n\r\n');
+                         'Connection: keep-alive\r\n\r\n');
 
       console.log('PROXY: got CONNECT request');
       console.log('PROXY: creating a tunnel');

@@ -149,9 +149,9 @@ npm command-line interface
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<pre lang="bash"><code>npm view [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;] [&lt;field&gt;[.subfield]...]
+<pre lang="bash"><code>npm view [&lt;package-spec&gt;] [&lt;field&gt;[.subfield]...]
 
-aliases: v, info, show
+aliases: info, show, v
 </code></pre>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -270,6 +270,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -284,6 +285,7 @@ will be prefixed with the version it applies to.</p>
 the field name.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
+<li><a href="../using-npm/package-spec.html">package spec</a></li>
 <li><a href="../commands/npm-search.html">npm search</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>

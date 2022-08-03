@@ -336,6 +336,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   static size_t GetAllProfilersMemorySize(Isolate* isolate);
 
   using ProfilingMode = v8::CpuProfilingMode;
+  using CpuProfilingResult = v8::CpuProfilingResult;
   using NamingMode = v8::CpuProfilingNamingMode;
   using LoggingMode = v8::CpuProfilingLoggingMode;
   using StartProfilingStatus = CpuProfilingStatus;
@@ -345,15 +346,20 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void set_use_precise_sampling(bool);
   void CollectSample();
   size_t GetEstimatedMemoryUsage() const;
-  StartProfilingStatus StartProfiling(
+  CpuProfilingResult StartProfiling(
+      CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfilingResult StartProfiling(
       const char* title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
-  StartProfilingStatus StartProfiling(
+  CpuProfilingResult StartProfiling(
       String title, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
+  CpuProfile* StopProfiling(ProfilerId id);
+
   int GetProfilesCount();
   CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();

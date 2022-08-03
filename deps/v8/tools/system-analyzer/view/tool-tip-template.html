@@ -8,6 +8,15 @@ found in the LICENSE file. -->
   :host {
     position: absolute;
     z-index: 100;
+    will-change: transform;
+  }
+
+  #body {
+    display: none;
+    position: absolute;
+    --tip-offset: 10px;
+    --tip-width: 10px;
+    --tip-height: 40px;
   }
 
   #content {
@@ -20,7 +29,6 @@ found in the LICENSE file. -->
     max-width: 400px;
     min-height: 100px;
     max-height: 400px;
-    overflow: auto;
     box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
   }
 
@@ -29,20 +37,11 @@ found in the LICENSE file. -->
   }
 
   .textContent {
-    font-family: monospace;
+    font-family: var(--code-font);
     white-space: pre;
     overflow-wrap: anywhere;
     overflow-x: hidden;
     max-width: 500px;
-  }
-
-  #body {
-    display: none;
-    position: absolute;
-    z-index: 99999;
-    --tip-offset: 10px;
-    --tip-width: 10px;
-    --tip-height: 40px;
   }
 
   #body.top {

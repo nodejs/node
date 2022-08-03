@@ -76,6 +76,10 @@ ReadOnlyRoots Factory::read_only_roots() const {
   return ReadOnlyRoots(isolate());
 }
 
+HeapAllocator* Factory::allocator() const {
+  return isolate()->heap()->allocator();
+}
+
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
     Handle<HeapObject> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.

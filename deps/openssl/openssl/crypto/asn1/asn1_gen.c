@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,6 @@
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/x509v3.h>
-#include "e_os.h" /* strncasecmp() */
 
 #define ASN1_GEN_FLAG           0x10000
 #define ASN1_GEN_FLAG_IMP       (ASN1_GEN_FLAG|1)
@@ -565,7 +564,8 @@ static int asn1_str2tag(const char *tagstr, int len)
 
     tntmp = tnst;
     for (i = 0; i < OSSL_NELEM(tnst); i++, tntmp++) {
-        if ((len == tntmp->len) && (strncasecmp(tntmp->strnam, tagstr, len) == 0))
+        if ((len == tntmp->len)
+            && (OPENSSL_strncasecmp(tntmp->strnam, tagstr, len) == 0))
             return tntmp->tag;
     }
 

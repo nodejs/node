@@ -75,16 +75,18 @@ const {
   });
 }
 
-// Function can only be wrapped once, also check length and name
+// Function can be wrapped many times, also check length and name
 {
   const m = (a, b = 1) => {};
   const n = performance.timerify(m);
   const o = performance.timerify(m);
   const p = performance.timerify(n);
-  assert.strictEqual(n, o);
-  assert.strictEqual(n, p);
+  assert.notStrictEqual(n, o);
+  assert.notStrictEqual(n, p);
+  assert.notStrictEqual(o, p);
   assert.strictEqual(n.length, m.length);
   assert.strictEqual(n.name, 'timerified m');
+  assert.strictEqual(p.name, 'timerified timerified m');
 }
 
 (async () => {
@@ -121,3 +123,22 @@ const {
     });
   });
 })().then(common.mustCall());
+
+// Regression tests for https://github.com/nodejs/node/issues/40623
+{
+  assert.strictEqual(performance.timerify(function func() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(function() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(() => {
+    return 1;
+  })(), 1);
+  class C {}
+  const wrap = performance.timerify(C);
+  assert.ok(new wrap() instanceof C);
+  assert.throws(() => wrap(), {
+    name: 'TypeError',
+  });
+}

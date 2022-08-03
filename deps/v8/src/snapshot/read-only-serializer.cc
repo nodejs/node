@@ -41,13 +41,17 @@ void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // in the root table, so don't try to serialize a reference and rely on the
   // below CHECK(!did_serialize_not_mapped_symbol_) to make sure it doesn't
   // serialize twice.
-  if (!IsNotMappedSymbol(*obj)) {
-    if (SerializeHotObject(obj)) return;
-    if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;
-    if (SerializeBackReference(obj)) return;
-  }
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (!IsNotMappedSymbol(raw)) {
+      if (SerializeHotObject(raw)) return;
+      if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
+      if (SerializeBackReference(raw)) return;
+    }
 
-  CheckRehashability(*obj);
+    CheckRehashability(raw);
+  }
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_);
@@ -74,7 +78,7 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
 
   ReadOnlyRoots(isolate()).Iterate(this);
 
-  if (reconstruct_read_only_object_cache_for_testing()) {
+  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
     ReconstructReadOnlyObjectCacheForTesting();
   }
 }

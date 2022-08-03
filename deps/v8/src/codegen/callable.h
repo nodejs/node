@@ -16,14 +16,14 @@ class Code;
 // Associates a body of code with an interface descriptor.
 class Callable final {
  public:
-  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
+  Callable(Handle<CodeT> code, CallInterfaceDescriptor descriptor)
       : code_(code), descriptor_(descriptor) {}
 
-  Handle<Code> code() const { return code_; }
+  Handle<CodeT> code() const { return code_; }
   CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
  private:
-  const Handle<Code> code_;
+  const Handle<CodeT> code_;
   const CallInterfaceDescriptor descriptor_;
 };
 

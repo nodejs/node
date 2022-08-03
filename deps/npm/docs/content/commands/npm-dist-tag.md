@@ -11,9 +11,9 @@ description: Modify package distribution tags
 <!-- see lib/commands/dist-tag.js -->
 
 ```bash
-npm dist-tag add <pkg>@<version> [<tag>]
-npm dist-tag rm <pkg> <tag>
-npm dist-tag ls [<pkg>]
+npm dist-tag add <package-spec (with version)> [<tag>]
+npm dist-tag rm <package-spec> <tag>
+npm dist-tag ls [<package-spec>]
 
 alias: dist-tags
 ```
@@ -27,11 +27,11 @@ alias: dist-tags
 
 Add, remove, and enumerate distribution tags on a package:
 
-* add: Tags the specified version of the package with the specified tag, or
-  the `--tag` config if not specified. If you have two-factor
-  authentication on auth-and-writes then you’ll need to include a one-time
-  password on the command line with `--otp <one-time password>`, or at the
-  OTP prompt.
+* add: Tags the specified version of the package with the specified tag,
+  or the `--tag` config if not specified. If you have two-factor
+  authentication on auth-and-writes then you’ll need to include a
+  one-time password on the command line with
+  `--otp <one-time password>`, or at the OTP prompt.
 
 * rm: Clear a tag that is no longer in use from the package. If you have
   two-factor authentication on auth-and-writes then you’ll need to include
@@ -159,6 +159,8 @@ When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
+This value is not exported to the environment for child processes.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
@@ -166,6 +168,7 @@ the specified workspaces, and not on the root project.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm publish](/commands/npm-publish)
 * [npm install](/commands/npm-install)
 * [npm dedupe](/commands/npm-dedupe)

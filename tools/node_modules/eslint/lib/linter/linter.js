@@ -1101,7 +1101,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
             )
         );
 
-        const ruleListeners = createRuleListeners(rule, ruleContext);
+        const ruleListeners = timing.enabled ? timing.time(ruleId, createRuleListeners)(rule, ruleContext) : createRuleListeners(rule, ruleContext);
 
         /**
          * Include `ruleId` in error logs
@@ -1117,6 +1117,10 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
                     throw e;
                 }
             };
+        }
+
+        if (typeof ruleListeners === "undefined" || ruleListeners === null) {
+            throw new Error(`The create() function for rule '${ruleId}' did not return an object.`);
         }
 
         // add all the selectors from the rule as listeners
@@ -1506,7 +1510,31 @@ class Linter {
             options.filterCodeBlock ||
             (blockFilename => blockFilename.endsWith(".js"));
         const originalExtname = path.extname(filename);
-        const messageLists = preprocess(text, filenameToExpose).map((block, i) => {
+
+        let blocks;
+
+        try {
+            blocks = preprocess(text, filenameToExpose);
+        } catch (ex) {
+
+            // If the message includes a leading line number, strip it:
+            const message = `Preprocessing error: ${ex.message.replace(/^line \d+:/iu, "").trim()}`;
+
+            debug("%s\n%s", message, ex.stack);
+
+            return [
+                {
+                    ruleId: null,
+                    fatal: true,
+                    severity: 2,
+                    message,
+                    line: ex.lineNumber,
+                    column: ex.column
+                }
+            ];
+        }
+
+        const messageLists = blocks.map((block, i) => {
             debug("A code block was found: %o", block.filename || "(unnamed)");
 
             // Keep the legacy behavior.
@@ -1784,13 +1812,36 @@ class Linter {
         const physicalFilename = options.physicalFilename || filenameToExpose;
         const text = ensureText(textOrSourceCode);
         const preprocess = options.preprocess || (rawText => [rawText]);
-
         const postprocess = options.postprocess || (messagesList => messagesList.flat());
         const filterCodeBlock =
             options.filterCodeBlock ||
             (blockFilename => blockFilename.endsWith(".js"));
         const originalExtname = path.extname(filename);
-        const messageLists = preprocess(text, filenameToExpose).map((block, i) => {
+
+        let blocks;
+
+        try {
+            blocks = preprocess(text, filenameToExpose);
+        } catch (ex) {
+
+            // If the message includes a leading line number, strip it:
+            const message = `Preprocessing error: ${ex.message.replace(/^line \d+:/iu, "").trim()}`;
+
+            debug("%s\n%s", message, ex.stack);
+
+            return [
+                {
+                    ruleId: null,
+                    fatal: true,
+                    severity: 2,
+                    message,
+                    line: ex.lineNumber,
+                    column: ex.column
+                }
+            ];
+        }
+
+        const messageLists = blocks.map((block, i) => {
             debug("A code block was found: %o", block.filename || "(unnamed)");
 
             // Keep the legacy behavior.

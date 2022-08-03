@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc --liftoff
-// Flags: --no-wasm-tier-up --experimental-liftoff-extern-ref
+// Flags: --expose-wasm --expose-gc --liftoff --no-wasm-tier-up
 // Flags: --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/externref.js");

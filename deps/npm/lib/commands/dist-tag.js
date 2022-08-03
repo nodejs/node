@@ -1,9 +1,10 @@
 const npa = require('npm-package-arg')
+const path = require('path')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackageName = require('../utils/read-package-name.js')
+const readPackage = require('read-package-json-fast')
 const BaseCommand = require('../base-command.js')
 
 class DistTag extends BaseCommand {
@@ -11,9 +12,9 @@ class DistTag extends BaseCommand {
   static params = ['workspace', 'workspaces', 'include-workspace-root']
   static name = 'dist-tag'
   static usage = [
-    'add <pkg>@<version> [<tag>]',
-    'rm <pkg> <tag>',
-    'ls [<pkg>]',
+    'add <package-spec (with version)> [<tag>]',
+    'rm <package-spec> <tag>',
+    'ls [<package-spec>]',
   ]
 
   static ignoreImplicitWorkspace = false
@@ -89,7 +90,7 @@ class DistTag extends BaseCommand {
     log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
 
     if (!spec.name || !version || !defaultTag) {
-      throw this.usageError()
+      throw this.usageError('must provide a spec with a name and version, and a tag to add')
     }
 
     const t = defaultTag.trim()
@@ -115,7 +116,7 @@ class DistTag extends BaseCommand {
       },
       spec,
     }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
     this.npm.output(`+${t}: ${spec.name}@${version}`)
   }
 
@@ -141,21 +142,21 @@ class DistTag extends BaseCommand {
       method: 'DELETE',
       spec,
     }
-    await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
+    await otplease(this.npm, reqOpts, reqOpts => regFetch(url, reqOpts))
     this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
 
   async list (spec, opts) {
     if (!spec) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw this.usageError()
       }
-      const pkg = await readPackageName(this.npm.prefix)
-      if (!pkg) {
+      const { name } = await readPackage(path.resolve(this.npm.prefix, 'package.json'))
+      if (!name) {
         throw this.usageError()
       }
 
-      return this.list(pkg, opts)
+      return this.list(name, opts)
     }
     spec = npa(spec)
 

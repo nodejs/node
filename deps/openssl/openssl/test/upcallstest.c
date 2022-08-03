@@ -68,6 +68,15 @@ static int obj_provider_init(const OSSL_CORE_HANDLE *handle,
     if (!c_obj_add_sigid(handle, SIGALG_OID, DIGEST_SN, SIG_LN))
         return 0;
 
+    /* additional tests checking empty digest algs are accepted, too */
+    if (!c_obj_add_sigid(handle, SIGALG_OID, "", SIG_LN))
+        return 0;
+    if (!c_obj_add_sigid(handle, SIGALG_OID, NULL, SIG_LN))
+        return 0;
+    /* checking wrong digest alg name is rejected: */
+    if (c_obj_add_sigid(handle, SIGALG_OID, "NonsenseAlg", SIG_LN))
+        return 0;
+
     return 1;
 }
 

@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "enforce consistent brace style for all control statements",
+            description: "Enforce consistent brace style for all control statements",
             recommended: false,
             url: "https://eslint.org/docs/rules/curly"
         },

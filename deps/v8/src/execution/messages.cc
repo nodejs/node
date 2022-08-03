@@ -15,9 +15,9 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
@@ -223,18 +223,17 @@ MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
   Handle<JSFunction> constructor = isolate->callsite_function();
   Handle<FixedArray> sites = isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
-    Handle<StackFrameInfo> frame(StackFrameInfo::cast(frames->get(i)), isolate);
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), isolate);
     Handle<JSObject> site;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, site,
         JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
         JSArray);
-    RETURN_ON_EXCEPTION(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            site, isolate->factory()->call_site_frame_info_symbol(), frame,
-            DONT_ENUM),
-        JSArray);
+    RETURN_ON_EXCEPTION(isolate,
+                        JSObject::SetOwnPropertyIgnoreAttributes(
+                            site, isolate->factory()->call_site_info_symbol(),
+                            frame, DONT_ENUM),
+                        JSArray);
     sites->set(i, *site);
   }
 
@@ -372,8 +371,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCStringLiteral("\n    at ");
 
-    Handle<StackFrameInfo> frame(StackFrameInfo::cast(elems->get(i)), isolate);
-    SerializeStackFrameInfo(isolate, frame, &builder);
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(elems->get(i)), isolate);
+    SerializeCallSiteInfo(isolate, frame, &builder);
 
     if (isolate->has_pending_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been
@@ -501,7 +500,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
 
   return ErrorUtils::Construct(isolate, target, new_target, message, options,
                                mode, caller,
-                               ErrorUtils::StackTraceCollection::kDetailed);
+                               ErrorUtils::StackTraceCollection::kEnabled);
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(
@@ -558,7 +557,8 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     Handle<Name> cause_string = isolate->factory()->cause_string();
     if (options->IsJSReceiver()) {
       Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
-      Maybe<bool> has_cause = JSObject::HasProperty(js_options, cause_string);
+      Maybe<bool> has_cause =
+          JSObject::HasProperty(isolate, js_options, cause_string);
       if (has_cause.IsNothing()) {
         DCHECK((isolate)->has_pending_exception());
         return MaybeHandle<JSObject>();
@@ -577,16 +577,12 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   }
 
   switch (stack_trace_collection) {
-    case StackTraceCollection::kDetailed:
-      RETURN_ON_EXCEPTION(
-          isolate, isolate->CaptureAndSetDetailedStackTrace(err), JSObject);
-      V8_FALLTHROUGH;
-    case StackTraceCollection::kSimple:
-      RETURN_ON_EXCEPTION(
-          isolate, isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
-          JSObject);
+    case StackTraceCollection::kEnabled:
+      RETURN_ON_EXCEPTION(isolate,
+                          isolate->CaptureAndSetErrorStack(err, mode, caller),
+                          JSObject);
       break;
-    case StackTraceCollection::kNone:
+    case StackTraceCollection::kDisabled:
       break;
   }
   return err;
@@ -712,7 +708,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
   // The call below can't fail because constructor is a builtin.
   DCHECK(constructor->shared().HasBuiltinId());
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
-                               mode, no_caller, StackTraceCollection::kDetailed)
+                               mode, no_caller, StackTraceCollection::kEnabled)
       .ToHandleChecked();
 }
 
@@ -994,6 +990,70 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     isolate->Throw(*error);
   }
   return ReadOnlyRoots(isolate).exception();
+}
+
+// static
+MaybeHandle<Object> ErrorUtils::GetFormattedStack(
+    Isolate* isolate, Handle<JSObject> error_object) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      isolate, error_object, isolate->factory()->error_stack_symbol());
+  if (error_stack->IsErrorStackData()) {
+    Handle<ErrorStackData> error_stack_data =
+        Handle<ErrorStackData>::cast(error_stack);
+    if (error_stack_data->HasFormattedStack()) {
+      return handle(error_stack_data->formatted_stack(), isolate);
+    }
+    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
+    Handle<Object> formatted_stack;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, formatted_stack,
+        FormatStackTrace(isolate, error_object,
+                         handle(error_stack_data->call_site_infos(), isolate)),
+        Object);
+    error_stack_data->set_formatted_stack(*formatted_stack);
+    return formatted_stack;
+  }
+
+  if (error_stack->IsFixedArray()) {
+    Handle<Object> formatted_stack;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, formatted_stack,
+        FormatStackTrace(isolate, error_object,
+                         Handle<FixedArray>::cast(error_stack)),
+        Object);
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSObject::SetProperty(isolate, error_object,
+                              isolate->factory()->error_stack_symbol(),
+                              formatted_stack, StoreOrigin::kMaybeKeyed,
+                              Just(ShouldThrow::kThrowOnError)),
+        Object);
+    return formatted_stack;
+  }
+
+  return error_stack;
+}
+
+// static
+void ErrorUtils::SetFormattedStack(Isolate* isolate,
+                                   Handle<JSObject> error_object,
+                                   Handle<Object> formatted_stack) {
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      isolate, error_object, isolate->factory()->error_stack_symbol());
+  if (error_stack->IsErrorStackData()) {
+    Handle<ErrorStackData> error_stack_data =
+        Handle<ErrorStackData>::cast(error_stack);
+    ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
+    error_stack_data->set_formatted_stack(*formatted_stack);
+  } else {
+    JSObject::SetProperty(isolate, error_object,
+                          isolate->factory()->error_stack_symbol(),
+                          formatted_stack, StoreOrigin::kMaybeKeyed,
+                          Just(ShouldThrow::kThrowOnError))
+        .Check();
+  }
 }
 
 }  // namespace internal

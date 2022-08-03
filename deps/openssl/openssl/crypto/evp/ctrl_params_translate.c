@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -36,8 +36,6 @@
 #include "crypto/evp.h"
 #include "crypto/dh.h"
 #include "crypto/ec.h"
-
-#include "e_os.h"                /* strcasecmp() for Windows */
 
 struct translation_ctx_st;       /* Forwarding */
 struct translation_st;           /* Forwarding */
@@ -905,7 +903,7 @@ static int fix_kdf_type(enum state state,
 
         /* Convert KDF type strings to numbers */
         for (; kdf_type_map->kdf_type_str != NULL; kdf_type_map++)
-            if (strcasecmp(ctx->p2, kdf_type_map->kdf_type_str) == 0) {
+            if (OPENSSL_strcasecmp(ctx->p2, kdf_type_map->kdf_type_str) == 0) {
                 ctx->p1 = kdf_type_map->kdf_type_num;
                 ret = 1;
                 break;
@@ -1004,8 +1002,11 @@ static int fix_dh_nid(enum state state,
         return 0;
 
     if (state == PRE_CTRL_TO_PARAMS) {
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(ctx->p1));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(ctx->p1))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
         ctx->p1 = 0;
     }
 
@@ -1028,16 +1029,24 @@ static int fix_dh_nid5114(enum state state,
 
     switch (state) {
     case PRE_CTRL_TO_PARAMS:
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(ctx->p1));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(ctx->p1))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
+
         ctx->p1 = 0;
         break;
 
     case PRE_CTRL_STR_TO_PARAMS:
         if (ctx->p2 == NULL)
             return 0;
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(atoi(ctx->p2)));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(atoi(ctx->p2)))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
+
         ctx->p1 = 0;
         break;
 
@@ -1063,7 +1072,11 @@ static int fix_dh_paramgen_type(enum state state,
         return 0;
 
     if (state == PRE_CTRL_STR_TO_PARAMS) {
-        ctx->p2 = (char *)ossl_dh_gen_type_id2name(atoi(ctx->p2));
+        if ((ctx->p2 = (char *)ossl_dh_gen_type_id2name(atoi(ctx->p2)))
+             == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
         ctx->p1 = strlen(ctx->p2);
     }
 
@@ -2458,10 +2471,11 @@ lookup_translation(struct translation_st *tmpl,
              * cmd name in the template.
              */
             if (item->ctrl_str != NULL
-                && strcasecmp(tmpl->ctrl_str, item->ctrl_str) == 0)
+                && OPENSSL_strcasecmp(tmpl->ctrl_str, item->ctrl_str) == 0)
                 ctrl_str = tmpl->ctrl_str;
             else if (item->ctrl_hexstr != NULL
-                     && strcasecmp(tmpl->ctrl_hexstr, item->ctrl_hexstr) == 0)
+                     && OPENSSL_strcasecmp(tmpl->ctrl_hexstr,
+                                           item->ctrl_hexstr) == 0)
                 ctrl_hexstr = tmpl->ctrl_hexstr;
             else
                 continue;
@@ -2489,7 +2503,8 @@ lookup_translation(struct translation_st *tmpl,
             if ((item->action_type != NONE
                  && tmpl->action_type != item->action_type)
                 || (item->param_key != NULL
-                    && strcasecmp(tmpl->param_key, item->param_key) != 0))
+                    && OPENSSL_strcasecmp(tmpl->param_key,
+                                          item->param_key) != 0))
                 continue;
         } else {
             return NULL;

@@ -60,7 +60,7 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function isOuterVariableInDestructing(name, initScope) {
 
-    if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
+    if (initScope.through.some(ref => ref.resolved && ref.resolved.name === name)) {
         return true;
     }
 
@@ -332,7 +332,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require `const` declarations for variables that are never reassigned after declared",
+            description: "Require `const` declarations for variables that are never reassigned after declared",
             recommended: false,
             url: "https://eslint.org/docs/rules/prefer-const"
         },

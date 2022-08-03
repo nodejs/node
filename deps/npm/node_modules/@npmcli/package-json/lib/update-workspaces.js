@@ -1,8 +1,9 @@
 const updateWorkspaces = ({ content, originalContent = {} }) => {
   const newWorkspaces = content.workspaces
 
-  if (!newWorkspaces)
+  if (!newWorkspaces) {
     return originalContent
+  }
 
   // validate workspaces content being appended
   const hasInvalidWorkspaces = () =>

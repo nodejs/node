@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "March 2022" "" ""
+.TH "SCRIPTS" "7" "July 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -37,7 +37,7 @@ situations\. These scripts happen in addition to the \fBpre<event>\fP, \fBpost<e
 \fB<event>\fP scripts\.
 .RS 0
 .IP \(bu 2
-\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP
+\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP, \fBdependencies\fP
 
 .RE
 .P
@@ -95,6 +95,15 @@ NOTE: "\fBnpm run pack\fP" is NOT the same as "\fBnpm pack\fP"\. "\fBnpm run pac
 Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
 
 .RE
+.P
+\fBdependencies\fR
+.RS 0
+.IP \(bu 2
+Runs AFTER any operations that modify the \fBnode_modules\fP directory IF changes occurred\.
+.IP \(bu 2
+Does NOT run in global mode
+
+.RE
 .SS Prepare and Prepublish
 .P
 \fBDeprecation Note: prepublish\fR
@@ -129,6 +138,9 @@ You don't need to rely on your users having \fBcurl\fP or \fBwget\fP or
 other system tools on the target machines\.
 
 .RE
+.SS Dependencies
+.P
+The \fBdependencies\fP script is run any time an \fBnpm\fP command causes changes to the \fBnode_modules\fP directory\. It is run AFTER the changes have been applied and the \fBpackage\.json\fP and \fBpackage\-lock\.json\fP files have been updated\.
 .SS Life Cycle Operation Order
 .SS npm help \fBcache add\fP
 .RS 0
@@ -290,6 +302,16 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBposttest\fP
 
 .RE
+.SS npm help \fBversion\fP
+.RS 0
+.IP \(bu 2
+\fBpreversion\fP
+.IP \(bu 2
+\fBversion\fP
+.IP \(bu 2
+\fBpostversion\fP
+
+.RE
 .SS A Note on a lack of npm help \fBuninstall\fP scripts
 .P
 While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
@@ -438,7 +460,7 @@ Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
 .IP \(bu 2
-Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepublish\fP
+Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepare\fP
 for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
 there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP

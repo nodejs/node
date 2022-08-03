@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,18 @@
 
 #if defined(__sun)
 # include <atomic.h>
+#endif
+
+#if defined(__apple_build_version__) && __apple_build_version__ < 6000000
+/*
+ * OS/X 10.7 and 10.8 had a weird version of clang which has __ATOMIC_ACQUIRE and
+ * __ATOMIC_ACQ_REL but which expects only one parameter for __atomic_is_lock_free()
+ * rather than two which has signature __atomic_is_lock_free(sizeof(_Atomic(T))).
+ * All of this makes impossible to use __atomic_is_lock_free here.
+ *
+ * See: https://github.com/llvm/llvm-project/commit/a4c2602b714e6c6edb98164550a5ae829b2de760
+ */
+#define BROKEN_CLANG_ATOMICS
 #endif
 
 #if defined(OPENSSL_THREADS) && !defined(CRYPTO_TDEBUG) && !defined(OPENSSL_SYS_WINDOWS)
@@ -188,7 +200,7 @@ int CRYPTO_THREAD_compare_id(CRYPTO_THREAD_ID a, CRYPTO_THREAD_ID b)
 
 int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
 {
-# if defined(__GNUC__) && defined(__ATOMIC_ACQ_REL)
+# if defined(__GNUC__) && defined(__ATOMIC_ACQ_REL) && !defined(BROKEN_CLANG_ATOMICS)
     if (__atomic_is_lock_free(sizeof(*val), val)) {
         *ret = __atomic_add_fetch(val, amount, __ATOMIC_ACQ_REL);
         return 1;
@@ -215,7 +227,7 @@ int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock)
 int CRYPTO_atomic_or(uint64_t *val, uint64_t op, uint64_t *ret,
                      CRYPTO_RWLOCK *lock)
 {
-# if defined(__GNUC__) && defined(__ATOMIC_ACQ_REL)
+# if defined(__GNUC__) && defined(__ATOMIC_ACQ_REL) && !defined(BROKEN_CLANG_ATOMICS)
     if (__atomic_is_lock_free(sizeof(*val), val)) {
         *ret = __atomic_or_fetch(val, op, __ATOMIC_ACQ_REL);
         return 1;
@@ -240,7 +252,7 @@ int CRYPTO_atomic_or(uint64_t *val, uint64_t op, uint64_t *ret,
 
 int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock)
 {
-# if defined(__GNUC__) && defined(__ATOMIC_ACQUIRE)
+# if defined(__GNUC__) && defined(__ATOMIC_ACQUIRE) && !defined(BROKEN_CLANG_ATOMICS)
     if (__atomic_is_lock_free(sizeof(*val), val)) {
         __atomic_load(val, ret, __ATOMIC_ACQUIRE);
         return 1;
@@ -261,26 +273,9 @@ int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock)
     return 1;
 }
 # ifndef FIPS_MODULE
-#  ifdef OPENSSL_SYS_UNIX
-
-static pthread_once_t fork_once_control = PTHREAD_ONCE_INIT;
-
-static void fork_once_func(void)
-{
-#   ifndef OPENSSL_NO_DEPRECATED_3_0
-    pthread_atfork(OPENSSL_fork_prepare,
-                   OPENSSL_fork_parent, OPENSSL_fork_child);
-#   endif
-}
-#  endif
-
 int openssl_init_fork_handlers(void)
 {
-#  ifdef OPENSSL_SYS_UNIX
-    if (pthread_once(&fork_once_control, fork_once_func) == 0)
-        return 1;
-#  endif
-    return 0;
+    return 1;
 }
 # endif /* FIPS_MODULE */
 

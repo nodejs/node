@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "March 2022" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2022" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -132,7 +132,7 @@ OSI \fIhttps://opensource\.org/licenses/alphabetical\fR approved\.
 .P
 If your package is licensed under multiple common licenses, use an SPDX
 license expression syntax version 2\.0
-string \fIhttps://www\.npmjs\.com/package/spdx\fR, like this:
+string \fIhttps://spdx\.dev/specifications/\fR, like this:
 .P
 .RS 2
 .nf
@@ -246,7 +246,7 @@ Both email and url are optional either way\.
 npm also sets a top\-level "maintainers" field with your npm user info\.
 .SS funding
 .P
-You can specify an object containing an URL that provides up\-to\-date
+You can specify an object containing a URL that provides up\-to\-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:
 .P
@@ -370,7 +370,7 @@ This should be a module relative to the root of your package folder\.
 For most modules, it makes the most sense to have a main script and often
 not much else\.
 .P
-If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the packages root folder\.
+If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the package's root folder\.
 .SS browser
 .P
 If your module is meant to be used client\-side the browser field should be
@@ -709,7 +709,7 @@ commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\f
 be any valid semver range or exact version, and npm will look for any tags
 or refs matching that range in the remote repository, much as it would for
 a registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
-specified, then \fBmaster\fP is used\.
+specified, then the default branch is used\.
 .P
 Examples:
 .P
@@ -721,6 +721,34 @@ git+https://isaacs@github\.com/npm/cli\.git
 git://github\.com/npm/cli\.git#v1\.0\.27
 .fi
 .RE
+.P
+When installing from a \fBgit\fP repository, the presence of certain fields in the
+\fBpackage\.json\fP will cause npm to believe it needs to perform a build\. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed\.
+.P
+This flow will occur if your git dependency uses \fBworkspaces\fP, or if any of the
+following scripts are present:
+.RS 0
+.IP \(bu 2
+\fBbuild\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+
+.RE
+.P
+If your git repository includes pre\-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation\.
 .SS GitHub URLs
 .P
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo":
@@ -772,6 +800,10 @@ in which case they will be normalized to a relative path and added to your
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry\.
+.P
+\fInote\fR: Packages linked by local path will not have their own
+dependencies installed when \fBnpm install\fP is ran in this case\.  You must
+run \fBnpm install\fP from inside the local path itself\.
 .SS devDependencies
 .P
 If someone is planning on downloading and using your module in their
@@ -892,14 +924,14 @@ Marking a peer dependency as optional ensures npm will not emit a warning
 if the \fBsoy\-milk\fP package is not installed on the host\. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed\.
-.SS bundledDependencies
+.SS bundleDependencies
 .P
 This defines an array of package names that will be bundled when publishing
 the package\.
 .P
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the \fBbundledDependencies\fP
+tarball file by specifying the package names in the \fBbundleDependencies\fP
 array and executing \fBnpm pack\fP\|\.
 .P
 For example:
@@ -911,7 +943,7 @@ If we define a package\.json like this:
 {
   "name": "awesome\-web\-framework",
   "version": "1\.0\.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super\-streams"
   ]
@@ -925,9 +957,9 @@ can be installed in a new project by executing \fBnpm install
 awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.  Note that the package names do not
 include any versions, as that information is specified in \fBdependencies\fP\|\.
 .P
-If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
+If this is spelled \fB"bundledDependencies"\fP, then that is also honored\.
 .P
-Alternatively, \fB"bundledDependencies"\fP can be defined as a boolean value\. A
+Alternatively, \fB"bundleDependencies"\fP can be defined as a boolean value\. A
 value of \fBtrue\fP will bundle all dependencies, a value of \fBfalse\fP will bundle
 none\.
 .SS optionalDependencies

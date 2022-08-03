@@ -28,7 +28,8 @@ bool VirtualAddressSpacePageAllocator::FreePages(void* ptr, size_t size) {
     size = result->second;
     resized_allocations_.erase(result);
   }
-  return vas_->FreePages(address, size);
+  vas_->FreePages(address, size);
+  return true;
 }
 
 bool VirtualAddressSpacePageAllocator::ReleasePages(void* ptr, size_t size,
@@ -46,7 +47,8 @@ bool VirtualAddressSpacePageAllocator::ReleasePages(void* ptr, size_t size,
   // Will fail if the allocation was resized previously, which is desired.
   Address address = reinterpret_cast<Address>(ptr);
   resized_allocations_.insert({address, size});
-  return vas_->DecommitPages(address + new_size, size - new_size);
+  CHECK(vas_->DecommitPages(address + new_size, size - new_size));
+  return true;
 }
 
 bool VirtualAddressSpacePageAllocator::SetPermissions(

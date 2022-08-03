@@ -8,18 +8,27 @@ const libexec = require('libnpmexec')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const PackageJson = require('@npmcli/package-json')
 const log = require('../utils/log-shim.js')
+const updateWorkspaces = require('../workspaces/update-workspaces.js')
 
 const getLocationMsg = require('../exec/get-workspace-location-msg.js')
 const BaseCommand = require('../base-command.js')
 
 class Init extends BaseCommand {
   static description = 'Create a package.json file'
-  static params = ['yes', 'force', 'workspace', 'workspaces', 'include-workspace-root']
+  static params = [
+    'yes',
+    'force',
+    'scope',
+    'workspace',
+    'workspaces',
+    'workspaces-update',
+    'include-workspace-root',
+  ]
+
   static name = 'init'
   static usage = [
-    '[--force|-f|--yes|-y|--scope]',
+    '<package-spec> (same as `npx <package-spec>)',
     '<@scope> (same as `npx <@scope>/create`)',
-    '[<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)',
   ]
 
   static ignoreImplicitWorkspace = false
@@ -46,11 +55,13 @@ class Init extends BaseCommand {
     const pkg = await rpj(resolve(this.npm.localPrefix, 'package.json'))
     const wPath = filterArg => resolve(this.npm.localPrefix, filterArg)
 
+    const workspacesPaths = []
     // npm-exec style, runs in the context of each workspace filter
     if (args.length) {
       for (const filterArg of filters) {
         const path = wPath(filterArg)
         await mkdirp(path)
+        workspacesPaths.push(path)
         await this.execCreate({ args, path })
         await this.setWorkspace({ pkg, workspacePath: path })
       }
@@ -61,17 +72,26 @@ class Init extends BaseCommand {
     for (const filterArg of filters) {
       const path = wPath(filterArg)
       await mkdirp(path)
+      workspacesPaths.push(path)
       await this.template(path)
       await this.setWorkspace({ pkg, workspacePath: path })
     }
+
+    // reify packages once all workspaces have been initialized
+    await this.update(workspacesPaths)
   }
 
   async execCreate ({ args, path }) {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
+    // Only a scope, possibly with a version
     if (/^@[^/]+$/.test(initerName)) {
-      packageName = initerName + '/create'
+      const [, scope, version] = initerName.split('@')
+      packageName = `@${scope}/create`
+      if (version) {
+        packageName = `${packageName}@${version}`
+      }
     } else {
       const req = npa(initerName)
       if (req.type === 'git' && req.hosted) {
@@ -195,6 +215,34 @@ class Init extends BaseCommand {
     })
 
     await pkgJson.save()
+  }
+
+  async update (workspacesPaths) {
+    // translate workspaces paths into an array containing workspaces names
+    const workspaces = []
+    for (const path of workspacesPaths) {
+      const pkgPath = resolve(path, 'package.json')
+      const { name } = await rpj(pkgPath)
+        .catch(() => ({}))
+
+      if (name) {
+        workspaces.push(name)
+      }
+    }
+
+    const {
+      config,
+      flatOptions,
+      localPrefix,
+    } = this.npm
+
+    await updateWorkspaces({
+      config,
+      flatOptions,
+      localPrefix,
+      npm: this.npm,
+      workspaces,
+    })
   }
 }
 

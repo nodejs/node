@@ -166,7 +166,7 @@ Use PBKDF2 to create a hex-encoded derived key from a password and salt:
 Use scrypt to create a hex-encoded derived key from a password and salt:
 
     openssl kdf -keylen 64 -kdfopt pass:password -kdfopt salt:NaCl \
-                -kdfopt N:1024 -kdfopt r:8 -kdfopt p:16 \
+                -kdfopt n:1024 -kdfopt r:8 -kdfopt p:16 \
                 -kdfopt maxmem_bytes:10485760 SCRYPT
 
 =head1 NOTES
@@ -195,7 +195,7 @@ Added in OpenSSL 3.0
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

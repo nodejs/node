@@ -163,50 +163,28 @@ assertDuration(Temporal.Duration.from("PT3,001M"),
 assertDuration(Temporal.Duration.from("PT3,006M"),
     0, 0, 0, 0, 0, 3, 0, 360, 0, 0, 1, false);
 
-assertThrows(() => Temporal.Duration.from("P2H"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("P2.5M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("P2,5M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("P2S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2.H3M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2,H3M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2.H3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2,H3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2.H0.5M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2,H0,5M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2.H0.5S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2,H0,5S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2H3.2M3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2H3,2M3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2H3.2M0.3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT2H3,2M0,3S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT.1H"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT,1H"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT.1M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT,1M"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT.1S"), RangeError,
-    "Invalid time value");
-assertThrows(() => Temporal.Duration.from("PT,1S"), RangeError,
-    "Invalid time value");
+assertThrows(() => Temporal.Duration.from("P2H"), RangeError);
+assertThrows(() => Temporal.Duration.from("P2.5M"), RangeError);
+assertThrows(() => Temporal.Duration.from("P2,5M"), RangeError);
+assertThrows(() => Temporal.Duration.from("P2S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2.H3M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2,H3M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2.H3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2,H3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2.H0.5M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2,H0,5M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2.H0.5S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2,H0,5S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2H3.2M3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2H3,2M3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2H3.2M0.3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT2H3,2M0,3S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT.1H"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT,1H"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT.1M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT,1M"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT.1S"), RangeError);
+assertThrows(() => Temporal.Duration.from("PT,1S"), RangeError);
 
 assertDuration(Temporal.Duration.from(
     {years: 0, months: 0, weeks: 0, days: 0,

@@ -41,9 +41,7 @@ class SecureContext final : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static SecureContext* Create(Environment* env);
 
-  SSL_CTX* operator*() const { return ctx_.get(); }
-
-  SSL_CTX* ssl_ctx() const { return ctx_.get(); }
+  const SSLCtxPointer& ctx() const { return ctx_; }
 
   SSLPointer CreateSSL();
 
@@ -57,14 +55,6 @@ class SecureContext final : public BaseObject {
   SET_MEMORY_INFO_NAME(SecureContext)
   SET_SELF_SIZE(SecureContext)
 
-  SSLCtxPointer ctx_;
-  X509Pointer cert_;
-  X509Pointer issuer_;
-#ifndef OPENSSL_NO_ENGINE
-  bool client_cert_engine_provided_ = false;
-  EnginePointer private_key_engine_;
-#endif  // !OPENSSL_NO_ENGINE
-
   static const int kMaxSessionSize = 10 * 1024;
 
   // See TicketKeyCallback
@@ -73,10 +63,6 @@ class SecureContext final : public BaseObject {
   static const int kTicketKeyAESIndex = 2;
   static const int kTicketKeyNameIndex = 3;
   static const int kTicketKeyIVIndex = 4;
-
-  unsigned char ticket_key_name_[16];
-  unsigned char ticket_key_aes_[16];
-  unsigned char ticket_key_hmac_[16];
 
  protected:
   // OpenSSL structures are opaque. This is sizeof(SSL_CTX) for OpenSSL 1.1.1b:
@@ -139,6 +125,19 @@ class SecureContext final : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap);
   void Reset();
+
+ private:
+  SSLCtxPointer ctx_;
+  X509Pointer cert_;
+  X509Pointer issuer_;
+#ifndef OPENSSL_NO_ENGINE
+  bool client_cert_engine_provided_ = false;
+  EnginePointer private_key_engine_;
+#endif  // !OPENSSL_NO_ENGINE
+
+  unsigned char ticket_key_name_[16];
+  unsigned char ticket_key_aes_[16];
+  unsigned char ticket_key_hmac_[16];
 };
 
 }  // namespace crypto

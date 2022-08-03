@@ -115,7 +115,7 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_MD>.
 The number for this operation is B<OSSL_OP_DIGEST>.
 The functions the provider can offer are described in
-L<provider-digest(7)>
+L<provider-digest(7)>.
 
 =item Symmetric ciphers
 
@@ -123,7 +123,7 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_CIPHER>.
 The number for this operation is B<OSSL_OP_CIPHER>.
 The functions the provider can offer are described in
-L<provider-cipher(7)>
+L<provider-cipher(7)>.
 
 =item Message Authentication Code (MAC)
 
@@ -131,7 +131,7 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_MAC>.
 The number for this operation is B<OSSL_OP_MAC>.
 The functions the provider can offer are described in
-L<provider-mac(7)>
+L<provider-mac(7)>.
 
 =item Key Derivation Function (KDF)
 
@@ -139,7 +139,7 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_KDF>.
 The number for this operation is B<OSSL_OP_KDF>.
 The functions the provider can offer are described in
-L<provider-kdf(7)>
+L<provider-kdf(7)>.
 
 =item Key Exchange
 
@@ -147,7 +147,7 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_KEYEXCH>.
 The number for this operation is B<OSSL_OP_KEYEXCH>.
 The functions the provider can offer are described in
-L<provider-keyexch(7)>
+L<provider-keyexch(7)>.
 
 =item Asymmetric Ciphers
 
@@ -155,13 +155,13 @@ In the OpenSSL libraries, the corresponding method object is
 B<EVP_ASYM_CIPHER>.
 The number for this operation is B<OSSL_OP_ASYM_CIPHER>.
 The functions the provider can offer are described in
-L<provider-asym_cipher(7)>
+L<provider-asym_cipher(7)>.
 
 =item Asymmetric Key Encapsulation
 
 In the OpenSSL libraries, the corresponding method object is B<EVP_KEM>.
 The number for this operation is B<OSSL_OP_KEM>.
-The functions the provider can offer are described in L<provider-kem(7)>
+The functions the provider can offer are described in L<provider-kem(7)>.
 
 =item Encoding
 
@@ -169,7 +169,39 @@ In the OpenSSL libraries, the corresponding method object is
 B<OSSL_ENCODER>.
 The number for this operation is B<OSSL_OP_ENCODER>.
 The functions the provider can offer are described in
-L<provider-encoder(7)>
+L<provider-encoder(7)>.
+
+=item Decoding
+
+In the OpenSSL libraries, the corresponding method object is
+B<OSSL_DECODER>.
+The number for this operation is B<OSSL_OP_DECODER>.
+The functions the provider can offer are described in
+L<provider-decoder(7)>.
+
+=item Random Number Generation
+
+The number for this operation is B<OSSL_OP_RAND>.
+The functions the provider can offer for random number generation are described
+in L<provider-rand(7)>.
+
+=item Key Management
+
+The number for this operation is B<OSSL_OP_KEYMGMT>.
+The functions the provider can offer for key management are described in
+L<provider-keymgmt(7)>.
+
+=item Signing and Signature Verification
+
+The number for this operation is B<OSSL_OP_SIGNATURE>.
+The functions the provider can offer for digital signatures are described in
+L<provider-signature(7)>.
+
+=item Store Management
+
+The number for this operation is B<OSSL_OP_STORE>.
+The functions the provider can offer for store management are described in
+L<provider-storemgmt(7)>.
 
 =back
 
@@ -222,7 +254,7 @@ introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

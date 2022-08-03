@@ -454,6 +454,8 @@ def GetFlavor(params):
         return "aix"
     if sys.platform.startswith(("os390", "zos")):
         return "zos"
+    if sys.platform == "os400":
+        return "os400"
 
     return "linux"
 
@@ -463,9 +465,13 @@ def CopyTool(flavor, out_path, generator_flags={}):
   to |out_path|."""
     # aix and solaris just need flock emulation. mac and win use more complicated
     # support scripts.
-    prefix = {"aix": "flock", "solaris": "flock", "mac": "mac", "win": "win"}.get(
-        flavor, None
-    )
+    prefix = {
+        "aix": "flock",
+        "os400": "flock",
+        "solaris": "flock",
+        "mac": "mac",
+        "win": "win",
+    }.get(flavor, None)
     if not prefix:
         return
 

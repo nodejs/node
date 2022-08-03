@@ -20,9 +20,9 @@ const shallowHosts = new Set([
 // we have to use url.parse until we add the same shim that hosted-git-info has
 // to handle scp:// urls
 const { parse } = require('url') // eslint-disable-line node/no-deprecated-api
-const { basename, resolve } = require('path')
+const path = require('path')
 
-const revs = require('./revs.js')
+const getRevs = require('./revs.js')
 const spawn = require('./spawn.js')
 const { isWindows } = require('./utils.js')
 
@@ -31,7 +31,7 @@ const fs = require('fs')
 const mkdirp = require('mkdirp')
 
 module.exports = (repo, ref = 'HEAD', target = null, opts = {}) =>
-  revs(repo, opts).then(revs => clone(
+  getRevs(repo, opts).then(revs => clone(
     repo,
     revs,
     ref,
@@ -48,7 +48,7 @@ const maybeShallow = (repo, opts) => {
 }
 
 const defaultTarget = (repo, /* istanbul ignore next */ cwd = process.cwd()) =>
-  resolve(cwd, basename(repo.replace(/[/\\]?\.git$/, '')))
+  path.resolve(cwd, path.basename(repo.replace(/[/\\]?\.git$/, '')))
 
 const clone = (repo, revs, ref, revDoc, target, opts) => {
   if (!revDoc) {

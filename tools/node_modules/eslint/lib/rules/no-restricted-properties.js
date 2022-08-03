@@ -17,7 +17,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow certain properties on certain objects",
+            description: "Disallow certain properties on certain objects",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-restricted-properties"
         },

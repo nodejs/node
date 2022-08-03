@@ -127,7 +127,6 @@ template <typename OUTPUT_T, typename INPUT_T>
 OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
                        Func test_generator) {
   DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
-  DCHECK(sizeof(OUTPUT_T) == sizeof(INPUT_T));
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

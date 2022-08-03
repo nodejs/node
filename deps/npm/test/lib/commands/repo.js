@@ -188,10 +188,10 @@ const openUrl = async (npm, url, errMsg) => {
 }
 t.afterEach(() => opened = {})
 
-const loadMockNpm = async (t, prefix) => {
+const loadMockNpm = async (t, prefixDir) => {
   const res = await _loadMockNpm(t, {
     mocks: { '../../lib/utils/open-url.js': openUrl },
-    testdir: prefix,
+    prefixDir,
   })
   return res
 }
@@ -310,5 +310,13 @@ t.test('workspaces', async t => {
       /workspace-x/
     )
     t.match({}, opened, 'opened no repo urls')
+  })
+
+  t.test('package arg and workspace', async (t) => {
+    npm.config.set('workspace', ['workspace-a'])
+    await npm.exec('repo', ['.'])
+    t.match({
+      'https://github.com/npm/workspaces-test': 1,
+    }, opened, 'opened url for package arg, not workspace')
   })
 })

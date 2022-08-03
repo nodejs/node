@@ -26,7 +26,6 @@ namespace internal {
 class EmbedderState;
 class ExternalCallbackScope;
 class Isolate;
-class PromiseOnStack;
 class Simulator;
 
 class ThreadLocalTop {
@@ -118,6 +117,7 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
+  uintptr_t num_frames_above_pending_handler_;
 
   Address last_api_entry_;
 
@@ -138,11 +138,6 @@ class ThreadLocalTop {
   Address handler_;
   // C function that was called at c entry.
   Address c_function_;
-
-  // Throwing an exception may cause a Promise rejection.  For this purpose
-  // we keep track of a stack of nested promises and the corresponding
-  // try-catch handlers.
-  PromiseOnStack* promise_on_stack_;
 
   // Simulator field is always present to get predictable layout.
   Simulator* simulator_;

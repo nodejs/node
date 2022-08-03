@@ -122,117 +122,7 @@ export class CSSColor {
   }
 }
 
-export class DOM {
-  static element(type, options) {
-    const node = document.createElement(type);
-    if (options !== undefined) {
-      if (typeof options === 'string') {
-        // Old behaviour: options = class string
-        node.className = options;
-      } else if (Array.isArray(options)) {
-        // Old behaviour: options = class array
-        DOM.addClasses(node, options);
-      } else {
-        // New behaviour: options = attribute dict
-        for (const [key, value] of Object.entries(options)) {
-          if (key == 'className') {
-            node.className = value;
-          } else if (key == 'classList') {
-            node.classList = value;
-          } else if (key == 'textContent') {
-            node.textContent = value;
-          } else if (key == 'children') {
-            for (const child of value) {
-              node.appendChild(child);
-            }
-          } else {
-            node.setAttribute(key, value);
-          }
-        }
-      }
-    }
-    return node;
-  }
-
-  static addClasses(node, classes) {
-    const classList = node.classList;
-    if (typeof classes === 'string') {
-      classList.add(classes);
-    } else {
-      for (let i = 0; i < classes.length; i++) {
-        classList.add(classes[i]);
-      }
-    }
-    return node;
-  }
-
-  static text(string) {
-    return document.createTextNode(string);
-  }
-
-  static button(label, clickHandler) {
-    const button = DOM.element('button');
-    button.innerText = label;
-    button.onclick = clickHandler;
-    return button;
-  }
-
-  static div(options) {
-    return this.element('div', options);
-  }
-
-  static span(options) {
-    return this.element('span', options);
-  }
-
-  static table(options) {
-    return this.element('table', options);
-  }
-
-  static tbody(options) {
-    return this.element('tbody', options);
-  }
-
-  static td(textOrNode, className) {
-    const node = this.element('td');
-    if (typeof textOrNode === 'object') {
-      node.appendChild(textOrNode);
-    } else if (textOrNode) {
-      node.innerText = textOrNode;
-    }
-    if (className) node.className = className;
-    return node;
-  }
-
-  static tr(classes) {
-    return this.element('tr', classes);
-  }
-
-  static removeAllChildren(node) {
-    let range = document.createRange();
-    range.selectNodeContents(node);
-    range.deleteContents();
-  }
-
-  static defineCustomElement(
-      path, nameOrGenerator, maybeGenerator = undefined) {
-    let generator = nameOrGenerator;
-    let name = nameOrGenerator;
-    if (typeof nameOrGenerator == 'function') {
-      console.assert(maybeGenerator === undefined);
-      name = path.substring(path.lastIndexOf('/') + 1, path.length);
-    } else {
-      console.assert(typeof nameOrGenerator == 'string');
-      generator = maybeGenerator;
-    }
-    path = path + '-template.html';
-    fetch(path)
-        .then(stream => stream.text())
-        .then(
-            templateText =>
-                customElements.define(name, generator(templateText)));
-  }
-}
+import {DOM} from '../../js/web-api-helper.mjs';
 
 const SVGNamespace = 'http://www.w3.org/2000/svg';
 export class SVG {
@@ -259,45 +149,7 @@ export function $(id) {
   return document.querySelector(id)
 }
 
-export class V8CustomElement extends HTMLElement {
-  _updateTimeoutId;
-  _updateCallback = this.forceUpdate.bind(this);
-
-  constructor(templateText) {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  querySelectorAll(query) {
-    return this.shadowRoot.querySelectorAll(query);
-  }
-
-  requestUpdate(useAnimation = false) {
-    if (useAnimation) {
-      window.cancelAnimationFrame(this._updateTimeoutId);
-      this._updateTimeoutId =
-          window.requestAnimationFrame(this._updateCallback);
-    } else {
-      // Use timeout tasks to asynchronously update the UI without blocking.
-      clearTimeout(this._updateTimeoutId);
-      const kDelayMs = 5;
-      this._updateTimeoutId = setTimeout(this._updateCallback, kDelayMs);
-    }
-  }
-
-  forceUpdate() {
-    this._update();
-  }
-
-  _update() {
-    throw Error('Subclass responsibility');
-  }
-}
+import {V8CustomElement} from '../../js/web-api-helper.mjs'
 
 export class CollapsableElement extends V8CustomElement {
   constructor(templateText) {
@@ -319,7 +171,6 @@ export class CollapsableElement extends V8CustomElement {
       this._closer.checked = true;
       this._requestUpdateIfVisible();
     }
-    this.scrollIntoView();
   }
 
   show() {
@@ -327,7 +178,7 @@ export class CollapsableElement extends V8CustomElement {
       this._closer.checked = false;
       this._requestUpdateIfVisible();
     }
-    this.scrollIntoView();
+    this.scrollIntoView({behavior: 'smooth', block: 'center'});
   }
 
   requestUpdate(useAnimation = false) {
@@ -468,3 +319,4 @@ export function gradientStopsFromGroups(
 }
 
 export * from '../helper.mjs';
+export * from '../../js/web-api-helper.mjs'

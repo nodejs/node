@@ -28,7 +28,8 @@ namespace internal {
 // We also overlay the result and reactions fields on the JSPromise, since
 // the reactions are only necessary for pending promises, whereas the result
 // is only meaningful for settled promises.
-class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
+class JSPromise
+    : public TorqueGeneratedJSPromise<JSPromise, JSObjectWithEmbedderSlots> {
  public:
   // [result]: Checks that the promise is settled and returns the result.
   inline Object result() const;

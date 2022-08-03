@@ -48,16 +48,27 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
   Address AllocatePages(Address hint, size_t size, size_t alignment,
                         PagePermissions permissions) override;
 
-  bool FreePages(Address address, size_t size) override;
+  void FreePages(Address address, size_t size) override;
+
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  void FreeSharedPages(Address address, size_t size) override;
 
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override;
+
+  bool AllocateGuardRegion(Address address, size_t size) override;
+
+  void FreeGuardRegion(Address address, size_t size) override;
 
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_permissions) override;
+      PagePermissions max_page_permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override;
 
@@ -86,6 +97,13 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   bool UnmappedRegionContains(Address addr, size_t length) const {
     return Contains(unmapped_base(), unmapped_size(), addr, length);
+  }
+
+  // Helper function to define a limit for the size of allocations in the
+  // unmapped region. This limit makes it possible to estimate the expected
+  // runtime of some loops in the Allocate methods.
+  bool IsUsableSizeForUnmappedRegion(size_t size) const {
+    return size <= (unmapped_size() / 2);
   }
 
   // Size of the mapped region located at the beginning of this address space.

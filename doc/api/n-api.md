@@ -1187,10 +1187,13 @@ added:
   - v16.14.0
 -->
 
+> Stability: 1 - Experimental
+
 ````c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
                                                     const char* msg);
+```
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] code`: Optional error code to be set on the error.
@@ -1304,6 +1307,8 @@ added:
   - v17.2.0
   - v16.14.0
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
@@ -2506,8 +2511,9 @@ of the ECMAScript Language Specification.
 #### `node_api_symbol_for`
 
 <!-- YAML
-added: v17.5.0
-napiVersion: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -5122,6 +5128,11 @@ _Caution_: The optional returned reference (if obtained) should be deleted via
 invocation. If it is deleted before then, then the finalize callback may never
 be invoked. Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct disposal of the reference.
+
+Finalizer callbacks may be deferred, leaving a window where the object has
+been garbage collected (and the weak reference is invalid) but the finalizer
+hasn't been called yet. When using `napi_get_reference_value()` on weak
+references returned by `napi_wrap()`, you should still handle an empty result.
 
 Calling `napi_wrap()` a second time on an object will return an error. To
 associate another native instance with the object, use `napi_remove_wrap()`

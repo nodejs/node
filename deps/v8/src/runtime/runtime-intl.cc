@@ -36,8 +36,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_FormatList) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSListFormat, list_format, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, list, 1);
+  Handle<JSListFormat> list_format = args.at<JSListFormat>(0);
+  Handle<FixedArray> list = args.at<FixedArray>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, JSListFormat::FormatList(isolate, list_format, list));
 }
@@ -46,8 +46,8 @@ RUNTIME_FUNCTION(Runtime_FormatList) {
 RUNTIME_FUNCTION(Runtime_FormatListToParts) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSListFormat, list_format, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, list, 1);
+  Handle<JSListFormat> list_format = args.at<JSListFormat>(0);
+  Handle<FixedArray> list = args.at<FixedArray>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, JSListFormat::FormatListToParts(isolate, list_format, list));
 }
@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_FormatListToParts) {
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  Handle<String> s = args.at<String>(0);
   s = String::Flatten(isolate, s);
   RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToLower(isolate, s));
 }
@@ -63,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  Handle<String> s = args.at<String>(0);
   s = String::Flatten(isolate, s);
   RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, s));
 }

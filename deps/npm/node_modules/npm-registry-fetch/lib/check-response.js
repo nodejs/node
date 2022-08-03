@@ -4,6 +4,7 @@ const errors = require('./errors.js')
 const { Response } = require('minipass-fetch')
 const defaultOpts = require('./default-opts.js')
 const log = require('proc-log')
+const cleanUrl = require('./clean-url.js')
 
 /* eslint-disable-next-line max-len */
 const moreInfoUrl = 'https://github.com/npm/cli/wiki/No-auth-for-URI,-but-auth-present-for-scoped-registry'
@@ -45,19 +46,7 @@ function logRequest (method, res, startTime) {
   const attemptStr = attempt && attempt > 1 ? ` attempt #${attempt}` : ''
   const cacheStatus = res.headers.get('x-local-cache-status')
   const cacheStr = cacheStatus ? ` (cache ${cacheStatus})` : ''
-
-  let urlStr
-  try {
-    const { URL } = require('url')
-    const url = new URL(res.url)
-    if (url.password) {
-      url.password = '***'
-    }
-
-    urlStr = url.toString()
-  } catch (er) {
-    urlStr = res.url
-  }
+  const urlStr = cleanUrl(res.url)
 
   log.http(
     'fetch',

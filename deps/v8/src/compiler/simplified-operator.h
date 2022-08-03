@@ -81,9 +81,13 @@ struct FieldAccess {
   ConstFieldInfo const_field_info;      // the constness of this access, and the
                                     // field owner map, if the access is const
   bool is_store_in_literal;  // originates from a kStoreInLiteral access
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
 #endif
+  bool maybe_initializing_or_transitioning_store;  // store is potentially
+                                                   // initializing a newly
+                                                   // allocated object or part
+                                                   // of a map transition.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -92,18 +96,18 @@ struct FieldAccess {
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
         const_field_info(ConstFieldInfo::None()),
-        is_store_in_literal(false) {}
+        is_store_in_literal(false),
+        maybe_initializing_or_transitioning_store(false) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
-              bool is_store_in_literal = false
-#ifdef V8_HEAP_SANDBOX
-              ,
-              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag
+              bool is_store_in_literal = false,
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
 #endif
-              )
+              bool maybe_initializing_or_transitioning_store = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -112,12 +116,12 @@ struct FieldAccess {
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
         const_field_info(const_field_info),
-        is_store_in_literal(is_store_in_literal)
-#ifdef V8_HEAP_SANDBOX
-        ,
-        external_pointer_tag(external_pointer_tag)
+        is_store_in_literal(is_store_in_literal),
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+        external_pointer_tag(external_pointer_tag),
 #endif
-  {
+        maybe_initializing_or_transitioning_store(
+            maybe_initializing_or_transitioning_store) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
         machine_type.IsMapWord(),
@@ -433,41 +437,6 @@ size_t hash_value(CheckMapsParameters const&);
 std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
-    V8_WARN_UNUSED_RESULT;
-
-// A descriptor for dynamic map checks.
-class DynamicCheckMapsParameters final {
- public:
-  enum ICState { kMonomorphic, kPolymorphic };
-
-  DynamicCheckMapsParameters(CheckMapsFlags flags, Handle<Object> handler,
-                             ZoneHandleSet<Map> const& maps,
-                             const FeedbackSource& feedback)
-      : flags_(flags), handler_(handler), maps_(maps), feedback_(feedback) {}
-
-  CheckMapsFlags flags() const { return flags_; }
-  Handle<Object> handler() const { return handler_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
-  FeedbackSource const& feedback() const { return feedback_; }
-  ICState state() const {
-    return maps_.size() == 1 ? ICState::kMonomorphic : ICState::kPolymorphic;
-  }
-
- private:
-  CheckMapsFlags const flags_;
-  Handle<Object> const handler_;
-  ZoneHandleSet<Map> const maps_;
-  FeedbackSource const feedback_;
-};
-
-bool operator==(DynamicCheckMapsParameters const&,
-                DynamicCheckMapsParameters const&);
-
-size_t hash_value(DynamicCheckMapsParameters const&);
-
-std::ostream& operator<<(std::ostream&, DynamicCheckMapsParameters const&);
-
-DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
@@ -851,20 +820,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* TypeOf();
 
-  // Adds the given delta to the current feedback vector's interrupt budget,
-  // and calls the runtime profiler in case the budget is exhausted.  A note on
-  // the delta parameter: the interrupt budget mechanism originates in the
-  // interpreter and thus still refers to 'bytecodes' even though we are
-  // generating native code. The interrupt budget essentially corresponds to
-  // the number of bytecodes we can execute before calling the profiler. The
-  // delta parameter represents the executed bytecodes since the last update.
-  const Operator* UpdateInterruptBudget(int delta);
-
-  // Takes the current feedback vector as input 0, and generates a check of the
-  // vector's marker. Depending on the marker's value, we either do nothing,
-  // trigger optimized compilation, or install a finished code object.
-  const Operator* TierUpCheck();
-
   const Operator* ToBoolean();
 
   const Operator* StringConcat();
@@ -937,9 +892,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
-  const Operator* DynamicCheckMaps(CheckMapsFlags flags, Handle<Object> handler,
-                                   ZoneHandleSet<Map> const& maps,
-                                   const FeedbackSource& feedback);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
@@ -1043,7 +995,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
-  const Operator* StoreField(FieldAccess const&);
+  const Operator* StoreField(FieldAccess const&,
+                             bool maybe_initializing_or_transitioning = true);
 
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
@@ -1068,10 +1021,22 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                      Type value_type);
 
   // load-from-object [base + offset]
+  // This operator comes in two flavors: LoadImmutableFromObject guarantees that
+  // the underlying object field will be initialized at most once for the
+  // duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
+  // Note: LoadImmutableFromObject is unrelated to LoadImmutable and is lowered
+  // into a regular Load.
   const Operator* LoadFromObject(ObjectAccess const&);
+  const Operator* LoadImmutableFromObject(ObjectAccess const&);
 
   // store-to-object [base + offset], value
+  // This operator comes in two flavors: InitializeImmutableInObject guarantees
+  // that the underlying object field has not and will not be initialized again
+  // for the duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
   const Operator* StoreToObject(ObjectAccess const&);
+  const Operator* InitializeImmutableInObject(ObjectAccess const&);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
@@ -1212,37 +1177,6 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node(), SlowCallArgumentIndex(i)));
   }
-};
-
-class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr TierUpCheckNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kTierUpCheck, node->opcode());
-  }
-
-#define INPUTS(V)                                       \
-  V(FeedbackVector, feedback_vector, 0, FeedbackVector) \
-  V(Target, target, 1, JSReceiver)                      \
-  V(NewTarget, new_target, 2, Object)                   \
-  V(InputCount, input_count, 3, UntaggedT)              \
-  V(Context, context, 4, Context)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-};
-
-class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr UpdateInterruptBudgetNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kUpdateInterruptBudget, node->opcode());
-  }
-
-  int delta() const { return OpParameter<int>(node()->op()); }
-
-#define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
 };
 
 #undef DEFINE_INPUT_ACCESSORS

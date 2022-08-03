@@ -18,5 +18,5 @@ function foo(cond, v1, v2) {
 
 %PrepareFunctionForOptimization(foo);
 foo(1, 10, 20); foo(2, 30, 40);
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(1, 10, 20); foo(2, 30, 40);

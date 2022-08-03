@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -227,10 +227,6 @@ OSSL_DECODER_INSTANCE *ossl_decoder_instance_new(OSSL_DECODER *decoder,
         ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_MALLOC_FAILURE);
         return 0;
     }
-    if (!OSSL_DECODER_up_ref(decoder)) {
-        ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_INTERNAL_ERROR);
-        goto err;
-    }
 
     prov = OSSL_DECODER_get0_provider(decoder);
     libctx = ossl_provider_libctx(prov);
@@ -261,6 +257,10 @@ OSSL_DECODER_INSTANCE *ossl_decoder_instance_new(OSSL_DECODER *decoder,
             = ossl_property_get_string_value(libctx, prop);
     }
 
+    if (!OSSL_DECODER_up_ref(decoder)) {
+        ERR_raise(ERR_LIB_OSSL_DECODER, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
     decoder_inst->decoder = decoder;
     decoder_inst->decoderctx = decoderctx;
     return decoder_inst;
@@ -358,8 +358,9 @@ static void collect_all_decoders(OSSL_DECODER *decoder, void *arg)
 {
     STACK_OF(OSSL_DECODER) *skdecoders = arg;
 
-    if (OSSL_DECODER_up_ref(decoder))
-        sk_OSSL_DECODER_push(skdecoders, decoder);
+    if (OSSL_DECODER_up_ref(decoder)
+            && !sk_OSSL_DECODER_push(skdecoders, decoder))
+        OSSL_DECODER_free(decoder);
 }
 
 static void collect_extra_decoder(OSSL_DECODER *decoder, void *arg)
@@ -789,7 +790,7 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
          */
         trace_data_structure = data_structure;
         if (data_type != NULL && data_structure != NULL
-            && strcasecmp(data_structure, "type-specific") == 0)
+            && OPENSSL_strcasecmp(data_structure, "type-specific") == 0)
             data_structure = NULL;
 
         OSSL_TRACE_BEGIN(DECODER) {
@@ -850,7 +851,7 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
          * that's the case, we do this extra check.
          */
         if (decoder == NULL && ctx->start_input_type != NULL
-            && strcasecmp(ctx->start_input_type, new_input_type) != 0) {
+            && OPENSSL_strcasecmp(ctx->start_input_type, new_input_type) != 0) {
             OSSL_TRACE_BEGIN(DECODER) {
                 BIO_printf(trc_out,
                            "(ctx %p) %s [%u] the start input type '%s' doesn't match the input type of the considered decoder, skipping...\n",
@@ -896,7 +897,8 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
          */
         if (data_structure != NULL
             && (new_input_structure == NULL
-                || strcasecmp(data_structure, new_input_structure) != 0)) {
+                || OPENSSL_strcasecmp(data_structure,
+                                      new_input_structure) != 0)) {
             OSSL_TRACE_BEGIN(DECODER) {
                 BIO_printf(trc_out,
                            "(ctx %p) %s [%u] the previous decoder's data structure doesn't match the input structure of the considered decoder, skipping...\n",
@@ -915,7 +917,8 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
             && ctx->input_structure != NULL
             && new_input_structure != NULL) {
             data->flag_input_structure_checked = 1;
-            if (strcasecmp(new_input_structure, ctx->input_structure) != 0) {
+            if (OPENSSL_strcasecmp(new_input_structure,
+                                   ctx->input_structure) != 0) {
                 OSSL_TRACE_BEGIN(DECODER) {
                     BIO_printf(trc_out,
                                "(ctx %p) %s [%u] the previous decoder's data structure doesn't match the input structure given by the user, skipping...\n",

@@ -34,6 +34,7 @@ void FillInUnknownHeapAddresses(d::HeapAddresses* heap_addresses,
 // Returns the instance type for the known Map, given its offset within the
 // first page of the space, or empty string on failure.
 int FindKnownMapInstanceTypeInMapSpace(uintptr_t offset);
+int FindKnownMapInstanceTypeInOldSpace(uintptr_t offset);
 int FindKnownMapInstanceTypeInReadOnlySpace(uintptr_t offset);
 
 // ===== End of generated functions. ===========================================

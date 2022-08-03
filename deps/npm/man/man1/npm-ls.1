@@ -1,11 +1,11 @@
-.TH "NPM\-LS" "1" "March 2022" "" ""
+.TH "NPM\-LS" "1" "July 2022" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm ls [[<@scope>/]<pkg> \.\.\.]
+npm ls <package\-spec>
 
 alias: list
 .fi
@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@8\.5\.3 /path/to/npm
+npm@8\.15\.1 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -35,7 +35,7 @@ npm@8\.5\.3 /path/to/npm
 It will print out extraneous, missing, and invalid packages\.
 .P
 If a project specifies git urls for dependencies these are shown
-in parentheses after the name@version to make it easier for users to
+in parentheses after the \fBname@version\fP to make it easier for users to
 recognize potential forks of a project\.
 .P
 The tree shown is the logical dependency tree, based on package
@@ -52,7 +52,7 @@ disk would be roughly identical\.
 With the advent of automatic install\-time deduplication of dependencies in
 npm v3, the \fBls\fP output was modified to display the logical dependency
 graph as a tree structure, since this was more useful to most users\.
-However, without using \fBnpm ls \-l\fP, it became impossible show \fIwhere\fR a
+However, without using \fBnpm ls \-l\fP, it became impossible to show \fIwhere\fR a
 package was actually installed much of the time!
 .P
 With the advent of automatic installation of \fBpeerDependencies\fP in npm v7,
@@ -284,8 +284,24 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinstall\-links\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help explain
 .IP \(bu 2

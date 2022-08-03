@@ -124,7 +124,7 @@ Test runtime stack trace:
 }
 Test debugger stack trace:
 [
-    [0] : prefix://url
-    [1] : boo.js
-    [2] : prefix://url
+    [0] : 
+    [1] : 
+    [2] : 
 ]

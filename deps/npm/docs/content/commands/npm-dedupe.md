@@ -80,11 +80,9 @@ result in new modules being installed.
 
 Using `npm find-dupes` will run the command in `--dry-run` mode.
 
-Note that by default `npm dedupe` will not update the semver values of direct
-dependencies in your project `package.json`, if you want to also update
-values in `package.json` you can run: `npm dedupe --save` (or add the
-`save=true` option to a [configuration file](/configuring-npm/npmrc)
-to make that the default behavior).
+Note: `npm dedupe` will never update the semver values of direct
+dependencies in your project `package.json`, if you want to update
+values in `package.json` you can run: `npm update --save` instead.
 
 ### Configuration
 
@@ -149,27 +147,7 @@ this warning is treated as a failure.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
-When package package-locks are disabled, automatic pruning of extraneous
-modules will also be disabled. To remove extraneous modules with
-package-locks disabled use `npm prune`.
-
 This configuration does not affect `npm ci`.
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### `save`
-
-* Default: `true` unless when using `npm update` or `npm dedupe` where it
-  defaults to `false`
-* Type: Boolean
-
-Save installed packages to a `package.json` file as dependencies.
-
-When used with the `npm rm` command, removes the dependency from
-`package.json`.
-
-Will also prevent writing to `package-lock.json` if set to `false`.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -322,6 +300,20 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

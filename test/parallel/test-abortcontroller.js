@@ -108,11 +108,11 @@ const { setTimeout: sleep } = require('timers/promises');
   for (const badController of badAbortControllers) {
     throws(
       () => acSignalGet.call(badController),
-      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+      { name: 'TypeError' }
     );
     throws(
       () => acAbort.call(badController),
-      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+      { name: 'TypeError' }
     );
   }
 }
@@ -139,7 +139,7 @@ const { setTimeout: sleep } = require('timers/promises');
   for (const badSignal of badAbortSignals) {
     throws(
       () => signalAbortedGet.call(badSignal),
-      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+      { name: 'TypeError' }
     );
   }
 }
@@ -245,7 +245,10 @@ const { setTimeout: sleep } = require('timers/promises');
 
 {
   // Test abortSignal.throwIfAborted()
-  throws(() => AbortSignal.abort().throwIfAborted(), { code: 20 });
+  throws(() => AbortSignal.abort().throwIfAborted(), {
+    code: 20,
+    name: 'AbortError',
+  });
 
   // Does not throw because it's not aborted.
   const ac = new AbortController();

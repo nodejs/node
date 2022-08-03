@@ -9,8 +9,6 @@
 #ifndef V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
-#include <vector>
-
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
@@ -559,6 +557,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
 
+  inline void SmiTag(Register dst, Register src);
+  inline void SmiTag(Register smi);
+
   inline void SmiToInt32(Register smi);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
@@ -864,15 +865,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // kSRegSizeInBits are supported.
   //
   // Otherwise, (Push|Pop)(CPU|X|W|D|S)RegList is preferred.
-  //
-  // The methods take an optional LoadLRMode or StoreLRMode template argument.
-  // When control flow integrity measures are enabled and the link register is
-  // included in 'registers', passing kSignLR to PushCPURegList will sign the
-  // link register before pushing the list, and passing kAuthLR to
-  // PopCPURegList will authenticate it after popping the list.
-  template <StoreLRMode lr_mode = kDontStoreLR>
   void PushCPURegList(CPURegList registers);
-  template <LoadLRMode lr_mode = kDontLoadLR>
   void PopCPURegList(CPURegList registers);
 
   // Calculate how much stack space (in bytes) are required to store caller
@@ -952,12 +945,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<CodeT> code, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(const ExternalReference& reference);
 
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
-  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
+  void Call(Handle<CodeT> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
   void Call(ExternalReference target);
 
   // Generate an indirect call (for when a direct call's range is not adequate).
@@ -992,6 +985,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Helper functions that dispatch either to Call/JumpCodeObject or to
   // Call/JumpCodeDataContainerObject.
+  // TODO(v8:11880): remove since CodeT targets are now default.
   void LoadCodeTEntry(Register destination, Register code);
   void CallCodeTObject(Register code);
   void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
@@ -1439,23 +1433,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I64x2AllTrue(Register dst, VRegister src);
 
   // ---------------------------------------------------------------------------
-  // V8 Heap sandbox support
+  // V8 Sandbox support
 
-  // Transform a CagedPointer from/to its encoded form, which is used when the
-  // pointer is stored on the heap and ensures that the pointer will always
-  // point into the virtual memory cage.
-  void EncodeCagedPointer(const Register& value);
-  void DecodeCagedPointer(const Register& value);
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void EncodeSandboxedPointer(const Register& value);
+  void DecodeSandboxedPointer(const Register& value);
 
-  // Load and decode a CagedPointer from the heap.
-  void LoadCagedPointerField(const Register& destination,
-                             const MemOperand& field_operand);
-  // Encode and store a CagedPointer to the heap.
-  void StoreCagedPointerField(const Register& value,
-                              const MemOperand& dst_field_operand);
+  // Load and decode a SandboxedPointer from the heap.
+  void LoadSandboxedPointerField(const Register& destination,
+                                 const MemOperand& field_operand);
+  // Encode and store a SandboxedPointer to the heap.
+  void StoreSandboxedPointerField(const Register& value,
+                                  const MemOperand& dst_field_operand);
 
   // Loads a field containing off-heap pointer and does necessary decoding
-  // if V8 heap sandbox is enabled.
+  // if sandboxed external pointers are enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());
@@ -1753,27 +1747,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     tbx(vd, vn, vn2, vn3, vn4, vm);
   }
 
-  // For the 'lr_mode' template argument of the following methods, see
-  // PushCPURegList/PopCPURegList.
-  template <StoreLRMode lr_mode = kDontStoreLR>
-  inline void PushSizeRegList(
-      RegList registers, unsigned reg_size,
-      CPURegister::RegisterType type = CPURegister::kRegister) {
-    PushCPURegList<lr_mode>(CPURegList(type, reg_size, registers));
+  inline void PushSizeRegList(RegList registers, unsigned reg_size) {
+    PushCPURegList(CPURegList(reg_size, registers));
   }
-  template <LoadLRMode lr_mode = kDontLoadLR>
-  inline void PopSizeRegList(
-      RegList registers, unsigned reg_size,
-      CPURegister::RegisterType type = CPURegister::kRegister) {
-    PopCPURegList<lr_mode>(CPURegList(type, reg_size, registers));
+  inline void PushSizeRegList(DoubleRegList registers, unsigned reg_size) {
+    PushCPURegList(CPURegList(reg_size, registers));
   }
-  template <StoreLRMode lr_mode = kDontStoreLR>
+  inline void PopSizeRegList(RegList registers, unsigned reg_size) {
+    PopCPURegList(CPURegList(reg_size, registers));
+  }
+  inline void PopSizeRegList(DoubleRegList registers, unsigned reg_size) {
+    PopCPURegList(CPURegList(reg_size, registers));
+  }
   inline void PushXRegList(RegList regs) {
-    PushSizeRegList<lr_mode>(regs, kXRegSizeInBits);
+    PushSizeRegList(regs, kXRegSizeInBits);
   }
-  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopXRegList(RegList regs) {
-    PopSizeRegList<lr_mode>(regs, kXRegSizeInBits);
+    PopSizeRegList(regs, kXRegSizeInBits);
   }
   inline void PushWRegList(RegList regs) {
     PushSizeRegList(regs, kWRegSizeInBits);
@@ -1781,23 +1771,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   inline void PopWRegList(RegList regs) {
     PopSizeRegList(regs, kWRegSizeInBits);
   }
-  inline void PushQRegList(RegList regs) {
-    PushSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
+  inline void PushQRegList(DoubleRegList regs) {
+    PushSizeRegList(regs, kQRegSizeInBits);
   }
-  inline void PopQRegList(RegList regs) {
-    PopSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
+  inline void PopQRegList(DoubleRegList regs) {
+    PopSizeRegList(regs, kQRegSizeInBits);
   }
-  inline void PushDRegList(RegList regs) {
-    PushSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);
+  inline void PushDRegList(DoubleRegList regs) {
+    PushSizeRegList(regs, kDRegSizeInBits);
   }
-  inline void PopDRegList(RegList regs) {
-    PopSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);
+  inline void PopDRegList(DoubleRegList regs) {
+    PopSizeRegList(regs, kDRegSizeInBits);
   }
-  inline void PushSRegList(RegList regs) {
-    PushSizeRegList(regs, kSRegSizeInBits, CPURegister::kVRegister);
+  inline void PushSRegList(DoubleRegList regs) {
+    PushSizeRegList(regs, kSRegSizeInBits);
   }
-  inline void PopSRegList(RegList regs) {
-    PopSizeRegList(regs, kSRegSizeInBits, CPURegister::kVRegister);
+  inline void PopSRegList(DoubleRegList regs) {
+    PopSizeRegList(regs, kSRegSizeInBits);
   }
 
   // Push the specified register 'count' times.
@@ -1851,9 +1841,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----
-
-  inline void SmiTag(Register dst, Register src);
-  inline void SmiTag(Register smi);
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
 
@@ -2155,8 +2142,8 @@ class V8_NODISCARD UseScratchRegisterScope {
   explicit UseScratchRegisterScope(TurboAssembler* tasm)
       : available_(tasm->TmpList()),
         availablefp_(tasm->FPTmpList()),
-        old_available_(available_->list()),
-        old_availablefp_(availablefp_->list()) {
+        old_available_(available_->bits()),
+        old_availablefp_(availablefp_->bits()) {
     DCHECK_EQ(available_->type(), CPURegister::kRegister);
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
@@ -2206,8 +2193,8 @@ class V8_NODISCARD UseScratchRegisterScope {
   CPURegList* availablefp_;  // kVRegister
 
   // The state of the available lists at the start of this scope.
-  RegList old_available_;    // kRegister
-  RegList old_availablefp_;  // kVRegister
+  uint64_t old_available_;    // kRegister
+  uint64_t old_availablefp_;  // kVRegister
 };
 
 }  // namespace internal

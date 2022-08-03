@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -306,7 +306,7 @@ int EVP_PKEY_derive_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[])
         /*
          * Ensure that the key is provided, either natively, or as a cached
          * export.  We start by fetching the keymgmt with the same name as
-         * |ctx->pkey|, but from the provider of the exchange method, using
+         * |ctx->keymgmt|, but from the provider of the exchange method, using
          * the same property query as when fetching the exchange method.
          * With the keymgmt we found (if we did), we try to export |ctx->pkey|
          * to it (evp_pkey_export_to_provider() is smart enough to only actually
@@ -380,6 +380,7 @@ int EVP_PKEY_derive_set_peer_ex(EVP_PKEY_CTX *ctx, EVP_PKEY *peer,
     int ret = 0, check;
     void *provkey = NULL;
     EVP_PKEY_CTX *check_ctx = NULL;
+    EVP_KEYMGMT *tmp_keymgmt = NULL, *tmp_keymgmt_tofree = NULL;
 
     if (ctx == NULL) {
         ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
@@ -404,8 +405,25 @@ int EVP_PKEY_derive_set_peer_ex(EVP_PKEY_CTX *ctx, EVP_PKEY *peer,
             return -1;
     }
 
-    provkey = evp_pkey_export_to_provider(peer, ctx->libctx, &ctx->keymgmt,
-                                          ctx->propquery);
+    /*
+     * Ensure that the |peer| is provided, either natively, or as a cached
+     * export.  We start by fetching the keymgmt with the same name as
+     * |ctx->keymgmt|, but from the provider of the exchange method, using
+     * the same property query as when fetching the exchange method.
+     * With the keymgmt we found (if we did), we try to export |peer|
+     * to it (evp_pkey_export_to_provider() is smart enough to only actually
+     * export it if |tmp_keymgmt| is different from |peer|'s keymgmt)
+     */
+    tmp_keymgmt_tofree = tmp_keymgmt =
+        evp_keymgmt_fetch_from_prov((OSSL_PROVIDER *)
+                                    EVP_KEYEXCH_get0_provider(ctx->op.kex.exchange),
+                                    EVP_KEYMGMT_get0_name(ctx->keymgmt),
+                                    ctx->propquery);
+    if (tmp_keymgmt != NULL)
+        provkey = evp_pkey_export_to_provider(peer, ctx->libctx,
+                                              &tmp_keymgmt, ctx->propquery);
+    EVP_KEYMGMT_free(tmp_keymgmt_tofree);
+
     /*
      * If making the key provided wasn't possible, legacy may be able to pick
      * it up

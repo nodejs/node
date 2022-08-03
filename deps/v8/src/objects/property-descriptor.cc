@@ -63,7 +63,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     Handle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        value = JSObject::FastPropertyAt(Handle<JSObject>::cast(obj),
+        value = JSObject::FastPropertyAt(isolate, Handle<JSObject>::cast(obj),
                                          details.representation(),
                                          FieldIndex::ForDescriptor(*map, i));
       } else {

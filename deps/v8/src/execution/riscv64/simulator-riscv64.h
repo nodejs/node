@@ -380,6 +380,7 @@ class Simulator : public SimulatorBase {
   void set_fflags(uint32_t flags) { set_csr_bits(csr_fflags, flags); }
   void clear_fflags(int32_t flags) { clear_csr_bits(csr_fflags, flags); }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV CSR
   __int128_t get_vregister(int vreg) const;
   inline uint64_t rvv_vlen() const { return kRvvVLEN; }
@@ -439,6 +440,7 @@ class Simulator : public SimulatorBase {
       return ((rvv_vlen() << rvv_vlmul()) / rvv_sew());
     }
   }
+#endif
 
   inline uint32_t get_dynamic_rounding_mode();
   inline bool test_fflags_bits(uint32_t mask);
@@ -652,6 +654,7 @@ class Simulator : public SimulatorBase {
     }
   }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
@@ -746,6 +749,7 @@ class Simulator : public SimulatorBase {
   inline void set_rvv_vlenb(uint64_t value, bool trace = true) {
     vlenb_ = value;
   }
+#endif
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOpFMA(Func fn, T dst, T src1, T src2) {
@@ -862,6 +866,7 @@ class Simulator : public SimulatorBase {
   void DecodeCSType();
   void DecodeCJType();
   void DecodeCBType();
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   void DecodeVType();
   void DecodeRvvIVV();
   void DecodeRvvIVI();
@@ -872,6 +877,7 @@ class Simulator : public SimulatorBase {
   void DecodeRvvFVF();
   bool DecodeRvvVL();
   bool DecodeRvvVS();
+#endif
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
@@ -938,10 +944,12 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV registers
   __int128_t Vregister_[kNumVRegisters];
   static_assert(sizeof(__int128_t) == kRvvVLEN / 8, "unmatch vlen");
   uint64_t vstart_, vxsat_, vxrm_, vcsr_, vtype_, vl_, vlenb_;
+#endif
   // Simulator support.
   // Allocate 1MB for stack.
   size_t stack_size_;

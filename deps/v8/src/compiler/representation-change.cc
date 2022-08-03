@@ -12,6 +12,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/simplified-lowering-verifier.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/heap/factory-inl.h"
@@ -139,11 +140,13 @@ bool IsWord(MachineRepresentation rep) {
 
 }  // namespace
 
-RepresentationChanger::RepresentationChanger(JSGraph* jsgraph,
-                                             JSHeapBroker* broker)
+RepresentationChanger::RepresentationChanger(
+    JSGraph* jsgraph, JSHeapBroker* broker,
+    SimplifiedLoweringVerifier* verifier)
     : cache_(TypeCache::Get()),
       jsgraph_(jsgraph),
       broker_(broker),
+      verifier_(verifier),
       testing_type_errors_(false),
       type_error_(false) {}
 
@@ -242,7 +245,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return node;
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -841,7 +844,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
             use_info.type_check() == TypeCheckKind::kNumberOrOddball ||
             use_info.type_check() == TypeCheckKind::kArrayIndex) &&
            IsInt32Double(fv))) {
-        return MakeTruncatedInt32Constant(fv);
+        return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
+                                             MakeTruncatedInt32Constant(fv));
       }
       break;
     }
@@ -1105,7 +1109,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         if (base::IsValueInRangeForNumericType<int64_t>(fv)) {
           int64_t const iv = static_cast<int64_t>(fv);
           if (static_cast<double>(iv) == fv) {
-            return jsgraph()->Int64Constant(iv);
+            return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
+                                                 jsgraph()->Int64Constant(iv));
           }
         }
       }
@@ -1116,8 +1121,9 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       if (m.HasResolvedValue() && m.Ref(broker_).IsBigInt() &&
           use_info.truncation().IsUsedAsWord64()) {
         BigIntRef bigint = m.Ref(broker_).AsBigInt();
-        return jsgraph()->Int64Constant(
-            static_cast<int64_t>(bigint.AsUint64()));
+        return InsertTypeOverrideForVerifier(
+            NodeProperties::GetType(node),
+            jsgraph()->Int64Constant(static_cast<int64_t>(bigint.AsUint64())));
       }
       break;
     }
@@ -1247,8 +1253,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
           unreachable);
     }
-  } else if (output_rep == MachineRepresentation::kCagedPointer) {
-    if (output_type.Is(Type::CagedPointer())) {
+  } else if (output_rep == MachineRepresentation::kSandboxedPointer) {
+    if (output_type.Is(Type::SandboxedPointer())) {
       return node;
     } else {
       return TypeError(node, output_rep, output_type,
@@ -1563,6 +1569,17 @@ Node* RepresentationChanger::InsertCheckedFloat64ToInt32(
     Node* use_node) {
   return InsertConversion(
       node, simplified()->CheckedFloat64ToInt32(check, feedback), use_node);
+}
+
+Node* RepresentationChanger::InsertTypeOverrideForVerifier(const Type& type,
+                                                           Node* node) {
+  if (verification_enabled()) {
+    DCHECK(!type.IsInvalid());
+    node = jsgraph()->graph()->NewNode(
+        jsgraph()->common()->SLVerifierHint(nullptr, type), node);
+    verifier_->RecordHint(node);
+  }
+  return node;
 }
 
 Isolate* RepresentationChanger::isolate() const { return broker_->isolate(); }

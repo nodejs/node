@@ -12,5 +12,5 @@ module.exports = function(it) {
 "${configName}" was referenced from the config file in "${importerName}".
 
 If you still can't figure out the problem, please stop by https://eslint.org/chat/help to chat with the team.
-`.trimLeft();
+`.trimStart();
 };

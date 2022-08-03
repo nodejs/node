@@ -49,6 +49,40 @@ namespace per_process {
 static Mutex tty_mutex;
 }  // namespace per_process
 
+static std::string GetSourceMapErrorSource(Isolate* isolate,
+                                           Local<Context> context,
+                                           Local<Message> message,
+                                           bool* added_exception_line) {
+  v8::TryCatch try_catch(isolate);
+  HandleScope handle_scope(isolate);
+  Environment* env = Environment::GetCurrent(context);
+
+  // The ScriptResourceName of the message may be different from the one we use
+  // to compile the script. V8 replaces it when it detects magic comments in
+  // the source texts.
+  Local<Value> script_resource_name = message->GetScriptResourceName();
+  int linenum = message->GetLineNumber(context).FromJust();
+  int columnum = message->GetStartColumn(context).FromJust();
+
+  Local<Value> argv[] = {script_resource_name,
+                         v8::Int32::New(isolate, linenum),
+                         v8::Int32::New(isolate, columnum)};
+  MaybeLocal<Value> maybe_ret = env->get_source_map_error_source()->Call(
+      context, Undefined(isolate), arraysize(argv), argv);
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
+    // Ignore the caught exceptions.
+    DCHECK(try_catch.HasCaught());
+    return std::string();
+  }
+  if (!ret->IsString()) {
+    return std::string();
+  }
+  *added_exception_line = true;
+  node::Utf8Value error_source_utf8(isolate, ret.As<String>());
+  return *error_source_utf8;
+}
+
 static std::string GetErrorSource(Isolate* isolate,
                                   Local<Context> context,
                                   Local<Message> message,
@@ -58,17 +92,20 @@ static std::string GetErrorSource(Isolate* isolate,
   std::string sourceline(*encoded_source, encoded_source.length());
   *added_exception_line = false;
 
+  if (sourceline.find("node-do-not-add-exception-line") != std::string::npos) {
+    return sourceline;
+  }
+
   // If source maps have been enabled, the exception line will instead be
   // added in the JavaScript context:
   Environment* env = Environment::GetCurrent(isolate);
   const bool has_source_map_url =
-      !message->GetScriptOrigin().SourceMapUrl().IsEmpty();
+      !message->GetScriptOrigin().SourceMapUrl().IsEmpty() &&
+      !message->GetScriptOrigin().SourceMapUrl()->IsUndefined();
   if (has_source_map_url && env != nullptr && env->source_maps_enabled()) {
-    return sourceline;
-  }
-
-  if (sourceline.find("node-do-not-add-exception-line") != std::string::npos) {
-    return sourceline;
+    std::string source = GetSourceMapErrorSource(
+        isolate, context, message, added_exception_line);
+    return *added_exception_line ? source : sourceline;
   }
 
   // Because of how node modules work, all scripts are wrapped with a
@@ -454,6 +491,38 @@ void OnFatalError(const char* location, const char* message) {
   ABORT();
 }
 
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> source,
+    bool is_code_like) {
+  HandleScope scope(context->GetIsolate());
+
+  Environment* env = Environment::GetCurrent(context);
+  if (env->source_maps_enabled()) {
+    // We do not expect the maybe_cache_generated_source_map to throw any more
+    // exceptions. If it does, just ignore it.
+    errors::TryCatchScope try_catch(env);
+    Local<Function> maybe_cache_source_map =
+        env->maybe_cache_generated_source_map();
+    Local<Value> argv[1] = {source};
+
+    MaybeLocal<Value> maybe_cached = maybe_cache_source_map->Call(
+        context, context->Global(), arraysize(argv), argv);
+    if (maybe_cached.IsEmpty()) {
+      DCHECK(try_catch.HasCaught());
+    }
+  }
+
+  Local<Value> allow_code_gen = context->GetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings);
+  bool codegen_allowed =
+      allow_code_gen->IsUndefined() || allow_code_gen->IsTrue();
+  return {
+      codegen_allowed,
+      {},
+  };
+}
+
 namespace errors {
 
 TryCatchScope::~TryCatchScope() {
@@ -836,6 +905,20 @@ static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
 }
 
+static void SetGetSourceMapErrorSource(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_get_source_map_error_source(args[0].As<Function>());
+}
+
+static void SetMaybeCacheGeneratedSourceMap(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_maybe_cache_generated_source_map(args[0].As<Function>());
+}
+
 static void SetEnhanceStackForFatalException(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -869,7 +952,9 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPrepareStackTraceCallback);
+  registry->Register(SetGetSourceMapErrorSource);
   registry->Register(SetSourceMapsEnabled);
+  registry->Register(SetMaybeCacheGeneratedSourceMap);
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
@@ -879,16 +964,27 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(
-      target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
-  env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
-  env->SetMethod(target,
-                 "setEnhanceStackForFatalException",
-                 SetEnhanceStackForFatalException);
-  env->SetMethodNoSideEffect(
-      target, "noSideEffectsToString", NoSideEffectsToString);
-  env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(context,
+            target,
+            "setPrepareStackTraceCallback",
+            SetPrepareStackTraceCallback);
+  SetMethod(context,
+            target,
+            "setGetSourceMapErrorSource",
+            SetGetSourceMapErrorSource);
+  SetMethod(context, target, "setSourceMapsEnabled", SetSourceMapsEnabled);
+  SetMethod(context,
+            target,
+            "setMaybeCacheGeneratedSourceMap",
+            SetMaybeCacheGeneratedSourceMap);
+  SetMethod(context,
+            target,
+            "setEnhanceStackForFatalException",
+            SetEnhanceStackForFatalException);
+  SetMethodNoSideEffect(
+      context, target, "noSideEffectsToString", NoSideEffectsToString);
+  SetMethod(
+      context, target, "triggerUncaughtException", TriggerUncaughtException);
 }
 
 void DecorateErrorStack(Environment* env,

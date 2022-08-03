@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/base/optional.h"
+#include "src/numbers/integer-literal.h"
 #include "src/torque/constants.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
@@ -33,7 +34,8 @@ namespace torque {
   V(ConditionalExpression)               \
   V(IdentifierExpression)                \
   V(StringLiteralExpression)             \
-  V(NumberLiteralExpression)             \
+  V(IntegerLiteralExpression)            \
+  V(FloatingPointLiteralExpression)      \
   V(FieldAccessExpression)               \
   V(ElementAccessExpression)             \
   V(DereferenceExpression)               \
@@ -459,16 +461,28 @@ struct StringLiteralExpression : Expression {
   std::string literal;
 };
 
-struct NumberLiteralExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(NumberLiteralExpression)
-  NumberLiteralExpression(SourcePosition pos, double number)
-      : Expression(kKind, pos), number(number) {}
+struct IntegerLiteralExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(IntegerLiteralExpression)
+  IntegerLiteralExpression(SourcePosition pos, IntegerLiteral value)
+      : Expression(kKind, pos), value(std::move(value)) {}
 
   void VisitAllSubExpressions(VisitCallback callback) override {
     callback(this);
   }
 
-  double number;
+  IntegerLiteral value;
+};
+
+struct FloatingPointLiteralExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(FloatingPointLiteralExpression)
+  FloatingPointLiteralExpression(SourcePosition pos, double value)
+      : Expression(kKind, pos), value(value) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    callback(this);
+  }
+
+  double value;
 };
 
 struct ElementAccessExpression : LocationExpression {

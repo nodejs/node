@@ -36,14 +36,13 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Address value = ReadCagedPointerField(kBackingStoreOffset, cage_base);
+  Address value = ReadSandboxedPointerField(kBackingStoreOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
 void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
-  DCHECK(IsValidBackingStorePointer(value));
   Address addr = reinterpret_cast<Address>(value);
-  WriteCagedPointerField(kBackingStoreOffset, isolate, addr);
+  WriteSandboxedPointerField(kBackingStoreOffset, isolate, addr);
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
@@ -201,39 +200,34 @@ bool JSArrayBufferView::IsVariableLength() const {
 size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   DCHECK(!out_of_bounds);
   if (WasDetached()) return 0;
-  if (is_length_tracking()) {
-    if (is_backed_by_rab()) {
-      if (byte_offset() > buffer().byte_length()) {
-        out_of_bounds = true;
-        return 0;
-      }
-      return (buffer().byte_length() - byte_offset()) / element_size();
-    }
-    if (byte_offset() >
-        buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
-      out_of_bounds = true;
-      return 0;
-    }
-    return (buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) -
-            byte_offset()) /
-           element_size();
+  if (IsVariableLength()) {
+    return GetVariableLengthOrOutOfBounds(out_of_bounds);
   }
-  size_t array_length = LengthUnchecked();
-  if (is_backed_by_rab()) {
-    // The sum can't overflow, since we have managed to allocate the
-    // JSTypedArray.
-    if (byte_offset() + array_length * element_size() >
-        buffer().byte_length()) {
-      out_of_bounds = true;
-      return 0;
-    }
-  }
-  return array_length;
+  return LengthUnchecked();
 }
 
 size_t JSTypedArray::GetLength() const {
   bool out_of_bounds = false;
   return GetLengthOrOutOfBounds(out_of_bounds);
+}
+
+size_t JSTypedArray::GetByteLength() const {
+  return GetLength() * element_size();
+}
+
+bool JSTypedArray::IsOutOfBounds() const {
+  bool out_of_bounds = false;
+  GetLengthOrOutOfBounds(out_of_bounds);
+  return out_of_bounds;
+}
+
+bool JSTypedArray::IsDetachedOrOutOfBounds() const {
+  if (WasDetached()) {
+    return true;
+  }
+  bool out_of_bounds = false;
+  GetLengthOrOutOfBounds(out_of_bounds);
+  return out_of_bounds;
 }
 
 size_t JSTypedArray::length() const {
@@ -251,12 +245,11 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadCagedPointerField(kExternalPointerOffset, cage_base);
+  return ReadSandboxedPointerField(kExternalPointerOffset, cage_base);
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
-  DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
-  WriteCagedPointerField(kExternalPointerOffset, isolate, value);
+  WriteSandboxedPointerField(kExternalPointerOffset, isolate, value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -349,15 +342,11 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
   }
 
-  if (V8_UNLIKELY(array->IsVariableLength())) {
-    bool out_of_bounds = false;
-    array->GetLengthOrOutOfBounds(out_of_bounds);
-    if (out_of_bounds) {
-      const MessageTemplate message = MessageTemplate::kDetachedOperation;
-      Handle<String> operation =
-          isolate->factory()->NewStringFromAsciiChecked(method_name);
-      THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
-    }
+  if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
+    const MessageTemplate message = MessageTemplate::kDetachedOperation;
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method_name);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
   }
 
   // spec describes to return `buffer`, but it may disrupt current
@@ -366,14 +355,13 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  Address value = ReadCagedPointerField(kDataPointerOffset, cage_base);
+  Address value = ReadSandboxedPointerField(kDataPointerOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
 void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
-  DCHECK(IsValidBackingStorePointer(ptr));
   Address value = reinterpret_cast<Address>(ptr);
-  WriteCagedPointerField(kDataPointerOffset, isolate, value);
+  WriteSandboxedPointerField(kDataPointerOffset, isolate, value);
 }
 
 }  // namespace internal

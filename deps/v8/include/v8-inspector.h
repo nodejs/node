@@ -23,6 +23,10 @@ class Value;
 
 namespace v8_inspector {
 
+namespace internal {
+class V8DebuggerId;
+}  // namespace internal
+
 namespace protocol {
 namespace Debugger {
 namespace API {
@@ -106,6 +110,30 @@ class V8_EXPORT V8ContextInfo {
   V8ContextInfo& operator=(const V8ContextInfo&) = delete;
 };
 
+// This debugger id tries to be unique by generating two random
+// numbers, which should most likely avoid collisions.
+// Debugger id has a 1:1 mapping to context group. It is used to
+// attribute stack traces to a particular debugging, when doing any
+// cross-debugger operations (e.g. async step in).
+// See also Runtime.UniqueDebuggerId in the protocol.
+class V8_EXPORT V8DebuggerId {
+ public:
+  V8DebuggerId() = default;
+  V8DebuggerId(const V8DebuggerId&) = default;
+  V8DebuggerId& operator=(const V8DebuggerId&) = default;
+
+  std::unique_ptr<StringBuffer> toString() const;
+  bool isValid() const;
+  std::pair<int64_t, int64_t> pair() const;
+
+ private:
+  friend class internal::V8DebuggerId;
+  explicit V8DebuggerId(std::pair<int64_t, int64_t>);
+
+  int64_t m_first = 0;
+  int64_t m_second = 0;
+};
+
 class V8_EXPORT V8StackTrace {
  public:
   virtual StringView firstNonEmptySourceURL() const = 0;
@@ -177,6 +205,15 @@ class V8_EXPORT V8InspectorSession {
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 };
 
+class V8_EXPORT WebDriverValue {
+ public:
+  explicit WebDriverValue(StringView type, v8::MaybeLocal<v8::Value> value = {})
+      : type(type), value(value) {}
+
+  StringView type;
+  v8::MaybeLocal<v8::Value> value;
+};
+
 class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() = default;
@@ -191,6 +228,10 @@ class V8_EXPORT V8InspectorClient {
   virtual void beginUserGesture() {}
   virtual void endUserGesture() {}
 
+  virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
+      v8::Local<v8::Value> v8_value, int max_depth) {
+    return nullptr;
+  }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {
     return nullptr;
   }
@@ -242,6 +283,9 @@ class V8_EXPORT V8InspectorClient {
   // The caller would defer to generating a random 64 bit integer if
   // this method returns 0.
   virtual int64_t generateUniqueId() { return 0; }
+
+  virtual void dispatchError(v8::Local<v8::Context>, v8::Local<v8::Message>,
+                             v8::Local<v8::Value>) {}
 };
 
 // These stack trace ids are intended to be passed between debuggers and be
@@ -276,6 +320,7 @@ class V8_EXPORT V8Inspector {
   virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
   virtual void resetContextGroup(int contextGroupId) = 0;
   virtual v8::MaybeLocal<v8::Context> contextById(int contextId) = 0;
+  virtual V8DebuggerId uniqueDebuggerId(int contextId) = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;

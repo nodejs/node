@@ -107,7 +107,9 @@ class ActualScript : public V8DebuggerScript {
   String16 source(size_t pos, size_t len) const override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source;
-    if (!script()->Source().ToLocal(&v8Source)) return String16();
+    if (!m_scriptSource.Get(m_isolate)->JavaScriptCode().ToLocal(&v8Source)) {
+      return String16();
+    }
     if (pos >= static_cast<size_t>(v8Source->Length())) return String16();
     size_t substringLength =
         std::min(len, static_cast<size_t>(v8Source->Length()) - pos);
@@ -121,9 +123,11 @@ class ActualScript : public V8DebuggerScript {
 #if V8_ENABLE_WEBASSEMBLY
   v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const override {
     v8::HandleScope scope(m_isolate);
-    auto script = this->script();
-    if (!script->IsWasm()) return v8::Nothing<v8::MemorySpan<const uint8_t>>();
-    return v8::Just(v8::debug::WasmScript::Cast(*script)->Bytecode());
+    v8::MemorySpan<const uint8_t> bytecode;
+    if (m_scriptSource.Get(m_isolate)->WasmBytecode().To(&bytecode)) {
+      return v8::Just(bytecode);
+    }
+    return v8::Nothing<v8::MemorySpan<const uint8_t>>();
   }
 
   v8::Maybe<v8::debug::WasmScript::DebugSymbolsType> getDebugSymbolsType()
@@ -156,18 +160,8 @@ class ActualScript : public V8DebuggerScript {
 #endif  // V8_ENABLE_WEBASSEMBLY
     return 0;
   }
-  bool isSourceLoadedLazily() const override { return false; }
   int length() const override {
-    auto script = this->script();
-#if V8_ENABLE_WEBASSEMBLY
-    if (script->IsWasm()) {
-      return static_cast<int>(
-          v8::debug::WasmScript::Cast(*script)->Bytecode().size());
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    v8::HandleScope scope(m_isolate);
-    v8::Local<v8::String> v8Source;
-    return script->Source().ToLocal(&v8Source) ? v8Source->Length() : 0;
+    return static_cast<int>(m_scriptSource.Get(m_isolate)->Length());
   }
 
   const String16& sourceMappingURL() const override {
@@ -255,16 +249,16 @@ class ActualScript : public V8DebuggerScript {
                                    id);
   }
 
-  bool setBreakpointOnRun(int* id) const override {
+  bool setInstrumentationBreakpoint(int* id) const override {
     v8::HandleScope scope(m_isolate);
-    return script()->SetBreakpointOnScriptEntry(id);
+    return script()->SetInstrumentationBreakpoint(id);
   }
 
   const String16& hash() const override {
     if (!m_hash.isEmpty()) return m_hash;
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source;
-    if (!script()->Source().ToLocal(&v8Source)) {
+    if (!m_scriptSource.Get(m_isolate)->JavaScriptCode().ToLocal(&v8Source)) {
       v8Source = v8::String::Empty(m_isolate);
     }
     m_hash = calculateHash(m_isolate, v8Source);
@@ -305,29 +299,10 @@ class ActualScript : public V8DebuggerScript {
         script->SourceURL().ToLocal(&tmp) && tmp->Length() > 0;
     if (script->SourceMappingURL().ToLocal(&tmp))
       m_sourceMappingURL = toProtocolString(m_isolate, tmp);
-    m_startLine = script->LineOffset();
-    m_startColumn = script->ColumnOffset();
-    std::vector<int> lineEnds = script->LineEnds();
-    if (lineEnds.size()) {
-      int source_length = lineEnds[lineEnds.size() - 1];
-      m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
-      if (lineEnds.size() > 1) {
-        m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
-      } else {
-        m_endColumn = source_length + m_startColumn;
-      }
-#if V8_ENABLE_WEBASSEMBLY
-    } else if (script->IsWasm()) {
-      DCHECK_EQ(0, m_startLine);
-      DCHECK_EQ(0, m_startColumn);
-      m_endLine = 0;
-      m_endColumn = static_cast<int>(
-          v8::debug::WasmScript::Cast(*script)->Bytecode().size());
-#endif  // V8_ENABLE_WEBASSEMBLY
-    } else {
-      m_endLine = m_startLine;
-      m_endColumn = m_startColumn;
-    }
+    m_startLine = script->StartLine();
+    m_startColumn = script->StartColumn();
+    m_endLine = script->EndLine();
+    m_endColumn = script->EndColumn();
 
     USE(script->ContextId().To(&m_executionContextId));
     m_language = V8DebuggerScript::Language::JavaScript;
@@ -341,6 +316,8 @@ class ActualScript : public V8DebuggerScript {
 
     m_script.Reset(m_isolate, script);
     m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
+    m_scriptSource.Reset(m_isolate, script->Source());
+    m_scriptSource.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   void MakeWeak() override {
@@ -349,11 +326,11 @@ class ActualScript : public V8DebuggerScript {
         [](const v8::WeakCallbackInfo<ActualScript>& data) {
           data.GetParameter()->WeakCallback();
         },
-        v8::WeakCallbackType::kFinalizer);
+        v8::WeakCallbackType::kParameter);
   }
 
   void WeakCallback() {
-    m_script.ClearWeak();
+    m_script.Reset();
     m_agent->ScriptCollected(this);
   }
 
@@ -368,6 +345,7 @@ class ActualScript : public V8DebuggerScript {
   int m_endLine = 0;
   int m_endColumn = 0;
   v8::Global<v8::debug::Script> m_script;
+  v8::Global<v8::debug::ScriptSource> m_scriptSource;
 };
 
 }  // namespace

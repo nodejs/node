@@ -19,6 +19,7 @@
 #include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/unmarker.h"
 
 namespace cppgc {
 namespace internal {
@@ -82,6 +83,9 @@ HeapBase::HeapBase(
       weak_persistent_region_(*oom_handler_.get()),
       strong_cross_thread_persistent_region_(*oom_handler_.get()),
       weak_cross_thread_persistent_region_(*oom_handler_.get()),
+#if defined(CPPGC_YOUNG_GENERATION)
+      remembered_set_(*this),
+#endif  // defined(CPPGC_YOUNG_GENERATION)
       stack_support_(stack_support),
       marking_support_(marking_support),
       sweeping_support_(sweeping_support) {
@@ -127,7 +131,8 @@ void HeapBase::ResetRememberedSet() {
 
    protected:
     bool VisitNormalPageSpace(NormalPageSpace& space) {
-      some_lab_is_set_ |= space.linear_allocation_buffer().size();
+      some_lab_is_set_ |=
+          static_cast<bool>(space.linear_allocation_buffer().size());
       return true;
     }
 
@@ -136,7 +141,7 @@ void HeapBase::ResetRememberedSet() {
   };
   DCHECK(AllLABsAreEmpty(raw_heap()).value());
   caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
-  remembered_slots().clear();
+  remembered_set_.Reset();
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
@@ -149,6 +154,7 @@ void HeapBase::Terminate() {
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;
   bool more_termination_gcs_needed = false;
+
   do {
     CHECK_LT(gc_count++, kMaxTerminationGCs);
 
@@ -161,15 +167,27 @@ void HeapBase::Terminate() {
       weak_cross_thread_persistent_region_.ClearAllUsedNodes();
     }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+    // Unmark the heap so that the sweeper destructs all objects.
+    // TODO(chromium:1029379): Merge two heap iterations (unmarking + sweeping)
+    // into forced finalization.
+    SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
+    in_atomic_pause_ = true;
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kForced);
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
+    // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
+    // compile-time option). Run sweeping with forced finalization here.
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    in_atomic_pause_ = false;
+
     sweeper().NotifyDoneIfNeeded();
     more_termination_gcs_needed =
         strong_persistent_region_.NodesInUse() ||

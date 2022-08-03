@@ -21,6 +21,7 @@ const expectedModules = new Set([
   'Internal Binding fs_event_wrap',
   'Internal Binding fs',
   'Internal Binding heap_utils',
+  'Internal Binding mksnapshot',
   'Internal Binding messaging',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
@@ -42,6 +43,7 @@ const expectedModules = new Set([
   'Internal Binding util',
   'Internal Binding uv',
   'Internal Binding v8',
+  'Internal Binding wasm_web_api',
   'Internal Binding worker',
   'NativeModule buffer',
   'NativeModule events',
@@ -55,7 +57,6 @@ const expectedModules = new Set([
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
   'NativeModule internal/constants',
-  'NativeModule internal/dtrace',
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/event_target',
@@ -77,13 +78,13 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/fetch_module',
   'NativeModule internal/modules/esm/formats',
   'NativeModule internal/modules/esm/get_format',
-  'NativeModule internal/modules/esm/get_source',
   'NativeModule internal/modules/esm/handle_process_exit',
   'NativeModule internal/modules/esm/initialize_import_meta',
   'NativeModule internal/modules/esm/load',
   'NativeModule internal/modules/esm/loader',
   'NativeModule internal/modules/esm/module_job',
   'NativeModule internal/modules/esm/module_map',
+  'NativeModule internal/modules/esm/package_config',
   'NativeModule internal/modules/esm/resolve',
   'NativeModule internal/modules/esm/translators',
   'NativeModule internal/modules/package_json_reader',
@@ -98,6 +99,7 @@ const expectedModules = new Set([
   'NativeModule internal/perf/performance',
   'NativeModule internal/perf/timerify',
   'NativeModule internal/perf/usertiming',
+  'NativeModule internal/perf/resource_timing',
   'NativeModule internal/perf/utils',
   'NativeModule internal/priority_queue',
   'NativeModule internal/process/esm_loader',
@@ -136,12 +138,18 @@ const expectedModules = new Set([
   'NativeModule internal/util/debuglog',
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/iterable_weak_map',
+  'NativeModule internal/util/parse_args/utils',
+  'NativeModule internal/util/parse_args/parse_args',
   'NativeModule internal/util/types',
   'NativeModule internal/validators',
   'NativeModule internal/vm/module',
+  'NativeModule internal/wasm_web_api',
   'NativeModule internal/webstreams/adapters',
+  'NativeModule internal/webstreams/compression',
+  'NativeModule internal/webstreams/encoding',
   'NativeModule internal/webstreams/queuingstrategies',
   'NativeModule internal/webstreams/readablestream',
+  'NativeModule internal/webstreams/transformstream',
   'NativeModule internal/webstreams/util',
   'NativeModule internal/webstreams/writablestream',
   'NativeModule internal/worker/io',
@@ -160,6 +168,7 @@ const expectedModules = new Set([
   'NativeModule url',
   'NativeModule util',
   'NativeModule v8',
+  'NativeModule internal/v8/startup_snapshot',
   'NativeModule vm',
 ]);
 
@@ -224,11 +233,6 @@ if (common.hasCrypto) {
   expectedModules.add('NativeModule internal/crypto/util');
   expectedModules.add('NativeModule internal/crypto/x509');
   expectedModules.add('NativeModule internal/streams/lazy_transform');
-}
-
-const { internalBinding } = require('internal/test/binding');
-if (internalBinding('config').hasDtrace) {
-  expectedModules.add('Internal Binding dtrace');
 }
 
 const difference = (setA, setB) => {

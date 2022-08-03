@@ -72,7 +72,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSDebugger:
-    case IrOpcode::kJSDefineProperty:
+    case IrOpcode::kJSDefineKeyedOwnProperty:
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSGeneratorStore:
     case IrOpcode::kJSGetImportMeta:
@@ -84,13 +84,13 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSLoadNamedFromSuper:
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreContext:
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
     case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSStoreInArrayLiteral:
     case IrOpcode::kJSStoreModule:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSStoreNamedOwn:
-    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSSetNamedProperty:
+    case IrOpcode::kJSDefineNamedOwnProperty:
+    case IrOpcode::kJSSetKeyedProperty:
       return true;
 
     case IrOpcode::kJSAsyncFunctionEnter:
@@ -199,13 +199,13 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSLoadNamedFromSuper:
     case IrOpcode::kJSLoadProperty:
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
     case IrOpcode::kJSStoreInArrayLiteral:
     case IrOpcode::kJSStoreGlobal:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSStoreNamedOwn:
-    case IrOpcode::kJSStoreProperty:
-    case IrOpcode::kJSDefineProperty:
+    case IrOpcode::kJSSetNamedProperty:
+    case IrOpcode::kJSDefineNamedOwnProperty:
+    case IrOpcode::kJSSetKeyedProperty:
+    case IrOpcode::kJSDefineKeyedOwnProperty:
 
     // Conversions
     case IrOpcode::kJSToLength:

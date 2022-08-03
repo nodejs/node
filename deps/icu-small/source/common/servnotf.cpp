@@ -49,7 +49,11 @@ ICUNotifier::addListener(const EventListener* l, UErrorCode& status)
         if (acceptsListener(*l)) {
             Mutex lmx(&notifyLock);
             if (listeners == NULL) {
-                listeners = new UVector(5, status);
+                LocalPointer<UVector> lpListeners(new UVector(5, status), status);
+                if (U_FAILURE(status)) {
+                    return;
+                }
+                listeners = lpListeners.orphan();
             } else {
                 for (int i = 0, e = listeners->size(); i < e; ++i) {
                     const EventListener* el = (const EventListener*)(listeners->elementAt(i));
@@ -59,7 +63,7 @@ ICUNotifier::addListener(const EventListener* l, UErrorCode& status)
                 }
             }
 
-            listeners->addElementX((void*)l, status); // cast away const
+            listeners->addElement((void*)l, status); // cast away const
         }
 #ifdef NOTIFIER_DEBUG
         else {
@@ -102,13 +106,11 @@ ICUNotifier::removeListener(const EventListener *l, UErrorCode& status)
 void 
 ICUNotifier::notifyChanged(void) 
 {
+    Mutex lmx(&notifyLock);
     if (listeners != NULL) {
-        Mutex lmx(&notifyLock);
-        if (listeners != NULL) {
-            for (int i = 0, e = listeners->size(); i < e; ++i) {
-                EventListener* el = (EventListener*)listeners->elementAt(i);
-                notifyListener(*el);
-            }
+        for (int i = 0, e = listeners->size(); i < e; ++i) {
+            EventListener* el = (EventListener*)listeners->elementAt(i);
+            notifyListener(*el);
         }
     }
 }

@@ -63,7 +63,7 @@ TEST(DisasmX64) {
   __ bind(&L2);
   __ call(rcx);
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate, ArrayFrom);
+  Handle<CodeT> ic = BUILTIN_CODE(isolate, ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -780,6 +780,8 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
   COMPARE("440f178c8b10270000   movhps [rbx+rcx*4+0x2710],xmm9",
           movhps(Operand(rbx, rcx, times_4, 10000), xmm9));
   COMPARE("410fc6c100           shufps xmm0, xmm9, 0", shufps(xmm0, xmm9, 0x0));
+  COMPARE("f30fc2c100           cmpeqss xmm0,xmm1", cmpeqss(xmm0, xmm1));
+  COMPARE("f20fc2c100           cmpeqsd xmm0,xmm1", cmpeqsd(xmm0, xmm1));
   COMPARE("0f2ec1               ucomiss xmm0,xmm1", ucomiss(xmm0, xmm1));
   COMPARE("0f2e848b10270000     ucomiss xmm0,[rbx+rcx*4+0x2710]",
           ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000)));
@@ -1027,8 +1029,12 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_1) {
           roundpd(xmm8, xmm3, kRoundToNearest));
   COMPARE("66440f3a0ac309       roundss xmm8,xmm3,0x1",
           roundss(xmm8, xmm3, kRoundDown));
+  COMPARE("66440f3a0a420b09     roundss xmm8,[rdx+0xb],0x1",
+          roundss(xmm8, Operand(rdx, 11), kRoundDown));
   COMPARE("66440f3a0bc309       roundsd xmm8,xmm3,0x1",
           roundsd(xmm8, xmm3, kRoundDown));
+  COMPARE("66440f3a0b420b09     roundsd xmm8,[rdx+0xb],0x1",
+          roundsd(xmm8, Operand(rdx, 11), kRoundDown));
 
 #define COMPARE_SSE4_1_INSTR(instruction, _, __, ___, ____) \
   exp = #instruction " xmm5,xmm1";                          \
@@ -1167,6 +1173,10 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
           vmovss(xmm9, Operand(r11, rcx, times_8, -10000)));
   COMPARE("c4a17a118c8b10270000 vmovss [rbx+r9*4+0x2710],xmm1",
           vmovss(Operand(rbx, r9, times_4, 10000), xmm1));
+  COMPARE("c532c2c900           vcmpss xmm9,xmm9,xmm1, (eq)",
+          vcmpeqss(xmm9, xmm1));
+  COMPARE("c533c2c900           vcmpsd xmm9,xmm9,xmm1, (eq)",
+          vcmpeqsd(xmm9, xmm1));
   COMPARE("c5782ec9             vucomiss xmm9,xmm1", vucomiss(xmm9, xmm1));
   COMPARE("c5782e8453e52a0000   vucomiss xmm8,[rbx+rdx*2+0x2ae5]",
           vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981)));
@@ -1415,6 +1425,26 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
     COMPARE("c5ff12a48b10270000   vmovddup ymm4,[rbx+rcx*4+0x2710]",
             vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c5fe16ca             vmovshdup ymm1,ymm2", vmovshdup(ymm1, ymm2));
+    COMPARE("c5f4c6da73           vshufps ymm3,ymm1,ymm2,0x73",
+            vshufps(ymm3, ymm1, ymm2, 115));
+
+    // vcmp
+    COMPARE("c5dcc2e900           vcmpps ymm5,ymm4,ymm1, (eq)",
+            vcmpeqps(ymm5, ymm4, ymm1));
+    COMPARE("c5ddc2ac8b1027000001 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (lt)",
+            vcmpltpd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5ddc2e902           vcmppd ymm5,ymm4,ymm1, (le)",
+            vcmplepd(ymm5, ymm4, ymm1));
+    COMPARE("c5dcc2ac8b1027000003 vcmpps ymm5,ymm4,[rbx+rcx*4+0x2710], (unord)",
+            vcmpunordps(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5dcc2e904           vcmpps ymm5,ymm4,ymm1, (neq)",
+            vcmpneqps(ymm5, ymm4, ymm1));
+    COMPARE("c5ddc2ac8b1027000005 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (nlt)",
+            vcmpnltpd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5ddc2ac8b1027000006 vcmppd ymm5,ymm4,[rbx+rcx*4+0x2710], (nle)",
+            vcmpnlepd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5dcc2e90d           vcmpps ymm5,ymm4,ymm1, (ge)",
+            vcmpgeps(ymm5, ymm4, ymm1));
   }
 
   if (!CpuFeatures::IsSupported(AVX2)) return;

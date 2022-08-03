@@ -35,6 +35,7 @@ const { ESMLoader } = esmLoaderModule;
 
     return {
       format: suggestedFormat,
+      shortCircuit: true,
       url: resolvedURL,
     };
   }
@@ -54,15 +55,21 @@ const { ESMLoader } = esmLoaderModule;
     // This doesn't matter (just to avoid errors)
     return {
       format: 'module',
+      shortCircuit: true,
       source: '',
     };
   }
 
-  const customLoader = {
-    // Ensure ESMLoader actually calls the custom hooks
-    resolve: mustCall(resolve),
-    load: mustCall(load),
-  };
+  const customLoader = [
+    {
+      exports: {
+        // Ensure ESMLoader actually calls the custom hooks
+        resolve: mustCall(resolve),
+        load: mustCall(load),
+      },
+      url: import.meta.url,
+    },
+  ];
 
   esmLoader.addCustomLoaders(customLoader);
 

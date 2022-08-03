@@ -60,6 +60,16 @@ void EmptyInterceptorDeleter(
 void EmptyInterceptorEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {}
 
+void EmptyInterceptorDefinerWithSideEffect(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Local<v8::Value> result = CompileRun("interceptor_definer_side_effect()");
+  if (!result->IsNull()) {
+    info.GetReturnValue().Set(result);
+  }
+}
+
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Object> self = info.This().As<Object>();
@@ -869,13 +879,17 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
 namespace {
 
 void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                        v8::GenericNamedPropertySetterCallback setter,
                         v8::GenericNamedPropertyQueryCallback query,
-                        const char* source, int expected) {
+                        v8::GenericNamedPropertyDefinerCallback definer,
+                        v8::PropertyHandlerFlags flags, const char* source,
+                        int expected) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      getter, nullptr, query, nullptr, nullptr, v8_str("data")));
+      getter, setter, query, nullptr /* deleter */, nullptr /* enumerator */,
+      definer, nullptr /* descriptor */, v8_str("data"), flags));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("o"),
@@ -885,9 +899,17 @@ void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
   CHECK_EQ(expected, value->Int32Value(context.local()).FromJust());
 }
 
+void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                        v8::GenericNamedPropertyQueryCallback query,
+                        const char* source, int expected) {
+  CheckInterceptorIC(getter, nullptr, query, nullptr,
+                     v8::PropertyHandlerFlags::kNone, source, expected);
+}
+
 void CheckInterceptorLoadIC(v8::GenericNamedPropertyGetterCallback getter,
                             const char* source, int expected) {
-  CheckInterceptorIC(getter, nullptr, source, expected);
+  CheckInterceptorIC(getter, nullptr, nullptr, nullptr,
+                     v8::PropertyHandlerFlags::kNone, source, expected);
 }
 
 void InterceptorLoadICGetter(Local<Name> name,
@@ -1579,6 +1601,38 @@ THREADED_TEST(InterceptorStoreICWithSideEffectfulCallbacks) {
                      "  r.y = i;"
                      "}",
                      19);
+}
+
+THREADED_TEST(InterceptorDefineICWithSideEffectfulCallbacks) {
+  CheckInterceptorIC(EmptyInterceptorGetter, EmptyInterceptorSetter,
+                     EmptyInterceptorQuery,
+                     EmptyInterceptorDefinerWithSideEffect,
+                     v8::PropertyHandlerFlags::kNonMasking,
+                     "let inside_side_effect = false;"
+                     "let interceptor_definer_side_effect = function() {"
+                     "  if (!inside_side_effect) {"
+                     "    inside_side_effect = true;"
+                     "    o.y = 153;"
+                     "    inside_side_effect = false;"
+                     "  }"
+                     "  return null;"
+                     "};"
+                     "class Base {"
+                     "  constructor(arg) {"
+                     "    return arg;"
+                     "  }"
+                     "}"
+                     "class ClassWithField extends Base {"
+                     "  y = (() => {"
+                     "    return 42;"
+                     "  })();"
+                     "  constructor(arg) {"
+                     "    super(arg);"
+                     "  }"
+                     "}"
+                     "new ClassWithField(o);"
+                     "o.y",
+                     42);
 }
 
 static void InterceptorStoreICSetter(
@@ -2286,12 +2340,12 @@ void LogDefinerCallsAndStopCallback(
   info.GetReturnValue().Set(name);
 }
 
-struct StoreOwnICInterceptorConfig {
+struct DefineNamedOwnICInterceptorConfig {
   std::string code;
   std::vector<std::string> intercepted_defines;
 };
 
-std::vector<StoreOwnICInterceptorConfig> configs{
+std::vector<DefineNamedOwnICInterceptorConfig> configs{
     {
         R"(
           class ClassWithNormalField extends Base {
@@ -2387,8 +2441,8 @@ std::vector<StoreOwnICInterceptorConfig> configs{
 };
 }  // namespace
 
-void CheckPropertyDefinerCallbackInStoreOwnIC(Local<Context> context,
-                                              bool stop) {
+void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
+                                                    bool stop) {
   v8_compile(R"(
     class Base {
       constructor(arg) {
@@ -2437,25 +2491,17 @@ void CheckPropertyDefinerCallbackInStoreOwnIC(Local<Context> context,
   }
 }
 
-THREADED_TEST(PropertyDefinerCallbackInStoreOwnIC) {
+THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), true);
+    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), false);
-  }
-
-  {
-    i::FLAG_lazy_feedback_allocation = false;
-    i::FlagList::EnforceFlagImplications();
-    LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), true);
+    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 
   {
@@ -2463,7 +2509,15 @@ THREADED_TEST(PropertyDefinerCallbackInStoreOwnIC) {
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInStoreOwnIC(env.local(), false);
+    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
+  }
+
+  {
+    i::FLAG_lazy_feedback_allocation = false;
+    i::FlagList::EnforceFlagImplications();
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 }
 
@@ -5833,10 +5887,10 @@ void DatabaseGetter(Local<Name> name,
                     const v8::PropertyCallbackInfo<Value>& info) {
   ApiTestFuzzer::Fuzz();
   auto context = info.GetIsolate()->GetCurrentContext();
-  Local<v8::Object> db = info.Holder()
-                             ->GetRealNamedProperty(context, v8_str("db"))
-                             .ToLocalChecked()
-                             .As<v8::Object>();
+  v8::MaybeLocal<Value> maybe_db =
+      info.Holder()->GetRealNamedProperty(context, v8_str("db"));
+  if (maybe_db.IsEmpty()) return;
+  Local<v8::Object> db = maybe_db.ToLocalChecked().As<v8::Object>();
   if (!db->Has(context, name).FromJust()) return;
   info.GetReturnValue().Set(db->Get(context, name).ToLocalChecked());
 }

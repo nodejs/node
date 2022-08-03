@@ -10,19 +10,22 @@ on:
 env:
   NODE_VERSION: lts/*
 
+permissions:
+  contents: read
+
 jobs:
   find:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -30,7 +33,9 @@ jobs:
         run: tools/find-inactive-collaborators.mjs
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f
+        # Creates a PR or update the Action's existing PR, or
+        # no-op if the base branch is already up-to-date.
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:

@@ -10,8 +10,11 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/basic-memory-chunk.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/logging/log.h"
@@ -23,6 +26,9 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // MemoryAllocator
 //
+
+size_t MemoryAllocator::commit_page_size_ = 0;
+size_t MemoryAllocator::commit_page_size_bits_ = 0;
 
 MemoryAllocator::MemoryAllocator(Isolate* isolate,
                                  v8::PageAllocator* code_page_allocator,
@@ -48,8 +54,8 @@ void MemoryAllocator::TearDown() {
   // DCHECK_EQ(0, size_executable_);
   capacity_ = 0;
 
-  if (last_chunk_.IsReserved()) {
-    last_chunk_.Free();
+  if (reserved_chunk_at_virtual_memory_limit_) {
+    reserved_chunk_at_virtual_memory_limit_->Free();
   }
 
   code_page_allocator_ = nullptr;
@@ -87,8 +93,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
 
  private:
   void RunImpl(JobDelegate* delegate) {
-    unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>(
-        delegate);
+    unmapper_->PerformFreeMemoryOnQueuedChunks(FreeMode::kUncommitPooled,
+                                               delegate);
     if (FLAG_trace_unmapper) {
       PrintIsolate(unmapper_->heap_->isolate(), "UnmapFreeMemoryTask Done\n");
     }
@@ -110,7 +116,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
       }
     }
   } else {
-    PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
+    PerformFreeMemoryOnQueuedChunks(FreeMode::kUncommitPooled);
   }
 }
 
@@ -131,21 +137,20 @@ void MemoryAllocator::Unmapper::PrepareForGC() {
 
 void MemoryAllocator::Unmapper::EnsureUnmappingCompleted() {
   CancelAndWaitForPendingTasks();
-  PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
+  PerformFreeMemoryOnQueuedChunks(FreeMode::kFreePooled);
 }
 
 void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedNonRegularChunks(
     JobDelegate* delegate) {
   MemoryChunk* chunk = nullptr;
-  while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
+  while ((chunk = GetMemoryChunkSafe(ChunkQueueType::kNonRegular)) != nullptr) {
     allocator_->PerformFreeMemory(chunk);
     if (delegate && delegate->ShouldYield()) return;
   }
 }
 
-template <MemoryAllocator::Unmapper::FreeMode mode>
 void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks(
-    JobDelegate* delegate) {
+    MemoryAllocator::Unmapper::FreeMode mode, JobDelegate* delegate) {
   MemoryChunk* chunk = nullptr;
   if (FLAG_trace_unmapper) {
     PrintIsolate(
@@ -154,18 +159,18 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks(
         NumberOfChunks());
   }
   // Regular chunks.
-  while ((chunk = GetMemoryChunkSafe<kRegular>()) != nullptr) {
+  while ((chunk = GetMemoryChunkSafe(ChunkQueueType::kRegular)) != nullptr) {
     bool pooled = chunk->IsFlagSet(MemoryChunk::POOLED);
     allocator_->PerformFreeMemory(chunk);
-    if (pooled) AddMemoryChunkSafe<kPooled>(chunk);
+    if (pooled) AddMemoryChunkSafe(ChunkQueueType::kPooled, chunk);
     if (delegate && delegate->ShouldYield()) return;
   }
-  if (mode == MemoryAllocator::Unmapper::FreeMode::kReleasePooled) {
+  if (mode == MemoryAllocator::Unmapper::FreeMode::kFreePooled) {
     // The previous loop uncommitted any pages marked as pooled and added them
-    // to the pooled list. In case of kReleasePooled we need to free them
-    // though.
-    while ((chunk = GetMemoryChunkSafe<kPooled>()) != nullptr) {
-      allocator_->Free<MemoryAllocator::kAlreadyPooled>(chunk);
+    // to the pooled list. In case of kFreePooled we need to free them though as
+    // well.
+    while ((chunk = GetMemoryChunkSafe(ChunkQueueType::kPooled)) != nullptr) {
+      allocator_->FreePooledChunk(chunk);
       if (delegate && delegate->ShouldYield()) return;
     }
   }
@@ -174,21 +179,22 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks(
 
 void MemoryAllocator::Unmapper::TearDown() {
   CHECK(!job_handle_ || !job_handle_->IsValid());
-  PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
-  for (int i = 0; i < kNumberOfChunkQueues; i++) {
+  PerformFreeMemoryOnQueuedChunks(FreeMode::kFreePooled);
+  for (int i = 0; i < ChunkQueueType::kNumberOfChunkQueues; i++) {
     DCHECK(chunks_[i].empty());
   }
 }
 
 size_t MemoryAllocator::Unmapper::NumberOfCommittedChunks() {
   base::MutexGuard guard(&mutex_);
-  return chunks_[kRegular].size() + chunks_[kNonRegular].size();
+  return chunks_[ChunkQueueType::kRegular].size() +
+         chunks_[ChunkQueueType::kNonRegular].size();
 }
 
 int MemoryAllocator::Unmapper::NumberOfChunks() {
   base::MutexGuard guard(&mutex_);
   size_t result = 0;
-  for (int i = 0; i < kNumberOfChunkQueues; i++) {
+  for (int i = 0; i < ChunkQueueType::kNumberOfChunkQueues; i++) {
     result += chunks_[i].size();
   }
   return static_cast<int>(result);
@@ -200,10 +206,10 @@ size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
   size_t sum = 0;
   // kPooled chunks are already uncommited. We only have to account for
   // kRegular and kNonRegular chunks.
-  for (auto& chunk : chunks_[kRegular]) {
+  for (auto& chunk : chunks_[ChunkQueueType::kRegular]) {
     sum += chunk->size();
   }
-  for (auto& chunk : chunks_[kNonRegular]) {
+  for (auto& chunk : chunks_[ChunkQueueType::kNonRegular]) {
     sum += chunk->size();
   }
   return sum;
@@ -228,191 +234,166 @@ bool MemoryAllocator::UncommitMemory(VirtualMemory* reservation) {
   return true;
 }
 
-void MemoryAllocator::FreeMemory(v8::PageAllocator* page_allocator,
-                                 Address base, size_t size) {
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(base), size));
+void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
+                                       Address base, size_t size) {
+  FreePages(page_allocator, reinterpret_cast<void*>(base), size);
 }
 
 Address MemoryAllocator::AllocateAlignedMemory(
-    size_t reserve_size, size_t commit_size, size_t alignment,
+    size_t chunk_size, size_t area_size, size_t alignment,
     Executability executable, void* hint, VirtualMemory* controller) {
   v8::PageAllocator* page_allocator = this->page_allocator(executable);
-  DCHECK(commit_size <= reserve_size);
-  VirtualMemory reservation(page_allocator, reserve_size, hint, alignment);
-  if (!reservation.IsReserved()) return kNullAddress;
+  DCHECK_LT(area_size, chunk_size);
+
+  VirtualMemory reservation(page_allocator, chunk_size, hint, alignment);
+  if (!reservation.IsReserved()) return HandleAllocationFailure();
+
+  // We cannot use the last chunk in the address space because we would
+  // overflow when comparing top and limit if this chunk is used for a
+  // linear allocation area.
+  if ((reservation.address() + static_cast<Address>(chunk_size)) == 0u) {
+    CHECK(!reserved_chunk_at_virtual_memory_limit_);
+    reserved_chunk_at_virtual_memory_limit_ = std::move(reservation);
+    CHECK(reserved_chunk_at_virtual_memory_limit_);
+
+    // Retry reserve virtual memory.
+    reservation = VirtualMemory(page_allocator, chunk_size, hint, alignment);
+    if (!reservation.IsReserved()) return HandleAllocationFailure();
+  }
+
   Address base = reservation.address();
-  size_ += reservation.size();
 
   if (executable == EXECUTABLE) {
-    if (!CommitExecutableMemory(&reservation, base, commit_size,
-                                reserve_size)) {
-      base = kNullAddress;
+    const size_t aligned_area_size = ::RoundUp(area_size, GetCommitPageSize());
+    if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base,
+                                               aligned_area_size, chunk_size)) {
+      return HandleAllocationFailure();
     }
   } else {
+    // No guard page between page header and object area. This allows us to make
+    // all OS pages for both regions readable+writable at once.
+    const size_t commit_size =
+        ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
+                  GetCommitPageSize());
+
     if (reservation.SetPermissions(base, commit_size,
                                    PageAllocator::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
-      base = kNullAddress;
+      return HandleAllocationFailure();
     }
-  }
-
-  if (base == kNullAddress) {
-    // Failed to commit the body. Free the mapping and any partially committed
-    // regions inside it.
-    reservation.Free();
-    size_ -= reserve_size;
-    return kNullAddress;
   }
 
   *controller = std::move(reservation);
   return base;
 }
 
-V8_EXPORT_PRIVATE BasicMemoryChunk* MemoryAllocator::AllocateBasicChunk(
-    size_t reserve_area_size, size_t commit_area_size, Executability executable,
-    BaseSpace* owner) {
-  DCHECK_LE(commit_area_size, reserve_area_size);
-
-  size_t chunk_size;
+Address MemoryAllocator::HandleAllocationFailure() {
   Heap* heap = isolate_->heap();
-  Address base = kNullAddress;
-  VirtualMemory reservation;
-  Address area_start = kNullAddress;
-  Address area_end = kNullAddress;
+  if (!heap->deserialization_complete()) {
+    heap->FatalProcessOutOfMemory(
+        "MemoryChunk allocation failed during deserialization.");
+  }
+  return kNullAddress;
+}
+
+size_t MemoryAllocator::ComputeChunkSize(size_t area_size,
+                                         Executability executable) {
+  if (executable == EXECUTABLE) {
+    //
+    //             Executable
+    // +----------------------------+<- base aligned at MemoryChunk::kAlignment
+    // |           Header           |
+    // +----------------------------+<- base + CodePageGuardStartOffset
+    // |           Guard            |
+    // +----------------------------+<- area_start_
+    // |           Area             |
+    // +----------------------------+<- area_end_ (area_start + area_size)
+    // |   Committed but not used   |
+    // +----------------------------+<- aligned at OS page boundary
+    // |           Guard            |
+    // +----------------------------+<- base + chunk_size
+    //
+
+    return ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInCodePage() +
+                         area_size + MemoryChunkLayout::CodePageGuardSize(),
+                     GetCommitPageSize());
+  }
+
+  //
+  //           Non-executable
+  // +----------------------------+<- base aligned at MemoryChunk::kAlignment
+  // |          Header            |
+  // +----------------------------+<- area_start_ (base + area_start_)
+  // |           Area             |
+  // +----------------------------+<- area_end_ (area_start + area_size)
+  // |  Committed but not used    |
+  // +----------------------------+<- base + chunk_size
+  //
+  DCHECK_EQ(executable, NOT_EXECUTABLE);
+
+  return ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
+                   GetCommitPageSize());
+}
+
+base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
+MemoryAllocator::AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
+                                            Executability executable,
+                                            PageSize page_size) {
 #ifdef V8_COMPRESS_POINTERS
   // When pointer compression is enabled, spaces are expected to be at a
   // predictable address (see mkgrokdump) so we don't supply a hint and rely on
   // the deterministic behaviour of the BoundedPageAllocator.
   void* address_hint = nullptr;
 #else
-  void* address_hint =
-      AlignedAddress(heap->GetRandomMmapAddr(), MemoryChunk::kAlignment);
+  void* address_hint = AlignedAddress(isolate_->heap()->GetRandomMmapAddr(),
+                                      MemoryChunk::kAlignment);
 #endif
 
-  //
-  // MemoryChunk layout:
-  //
-  //             Executable
-  // +----------------------------+<- base aligned with MemoryChunk::kAlignment
-  // |           Header           |
-  // +----------------------------+<- base + CodePageGuardStartOffset
-  // |           Guard            |
-  // +----------------------------+<- area_start_
-  // |           Area             |
-  // +----------------------------+<- area_end_ (area_start + commit_area_size)
-  // |   Committed but not used   |
-  // +----------------------------+<- aligned at OS page boundary
-  // | Reserved but not committed |
-  // +----------------------------+<- aligned at OS page boundary
-  // |           Guard            |
-  // +----------------------------+<- base + chunk_size
-  //
-  //           Non-executable
-  // +----------------------------+<- base aligned with MemoryChunk::kAlignment
-  // |          Header            |
-  // +----------------------------+<- area_start_ (base + area_start_)
-  // |           Area             |
-  // +----------------------------+<- area_end_ (area_start + commit_area_size)
-  // |  Committed but not used    |
-  // +----------------------------+<- aligned at OS page boundary
-  // | Reserved but not committed |
-  // +----------------------------+<- base + chunk_size
-  //
+  VirtualMemory reservation;
+  size_t chunk_size = ComputeChunkSize(area_size, executable);
+  DCHECK_EQ(chunk_size % GetCommitPageSize(), 0);
 
+  Address base =
+      AllocateAlignedMemory(chunk_size, area_size, MemoryChunk::kAlignment,
+                            executable, address_hint, &reservation);
+  if (base == kNullAddress) return {};
+
+  size_ += reservation.size();
+
+  // Update executable memory size.
   if (executable == EXECUTABLE) {
-    chunk_size = ::RoundUp(MemoryChunkLayout::ObjectStartOffsetInCodePage() +
-                               reserve_area_size +
-                               MemoryChunkLayout::CodePageGuardSize(),
-                           GetCommitPageSize());
-
-    // Size of header (not executable) plus area (executable).
-    size_t commit_size = ::RoundUp(
-        MemoryChunkLayout::CodePageGuardStartOffset() + commit_area_size,
-        GetCommitPageSize());
-    base =
-        AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
-                              executable, address_hint, &reservation);
-    if (base == kNullAddress) return nullptr;
-    // Update executable memory size.
     size_executable_ += reservation.size();
-
-    if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
-      ZapBlock(base + MemoryChunkLayout::ObjectStartOffsetInCodePage(),
-               commit_area_size, kZapValue);
-    }
-
-    area_start = base + MemoryChunkLayout::ObjectStartOffsetInCodePage();
-    area_end = area_start + commit_area_size;
-  } else {
-    chunk_size = ::RoundUp(
-        MemoryChunkLayout::ObjectStartOffsetInDataPage() + reserve_area_size,
-        GetCommitPageSize());
-    size_t commit_size = ::RoundUp(
-        MemoryChunkLayout::ObjectStartOffsetInDataPage() + commit_area_size,
-        GetCommitPageSize());
-    base =
-        AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
-                              executable, address_hint, &reservation);
-
-    if (base == kNullAddress) return nullptr;
-
-    if (Heap::ShouldZapGarbage()) {
-      ZapBlock(
-          base,
-          MemoryChunkLayout::ObjectStartOffsetInDataPage() + commit_area_size,
-          kZapValue);
-    }
-
-    area_start = base + MemoryChunkLayout::ObjectStartOffsetInDataPage();
-    area_end = area_start + commit_area_size;
   }
 
-  // Use chunk_size for statistics because we assume that  treat reserved but
-  // not-yet committed memory regions of chunks as allocated.
+  if (Heap::ShouldZapGarbage()) {
+    if (executable == EXECUTABLE) {
+      // Page header and object area is split by guard page. Zap page header
+      // first.
+      ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
+      // Now zap object area.
+      ZapBlock(base + MemoryChunkLayout::ObjectStartOffsetInCodePage(),
+               area_size, kZapValue);
+    } else {
+      DCHECK_EQ(executable, NOT_EXECUTABLE);
+      // Zap both page header and object area at once. No guard page in-between.
+      ZapBlock(base,
+               MemoryChunkLayout::ObjectStartOffsetInDataPage() + area_size,
+               kZapValue);
+    }
+  }
+
   LOG(isolate_,
       NewEvent("MemoryChunk", reinterpret_cast<void*>(base), chunk_size));
 
-  // We cannot use the last chunk in the address space because we would
-  // overflow when comparing top and limit if this chunk is used for a
-  // linear allocation area.
-  if ((base + chunk_size) == 0u) {
-    CHECK(!last_chunk_.IsReserved());
-    last_chunk_ = std::move(reservation);
-    UncommitMemory(&last_chunk_);
-    size_ -= chunk_size;
-    if (executable == EXECUTABLE) {
-      size_executable_ -= chunk_size;
-    }
-    CHECK(last_chunk_.IsReserved());
-    return AllocateBasicChunk(reserve_area_size, commit_area_size, executable,
-                              owner);
-  }
+  Address area_start = base + MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
+                                  space->identity());
+  Address area_end = area_start + area_size;
 
-  BasicMemoryChunk* chunk =
-      BasicMemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
-                                   owner, std::move(reservation));
-
-  return chunk;
-}
-
-MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
-                                            size_t commit_area_size,
-                                            Executability executable,
-                                            BaseSpace* owner) {
-  BasicMemoryChunk* basic_chunk = AllocateBasicChunk(
-      reserve_area_size, commit_area_size, executable, owner);
-
-  if (basic_chunk == nullptr) return nullptr;
-
-  MemoryChunk* chunk =
-      MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
-
-#ifdef DEBUG
-  if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
-#endif  // DEBUG
-  return chunk;
+  return MemoryChunkAllocationResult{
+      reinterpret_cast<void*>(base), chunk_size, area_start, area_end,
+      std::move(reservation),
+  };
 }
 
 void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
@@ -440,7 +421,8 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
   size_ -= released_bytes;
 }
 
-void MemoryAllocator::UnregisterSharedMemory(BasicMemoryChunk* chunk) {
+void MemoryAllocator::UnregisterSharedBasicMemoryChunk(
+    BasicMemoryChunk* chunk) {
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
@@ -448,8 +430,8 @@ void MemoryAllocator::UnregisterSharedMemory(BasicMemoryChunk* chunk) {
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
-                                       Executability executable) {
+void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
+                                                 Executability executable) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
@@ -469,15 +451,20 @@ void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
 
-void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
-  UnregisterMemory(chunk, chunk->executable());
+void MemoryAllocator::UnregisterMemoryChunk(MemoryChunk* chunk) {
+  UnregisterBasicMemoryChunk(chunk, chunk->executable());
+}
+
+void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPage* page) {
+  DCHECK(!page->executable());
+  UnregisterBasicMemoryChunk(page, NOT_EXECUTABLE);
 }
 
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
 
-  UnregisterSharedMemory(chunk);
+  UnregisterSharedBasicMemoryChunk(chunk);
 
   v8::PageAllocator* allocator = page_allocator(NOT_EXECUTABLE);
   VirtualMemory* reservation = chunk->reserved_memory();
@@ -487,15 +474,15 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
     // Only read-only pages can have a non-initialized reservation object. This
     // happens when the pages are remapped to multiple locations and where the
     // reservation would therefore be invalid.
-    FreeMemory(allocator, chunk->address(),
-               RoundUp(chunk->size(), allocator->AllocatePageSize()));
+    FreeMemoryRegion(allocator, chunk->address(),
+                     RoundUp(chunk->size(), allocator->AllocatePageSize()));
   }
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  UnregisterMemory(chunk);
+  UnregisterMemoryChunk(chunk);
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
   chunk->SetFlag(MemoryChunk::PRE_FREED);
@@ -516,25 +503,18 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
   }
 }
 
-template <MemoryAllocator::FreeMode mode>
-void MemoryAllocator::Free(MemoryChunk* chunk) {
+void MemoryAllocator::Free(MemoryAllocator::FreeMode mode, MemoryChunk* chunk) {
   switch (mode) {
-    case kFull:
+    case FreeMode::kImmediately:
       PreFreeMemory(chunk);
       PerformFreeMemory(chunk);
       break;
-    case kAlreadyPooled:
-      // Pooled pages cannot be touched anymore as their memory is uncommitted.
-      // Pooled pages are not-executable.
-      FreeMemory(data_page_allocator(), chunk->address(),
-                 static_cast<size_t>(MemoryChunk::kPageSize));
-      break;
-    case kPooledAndQueue:
+    case FreeMode::kConcurrentlyAndPool:
       DCHECK_EQ(chunk->size(), static_cast<size_t>(MemoryChunk::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
       chunk->SetFlag(MemoryChunk::POOLED);
       V8_FALLTHROUGH;
-    case kPreFreeAndQueue:
+    case FreeMode::kConcurrently:
       PreFreeMemory(chunk);
       // The chunks added to this queue will be freed by a concurrent thread.
       unmapper()->AddMemoryChunkSafe(chunk);
@@ -542,52 +522,55 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   }
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
-    MemoryAllocator::kFull>(MemoryChunk* chunk);
-
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
-    MemoryAllocator::kAlreadyPooled>(MemoryChunk* chunk);
-
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
-    MemoryAllocator::kPreFreeAndQueue>(MemoryChunk* chunk);
-
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
-    MemoryAllocator::kPooledAndQueue>(MemoryChunk* chunk);
-
-template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
-Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
-                                    Executability executable) {
-  MemoryChunk* chunk = nullptr;
-  if (alloc_mode == kPooled) {
-    DCHECK_EQ(size, static_cast<size_t>(
-                        MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-                            owner->identity())));
-    DCHECK_EQ(executable, NOT_EXECUTABLE);
-    chunk = AllocatePagePooled(owner);
-  }
-  if (chunk == nullptr) {
-    chunk = AllocateChunk(size, size, executable, owner);
-  }
-  if (chunk == nullptr) return nullptr;
-  return owner->InitializePage(chunk);
+void MemoryAllocator::FreePooledChunk(MemoryChunk* chunk) {
+  // Pooled pages cannot be touched anymore as their memory is uncommitted.
+  // Pooled pages are not-executable.
+  FreeMemoryRegion(data_page_allocator(), chunk->address(),
+                   static_cast<size_t>(MemoryChunk::kPageSize));
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-        size_t size, PagedSpace* owner, Executability executable);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
-        size_t size, SemiSpace* owner, Executability executable);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
-        size_t size, SemiSpace* owner, Executability executable);
+Page* MemoryAllocator::AllocatePage(MemoryAllocator::AllocationMode alloc_mode,
+                                    Space* space, Executability executable) {
+  size_t size =
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space->identity());
+  base::Optional<MemoryChunkAllocationResult> chunk_info;
+  if (alloc_mode == AllocationMode::kUsePool) {
+    DCHECK_EQ(size, static_cast<size_t>(
+                        MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
+                            space->identity())));
+    DCHECK_EQ(executable, NOT_EXECUTABLE);
+    chunk_info = AllocateUninitializedPageFromPool(space);
+  }
 
-ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
-                                                    ReadOnlySpace* owner) {
-  BasicMemoryChunk* chunk =
-      AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
-  if (chunk == nullptr) return nullptr;
-  return owner->InitializePage(chunk);
+  if (!chunk_info) {
+    chunk_info =
+        AllocateUninitializedChunk(space, size, executable, PageSize::kRegular);
+  }
+
+  if (!chunk_info) return nullptr;
+
+  Page* page = new (chunk_info->start) Page(
+      isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
+      chunk_info->area_end, std::move(chunk_info->reservation), executable);
+
+#ifdef DEBUG
+  if (page->executable()) RegisterExecutableMemoryChunk(page);
+#endif  // DEBUG
+
+  space->InitializePage(page);
+  return page;
+}
+
+ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space) {
+  DCHECK_EQ(space->identity(), RO_SPACE);
+  size_t size = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE);
+  base::Optional<MemoryChunkAllocationResult> chunk_info =
+      AllocateUninitializedChunk(space, size, NOT_EXECUTABLE,
+                                 PageSize::kRegular);
+  if (!chunk_info) return nullptr;
+  return new (chunk_info->start) ReadOnlyPage(
+      isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
+      chunk_info->area_end, std::move(chunk_info->reservation));
 }
 
 std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping>
@@ -596,37 +579,48 @@ MemoryAllocator::RemapSharedPage(
   return shared_memory->RemapTo(reinterpret_cast<void*>(new_address));
 }
 
-LargePage* MemoryAllocator::AllocateLargePage(size_t size,
-                                              LargeObjectSpace* owner,
+LargePage* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
+                                              size_t object_size,
                                               Executability executable) {
-  MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
-  if (chunk == nullptr) return nullptr;
-  return LargePage::Initialize(isolate_->heap(), chunk, executable);
+  base::Optional<MemoryChunkAllocationResult> chunk_info =
+      AllocateUninitializedChunk(space, object_size, executable,
+                                 PageSize::kLarge);
+
+  if (!chunk_info) return nullptr;
+
+  LargePage* page = new (chunk_info->start) LargePage(
+      isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
+      chunk_info->area_end, std::move(chunk_info->reservation), executable);
+
+#ifdef DEBUG
+  if (page->executable()) RegisterExecutableMemoryChunk(page);
+#endif  // DEBUG
+
+  return page;
 }
 
-template <typename SpaceType>
-MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
-  MemoryChunk* chunk = unmapper()->TryGetPooledMemoryChunkSafe();
-  if (chunk == nullptr) return nullptr;
+base::Optional<MemoryAllocator::MemoryChunkAllocationResult>
+MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
+  void* chunk = unmapper()->TryGetPooledMemoryChunkSafe();
+  if (chunk == nullptr) return {};
   const int size = MemoryChunk::kPageSize;
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start =
       start +
-      MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(owner->identity());
+      MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
   const Address area_end = start + size;
   // Pooled pages are always regular data pages.
-  DCHECK_NE(CODE_SPACE, owner->identity());
+  DCHECK_NE(CODE_SPACE, space->identity());
   VirtualMemory reservation(data_page_allocator(), start, size);
-  if (!CommitMemory(&reservation)) return nullptr;
+  if (!CommitMemory(&reservation)) return {};
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size, kZapValue);
   }
-  BasicMemoryChunk* basic_chunk =
-      BasicMemoryChunk::Initialize(isolate_->heap(), start, size, area_start,
-                                   area_end, owner, std::move(reservation));
-  MemoryChunk::Initialize(basic_chunk, isolate_->heap(), NOT_EXECUTABLE);
+
   size_ += size;
-  return chunk;
+  return MemoryChunkAllocationResult{
+      chunk, size, area_start, area_end, std::move(reservation),
+  };
 }
 
 void MemoryAllocator::ZapBlock(Address start, size_t size,
@@ -637,18 +631,16 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
                size >> kTaggedSizeLog2);
 }
 
-intptr_t MemoryAllocator::GetCommitPageSize() {
-  if (FLAG_v8_os_page_size != 0) {
-    DCHECK(base::bits::IsPowerOfTwo(FLAG_v8_os_page_size));
-    return FLAG_v8_os_page_size * KB;
-  } else {
-    return CommitPageSize();
-  }
+void MemoryAllocator::InitializeOncePerProcess() {
+  commit_page_size_ =
+      FLAG_v8_os_page_size > 0 ? FLAG_v8_os_page_size * KB : CommitPageSize();
+  CHECK(base::bits::IsPowerOfTwo(commit_page_size_));
+  commit_page_size_bits_ = base::bits::WhichPowerOfTwo(commit_page_size_);
 }
 
 base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
                                                               size_t size) {
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  size_t page_size = GetCommitPageSize();
   if (size < page_size + FreeSpace::kSize) {
     return base::AddressRegion(0, 0);
   }
@@ -659,42 +651,50 @@ base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
                              discardable_end - discardable_start);
 }
 
-bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
-                                             size_t commit_size,
-                                             size_t reserved_size) {
+bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
+                                                            Address start,
+                                                            size_t area_size,
+                                                            size_t chunk_size) {
   const size_t page_size = GetCommitPageSize();
+
   // All addresses and sizes must be aligned to the commit page size.
   DCHECK(IsAligned(start, page_size));
-  DCHECK_EQ(0, commit_size % page_size);
-  DCHECK_EQ(0, reserved_size % page_size);
+  DCHECK_EQ(0, area_size % page_size);
+  DCHECK_EQ(0, chunk_size % page_size);
+
   const size_t guard_size = MemoryChunkLayout::CodePageGuardSize();
   const size_t pre_guard_offset = MemoryChunkLayout::CodePageGuardStartOffset();
   const size_t code_area_offset =
       MemoryChunkLayout::ObjectStartOffsetInCodePage();
-  // reserved_size includes two guard regions, commit_size does not.
-  DCHECK_LE(commit_size, reserved_size - 2 * guard_size);
+
+  DCHECK_EQ(pre_guard_offset + guard_size + area_size + guard_size, chunk_size);
+
   const Address pre_guard_page = start + pre_guard_offset;
   const Address code_area = start + code_area_offset;
-  const Address post_guard_page = start + reserved_size - guard_size;
+  const Address post_guard_page = start + chunk_size - guard_size;
+
   // Commit the non-executable header, from start to pre-code guard page.
   if (vm->SetPermissions(start, pre_guard_offset, PageAllocator::kReadWrite)) {
     // Create the pre-code guard page, following the header.
     if (vm->SetPermissions(pre_guard_page, page_size,
                            PageAllocator::kNoAccess)) {
       // Commit the executable code body.
-      if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
+      if (vm->SetPermissions(code_area, area_size,
                              MemoryChunk::GetCodeModificationPermission())) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
                                PageAllocator::kNoAccess)) {
-          UpdateAllocatedSpaceLimits(start, code_area + commit_size);
+          UpdateAllocatedSpaceLimits(start, code_area + area_size);
           return true;
         }
-        vm->SetPermissions(code_area, commit_size, PageAllocator::kNoAccess);
+
+        vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
       }
     }
+
     vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
   }
+
   return false;
 }
 

@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http'
-import Dispatcher from './dispatcher';
-import { Headers } from './fetch'
+import Dispatcher = require('./dispatcher');
+import { BodyInit, Headers } from './fetch'
 
 export {
   Interceptable,
@@ -26,7 +26,7 @@ declare class MockInterceptor {
   reply<TData extends object = object>(replyOptionsCallback: MockInterceptor.MockReplyOptionsCallback<TData>): MockScope<TData>;
   reply<TData extends object = object>(
     statusCode: number,
-    data: TData | Buffer | string | MockInterceptor.MockResponseDataHandler<TData>,
+    data?: TData | Buffer | string | MockInterceptor.MockResponseDataHandler<TData>,
     responseOptions?: MockInterceptor.MockResponseOptions
   ): MockScope<TData>;
   /** Mock an undici request by throwing the defined reply error. */
@@ -44,12 +44,14 @@ declare namespace MockInterceptor {
   export interface Options {
     /** Path to intercept on. */
     path: string | RegExp | ((path: string) => boolean);
-    /** Method to intercept on. */
-    method: string | RegExp | ((method: string) => boolean);
+    /** Method to intercept on. Defaults to GET. */
+    method?: string | RegExp | ((method: string) => boolean);
     /** Body to intercept on. */
     body?: string | RegExp | ((body: string) => boolean);
     /** Headers to intercept on. */
-    headers?: Record<string, string | RegExp | ((body: string) => boolean)>;
+    headers?: Record<string, string | RegExp | ((body: string) => boolean)> | ((headers: Record<string, string>) => boolean);
+    /** Query params to intercept on */
+    query?: Record<string, any>;
   }
   export interface MockDispatch<TData extends object = object, TError extends Error = Error> extends Options {
     times: number | null;
@@ -71,7 +73,7 @@ declare namespace MockInterceptor {
     path: string;
     origin: string;
     method: string;
-    body?: string;
+    body?: BodyInit | Dispatcher.DispatchOptions['body'];
     headers: Headers;
     maxRedirections: number;
   }
@@ -82,7 +84,7 @@ declare namespace MockInterceptor {
 
   export type MockReplyOptionsCallback<TData extends object = object> = (
     opts: MockResponseCallbackOptions
-  ) => { statusCode: number, data: TData | Buffer | string, responseOptions?: MockResponseOptions }
+  ) => { statusCode: number, data?: TData | Buffer | string, responseOptions?: MockResponseOptions }
 }
 
 interface Interceptable extends Dispatcher {

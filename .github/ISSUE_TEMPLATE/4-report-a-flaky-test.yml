@@ -19,11 +19,24 @@ body:
       placeholder: e.g. `test-fs-stat-bigint`
     validations:
       required: true
-  - type: input
+  - type: dropdown
     attributes:
       label: Platform
       description: The platform the test is flaky on.
-      placeholder: e.g. `macos` or `linux`
+      multiple: true
+      options:
+        - AIX
+        - FreeBSD
+        - Linux ARM64
+        - Linux ARMv7
+        - Linux PPC64LE
+        - Linux s390x
+        - Linux x64
+        - macOS ARM64
+        - macOS x64
+        - SmartOS
+        - Windows
+        - Other
   - type: textarea
     attributes:
       label: Console output

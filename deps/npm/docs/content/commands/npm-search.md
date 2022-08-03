@@ -13,7 +13,7 @@ description: Search for packages
 ```bash
 npm search [search terms ...]
 
-aliases: s, se, find
+aliases: find, s, se
 ```
 
 <!-- automatically generated, do not edit manually -->

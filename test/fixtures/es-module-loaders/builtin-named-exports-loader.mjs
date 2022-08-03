@@ -18,6 +18,7 @@ export async function resolve(specifier, context, next) {
 
   if (def.url.startsWith('node:')) {
     return {
+      shortCircuit: true,
       url: `custom-${def.url}`,
       importAssertions: context.importAssertions,
     };
@@ -29,11 +30,12 @@ export function load(url, context, next) {
   if (url.startsWith('custom-node:')) {
     const urlObj = new URL(url);
     return {
+      shortCircuit: true,
       source: generateBuiltinModule(urlObj.pathname),
       format: 'module',
     };
   }
-  return next(url, context);
+  return next(url);
 }
 
 function generateBuiltinModule(builtinName) {

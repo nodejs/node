@@ -7,8 +7,8 @@ module.exports = (f, env) => f.replace(envExpr, (orig, esc, name) => {
 
   // consume the escape chars that are relevant.
   if (esc.length % 2) {
-    return orig.substr((esc.length + 1) / 2)
+    return orig.slice((esc.length + 1) / 2)
   }
 
-  return (esc.substr(esc.length / 2)) + val
+  return (esc.slice(esc.length / 2)) + val
 })

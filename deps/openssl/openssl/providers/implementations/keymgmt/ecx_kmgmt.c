@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,8 +9,6 @@
 
 #include <assert.h>
 #include <string.h>
-/* For strcasecmp on Windows */
-#include "e_os.h"
 #include <openssl/core_dispatch.h>
 #include <openssl/core_names.h>
 #include <openssl/params.h>
@@ -194,7 +192,7 @@ static int ecx_import(void *keydata, int selection, const OSSL_PARAM params[])
 {
     ECX_KEY *key = keydata;
     int ok = 1;
-    int include_private = 0;
+    int include_private;
 
     if (!ossl_prov_is_running() || key == NULL)
         return 0;
@@ -202,14 +200,14 @@ static int ecx_import(void *keydata, int selection, const OSSL_PARAM params[])
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0)
         return 0;
 
-    include_private = ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0);
+    include_private = selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
     ok = ok && ossl_ecx_key_fromdata(key, params, include_private);
 
     return ok;
 }
 
 static int key_to_params(ECX_KEY *key, OSSL_PARAM_BLD *tmpl,
-                         OSSL_PARAM params[])
+                         OSSL_PARAM params[], int include_private)
 {
     if (key == NULL)
         return 0;
@@ -219,7 +217,8 @@ static int key_to_params(ECX_KEY *key, OSSL_PARAM_BLD *tmpl,
                                            key->pubkey, key->keylen))
         return 0;
 
-    if (key->privkey != NULL
+    if (include_private
+        && key->privkey != NULL
         && !ossl_param_build_set_octet_string(tmpl, params,
                                               OSSL_PKEY_PARAM_PRIV_KEY,
                                               key->privkey, key->keylen))
@@ -243,9 +242,12 @@ static int ecx_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
     if (tmpl == NULL)
         return 0;
 
-    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0
-         && !key_to_params(key, tmpl, NULL))
-        goto err;
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int include_private = ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0);
+
+        if (!key_to_params(key, tmpl, NULL, include_private))
+            goto err;
+    }
 
     params = OSSL_PARAM_BLD_to_param(tmpl);
     if (params == NULL)
@@ -295,7 +297,7 @@ static int ecx_get_params(void *key, OSSL_PARAM params[], int bits, int secbits,
             return 0;
     }
 
-    return key_to_params(ecx, NULL, params);
+    return key_to_params(ecx, NULL, params, 1);
 }
 
 static int ed_get_params(void *key, OSSL_PARAM params[])
@@ -542,7 +544,7 @@ static int ecx_gen_set_params(void *genctx, const OSSL_PARAM params[])
         }
         if (p->data_type != OSSL_PARAM_UTF8_STRING
                 || groupname == NULL
-                || strcasecmp(p->data, groupname) != 0) {
+                || OPENSSL_strcasecmp(p->data, groupname) != 0) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }

@@ -20,7 +20,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow specified warning terms in comments",
+            description: "Disallow specified warning terms in comments",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-warning-comments"
         },
@@ -64,59 +64,45 @@ module.exports = {
          */
         function convertToRegExp(term) {
             const escaped = escapeRegExp(term);
-            const wordBoundary = "\\b";
-            const eitherOrWordBoundary = `|${wordBoundary}`;
-            let prefix;
 
             /*
-             * If the term ends in a word character (a-z0-9_), ensure a word
-             * boundary at the end, so that substrings do not get falsely
-             * matched. eg "todo" in a string such as "mastodon".
-             * If the term ends in a non-word character, then \b won't match on
-             * the boundary to the next non-word character, which would likely
-             * be a space. For example `/\bFIX!\b/.test('FIX! blah') === false`.
-             * In these cases, use no bounding match. Same applies for the
-             * prefix, handled below.
+             * When matching at the start, ignore leading whitespace, and
+             * there's no need to worry about word boundaries.
+             *
+             * These expressions for the prefix and suffix are designed as follows:
+             * ^   handles any terms at the beginning of a comment.
+             *     e.g. terms ["TODO"] matches `//TODO something`
+             * $   handles any terms at the end of a comment
+             *     e.g. terms ["TODO"] matches `// something TODO`
+             * \s* handles optional leading spaces (for "start" location only)
+             *     e.g. terms ["TODO"] matches `//    TODO something`
+             * \b  handles terms preceded/followed by word boundary
+             *     e.g. terms: ["!FIX", "FIX!"] matches `// FIX!something` or `// something!FIX`
+             *          terms: ["FIX"] matches `// FIX!` or `// !FIX`, but not `// fixed or affix`
              */
-            const suffix = /\w$/u.test(term) ? "\\b" : "";
+            const wordBoundary = "\\b";
+
+            let prefix = "";
 
             if (location === "start") {
-
-                /*
-                 * When matching at the start, ignore leading whitespace, and
-                 * there's no need to worry about word boundaries.
-                 */
                 prefix = "^\\s*";
             } else if (/^\w/u.test(term)) {
                 prefix = wordBoundary;
-            } else {
-                prefix = "";
             }
 
-            if (location === "start") {
-
-                /*
-                 * For location "start" the regex should be
-                 * ^\s*TERM\b.  This checks the word boundary
-                 * at the beginning of the comment.
-                 */
-                return new RegExp(prefix + escaped + suffix, "iu");
-            }
+            const suffix = /\w$/u.test(term) ? wordBoundary : "";
+            const flags = "iu"; // Case-insensitive with Unicode case folding.
 
             /*
-             * For location "anywhere" the regex should be
-             * \bTERM\b|\bTERM\b, this checks the entire comment
-             * for the term.
+             * For location "start", the typical regex is:
+             *   /^\s*ESCAPED_TERM\b/iu.
+             *
+             * For location "anywhere" the typical regex is
+             *   /\bESCAPED_TERM\b/iu
+             *
+             * If it starts or ends with non-word character, the prefix and suffix empty, respectively.
              */
-            return new RegExp(
-                prefix +
-                    escaped +
-                    suffix +
-                    eitherOrWordBoundary +
-                    term +
-                    wordBoundary,
-                "iu"
-            );
+            return new RegExp(`${prefix}${escaped}${suffix}`, flags);
         }
 
         const warningRegExps = warningTerms.map(convertToRegExp);

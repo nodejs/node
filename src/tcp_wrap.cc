@@ -45,6 +45,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
@@ -73,8 +74,9 @@ void TCPWrap::Initialize(Local<Object> target,
                          Local<Context> context,
                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
   t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   // Init properties
@@ -85,31 +87,36 @@ void TCPWrap::Initialize(Local<Object> target,
 
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "open", Open);
-  env->SetProtoMethod(t, "bind", Bind);
-  env->SetProtoMethod(t, "listen", Listen);
-  env->SetProtoMethod(t, "connect", Connect);
-  env->SetProtoMethod(t, "bind6", Bind6);
-  env->SetProtoMethod(t, "connect6", Connect6);
-  env->SetProtoMethod(t, "getsockname",
-                      GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
-  env->SetProtoMethod(t, "getpeername",
-                      GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
-  env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
-  env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
+  SetProtoMethod(isolate, t, "open", Open);
+  SetProtoMethod(isolate, t, "bind", Bind);
+  SetProtoMethod(isolate, t, "listen", Listen);
+  SetProtoMethod(isolate, t, "connect", Connect);
+  SetProtoMethod(isolate, t, "bind6", Bind6);
+  SetProtoMethod(isolate, t, "connect6", Connect6);
+  SetProtoMethod(isolate,
+                 t,
+                 "getsockname",
+                 GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+  SetProtoMethod(isolate,
+                 t,
+                 "getpeername",
+                 GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
+  SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
+  SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
+  SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
-  env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
+  SetProtoMethod(isolate, t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  env->SetConstructorFunction(target, "TCP", t);
+  SetConstructorFunction(context, target, "TCP", t);
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
   Local<FunctionTemplate> cwt =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
   cwt->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  env->SetConstructorFunction(target, "TCPConnectWrap", cwt);
+  SetConstructorFunction(context, target, "TCPConnectWrap", cwt);
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
@@ -134,6 +141,7 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   registry->Register(SetNoDelay);
   registry->Register(SetKeepAlive);
+  registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
 #endif
@@ -333,18 +341,50 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
                              &wrap->handle_,
                              reinterpret_cast<const sockaddr*>(&addr),
                              AfterConnect);
-    if (err)
+    if (err) {
       delete req_wrap;
+    } else {
+      int port = args[2]->Uint32Value(env->context()).FromJust();
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
+                                        "connect",
+                                        req_wrap,
+                                        "ip",
+                                        TRACE_STR_COPY(*ip_address),
+                                        "port",
+                                        port);
+    }
   }
 
   args.GetReturnValue().Set(err);
 }
+void TCPWrap::Reset(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
 
+  int err = wrap->Reset(args[0]);
+
+  args.GetReturnValue().Set(err);
+}
+
+int TCPWrap::Reset(Local<Value> close_callback) {
+  if (state_ != kInitialized) return 0;
+
+  int err = uv_tcp_close_reset(&handle_, OnClose);
+  state_ = kClosing;
+  if (!err & !close_callback.IsEmpty() && close_callback->IsFunction() &&
+      !persistent().IsEmpty()) {
+    object()
+        ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
+        .Check();
+  }
+  return err;
+}
 
 // also used by udp_wrap.cc
-Local<Object> AddressToJS(Environment* env,
-                          const sockaddr* addr,
-                          Local<Object> info) {
+MaybeLocal<Object> AddressToJS(Environment* env,
+                               const sockaddr* addr,
+                               Local<Object> info) {
   EscapableHandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN + UV_IF_NAMESIZE];
   const sockaddr_in* a4;
@@ -371,17 +411,14 @@ Local<Object> AddressToJS(Environment* env,
                                      &scopeidlen);
       if (r) {
         env->ThrowUVException(r, "uv_if_indextoiid");
-        // TODO(addaleax): Do proper MaybeLocal handling here
-        return scope.Escape(info);
+        return {};
       }
     }
     port = ntohs(a6->sin6_port);
     info->Set(env->context(),
               env->address_string(),
               OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(),
-              env->family_string(),
-              env->ipv6_string()).Check();
+    info->Set(env->context(), env->family_string(), env->ipv6_string()).Check();
     info->Set(env->context(),
               env->port_string(),
               Integer::New(env->isolate(), port)).Check();
@@ -394,9 +431,7 @@ Local<Object> AddressToJS(Environment* env,
     info->Set(env->context(),
               env->address_string(),
               OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(),
-              env->family_string(),
-              env->ipv4_string()).Check();
+    info->Set(env->context(), env->family_string(), env->ipv4_string()).Check();
     info->Set(env->context(),
               env->port_string(),
               Integer::New(env->isolate(), port)).Check();

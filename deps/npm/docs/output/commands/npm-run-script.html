@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -290,6 +290,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="if-present"><code>if-present</code></h4>
@@ -303,6 +304,7 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
@@ -317,12 +319,24 @@ will still run their intended script if <code>ignore-scripts</code> is set, but 
 will <em>not</em> run any pre- or post-scripts.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.</p>
+<p>Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
-<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

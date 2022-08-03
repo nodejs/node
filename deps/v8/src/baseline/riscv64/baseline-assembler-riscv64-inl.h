@@ -76,6 +76,11 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  return __ Add64(rscratch, fp,
+                  interpreter_register.ToOperand() * kSystemPointerSize);
+}
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
@@ -107,7 +112,11 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
   __ JumpIfSmi(value, target);
 }
-
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  JumpIf(cc, left, Operand(right), target, distance);
+}
 void BaselineAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(masm_,
                           __ CommentForOffHeapTrampoline("call", builtin));
@@ -342,8 +351,12 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ LoadAnyTaggedField(output, FieldMemOperand(source, offset));
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ Lhu(output, FieldMemOperand(source, offset));
+}
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
   __ Lb(output, FieldMemOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
@@ -419,6 +432,10 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
   }
 }
 
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  __ And(output, lhs, Operand(rhs));
+}
+
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   ASM_CODE_COMMENT(masm_);
@@ -478,7 +495,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
     __ LoadContext(kContextRegister);
     __ LoadFunction(kJSFunctionRegister);
     __ masm()->Push(kJSFunctionRegister);
-    __ CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, 1);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
 
     __ masm()->Pop(params_size, kInterpreterAccumulatorRegister);
     __ masm()->SmiUntag(params_size);
@@ -505,9 +522,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
-                           kJSArgcIncludesReceiver
-                               ? MacroAssembler::kCountIncludesReceiver
-                               : MacroAssembler::kCountExcludesReceiver);
+                           MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 

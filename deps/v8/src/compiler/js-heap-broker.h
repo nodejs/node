@@ -32,6 +32,11 @@
 
 namespace v8 {
 namespace internal {
+
+namespace maglev {
+class MaglevCompilationInfo;
+}
+
 namespace compiler {
 
 class ObjectRef;
@@ -94,12 +99,12 @@ DEFINE_OPERATORS_FOR_FLAGS(GetOrCreateDataFlags)
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, CodeKind code_kind);
+               CodeKind code_kind);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
-      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
+      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker,
                      CodeKind::TURBOFAN) {}
 
   ~JSHeapBroker();
@@ -127,8 +132,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
-  bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
     return IsMainThread() ? NexusConfig::FromMainThread(isolate())
@@ -151,6 +154,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // handles provided back to {info}. {info} is responsible for disposing of
   // them.
   void DetachLocalIsolate(OptimizedCompilationInfo* info);
+
+  // TODO(v8:7700): Refactor this once the broker is no longer
+  // Turbofan-specific.
+  void AttachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info,
+                                   LocalIsolate* local_isolate);
+  void DetachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info);
 
   bool StackHasOverflowed() const;
 
@@ -224,10 +233,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   PropertyAccessInfo GetPropertyAccessInfo(
       MapRef map, NameRef name, AccessMode access_mode,
       CompilationDependencies* dependencies);
-
-  MinimorphicLoadPropertyAccessInfo GetPropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
@@ -436,7 +441,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
-  bool const is_concurrent_inlining_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
@@ -448,9 +452,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
-  ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
-                   FeedbackSource::Hash, FeedbackSource::Equal>
-      minimorphic_property_access_infos_;
 
   CompilationDependencies* dependencies_ = nullptr;
 

@@ -89,38 +89,77 @@ def _default_args():
     return struct(
         deps = [":define_flags"],
         defines = select({
-            "@config//:is_windows": [
+            "@v8//bazel/config:is_windows": [
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
-                "_WIN32_WINNT=0x0602", # Override bazel default to Windows 8
+                "_WIN32_WINNT=0x0602",  # Override bazel default to Windows 8
             ],
             "//conditions:default": [],
         }),
         copts = select({
-            "@config//:is_posix": [
+            "@v8//bazel/config:is_posix": [
                 "-fPIC",
+                "-fno-strict-aliasing",
                 "-Werror",
                 "-Wextra",
+                "-Wno-unknown-warning-option",
                 "-Wno-bitwise-instead-of-logical",
                 "-Wno-builtin-assume-aligned-alignment",
                 "-Wno-unused-parameter",
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
-                "-std=c++17",
                 "-isystem .",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_clang": [
+                "-Wno-invalid-offsetof",
+                "-std=c++17",
+            ],
+            "@v8//bazel/config:is_gcc": [
+                "-Wno-extra",
+                "-Wno-array-bounds",
+                "-Wno-class-memaccess",
+                "-Wno-comments",
+                "-Wno-deprecated-declarations",
+                "-Wno-implicit-fallthrough",
+                "-Wno-int-in-bool-context",
+                "-Wno-maybe-uninitialized",
+                "-Wno-mismatched-new-delete",
+                "-Wno-redundant-move",
+                "-Wno-return-type",
+                "-Wno-stringop-overflow",
+                # Use GNU dialect, because GCC doesn't allow using
+                # ##__VA_ARGS__ when in standards-conforming mode.
+                "-std=gnu++17",
+            ],
+            "@v8//bazel/config:is_windows": [
+                "/std:c++17",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_gcc_fastbuild": [
+                # Non-debug builds without optimizations fail because
+                # of recursive inlining of "always_inline" functions.
+                "-O1",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_clang_s390x": [
+                "-fno-integrated-as",
             ],
             "//conditions:default": [],
         }),
         includes = ["include"],
         linkopts = select({
-            "@config//:is_windows": [
+            "@v8//bazel/config:is_windows": [
                 "Winmm.lib",
                 "DbgHelp.lib",
                 "Advapi32.lib",
             ],
-            "@config//:is_macos": ["-pthread"],
+            "@v8//bazel/config:is_macos": ["-pthread"],
             "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
@@ -209,6 +248,7 @@ def v8_library(
             linkstatic = 1,
             **kwargs
         )
+
         # Alias target used because of cc_library bug in bazel on windows
         # https://github.com/bazelbuild/bazel/issues/14237
         # TODO(victorgomes): Remove alias once bug is fixed
@@ -227,6 +267,7 @@ def v8_library(
             linkstatic = 1,
             **kwargs
         )
+
         # Alias target used because of cc_library bug in bazel on windows
         # https://github.com/bazelbuild/bazel/issues/14237
         # TODO(victorgomes): Remove alias once bug is fixed
@@ -248,8 +289,10 @@ def v8_library(
         )
 
 def _torque_impl(ctx):
-    v8root = "."
-    prefix = ctx.attr.prefix
+    if ctx.workspace_name == "v8":
+        v8root = "."
+    else:
+        v8root = "external/v8"
 
     # Arguments
     args = []
@@ -301,7 +344,6 @@ _v8_torque = rule(
             cfg = "exec",
         ),
         "args": attr.string_list(),
-        "v8root": attr.label(default = ":v8_root"),
     },
 )
 
@@ -313,7 +355,7 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@config//:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
             "//conditions:default": ":torque",
         }),
     )
@@ -324,32 +366,44 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@config//:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
             "//conditions:default": ":torque",
         }),
     )
 
 def _v8_target_cpu_transition_impl(settings, attr):
+    # Check for an existing v8_target_cpu flag.
+    if "@v8//bazel/config:v8_target_cpu" in settings:
+        if settings["@v8//bazel/config:v8_target_cpu"] != "none":
+            return
+
+    # Auto-detect target architecture based on the --cpu flag.
     mapping = {
         "haswell": "x64",
         "k8": "x64",
         "x86_64": "x64",
+        "darwin": "x64",
         "darwin_x86_64": "x64",
+        "x64_windows": "x64",
         "x86": "ia32",
-        "ppc": "ppc64",
+        "aarch64": "arm64",
         "arm64-v8a": "arm64",
         "arm": "arm64",
+        "darwin_arm64": "arm64",
         "armeabi-v7a": "arm32",
+        "s390x": "s390x",
+        "riscv64": "riscv64",
+        "ppc": "ppc64le",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
-    return {"@config//:v8_target_cpu": v8_target_cpu}
+    return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
 
 # Set the v8_target_cpu to be the correct architecture given the cpu specified
 # on the command line.
 v8_target_cpu_transition = transition(
     implementation = _v8_target_cpu_transition_impl,
-    inputs = ["//command_line_option:cpu"],
-    outputs = ["@config//:v8_target_cpu"],
+    inputs = ["@v8//bazel/config:v8_target_cpu", "//command_line_option:cpu"],
+    outputs = ["@v8//bazel/config:v8_target_cpu"],
 )
 
 def _mksnapshot(ctx):
@@ -453,7 +507,8 @@ def build_config_content(cpu, icu):
         ("v8_enable_webassembly", "false"),
         ("v8_control_flow_integrity", "false"),
         ("v8_enable_single_generation", "false"),
-        ("v8_enable_virtual_memory_cage", "false"),
+        ("v8_enable_sandbox", "false"),
+        ("v8_enable_shared_ro_heap", "false"),
         ("v8_target_cpu", cpu),
     ])
 

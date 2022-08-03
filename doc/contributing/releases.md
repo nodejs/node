@@ -25,7 +25,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [10. Test the build](#10-test-the-build)
   * [11. Tag and sign the release commit](#11-tag-and-sign-the-release-commit)
   * [12. Set up for the next release](#12-set-up-for-the-next-release)
-  * [13. Cherry-pick the release commit to `master`](#13-cherry-pick-the-release-commit-to-master)
+  * [13. Cherry-pick the release commit to `main`](#13-cherry-pick-the-release-commit-to-main)
   * [14. Push the release tag](#14-push-the-release-tag)
   * [15. Promote and sign the release builds](#15-promote-and-sign-the-release-builds)
   * [16. Check the release](#16-check-the-release)
@@ -119,6 +119,8 @@ Notes:
 * Version strings are listed below as _"vx.y.z"_ or _"x.y.z"_. Substitute for
   the release version.
 * Examples will use the fictional release version `1.2.3`.
+* When preparing a security release, follow the security steps in the details
+  sections.
 
 ### 0. Pre-release steps
 
@@ -132,7 +134,7 @@ tracker][].
 
 When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
-properly tested, run a `node-test-pull-request` job against the `master` branch
+properly tested, run a `node-test-pull-request` job against the `main` branch
 of the `nodejs-private/node-private` repository a day or so before the
 [CI lockdown procedure][] begins. This is to confirm that Jenkins can properly
 access the private repository.
@@ -147,7 +149,7 @@ $ git checkout v1.x-staging
 $ git reset --hard upstream/v1.x-staging
 ```
 
-If the staging branch is not up to date relative to `master`, bring the
+If the staging branch is not up to date relative to `main`, bring the
 appropriate PRs and commits into it.
 
 Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
@@ -156,7 +158,7 @@ For each PR:
 
 * Run or check that there is a passing CI.
 * Check approvals (you can approve yourself).
-* Check that the commit metadata was not changed from the `master` commit.
+* Check that the commit metadata was not changed from the `main` commit.
 * If there are merge conflicts, ask the PR author to rebase.
   Simple conflicts can be resolved when landing.
 
@@ -175,7 +177,7 @@ duplicate or not.
 For a list of commits that could be landed in a patch release on v1.x:
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
+$ branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
 ```
 
 Previously released commits and version bumps do not need to be
@@ -195,7 +197,7 @@ command. (For semver-minor releases, make sure to remove the `semver-minor` tag
 from `exclude-label`.)
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+$ branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
 ```
 
 When cherry-picking commits, if there are simple conflicts you can resolve
@@ -215,6 +217,42 @@ Then, push to the staging branch to keep it up-to-date.
 ```console
 $ git push upstream v1.x-staging
 ```
+
+<details>
+<summary>Security release</summary>
+
+Security releases with private patches need to be prepared in the `nodejs-private`
+GitHub organisation.
+
+Add the `nodejs-private` remote:
+
+```console
+$ git remote add private git@github.com:nodejs-private/node-private.git
+```
+
+For security releases, we generally try to only include the security patches.
+As there may already be commits on the `vN.x-staging` branch, it is preferable
+to checkout the `vN.x` branch and build up the release directly in a proposal
+branch.
+
+```console
+$ git checkout vN.x
+$ git reset --hard upstream/vN.x
+```
+
+The list of patches to include should be listed in the "Next Security Release"
+issue in `nodejs-private`. Ask the security release steward if you're unsure.
+
+The `git node land` tool does not work with the `nodejs-private`
+organisation. To land a PR in Node.js private, use `git cherry-pick` to apply
+each commit from the PR. You will also need to manually apply the PR
+metadata (`PR-URL`, `Reviewed-by`, etc.) by amending the commit messages. If
+known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
+
+**Note**: Do not run CI on the PRs in `nodejs-private` until CI is locked down.
+You can integrate the PRs into the proposal without running full CI.
+
+</details>
 
 ### 2. Create a new branch for the release
 
@@ -251,7 +289,7 @@ Collect a formatted list of commits since the last release. Use
 [`changelog-maker`](https://github.com/nodejs/changelog-maker) to do this:
 
 ```console
-$ changelog-maker --group
+$ changelog-maker --group --markdown
 ```
 
 `changelog-maker` counts commits since the last tag and if the last tag
@@ -259,7 +297,7 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```console
-$ changelog-maker --group --filter-release --start-ref v1.2.2
+$ changelog-maker --group --markdown --filter-release --start-ref v1.2.2
 ```
 
 `--filter-release` will remove the release commit from the previous release.
@@ -299,11 +337,48 @@ You can use `branch-diff` to get a list of commits with the `notable-change`
 label:
 
 ```console
-$ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change -format=simple
+$ branch-diff upstream/v1.x v1.2.3-proposal --require-label=notable-change --plaintext
 ```
 
 Be sure that the `<a>` tag, as well as the two headings, are not indented at
 all.
+
+<details>
+<summary>Security release</summary>
+
+For security releases, it is necessary to include more detailed information
+including which vulnerabilities have been fixed, and any revert flags or
+workarounds to revert to the old behaviour.
+
+You can use the following template as a guide:
+
+```markdown
+<a id="x.y.x"></a>
+## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
+
+This is a security release.
+
+### Notable changes
+
+* <CVE Title> (High|Medium|Low)(CVE-XXXX-XXXXX)
+* ...
+
+### Commits
+
+* Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
+```
+
+Alternatively, refer to one of the [previous security release changelog entries](https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md#2022-01-10-version-1731-current-bethgriggs)
+to get an idea of the structure and level of detail.
+
+For each fix, use your judgement as to whether a subheading is necessary to
+describe the fix in more detail. Much of this information should be able to be
+lifted from the "post-release" announcement (should be available in
+`nodejs-private`). If the CVE is being fixed in multiple release lines, try to
+coordinate the changelog content between the other release so the descriptions
+are consistent.
+
+</details>
 
 At the top of the root `CHANGELOG.md` file, there is a table indexing all
 releases in each major release line. A link to the new release needs to be added
@@ -359,7 +434,12 @@ YYYY-MM-DD, Version x.y.z (Release Type)
 Notable changes:
 
 * Copy the notable changes list here, reformatted for plain-text
+
+PR-URL: TBD
 ```
+
+<details>
+<summary>Security release</summary>
 
 For security releases, begin the commit message with the phrase
 `This is a security release.` to allow the
@@ -374,7 +454,11 @@ This is a security release.
 Notable changes:
 
 * Copy the notable changes list here, reformatted for plain-text
+
+PR-URL: TBD
 ```
+
+</details>
 
 ### 6. Propose release on GitHub
 
@@ -383,7 +467,7 @@ release branches to more easily be passed between members of the release team if
 necessary.
 
 Create a pull request targeting the correct release line. For example, a
-`v5.3.0-proposal` PR should target `v5.x`, not master. Paste the CHANGELOG
+`v5.3.0-proposal` PR should target `v5.x`, not `main`. Paste the CHANGELOG
 modifications into the body of the PR so that collaborators can see what is
 changing. These PRs should be left open for at least 24 hours, and can be
 updated as new commits land. If the CHANGELOG pasted into the pull request
@@ -406,6 +490,14 @@ good place to @-mention the relevant contributors.
 After opening the PR, update the release commit to include `PR-URL` metadata and
 force-push the proposal.
 
+<details>
+<summary>Security release</summary>
+
+If there are private security patches, remember to push and open the proposal
+in the `nodejs-private` GitHub repository.
+
+</details>
+
 ### 7. Ensure that the release branch is stable
 
 Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
@@ -421,6 +513,15 @@ purpose. Run it once with the base `vx.x` branch as a reference and with the
 proposal branch to check if new regressions could be introduced in the
 ecosystem.
 
+<details>
+<summary>Security release</summary>
+
+If there are private security patches, do not run any CI jobs on the proposal
+until CI has been locked down. The security steward should be coordinating this
+with the Build Working Group.
+
+</details>
+
 ### 8. Produce a nightly build _(optional)_
 
 If there is a reason to produce a test release for the purpose of having others
@@ -432,6 +533,13 @@ enter a proper length commit SHA, enter a date string, and select "nightly" for
 
 This is particularly recommended if there has been recent work relating to the
 macOS or Windows installers as they are not tested in any way by CI.
+
+<details>
+<summary>Security release</summary>
+
+Do not produce a release candidate build.
+
+</details>
 
 ### 9. Produce release builds
 
@@ -464,7 +572,20 @@ failed build if you start again!
 Jenkins collects the artifacts from the builds, allowing you to download and
 install the new build. Make sure that the build appears correct. Check the
 version numbers, and perform some basic checks to confirm that all is well with
-the build before moving forward.
+the build before moving forward. Use the following list as a baseline:
+
+* `process.version` is as expected
+* `process.release` is as expected
+* `process.versions` is as expected (for example, `openssl` or `llhttp` version
+  must be in the expected updated version)
+* npm version (check it matches what we expect)
+* Run the test suite against the built binaries (optional)
+
+```console
+./tools/test.py --shell ~/Downloads/node-v18.5.0-linux-x64/bin/node
+```
+
+<sup>There may be test issues if the branch used to test does not match the Node.js binary.</sup>
 
 ### 11. Tag and sign the release commit
 
@@ -506,6 +627,8 @@ include the release code name.
 The tag **must** be signed using the GPG key that's listed for you on the
 project README.
 
+**Note**: Don't push the tag to remote at this point.
+
 ### 12. Set up for the next release
 
 On release proposal branch, edit `src/node_version.h` again and:
@@ -536,10 +659,30 @@ $ git rebase v1.x
 $ git push upstream v1.x-staging
 ```
 
-### 13. Cherry-pick the release commit to `master`
+<details>
+<summary>Security release</summary>
+
+For security releases, you can start merging the release in the `nodejs-private`
+GitHub organisation in advance by following the same steps:
 
 ```console
-$ git checkout master
+$ git checkout v1.x
+$ git merge --ff-only v1.2.3-proposal
+$ git push private v1.x
+$ git checkout v1.x-staging
+$ git rebase v1.x
+$ git push private v1.x-staging
+```
+
+Once all releasers are ready, you can push each of the branches to the public
+repository.
+
+</details>
+
+### 13. Cherry-pick the release commit to `main`
+
+```console
+$ git checkout main
 $ git cherry-pick v1.x^
 ```
 
@@ -561,10 +704,31 @@ Then finish cherry-picking and push the commit upstream:
 $ git add src/node_version.h doc
 $ git cherry-pick --continue
 $ make lint
-$ git push upstream master
+$ git push upstream main
 ```
 
-**Do not** cherry-pick the "Working on vx.y.z" commit to `master`.
+**Do not** cherry-pick the "Working on vx.y.z" commit to `main`.
+
+<details>
+<summary>Security release</summary>
+
+For security releases, you will also need to land the fixes on the `main`
+branch (if they apply there). Often, you can just cherry-pick the same commit
+that landed in the `current` security release which should already have the
+metadata.
+
+It is useful to first push the patches to `private/main` to check that the
+GitHub actions runs pass, before pushing to `upstream/main`:
+
+```console
+$ git checkout main
+$ git reset --hard upstream/main
+$ git cherry-pick ... # apply the patches which apply to main
+$ git push private main # push to private main first run GitHub actions
+$ git push upstream main
+```
+
+</details>
 
 ### 14. Push the release tag
 
@@ -692,8 +856,9 @@ This script will use the promoted builds and changelog to generate the post. Run
   Refs: <full URL to your release proposal PR>
   ```
 
-* Changes to `master` on the [nodejs.org repository][] will trigger a new build
-  of nodejs.org so your changes should appear a few minutes after pushing.
+* Changes to the base branch, `main`, on the [nodejs.org repository][] will
+  trigger a new build of nodejs.org so your changes should appear a few minutes
+  after pushing.
 
 ### 18. Create the release on GitHub
 
@@ -723,6 +888,13 @@ will be shared with the community in the email to coordinate these
 announcements.
 
 Ping the IRC ops and the other [Partner Communities][] liaisons.
+
+<details>
+<summary>Security release</summary>
+
+Let the security release steward know the releases are available.
+
+</details>
 
 ### 21. Celebrate
 
@@ -793,8 +965,8 @@ announced immediately following the release of 12.0.0).
 
 Approximately two months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
-created as forks of the `master` branch. Up until one week before the release
-date, these must be kept in sync with `master`.
+created as forks of the `main` branch. Up until one week before the release
+date, these must be kept in sync with `main`.
 
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.

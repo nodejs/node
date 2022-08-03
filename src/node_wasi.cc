@@ -72,10 +72,7 @@ inline void Debug(WASI* wasi, Args&&... args) {
     }                                                                         \
   } while (0)
 
-
 using v8::Array;
-using v8::ArrayBuffer;
-using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
 using v8::Exception;
@@ -89,7 +86,7 @@ using v8::Object;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
-
+using v8::WasmMemoryObject;
 
 static MaybeLocal<Value> WASIException(Local<Context> context,
                                        int errorno,
@@ -236,11 +233,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
     delete[] options.argv;
   }
 
-  if (options.envp != nullptr) {
-    for (uint32_t i = 0; options.envp[i]; i++)
-      free(const_cast<char*>(options.envp[i]));
-    delete[] options.envp;
-  }
+  for (uint32_t i = 0; options.envp[i]; i++)
+    free(const_cast<char*>(options.envp[i]));
+  delete[] options.envp;
 
   if (options.preopens != nullptr) {
     for (uint32_t i = 0; i < options.preopenc; i++) {
@@ -1644,28 +1639,23 @@ void WASI::SockShutdown(const FunctionCallbackInfo<Value>& args) {
 
 void WASI::_SetMemory(const FunctionCallbackInfo<Value>& args) {
   WASI* wasi;
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
-  wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<Object>());
+  CHECK_EQ(args.Length(), 1);
+  if (!args[0]->IsWasmMemoryObject()) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        wasi->env(),
+        "\"instance.exports.memory\" property must be a WebAssembly.Memory "
+        "object");
+  }
+  wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<WasmMemoryObject>());
 }
 
 
 uvwasi_errno_t WASI::backingStore(char** store, size_t* byte_length) {
-  Environment* env = this->env();
-  Local<Object> memory = PersistentToLocal::Strong(this->memory_);
-  Local<Value> prop;
-
-  if (!memory->Get(env->context(), env->buffer_string()).ToLocal(&prop))
-    return UVWASI_EINVAL;
-
-  if (!prop->IsArrayBuffer())
-    return UVWASI_EINVAL;
-
-  Local<ArrayBuffer> ab = prop.As<ArrayBuffer>();
-  std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-  *byte_length = backing_store->ByteLength();
-  *store = static_cast<char*>(backing_store->Data());
+  Local<WasmMemoryObject> memory = PersistentToLocal::Strong(this->memory_);
+  Local<v8::ArrayBuffer> ab = memory->Buffer();
+  *byte_length = ab->ByteLength();
+  *store = static_cast<char*>(ab->Data());
   CHECK_NOT_NULL(*store);
   return UVWASI_ESUCCESS;
 }
@@ -1676,62 +1666,67 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(WASI::New);
+  Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, WASI::New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
   tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);
-  env->SetProtoMethod(tmpl, "args_sizes_get", WASI::ArgsSizesGet);
-  env->SetProtoMethod(tmpl, "clock_res_get", WASI::ClockResGet);
-  env->SetProtoMethod(tmpl, "clock_time_get", WASI::ClockTimeGet);
-  env->SetProtoMethod(tmpl, "environ_get", WASI::EnvironGet);
-  env->SetProtoMethod(tmpl, "environ_sizes_get", WASI::EnvironSizesGet);
-  env->SetProtoMethod(tmpl, "fd_advise", WASI::FdAdvise);
-  env->SetProtoMethod(tmpl, "fd_allocate", WASI::FdAllocate);
-  env->SetProtoMethod(tmpl, "fd_close", WASI::FdClose);
-  env->SetProtoMethod(tmpl, "fd_datasync", WASI::FdDatasync);
-  env->SetProtoMethod(tmpl, "fd_fdstat_get", WASI::FdFdstatGet);
-  env->SetProtoMethod(tmpl, "fd_fdstat_set_flags", WASI::FdFdstatSetFlags);
-  env->SetProtoMethod(tmpl, "fd_fdstat_set_rights", WASI::FdFdstatSetRights);
-  env->SetProtoMethod(tmpl, "fd_filestat_get", WASI::FdFilestatGet);
-  env->SetProtoMethod(tmpl, "fd_filestat_set_size", WASI::FdFilestatSetSize);
-  env->SetProtoMethod(tmpl, "fd_filestat_set_times", WASI::FdFilestatSetTimes);
-  env->SetProtoMethod(tmpl, "fd_pread", WASI::FdPread);
-  env->SetProtoMethod(tmpl, "fd_prestat_get", WASI::FdPrestatGet);
-  env->SetProtoMethod(tmpl, "fd_prestat_dir_name", WASI::FdPrestatDirName);
-  env->SetProtoMethod(tmpl, "fd_pwrite", WASI::FdPwrite);
-  env->SetProtoMethod(tmpl, "fd_read", WASI::FdRead);
-  env->SetProtoMethod(tmpl, "fd_readdir", WASI::FdReaddir);
-  env->SetProtoMethod(tmpl, "fd_renumber", WASI::FdRenumber);
-  env->SetProtoMethod(tmpl, "fd_seek", WASI::FdSeek);
-  env->SetProtoMethod(tmpl, "fd_sync", WASI::FdSync);
-  env->SetProtoMethod(tmpl, "fd_tell", WASI::FdTell);
-  env->SetProtoMethod(tmpl, "fd_write", WASI::FdWrite);
-  env->SetProtoMethod(tmpl, "path_create_directory", WASI::PathCreateDirectory);
-  env->SetProtoMethod(tmpl, "path_filestat_get", WASI::PathFilestatGet);
-  env->SetProtoMethod(tmpl,
-                      "path_filestat_set_times",
-                      WASI::PathFilestatSetTimes);
-  env->SetProtoMethod(tmpl, "path_link", WASI::PathLink);
-  env->SetProtoMethod(tmpl, "path_open", WASI::PathOpen);
-  env->SetProtoMethod(tmpl, "path_readlink", WASI::PathReadlink);
-  env->SetProtoMethod(tmpl, "path_remove_directory", WASI::PathRemoveDirectory);
-  env->SetProtoMethod(tmpl, "path_rename", WASI::PathRename);
-  env->SetProtoMethod(tmpl, "path_symlink", WASI::PathSymlink);
-  env->SetProtoMethod(tmpl, "path_unlink_file", WASI::PathUnlinkFile);
-  env->SetProtoMethod(tmpl, "poll_oneoff", WASI::PollOneoff);
-  env->SetProtoMethod(tmpl, "proc_exit", WASI::ProcExit);
-  env->SetProtoMethod(tmpl, "proc_raise", WASI::ProcRaise);
-  env->SetProtoMethod(tmpl, "random_get", WASI::RandomGet);
-  env->SetProtoMethod(tmpl, "sched_yield", WASI::SchedYield);
-  env->SetProtoMethod(tmpl, "sock_recv", WASI::SockRecv);
-  env->SetProtoMethod(tmpl, "sock_send", WASI::SockSend);
-  env->SetProtoMethod(tmpl, "sock_shutdown", WASI::SockShutdown);
+  SetProtoMethod(isolate, tmpl, "args_get", WASI::ArgsGet);
+  SetProtoMethod(isolate, tmpl, "args_sizes_get", WASI::ArgsSizesGet);
+  SetProtoMethod(isolate, tmpl, "clock_res_get", WASI::ClockResGet);
+  SetProtoMethod(isolate, tmpl, "clock_time_get", WASI::ClockTimeGet);
+  SetProtoMethod(isolate, tmpl, "environ_get", WASI::EnvironGet);
+  SetProtoMethod(isolate, tmpl, "environ_sizes_get", WASI::EnvironSizesGet);
+  SetProtoMethod(isolate, tmpl, "fd_advise", WASI::FdAdvise);
+  SetProtoMethod(isolate, tmpl, "fd_allocate", WASI::FdAllocate);
+  SetProtoMethod(isolate, tmpl, "fd_close", WASI::FdClose);
+  SetProtoMethod(isolate, tmpl, "fd_datasync", WASI::FdDatasync);
+  SetProtoMethod(isolate, tmpl, "fd_fdstat_get", WASI::FdFdstatGet);
+  SetProtoMethod(isolate, tmpl, "fd_fdstat_set_flags", WASI::FdFdstatSetFlags);
+  SetProtoMethod(
+      isolate, tmpl, "fd_fdstat_set_rights", WASI::FdFdstatSetRights);
+  SetProtoMethod(isolate, tmpl, "fd_filestat_get", WASI::FdFilestatGet);
+  SetProtoMethod(
+      isolate, tmpl, "fd_filestat_set_size", WASI::FdFilestatSetSize);
+  SetProtoMethod(
+      isolate, tmpl, "fd_filestat_set_times", WASI::FdFilestatSetTimes);
+  SetProtoMethod(isolate, tmpl, "fd_pread", WASI::FdPread);
+  SetProtoMethod(isolate, tmpl, "fd_prestat_get", WASI::FdPrestatGet);
+  SetProtoMethod(isolate, tmpl, "fd_prestat_dir_name", WASI::FdPrestatDirName);
+  SetProtoMethod(isolate, tmpl, "fd_pwrite", WASI::FdPwrite);
+  SetProtoMethod(isolate, tmpl, "fd_read", WASI::FdRead);
+  SetProtoMethod(isolate, tmpl, "fd_readdir", WASI::FdReaddir);
+  SetProtoMethod(isolate, tmpl, "fd_renumber", WASI::FdRenumber);
+  SetProtoMethod(isolate, tmpl, "fd_seek", WASI::FdSeek);
+  SetProtoMethod(isolate, tmpl, "fd_sync", WASI::FdSync);
+  SetProtoMethod(isolate, tmpl, "fd_tell", WASI::FdTell);
+  SetProtoMethod(isolate, tmpl, "fd_write", WASI::FdWrite);
+  SetProtoMethod(
+      isolate, tmpl, "path_create_directory", WASI::PathCreateDirectory);
+  SetProtoMethod(isolate, tmpl, "path_filestat_get", WASI::PathFilestatGet);
+  SetProtoMethod(
+      isolate, tmpl, "path_filestat_set_times", WASI::PathFilestatSetTimes);
+  SetProtoMethod(isolate, tmpl, "path_link", WASI::PathLink);
+  SetProtoMethod(isolate, tmpl, "path_open", WASI::PathOpen);
+  SetProtoMethod(isolate, tmpl, "path_readlink", WASI::PathReadlink);
+  SetProtoMethod(
+      isolate, tmpl, "path_remove_directory", WASI::PathRemoveDirectory);
+  SetProtoMethod(isolate, tmpl, "path_rename", WASI::PathRename);
+  SetProtoMethod(isolate, tmpl, "path_symlink", WASI::PathSymlink);
+  SetProtoMethod(isolate, tmpl, "path_unlink_file", WASI::PathUnlinkFile);
+  SetProtoMethod(isolate, tmpl, "poll_oneoff", WASI::PollOneoff);
+  SetProtoMethod(isolate, tmpl, "proc_exit", WASI::ProcExit);
+  SetProtoMethod(isolate, tmpl, "proc_raise", WASI::ProcRaise);
+  SetProtoMethod(isolate, tmpl, "random_get", WASI::RandomGet);
+  SetProtoMethod(isolate, tmpl, "sched_yield", WASI::SchedYield);
+  SetProtoMethod(isolate, tmpl, "sock_recv", WASI::SockRecv);
+  SetProtoMethod(isolate, tmpl, "sock_send", WASI::SockSend);
+  SetProtoMethod(isolate, tmpl, "sock_shutdown", WASI::SockShutdown);
 
-  env->SetInstanceMethod(tmpl, "_setMemory", WASI::_SetMemory);
+  SetInstanceMethod(isolate, tmpl, "_setMemory", WASI::_SetMemory);
 
-  env->SetConstructorFunction(target, "WASI", tmpl);
+  SetConstructorFunction(context, target, "WASI", tmpl);
 }
 
 

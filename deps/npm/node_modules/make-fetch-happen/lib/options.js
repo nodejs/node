@@ -1,3 +1,5 @@
+const dns = require('dns')
+
 const conditionalHeaders = [
   'if-modified-since',
   'if-none-match',
@@ -25,6 +27,8 @@ const configureOptions = (opts) => {
   } else {
     options.retry = { retries: 0, ...options.retry }
   }
+
+  options.dns = { ttl: 5 * 60 * 1000, lookup: dns.lookup, ...options.dns }
 
   options.cache = options.cache || 'default'
   if (options.cache === 'default') {

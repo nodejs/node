@@ -4,22 +4,18 @@ const util = require('../core/util')
 const { ReadableStreamFrom, toUSVString, isBlobLike } = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
+const { webidl } = require('./webidl')
 const { Blob } = require('buffer')
 const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
 const { NotSupportedError } = require('../core/errors')
 const { isErrored } = require('../core/util')
-const { isUint8Array } = require('util/types')
+const { isUint8Array, isArrayBuffer } = require('util/types')
 
 let ReadableStream
 
 async function * blobGen (blob) {
-  if (blob.stream) {
-    yield * blob.stream()
-  } else {
-    // istanbul ignore next: node < 16.7
-    yield await blob.arrayBuffer()
-  }
+  yield * blob.stream()
 }
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
@@ -61,7 +57,7 @@ function extractBody (object, keepalive = false) {
 
     // Set Content-Type to `application/x-www-form-urlencoded;charset=UTF-8`.
     contentType = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (object instanceof ArrayBuffer || ArrayBuffer.isView(object)) {
+  } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
     // BufferSource
 
     if (object instanceof DataView) {
@@ -71,7 +67,7 @@ function extractBody (object, keepalive = false) {
 
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object)
-  } else if (object instanceof FormData) {
+  } else if (util.isFormDataLike(object)) {
     const boundary = '----formdata-undici-' + Math.random()
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
@@ -262,100 +258,204 @@ function cloneBody (body) {
   }
 }
 
-const methods = {
-  async blob () {
-    const chunks = []
-
-    if (this[kState].body) {
-      if (isUint8Array(this[kState].body)) {
-        chunks.push(this[kState].body)
-      } else {
-        const stream = this[kState].body.stream
-
-        if (util.isDisturbed(stream)) {
-          throw new TypeError('disturbed')
-        }
-
-        if (stream.locked) {
-          throw new TypeError('locked')
-        }
-
-        // Compat.
-        stream[kBodyUsed] = true
-
-        for await (const chunk of stream) {
-          chunks.push(chunk)
-        }
-      }
-    }
-
-    return new Blob(chunks, { type: this.headers.get('Content-Type') || '' })
-  },
-
-  async arrayBuffer () {
-    const blob = await this.blob()
-    return await blob.arrayBuffer()
-  },
-
-  async text () {
-    const blob = await this.blob()
-    return toUSVString(await blob.text())
-  },
-
-  async json () {
-    return JSON.parse(await this.text())
-  },
-
-  async formData () {
-    const contentType = this.headers.get('Content-Type')
-
-    // If mimeType’s essence is "multipart/form-data", then:
-    if (/multipart\/form-data/.test(contentType)) {
-      throw new NotSupportedError('multipart/form-data not supported')
-    } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
-      // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
-
-      // 1. Let entries be the result of parsing bytes.
-      let entries
-      try {
-        entries = new URLSearchParams(await this.text())
-      } catch (err) {
-        // istanbul ignore next: Unclear when new URLSearchParams can fail on a string.
-        // 2. If entries is failure, then throw a TypeError.
-        throw Object.assign(new TypeError(), { cause: err })
-      }
-
-      // 3. Return a new FormData object whose entries are entries.
-      const formData = new FormData()
-      for (const [name, value] of entries) {
-        formData.append(name, value)
-      }
-      return formData
+async function * consumeBody (body) {
+  if (body) {
+    if (isUint8Array(body)) {
+      yield body
     } else {
-      // Otherwise, throw a TypeError.
-      throw new TypeError()
+      const stream = body.stream
+
+      if (util.isDisturbed(stream)) {
+        throw new TypeError('disturbed')
+      }
+
+      if (stream.locked) {
+        throw new TypeError('locked')
+      }
+
+      // Compat.
+      stream[kBodyUsed] = true
+
+      yield * stream
     }
   }
+}
+
+function bodyMixinMethods (instance) {
+  const methods = {
+    async blob () {
+      if (!(this instanceof instance)) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      const chunks = []
+
+      for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
+        // Assemble one final large blob with Uint8Array's can exhaust memory.
+        // That's why we create create multiple blob's and using references
+        chunks.push(new Blob([chunk]))
+      }
+
+      return new Blob(chunks, { type: this.headers.get('Content-Type') || '' })
+    },
+
+    async arrayBuffer () {
+      if (!(this instanceof instance)) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      const contentLength = this.headers.get('content-length')
+      const encoded = this.headers.has('content-encoding')
+
+      // if we have content length and no encoding, then we can
+      // pre allocate the buffer and just read the data into it
+      if (!encoded && contentLength) {
+        const buffer = new Uint8Array(contentLength)
+        let offset = 0
+
+        for await (const chunk of consumeBody(this[kState].body)) {
+          if (!isUint8Array(chunk)) {
+            throw new TypeError('Expected Uint8Array chunk')
+          }
+
+          buffer.set(chunk, offset)
+          offset += chunk.length
+        }
+
+        return buffer.buffer
+      }
+
+      // if we don't have content length, then we have to allocate 2x the
+      // size of the body, once for consumed data, and once for the final buffer
+
+      // This could be optimized by using growable ArrayBuffer, but it's not
+      // implemented yet. https://github.com/tc39/proposal-resizablearraybuffer
+
+      const chunks = []
+      let size = 0
+
+      for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
+        chunks.push(chunk)
+        size += chunk.byteLength
+      }
+
+      const buffer = new Uint8Array(size)
+      let offset = 0
+
+      for (const chunk of chunks) {
+        buffer.set(chunk, offset)
+        offset += chunk.byteLength
+      }
+
+      return buffer.buffer
+    },
+
+    async text () {
+      if (!(this instanceof instance)) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      let result = ''
+      const textDecoder = new TextDecoder()
+
+      for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
+        result += textDecoder.decode(chunk, { stream: true })
+      }
+
+      // flush
+      result += textDecoder.decode()
+
+      return result
+    },
+
+    async json () {
+      if (!(this instanceof instance)) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      return JSON.parse(await this.text())
+    },
+
+    async formData () {
+      if (!(this instanceof instance)) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      const contentType = this.headers.get('Content-Type')
+
+      // If mimeType’s essence is "multipart/form-data", then:
+      if (/multipart\/form-data/.test(contentType)) {
+        throw new NotSupportedError('multipart/form-data not supported')
+      } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
+        // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
+
+        // 1. Let entries be the result of parsing bytes.
+        let entries
+        try {
+          entries = new URLSearchParams(await this.text())
+        } catch (err) {
+          // istanbul ignore next: Unclear when new URLSearchParams can fail on a string.
+          // 2. If entries is failure, then throw a TypeError.
+          throw Object.assign(new TypeError(), { cause: err })
+        }
+
+        // 3. Return a new FormData object whose entries are entries.
+        const formData = new FormData()
+        for (const [name, value] of entries) {
+          formData.append(name, value)
+        }
+        return formData
+      } else {
+        // Otherwise, throw a TypeError.
+        webidl.errors.exception({
+          header: `${instance.name}.formData`,
+          value: 'Could not parse content as FormData.'
+        })
+      }
+    }
+  }
+
+  return methods
 }
 
 const properties = {
   body: {
     enumerable: true,
     get () {
+      if (!this || !this[kState]) {
+        throw new TypeError('Illegal invocation')
+      }
+
       return this[kState].body ? this[kState].body.stream : null
     }
   },
   bodyUsed: {
     enumerable: true,
     get () {
-      return this[kState].body && util.isDisturbed(this[kState].body.stream)
+      if (!this || !this[kState]) {
+        throw new TypeError('Illegal invocation')
+      }
+
+      return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
     }
   }
 }
 
 function mixinBody (prototype) {
-  Object.assign(prototype, methods)
-  Object.defineProperties(prototype, properties)
+  Object.assign(prototype.prototype, bodyMixinMethods(prototype))
+  Object.defineProperties(prototype.prototype, properties)
 }
 
 module.exports = {

@@ -42,7 +42,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce the consistent use of either double or single quotes in JSX attributes",
+            description: "Enforce the consistent use of either double or single quotes in JSX attributes",
             recommended: false,
             url: "https://eslint.org/docs/rules/jsx-quotes"
         },
@@ -70,7 +70,7 @@ module.exports = {
          * @public
          */
         function usesExpectedQuotes(node) {
-            return node.value.indexOf(setting.quote) !== -1 || astUtils.isSurroundedBy(node.raw, setting.quote);
+            return node.value.includes(setting.quote) || astUtils.isSurroundedBy(node.raw, setting.quote);
         }
 
         return {

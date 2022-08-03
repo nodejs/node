@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -59,9 +59,10 @@ static int ocsp_verify_signer(X509 *signer, int response,
 
     ret = X509_verify_cert(ctx);
     if (ret <= 0) {
-        ret = X509_STORE_CTX_get_error(ctx);
+        int err = X509_STORE_CTX_get_error(ctx);
+
         ERR_raise_data(ERR_LIB_OCSP, OCSP_R_CERTIFICATE_VERIFY_ERROR,
-                       "Verify error: %s", X509_verify_cert_error_string(ret));
+                       "Verify error: %s", X509_verify_cert_error_string(err));
         goto end;
     }
     if (chain != NULL)

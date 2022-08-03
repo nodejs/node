@@ -66,7 +66,7 @@ for(const scheme of ["https", "wpt++"]) {
       ["trailing", "test" + (scheme === "https" ? cpString : encodeURIComponent(cpString)), "test" + String.fromCodePoint(i)]
     ]) {
       test(() => {
-        const expected = i === 0x00 ? "host" : stripped ? "test" : expectedPart;
+        const expected = i === 0x00 || (scheme === "https" && i === 0x1F) ? "host" : stripped ? "test" : expectedPart;
         const url = urlRecord(scheme);
         url.host = input;
         assert_equals(url.host, expected + ":8000", "property");
@@ -74,7 +74,7 @@ for(const scheme of ["https", "wpt++"]) {
       }, `Setting host with ${type} ${cpReference} (${scheme}:)`);
 
       test(() => {
-        const expected = i === 0x00 ? "host" : stripped ? "test" : expectedPart;
+        const expected = i === 0x00 || (scheme === "https" && i === 0x1F) ? "host" : stripped ? "test" : expectedPart;
         const url = urlRecord(scheme);
         url.hostname = input;
         assert_equals(url.hostname, expected, "property");

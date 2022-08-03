@@ -11,7 +11,7 @@ description: List installed packages
 <!-- see lib/commands/ls.js -->
 
 ```bash
-npm ls [[<@scope>/]<pkg> ...]
+npm ls <package-spec>
 
 alias: list
 ```
@@ -44,7 +44,7 @@ npm@@VERSION@ /path/to/npm
 It will print out extraneous, missing, and invalid packages.
 
 If a project specifies git urls for dependencies these are shown
-in parentheses after the name@version to make it easier for users to
+in parentheses after the `name@version` to make it easier for users to
 recognize potential forks of a project.
 
 The tree shown is the logical dependency tree, based on package
@@ -62,7 +62,7 @@ disk would be roughly identical.
 With the advent of automatic install-time deduplication of dependencies in
 npm v3, the `ls` output was modified to display the logical dependency
 graph as a tree structure, since this was more useful to most users.
-However, without using `npm ls -l`, it became impossible show _where_ a
+However, without using `npm ls -l`, it became impossible to show _where_ a
 package was actually installed much of the time!
 
 With the advent of automatic installation of `peerDependencies` in npm v7,
@@ -280,6 +280,20 @@ When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
@@ -287,6 +301,7 @@ the specified workspaces, and not on the root project.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm explain](/commands/npm-explain)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)

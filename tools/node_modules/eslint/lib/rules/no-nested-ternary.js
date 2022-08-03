@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow nested ternary expressions",
+            description: "Disallow nested ternary expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-nested-ternary"
         },

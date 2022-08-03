@@ -43,7 +43,7 @@ const server = http.createServer(function(req, res) {
 
   req.on('end', function() {
     assert.strictEqual(body, 'PING');
-    res.writeHead(200);
+    res.writeHead(200, { 'Connection': 'close' });
     res.end('PONG');
   });
 });

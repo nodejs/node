@@ -7,9 +7,10 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/external-reference-encoder.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -50,12 +51,6 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
     // Roots are loaded relative to the root register.
     LoadRoot(destination, root_index);
-  } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-             isolate()->builtins()->IsBuiltinCodeDataContainerHandle(
-                 object, &builtin)) {
-    // Similar to roots, builtins may be loaded from the builtins table.
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForBuiltinCodeDataContainer(builtin));
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin)) {
     // Similar to roots, builtins may be loaded from the builtins table.
     LoadRootRelative(destination, RootRegisterOffsetForBuiltin(builtin));
@@ -104,12 +99,6 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
   return IsolateData::BuiltinSlotOffset(builtin);
-}
-
-// static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinCodeDataContainer(
-    Builtin builtin) {
-  return IsolateData::BuiltinCodeDataContainerSlotOffset(builtin);
 }
 
 // static

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,9 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
+import json
 import os
 import shutil
 import tempfile
@@ -44,7 +42,6 @@ import create_release
 from create_release import *
 import merge_to_branch
 from merge_to_branch import MergeToBranch
-from auto_tag import AutoTag
 import roll_merge
 from roll_merge import RollMerge
 
@@ -92,6 +89,10 @@ class ToplevelTest(unittest.TestCase):
                 "4.8.231",
                 ]
     self.assertEquals(expected, NormalizeVersionTags(input))
+
+  def testCommand(self):
+    """Ensure json can decode the output of commands."""
+    json.dumps(Command('ls', pipe=True))
 
 
 def Cmd(*args, **kwargs):

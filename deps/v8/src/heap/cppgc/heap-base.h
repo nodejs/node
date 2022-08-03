@@ -15,6 +15,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -27,6 +28,10 @@
 
 #if defined(CPPGC_CAGED_HEAP)
 #include "src/heap/cppgc/caged-heap.h"
+#endif
+
+#if defined(CPPGC_YOUNG_GENERATION)
+#include "src/heap/cppgc/remembered-set.h"
 #endif
 
 namespace v8 {
@@ -162,7 +167,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  std::set<void*>& remembered_slots() { return remembered_slots_; }
+  OldToNewRememberedSet& remembered_set() { return remembered_set_; }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t ObjectPayloadSize() const;
@@ -207,6 +212,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   int GetCreationThreadId() const { return creation_thread_id_; }
 
   MarkingType marking_support() const { return marking_support_; }
+  SweepingType sweeping_support() const { return sweeping_support_; }
 
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
@@ -259,8 +265,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   ProcessHeapStatisticsUpdater::AllocationObserverImpl
       allocation_observer_for_PROCESS_HEAP_STATISTICS_;
 #if defined(CPPGC_YOUNG_GENERATION)
-  std::set<void*> remembered_slots_;
-#endif
+  OldToNewRememberedSet remembered_set_;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t no_gc_scope_ = 0;
   size_t disallow_gc_scope_ = 0;

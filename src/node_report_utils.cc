@@ -3,10 +3,8 @@
 #include "node_report.h"
 #include "util-inl.h"
 
+namespace node {
 namespace report {
-
-using node::JSONWriter;
-using node::MallocedBuffer;
 
 static constexpr auto null = JSONWriter::Null{};
 
@@ -95,6 +93,8 @@ static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
     buffer = MallocedBuffer<char>(buffer_size);
     if (buffer.data != nullptr) {
       rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+    } else {
+      buffer_size = 0;
     }
   }
   if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
@@ -208,8 +208,7 @@ void WalkHandle(uv_handle_t* h, void* arg) {
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
       writer->json_keyvalue("signum", handle->signal.signum);
-      writer->json_keyvalue("signal",
-                            node::signo_string(handle->signal.signum));
+      writer->json_keyvalue("signal", signo_string(handle->signal.signum));
       break;
     default:
       break;
@@ -267,3 +266,4 @@ void WalkHandle(uv_handle_t* h, void* arg) {
 }
 
 }  // namespace report
+}  // namespace node

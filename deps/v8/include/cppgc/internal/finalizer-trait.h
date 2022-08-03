@@ -19,7 +19,8 @@ struct HasFinalizeGarbageCollectedObject : std::false_type {};
 
 template <typename T>
 struct HasFinalizeGarbageCollectedObject<
-    T, void_t<decltype(std::declval<T>().FinalizeGarbageCollectedObject())>>
+    T,
+    std::void_t<decltype(std::declval<T>().FinalizeGarbageCollectedObject())>>
     : std::true_type {};
 
 // The FinalizerTraitImpl specifies how to finalize objects.

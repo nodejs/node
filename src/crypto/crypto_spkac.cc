@@ -8,6 +8,7 @@
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
@@ -99,12 +100,9 @@ ByteSource ExportChallenge(const ArrayBufferOrViewContents<char>& input) {
   if (!sp)
     return ByteSource();
 
-  char* buf = nullptr;
-  ASN1_STRING_to_UTF8(
-    reinterpret_cast<unsigned char**>(&buf),
-    sp->spkac->challenge);
-
-  return ByteSource::Allocated(buf, strlen(buf));
+  unsigned char* buf = nullptr;
+  int buf_size = ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
+  return (buf_size >= 0) ? ByteSource::Allocated(buf, buf_size) : ByteSource();
 }
 
 void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
@@ -122,15 +120,18 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   Local<Value> outString =
-      Encode(env->isolate(), cert.get(), cert.size(), BUFFER);
+      Encode(env->isolate(), cert.data<char>(), cert.size(), BUFFER);
 
   args.GetReturnValue().Set(outString);
 }
 
 void Initialize(Environment* env, Local<Object> target) {
-  env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
-  env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
-  env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
+  Local<Context> context = env->context();
+  SetMethodNoSideEffect(context, target, "certVerifySpkac", VerifySpkac);
+  SetMethodNoSideEffect(
+      context, target, "certExportPublicKey", ExportPublicKey);
+  SetMethodNoSideEffect(
+      context, target, "certExportChallenge", ExportChallenge);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

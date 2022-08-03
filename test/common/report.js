@@ -193,14 +193,32 @@ function _validateContent(report, fields = []) {
 
     // Verify the format of the javascriptHeap section.
     const heap = report.javascriptHeap;
-    const jsHeapFields = ['totalMemory', 'totalCommittedMemory', 'usedMemory',
-                          'availableMemory', 'memoryLimit', 'heapSpaces'];
+    // See `PrintGCStatistics` in node_report.cc
+    const jsHeapFields = [
+      'totalMemory',
+      'executableMemory',
+      'totalCommittedMemory',
+      'availableMemory',
+      'totalGlobalHandlesMemory',
+      'usedGlobalHandlesMemory',
+      'usedMemory',
+      'memoryLimit',
+      'mallocedMemory',
+      'externalMemory',
+      'peakMallocedMemory',
+      'nativeContextCount',
+      'detachedContextCount',
+      'doesZapGarbage',
+      'heapSpaces',
+    ];
     checkForUnknownFields(heap, jsHeapFields);
-    assert(Number.isSafeInteger(heap.totalMemory));
-    assert(Number.isSafeInteger(heap.totalCommittedMemory));
-    assert(Number.isSafeInteger(heap.usedMemory));
-    assert(Number.isSafeInteger(heap.availableMemory));
-    assert(Number.isSafeInteger(heap.memoryLimit));
+    // Do not check `heapSpaces` here
+    for (let i = 0; i < jsHeapFields.length - 1; i++) {
+      assert(
+        Number.isSafeInteger(heap[jsHeapFields[i]]),
+        `heap.${jsHeapFields[i]} is not a safe integer`
+      );
+    }
     assert(typeof heap.heapSpaces === 'object' && heap.heapSpaces !== null);
     const heapSpaceFields = ['memorySize', 'committedMemory', 'capacity',
                              'used', 'available'];

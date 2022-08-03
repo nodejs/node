@@ -62,8 +62,8 @@ for (const version of versions) {
 // Check that the minimum number of versions were returned.
 // Later versions are allowed, but not checked for here (they were checked
 // above).
-// Also check for the previous semver major -- From master this will be the
-// most recent major release.
+// Also check for the previous semver major -- From the main branch this will be
+// the most recent major release.
 const thisMajor = Number.parseInt(process.versions.node.split('.')[0]);
 const prevMajorString = `${thisMajor - 1}.x`;
 if (!expected.includes(prevMajorString)) {

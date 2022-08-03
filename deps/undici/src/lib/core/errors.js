@@ -1,13 +1,5 @@
 'use strict'
 
-class AbortError extends Error {
-  constructor () {
-    super('The operation was aborted')
-    this.code = 'ABORT_ERR'
-    this.name = 'AbortError'
-  }
-}
-
 class UndiciError extends Error {
   constructor (message) {
     super(message)
@@ -53,6 +45,20 @@ class BodyTimeoutError extends UndiciError {
     this.name = 'BodyTimeoutError'
     this.message = message || 'Body Timeout Error'
     this.code = 'UND_ERR_BODY_TIMEOUT'
+  }
+}
+
+class ResponseStatusCodeError extends UndiciError {
+  constructor (message, statusCode, headers, body) {
+    super(message)
+    Error.captureStackTrace(this, ResponseStatusCodeError)
+    this.name = 'ResponseStatusCodeError'
+    this.message = message || 'Response Status Code Error'
+    this.code = 'UND_ERR_RESPONSE_STATUS_CODE'
+    this.body = body
+    this.status = statusCode
+    this.statusCode = statusCode
+    this.headers = headers
   }
 }
 
@@ -113,16 +119,6 @@ class ResponseContentLengthMismatchError extends UndiciError {
     this.name = 'ResponseContentLengthMismatchError'
     this.message = message || 'Response body length does not match content-length header'
     this.code = 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH'
-  }
-}
-
-class TrailerMismatchError extends UndiciError {
-  constructor (message) {
-    super(message)
-    Error.captureStackTrace(this, TrailerMismatchError)
-    this.name = 'TrailerMismatchError'
-    this.message = message || 'Trailers does not match trailer header'
-    this.code = 'UND_ERR_TRAILER_MISMATCH'
   }
 }
 
@@ -188,7 +184,6 @@ class HTTPParserError extends Error {
 }
 
 module.exports = {
-  AbortError,
   HTTPParserError,
   UndiciError,
   HeadersTimeoutError,
@@ -196,7 +191,7 @@ module.exports = {
   BodyTimeoutError,
   RequestContentLengthMismatchError,
   ConnectTimeoutError,
-  TrailerMismatchError,
+  ResponseStatusCodeError,
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError,

@@ -39,7 +39,7 @@ function isEqualityOperator(operator) {
  * @returns {boolean} Whether the operator is used in range tests.
  */
 function isRangeTestOperator(operator) {
-    return ["<", "<="].indexOf(operator) >= 0;
+    return ["<", "<="].includes(operator);
 }
 
 /**
@@ -121,7 +121,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: 'require or disallow "Yoda" conditions',
+            description: 'Require or disallow "Yoda" conditions',
             recommended: false,
             url: "https://eslint.org/docs/rules/yoda"
         },

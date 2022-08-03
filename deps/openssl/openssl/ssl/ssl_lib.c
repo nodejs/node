@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -2317,6 +2317,7 @@ int SSL_shutdown(SSL *s)
         if ((s->mode & SSL_MODE_ASYNC) && ASYNC_get_current_job() == NULL) {
             struct ssl_async_args args;
 
+            memset(&args, 0, sizeof(args));
             args.s = s;
             args.type = OTHERFUNC;
             args.f.func_other = s->method->ssl_shutdown;
@@ -2478,6 +2479,9 @@ long SSL_ctrl(SSL *s, int cmd, long larg, void *parg)
         return 1;
     case SSL_CTRL_GET_RI_SUPPORT:
         return s->s3.send_connection_binding;
+    case SSL_CTRL_SET_RETRY_VERIFY:
+        s->rwstate = SSL_RETRY_VERIFY;
+        return 1;
     case SSL_CTRL_CERT_FLAGS:
         return (s->cert->cert_flags |= larg);
     case SSL_CTRL_CLEAR_CERT_FLAGS:
@@ -2536,6 +2540,17 @@ LHASH_OF(SSL_SESSION) *SSL_CTX_sessions(SSL_CTX *ctx)
     return ctx->sessions;
 }
 
+static int ssl_tsan_load(SSL_CTX *ctx, TSAN_QUALIFIER int *stat)
+{
+    int res = 0;
+
+    if (ssl_tsan_lock(ctx)) {
+        res = tsan_load(stat);
+        ssl_tsan_unlock(ctx);
+    }
+    return res;
+}
+
 long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
 {
     long l;
@@ -2591,27 +2606,27 @@ long SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
     case SSL_CTRL_SESS_NUMBER:
         return lh_SSL_SESSION_num_items(ctx->sessions);
     case SSL_CTRL_SESS_CONNECT:
-        return tsan_load(&ctx->stats.sess_connect);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_connect);
     case SSL_CTRL_SESS_CONNECT_GOOD:
-        return tsan_load(&ctx->stats.sess_connect_good);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_connect_good);
     case SSL_CTRL_SESS_CONNECT_RENEGOTIATE:
-        return tsan_load(&ctx->stats.sess_connect_renegotiate);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_connect_renegotiate);
     case SSL_CTRL_SESS_ACCEPT:
-        return tsan_load(&ctx->stats.sess_accept);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_accept);
     case SSL_CTRL_SESS_ACCEPT_GOOD:
-        return tsan_load(&ctx->stats.sess_accept_good);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_accept_good);
     case SSL_CTRL_SESS_ACCEPT_RENEGOTIATE:
-        return tsan_load(&ctx->stats.sess_accept_renegotiate);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_accept_renegotiate);
     case SSL_CTRL_SESS_HIT:
-        return tsan_load(&ctx->stats.sess_hit);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_hit);
     case SSL_CTRL_SESS_CB_HIT:
-        return tsan_load(&ctx->stats.sess_cb_hit);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_cb_hit);
     case SSL_CTRL_SESS_MISSES:
-        return tsan_load(&ctx->stats.sess_miss);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_miss);
     case SSL_CTRL_SESS_TIMEOUTS:
-        return tsan_load(&ctx->stats.sess_timeout);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_timeout);
     case SSL_CTRL_SESS_CACHE_FULL:
-        return tsan_load(&ctx->stats.sess_cache_full);
+        return ssl_tsan_load(ctx, &ctx->stats.sess_cache_full);
     case SSL_CTRL_MODE:
         return (ctx->mode |= larg);
     case SSL_CTRL_CLEAR_MODE:
@@ -3284,6 +3299,14 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
         return NULL;
     }
 
+#ifdef TSAN_REQUIRES_LOCKING
+    ret->tsan_lock = CRYPTO_THREAD_lock_new();
+    if (ret->tsan_lock == NULL) {
+        ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+#endif
+
     ret->libctx = libctx;
     if (propq != NULL) {
         ret->propq = OPENSSL_strdup(propq);
@@ -3550,6 +3573,9 @@ void SSL_CTX_free(SSL_CTX *a)
     OPENSSL_free(a->sigalg_lookup_cache);
 
     CRYPTO_THREAD_lock_free(a->lock);
+#ifdef TSAN_REQUIRES_LOCKING
+    CRYPTO_THREAD_lock_free(a->tsan_lock);
+#endif
 
     OPENSSL_free(a->propq);
 
@@ -3818,11 +3844,12 @@ void ssl_update_cache(SSL *s, int mode)
     /* auto flush every 255 connections */
     if ((!(i & SSL_SESS_CACHE_NO_AUTO_CLEAR)) && ((i & mode) == mode)) {
         TSAN_QUALIFIER int *stat;
+
         if (mode & SSL_SESS_CACHE_CLIENT)
             stat = &s->session_ctx->stats.sess_connect_good;
         else
             stat = &s->session_ctx->stats.sess_accept_good;
-        if ((tsan_load(stat) & 0xff) == 0xff)
+        if ((ssl_tsan_load(s->session_ctx, stat) & 0xff) == 0xff)
             SSL_CTX_flush_sessions(s->session_ctx, (unsigned long)time(NULL));
     }
 }
@@ -3978,6 +4005,7 @@ int SSL_do_handshake(SSL *s)
         if ((s->mode & SSL_MODE_ASYNC) && ASYNC_get_current_job() == NULL) {
             struct ssl_async_args args;
 
+            memset(&args, 0, sizeof(args));
             args.s = s;
 
             ret = ssl_start_async_job(s, &args, ssl_do_handshake_intern);

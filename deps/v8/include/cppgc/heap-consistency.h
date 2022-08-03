@@ -149,6 +149,19 @@ class HeapConsistency final {
     internal::WriteBarrier::GenerationalBarrier(params, slot);
   }
 
+  /**
+   * Generational barrier for source object that may contain outgoing pointers
+   * to objects in young generation.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param inner_pointer Pointer to the source object.
+   */
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const WriteBarrierParams& params, const void* inner_pointer) {
+    internal::WriteBarrier::GenerationalBarrierForSourceObject(params,
+                                                               inner_pointer);
+  }
+
  private:
   HeapConsistency() = delete;
 };

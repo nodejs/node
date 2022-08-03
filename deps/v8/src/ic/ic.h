@@ -53,11 +53,13 @@ class IC {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
   bool IsAnyStore() const {
-    return IsStoreIC() || IsStoreOwnIC() || IsStoreGlobalIC() ||
+    return IsSetNamedIC() || IsDefineNamedOwnIC() || IsStoreGlobalIC() ||
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
-           IsDefineOwnIC();
+           IsDefineKeyedOwnIC();
   }
-  bool IsAnyStoreOwn() const { return IsStoreOwnIC() || IsDefineOwnIC(); }
+  bool IsAnyDefineOwn() const {
+    return IsDefineNamedOwnIC() || IsDefineKeyedOwnIC();
+  }
 
   static inline bool IsHandler(MaybeObject object);
 
@@ -119,20 +121,18 @@ class IC {
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
   bool IsStoreGlobalIC() const { return IsStoreGlobalICKind(kind_); }
-  bool IsStoreIC() const { return IsStoreICKind(kind_); }
-  bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
-  bool IsDefineOwnIC() const { return IsDefineOwnICKind(kind_); }
+  bool IsSetNamedIC() const { return IsSetNamedICKind(kind_); }
+  bool IsDefineNamedOwnIC() const { return IsDefineNamedOwnICKind(kind_); }
   bool IsStoreInArrayLiteralIC() const {
     return IsStoreInArrayLiteralICKind(kind_);
   }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
-  bool IsKeyedDefineOwnIC() const { return IsKeyedDefineOwnICKind(kind_); }
+  bool IsDefineKeyedOwnIC() const { return IsDefineKeyedOwnICKind(kind_); }
   bool is_keyed() const {
     return IsKeyedLoadIC() || IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
-           IsKeyedHasIC() || IsKeyedDefineOwnIC();
+           IsKeyedHasIC() || IsDefineKeyedOwnIC();
   }
-  bool is_any_store_own() const { return IsStoreOwnIC() || IsDefineOwnIC(); }
   bool ShouldRecomputeHandler(Handle<String> name);
 
   Handle<Map> lookup_start_object_map() { return lookup_start_object_map_; }

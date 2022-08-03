@@ -79,7 +79,8 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
       heap->set_force_oom(true);
       CcTest::CollectAllGarbage();
-      heap->mark_compact_collector()->EnsureSweepingCompleted();
+      heap->mark_compact_collector()->EnsureSweepingCompleted(
+          MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
       // Check that all handles still point to the same page, i.e., compaction
       // has been aborted on the page.
@@ -160,7 +161,8 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
         heap->set_force_oom(true);
         CcTest::CollectAllGarbage();
-        heap->mark_compact_collector()->EnsureSweepingCompleted();
+        heap->mark_compact_collector()->EnsureSweepingCompleted(
+            MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
         bool migration_aborted = false;
         for (Handle<FixedArray> object : compaction_page_handles) {
@@ -256,7 +258,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
 
         heap->set_force_oom(true);
         CcTest::CollectAllGarbage();
-        heap->mark_compact_collector()->EnsureSweepingCompleted();
+        heap->mark_compact_collector()->EnsureSweepingCompleted(
+            MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
         CHECK_EQ(Page::FromHeapObject(*compaction_page_handles.front()),
                  page_to_fill);
@@ -334,7 +337,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
       heap->set_force_oom(true);
       CcTest::CollectAllGarbage();
-      heap->mark_compact_collector()->EnsureSweepingCompleted();
+      heap->mark_compact_collector()->EnsureSweepingCompleted(
+          MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
@@ -435,7 +439,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
 
       heap->set_force_oom(true);
       CcTest::CollectAllGarbage();
-      heap->mark_compact_collector()->EnsureSweepingCompleted();
+      heap->mark_compact_collector()->EnsureSweepingCompleted(
+          MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.

@@ -65,16 +65,12 @@ void InitializeTypes(Local<Object> target,
                      Local<Value> unused,
                      Local<Context> context,
                      void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-
-#define V(type) env->SetMethodNoSideEffect(target,     \
-                                           "is" #type, \
-                                           Is##type);
+#define V(type) SetMethodNoSideEffect(context, target, "is" #type, Is##type);
   VALUE_METHOD_MAP(V)
 #undef V
 
-  env->SetMethodNoSideEffect(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
-  env->SetMethodNoSideEffect(target, "isBoxedPrimitive", IsBoxedPrimitive);
+  SetMethodNoSideEffect(context, target, "isAnyArrayBuffer", IsAnyArrayBuffer);
+  SetMethodNoSideEffect(context, target, "isBoxedPrimitive", IsBoxedPrimitive);
 }
 
 }  // anonymous namespace

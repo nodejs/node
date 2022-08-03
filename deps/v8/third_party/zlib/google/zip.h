@@ -99,7 +99,7 @@ struct ZipParams {
   // Either dest_file or dest_fd should be set, but not both.
   base::FilePath dest_file;
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   // Destination file passed a file descriptor.
   // Either dest_file or dest_fd should be set, but not both.
   int dest_fd = base::kInvalidPlatformFile;
@@ -159,7 +159,7 @@ bool Zip(const base::FilePath& src_dir,
          const base::FilePath& dest_file,
          bool include_hidden_files);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Zips files listed in |src_relative_paths| to destination specified by file
 // descriptor |dest_fd|, without taking ownership of |dest_fd|. The paths listed
 // in |src_relative_paths| are relative to the |src_dir| and will be used as the
@@ -168,35 +168,45 @@ bool Zip(const base::FilePath& src_dir,
 bool ZipFiles(const base::FilePath& src_dir,
               Paths src_relative_paths,
               int dest_fd);
-#endif  // defined(OS_POSIX)
+#endif  // defined(OS_POSIX) || defined(OS_FUCHSIA)
 
-// Unzip the contents of zip_file into dest_dir.
-// For each file in zip_file, include it only if the callback |filter_cb|
-// returns true. Otherwise omit it.
-// If |log_skipped_files| is true, files skipped during extraction are printed
-// to debug log.
-bool UnzipWithFilterCallback(const base::FilePath& zip_file,
-                             const base::FilePath& dest_dir,
-                             FilterCallback filter_cb,
-                             bool log_skipped_files);
+// Options of the Unzip function, with valid default values.
+struct UnzipOptions {
+  // Encoding of entry paths in the ZIP archive. By default, paths are assumed
+  // to be in UTF-8.
+  std::string encoding;
 
-// Unzip the contents of zip_file, using the writers provided by writer_factory.
-// For each file in zip_file, include it only if the callback |filter_cb|
-// returns true. Otherwise omit it.
-// If |log_skipped_files| is true, files skipped during extraction are printed
-// to debug log.
+  // Only extract the entries for which |filter_cb| returns true. By default,
+  // everything gets extracted.
+  FilterCallback filter;
+
+  // Password to decrypt the encrypted files.
+  std::string password;
+
+  // Should ignore errors when extracting files?
+  bool continue_on_error = false;
+};
+
 typedef base::RepeatingCallback<std::unique_ptr<WriterDelegate>(
     const base::FilePath&)>
     WriterFactory;
-typedef base::RepeatingCallback<bool(const base::FilePath&)> DirectoryCreator;
-bool UnzipWithFilterAndWriters(const base::PlatformFile& zip_file,
-                               WriterFactory writer_factory,
-                               DirectoryCreator directory_creator,
-                               FilterCallback filter_cb,
-                               bool log_skipped_files);
 
-// Unzip the contents of zip_file into dest_dir.
-bool Unzip(const base::FilePath& zip_file, const base::FilePath& dest_dir);
+typedef base::RepeatingCallback<bool(const base::FilePath&)> DirectoryCreator;
+
+// Unzips the contents of |zip_file|, using the writers provided by
+// |writer_factory|.
+bool Unzip(const base::PlatformFile& zip_file,
+           WriterFactory writer_factory,
+           DirectoryCreator directory_creator,
+           UnzipOptions options = {});
+
+// Unzips the contents of |zip_file| into |dest_dir|.
+// This function does not overwrite any existing file.
+// A filename collision will result in an error.
+// Therefore, |dest_dir| should initially be an empty directory.
+bool Unzip(const base::FilePath& zip_file,
+           const base::FilePath& dest_dir,
+           UnzipOptions options = {});
 
 }  // namespace zip
 

@@ -57,7 +57,7 @@ structure of files and folders:
 ```
 .
 +-- node_modules
-|  `-- packages/a -> ../packages/a
+|  `-- a -> ../packages/a
 +-- package-lock.json
 +-- package.json
 `-- packages
@@ -112,15 +112,15 @@ respect the provided `workspace` configuration.
 
 Given the [specifities of how Node.js handles module resolution](https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together) it's possible to consume any defined workspace
 by its declared `package.json` `name`. Continuing from the example defined
-above, let's also create a Node.js script that will require the `workspace-a`
+above, let's also create a Node.js script that will require the workspace `a`
 example module, e.g:
 
 ```
-// ./workspace-a/index.js
+// ./packages/a/index.js
 module.exports = 'a'
 
 // ./lib/index.js
-const moduleA = require('workspace-a')
+const moduleA = require('a')
 console.log(moduleA) // -> a
 ```
 
@@ -137,6 +137,8 @@ nested workspaces to be consumed elsewhere.
 
 You can use the `workspace` configuration option to run commands in the context
 of a configured workspace.
+Additionally, if your current directory is in a workspace, the `workspace`
+configuration is implicitly set, and `prefix` is set to the root workspace.
 
 Following is a quick example on how to use the `npm run` command in the context
 of nested workspaces. For a project containing multiple workspaces, e.g:
@@ -158,7 +160,13 @@ given command in the context of that specific workspace. e.g:
 npm run test --workspace=a
 ```
 
-This will run the `test` script defined within the
+You could also run the command within the workspace.
+
+```
+cd packages/a && npm run test
+```
+
+Either will run the `test` script defined within the
 `./packages/a/package.json` file.
 
 Please note that you can also specify this argument multiple times in the

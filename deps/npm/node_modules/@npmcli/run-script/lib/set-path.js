@@ -12,7 +12,7 @@ const setPATH = (projectPath, env) => {
   const delimiter = isWindows ? ';' : ':'
   const PATH = Object.keys(env).filter(p => /^path$/i.test(p) && env[p])
     .map(p => env[p].split(delimiter))
-    .reduce((set, p) => set.concat(p.filter(p => !set.includes(p))), [])
+    .reduce((set, p) => set.concat(p.filter(concatted => !set.includes(concatted))), [])
     .join(delimiter)
 
   const pathArr = []

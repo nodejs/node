@@ -459,12 +459,12 @@ void TypeVisitor::VisitClassFieldsAndMethods(
                               field_size * ResidueClass::Unknown());
 
       if (auto literal =
-              NumberLiteralExpression::DynamicCast(field.index->expr)) {
-        size_t value = static_cast<size_t>(literal->number);
-        if (value != literal->number) {
-          Error("non-integral array length").Position(field.pos);
+              IntegerLiteralExpression::DynamicCast(field.index->expr)) {
+        if (auto value = literal->value.TryTo<size_t>()) {
+          field_size *= *value;
+        } else {
+          Error("Not a valid field index").Position(field.pos);
         }
-        field_size *= value;
       } else {
         field_size *= ResidueClass::Unknown();
       }

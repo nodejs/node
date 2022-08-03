@@ -1532,7 +1532,8 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::This();
   }
 
-  V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
+  V8_INLINE PreParserExpression
+  NewSuperPropertyReference(Scope* home_object_scope, int pos) {
     return PreParserExpression::Default();
   }
 

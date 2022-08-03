@@ -135,6 +135,7 @@ class PerfJitLogger : public CodeEventLogger {
   static uint64_t reference_count_;
   static void* marker_address_;
   static uint64_t code_index_;
+  static int process_id_;
 };
 
 }  // namespace internal

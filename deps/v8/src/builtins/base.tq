@@ -9,22 +9,26 @@
 #include 'src/heap/factory-inl.h'
 #include 'src/objects/arguments.h'
 #include 'src/objects/bigint.h'
+#include 'src/objects/call-site-info.h'
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
+#include 'src/objects/js-shadow-realms.h'
+#include 'src/objects/js-struct.h'
 #include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'
 #include 'src/objects/source-text-module.h'
-#include 'src/objects/stack-frame-info.h'
 #include 'src/objects/synthetic-module.h'
 #include 'src/objects/template-objects.h'
 #include 'src/torque/runtime-support.h'
 
 type void;
 type never;
+
+type IntegerLiteral constexpr 'IntegerLiteral';
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
@@ -209,6 +213,8 @@ extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
 extern class OrderedNameDictionary extends HashTable;
+extern class NameToIndexHashTable extends HashTable;
+extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;
 extern class GlobalDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
@@ -252,7 +258,8 @@ type CallableApiObject extends JSObject;
 // A JSProxy with the callable bit set.
 type CallableJSProxy extends JSProxy;
 
-type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
+type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
+    CallableApiObject;
 
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
@@ -306,6 +313,16 @@ extern enum ElementsKind extends int32 {
   BIGUINT64_ELEMENTS,
   BIGINT64_ELEMENTS,
   RAB_GSAB_UINT8_ELEMENTS,
+  RAB_GSAB_INT8_ELEMENTS,
+  RAB_GSAB_UINT16_ELEMENTS,
+  RAB_GSAB_INT16_ELEMENTS,
+  RAB_GSAB_UINT32_ELEMENTS,
+  RAB_GSAB_INT32_ELEMENTS,
+  RAB_GSAB_FLOAT32_ELEMENTS,
+  RAB_GSAB_FLOAT64_ELEMENTS,
+  RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+  RAB_GSAB_BIGUINT64_ELEMENTS,
+  RAB_GSAB_BIGINT64_ELEMENTS,
   // TODO(torque): Allow duplicate enum values.
   // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   // FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
@@ -385,7 +402,7 @@ extern enum MessageTemplate {
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
-  kNotAPromise,
+  kPromiseNewTargetUndefined,
   kResolverNotAFunction,
   kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
@@ -412,7 +429,7 @@ extern enum MessageTemplate {
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
   kWasmTrapFuncSigMismatch,
-  kWasmTrapDataSegmentDropped,
+  kWasmTrapDataSegmentOutOfBounds,
   kWasmTrapElemSegmentDropped,
   kWasmTrapTableOutOfBounds,
   kWasmTrapRethrowNull,
@@ -484,9 +501,6 @@ const kWasmArrayHeaderSize:
 
 const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
-
-const kDictModePrototypes:
-    constexpr bool generates 'V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -561,7 +575,8 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
+extern class JSApiObject extends JSObjectWithEmbedderSlots
+    generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
 // range.
@@ -604,7 +619,7 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
         if (Float64IsNaN(value)) return SmiConstant(0);
         value = math::Float64Trunc(value);
         // ToInteger normalizes -0 to +0.
-        if (value == 0.0) return SmiConstant(0);
+        if (value == 0) return SmiConstant(0);
         const result = ChangeFloat64ToTagged(value);
         dcheck(IsNumberNormalized(result));
         return result;
@@ -657,7 +672,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
-extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
+extern transitioning builtin CreateDataProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;
@@ -889,8 +904,12 @@ macro Float64IsNaN(n: float64): bool {
 }
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
-type TaggedWithIdentity =
-    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|Context|EmptyString;
+@if(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString | WasmInternalFunction;
+@ifnot(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -975,6 +994,38 @@ extern operator '==' macro ConstexprInt32Equal(
     constexpr int32, constexpr int32): constexpr bool;
 extern operator '!=' macro ConstexprInt32NotEqual(
     constexpr int32, constexpr int32): constexpr bool;
+
+// IntegerLiteral overloads
+extern macro ConstexprIntegerLiteralToInt31(constexpr IntegerLiteral):
+    constexpr int31;
+extern macro ConstexprIntegerLiteralToInt32(constexpr IntegerLiteral):
+    constexpr int32;
+extern macro ConstexprIntegerLiteralToUint32(constexpr IntegerLiteral):
+    constexpr uint32;
+extern macro ConstexprIntegerLiteralToUint64(constexpr IntegerLiteral):
+    constexpr uint64;
+extern macro ConstexprIntegerLiteralToIntptr(constexpr IntegerLiteral):
+    constexpr intptr;
+extern macro ConstexprIntegerLiteralToUintptr(constexpr IntegerLiteral):
+    constexpr uintptr;
+extern macro ConstexprIntegerLiteralToInt8(constexpr IntegerLiteral):
+    constexpr int8;
+extern macro ConstexprIntegerLiteralToUint8(constexpr IntegerLiteral):
+    constexpr uint8;
+extern macro ConstexprIntegerLiteralToFloat64(constexpr IntegerLiteral):
+    constexpr float64;
+
+extern operator '==' macro ConstexprIntegerLiteralEqual(
+    constexpr IntegerLiteral, constexpr IntegerLiteral): constexpr bool;
+extern operator '+' macro ConstexprIntegerLiteralAdd(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '<<' macro ConstexprIntegerLiteralLeftShift(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '|' macro ConstexprIntegerLiteralBitwiseOr(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
 
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
@@ -1165,19 +1216,29 @@ extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Uint16Constant(constexpr uint16): uint16;
 extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
+macro Int32Constant(i: constexpr IntegerLiteral): int32 {
+  return Int32Constant(ConstexprIntegerLiteralToInt32(i));
+}
 extern macro Int64Constant(constexpr int64): int64;
 extern macro Uint64Constant(constexpr uint64): uint64;
 extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
+extern macro Float64Constant(constexpr IntegerLiteral): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
 extern macro SmiConstant(constexpr bool): Smi;
 extern macro SmiConstant(constexpr uint32): Smi;
+macro SmiConstant(il: constexpr IntegerLiteral): Smi {
+  return SmiConstant(ConstexprIntegerLiteralToInt31(il));
+}
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
+macro IntPtrConstant(il: constexpr IntegerLiteral): intptr {
+  return IntPtrConstant(ConstexprIntegerLiteralToIntptr(il));
+}
 extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 extern macro Float64SilenceNaN(float64): float64;
@@ -1871,6 +1932,18 @@ extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
 
 extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
+
+extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
+  kHash,
+  kIntegerIndex,
+  kForwardingIndex,
+  kEmpty
+}
+
+operator '==' macro HashFieldTypeEquals(
+    s1: HashFieldType, s2: HashFieldType): bool {
+  return Word32Equal(s1, s2);
+}
 
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';

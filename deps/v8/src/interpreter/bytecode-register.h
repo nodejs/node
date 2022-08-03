@@ -26,8 +26,8 @@ class V8_EXPORT_PRIVATE Register final {
   bool is_parameter() const { return index() < 0; }
   bool is_valid() const { return index_ != kInvalidIndex; }
 
-  static Register FromParameterIndex(int index, int parameter_count);
-  int ToParameterIndex(int parameter_count) const;
+  static Register FromParameterIndex(int index);
+  int ToParameterIndex() const;
 
   // Returns an invalid register.
   static Register invalid_value() { return Register(); }
@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE Register final {
     return Register(kRegisterFileStartOffset - operand);
   }
 
-  static Register FromShortStar(Bytecode bytecode) {
+  static constexpr Register FromShortStar(Bytecode bytecode) {
     DCHECK(Bytecodes::IsShortStar(bytecode));
     return Register(static_cast<int>(Bytecode::kStar0) -
                     static_cast<int>(bytecode));
@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE Register final {
                             Register reg4 = invalid_value(),
                             Register reg5 = invalid_value());
 
-  std::string ToString(int parameter_count) const;
+  std::string ToString() const;
 
   bool operator==(const Register& other) const {
     return index() == other.index();

@@ -11,9 +11,9 @@ description: View registry info
 <!-- see lib/commands/view.js -->
 
 ```bash
-npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
+npm view [<package-spec>] [<field>[.subfield]...]
 
-aliases: v, info, show
+aliases: info, show, v
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -180,6 +180,8 @@ When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
+This value is not exported to the environment for child processes.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
@@ -201,6 +203,7 @@ the field name.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm search](/commands/npm-search)
 * [npm registry](/using-npm/registry)
 * [npm config](/commands/npm-config)

@@ -124,7 +124,7 @@ IDs](https://spdx.org/licenses/).  Ideally you should pick one that is
 
 If your package is licensed under multiple common licenses, use an [SPDX
 license expression syntax version 2.0
-string](https://www.npmjs.com/package/spdx), like this:
+string](https://spdx.dev/specifications/), like this:
 
 ```json
 {
@@ -222,7 +222,7 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ### funding
 
-You can specify an object containing an URL that provides up-to-date
+You can specify an object containing a URL that provides up-to-date
 information about ways to help fund development of your package, or a
 string URL, or an array of these:
 
@@ -323,7 +323,7 @@ This should be a module relative to the root of your package folder.
 For most modules, it makes the most sense to have a main script and often
 not much else.
 
-If `main` is not set it defaults to `index.js` in the packages root folder.
+If `main` is not set it defaults to `index.js` in the package's root folder.
 
 ### browser
 
@@ -632,7 +632,7 @@ commit. If the commit-ish has the format `#semver:<semver>`, `<semver>` can
 be any valid semver range or exact version, and npm will look for any tags
 or refs matching that range in the remote repository, much as it would for
 a registry dependency. If neither `#<commit-ish>` or `#semver:<semver>` is
-specified, then `master` is used.
+specified, then the default branch is used.
 
 Examples:
 
@@ -642,6 +642,26 @@ git+ssh://git@github.com:npm/cli#semver:^5.0
 git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 ```
+
+When installing from a `git` repository, the presence of certain fields in the
+`package.json` will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.
+
+This flow will occur if your git dependency uses `workspaces`, or if any of the
+following scripts are present:
+
+* `build`
+* `prepare`
+* `prepack`
+* `preinstall`
+* `install`
+* `postinstall`
+
+If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.
 
 #### GitHub URLs
 
@@ -689,6 +709,10 @@ in which case they will be normalized to a relative path and added to your
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry.
+
+*note*: Packages linked by local path will not have their own
+dependencies installed when `npm install` is ran in this case.  You must
+run `npm install` from inside the local path itself.
 
 ### devDependencies
 
@@ -805,14 +829,14 @@ if the `soy-milk` package is not installed on the host. This allows you to
 integrate and interact with a variety of host packages without requiring
 all of them to be installed.
 
-### bundledDependencies
+### bundleDependencies
 
 This defines an array of package names that will be bundled when publishing
 the package.
 
 In cases where you need to preserve npm packages locally or have them
 available through a single file download, you can bundle the packages in a
-tarball file by specifying the package names in the `bundledDependencies`
+tarball file by specifying the package names in the `bundleDependencies`
 array and executing `npm pack`.
 
 For example:
@@ -823,7 +847,7 @@ If we define a package.json like this:
 {
   "name": "awesome-web-framework",
   "version": "1.0.0",
-  "bundledDependencies": [
+  "bundleDependencies": [
     "renderized",
     "super-streams"
   ]
@@ -836,9 +860,9 @@ can be installed in a new project by executing `npm install
 awesome-web-framework-1.0.0.tgz`.  Note that the package names do not
 include any versions, as that information is specified in `dependencies`.
 
-If this is spelled `"bundleDependencies"`, then that is also honored.
+If this is spelled `"bundledDependencies"`, then that is also honored.
 
-Alternatively, `"bundledDependencies"` can be defined as a boolean value. A
+Alternatively, `"bundleDependencies"` can be defined as a boolean value. A
 value of `true` will bundle all dependencies, a value of `false` will bundle
 none.
 

@@ -21,7 +21,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "disallow `Object` constructors",
+            description: "Disallow `Object` constructors",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-new-object"
         },
@@ -29,7 +29,7 @@ module.exports = {
         schema: [],
 
         messages: {
-            preferLiteral: "The object literal notation {} is preferrable."
+            preferLiteral: "The object literal notation {} is preferable."
         }
     },
 

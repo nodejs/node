@@ -3,7 +3,7 @@
 =head1 NAME
 
 BN_add, BN_sub, BN_mul, BN_sqr, BN_div, BN_mod, BN_nnmod, BN_mod_add,
-BN_mod_sub, BN_mod_mul, BN_mod_sqr, BN_exp, BN_mod_exp, BN_gcd -
+BN_mod_sub, BN_mod_mul, BN_mod_sqr, BN_mod_sqrt, BN_exp, BN_mod_exp, BN_gcd -
 arithmetic operations on BIGNUMs
 
 =head1 SYNOPSIS
@@ -35,6 +35,8 @@ arithmetic operations on BIGNUMs
                 BN_CTX *ctx);
 
  int BN_mod_sqr(BIGNUM *r, BIGNUM *a, const BIGNUM *m, BN_CTX *ctx);
+
+ BIGNUM *BN_mod_sqrt(BIGNUM *in, BIGNUM *a, const BIGNUM *p, BN_CTX *ctx);
 
  int BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p, BN_CTX *ctx);
 
@@ -87,6 +89,12 @@ L<BN_mod_mul_reciprocal(3)>.
 BN_mod_sqr() takes the square of I<a> modulo B<m> and places the
 result in I<r>.
 
+BN_mod_sqrt() returns the modular square root of I<a> such that
+C<in^2 = a (mod p)>. The modulus I<p> must be a
+prime, otherwise an error or an incorrect "result" will be returned.
+The result is stored into I<in> which can be NULL. The result will be
+newly allocated in that case.
+
 BN_exp() raises I<a> to the I<p>-th power and places the result in I<r>
 (C<r=a^p>). This function is faster than repeated applications of
 BN_mul().
@@ -108,7 +116,10 @@ the arguments.
 
 =head1 RETURN VALUES
 
-For all functions, 1 is returned for success, 0 on error. The return
+The BN_mod_sqrt() returns the result (possibly incorrect if I<p> is
+not a prime), or NULL.
+
+For all remaining functions, 1 is returned for success, 0 on error. The return
 value should always be checked (e.g., C<if (!BN_add(r,a,b)) goto err;>).
 The error codes can be obtained by L<ERR_get_error(3)>.
 
@@ -119,7 +130,7 @@ L<BN_add_word(3)>, L<BN_set_bit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

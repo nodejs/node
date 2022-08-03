@@ -328,8 +328,8 @@ void InitializeStringDecoder(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, "kSize"),
               Integer::New(isolate, sizeof(StringDecoder))).Check();
 
-  env->SetMethod(target, "decode", DecodeData);
-  env->SetMethod(target, "flush", FlushData);
+  SetMethod(context, target, "decode", DecodeData);
+  SetMethod(context, target, "flush", FlushData);
 }
 
 }  // anonymous namespace

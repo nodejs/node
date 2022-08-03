@@ -359,17 +359,14 @@ WASM_COMPILED_EXEC_TEST(TableCopyInboundsFrom0To0) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyInboundsFrom3To0) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyInbounds(execution_tier, 3, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyInboundsFrom5To9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyInbounds(execution_tier, 5, 9);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyInboundsFrom6To6) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyInbounds(execution_tier, 6, 6);
 }
 
@@ -413,13 +410,11 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
     function_indexes.push_back(fn.function_index());
   }
 
-  // Passive element segment has [f0, f1, f2, f3, f4, null].
-  function_indexes.push_back(WasmModuleBuilder::kNullIndex);
-
   // Add 10 function tables, even though we only test one table.
   for (int i = 0; i < 10; ++i) {
     r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
   }
+  // Passive element segment has [f0, f1, f2, f3, f4].
   r.builder().AddPassiveElementSegment(function_indexes);
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
@@ -466,11 +461,9 @@ WASM_COMPILED_EXEC_TEST(TableInitElems0) {
   TestTableInitElems(execution_tier, 0);
 }
 WASM_COMPILED_EXEC_TEST(TableInitElems7) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableInitElems(execution_tier, 7);
 }
 WASM_COMPILED_EXEC_TEST(TableInitElems9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableInitElems(execution_tier, 9);
 }
 
@@ -543,14 +536,8 @@ void TestTableInitOob(TestExecutionTier execution_tier, int table_index) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableInitOob0) { TestTableInitOob(execution_tier, 0); }
-WASM_COMPILED_EXEC_TEST(TableInitOob7) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
-  TestTableInitOob(execution_tier, 7);
-}
-WASM_COMPILED_EXEC_TEST(TableInitOob9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
-  TestTableInitOob(execution_tier, 9);
-}
+WASM_COMPILED_EXEC_TEST(TableInitOob7) { TestTableInitOob(execution_tier, 7); }
+WASM_COMPILED_EXEC_TEST(TableInitOob9) { TestTableInitOob(execution_tier, 9); }
 
 void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
                         int table_src) {
@@ -619,17 +606,14 @@ WASM_COMPILED_EXEC_TEST(TableCopyElemsFrom0To0) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyElemsFrom3To0) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyElems(execution_tier, 3, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyElemsFrom5To9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyElems(execution_tier, 5, 9);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyElemsFrom6To6) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyElems(execution_tier, 6, 6);
 }
 
@@ -693,17 +677,14 @@ WASM_COMPILED_EXEC_TEST(TableCopyCallsTo0From0) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyCallsTo3From0) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyCalls(execution_tier, 3, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyCallsTo5From9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyCalls(execution_tier, 5, 9);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyCallsTo6From6) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyCalls(execution_tier, 6, 6);
 }
 
@@ -768,17 +749,14 @@ WASM_COMPILED_EXEC_TEST(TableCopyOobWritesFrom0To0) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOobWritesFrom3To0) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOobWrites(execution_tier, 3, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOobWritesFrom5To9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOobWrites(execution_tier, 5, 9);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOobWritesFrom6To6) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOobWrites(execution_tier, 6, 6);
 }
 
@@ -826,17 +804,14 @@ WASM_COMPILED_EXEC_TEST(TableCopyOob1From0To0) {
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOob1From3To0) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOob1(execution_tier, 3, 0);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOob1From5To9) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOob1(execution_tier, 5, 9);
 }
 
 WASM_COMPILED_EXEC_TEST(TableCopyOob1From6To6) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   TestTableCopyOob1(execution_tier, 6, 6);
 }
 

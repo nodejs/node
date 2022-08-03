@@ -602,15 +602,43 @@ class SlotSet {
 STATIC_ASSERT(std::is_standard_layout<SlotSet>::value);
 STATIC_ASSERT(std::is_standard_layout<SlotSet::Bucket>::value);
 
-enum SlotType {
-  FULL_EMBEDDED_OBJECT_SLOT,
-  COMPRESSED_EMBEDDED_OBJECT_SLOT,
-  DATA_EMBEDDED_OBJECT_SLOT,
-  FULL_OBJECT_SLOT,
-  COMPRESSED_OBJECT_SLOT,
-  CODE_TARGET_SLOT,
-  CODE_ENTRY_SLOT,
-  CLEARED_SLOT
+enum class SlotType : uint8_t {
+  // Full pointer sized slot storing an object start address.
+  // RelocInfo::target_object/RelocInfo::set_target_object methods are used for
+  // accessing. Used when pointer is stored in the instruction stream.
+  kEmbeddedObjectFull,
+
+  // Tagged sized slot storing an object start address.
+  // RelocInfo::target_object/RelocInfo::set_target_object methods are used for
+  // accessing. Used when pointer is stored in the instruction stream.
+  kEmbeddedObjectCompressed,
+
+  // Full pointer sized slot storing an object start address.
+  // RelocInfo::target_object/RelocInfo::set_target_object methods are used for
+  // accessing. Used when pointer is stored in the instruction stream.
+  kEmbeddedObjectData,
+
+  // Full pointer sized slot storing instruction start of Code object.
+  // RelocInfo::target_address/RelocInfo::set_target_address methods are used
+  // for accessing. Used when pointer is stored in the instruction stream.
+  kCodeEntry,
+
+  // Raw full pointer sized slot. Slot is accessed directly. Used when pointer
+  // is stored in constant pool.
+  kConstPoolEmbeddedObjectFull,
+
+  // Raw tagged sized slot. Slot is accessed directly. Used when pointer is
+  // stored in constant pool.
+  kConstPoolEmbeddedObjectCompressed,
+
+  // Raw full pointer sized slot storing instruction start of Code object. Slot
+  // is accessed directly. Used when pointer is stored in constant pool.
+  kConstPoolCodeEntry,
+
+  // Slot got cleared but has not been removed from the slot set.
+  kCleared,
+
+  kLast = kCleared
 };
 
 // Data structure for maintaining a list of typed slots in a page.
@@ -653,6 +681,8 @@ class V8_EXPORT_PRIVATE TypedSlots {
 // clearing of invalid slots.
 class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
  public:
+  using FreeRangesMap = std::map<uint32_t, uint32_t>;
+
   enum IterationMode { FREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
 
   explicit TypedSlotSet(Address page_start) : page_start_(page_start) {}
@@ -669,7 +699,7 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
   // This can run concurrently to ClearInvalidSlots().
   template <typename Callback>
   int Iterate(Callback callback, IterationMode mode) {
-    STATIC_ASSERT(CLEARED_SLOT < 8);
+    STATIC_ASSERT(static_cast<uint8_t>(SlotType::kLast) < 8);
     Chunk* chunk = head_;
     Chunk* previous = nullptr;
     int new_count = 0;
@@ -677,7 +707,7 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
       bool empty = true;
       for (TypedSlot& slot : chunk->buffer) {
         SlotType type = TypeField::decode(slot.type_and_offset);
-        if (type != CLEARED_SLOT) {
+        if (type != SlotType::kCleared) {
           uint32_t offset = OffsetField::decode(slot.type_and_offset);
           Address addr = page_start_ + offset;
           if (callback(type, addr) == KEEP_SLOT) {
@@ -709,12 +739,19 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
 
   // Clears all slots that have the offset in the specified ranges.
   // This can run concurrently to Iterate().
-  void ClearInvalidSlots(const std::map<uint32_t, uint32_t>& invalid_ranges);
+  void ClearInvalidSlots(const FreeRangesMap& invalid_ranges);
+
+  // Asserts that there are no recorded slots in the specified ranges.
+  void AssertNoInvalidSlots(const FreeRangesMap& invalid_ranges);
 
   // Frees empty chunks accumulated by PREFREE_EMPTY_CHUNKS.
   void FreeToBeFreedChunks();
 
  private:
+  template <typename Callback>
+  void IterateSlotsInRanges(Callback callback,
+                            const FreeRangesMap& invalid_ranges);
+
   // Atomic operations used by Iterate and ClearInvalidSlots;
   Chunk* LoadNext(Chunk* chunk) {
     return base::AsAtomicPointer::Relaxed_Load(&chunk->next);
@@ -727,7 +764,8 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
     base::AsAtomicPointer::Relaxed_Store(&head_, chunk);
   }
   static TypedSlot ClearedTypedSlot() {
-    return TypedSlot{TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0)};
+    return TypedSlot{TypeField::encode(SlotType::kCleared) |
+                     OffsetField::encode(0)};
   }
 
   Address page_start_;

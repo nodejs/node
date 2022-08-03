@@ -57,6 +57,7 @@ Returns: `MockInterceptor` corresponding to the input options.
 * **method** `string | RegExp | (method: string) => boolean` - a matcher for the HTTP request method.
 * **body** `string | RegExp | (body: string) => boolean` - (optional) - a matcher for the HTTP request body.
 * **headers** `Record<string, string | RegExp | (body: string) => boolean`> - (optional) - a matcher for the HTTP request headers. To be intercepted, a request must match all defined headers. Extra headers not defined here may (or may not) be included in the request and do not affect the interception in any way.
+* **query** `Record<string, any> | null` - (optional) - a matcher for the HTTP request query string params.
 
 ### Return: `MockInterceptor`
 
@@ -95,11 +96,7 @@ setGlobalDispatcher(mockAgent)
 
 // MockPool
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET',
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,

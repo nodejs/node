@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OSSL_CRYPTO_DSAERR_H
-# define OSSL_CRYPTO_DSAERR_H
+#ifndef OSSL_CRYPTO_DSA_H
+# define OSSL_CRYPTO_DSA_H
 # pragma once
 
 # include <openssl/core.h>
@@ -30,7 +30,8 @@ int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
 
 FFC_PARAMS *ossl_dsa_get0_params(DSA *dsa);
 int ossl_dsa_ffc_params_fromdata(DSA *dsa, const OSSL_PARAM params[]);
-int ossl_dsa_key_fromdata(DSA *dsa, const OSSL_PARAM params[]);
+int ossl_dsa_key_fromdata(DSA *dsa, const OSSL_PARAM params[],
+                          int include_private);
 DSA *ossl_dsa_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
                              OSSL_LIB_CTX *libctx, const char *propq);
 

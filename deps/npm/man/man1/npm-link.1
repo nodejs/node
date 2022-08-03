@@ -1,12 +1,11 @@
-.TH "NPM\-LINK" "1" "March 2022" "" ""
+.TH "NPM\-LINK" "1" "July 2022" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm link (in package dir)
-npm link [<@scope>/]<pkg>[@<version>]
+npm link [<package\-spec>]
 
 alias: ln
 .fi
@@ -18,11 +17,11 @@ test iteratively without having to continually rebuild\.
 .P
 Package linking is a two\-step process\.
 .P
-First, \fBnpm link\fP in a package folder will create a symlink in the global
-folder \fB{prefix}/lib/node_modules/<package>\fP that links to the package
-where the \fBnpm link\fP command was executed\. It will also link any bins in
-the package to \fB{prefix}/bin/{name}\fP\|\.  Note that \fBnpm link\fP uses the global
-prefix (see \fBnpm prefix \-g\fP for its value)\.
+First, \fBnpm link\fP in a package folder with no arguments will create a
+symlink in the global folder \fB{prefix}/lib/node_modules/<package>\fP that
+links to the package where the \fBnpm link\fP command was executed\. It will
+also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.  Note that
+\fBnpm link\fP uses the global prefix (see \fBnpm prefix \-g\fP for its value)\.
 .P
 Next, in some other location, \fBnpm link package\-name\fP will create a
 symbolic link from globally\-installed \fBpackage\-name\fP to \fBnode_modules/\fP of
@@ -116,8 +115,7 @@ workspace(s)\.
 .SS \fBsave\fP
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
-defaults to \fBfalse\fP
+Default: \fBtrue\fP unless when using \fBnpm update\fP where it defaults to \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 
@@ -223,10 +221,6 @@ Type: Boolean
 .P
 If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
 will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
-.P
-When package package\-locks are disabled, automatic pruning of extraneous
-modules will also be disabled\. To remove extraneous modules with
-package\-locks disabled use \fBnpm prune\fP\|\.
 .P
 This configuration does not affect \fBnpm ci\fP\|\.
 .SS \fBomit\fP
@@ -389,8 +383,24 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinstall\-links\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
+.IP \(bu 2
+npm help package spec
 .IP \(bu 2
 npm help developers
 .IP \(bu 2

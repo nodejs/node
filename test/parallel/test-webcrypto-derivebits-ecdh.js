@@ -154,7 +154,7 @@ async function prepareKeys() {
 
         assert.strictEqual(
           Buffer.from(bits).toString('hex'),
-          result.slice(0, -4));
+          result.slice(0, -2));
       }
     }));
 
@@ -201,13 +201,13 @@ async function prepareKeys() {
       {
         name: 'ECDSA',
         namedCurve: 'P-521'
-      }, false, ['verify']);
+      }, false, ['sign', 'verify']);
 
     await assert.rejects(subtle.deriveBits({
       name: 'ECDH',
       public: publicKey
     }, keys['P-521'].privateKey, null), {
-      message: /Keys must be ECDH keys/
+      message: /Keys must be ECDH, X25519, or X448 keys/
     });
   }
 

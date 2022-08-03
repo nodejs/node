@@ -63,10 +63,12 @@ class DirFetcher extends Fetcher {
     stream.resolved = this.resolved
     stream.integrity = this.integrity
 
+    const { prefix, workspaces } = this.opts
+
     // run the prepare script, get the list of files, and tar it up
     // pipe to the stream, and proxy errors the chain.
     this[_prepareDir]()
-      .then(() => packlist({ path: this.resolved }))
+      .then(() => packlist({ path: this.resolved, prefix, workspaces }))
       .then(files => tar.c(tarCreateOptions(this.package), files)
         .on('error', er => stream.emit('error', er)).pipe(stream))
       .catch(er => stream.emit('error', er))

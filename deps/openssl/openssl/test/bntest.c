@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,9 +10,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef __TANDEM
-# include <strings.h> /* strcasecmp */
-#endif
 #include <ctype.h>
 
 #include <openssl/bn.h>
@@ -22,10 +19,6 @@
 #include "internal/nelem.h"
 #include "internal/numbers.h"
 #include "testutil.h"
-
-#ifdef OPENSSL_SYS_WINDOWS
-# define strcasecmp _stricmp
-#endif
 
 /*
  * Things in boring, not in openssl.
@@ -64,7 +57,7 @@ static const char *findattr(STANZA *s, const char *key)
     PAIR *pp = s->pairs;
 
     for ( ; --i >= 0; pp++)
-        if (strcasecmp(pp->key, key) == 0)
+        if (OPENSSL_strcasecmp(pp->key, key) == 0)
             return pp->value;
     return NULL;
 }
@@ -1732,8 +1725,17 @@ static int file_modsqrt(STANZA *s)
             || !TEST_ptr(ret2 = BN_new()))
         goto err;
 
+    if (BN_is_negative(mod_sqrt)) {
+        /* A negative testcase */
+        if (!TEST_ptr_null(BN_mod_sqrt(ret, a, p, ctx)))
+            goto err;
+
+        st = 1;
+        goto err;
+    }
+
     /* There are two possible answers. */
-    if (!TEST_true(BN_mod_sqrt(ret, a, p, ctx))
+    if (!TEST_ptr(BN_mod_sqrt(ret, a, p, ctx))
             || !TEST_true(BN_sub(ret2, p, ret)))
         goto err;
 
@@ -2881,6 +2883,50 @@ static int test_mod_exp_consttime(int i)
     return res;
 }
 
+/*
+ * Regression test to ensure BN_mod_exp2_mont fails safely if argument m is
+ * zero.
+ */
+static int test_mod_exp2_mont(void)
+{
+    int res = 0;
+    BIGNUM *exp_result = NULL;
+    BIGNUM *exp_a1 = NULL, *exp_p1 = NULL, *exp_a2 = NULL, *exp_p2 = NULL,
+           *exp_m = NULL;
+
+    if (!TEST_ptr(exp_result = BN_new())
+            || !TEST_ptr(exp_a1 = BN_new())
+            || !TEST_ptr(exp_p1 = BN_new())
+            || !TEST_ptr(exp_a2 = BN_new())
+            || !TEST_ptr(exp_p2 = BN_new())
+            || !TEST_ptr(exp_m = BN_new()))
+        goto err;
+
+    if (!TEST_true(BN_one(exp_a1))
+            || !TEST_true(BN_one(exp_p1))
+            || !TEST_true(BN_one(exp_a2))
+            || !TEST_true(BN_one(exp_p2)))
+        goto err;
+
+    BN_zero(exp_m);
+
+    /* input of 0 is even, so must fail */
+    if (!TEST_int_eq(BN_mod_exp2_mont(exp_result, exp_a1, exp_p1, exp_a2,
+                exp_p2, exp_m, ctx, NULL), 0))
+        goto err;
+
+    res = 1;
+
+err:
+    BN_free(exp_result);
+    BN_free(exp_a1);
+    BN_free(exp_p1);
+    BN_free(exp_a2);
+    BN_free(exp_p2);
+    BN_free(exp_m);
+    return res;
+}
+
 static int file_test_run(STANZA *s)
 {
     static const FILETEST filetests[] = {
@@ -3022,6 +3068,7 @@ int setup_tests(void)
         ADD_TEST(test_gcd_prime);
         ADD_ALL_TESTS(test_mod_exp, (int)OSSL_NELEM(ModExpTests));
         ADD_ALL_TESTS(test_mod_exp_consttime, (int)OSSL_NELEM(ModExpTests));
+        ADD_TEST(test_mod_exp2_mont);
         if (stochastic)
             ADD_TEST(test_rand_range);
     } else {

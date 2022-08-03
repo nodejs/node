@@ -15,20 +15,40 @@ Key exchange support for the B<DH> key type.
 
 =item "pad" (B<OSSL_EXCHANGE_PARAM_PAD>) <unsigned integer>
 
+Sets the padding mode for the associated key exchange ctx.
+Setting a value of 1 will turn padding on.
+Setting a value of 0 will turn padding off.
+If padding is off then the derived shared secret may be smaller than the
+largest possible secret size.
+If padding is on then the derived shared secret will have its first bytes
+filled with zeros where necessary to make the shared secret the same size as
+the largest possible secret size.
+The padding mode parameter is ignored (and padding implicitly enabled) when
+the KDF type is set to "X942KDF-ASN1" (B<OSSL_KDF_NAME_X942KDF_ASN1>).
+
+=item "kdf-type" (B<OSSL_EXCHANGE_PARAM_KDF_TYPE>) <UTF8 string>
+
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
+
+=item "kdf-digest" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST>) <UTF8 string>
+
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
+
+=item "kdf-digest-props" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS>) <UTF8 string>
+
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
+
+=item "kdf-outlen" (B<OSSL_EXCHANGE_PARAM_KDF_OUTLEN>) <unsigned integer>
+
 See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string>
 
-Sets the User Key Material to be used as part of the selected Key Derivation
-Function associated with the given key exchange ctx.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
-=item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string ptr>
+=item "cekalg" (B<OSSL_KDF_PARAM_CEK_ALG>) <octet string ptr>
 
-Gets a pointer to the User Key Material to be used as part of the selected
-Key Derivation Function associated with the given key exchange ctx. Providers
-usually do not need to support this gettable parameter as its sole purpose
-is to support functionality of the deprecated EVP_PKEY_CTX_get0_dh_kdf_ukm()
-function.
+See L<provider-kdf(7)/KDF Parameters>.
 
 =back
 
@@ -58,6 +78,7 @@ To convert the received peer's public key from DER format on the host:
 
 To derive a shared secret on the host using the host's key and the peer's public
 key:
+
     /* It is assumed that the host_key and peer_pub_key are set up */
     void derive_secret(EVP_KEY *host_key, EVP_PKEY *peer_pub_key)
     {
@@ -101,7 +122,7 @@ L<OSSL_PROVIDER-FIPS(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

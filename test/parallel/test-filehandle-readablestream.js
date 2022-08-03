@@ -80,7 +80,8 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustNotCall();
   assert.throws(() => mc.port2.postMessage(file, [file]), {
-    code: 25  // DataCloneError
+    code: 25,
+    name: 'DataCloneError',
   });
   mc.port1.close();
   await file.close();

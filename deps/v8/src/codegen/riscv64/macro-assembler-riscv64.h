@@ -358,7 +358,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.
   void MultiPush(RegList regs);
-  void MultiPushFPU(RegList regs);
+  void MultiPushFPU(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -407,7 +407,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Pops multiple values from the stack and load them in the
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
-  void MultiPopFPU(RegList regs);
+  void MultiPopFPU(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \
@@ -862,6 +862,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                VRegister v_scratch);
   void Round_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+
+  // -------------------------------------------------------------------------
+  // Smi utilities.
+
+  void SmiTag(Register dst, Register src) {
+    STATIC_ASSERT(kSmiTag == 0);
+    if (SmiValuesAre32Bits()) {
+      // Smi goes to upper 32
+      slli(dst, src, 32);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      // Smi is shifted left by 1
+      Add32(dst, src, src);
+    }
+  }
+
+  void SmiTag(Register reg) { SmiTag(reg, reg); }
+
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
@@ -1107,7 +1125,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
-  // save_doubles - saves FPU registers on stack, currently disabled.
+  // save_doubles - saves FPU registers on stack.
   // stack_space - extra stack space.
   void EnterExitFrame(bool save_doubles, int stack_space = 0,
                       StackFrame::Type frame_type = StackFrame::EXIT);
@@ -1230,23 +1248,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void StackOverflowCheck(Register num_args, Register scratch1,
                           Register scratch2, Label* stack_overflow,
                           Label* done = nullptr);
-
-  // -------------------------------------------------------------------------
-  // Smi utilities.
-
-  void SmiTag(Register dst, Register src) {
-    STATIC_ASSERT(kSmiTag == 0);
-    if (SmiValuesAre32Bits()) {
-      // Smi goes to upper 32
-      slli(dst, src, 32);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      // Smi is shifted left by 1
-      Add32(dst, src, src);
-    }
-  }
-
-  void SmiTag(Register reg) { SmiTag(reg, reg); }
 
   // Left-shifted from int32 equivalent of Smi.
   void SmiScale(Register dst, Register src, int scale) {

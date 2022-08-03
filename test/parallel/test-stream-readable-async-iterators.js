@@ -63,7 +63,7 @@ async function tests() {
     });
 
     await (async () => {
-      for await (const d of readable) { // eslint-disable-line no-unused-vars
+      for await (const d of readable) {
         return;
       }
     })();
@@ -789,6 +789,20 @@ async function tests() {
       }
     );
   }
+
+  // Check for dangling listeners
+  (async function() {
+    const readable = createReadable();
+    const opts = { destroyOnReturn: false };
+    while (readable.readable) {
+      // eslint-disable-next-line no-unused-vars
+      for await (const chunk of readable.iterator(opts)) {
+        break;
+      }
+    }
+
+    assert.deepStrictEqual(readable.eventNames(), []);
+  })().then(common.mustCall());
 }
 
 {

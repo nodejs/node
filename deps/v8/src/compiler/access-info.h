@@ -22,7 +22,6 @@ class CompilationDependencies;
 class CompilationDependency;
 class ElementAccessFeedback;
 class JSHeapBroker;
-class MinimorphicLoadPropertyAccessFeedback;
 class TypeCache;
 struct ConstFieldInfo;
 
@@ -214,36 +213,6 @@ class PropertyAccessInfo final {
   base::Optional<NameRef> name_;
 };
 
-// This class encapsulates information required to generate load properties
-// by only using the information from handlers. This information is used with
-// dynamic map checks.
-class MinimorphicLoadPropertyAccessInfo final {
- public:
-  enum Kind { kInvalid, kDataField };
-  static MinimorphicLoadPropertyAccessInfo DataField(
-      int offset, bool is_inobject, Representation field_representation,
-      Type field_type);
-  static MinimorphicLoadPropertyAccessInfo Invalid();
-
-  bool IsInvalid() const { return kind_ == kInvalid; }
-  bool IsDataField() const { return kind_ == kDataField; }
-  int offset() const { return offset_; }
-  int is_inobject() const { return is_inobject_; }
-  Type field_type() const { return field_type_; }
-  Representation field_representation() const { return field_representation_; }
-
- private:
-  MinimorphicLoadPropertyAccessInfo(Kind kind, int offset, bool is_inobject,
-                                    Representation field_representation,
-                                    Type field_type);
-
-  Kind kind_;
-  bool is_inobject_;
-  int offset_;
-  Representation field_representation_;
-  Type field_type_;
-};
-
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
 class AccessInfoFactory final {
  public:
@@ -263,9 +232,6 @@ class AccessInfoFactory final {
       MapRef receiver_map, NameRef name, JSObjectRef holder,
       InternalIndex dict_index, AccessMode access_mode,
       PropertyDetails details) const;
-
-  MinimorphicLoadPropertyAccessInfo ComputePropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback) const;
 
   // Merge as many of the given {infos} as possible and record any dependencies.
   // Return false iff any of them was invalid, in which case no dependencies are

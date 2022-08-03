@@ -244,7 +244,7 @@ The following options can be set:
                                         ("indirect method")
 
         Note that a signature-based POPO can only be produced if a private key
-        is provided as the newPkey or client pkey component of the CMP context.
+        is provided as the newPkey or client's pkey component of the CMP context.
 
 =item B<OSSL_CMP_OPT_DIGEST_ALGNID>
 
@@ -441,7 +441,7 @@ The reference counts of those certificates handled successfully are increased.
 OSSL_CMP_CTX_get0_untrusted(OSSL_CMP_CTX *ctx) returns a pointer to the
 list of untrusted certs, which may be empty if unset.
 
-OSSL_CMP_CTX_set1_cert() sets the certificate related to the private key
+OSSL_CMP_CTX_set1_cert() sets the certificate related to the client's private key
 used for CMP message protection.
 Therefore the public key of this I<cert> must correspond to
 the private key set before or thereafter via OSSL_CMP_CTX_set1_pkey().
@@ -468,7 +468,7 @@ Calling this function is optional; by default a chain construction
 is performed on demand that is equivalent to calling this function
 with the I<candidates> and I<own_trusted> arguments being NULL.
 
-OSSL_CMP_CTX_set1_pkey() sets the private key corresponding to the
+OSSL_CMP_CTX_set1_pkey() sets the client's private key corresponding to the
 CMP signer certificate set via OSSL_CMP_CTX_set1_cert().
 This key is used create signature-based protection (protectionAlg = MSG_SIG_ALG)
 of outgoing messages
@@ -519,7 +519,7 @@ The I<priv> parameter must be 0 if and only if the given key is a public key.
 OSSL_CMP_CTX_get0_newPkey() gives the key to use for certificate enrollment
 dependent on fields of the CMP context structure:
 the newPkey (which may be a private or public key) if present,
-else the public key in the p10CSR if present, else the client private key.
+else the public key in the p10CSR if present, else the client's private key.
 If the I<priv> parameter is not 0 and the selected key does not have a
 private component then NULL is returned.
 
@@ -538,7 +538,7 @@ OSSL_CMP_CTX_push1_subjectAltName() adds the given X509 name to the list of
 alternate names on the certificate template request. This cannot be used if
 any Subject Alternative Name extension is set via
 OSSL_CMP_CTX_set0_reqExtensions().
-By default, unless OSSL_CMP_OPT_SUBJECTALTNAME_NODEFAULT has been set,
+By default, unless B<OSSL_CMP_OPT_SUBJECTALTNAME_NODEFAULT> has been set,
 the Subject Alternative Names are copied from the reference certificate,
 see OSSL_CMP_CTX_set1_oldCert().
 If set and the subject DN is not set with OSSL_CMP_CTX_set1_subjectName() then
@@ -559,14 +559,16 @@ to the X509_EXTENSIONS of the requested certificate template.
 OSSL_CMP_CTX_set1_oldCert() sets the old certificate to be updated in
 Key Update Requests (KUR) or to be revoked in Revocation Requests (RR).
 It must be given for RR, else it defaults to the CMP signer certificate.
-The reference certificate determined in this way, if any, is also used for
-deriving default subject DN and Subject Alternative Names and the
+The I<reference certificate> determined in this way, if any, is also used for
+deriving default subject DN, public key, Subject Alternative Names, and the
 default issuer entry in the requested certificate template of IR/CR/KUR.
 The subject of the reference certificate is used as the sender field value
 in CMP message headers.
 Its issuer is used as default recipient in CMP message headers.
 
-OSSL_CMP_CTX_set1_p10CSR() sets the PKCS#10 CSR to be used in P10CR.
+OSSL_CMP_CTX_set1_p10CSR() sets the PKCS#10 CSR to use in P10CR messages.
+If such a CSR is provided, its subject, public key, and extension fields are
+also used as fallback values for the certificate template of IR/CR/KUR messages.
 
 OSSL_CMP_CTX_push0_genm_ITAV() adds I<itav> to the stack in the I<ctx> which
 will be the body of a General Message sent with this context.
@@ -756,7 +758,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

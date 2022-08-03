@@ -5,11 +5,12 @@
 const t = require('tap')
 const util = require('util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const { cmdList } = require('../../lib/utils/cmd-list.js')
+const { cmdList, plumbing } = require('../../lib/utils/cmd-list.js')
+const allCmds = [...cmdList, ...plumbing]
 
 t.test('load each command', async t => {
-  t.plan(cmdList.length)
-  for (const cmd of cmdList.sort((a, b) => a.localeCompare(b, 'en'))) {
+  t.plan(allCmds.length)
+  for (const cmd of allCmds.sort((a, b) => a.localeCompare(b, 'en'))) {
     t.test(cmd, async t => {
       const { npm, outputs } = await loadMockNpm(t, {
         config: { usage: true },

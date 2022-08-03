@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -200,9 +200,16 @@ static BIO *glue2bio(const char **pem, char **out)
  */
 static X509_CRL *CRL_from_strings(const char **pem)
 {
+    X509_CRL *crl;
     char *p;
     BIO *b = glue2bio(pem, &p);
-    X509_CRL *crl = PEM_read_bio_X509_CRL(b, NULL, NULL, NULL);
+
+    if (b == NULL) {
+        OPENSSL_free(p);
+        return NULL;
+    }
+
+    crl = PEM_read_bio_X509_CRL(b, NULL, NULL, NULL);
 
     OPENSSL_free(p);
     BIO_free(b);
@@ -214,9 +221,16 @@ static X509_CRL *CRL_from_strings(const char **pem)
  */
 static X509 *X509_from_strings(const char **pem)
 {
+    X509 *x;
     char *p;
     BIO *b = glue2bio(pem, &p);
-    X509 *x = PEM_read_bio_X509(b, NULL, NULL, NULL);
+
+    if (b == NULL) {
+        OPENSSL_free(p);
+        return NULL;
+    }
+
+    x = PEM_read_bio_X509(b, NULL, NULL, NULL);
 
     OPENSSL_free(p);
     BIO_free(b);
@@ -362,6 +376,12 @@ static int test_reuse_crl(void)
     X509_CRL *reused_crl = CRL_from_strings(kBasicCRL);
     char *p;
     BIO *b = glue2bio(kRevokedCRL, &p);
+
+    if (b == NULL) {
+        OPENSSL_free(p);
+        X509_CRL_free(reused_crl);
+        return 0;
+    }
 
     reused_crl = PEM_read_bio_X509_CRL(b, &reused_crl, NULL, NULL);
 

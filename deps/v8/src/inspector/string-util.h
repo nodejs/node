@@ -108,12 +108,6 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
                         std::vector<uint8_t>* bytes);
 };
 
-template <>
-struct SerializerTraits<v8_inspector::protocol::Binary> {
-  static void Serialize(const v8_inspector::protocol::Binary& binary,
-                        std::vector<uint8_t>* out);
-};
-
 namespace detail {
 template <>
 struct MaybeTypedef<v8_inspector::String16> {

@@ -30,7 +30,7 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
 #if defined(CPPGC_YOUNG_GENERATION)
   DCHECK_LT(begin, end);
 
-  static constexpr auto kEntrySize = AgeTable::kEntrySizeInBytes;
+  static constexpr auto kEntrySize = AgeTable::kCardSizeInBytes;
 
   const uintptr_t offset_begin = CagedHeap::OffsetFromAddress(begin);
   const uintptr_t offset_end = CagedHeap::OffsetFromAddress(end);
@@ -44,16 +44,16 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
 
   auto& age_table = page->heap().caged_heap().local_data().age_table;
   for (auto offset = young_offset_begin; offset < young_offset_end;
-       offset += AgeTable::kEntrySizeInBytes) {
-    age_table[offset] = AgeTable::Age::kYoung;
+       offset += AgeTable::kCardSizeInBytes) {
+    age_table.SetAge(offset, AgeTable::Age::kYoung);
   }
 
   // Set to kUnknown the first and the last regions of the newly allocated
   // linear buffer.
   if (begin != page->PayloadStart() && !IsAligned(offset_begin, kEntrySize))
-    age_table[offset_begin] = AgeTable::Age::kUnknown;
+    age_table.SetAge(offset_begin, AgeTable::Age::kMixed);
   if (end != page->PayloadEnd() && !IsAligned(offset_end, kEntrySize))
-    age_table[offset_end] = AgeTable::Age::kUnknown;
+    age_table.SetAge(offset_end, AgeTable::Age::kMixed);
 #endif
 }
 

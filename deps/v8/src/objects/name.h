@@ -89,21 +89,30 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   void NameShortPrint();
   int NameShortPrint(base::Vector<char> str);
 
-  // Mask constant for checking if a name has a computed hash code
-  // and if it is a string that is an integer index.  The least significant bit
-  // indicates whether a hash code has been computed.  If the hash code has
-  // been computed the 2nd bit tells whether the string can be used as an
-  // integer index (up to MAX_SAFE_INTEGER).
-  static const int kHashNotComputedMask = 1;
-  static const int kIsNotIntegerIndexMask = 1 << 1;
-  static const int kNofHashBitFields = 2;
+  // Mask constant for checking if a name has a computed hash code and the type
+  // of information stored in the hash field. The least significant bit
+  // indicates whether the value can be used as a hash (i.e. different values
+  // imply different strings).
+  enum class HashFieldType : uint32_t {
+    kHash = 0b10,
+    kIntegerIndex = 0b00,
+    kForwardingIndex = 0b01,
+    kEmpty = 0b11
+  };
 
-  // Shift constant retrieving hash code from hash field.
-  static const int kHashShift = kNofHashBitFields;
+  using HashFieldTypeBits = base::BitField<HashFieldType, 0, 2>;
+  using HashBits =
+      HashFieldTypeBits::Next<uint32_t, kBitsPerInt - HashFieldTypeBits::kSize>;
 
-  // Only these bits are relevant in the hash, since the top two are shifted
-  // out.
-  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
+  static constexpr int kHashNotComputedMask = 1;
+  // Value of empty hash field indicating that the hash is not computed.
+  static constexpr int kEmptyHashField =
+      HashFieldTypeBits::encode(HashFieldType::kEmpty);
+
+  // Empty hash and forwarding indices can not be used as hash.
+  STATIC_ASSERT((kEmptyHashField & kHashNotComputedMask) != 0);
+  STATIC_ASSERT((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+                 kHashNotComputedMask) != 0);
 
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
@@ -124,16 +133,15 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // the case for the string '0'. 24 bits are used for the array index value.
   static const int kArrayIndexValueBits = 24;
   static const int kArrayIndexLengthBits =
-      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
+      kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
   STATIC_ASSERT(kArrayIndexLengthBits > 0);
   STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
-      base::BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
+      HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
   using ArrayIndexLengthBits =
-      base::BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
-                     kArrayIndexLengthBits>;
+      ArrayIndexValueBits::Next<unsigned int, kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -143,16 +151,19 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.
+  STATIC_ASSERT(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |
-      kIsNotIntegerIndexMask;
-
-  // Value of empty hash field indicating that the hash is not computed.
-  static const int kEmptyHashField =
-      kIsNotIntegerIndexMask | kHashNotComputedMask;
+      HashFieldTypeBits::kMask;
 
   static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
+  static inline bool IsHash(uint32_t raw_hash_field);
+  static inline bool IsIntegerIndex(uint32_t raw_hash_field);
+  static inline bool IsForwardingIndex(uint32_t raw_hash_field);
+
+  static inline uint32_t CreateHashFieldValue(uint32_t hash,
+                                              HashFieldType type);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
 };

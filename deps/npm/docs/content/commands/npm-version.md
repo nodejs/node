@@ -52,7 +52,8 @@ Run git commit hooks when using the `npm version` command.
 * Default: true
 * Type: Boolean
 
-Tag the commit when using the `npm version` command.
+Tag the commit when using the `npm version` command. Setting this to false
+results in no commit being made at all.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -143,6 +144,17 @@ This value is not exported to the environment for child processes.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### `workspaces-update`
+
+* Default: true
+* Type: Boolean
+
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the `node_modules` folder.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### `include-workspace-root`
 
 * Default: false
@@ -153,6 +165,8 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

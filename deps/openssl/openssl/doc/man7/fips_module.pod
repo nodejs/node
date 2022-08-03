@@ -273,7 +273,7 @@ file. The encoder and decoder algorithms are not in the FIPS module itself but
 are allowed to be used in conjunction with the FIPS algorithms.
 
 It is possible to specify default properties within a config file. For example
-the following config file automatically loads the default and fips providers and
+the following config file automatically loads the default and FIPS providers and
 sets the default property value to be C<fips=yes>. Note that this config file
 does not load the "base" provider. All supporting algorithms that are in "base"
 are also in "default", so it is unnecessary in this case:
@@ -462,7 +462,7 @@ L<migration_guide(7)>, L<crypto(7)>, L<fips_config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

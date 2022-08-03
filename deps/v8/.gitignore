@@ -54,7 +54,6 @@
 !/test/mjsunit/tools/*.log
 /test/mozilla/data
 /test/test262/data
-/test/test262/harness
 /test/wasm-js/data
 /test/wasm-js/tests
 /test/wasm-js/tests.tar.gz
@@ -76,6 +75,7 @@
 !/third_party/googletest/src/googletest/include/gtest
 /third_party/googletest/src/googletest/include/gtest/*
 !/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
+!/third_party/test262-harness
 !/third_party/v8
 !/third_party/wasm-api
 /tools/clang

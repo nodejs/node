@@ -59,7 +59,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow `await` inside of loops",
+            description: "Disallow `await` inside of loops",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-await-in-loop"
         },

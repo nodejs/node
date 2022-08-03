@@ -3144,7 +3144,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
     Isolate* isolate = typed_array->GetIsolate();
     DCHECK_LT(entry.raw_value(), typed_array->GetLength());
-    DCHECK(!typed_array->WasDetached());
+    DCHECK(!typed_array->IsDetachedOrOutOfBounds());
     auto* element_ptr =
         static_cast<ElementType*>(typed_array->DataPtr()) + entry.raw_value();
     auto is_shared = typed_array->buffer().is_shared() ? kShared : kUnshared;
@@ -3300,7 +3300,7 @@ class TypedElementsAccessor
                                       Handle<Object> value, size_t start,
                                       size_t end) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
-    DCHECK(!typed_array->WasDetached());
+    DCHECK(!typed_array->IsDetachedOrOutOfBounds());
     DCHECK_LE(start, end);
     DCHECK_LE(end, typed_array->GetLength());
     DisallowGarbageCollection no_gc;
@@ -3407,13 +3407,29 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    if (typed_array.WasDetached()) return Just<int64_t>(-1);
+    // If this is called via Array.prototype.indexOf (not
+    // TypedArray.prototype.indexOf), it's possible that the TypedArray is
+    // detached / out of bounds here.
+    if V8_UNLIKELY (typed_array.WasDetached()) return Just<int64_t>(-1);
+    bool out_of_bounds = false;
+    size_t typed_array_length =
+        typed_array.GetLengthOrOutOfBounds(out_of_bounds);
+    if V8_UNLIKELY (out_of_bounds) {
+      return Just<int64_t>(-1);
+    }
+
+    // Prototype has no elements, and not searching for the hole --- limit
+    // search to backing store length.
+    if (typed_array_length < length) {
+      length = typed_array_length;
+    }
 
     ElementType typed_search_value;
 
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+
+    if (IsBigIntTypedArrayElementsKind(Kind)) {
       if (!value->IsBigInt()) return Just<int64_t>(-1);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3423,7 +3439,7 @@ class TypedElementsAccessor
       double search_value = value->Number();
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
-        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+        if (!IsFloatTypedArrayElementsKind(Kind)) {
           return Just<int64_t>(-1);
         }
         if (std::isnan(search_value)) {
@@ -3440,12 +3456,6 @@ class TypedElementsAccessor
       }
     }
 
-    // Prototype has no elements, and not searching for the hole --- limit
-    // search to backing store length.
-    if (typed_array.length() < length) {
-      length = typed_array.length();
-    }
-
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
@@ -3460,13 +3470,13 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    DCHECK(!typed_array.WasDetached());
+    DCHECK(!typed_array.IsDetachedOrOutOfBounds());
 
     ElementType typed_search_value;
 
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+    if (IsBigIntTypedArrayElementsKind(Kind)) {
       if (!value->IsBigInt()) return Just<int64_t>(-1);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3493,7 +3503,14 @@ class TypedElementsAccessor
       }
     }
 
-    DCHECK_LT(start_from, typed_array.length());
+    size_t typed_array_length = typed_array.GetLength();
+    if (start_from >= typed_array_length) {
+      // This can happen if the TypedArray got resized when we did ToInteger
+      // on the last parameter of lastIndexOf.
+      DCHECK(typed_array.IsVariableLength());
+      start_from = typed_array_length - 1;
+    }
+
     size_t k = start_from;
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     do {
@@ -3507,9 +3524,9 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(receiver);
 
-    DCHECK(!typed_array.WasDetached());
+    DCHECK(!typed_array.IsDetachedOrOutOfBounds());
 
-    size_t len = typed_array.length();
+    size_t len = typed_array.GetLength();
     if (len == 0) return;
 
     ElementType* data = static_cast<ElementType*>(typed_array.DataPtr());
@@ -3552,8 +3569,8 @@ class TypedElementsAccessor
                                               size_t start, size_t end) {
     DisallowGarbageCollection no_gc;
     DCHECK_EQ(destination.GetElementsKind(), AccessorClass::kind());
-    CHECK(!source.WasDetached());
-    CHECK(!destination.WasDetached());
+    CHECK(!source.IsDetachedOrOutOfBounds());
+    CHECK(!destination.IsDetachedOrOutOfBounds());
     DCHECK_LE(start, end);
     DCHECK_LE(end, source.GetLength());
     size_t count = end - start;
@@ -3589,6 +3606,7 @@ class TypedElementsAccessor
     }
   }
 
+  // TODO(v8:11111): Update this once we have external RAB / GSAB array types.
   static bool HasSimpleRepresentation(ExternalArrayType type) {
     return !(type == kExternalFloat32Array || type == kExternalFloat64Array ||
              type == kExternalUint8ClampedArray);
@@ -3617,12 +3635,12 @@ class TypedElementsAccessor
     // side-effects, as the source elements will always be a number.
     DisallowGarbageCollection no_gc;
 
-    CHECK(!source.WasDetached());
-    CHECK(!destination.WasDetached());
+    CHECK(!source.IsDetachedOrOutOfBounds());
+    CHECK(!destination.IsDetachedOrOutOfBounds());
 
-    DCHECK_LE(offset, destination.length());
-    DCHECK_LE(length, destination.length() - offset);
-    DCHECK_LE(length, source.length());
+    DCHECK_LE(offset, destination.GetLength());
+    DCHECK_LE(length, destination.GetLength() - offset);
+    DCHECK_LE(length, source.GetLength());
 
     ExternalArrayType source_type = source.type();
     ExternalArrayType destination_type = destination.type();
@@ -3683,6 +3701,7 @@ class TypedElementsAccessor
         source_shared || destination_shared ? kShared : kUnshared); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
           UNREACHABLE();
           break;
@@ -3717,12 +3736,15 @@ class TypedElementsAccessor
   static bool TryCopyElementsFastNumber(Context context, JSArray source,
                                         JSTypedArray destination, size_t length,
                                         size_t offset) {
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) return false;
+    if (IsBigIntTypedArrayElementsKind(Kind)) return false;
     Isolate* isolate = source.GetIsolate();
     DisallowGarbageCollection no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
     CHECK(!destination.WasDetached());
+    bool out_of_bounds = false;
+    CHECK_GE(destination.GetLengthOrOutOfBounds(out_of_bounds), length);
+    CHECK(!out_of_bounds);
 
     size_t current_length;
     DCHECK(source.length().IsNumber() &&
@@ -3730,7 +3752,7 @@ class TypedElementsAccessor
            length <= current_length);
     USE(current_length);
 
-    size_t dest_length = destination.length();
+    size_t dest_length = destination.GetLength();
     DCHECK(length + offset <= dest_length);
     USE(dest_length);
 
@@ -3799,35 +3821,52 @@ class TypedElementsAccessor
     return false;
   }
 
+  // ES#sec-settypedarrayfromarraylike
   static Object CopyElementsHandleSlow(Handle<Object> source,
                                        Handle<JSTypedArray> destination,
                                        size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
+    // 8. Let k be 0.
+    // 9. Repeat, while k < srcLength,
     for (size_t i = 0; i < length; i++) {
       Handle<Object> elem;
+      // a. Let Pk be ! ToString(𝔽(k)).
+      // b. Let value be ? Get(src, Pk).
       LookupIterator it(isolate, source, i);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
-      if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+      // c. Let targetIndex be 𝔽(targetOffset + k).
+      // d. Perform ? IntegerIndexedElementSet(target, targetIndex, value).
+      //
+      // Rest of loop body inlines ES#IntegerIndexedElementSet
+      if (IsBigIntTypedArrayElementsKind(Kind)) {
+        // 1. If O.[[ContentType]] is BigInt, let numValue be ? ToBigInt(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            BigInt::FromObject(isolate, elem));
       } else {
+        // 2. Otherwise, let numValue be ? ToNumber(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            Object::ToNumber(isolate, elem));
       }
-
-      if (V8_UNLIKELY(destination->WasDetached())) {
-        const char* op = "set";
-        const MessageTemplate message = MessageTemplate::kDetachedOperation;
-        Handle<String> operation =
-            isolate->factory()->NewStringFromAsciiChecked(op);
-        THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                       NewTypeError(message, operation));
+      // 3. If IsValidIntegerIndex(O, index) is true, then
+      //   a. Let offset be O.[[ByteOffset]].
+      //   b. Let elementSize be TypedArrayElementSize(O).
+      //   c. Let indexedPosition be (ℝ(index) × elementSize) + offset.
+      //   d. Let elementType be TypedArrayElementType(O).
+      //   e. Perform SetValueInBuffer(O.[[ViewedArrayBuffer]],
+      //      indexedPosition, elementType, numValue, true, Unordered).
+      bool out_of_bounds = false;
+      size_t new_length = destination->GetLengthOrOutOfBounds(out_of_bounds);
+      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached() ||
+                      new_length <= offset + i)) {
+        // Proceed with the loop so that we call get getters for the source even
+        // though we don't set the values in the target.
+        continue;
       }
-      // The spec says we store the length, then get each element, so we don't
-      // need to check changes to length.
       SetImpl(destination, InternalIndex(offset + i), *elem);
+      // e. Set k to k + 1.
     }
+    // 10. Return unused.
     return *isolate->factory()->undefined_value();
   }
 
@@ -3838,15 +3877,18 @@ class TypedElementsAccessor
                                        Handle<JSObject> destination,
                                        size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
+    if (length == 0) return *isolate->factory()->undefined_value();
+
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
-    DCHECK_LE(offset + length, destination_ta->length());
-
-    if (length == 0) return *isolate->factory()->undefined_value();
 
     // All conversions from TypedArrays can be done without allocation.
     if (source->IsJSTypedArray()) {
       CHECK(!destination_ta->WasDetached());
+      bool out_of_bounds = false;
+      CHECK_LE(offset + length,
+               destination_ta->GetLengthOrOutOfBounds(out_of_bounds));
+      CHECK(!out_of_bounds);
       Handle<JSTypedArray> source_ta = Handle<JSTypedArray>::cast(source);
       ElementsKind source_kind = source_ta->GetElementsKind();
       bool source_is_bigint =
@@ -3856,12 +3898,16 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (source_is_bigint == target_is_bigint && !source_ta->WasDetached() &&
-          length + offset <= source_ta->length()) {
+          length + offset <= source_ta->GetLength()) {
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }
     } else if (source->IsJSArray()) {
       CHECK(!destination_ta->WasDetached());
+      bool out_of_bounds = false;
+      CHECK_LE(offset + length,
+               destination_ta->GetLengthOrOutOfBounds(out_of_bounds));
+      CHECK(!out_of_bounds);
       // Fast cases for packed numbers kinds where we don't need to allocate.
       Handle<JSArray> source_js_array = Handle<JSArray>::cast(source);
       size_t current_length;
@@ -3876,7 +3922,8 @@ class TypedElementsAccessor
       }
     }
     // Final generic case that handles prototype chain lookups, getters, proxies
-    // and observable side effects via valueOf, etc.
+    // and observable side effects via valueOf, etc. In this case, it's possible
+    // that the length getter detached / resized the underlying buffer.
     return CopyElementsHandleSlow(source, destination_ta, length, offset);
   }
 };
@@ -5187,6 +5234,7 @@ void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
         context, source, destination, length, offset));      \
     break;
     TYPED_ARRAYS(TYPED_ARRAYS_CASE)
+    RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAYS_CASE)
 #undef TYPED_ARRAYS_CASE
     default:
       UNREACHABLE();
@@ -5206,6 +5254,7 @@ void CopyTypedArrayElementsToTypedArray(Address raw_source,
                                                        length, offset);     \
     break;
     TYPED_ARRAYS(TYPED_ARRAYS_CASE)
+    RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAYS_CASE)
 #undef TYPED_ARRAYS_CASE
     default:
       UNREACHABLE();

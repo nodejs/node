@@ -37,10 +37,10 @@ void StartupDeserializer::DeserializeIntoIsolate() {
         this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
     for (Handle<AccessorInfo> info : accessor_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), info);
+      RestoreExternalReferenceRedirector(isolate(), *info);
     }
     for (Handle<CallHandlerInfo> info : call_handler_infos()) {
-      RestoreExternalReferenceRedirector(isolate(), info);
+      RestoreExternalReferenceRedirector(isolate(), *info);
     }
 
     // Flush the instruction cache for the entire code-space. Must happen after
@@ -68,7 +68,7 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   LogNewMapEvents();
   WeakenDescriptorArrays();
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
+  if (should_rehash()) {
     // Hash seed was initialized in ReadOnlyDeserializer.
     Rehash();
   }

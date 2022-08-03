@@ -57,18 +57,18 @@ const checkShim = async ({ target, path }) => {
     target + '.cmd',
     target + '.ps1',
   ]
-  await Promise.all(shims.map(async target => {
-    const current = await readCmdShim(target)
-      .catch(er => handleReadCmdShimError({ er, target }))
+  await Promise.all(shims.map(async shim => {
+    const current = await readCmdShim(shim)
+      .catch(er => handleReadCmdShimError({ er, target: shim }))
 
     if (!current) {
       return
     }
 
-    const resolved = resolve(dirname(target), current.replace(/\\/g, '/'))
+    const resolved = resolve(dirname(shim), current.replace(/\\/g, '/'))
 
     if (resolved.toLowerCase().indexOf(path.toLowerCase()) !== 0) {
-      return failEEXIST({ target })
+      return failEEXIST({ target: shim })
     }
   }))
 }

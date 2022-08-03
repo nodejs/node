@@ -5,135 +5,142 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/commands/view.js TAP should log info by field name array field - 1 element > must match snapshot 1`] = `
-
-claudia
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name array field - 2 elements > must match snapshot 1`] = `
-
-maintainers[0].name = 'claudia'
-maintainers[1].name = 'isaacs'
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name maintainers with email > must match snapshot 1`] = `
-
-{
-  "maintainers": [
-    {
-      "name": "claudia",
-      "email": "c@yellow.com",
-      "twitter": "cyellow"
-    },
-    {
-      "name": "isaacs",
-      "email": "i@yellow.com",
-      "twitter": "iyellow"
-    }
-  ],
-  "name": "yellow"
-}
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name maintainers with url > must match snapshot 1`] = `
-
-[
-  "claudia (http://c.pink.com)",
-  "isaacs (http://i.pink.com)"
-]
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name nested field with brackets > must match snapshot 1`] = `
-
-"123"
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name readme > must match snapshot 1`] = `
-
-a very useful readme
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name several fields > must match snapshot 1`] = `
-
-{
-  "name": "yellow",
-  "version": "1.0.0"
-}
-`
-
-exports[`test/lib/commands/view.js TAP should log info by field name several fields with several versions > must match snapshot 1`] = `
-
-yellow@1.0.0 'claudia'
-yellow@1.0.1 'claudia'
-yellow@1.0.2 'claudia'
-`
-
-exports[`test/lib/commands/view.js TAP should log info of package in current working dir non-specific version > must match snapshot 1`] = `
-
-
-[4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
-
-dist
-.tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
-
-dist-tags:
-[1m[32mlatest[39m[22m: 1.0.0
-
-published {TIME} ago[39m
-`
-
-exports[`test/lib/commands/view.js TAP should log info of package in current working dir specific version > must match snapshot 1`] = `
-
-
-[4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
-
-dist
-.tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
-
-dist-tags:
-[1m[32mlatest[39m[22m: 1.0.0
-
-published {TIME} ago[39m
-`
-
-exports[`test/lib/commands/view.js TAP should log package info package from git > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP deprecated package with license, bugs, repository and other fields > must match snapshot 1`] = `
 
 [4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
 green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:,[33mcolors, green, crayola[39m
 
-bin:[33mgreen[39m
+bin:,[33mgreen[39m
 
 dist
-.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 GB[39m
 
 dependencies:
 [33mred[39m: 1.0.0
 [33myellow[39m: 1.0.0
 
 maintainers:
--[33mclaudia[39m <[36mc@yellow.com[39m>
--[33misaacs[39m <[36mi@yellow.com[39m>
+-,[33mclaudia[39m <[36mc@yellow.com[39m>
+-,[33misaacs[39m <[36mi@yellow.com[39m>
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with --json and semver range > must match snapshot 1`] = `
+exports[`test/lib/commands/view.js TAP deprecated package with unicode > must match snapshot 1`] = `
 
+[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
+green is a very important color
+
+[1m[31mDEPRECATED[39m[22m ⚠️  - true
+
+keywords:,[33mcolors, green, crayola[39m
+
+bin:,[33mgreen[39m
+
+dist
+.tarball:,[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 GB[39m
+
+dependencies:
+[33mred[39m: 1.0.0
+[33myellow[39m: 1.0.0
+
+maintainers:
+-,[33mclaudia[39m <[36mc@yellow.com[39m>
+-,[33misaacs[39m <[36mi@yellow.com[39m>
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+`
+
+exports[`test/lib/commands/view.js TAP package from git > must match snapshot 1`] = `
+
+[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
+green is a very important color
+
+[1m[31mDEPRECATED[39m[22m!! - true
+
+keywords:,[33mcolors, green, crayola[39m
+
+bin:,[33mgreen[39m
+
+dist
+.tarball:,[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 GB[39m
+
+dependencies:
+[33mred[39m: 1.0.0
+[33myellow[39m: 1.0.0
+
+maintainers:
+-,[33mclaudia[39m <[36mc@yellow.com[39m>
+-,[33misaacs[39m <[36mi@yellow.com[39m>
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+`
+
+exports[`test/lib/commands/view.js TAP package in cwd directory > must match snapshot 1`] = `
+
+[4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
+
+dist
+.tarball:,[36mhttp://hm.blue.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+
+published {TIME} ago[39m
+`
+
+exports[`test/lib/commands/view.js TAP package in cwd non-specific version > must match snapshot 1`] = `
+
+[4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
+
+dist
+.tarball:,[36mhttp://hm.blue.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+
+published {TIME} ago[39m
+`
+
+exports[`test/lib/commands/view.js TAP package in cwd specific version > must match snapshot 1`] = `
+
+[4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
+
+dist
+.tarball:,[36mhttp://hm.blue.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+
+published {TIME} ago[39m
+`
+
+exports[`test/lib/commands/view.js TAP package with --json and semver range > must match snapshot 1`] = `
 [
   {
     "_npmUser": "claudia <claudia@cyan.com>",
@@ -151,7 +158,7 @@ exports[`test/lib/commands/view.js TAP should log package info package with --js
       "tarball": "http://hm.cyan.com/1.0.0.tgz",
       "integrity": "---",
       "fileCount": 1,
-      "unpackedSize": 1
+      "unpackedSize": 1000000
     }
   },
   {
@@ -168,77 +175,44 @@ exports[`test/lib/commands/view.js TAP should log package info package with --js
 ]
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with homepage > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with homepage > must match snapshot 1`] = `
 
 [4m[1m[32morange[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 [36mhttp://hm.orange.com[39m
 
 dist
-.tarball:[36mhttp://hm.orange.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.orange.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with license, bugs, repository and other fields > must match snapshot 1`] = `
-
-
-[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
-green is a very important color
-
-[1m[31mDEPRECATED[39m[22m!! - true
-
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
-
-bin:[33mgreen[39m
-
-dist
-.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
-
-dependencies:
-[33mred[39m: 1.0.0
-[33myellow[39m: 1.0.0
-
-maintainers:
--[33mclaudia[39m <[36mc@yellow.com[39m>
--[33misaacs[39m <[36mi@yellow.com[39m>
-
-dist-tags:
-[1m[32mlatest[39m[22m: 1.0.0
-`
-
-exports[`test/lib/commands/view.js TAP should log package info package with maintainers info as object > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with maintainers info as object > must match snapshot 1`] = `
 
 [4m[1m[32mpink[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.pink.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.pink.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with more than 25 deps > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with more than 25 deps > must match snapshot 1`] = `
 
 [4m[1m[32mblack[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [36m25[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.black.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.black.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dependencies:
 [33m0[39m: 1.0.0
@@ -271,16 +245,15 @@ dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with no modified time > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with no modified time > must match snapshot 1`] = `
 
 [4m[1m[32mcyan[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.cyan.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.cyan.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 MB[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -288,16 +261,15 @@ dist-tags:
 published by [33mclaudia[39m <[36mclaudia@cyan.com[39m>
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with no repo or homepage > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with no repo or homepage > must match snapshot 1`] = `
 
 [4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.blue.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -305,16 +277,15 @@ dist-tags:
 published {TIME} ago[39m
 `
 
-exports[`test/lib/commands/view.js TAP should log package info package with semver range > must match snapshot 1`] = `
-
+exports[`test/lib/commands/view.js TAP package with semver range > must match snapshot 1`] = `
 
 [4m[1m[32mblue[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.blue.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.blue.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -324,10 +295,10 @@ published {TIME} ago[39m
 [4m[1m[32mblue[39m@[32m1.0.1[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.blue.com/1.0.1.tgz[39m
-.shasum:[33m124[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.blue.com/1.0.1.tgz[39m
+.shasum:,[33m124[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 kB[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -335,8 +306,47 @@ dist-tags:
 published [33mover a year from now[39m
 `
 
-exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `
+exports[`test/lib/commands/view.js TAP specific field names array field - 1 element > must match snapshot 1`] = `
+claudia
+`
 
+exports[`test/lib/commands/view.js TAP specific field names array field - 2 elements > must match snapshot 1`] = `
+maintainers[0].name = 'claudia'
+maintainers[1].name = 'isaacs'
+`
+
+exports[`test/lib/commands/view.js TAP specific field names maintainers with email > must match snapshot 1`] = `
+maintainers = [
+  { name: 'claudia', email: 'c@yellow.com', twitter: 'cyellow' },
+  { name: 'isaacs', email: 'i@yellow.com', twitter: 'iyellow' }
+]
+name = 'yellow'
+`
+
+exports[`test/lib/commands/view.js TAP specific field names maintainers with url > must match snapshot 1`] = `
+[ 'claudia (http://c.pink.com)', 'isaacs (http://i.pink.com)' ]
+`
+
+exports[`test/lib/commands/view.js TAP specific field names nested field with brackets > must match snapshot 1`] = `
+123
+`
+
+exports[`test/lib/commands/view.js TAP specific field names readme > must match snapshot 1`] = `
+a very useful readme
+`
+
+exports[`test/lib/commands/view.js TAP specific field names several fields > must match snapshot 1`] = `
+name = 'yellow'
+version = '1.0.0'
+`
+
+exports[`test/lib/commands/view.js TAP specific field names several fields with several versions > must match snapshot 1`] = `
+yellow@1.0.0 'claudia'
+yellow@1.0.1 'claudia'
+yellow@1.0.2 'claudia'
+`
+
+exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `
 {
   "green": {
     "_id": "green",
@@ -389,7 +399,7 @@ exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must m
       "tarball": "http://hm.green.com/1.0.0.tgz",
       "integrity": "---",
       "fileCount": 1,
-      "unpackedSize": 1
+      "unpackedSize": 1000000000
     }
   },
   "orange": {
@@ -417,29 +427,28 @@ exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must m
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces > must match snapshot 1`] = `
 
-
 [4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
 green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:,[33mcolors, green, crayola[39m
 
-bin:[33mgreen[39m
+bin:,[33mgreen[39m
 
 dist
-.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 GB[39m
 
 dependencies:
 [33mred[39m: 1.0.0
 [33myellow[39m: 1.0.0
 
 maintainers:
--[33mclaudia[39m <[36mc@yellow.com[39m>
--[33misaacs[39m <[36mi@yellow.com[39m>
+-,[33mclaudia[39m <[36mc@yellow.com[39m>
+-,[33misaacs[39m <[36mi@yellow.com[39m>
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -448,10 +457,10 @@ dist-tags:
 [36mhttp://hm.orange.com[39m
 
 dist
-.tarball:[36mhttp://hm.orange.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.orange.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
@@ -462,13 +471,11 @@ exports[`test/lib/commands/view.js TAP workspaces all workspaces nonexistent fie
 `
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces nonexistent field > must match snapshot 1`] = `
-
 green:
 orange:
 `
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces single field --json > must match snapshot 1`] = `
-
 {
   "green": "green",
   "orange": "orange"
@@ -476,7 +483,6 @@ exports[`test/lib/commands/view.js TAP workspaces all workspaces single field --
 `
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces single field > must match snapshot 1`] = `
-
 green:
 green
 orange:
@@ -485,55 +491,56 @@ orange
 
 exports[`test/lib/commands/view.js TAP workspaces one specific workspace > must match snapshot 1`] = `
 
-
 [4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
 green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:,[33mcolors, green, crayola[39m
 
-bin:[33mgreen[39m
+bin:,[33mgreen[39m
 
 dist
-.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1.0 GB[39m
 
 dependencies:
 [33mred[39m: 1.0.0
 [33myellow[39m: 1.0.0
 
 maintainers:
--[33mclaudia[39m <[36mc@yellow.com[39m>
--[33misaacs[39m <[36mi@yellow.com[39m>
+-,[33mclaudia[39m <[36mc@yellow.com[39m>
+-,[33misaacs[39m <[36mi@yellow.com[39m>
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
 exports[`test/lib/commands/view.js TAP workspaces remote package name > must match snapshot 1`] = `
-Ignoring workspaces for specified package(s)
-`
-
-exports[`test/lib/commands/view.js TAP workspaces remote package name > must match snapshot 2`] = `
-
 
 [4m[1m[32mpink[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
 
 dist
-.tarball:[36mhttp://hm.pink.com/1.0.0.tgz[39m
-.shasum:[33m123[39m
-.integrity:[33m---[39m
-.unpackedSize:[33m1 B[39m
+.tarball:,[36mhttp://hm.pink.com/1.0.0.tgz[39m
+.shasum:,[33m123[39m
+.integrity:,[33m---[39m
+.unpackedSize:,[33m1 B[39m
 
 dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
-exports[`test/lib/commands/view.js TAP workspaces single workspace --json > must match snapshot 1`] = `
+exports[`test/lib/commands/view.js TAP workspaces remote package name > should have warning of ignoring workspaces 1`] = `
+Array [
+  Array [
+    "Ignoring workspaces for specified package(s)",
+  ],
+]
+`
 
+exports[`test/lib/commands/view.js TAP workspaces single workspace --json > must match snapshot 1`] = `
 {
   "green": {
     "_id": "green",
@@ -586,7 +593,7 @@ exports[`test/lib/commands/view.js TAP workspaces single workspace --json > must
       "tarball": "http://hm.green.com/1.0.0.tgz",
       "integrity": "---",
       "fileCount": 1,
-      "unpackedSize": 1
+      "unpackedSize": 1000000000
     }
   }
 }

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes
-
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} =

@@ -6,7 +6,6 @@
 #define V8_ASMJS_ASM_PARSER_H_
 
 #include <memory>
-#include <string>
 
 #include "src/asmjs/asm-scanner.h"
 #include "src/asmjs/asm-types.h"

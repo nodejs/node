@@ -12,12 +12,13 @@ export {
 
 export class CppProcessor extends LogReader {
   constructor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
-    super({}, timedRange, pairwiseTimedRange);
-    this.dispatchTable_ = {
+    super(timedRange, pairwiseTimedRange);
+    this.setDispatchTable({
+         __proto__: null,
         'shared-library': {
           parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }
-    };
+    });
     this.cppEntriesProvider_ = cppEntriesProvider;
     this.codeMap_ = new CodeMap();
     this.lastLogFileName_ = null;

@@ -15,8 +15,8 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
 #include "src/objects/string.h"
-#include "src/security/external-pointer-inl.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/utils/utils.h"
 
@@ -190,9 +190,12 @@ bool StringShape::CanMigrateInParallel() const {
       // Shared ThinStrings do not migrate.
       return false;
     default:
+      // TODO(v8:12007): Set is_shared to true on internalized string when
+      // FLAG_shared_string_table is removed.
+      //
       // If you crashed here, you probably added a new shared string
       // type. Explicitly handle all shared string cases above.
-      DCHECK(!IsShared());
+      DCHECK((FLAG_shared_string_table && IsInternalized()) || !IsShared());
       return false;
   }
 }
@@ -372,27 +375,26 @@ class SequentialStringKey final : public StringTableKey {
     return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 
-  Handle<String> AsHandle(Isolate* isolate) {
+  template <typename IsolateT>
+  void PrepareForInsertion(IsolateT* isolate) {
     if (sizeof(Char) == 1) {
-      return isolate->factory()->NewOneByteInternalizedString(
+      internalized_string_ = isolate->factory()->NewOneByteInternalizedString(
           base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
+    } else {
+      internalized_string_ = isolate->factory()->NewTwoByteInternalizedString(
+          base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
     }
-    return isolate->factory()->NewTwoByteInternalizedString(
-        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
-  Handle<String> AsHandle(LocalIsolate* isolate) {
-    if (sizeof(Char) == 1) {
-      return isolate->factory()->NewOneByteInternalizedString(
-          base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
-    }
-    return isolate->factory()->NewTwoByteInternalizedString(
-        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
+  Handle<String> GetHandleForInsertion() {
+    DCHECK(!internalized_string_.is_null());
+    return internalized_string_;
   }
 
  private:
   base::Vector<const Char> chars_;
   bool convert_;
+  Handle<String> internalized_string_;
 };
 
 using OneByteStringKey = SequentialStringKey<uint8_t>;
@@ -440,7 +442,7 @@ class SeqSubStringKey final : public StringTableKey {
         isolate);
   }
 
-  Handle<String> AsHandle(Isolate* isolate) {
+  void PrepareForInsertion(Isolate* isolate) {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
@@ -448,7 +450,7 @@ class SeqSubStringKey final : public StringTableKey {
       DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
-      return result;
+      internalized_string_ = result;
     }
     Handle<SeqTwoByteString> result =
         isolate->factory()->AllocateRawTwoByteInternalizedString(
@@ -456,13 +458,19 @@ class SeqSubStringKey final : public StringTableKey {
     DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
               length());
-    return result;
+    internalized_string_ = result;
+  }
+
+  Handle<String> GetHandleForInsertion() {
+    DCHECK(!internalized_string_.is_null());
+    return internalized_string_;
   }
 
  private:
   Handle<typename CharTraits<Char>::String> string_;
   int from_;
   bool convert_;
+  Handle<String> internalized_string_;
 };
 
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
@@ -633,6 +641,7 @@ const Char* String::GetChars(
                                                               access_guard);
 }
 
+// static
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
@@ -662,6 +671,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   return handle(s, isolate);
 }
 
+// static
 Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
@@ -707,13 +717,61 @@ String::FlatContent String::GetFlatContent(
   {
     Isolate* isolate;
     // We don't have to check read only strings as those won't move.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
+    //
+    // TODO(v8:12007): Currently character data is never overwritten for
+    // shared strings.
+    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !InSharedHeap(),
                    ThreadId::Current() == isolate->thread_id());
   }
 #endif
 
   return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
+
+String::FlatContent::FlatContent(const uint8_t* start, int length,
+                                 const DisallowGarbageCollection& no_gc)
+    : onebyte_start(start), length_(length), state_(ONE_BYTE), no_gc_(no_gc) {
+#ifdef ENABLE_SLOW_DCHECKS
+  checksum_ = ComputeChecksum();
+#endif
+}
+
+String::FlatContent::FlatContent(const base::uc16* start, int length,
+                                 const DisallowGarbageCollection& no_gc)
+    : twobyte_start(start), length_(length), state_(TWO_BYTE), no_gc_(no_gc) {
+#ifdef ENABLE_SLOW_DCHECKS
+  checksum_ = ComputeChecksum();
+#endif
+}
+
+String::FlatContent::~FlatContent() {
+  // When ENABLE_SLOW_DCHECKS, check the string contents did not change during
+  // the lifetime of the FlatContent. To avoid extra memory use, only the hash
+  // is checked instead of snapshotting the full character data.
+  //
+  // If you crashed here, it means something changed the character data of this
+  // FlatContent during its lifetime (e.g. GC relocated the string). This is
+  // almost always a bug. If you are certain it is not a bug, you can disable
+  // the checksum verification in the caller by calling
+  // UnsafeDisableChecksumVerification().
+  SLOW_DCHECK(checksum_ == kChecksumVerificationDisabled ||
+              checksum_ == ComputeChecksum());
+}
+
+#ifdef ENABLE_SLOW_DCHECKS
+uint32_t String::FlatContent::ComputeChecksum() const {
+  constexpr uint64_t hashseed = 1;
+  uint32_t hash;
+  if (state_ == ONE_BYTE) {
+    hash = StringHasher::HashSequentialString(onebyte_start, length_, hashseed);
+  } else {
+    DCHECK_EQ(TWO_BYTE, state_);
+    hash = StringHasher::HashSequentialString(twobyte_start, length_, hashseed);
+  }
+  DCHECK_NE(kChecksumVerificationDisabled, hash);
+  return hash;
+}
+#endif
 
 String::FlatContent String::GetFlatContent(
     const DisallowGarbageCollection& no_gc,
@@ -1046,13 +1104,15 @@ bool ExternalString::is_uncached() const {
 }
 
 void ExternalString::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kResourceOffset, isolate);
+  InitExternalPointerField(kResourceOffset, isolate,
+                           kExternalStringResourceTag);
   if (is_uncached()) return;
-  InitExternalPointerField(kResourceDataOffset, isolate);
+  InitExternalPointerField(kResourceDataOffset, isolate,
+                           kExternalStringResourceDataTag);
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   return ReadExternalPointerField(kResourceOffset, isolate,
                                   kExternalStringResourceTag);
 }
@@ -1348,7 +1408,7 @@ bool String::AsArrayIndex(uint32_t* index) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
+  if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
     return false;
   }
   return SlowAsArrayIndex(index);
@@ -1360,7 +1420,7 @@ bool String::AsIntegerIndex(size_t* index) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
+  if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
     return false;
   }
   return SlowAsIntegerIndex(index);
@@ -1432,6 +1492,13 @@ bool String::IsInPlaceInternalizable(InstanceType instance_type) {
     default:
       return false;
   }
+}
+
+// static
+bool String::IsInPlaceInternalizableExcludingExternal(
+    InstanceType instance_type) {
+  return IsInPlaceInternalizable(instance_type) &&
+         !InstanceTypeChecker::IsExternalString(instance_type);
 }
 
 }  // namespace internal

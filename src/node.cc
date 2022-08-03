@@ -25,24 +25,24 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "memory_tracker-inl.h"
 #include "histogram-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
-#include "node_native_module_env.h"
+#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_process-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
 
 #if HAVE_OPENSSL
-#include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
 #endif
 
@@ -53,10 +53,6 @@
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #include "inspector_io.h"
-#endif
-
-#if defined HAVE_DTRACE || defined HAVE_ETW
-#include "node_dtrace.h"
 #endif
 
 #if NODE_USE_V8_PLATFORM
@@ -125,7 +121,7 @@
 
 namespace node {
 
-using native_module::NativeModuleEnv;
+using native_module::NativeModuleLoader;
 
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -162,6 +158,9 @@ PVOID old_vectored_exception_handler;
 struct V8Platform v8_platform;
 }  // namespace per_process
 
+// The section in the OpenSSL configuration file to be loaded.
+const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
+
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
   ResetStdio();
@@ -175,7 +174,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
+      NativeModuleLoader::LookupAndCompile(env->context(), id, parameters, env);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -263,10 +262,10 @@ static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
 
   fprintf(stderr,
           "(node:%d) [Thread %" PRIu64 "] Atomics.wait(%p + %zx, %" PRId64
-              ", %.f) %s\n",
+          ", %.f) %s\n",
           static_cast<int>(uv_os_getpid()),
           env->thread_id(),
-          array_buffer->GetBackingStore()->Data(),
+          array_buffer->Data(),
           offset_in_bytes,
           value,
           timeout_in_ms,
@@ -289,10 +288,6 @@ void Environment::InitializeDiagnostics() {
       env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
     }, this);
   }
-
-#if defined HAVE_DTRACE || defined HAVE_ETW
-  InitDTrace(this);
-#endif
 }
 
 MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
@@ -306,10 +301,10 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
       primordials_string()};
   std::vector<Local<Value>> loaders_args = {
       process_object(),
-      NewFunctionTemplate(binding::GetLinkedBinding)
+      NewFunctionTemplate(isolate_, binding::GetLinkedBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
-      NewFunctionTemplate(binding::GetInternalBinding)
+      NewFunctionTemplate(isolate_, binding::GetInternalBinding)
           ->GetFunction(context())
           .ToLocalChecked(),
       primordials()};
@@ -338,11 +333,6 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
 
 MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
-
-  Local<Object> global = context()->Global();
-  // TODO(joyeecheung): this can be done in JS land now.
-  global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
-      .Check();
 
   // process, require, internalBinding, primordials
   std::vector<Local<String>> node_params = {
@@ -453,7 +443,7 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
       env->native_module_require(),
       env->internal_binding_loader(),
       env->primordials(),
-      env->NewFunctionTemplate(MarkBootstrapComplete)
+      NewFunctionTemplate(env->isolate(), MarkBootstrapComplete)
           ->GetFunction(env->context())
           .ToLocalChecked()};
 
@@ -482,6 +472,14 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(cb(info));
   }
 
+  // TODO(joyeecheung): move these conditions into JS land and let the
+  // deserialize main function take precedence. For workers, we need to
+  // move the pre-execution part into a different file that can be
+  // reused when dealing with user-defined main functions.
+  if (!env->snapshot_deserialize_main().IsEmpty()) {
+    return env->RunSnapshotDeserializeMain();
+  }
+
   if (env->worker_context() != nullptr) {
     return StartExecution(env, "internal/main/worker_thread");
   }
@@ -493,6 +491,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
+  }
+
+  if (per_process::cli_options->build_snapshot) {
+    return StartExecution(env, "internal/main/mksnapshot");
   }
 
   if (per_process::cli_options->print_help) {
@@ -511,6 +513,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (env->options()->syntax_check_only) {
     return StartExecution(env, "internal/main/check_syntax");
+  }
+
+  if (env->options()->test_runner) {
+    return StartExecution(env, "internal/main/test_runner");
   }
 
   if (!first_argv.empty() && first_argv != "-") {
@@ -858,13 +864,6 @@ static std::atomic_bool init_called{false};
 
 int InitializeNodeWithArgs(std::vector<std::string>* argv,
                            std::vector<std::string>* exec_argv,
-                           std::vector<std::string>* errors) {
-  return InitializeNodeWithArgs(argv, exec_argv, errors,
-                                ProcessFlags::kNoFlags);
-}
-
-int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                           std::vector<std::string>* exec_argv,
                            std::vector<std::string>* errors,
                            ProcessFlags::Flags flags) {
   // Make sure InitializeNodeWithArgs() is called only once.
@@ -971,8 +970,6 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
-  NativeModuleEnv::InitializeCodeCache();
-
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
@@ -996,7 +993,7 @@ InitializationResult InitializeOncePerProcess(
 
   // Initialized the enabled list for Debug() calls with system
   // environment variables.
-  per_process::enabled_debug_list.Parse(nullptr);
+  per_process::enabled_debug_list.Parse();
 
   atexit(ResetStdio);
 
@@ -1078,27 +1075,44 @@ InitializationResult InitializeOncePerProcess(
     // CheckEntropy. CheckEntropy will call RAND_status which will now always
     // return 0, leading to an endless loop and the node process will appear to
     // hang/freeze.
+
+    // Passing NULL as the config file will allow the default openssl.cnf file
+    // to be loaded, but the default section in that file will not be used,
+    // instead only the section that matches the value of conf_section_name
+    // will be read from the default configuration file.
+    const char* conf_file = nullptr;
+    // To allow for using the previous default where the 'openssl_conf' appname
+    // was used, the command line option 'openssl-shared-config' can be used to
+    // force the old behavior.
+    if (per_process::cli_options->openssl_shared_config) {
+      conf_section_name = "openssl_conf";
+    }
+    // Use OPENSSL_CONF environment variable is set.
     std::string env_openssl_conf;
     credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
+    if (!env_openssl_conf.empty()) {
+      conf_file = env_openssl_conf.c_str();
+    }
+    // Use --openssl-conf command line option if specified.
+    if (!per_process::cli_options->openssl_config.empty()) {
+      conf_file = per_process::cli_options->openssl_config.c_str();
+    }
 
-    bool has_cli_conf = !per_process::cli_options->openssl_config.empty();
-    if (has_cli_conf || !env_openssl_conf.empty()) {
-      OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
-      OPENSSL_INIT_set_config_file_flags(settings, CONF_MFLAGS_DEFAULT_SECTION);
-      if (has_cli_conf) {
-        const char* conf = per_process::cli_options->openssl_config.c_str();
-        OPENSSL_INIT_set_config_filename(settings, conf);
-      }
-      OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
-      OPENSSL_INIT_free(settings);
+    OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    OPENSSL_INIT_set_config_filename(settings, conf_file);
+    OPENSSL_INIT_set_config_appname(settings, conf_section_name);
+    OPENSSL_INIT_set_config_file_flags(settings,
+                                       CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-      if (ERR_peek_error() != 0) {
-        result.exit_code = ERR_GET_REASON(ERR_peek_error());
-        result.early_return = true;
-        fprintf(stderr, "OpenSSL configuration error:\n");
-        ERR_print_errors_fp(stderr);
-        return result;
-      }
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    OPENSSL_INIT_free(settings);
+
+    if (ERR_peek_error() != 0) {
+      result.exit_code = ERR_GET_REASON(ERR_peek_error());
+      result.early_return = true;
+      fprintf(stderr, "OpenSSL configuration error:\n");
+      ERR_print_errors_fp(stderr);
+      return result;
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
@@ -1147,39 +1161,127 @@ void TearDownOncePerProcess() {
   per_process::v8_platform.Dispose();
 }
 
+int GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
+                                 InitializationResult* result) {
+  // nullptr indicates there's no snapshot data.
+  DCHECK_NULL(*snapshot_data_ptr);
+
+  // node:embedded_snapshot_main indicates that we are using the
+  // embedded snapshot and we are not supposed to clean it up.
+  if (result->args[1] == "node:embedded_snapshot_main") {
+    *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
+    if (*snapshot_data_ptr == nullptr) {
+      // The Node.js binary is built without embedded snapshot
+      fprintf(stderr,
+              "node:embedded_snapshot_main was specified as snapshot "
+              "entry point but Node.js was built without embedded "
+              "snapshot.\n");
+      result->exit_code = 1;
+      return result->exit_code;
+    }
+  } else {
+    // Otherwise, load and run the specified main script.
+    std::unique_ptr<SnapshotData> generated_data =
+        std::make_unique<SnapshotData>();
+    result->exit_code = node::SnapshotBuilder::Generate(
+        generated_data.get(), result->args, result->exec_args);
+    if (result->exit_code == 0) {
+      *snapshot_data_ptr = generated_data.release();
+    } else {
+      return result->exit_code;
+    }
+  }
+
+  // Get the path to write the snapshot blob to.
+  std::string snapshot_blob_path;
+  if (!per_process::cli_options->snapshot_blob.empty()) {
+    snapshot_blob_path = per_process::cli_options->snapshot_blob;
+  } else {
+    // Defaults to snapshot.blob in the current working directory.
+    snapshot_blob_path = std::string("snapshot.blob");
+  }
+
+  FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
+  if (fp != nullptr) {
+    (*snapshot_data_ptr)->ToBlob(fp);
+    fclose(fp);
+  } else {
+    fprintf(stderr,
+            "Cannot open %s for writing a snapshot.\n",
+            snapshot_blob_path.c_str());
+    result->exit_code = 1;
+  }
+  return result->exit_code;
+}
+
+int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
+                           InitializationResult* result) {
+  // nullptr indicates there's no snapshot data.
+  DCHECK_NULL(*snapshot_data_ptr);
+  // --snapshot-blob indicates that we are reading a customized snapshot.
+  if (!per_process::cli_options->snapshot_blob.empty()) {
+    std::string filename = per_process::cli_options->snapshot_blob;
+    FILE* fp = fopen(filename.c_str(), "rb");
+    if (fp == nullptr) {
+      fprintf(stderr, "Cannot open %s", filename.c_str());
+      result->exit_code = 1;
+      return result->exit_code;
+    }
+    std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
+    SnapshotData::FromBlob(read_data.get(), fp);
+    *snapshot_data_ptr = read_data.release();
+    fclose(fp);
+  } else if (per_process::cli_options->node_snapshot) {
+    // If --snapshot-blob is not specified, we are reading the embedded
+    // snapshot, but we will skip it if --no-node-snapshot is specified.
+    *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
+  }
+
+  if ((*snapshot_data_ptr) != nullptr) {
+    NativeModuleLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
+  }
+  NodeMainInstance main_instance(*snapshot_data_ptr,
+                                 uv_default_loop(),
+                                 per_process::v8_platform.Platform(),
+                                 result->args,
+                                 result->exec_args);
+  result->exit_code = main_instance.Run();
+  return result->exit_code;
+}
+
 int Start(int argc, char** argv) {
   InitializationResult result = InitializeOncePerProcess(argc, argv);
   if (result.early_return) {
     return result.exit_code;
   }
 
-  {
-    Isolate::CreateParams params;
-    const std::vector<size_t>* indices = nullptr;
-    const EnvSerializeInfo* env_info = nullptr;
-    bool use_node_snapshot =
-        per_process::cli_options->per_isolate->node_snapshot;
-    if (use_node_snapshot) {
-      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-      if (blob != nullptr) {
-        params.snapshot_blob = blob;
-        indices = NodeMainInstance::GetIsolateDataIndices();
-        env_info = NodeMainInstance::GetEnvSerializeInfo();
-      }
-    }
-    uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
+  DCHECK_EQ(result.exit_code, 0);
+  const SnapshotData* snapshot_data = nullptr;
 
-    NodeMainInstance main_instance(&params,
-                                   uv_default_loop(),
-                                   per_process::v8_platform.Platform(),
-                                   result.args,
-                                   result.exec_args,
-                                   indices);
-    result.exit_code = main_instance.Run(env_info);
+  auto cleanup_process = OnScopeLeave([&]() {
+    TearDownOncePerProcess();
+
+    if (snapshot_data != nullptr &&
+        snapshot_data->data_ownership == SnapshotData::DataOwnership::kOwned) {
+      delete snapshot_data;
+    }
+  });
+
+  uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
+
+  // --build-snapshot indicates that we are in snapshot building mode.
+  if (per_process::cli_options->build_snapshot) {
+    if (result.args.size() < 2) {
+      fprintf(stderr,
+              "--build-snapshot must be used with an entry point script.\n"
+              "Usage: node --build-snapshot /path/to/entry.js\n");
+      return 9;
+    }
+    return GenerateAndWriteSnapshotData(&snapshot_data, &result);
   }
 
-  TearDownOncePerProcess();
-  return result.exit_code;
+  // Without --build-snapshot, we are in snapshot loading mode.
+  return LoadSnapshotDataAndRun(&snapshot_data, &result);
 }
 
 int Stop(Environment* env) {

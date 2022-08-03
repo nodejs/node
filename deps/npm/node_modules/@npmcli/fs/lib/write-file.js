@@ -1,19 +1,14 @@
 const fs = require('./fs.js')
 const getOptions = require('./common/get-options.js')
-const owner = require('./common/owner.js')
+const withOwner = require('./with-owner.js')
 
 const writeFile = async (file, data, opts) => {
   const options = getOptions(opts, {
-    copy: ['encoding', 'mode', 'flag', 'signal', 'owner'],
+    copy: ['encoding', 'mode', 'flag', 'signal'],
     wrap: 'encoding',
   })
-  const { uid, gid } = await owner.validate(file, options.owner)
 
-  const result = await fs.writeFile(file, data, options)
-
-  await owner.update(file, uid, gid)
-
-  return result
+  return withOwner(file, () => fs.writeFile(file, data, options), opts)
 }
 
 module.exports = writeFile

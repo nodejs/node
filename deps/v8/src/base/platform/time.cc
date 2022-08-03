@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <pthread.h>
@@ -39,7 +39,7 @@
 
 namespace {
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 int64_t ComputeThreadTicks() {
   mach_msg_type_number_t thread_info_count = THREAD_BASIC_INFO_COUNT;
   thread_basic_info_data_t thread_info_data;
@@ -111,23 +111,37 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #endif
 }
 
-V8_INLINE bool IsHighResolutionTimer(clockid_t clk_id) {
-  // Limit duration of timer resolution measurement to 100 ms. If we cannot
-  // measure timer resoltuion within this time, we assume a low resolution
-  // timer.
-  int64_t end =
-      ClockNow(clk_id) + 100 * v8::base::Time::kMicrosecondsPerMillisecond;
-  int64_t start, delta;
-  do {
-    start = ClockNow(clk_id);
-    // Loop until we can detect that the clock has changed. Non-HighRes timers
-    // will increment in chunks, i.e. 15ms. By spinning until we see a clock
-    // change, we detect the minimum time between measurements.
-    do {
-      delta = ClockNow(clk_id) - start;
-    } while (delta == 0);
-  } while (delta > 1 && start < end);
-  return delta <= 1;
+V8_INLINE int64_t NanosecondsNow() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return int64_t{ts.tv_sec} * v8::base::Time::kNanosecondsPerSecond +
+         ts.tv_nsec;
+}
+
+inline bool IsHighResolutionTimer(clockid_t clk_id) {
+  // Currently this is only needed for CLOCK_MONOTONIC. If other clocks need
+  // to be checked, care must be taken to support all platforms correctly;
+  // see ClockNow() above for precedent.
+  DCHECK_EQ(clk_id, CLOCK_MONOTONIC);
+  int64_t previous = NanosecondsNow();
+  // There should be enough attempts to make the loop run for more than one
+  // microsecond if the early return is not taken -- the elapsed time can't
+  // be measured in that situation, so we have to estimate it offline.
+  constexpr int kAttempts = 100;
+  for (int i = 0; i < kAttempts; i++) {
+    int64_t next = NanosecondsNow();
+    int64_t delta = next - previous;
+    if (delta == 0) continue;
+    // We expect most systems to take this branch on the first iteration.
+    if (delta <= v8::base::Time::kNanosecondsPerMicrosecond) {
+      return true;
+    }
+    previous = next;
+  }
+  // As of 2022, we expect that the loop above has taken at least 2 μs (on
+  // a fast desktop). If we still haven't seen a non-zero clock increment
+  // in sub-microsecond range, assume a low resolution timer.
+  return false;
 }
 
 #elif V8_OS_WIN
@@ -142,8 +156,7 @@ V8_INLINE uint64_t QPCNowRaw() {
   USE(result);
   return perf_counter_now.QuadPart;
 }
-#endif  // V8_OS_MACOSX
-
+#endif  // V8_OS_DARWIN
 
 }  // namespace
 
@@ -231,8 +244,7 @@ int64_t TimeDelta::InNanoseconds() const {
   return delta_ * Time::kNanosecondsPerMicrosecond;
 }
 
-
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 
 TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
   DCHECK_GE(ts.tv_nsec, 0);
@@ -252,8 +264,7 @@ struct mach_timespec TimeDelta::ToMachTimespec() const {
   return ts;
 }
 
-#endif  // V8_OS_MACOSX
-
+#endif  // V8_OS_DARWIN
 
 #if V8_OS_POSIX
 
@@ -462,16 +473,6 @@ Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
 Time Time::NowFromSystemTime() { return Now(); }
 
 #endif  // V8_OS_STARBOARD
-
-// static
-TimeTicks TimeTicks::HighResolutionNow() {
-  // a DCHECK of TimeTicks::IsHighResolution() was removed from here
-  // as it turns out this path is used in the wild for logs and counters.
-  //
-  // TODO(hpayer) We may eventually want to split TimedHistograms based
-  // on low resolution clocks to avoid polluting metrics
-  return TimeTicks::Now();
-}
 
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
@@ -709,7 +710,7 @@ bool TimeTicks::IsHighResolution() {
 
 TimeTicks TimeTicks::Now() {
   int64_t ticks;
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   static struct mach_timebase_info info;
   if (info.denom == 0) {
     kern_return_t result = mach_timebase_info(&info);
@@ -725,18 +726,18 @@ TimeTicks TimeTicks::Now() {
 #elif V8_OS_STARBOARD
   ticks = SbTimeGetMonotonicNow();
 #else
-#error platform does not implement TimeTicks::HighResolutionNow.
-#endif  // V8_OS_MACOSX
+#error platform does not implement TimeTicks::Now.
+#endif  // V8_OS_DARWIN
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
 }
 
 // static
 bool TimeTicks::IsHighResolution() {
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   return true;
 #elif V8_OS_POSIX
-  static bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
+  static const bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
   return is_high_resolution;
 #else
   return true;
@@ -759,7 +760,7 @@ bool ThreadTicks::IsSupported() {
   // Thread CPU time accounting is unavailable in PASE
   return false;
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
+    defined(V8_OS_DARWIN) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
 #elif defined(V8_OS_WIN)
   return IsSupportedWin();
@@ -780,7 +781,7 @@ ThreadTicks ThreadTicks::Now() {
 #else
   UNREACHABLE();
 #endif
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
   defined(V8_OS_ANDROID)

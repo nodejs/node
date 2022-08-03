@@ -11,8 +11,7 @@ description: Symlink a package folder
 <!-- see lib/commands/link.js -->
 
 ```bash
-npm link (in package dir)
-npm link [<@scope>/]<pkg>[@<version>]
+npm link [<package-spec>]
 
 alias: ln
 ```
@@ -29,11 +28,11 @@ test iteratively without having to continually rebuild.
 
 Package linking is a two-step process.
 
-First, `npm link` in a package folder will create a symlink in the global
-folder `{prefix}/lib/node_modules/<package>` that links to the package
-where the `npm link` command was executed. It will also link any bins in
-the package to `{prefix}/bin/{name}`.  Note that `npm link` uses the global
-prefix (see `npm prefix -g` for its value).
+First, `npm link` in a package folder with no arguments will create a
+symlink in the global folder `{prefix}/lib/node_modules/<package>` that
+links to the package where the `npm link` command was executed. It will
+also link any bins in the package to `{prefix}/bin/{name}`.  Note that
+`npm link` uses the global prefix (see `npm prefix -g` for its value).
 
 Next, in some other location, `npm link package-name` will create a
 symbolic link from globally-installed `package-name` to `node_modules/` of
@@ -125,8 +124,7 @@ workspace(s).
 <!-- see lib/utils/config/definitions.js -->
 #### `save`
 
-* Default: `true` unless when using `npm update` or `npm dedupe` where it
-  defaults to `false`
+* Default: `true` unless when using `npm update` where it defaults to `false`
 * Type: Boolean
 
 Save installed packages to a `package.json` file as dependencies.
@@ -224,10 +222,6 @@ this warning is treated as a failure.
 
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
-
-When package package-locks are disabled, automatic pruning of extraneous
-modules will also be disabled. To remove extraneous modules with
-package-locks disabled use `npm prune`.
 
 This configuration does not affect `npm ci`.
 
@@ -383,6 +377,20 @@ When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
@@ -390,6 +398,7 @@ the specified workspaces, and not on the root project.
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm developers](/using-npm/developers)
 * [package.json](/configuring-npm/package-json)
 * [npm install](/commands/npm-install)

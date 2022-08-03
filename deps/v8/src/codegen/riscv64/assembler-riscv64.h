@@ -664,25 +664,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return (mask << 7) | (tail << 6) | ((vsew & 0x7) << 3) | (vlmul & 0x7);
   }
 
-  void vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
-               TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
-
-  void vsetivli(Register rd, uint8_t uimm, VSew vsew, Vlmul vlmul,
-                TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
-
-  inline void vsetvlmax(Register rd, VSew vsew, Vlmul vlmul,
-                        TailAgnosticType tail = tu,
-                        MaskAgnosticType mask = mu) {
-    vsetvli(rd, zero_reg, vsew, vlmul, tu, mu);
-  }
-
-  inline void vsetvl(VSew vsew, Vlmul vlmul, TailAgnosticType tail = tu,
-                     MaskAgnosticType mask = mu) {
-    vsetvli(zero_reg, zero_reg, vsew, vlmul, tu, mu);
-  }
-
-  void vsetvl(Register rd, Register rs1, Register rs2);
-
   void vl(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
           MaskType mask = NoMask);
   void vls(VRegister vd, Register rs1, Register rs2, VSew vsew,
@@ -788,12 +769,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
+#define DEFINE_OPFWV(name, funct6)                           \
+  void name##_wv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
 #define DEFINE_OPFRED(name, funct6)                          \
   void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPFVF(name, funct6)                             \
   void name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFWF(name, funct6)                             \
+  void name##_wf(VRegister vd, VRegister vs2, FPURegister fs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPFVV_FMA(name, funct6)                       \
@@ -919,6 +908,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV(vfmul, VFMUL_FUNCT6)
   DEFINE_OPFVF(vfmul, VFMUL_FUNCT6)
 
+  // Vector Widening Floating-Point Add/Subtract Instructions
+  DEFINE_OPFVV(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVF(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVV(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFVF(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFWV(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWF(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWV(vfwsub, VFWSUB_W_FUNCT6)
+  DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
+
+  // Vector Widening Floating-Point Reduction Instructions
+  DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
+  DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+
+  // Vector Widening Floating-Point Multiply
+  DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
+  DEFINE_OPFVF(vfwmul, VFWMUL_FUNCT6)
+
   DEFINE_OPFVV(vmfeq, VMFEQ_FUNCT6)
   DEFINE_OPFVV(vmfne, VMFNE_FUNCT6)
   DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
@@ -952,6 +959,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
   DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
 
+  // Vector Widening Floating-Point Fused Multiply-Add Instructions
+  DEFINE_OPFVV_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+
   // Vector Narrowing Fixed-Point Clip Instructions
   DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
   DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
@@ -974,7 +991,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DEFINE_OPMVV
 #undef DEFINE_OPMVX
 #undef DEFINE_OPFVV
+#undef DEFINE_OPFWV
 #undef DEFINE_OPFVF
+#undef DEFINE_OPFWF
 #undef DEFINE_OPFVV_FMA
 #undef DEFINE_OPFVF_FMA
 #undef DEFINE_OPMVV_VIE
@@ -1001,6 +1020,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
   DEFINE_VFUNARY(vfsqrt_v, VFUNARY1_FUNCT6, VFSQRT_V)
+  DEFINE_VFUNARY(vfrsqrt7_v, VFUNARY1_FUNCT6, VFRSQRT7_V)
+  DEFINE_VFUNARY(vfrec7_v, VFUNARY1_FUNCT6, VFREC7_V)
 #undef DEFINE_VFUNARY
 
   void vnot_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
@@ -1017,6 +1038,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vfabs_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
     vfsngjx_vv(dst, src, src, mask);
   }
+  void vfirst_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
+  void vcpop_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
   // Privileged
   void uret();
   void sret();
@@ -1293,6 +1318,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     constpool_.RecordEntry(data, rmode);
   }
 
+  friend class VectorUnit;
   class VectorUnit {
    public:
     inline int32_t sew() const { return 2 ^ (sew_ + 3); }
@@ -1445,6 +1471,25 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
  private:
+  void vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
+               TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
+
+  void vsetivli(Register rd, uint8_t uimm, VSew vsew, Vlmul vlmul,
+                TailAgnosticType tail = tu, MaskAgnosticType mask = mu);
+
+  inline void vsetvlmax(Register rd, VSew vsew, Vlmul vlmul,
+                        TailAgnosticType tail = tu,
+                        MaskAgnosticType mask = mu) {
+    vsetvli(rd, zero_reg, vsew, vlmul, tu, mu);
+  }
+
+  inline void vsetvl(VSew vsew, Vlmul vlmul, TailAgnosticType tail = tu,
+                     MaskAgnosticType mask = mu) {
+    vsetvli(zero_reg, zero_reg, vsew, vlmul, tu, mu);
+  }
+
+  void vsetvl(Register rd, Register rs1, Register rs2);
+
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
 
@@ -1644,7 +1689,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrV(Opcode opcode, uint8_t width, VRegister vd, Register rs1,
                  VRegister vs2, MaskType mask, uint8_t IsMop, bool IsMew,
                  uint8_t Nf);
-
+  // vmv_xs vcpop_m vfirst_m
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, uint8_t vs1,
+                 VRegister vs2, MaskType mask);
   // Labels.
   void print(const Label* L);
   void bind_to(Label* L, int pos);
@@ -1747,13 +1794,15 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   Register Acquire();
   bool hasAvailable() const;
   void Include(const RegList& list) { *available_ |= list; }
-  void Exclude(const RegList& list) { *available_ &= ~list; }
+  void Exclude(const RegList& list) {
+    *available_ &= RegList::FromBits(~list.bits());
+  }
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list(reg1.bit() | reg2.bit());
+    RegList list({reg1, reg2});
     Include(list);
   }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list(reg1.bit() | reg2.bit());
+    RegList list({reg1, reg2});
     Exclude(list);
   }
 

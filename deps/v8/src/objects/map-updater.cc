@@ -277,7 +277,7 @@ Handle<Map> MapUpdater::UpdateImpl() {
   }
   DCHECK_EQ(kEnd, state_);
   if (FLAG_fast_map_update) {
-    TransitionsAccessor(isolate_, old_map_).SetMigrationTarget(*result_map_);
+    TransitionsAccessor::SetMigrationTarget(isolate_, old_map_, *result_map_);
   }
   return result_map_;
 }
@@ -297,14 +297,13 @@ struct IntegrityLevelTransitionInfo {
 IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
     Map map, Isolate* isolate, DisallowGarbageCollection* no_gc,
     ConcurrencyMode cmode) {
-  const bool is_concurrent = cmode == ConcurrencyMode::kConcurrent;
   IntegrityLevelTransitionInfo info(map);
 
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   DCHECK(!map.is_extensible());
   Map previous = Map::cast(map.GetBackPointer(isolate));
-  TransitionsAccessor last_transitions(isolate, previous, no_gc, is_concurrent);
+  TransitionsAccessor last_transitions(isolate, previous, IsConcurrent(cmode));
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           map, &info.integrity_level_symbol, &info.integrity_level)) {
     // The last transition was not integrity level transition - just bail out.
@@ -322,7 +321,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // with integrity level transitions, just bail out.
   while (!source_map.is_extensible()) {
     previous = Map::cast(source_map.GetBackPointer(isolate));
-    TransitionsAccessor transitions(isolate, previous, no_gc, is_concurrent);
+    TransitionsAccessor transitions(isolate, previous, IsConcurrent(cmode));
     if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
       return info;
     }
@@ -390,8 +389,7 @@ base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate, Map old_map,
 
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, &no_gc,
-                                 cmode == ConcurrencyMode::kConcurrent)
+    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
   if (result.is_null()) return {};
@@ -423,14 +421,13 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
 // static
 void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
                                                Map initial_map) {
-  DisallowGarbageCollection no_gc;
   // Has to be an initial map.
   DCHECK(initial_map.GetBackPointer().IsUndefined(isolate));
 
   const int slack = initial_map.ComputeMinObjectSlack(isolate);
   DCHECK_GE(slack, 0);
 
-  TransitionsAccessor transitions(isolate, initial_map, &no_gc);
+  TransitionsAccessor transitions(isolate, initial_map);
   TransitionsAccessor::TraverseCallback callback;
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
@@ -518,7 +515,7 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
   Handle<Map> previous =
       handle(Map::cast(old_map_->GetBackPointer()), isolate_);
   Symbol integrity_level_symbol;
-  TransitionsAccessor last_transitions(isolate_, previous);
+  TransitionsAccessor last_transitions(isolate_, *previous);
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           *old_map_, &integrity_level_symbol, &integrity_level_)) {
     // The last transition was not integrity level transition - just bail out.
@@ -538,7 +535,7 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
   while (!integrity_source_map_->is_extensible()) {
     previous =
         handle(Map::cast(integrity_source_map_->GetBackPointer()), isolate_);
-    TransitionsAccessor transitions(isolate_, previous);
+    TransitionsAccessor transitions(isolate_, *previous);
     if (!transitions.HasIntegrityLevelTransitionTo(*integrity_source_map_)) {
       return false;
     }
@@ -572,7 +569,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   }
 
   if (!old_map_->EquivalentToForTransition(*root_map_,
-                                           ConcurrencyMode::kNotConcurrent)) {
+                                           ConcurrencyMode::kSynchronous)) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
@@ -641,12 +638,11 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof_)) {
     PropertyDetails old_details = GetDetails(i);
-    Map transition = TransitionsAccessor(isolate_, target_map_)
-                         .SearchTransition(GetKey(i), old_details.kind(),
-                                           old_details.attributes());
-    if (transition.is_null()) break;
-    Handle<Map> tmp_map(transition, isolate_);
-
+    Handle<Map> tmp_map;
+    MaybeHandle<Map> maybe_tmp_map = TransitionsAccessor::SearchTransition(
+        isolate_, target_map_, GetKey(i), old_details.kind(),
+        old_details.attributes());
+    if (!maybe_tmp_map.ToHandle(&tmp_map)) break;
     Handle<DescriptorArray> tmp_descriptors(
         tmp_map->instance_descriptors(isolate_), isolate_);
 
@@ -727,10 +723,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 
     // We try to replay the integrity level transition here.
-    Map transition = TransitionsAccessor(isolate_, target_map_)
-                         .SearchSpecial(*integrity_level_symbol_);
-    if (!transition.is_null()) {
-      result_map_ = handle(transition, isolate_);
+    MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchSpecial(
+        isolate_, target_map_, *integrity_level_symbol_);
+    if (maybe_transition.ToHandle(&result_map_)) {
       state_ = kEnd;
       return state_;  // Done.
     }
@@ -739,11 +734,11 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   // Find the last compatible target map in the transition tree.
   for (InternalIndex i : InternalIndex::Range(target_nof, old_nof_)) {
     PropertyDetails old_details = GetDetails(i);
-    Map transition = TransitionsAccessor(isolate_, target_map_)
-                         .SearchTransition(GetKey(i), old_details.kind(),
-                                           old_details.attributes());
-    if (transition.is_null()) break;
-    Handle<Map> tmp_map(transition, isolate_);
+    Handle<Map> tmp_map;
+    MaybeHandle<Map> maybe_tmp_map = TransitionsAccessor::SearchTransition(
+        isolate_, target_map_, GetKey(i), old_details.kind(),
+        old_details.attributes());
+    if (!maybe_tmp_map.ToHandle(&tmp_map)) break;
     Handle<DescriptorArray> tmp_descriptors(
         tmp_map->instance_descriptors(isolate_), isolate_);
 #ifdef DEBUG
@@ -933,15 +928,13 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 }
 
 Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
-  DisallowGarbageCollection no_gc;
-
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof_)) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
-        TransitionsAccessor(isolate_, current, &no_gc)
+        TransitionsAccessor(isolate_, current)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
     DescriptorArray next_descriptors = next.instance_descriptors(isolate_);
@@ -981,21 +974,20 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   }
   InternalIndex split_index(split_nof);
   PropertyDetails split_details = GetDetails(split_index);
-  TransitionsAccessor transitions(isolate_, split_map);
 
   // Invalidate a transition target at |key|.
-  Handle<Map> maybe_transition(
-      transitions.SearchTransition(GetKey(split_index), split_details.kind(),
-                                   split_details.attributes()),
-      isolate_);
-  if (!maybe_transition->is_null()) {
-    maybe_transition->DeprecateTransitionTree(isolate_);
+  MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchTransition(
+      isolate_, split_map, GetKey(split_index), split_details.kind(),
+      split_details.attributes());
+  if (!maybe_transition.is_null()) {
+    maybe_transition.ToHandleChecked()->DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already
   // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition->is_null() && !transitions.CanHaveMoreTransitions()) {
+  if (maybe_transition.is_null() &&
+      !TransitionsAccessor::CanHaveMoreTransitions(isolate_, split_map)) {
     return Normalize("Normalize_CantHaveMoreTransitions");
   }
 
@@ -1056,8 +1048,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
 MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
   DCHECK_EQ(kAtIntegrityLevelSource, state_);
 
-  TransitionsAccessor transitions(isolate_, target_map_);
-  if (!transitions.CanHaveMoreTransitions()) {
+  if (!TransitionsAccessor::CanHaveMoreTransitions(isolate_, target_map_)) {
     return Normalize("Normalize_CantHaveMoreTransitions");
   }
 
@@ -1127,7 +1118,6 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
                                  const MaybeObjectHandle& new_wrapped_type) {
   DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
   // We store raw pointers in the queue, so no allocations are allowed.
-  DisallowGarbageCollection no_gc;
   PropertyDetails details =
       map->instance_descriptors(isolate).GetDetails(descriptor);
   if (details.location() != PropertyLocation::kField) return;
@@ -1144,7 +1134,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
     Map current = backlog.front();
     backlog.pop();
 
-    TransitionsAccessor transitions(isolate, current, &no_gc);
+    TransitionsAccessor transitions(isolate, current);
     int num_transitions = transitions.NumberOfTransitions();
     for (int i = 0; i < num_transitions; ++i) {
       Map target = transitions.GetTarget(i);

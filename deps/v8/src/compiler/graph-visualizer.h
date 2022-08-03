@@ -29,11 +29,13 @@ class Instruction;
 class InstructionBlock;
 class InstructionOperand;
 class InstructionSequence;
+class Node;
 class NodeOrigin;
 class NodeOriginTable;
 class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
+class Type;
 
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
@@ -94,6 +96,34 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
                                                  const char* suffix);
+
+class JSONGraphWriter {
+ public:
+  JSONGraphWriter(std::ostream& os, const Graph* graph,
+                  const SourcePositionTable* positions,
+                  const NodeOriginTable* origins);
+
+  JSONGraphWriter(const JSONGraphWriter&) = delete;
+  JSONGraphWriter& operator=(const JSONGraphWriter&) = delete;
+
+  void PrintPhase(const char* phase_name);
+  void Print();
+
+ protected:
+  void PrintNode(Node* node, bool is_live);
+  void PrintEdges(Node* node);
+  void PrintEdge(Node* from, int index, Node* to);
+  virtual base::Optional<Type> GetType(Node* node);
+
+ protected:
+  std::ostream& os_;
+  Zone* zone_;
+  const Graph* graph_;
+  const SourcePositionTable* positions_;
+  const NodeOriginTable* origins_;
+  bool first_node_;
+  bool first_edge_;
+};
 
 struct GraphAsJSON {
   GraphAsJSON(const Graph& g, SourcePositionTable* p, NodeOriginTable* o)

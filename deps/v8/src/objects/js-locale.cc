@@ -689,7 +689,7 @@ MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                     JSObject);
   }
-  if (orientation == ULOC_LAYOUT_LTR) {
+  if (orientation == ULOC_LAYOUT_RTL) {
     // Let dir be "rtl".
     dir = factory->rtl_string();
   }

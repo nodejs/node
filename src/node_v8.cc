@@ -47,19 +47,21 @@ using v8::Uint32;
 using v8::V8;
 using v8::Value;
 
-
-#define HEAP_STATISTICS_PROPERTIES(V)                                         \
-  V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
-  V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)             \
-  V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
-  V(3, total_available_size, kTotalAvailableSize)                             \
-  V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
-  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
-  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
-  V(8, does_zap_garbage, kDoesZapGarbageIndex)                                \
-  V(9, number_of_native_contexts, kNumberOfNativeContextsIndex)               \
-  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)
+#define HEAP_STATISTICS_PROPERTIES(V)                                          \
+  V(0, total_heap_size, kTotalHeapSizeIndex)                                   \
+  V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)              \
+  V(2, total_physical_size, kTotalPhysicalSizeIndex)                           \
+  V(3, total_available_size, kTotalAvailableSize)                              \
+  V(4, used_heap_size, kUsedHeapSizeIndex)                                     \
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                   \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                  \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                         \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)                                 \
+  V(9, number_of_native_contexts, kNumberOfNativeContextsIndex)                \
+  V(10, number_of_detached_contexts, kNumberOfDetachedContextsIndex)           \
+  V(11, total_global_handles_size, kTotalGlobalHandlesSizeIndex)               \
+  V(12, used_global_handles_size, kUsedGlobalHandlesSizeIndex)                 \
+  V(13, external_memory, kExternalMemoryIndex)
 
 #define V(a, b, c) +1
 static constexpr size_t kHeapStatisticsPropertiesCount =
@@ -80,7 +82,8 @@ static constexpr size_t kHeapSpaceStatisticsPropertiesCount =
 #define HEAP_CODE_STATISTICS_PROPERTIES(V)                                     \
   V(0, code_and_metadata_size, kCodeAndMetadataSizeIndex)                      \
   V(1, bytecode_and_metadata_size, kBytecodeAndMetadataSizeIndex)              \
-  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)
+  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)            \
+  V(3, cpu_profiler_metadata_size, kCPUProfilerMetaDataSizeIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapCodeStatisticsPropertiesCount =
@@ -203,13 +206,17 @@ void Initialize(Local<Object> target,
       env->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
 
-  env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
-                             CachedDataVersionTag);
-  env->SetMethod(
-      target, "updateHeapStatisticsBuffer", UpdateHeapStatisticsBuffer);
+  SetMethodNoSideEffect(
+      context, target, "cachedDataVersionTag", CachedDataVersionTag);
+  SetMethod(context,
+            target,
+            "updateHeapStatisticsBuffer",
+            UpdateHeapStatisticsBuffer);
 
-  env->SetMethod(
-      target, "updateHeapCodeStatisticsBuffer", UpdateHeapCodeStatisticsBuffer);
+  SetMethod(context,
+            target,
+            "updateHeapCodeStatisticsBuffer",
+            UpdateHeapCodeStatisticsBuffer);
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
@@ -222,19 +229,21 @@ void Initialize(Local<Object> target,
     heap_spaces[i] = String::NewFromUtf8(env->isolate(), s.space_name())
                                              .ToLocalChecked();
   }
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-              Array::New(env->isolate(),
-                         heap_spaces.out(),
-                         number_of_heap_spaces)).Check();
+  target
+      ->Set(
+          context,
+          FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
+          Array::New(env->isolate(), heap_spaces.out(), number_of_heap_spaces))
+      .Check();
 
-  env->SetMethod(target,
-                 "updateHeapSpaceStatisticsBuffer",
-                 UpdateHeapSpaceStatisticsBuffer);
+  SetMethod(context,
+            target,
+            "updateHeapSpaceStatisticsBuffer",
+            UpdateHeapSpaceStatisticsBuffer);
 
 #define V(i, _, name)                                                          \
   target                                                                       \
-      ->Set(env->context(),                                                    \
+      ->Set(context,                                                           \
             FIXED_ONE_BYTE_STRING(env->isolate(), #name),                      \
             Uint32::NewFromUnsigned(env->isolate(), i))                        \
       .Check();
@@ -245,7 +254,7 @@ void Initialize(Local<Object> target,
 #undef V
 
   // Export symbols used by v8.setFlagsFromString()
-  env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
+  SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

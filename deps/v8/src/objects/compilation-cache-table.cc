@@ -389,7 +389,7 @@ void CompilationCacheTable::Age(Isolate* isolate) {
     } else if (key.IsFixedArray()) {
       // The ageing mechanism for script and eval caches.
       SharedFunctionInfo info = SharedFunctionInfo::cast(get(value_index));
-      if (info.IsInterpreted() && info.GetBytecodeArray(isolate).IsOld()) {
+      if (info.HasBytecodeArray() && info.GetBytecodeArray(isolate).IsOld()) {
         RemoveEntry(entry_index);
       }
     }

@@ -36,12 +36,56 @@ in the header of the given message according to the CMP_CTX.
 This requires re-protecting the message (if it was protected).
 
 OSSL_CMP_CTX_setup_CRM() creates a CRMF certificate request message
+from various information provided in the CMP context argument I<ctx>
 for inclusion in a CMP request message based on details contained in I<ctx>.
-If the CMP context does not include a subject name set via
-L<OSSL_CMP_CTX_set1_subjectName(3)> but includes a reference certificate
-then it copies the subject DN from there
-if I<for_KUR> is set or the I<ctx> does not include a subjectAltName.
-The I<rid> defines the request identifier to use, which typically is 0.
+The I<rid> argument defines the request identifier to use, which typically is 0.
+
+The subject DN included in the certificate template is
+the first available value of these:
+
+=over 4
+
+=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)>,
+
+=item the subject field of any PKCS#10 CSR is given in I<ctx>, or
+
+=item the subject field of any reference certificate given in I<ctx>
+(see L<OSSL_CMP_CTX_set1_oldCert(3)>), if I<for_KUR> is nonzero
+or the I<ctx> does not include a Subject Alternative Name.
+
+=back
+
+The public key included is the first available value of these:
+
+=over 4
+
+=item the public key derived from any key set via L<OSSL_CMP_CTX_set0_newPkey(3)>,
+
+=item the public key of any PKCS#10 CSR is given in I<ctx>,
+
+=item the public key of any reference certificate given in I<ctx>, or
+
+=item the public key derived from any client's private key
+set via L<OSSL_CMP_CTX_set1_pkey(3)>.
+
+=back
+
+The set of X.509 extensions to include is computed as follows.
+If a PKCS#10 CSR is present in I<ctx>, default extensions are taken from there,
+otherwise the empty set is taken as the initial value.
+If there is a reference certificate in I<ctx> and contains Subject Alternative
+Names (SANs) and B<OSSL_CMP_OPT_SUBJECTALTNAME_NODEFAULT> is not set,
+these override any SANs from the PKCS#10 CSR.
+The extensions are further augmented or overridden by any extensions with the
+same OIDs included in the I<ctx> via L<OSSL_CMP_CTX_set0_reqExtensions(3)>.
+The SANs are further overridden by any SANs included in I<ctx> via
+L<OSSL_CMP_CTX_push1_subjectAltName(3)>.
+Finally, policies are overridden by any policies included in I<ctx> via
+L<OSSL_CMP_CTX_push0_policy(3)>.
+
+OSSL_CMP_CTX_setup_CRM() also sets the sets the regToken control B<oldCertID>
+for KUR messages using the issuer name and serial number of the reference
+certificate, if present.
 
 OSSL_CMP_MSG_read() loads a DER-encoded OSSL_CMP_MSG from I<file>.
 
@@ -83,7 +127,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

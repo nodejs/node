@@ -168,9 +168,9 @@ TypeAlias* Declarations::DeclareType(const Identifier* name, const Type* type) {
                                   new TypeAlias(type, true, name->pos)));
 }
 
-const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
-                                                   TypeDeclaration* type,
-                                                   bool redeclaration) {
+TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
+                                             TypeDeclaration* type,
+                                             bool redeclaration) {
   CheckAlreadyDeclared<TypeAlias>(name->value, "type");
   std::unique_ptr<TypeAlias> alias_ptr(
       new TypeAlias(type, redeclaration, name->pos));

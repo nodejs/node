@@ -72,11 +72,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const { statusCode, body } = await request('http://localhost:3000/foo')
 
@@ -95,11 +91,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -121,11 +113,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -147,11 +135,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent({ connections: 1 })
 
 const mockClient = mockAgent.get('http://localhost:3000')
-
-mockClient.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -174,16 +158,8 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
-
-mockPool.intercept({
-  path: '/hello',
-  method: 'GET'
-}).reply(200, 'hello')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
+mockPool.intercept({ path: '/hello'}).reply(200, 'hello')
 
 const result1 = await request('http://localhost:3000/foo')
 
@@ -250,11 +226,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get(new RegExp('http://localhost:3000'))
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET',
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -277,11 +249,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get((origin) => origin === 'http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -328,11 +296,7 @@ import { MockAgent } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -480,4 +444,80 @@ mockAgent.disableNetConnect()
 
 await request('http://example.com')
 // Will throw
+```
+
+### `MockAgent.pendingInterceptors()`
+
+This method returns any pending interceptors registered on a mock agent. A pending interceptor meets one of the following criteria:
+
+- Is registered with neither `.times(<number>)` nor `.persist()`, and has not been invoked;
+- Is persistent (i.e., registered with `.persist()`) and has not been invoked;
+- Is registered with `.times(<number>)` and has not been invoked `<number>` of times.
+
+Returns: `PendingInterceptor[]` (where `PendingInterceptor` is a `MockDispatch` with an additional `origin: string`)
+
+#### Example - List all pending inteceptors
+
+```js
+const agent = new MockAgent()
+agent.disableNetConnect()
+
+agent
+  .get('https://example.com')
+  .intercept({ method: 'GET', path: '/' })
+  .reply(200)
+
+const pendingInterceptors = agent.pendingInterceptors()
+// Returns [
+//   {
+//     timesInvoked: 0,
+//     times: 1,
+//     persist: false,
+//     consumed: false,
+//     pending: true,
+//     path: '/',
+//     method: 'GET',
+//     body: undefined,
+//     headers: undefined,
+//     data: {
+//       error: null,
+//       statusCode: 200,
+//       data: '',
+//       headers: {},
+//       trailers: {}
+//     },
+//     origin: 'https://example.com'
+//   }
+// ]
+```
+
+### `MockAgent.assertNoPendingInterceptors([options])`
+
+This method throws if the mock agent has any pending interceptors. A pending interceptor meets one of the following criteria:
+
+- Is registered with neither `.times(<number>)` nor `.persist()`, and has not been invoked;
+- Is persistent (i.e., registered with `.persist()`) and has not been invoked;
+- Is registered with `.times(<number>)` and has not been invoked `<number>` of times.
+
+#### Example - Check that there are no pending interceptors
+
+```js
+const agent = new MockAgent()
+agent.disableNetConnect()
+
+agent
+  .get('https://example.com')
+  .intercept({ method: 'GET', path: '/' })
+  .reply(200)
+
+agent.assertNoPendingInterceptors()
+// Throws an UndiciError with the following message:
+//
+// 1 interceptor is pending:
+//
+// ┌─────────┬────────┬───────────────────────┬──────┬─────────────┬────────────┬─────────────┬───────────┐
+// │ (index) │ Method │        Origin         │ Path │ Status code │ Persistent │ Invocations │ Remaining │
+// ├─────────┼────────┼───────────────────────┼──────┼─────────────┼────────────┼─────────────┼───────────┤
+// │    0    │ 'GET'  │ 'https://example.com' │ '/'  │     200     │    '❌'    │      0      │     1     │
+// └─────────┴────────┴───────────────────────┴──────┴─────────────┴────────────┴─────────────┴───────────┘
 ```

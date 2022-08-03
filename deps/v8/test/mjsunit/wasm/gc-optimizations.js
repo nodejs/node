@@ -376,9 +376,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function AllocationFolding() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
+  builder.setNominal();
 
-  let struct_index = builder.addStructSubtype([makeField(kWasmI32, true)]);
-  let struct_2 = builder.addStructSubtype([
+  let struct_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct_2 = builder.addStruct([
     makeField(wasmRefType(struct_index), false),
     makeField(wasmRefType(struct_index), false)
   ]);

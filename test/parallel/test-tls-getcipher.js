@@ -48,7 +48,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     port: this.address().port,
     ciphers: 'AES128-SHA256',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    maxVersion: 'TLSv1.2',
   }, common.mustCall(function() {
     const cipher = this.getCipher();
     assert.strictEqual(cipher.name, 'AES128-SHA256');
@@ -62,7 +63,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     host: '127.0.0.1',
     port: this.address().port,
     ciphers: 'ECDHE-RSA-AES128-GCM-SHA256',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    maxVersion: 'TLSv1.2',
   }, common.mustCall(function() {
     const cipher = this.getCipher();
     assert.strictEqual(cipher.name, 'ECDHE-RSA-AES128-GCM-SHA256');

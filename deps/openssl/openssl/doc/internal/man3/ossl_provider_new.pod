@@ -16,7 +16,7 @@ ossl_provider_name, ossl_provider_dso,
 ossl_provider_module_name, ossl_provider_module_path,
 ossl_provider_libctx,
 ossl_provider_teardown, ossl_provider_gettable_params,
-ossl_provider_get_params, ossl_provider_clear_all_operation_bits,
+ossl_provider_get_params,
 ossl_provider_query_operation, ossl_provider_unquery_operation,
 ossl_provider_set_operation_bit, ossl_provider_test_operation_bit,
 ossl_provider_get_capabilities
@@ -94,7 +94,6 @@ ossl_provider_get_capabilities
  int ossl_provider_set_operation_bit(OSSL_PROVIDER *provider, size_t bitnum);
  int ossl_provider_test_operation_bit(OSSL_PROVIDER *provider, size_t bitnum,
                                       int *result);
- int ossl_provider_clear_all_operation_bits(OSSL_LIB_CTX *libctx);
 
  int ossl_provider_init_as_child(OSSL_LIB_CTX *ctx,
                                  const OSSL_CORE_HANDLE *handle,
@@ -300,9 +299,6 @@ ossl_provider_test_operation_bit() checks if the bit operation I<bitnum>
 is set (1) or not (0) in the internal I<provider> bitstring, and sets
 I<*result> to 1 or 0 accorddingly.
 
-ossl_provider_clear_all_operation_bits() clears all of the operation bits
-to (0) for all providers in the library context I<libctx>.
-
 ossl_provider_init_as_child() stores in the library context I<ctx> references to
 the necessary upcalls for managing child providers. The I<handle> and I<in>
 parameters are the B<OSSL_CORE_HANDLE> and B<OSSL_DISPATCH> pointers that were
@@ -380,8 +376,6 @@ If this function isn't available in the provider, 0 is returned.
 ossl_provider_set_operation_bit() and ossl_provider_test_operation_bit()
 return 1 on success, or 0 on error.
 
-ossl_provider_clear_all_operation_bits() returns 1 on success, or 0 on error.
-
 ossl_provider_get_capabilities() returns 1 on success, or 0 on error.
 If this function isn't available in the provider or the provider does not
 support the requested capability then 0 is returned.
@@ -396,7 +390,7 @@ The functions described here were all added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

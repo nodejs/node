@@ -62,22 +62,38 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Handle<Code> code) const {
   Isolate* isolate = code->GetIsolate();
-  Handle<DeoptimizationData> deopt_data(
-      DeoptimizationData::cast(code->deoptimization_data()), isolate);
+  DeoptimizationData deopt_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
-    InliningPosition inl =
-        deopt_data->InliningPositions().get(pos.InliningId());
+    InliningPosition inl = deopt_data.InliningPositions().get(pos.InliningId());
     Handle<SharedFunctionInfo> function(
-        deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
+        deopt_data.GetInlinedFunction(inl.inlined_function_id), isolate);
     stack.push_back(SourcePositionInfo(pos, function));
     pos = inl.position;
   }
   Handle<SharedFunctionInfo> function(
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()), isolate);
+      SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()), isolate);
   stack.push_back(SourcePositionInfo(pos, function));
   return stack;
+}
+
+SourcePositionInfo SourcePosition::FirstInfo(Handle<Code> code) const {
+  DisallowGarbageCollection no_gc;
+  Isolate* isolate = code->GetIsolate();
+  DeoptimizationData deopt_data =
+      DeoptimizationData::cast(code->deoptimization_data());
+  SourcePosition pos = *this;
+  if (pos.isInlined()) {
+    InliningPosition inl = deopt_data.InliningPositions().get(pos.InliningId());
+    Handle<SharedFunctionInfo> function(
+        deopt_data.GetInlinedFunction(inl.inlined_function_id), isolate);
+    return SourcePositionInfo(pos, function);
+  }
+  Handle<SharedFunctionInfo> function(
+      SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()), isolate);
+  return SourcePositionInfo(pos, function);
 }
 
 void SourcePosition::Print(std::ostream& out,

@@ -30,6 +30,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+Smi NumberConstantToSmi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
+  const double d = OpParameter<double>(node->op());
+  Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+  CHECK_EQ(smi.value(), d);
+  return smi;
+}
+
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
@@ -275,7 +283,7 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
   // 1. Both {user} and {node} must be in the same basic block.
-  if (schedule()->block(node) != schedule()->block(user)) {
+  if (schedule()->block(node) != current_block_) {
     return false;
   }
   // 2. Pure {node}s must be owned by the {user}.
@@ -283,7 +291,7 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
     return node->OwnedBy(user);
   }
   // 3. Impure {node}s must match the effect level of {user}.
-  if (GetEffectLevel(node) != GetEffectLevel(user)) {
+  if (GetEffectLevel(node) != current_effect_level_) {
     return false;
   }
   // 4. Only {node} must have value edges pointing to {user}.
@@ -293,21 +301,6 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
     }
   }
   return true;
-}
-
-bool InstructionSelector::CanCoverTransitively(Node* user, Node* node,
-                                               Node* node_input) const {
-  if (CanCover(user, node) && CanCover(node, node_input)) {
-    // If {node} is pure, transitivity might not hold.
-    if (node->op()->HasProperty(Operator::kPure)) {
-      // If {node_input} is pure, the effect levels do not matter.
-      if (node_input->op()->HasProperty(Operator::kPure)) return true;
-      // Otherwise, {user} and {node_input} must have the same effect level.
-      return GetEffectLevel(user) == GetEffectLevel(node_input);
-    }
-    return true;
-  }
-  return false;
 }
 
 bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
@@ -501,11 +494,17 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
-    case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kNumberConstant:
+      if (rep == MachineRepresentation::kWord32) {
+        Smi smi = NumberConstantToSmi(input);
+        return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
+      } else {
+        return g->UseImmediate(input);
+      }
     case IrOpcode::kCompressedHeapConstant:
     case IrOpcode::kHeapConstant: {
       if (!CanBeTaggedOrCompressedPointer(rep)) {
@@ -856,23 +855,10 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     int immediate_args_count = 0;
-    if (cont->has_extra_args()) {
-      for (int i = 0; i < cont->extra_args_count(); i++) {
-        InstructionOperand op = cont->extra_args()[i];
-        continuation_inputs_.push_back(op);
-        input_count++;
-        if (op.IsImmediate()) {
-          immediate_args_count++;
-        } else {
-          // All immediate args should be added last.
-          DCHECK_EQ(immediate_args_count, 0);
-        }
-      }
-    }
     opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
               DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
-    AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
-                              cont->reason(), cont->node_id(), cont->feedback(),
+    AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
+                              cont->node_id(), cont->feedback(),
                               FrameState{cont->frame_state()});
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
@@ -904,14 +890,12 @@ Instruction* InstructionSelector::EmitWithContinuation(
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(
-    InstructionOperandVector* args, DeoptimizeKind kind,
-    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback,
-    FrameState frame_state) {
+    InstructionOperandVector* args, DeoptimizeReason reason, NodeId node_id,
+    FeedbackSource const& feedback, FrameState frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
-  DCHECK_NE(DeoptimizeKind::kLazy, kind);
   int const state_id = sequence()->AddDeoptimizationEntry(
-      descriptor, kind, reason, node_id, feedback);
+      descriptor, DeoptimizeKind::kEager, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -1156,6 +1140,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
                              frame_state_entries);
+  USE(pushed_count);
   if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && is_tail_call &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep
@@ -1192,6 +1177,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   int effect_level = 0;
   for (Node* const node : *block) {
     SetEffectLevel(node, effect_level);
+    current_effect_level_ = effect_level;
     if (node->opcode() == IrOpcode::kStore ||
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCall ||
@@ -1209,6 +1195,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // control input should be on the same effect level as the last node.
   if (block->control_input() != nullptr) {
     SetEffectLevel(block->control_input(), effect_level);
+    current_effect_level_ = effect_level;
   }
 
   auto FinishEmittedInstructions = [&](Node* node, int instruction_start) {
@@ -1340,7 +1327,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       FrameState value{input->InputAt(0)};
-      VisitDeoptimize(p.kind(), p.reason(), input->id(), p.feedback(), value);
+      VisitDeoptimize(p.reason(), input->id(), p.feedback(), value);
       break;
     }
     case BasicBlock::kThrow:
@@ -1442,8 +1429,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
-    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
-      return VisitDynamicCheckMapsWithDeoptUnless(node);
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
@@ -2785,16 +2770,18 @@ void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64 && \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64
 void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+        // && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 &&
+        // !V8_TARGET_ARCH_RISCV64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2824,6 +2811,12 @@ void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARM
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_RISCV64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_RISCV64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -3123,15 +3116,16 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), node->id(), p.feedback(),
-      node->InputAt(1));
+      kNotEqual, p.reason(), node->id(), p.feedback(),
+      FrameState{node->InputAt(1)});
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->id(), p.feedback(), node->InputAt(1));
+      kEqual, p.reason(), node->id(), p.feedback(),
+      FrameState{node->InputAt(1)});
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
@@ -3140,46 +3134,6 @@ void InstructionSelector::VisitSelect(Node* node) {
       FlagsContinuation::ForSelect(kNotEqual, node,
                                    node->InputAt(1), node->InputAt(2));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
-  OperandGenerator g(this);
-  DynamicCheckMapsWithDeoptUnlessNode n(node);
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-
-  CallDescriptor* call_descriptor;
-  ZoneVector<InstructionOperand> dynamic_check_args(zone());
-
-  if (p.reason() == DeoptimizeReason::kDynamicCheckMaps) {
-    DynamicCheckMapsDescriptor descriptor;
-    // Note: We use Operator::kNoDeopt here because this builtin does not lazy
-    // deoptimize (which is the meaning of Operator::kNoDeopt), even though it
-    // can eagerly deoptimize.
-    call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
-    dynamic_check_args.insert(
-        dynamic_check_args.end(),
-        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
-  } else {
-    DCHECK_EQ(p.reason(), DeoptimizeReason::kDynamicCheckMapsInlined);
-    DynamicCheckMapsWithFeedbackVectorDescriptor descriptor;
-    call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
-    dynamic_check_args.insert(
-        dynamic_check_args.end(),
-        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-         g.UseLocation(n.feedback_vector(),
-                       call_descriptor->GetInputLocation(2)),
-         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
-  }
-
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->id(), p.feedback(), n.frame_state(),
-      dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
-  VisitWordCompareZero(node, n.condition(), &cont);
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
@@ -3199,14 +3153,12 @@ void InstructionSelector::EmitIdentity(Node* node) {
   SetRename(node, node->InputAt(0));
 }
 
-void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
-                                          DeoptimizeReason reason,
+void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,
                                           NodeId node_id,
                                           FeedbackSource const& feedback,
                                           FrameState frame_state) {
   InstructionOperandVector args(instruction_zone());
-  AppendDeoptimizeArguments(&args, kind, reason, node_id, feedback,
-                            frame_state);
+  AppendDeoptimizeArguments(&args, reason, node_id, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 

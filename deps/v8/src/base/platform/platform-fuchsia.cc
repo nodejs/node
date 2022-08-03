@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuchsia/kernel/cpp/fidl.h>
+#include <lib/fdio/directory.h>
 #include <lib/zx/resource.h>
 #include <lib/zx/thread.h>
 #include <lib/zx/vmar.h>
@@ -17,6 +19,27 @@ namespace v8 {
 namespace base {
 
 namespace {
+
+static zx_handle_t g_vmex_resource = ZX_HANDLE_INVALID;
+
+static void* g_root_vmar_base = nullptr;
+
+#ifdef V8_USE_VMEX_RESOURCE
+void SetVmexResource() {
+  DCHECK_EQ(g_vmex_resource, ZX_HANDLE_INVALID);
+  zx::resource vmex_resource;
+  fuchsia::kernel::VmexResourceSyncPtr vmex_resource_svc;
+  zx_status_t status = fdio_service_connect(
+      "/svc/fuchsia.kernel.VmexResource",
+      vmex_resource_svc.NewRequest().TakeChannel().release());
+  DCHECK_EQ(status, ZX_OK);
+  status = vmex_resource_svc->Get(&vmex_resource);
+  USE(status);
+  DCHECK_EQ(status, ZX_OK);
+  DCHECK(vmex_resource.is_valid());
+  g_vmex_resource = vmex_resource.release();
+}
+#endif
 
 zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
@@ -56,14 +79,60 @@ zx_vm_option_t GetAlignmentOptionFromAlignment(size_t alignment) {
   return alignment_log2 << ZX_VM_ALIGN_BASE;
 }
 
-void* AllocateInternal(const zx::vmar& vmar, size_t page_size,
-                       size_t vmar_offset, bool vmar_offset_is_hint,
-                       size_t size, size_t alignment,
-                       OS::MemoryPermission access) {
-  DCHECK_EQ(0, size % page_size);
-  DCHECK_EQ(0, alignment % page_size);
-  DCHECK_EQ(0, vmar_offset % page_size);
+enum class PlacementMode {
+  // Attempt to place the object at the provided address, otherwise elsewhere.
+  kUseHint,
+  // Place the object anywhere it fits.
+  kAnywhere,
+  // Place the object at the provided address, otherwise fail.
+  kFixed
+};
 
+void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
+             void* address, const zx::vmo& vmo, uint64_t offset,
+             PlacementMode placement, size_t size, size_t alignment,
+             OS::MemoryPermission access) {
+  DCHECK_EQ(0, size % page_size);
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
+  DCHECK_IMPLIES(placement != PlacementMode::kAnywhere, address != nullptr);
+
+  zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
+
+  zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
+  CHECK_NE(0, alignment_option);  // Invalid alignment specified
+  options |= alignment_option;
+
+  size_t vmar_offset = 0;
+  if (placement != PlacementMode::kAnywhere) {
+    // Try placing the mapping at the specified address.
+    uintptr_t target_addr = reinterpret_cast<uintptr_t>(address);
+    uintptr_t base = reinterpret_cast<uintptr_t>(vmar_base);
+    DCHECK_GE(target_addr, base);
+    vmar_offset = target_addr - base;
+    options |= ZX_VM_SPECIFIC;
+  }
+
+  zx_vaddr_t result;
+  zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &result);
+
+  if (status != ZX_OK && placement == PlacementMode::kUseHint) {
+    // If a placement hint was specified but couldn't be used (for example,
+    // because the offset overlapped another mapping), then retry again without
+    // a vmar_offset to let the kernel pick another location.
+    options &= ~(ZX_VM_SPECIFIC);
+    status = vmar.map(options, 0, vmo, 0, size, &result);
+  }
+
+  if (status != ZX_OK) {
+    return nullptr;
+  }
+
+  return reinterpret_cast<void*>(result);
+}
+
+void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
+                      void* address, PlacementMode placement, size_t size,
+                      size_t alignment, OS::MemoryPermission access) {
   zx::vmo vmo;
   if (zx::vmo::create(size, 0, &vmo) != ZX_OK) {
     return nullptr;
@@ -76,40 +145,17 @@ void* AllocateInternal(const zx::vmar& vmar, size_t page_size,
   // to be marked as executable in the future.
   // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
   // region will need to be marked as executable in the future.
-  if (vmo.replace_as_executable(zx::resource(), &vmo) != ZX_OK) {
+  zx::unowned_resource vmex(g_vmex_resource);
+  if (vmo.replace_as_executable(*vmex, &vmo) != ZX_OK) {
     return nullptr;
   }
 
-  zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
-
-  zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
-  CHECK_NE(0, alignment_option);  // Invalid alignment specified
-  options |= alignment_option;
-
-  if (vmar_offset != 0) {
-    options |= ZX_VM_SPECIFIC;
-  }
-
-  zx_vaddr_t address;
-  zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &address);
-
-  if (status != ZX_OK && vmar_offset != 0 && vmar_offset_is_hint) {
-    // If a vmar_offset was specified and the allocation failed (for example,
-    // because the offset overlapped another mapping), then we should retry
-    // again without a vmar_offset if that offset was just meant to be a hint.
-    options &= ~(ZX_VM_SPECIFIC);
-    status = vmar.map(options, 0, vmo, 0, size, &address);
-  }
-
-  if (status != ZX_OK) {
-    return nullptr;
-  }
-
-  return reinterpret_cast<void*>(address);
+  return MapVmo(vmar, vmar_base, page_size, address, vmo, 0, placement, size,
+                alignment, access);
 }
 
-bool FreeInternal(const zx::vmar& vmar, size_t page_size, void* address,
-                  const size_t size) {
+bool UnmapVmo(const zx::vmar& vmar, size_t page_size, void* address,
+              size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
   DCHECK_EQ(0, size % page_size);
   return vmar.unmap(reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
@@ -135,13 +181,14 @@ bool DiscardSystemPagesInternal(const zx::vmar& vmar, size_t page_size,
 }
 
 zx_status_t CreateAddressSpaceReservationInternal(
-    const zx::vmar& vmar, size_t page_size, size_t vmar_offset,
-    bool vmar_offset_is_hint, size_t size, size_t alignment,
+    const zx::vmar& vmar, void* vmar_base, size_t page_size, void* address,
+    PlacementMode placement, size_t size, size_t alignment,
     OS::MemoryPermission max_permission, zx::vmar* child,
     zx_vaddr_t* child_addr) {
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
-  DCHECK_EQ(0, vmar_offset % page_size);
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % alignment);
+  DCHECK_IMPLIES(placement != PlacementMode::kAnywhere, address != nullptr);
 
   // TODO(v8) determine these based on max_permission.
   zx_vm_option_t options = ZX_VM_CAN_MAP_READ | ZX_VM_CAN_MAP_WRITE |
@@ -151,16 +198,22 @@ zx_status_t CreateAddressSpaceReservationInternal(
   CHECK_NE(0, alignment_option);  // Invalid alignment specified
   options |= alignment_option;
 
-  if (vmar_offset != 0) {
+  size_t vmar_offset = 0;
+  if (placement != PlacementMode::kAnywhere) {
+    // Try placing the mapping at the specified address.
+    uintptr_t target_addr = reinterpret_cast<uintptr_t>(address);
+    uintptr_t base = reinterpret_cast<uintptr_t>(vmar_base);
+    DCHECK_GE(target_addr, base);
+    vmar_offset = target_addr - base;
     options |= ZX_VM_SPECIFIC;
   }
 
   zx_status_t status =
       vmar.allocate(options, vmar_offset, size, child, child_addr);
-  if (status != ZX_OK && vmar_offset != 0 && vmar_offset_is_hint) {
-    // If a vmar_offset was specified and the allocation failed (for example,
-    // because the offset overlapped another mapping), then we should retry
-    // again without a vmar_offset if that offset was just meant to be a hint.
+  if (status != ZX_OK && placement == PlacementMode::kUseHint) {
+    // If a placement hint was specified but couldn't be used (for example,
+    // because the offset overlapped another mapping), then retry again without
+    // a vmar_offset to let the kernel pick another location.
     options &= ~(ZX_VM_SPECIFIC);
     status = vmar.allocate(options, 0, size, child, child_addr);
   }
@@ -175,23 +228,55 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 // static
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+
+  // Determine base address of root VMAR.
+  zx_info_vmar_t info;
+  zx_status_t status = zx::vmar::root_self()->get_info(
+      ZX_INFO_VMAR, &info, sizeof(info), nullptr, nullptr);
+  CHECK_EQ(ZX_OK, status);
+  g_root_vmar_base = reinterpret_cast<void*>(info.base);
+
+#ifdef V8_USE_VMEX_RESOURCE
+  SetVmexResource();
+#endif
+}
+
+// static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
-  constexpr bool vmar_offset_is_hint = true;
-  DCHECK_EQ(0, reinterpret_cast<Address>(address) % alignment);
-  return AllocateInternal(*zx::vmar::root_self(), AllocatePageSize(),
-                          reinterpret_cast<uint64_t>(address),
-                          vmar_offset_is_hint, size, alignment, access);
+  PlacementMode placement =
+      address != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
+  return CreateAndMapVmo(*zx::vmar::root_self(), g_root_vmar_base,
+                         AllocatePageSize(), address, placement, size,
+                         alignment, access);
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
-  return FreeInternal(*zx::vmar::root_self(), AllocatePageSize(), address,
-                      size);
+void OS::Free(void* address, size_t size) {
+  CHECK(UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size));
 }
 
 // static
-bool OS::Release(void* address, size_t size) { return Free(address, size); }
+void* OS::AllocateShared(void* address, size_t size,
+                         OS::MemoryPermission access,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  PlacementMode placement =
+      address != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
+  zx::unowned_vmo vmo(VMOFromSharedMemoryHandle(handle));
+  return MapVmo(*zx::vmar::root_self(), g_root_vmar_base, AllocatePageSize(),
+                address, *vmo, offset, placement, size, AllocatePageSize(),
+                access);
+}
+
+// static
+void OS::FreeShared(void* address, size_t size) {
+  CHECK(UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size));
+}
+
+// static
+void OS::Release(void* address, size_t size) { Free(address, size); }
 
 // static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
@@ -224,22 +309,37 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
   DCHECK_EQ(0, reinterpret_cast<Address>(hint) % alignment);
   zx::vmar child;
   zx_vaddr_t child_addr;
-  uint64_t vmar_offset = reinterpret_cast<uint64_t>(hint);
-  constexpr bool vmar_offset_is_hint = true;
+  PlacementMode placement =
+      hint != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
   zx_status_t status = CreateAddressSpaceReservationInternal(
-      *zx::vmar::root_self(), AllocatePageSize(), vmar_offset,
-      vmar_offset_is_hint, size, alignment, max_permission, &child,
-      &child_addr);
+      *zx::vmar::root_self(), g_root_vmar_base, AllocatePageSize(), hint,
+      placement, size, alignment, max_permission, &child, &child_addr);
   if (status != ZX_OK) return {};
   return AddressSpaceReservation(reinterpret_cast<void*>(child_addr), size,
                                  child.release());
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
   // Destroy the vmar and release the handle.
   zx::vmar vmar(reservation.vmar_);
-  return vmar.destroy() == ZX_OK;
+  CHECK_EQ(ZX_OK, vmar.destroy());
+}
+
+// static
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+  zx::vmo vmo;
+  if (zx::vmo::create(size, 0, &vmo) != ZX_OK) {
+    return kInvalidSharedMemoryHandle;
+  }
+  return SharedMemoryHandleFromVMO(vmo.release());
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  zx_handle_t vmo = VMOFromSharedMemoryHandle(handle);
+  zx_handle_close(vmo);
 }
 
 // static
@@ -287,16 +387,10 @@ Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
 
   zx::vmar child;
   zx_vaddr_t child_addr;
-  size_t vmar_offset = 0;
-  if (address != 0) {
-    vmar_offset =
-        reinterpret_cast<size_t>(address) - reinterpret_cast<size_t>(base());
-  }
-  constexpr bool vmar_offset_is_hint = false;
   zx_status_t status = CreateAddressSpaceReservationInternal(
-      *zx::unowned_vmar(vmar_), OS::AllocatePageSize(), vmar_offset,
-      vmar_offset_is_hint, size, OS::AllocatePageSize(), max_permission, &child,
-      &child_addr);
+      *zx::unowned_vmar(vmar_), base(), OS::AllocatePageSize(), address,
+      PlacementMode::kFixed, size, OS::AllocatePageSize(), max_permission,
+      &child, &child_addr);
   if (status != ZX_OK) return {};
   DCHECK_EQ(reinterpret_cast<void*>(child_addr), address);
   return AddressSpaceReservation(reinterpret_cast<void*>(child_addr), size,
@@ -305,29 +399,41 @@ Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
 
 bool AddressSpaceReservation::FreeSubReservation(
     AddressSpaceReservation reservation) {
-  return OS::FreeAddressSpaceReservation(reservation);
+  OS::FreeAddressSpaceReservation(reservation);
+  return true;
 }
 
 bool AddressSpaceReservation::Allocate(void* address, size_t size,
                                        OS::MemoryPermission access) {
   DCHECK(Contains(address, size));
-  size_t vmar_offset = 0;
-  if (address != 0) {
-    vmar_offset =
-        reinterpret_cast<size_t>(address) - reinterpret_cast<size_t>(base());
-  }
-  constexpr bool vmar_offset_is_hint = false;
-  void* allocation = AllocateInternal(
-      *zx::unowned_vmar(vmar_), OS::AllocatePageSize(), vmar_offset,
-      vmar_offset_is_hint, size, OS::AllocatePageSize(), access);
+  void* allocation = CreateAndMapVmo(
+      *zx::unowned_vmar(vmar_), base(), OS::AllocatePageSize(), address,
+      PlacementMode::kFixed, size, OS::AllocatePageSize(), access);
   DCHECK(!allocation || allocation == address);
   return allocation != nullptr;
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
   DCHECK(Contains(address, size));
-  return FreeInternal(*zx::unowned_vmar(vmar_), OS::AllocatePageSize(), address,
-                      size);
+  return UnmapVmo(*zx::unowned_vmar(vmar_), OS::AllocatePageSize(), address,
+                  size);
+}
+
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  zx::unowned_vmo vmo(VMOFromSharedMemoryHandle(handle));
+  return MapVmo(*zx::unowned_vmar(vmar_), base(), OS::AllocatePageSize(),
+                address, *vmo, offset, PlacementMode::kFixed, size,
+                OS::AllocatePageSize(), access);
+}
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return UnmapVmo(*zx::unowned_vmar(vmar_), OS::AllocatePageSize(), address,
+                  size);
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,

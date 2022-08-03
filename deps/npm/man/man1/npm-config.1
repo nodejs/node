@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "1" "March 2022" "" ""
+.TH "NPM\-CONFIG" "1" "July 2022" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SS Synopsis
@@ -155,6 +155,20 @@ Type: "global", "user", or "project"
 .RE
 .P
 When passed to \fBnpm config\fP this refers to which config file to use\.
+.P
+When set to "global" mode, packages are installed into the \fBprefix\fP folder
+instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
 .SS \fBlong\fP
 .RS 0
 .IP \(bu 2

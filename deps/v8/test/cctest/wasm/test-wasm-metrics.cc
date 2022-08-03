@@ -6,6 +6,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
+#include "include/v8-platform.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
 #include "src/wasm/wasm-engine.h"
@@ -24,10 +25,7 @@ namespace {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() override {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
@@ -208,32 +206,24 @@ class TestCompileResolver : public CompilationResultResolver {
 
 }  // namespace
 
-#define RUN_COMPILE(name)                                                  \
-  MockPlatform mock_platform;                                              \
-  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
-  v8::Isolate::CreateParams create_params;                                 \
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
-  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
-  {                                                                        \
-    v8::HandleScope handle_scope(isolate);                                 \
-    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
-    v8::Context::Scope context_scope(context);                             \
-    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);           \
-    testing::SetupIsolateForWasmModule(i_isolate);                         \
-    RunCompile_##name(&mock_platform, i_isolate);                          \
-  }                                                                        \
-  isolate->Dispose();
+#define RUN_COMPILE(name)                                               \
+  v8::HandleScope handle_scope(CcTest::isolate());                      \
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate()); \
+  v8::Context::Scope context_scope(context);                            \
+  Isolate* i_isolate = CcTest::i_isolate();                             \
+  testing::SetupIsolateForWasmModule(i_isolate);                        \
+  RunCompile_##name(&platform, i_isolate);
 
 #define COMPILE_TEST(name)                                                  \
   void RunCompile_##name(MockPlatform*, i::Isolate*);                       \
-  UNINITIALIZED_TEST(Sync##name) {                                          \
+  TEST_WITH_PLATFORM(Sync##name, MockPlatform) {                            \
     i::FlagScope<bool> sync_scope(&i::FLAG_wasm_async_compilation, false);  \
     RUN_COMPILE(name);                                                      \
   }                                                                         \
                                                                             \
-  UNINITIALIZED_TEST(Async##name) { RUN_COMPILE(name); }                    \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_COMPILE(name); }      \
                                                                             \
-  UNINITIALIZED_TEST(Streaming##name) {                                     \
+  TEST_WITH_PLATFORM(Streaming##name, MockPlatform) {                       \
     i::FlagScope<bool> streaming_scope(&i::FLAG_wasm_test_streaming, true); \
     RUN_COMPILE(name);                                                      \
   }                                                                         \
@@ -269,6 +259,7 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
   reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);

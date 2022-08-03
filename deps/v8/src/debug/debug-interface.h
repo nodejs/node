@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-date.h"
 #include "include/v8-debug.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-local-handle.h"
@@ -48,6 +49,12 @@ int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
+
+// Returns a debug string representation of the bigint.
+Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+
+// Returns a debug string representation of the date.
+Local<String> GetDateDescription(Local<Date> date);
 
 // Returns a debug string representation of the function.
 Local<String> GetFunctionDescription(Local<Function> function);
@@ -161,6 +168,28 @@ struct LiveEditResult {
 };
 
 /**
+ * An internal representation of the source for a given
+ * `v8::debug::Script`, which can be a `v8::String`, in
+ * which case it represents JavaScript source, or it can
+ * be a managed pointer to a native Wasm module, or it
+ * can be undefined to indicate that source is unavailable.
+ */
+class V8_EXPORT_PRIVATE ScriptSource {
+ public:
+  // The number of characters in case of JavaScript or
+  // the size of the memory in case of WebAssembly.
+  size_t Length() const;
+
+  // The actual size of the source in bytes.
+  size_t Size() const;
+
+  MaybeLocal<String> JavaScriptCode() const;
+#if V8_ENABLE_WEBASSEMBLY
+  Maybe<MemorySpan<const uint8_t>> WasmBytecode() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+};
+
+/**
  * Native wrapper around v8::internal::Script object.
  */
 class V8_EXPORT_PRIVATE Script {
@@ -171,14 +200,15 @@ class V8_EXPORT_PRIVATE Script {
   bool WasCompiled() const;
   bool IsEmbedded() const;
   int Id() const;
-  int LineOffset() const;
-  int ColumnOffset() const;
-  std::vector<int> LineEnds() const;
+  int StartLine() const;
+  int StartColumn() const;
+  int EndLine() const;
+  int EndColumn() const;
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
   Maybe<int> ContextId() const;
-  MaybeLocal<String> Source() const;
+  Local<ScriptSource> Source() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
       const debug::Location& start, const debug::Location& end,
@@ -194,7 +224,7 @@ class V8_EXPORT_PRIVATE Script {
   bool IsWasm() const;
   void RemoveWasmBreakpoint(BreakpointId id);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
+  bool SetInstrumentationBreakpoint(BreakpointId* id) const;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -208,7 +238,6 @@ class WasmScript : public Script {
   MemorySpan<const char> ExternalSymbolsURL() const;
   int NumFunctions() const;
   int NumImportedFunctions() const;
-  MemorySpan<const uint8_t> Bytecode() const;
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
   int GetContainingFunction(int byte_offset) const;
@@ -239,6 +268,9 @@ class DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
       base::EnumSet<BreakReason> break_reasons = {}) {}
+  virtual void BreakOnInstrumentation(
+      v8::Local<v8::Context> paused_context,
+      const debug::BreakpointId instrumentationId) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,
@@ -284,8 +316,8 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
 
-v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
-                                                v8::Local<v8::Object> error);
+V8_EXPORT_PRIVATE v8::Local<v8::Message> CreateMessageFromException(
+    Isolate* isolate, v8::Local<v8::Value> error);
 
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.

@@ -31,7 +31,7 @@ module.exports = {
         type: "problem",
 
         docs: {
-            description: "disallow irregular whitespace",
+            description: "Disallow irregular whitespace",
             recommended: true,
             url: "https://eslint.org/docs/rules/no-irregular-whitespace"
         },

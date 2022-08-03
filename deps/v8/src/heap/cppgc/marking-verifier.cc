@@ -106,14 +106,12 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (collection_type_ == Heap::Config::CollectionType::kMinor) {
-    const auto age = heap_.caged_heap()
-                         .local_data()
-                         .age_table[heap_.caged_heap().OffsetFromAddress(
-                             header.ObjectStart())];
+    const auto age = heap_.caged_heap().local_data().age_table.GetAge(
+        heap_.caged_heap().OffsetFromAddress(header.ObjectStart()));
     if (age == AgeTable::Age::kOld) {
       // Do not verify old objects.
       return true;
-    } else if (age == AgeTable::Age::kUnknown) {
+    } else if (age == AgeTable::Age::kMixed) {
       // If the age is not known, the marked bytes may not be exact as possibly
       // old objects are verified as well.
       verifier_found_marked_bytes_are_exact_ = false;

@@ -5,17 +5,20 @@ Undici have its own mocking [utility](../api/MockAgent.md). It allow us to inter
 Example:
 
 ```js
-// index.mjs
+// bank.mjs
 import { request } from 'undici'
 
-export async function bankTransfer(recepient, ammount) {
-  const { body } = await request('http://localhost:3000/bank-transfer', 
+export async function bankTransfer(recepient, amount) {
+  const { body } = await request('http://localhost:3000/bank-transfer',
     {
       method: 'POST',
       headers: {
         'X-TOKEN-SECRET': 'SuperSecretToken',
       },
-      body: JSON.stringify({ recepient })
+      body: JSON.stringify({
+        recepient,
+        amount
+      })
     }
   )
   return await body.json()
@@ -28,7 +31,7 @@ And this is what the test file looks like:
 // index.test.mjs
 import { strict as assert } from 'assert'
 import { MockAgent, setGlobalDispatcher, } from 'undici'
-import { bankTransfer } from './undici.mjs'
+import { bankTransfer } from './bank.mjs'
 
 const mockAgent = new MockAgent();
 
@@ -46,7 +49,7 @@ mockPool.intercept({
   },
   body: JSON.stringify({
     recepient: '1234567890',
-    ammount: '100'
+    amount: '100'
   })
 }).reply(200, {
   message: 'transaction processed'
@@ -94,8 +97,40 @@ mockPool.intercept({
 
 const badRequest = await bankTransfer('1234567890', '100')
 // Will throw an error
-// MockNotMatchedError: Mock dispatch not matched for path '/bank-transfer': 
+// MockNotMatchedError: Mock dispatch not matched for path '/bank-transfer':
 // subsequent request to origin http://localhost:3000 was not allowed (net.connect disabled)
 ```
 
+## Reply with data based on request
 
+If the mocked response needs to be dynamically derived from the request parameters, you can provide a function instead of an object to `reply`
+
+```js
+mockPool.intercept({
+  path: '/bank-transfer',
+  method: 'POST',
+  headers: {
+    'X-TOKEN-SECRET': 'SuperSecretToken',
+  },
+  body: JSON.stringify({
+    recepient: '1234567890',
+    amount: '100'
+  })
+}).reply(200, (opts) => {
+  // do something with opts
+
+  return { message: 'transaction processed' }
+})
+```
+
+in this case opts will be
+
+```
+{
+  method: 'POST',
+  headers: { 'X-TOKEN-SECRET': 'SuperSecretToken' },
+  body: '{"recepient":"1234567890","amount":"100"}',
+  origin: 'http://localhost:3000',
+  path: '/bank-transfer'
+}
+```

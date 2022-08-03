@@ -2,6 +2,6 @@
 class B extends A { #x; }
                     ^
 TypeError: Cannot initialize #x twice on the same object
-    at Object.<instance_members_initializer> (*%(basename)s:7:21)
+    at <instance_members_initializer> (*%(basename)s:7:21)
     at new B (*%(basename)s:7:1)
     at *%(basename)s:10:1

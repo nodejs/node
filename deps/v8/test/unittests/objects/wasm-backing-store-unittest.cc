@@ -64,7 +64,7 @@ TEST_F(BackingStoreTest, CopyWasmMemory) {
   EXPECT_EQ(1 * wasm::kWasmPageSize, bs1->byte_length());
   EXPECT_EQ(2 * wasm::kWasmPageSize, bs1->byte_capacity());
 
-  auto bs2 = bs1->CopyWasmMemory(isolate(), 3);
+  auto bs2 = bs1->CopyWasmMemory(isolate(), 3, 3);
   EXPECT_TRUE(bs2->is_wasm_memory());
   EXPECT_EQ(3 * wasm::kWasmPageSize, bs2->byte_length());
   EXPECT_EQ(3 * wasm::kWasmPageSize, bs2->byte_capacity());

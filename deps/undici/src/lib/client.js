@@ -6,18 +6,15 @@ const assert = require('assert')
 const net = require('net')
 const util = require('./core/util')
 const Request = require('./core/request')
-const Dispatcher = require('./dispatcher')
+const DispatcherBase = require('./dispatcher-base')
 const RedirectHandler = require('./handler/redirect')
 const {
   RequestContentLengthMismatchError,
   ResponseContentLengthMismatchError,
-  TrailerMismatchError,
   InvalidArgumentError,
   RequestAbortedError,
   HeadersTimeoutError,
   HeadersOverflowError,
-  ClientDestroyedError,
-  ClientClosedError,
   SocketError,
   InformationalError,
   BodyTimeoutError,
@@ -45,12 +42,9 @@ const {
   kNoRef,
   kKeepAliveDefaultTimeout,
   kHostHeader,
-  kClosed,
-  kDestroyed,
   kPendingIdx,
   kRunningIdx,
   kError,
-  kOnDestroyed,
   kPipelining,
   kSocket,
   kKeepAliveTimeoutValue,
@@ -63,8 +57,13 @@ const {
   kConnector,
   kMaxRedirections,
   kMaxRequests,
-  kCounter
+  kCounter,
+  kClose,
+  kDestroy,
+  kDispatch
 } = require('./core/symbols')
+
+const kClosedResolve = Symbol('kClosedResolve')
 
 const channels = {}
 
@@ -81,7 +80,7 @@ try {
   channels.connected = { hasSubscribers: false }
 }
 
-class Client extends Dispatcher {
+class Client extends DispatcherBase {
   constructor (url, {
     maxHeaderSize,
     headersTimeout,
@@ -189,10 +188,7 @@ class Client extends Dispatcher {
     this[kKeepAliveMaxTimeout] = keepAliveMaxTimeout == null ? 600e3 : keepAliveMaxTimeout
     this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold
     this[kKeepAliveTimeoutValue] = this[kKeepAliveDefaultTimeout]
-    this[kClosed] = false
-    this[kDestroyed] = false
     this[kServerName] = null
-    this[kOnDestroyed] = []
     this[kResuming] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kNeedDrain] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}\r\n`
@@ -201,6 +197,7 @@ class Client extends Dispatcher {
     this[kStrictContentLength] = strictContentLength == null ? true : strictContentLength
     this[kMaxRedirections] = maxRedirections
     this[kMaxRequests] = maxRequestsPerClient
+    this[kClosedResolve] = null
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -216,23 +213,13 @@ class Client extends Dispatcher {
     this[kPendingIdx] = 0
   }
 
-  // TODO: Make private?
   get pipelining () {
     return this[kPipelining]
   }
 
-  // TODO: Make private?
   set pipelining (value) {
     this[kPipelining] = value
     resume(this, true)
-  }
-
-  get destroyed () {
-    return this[kDestroyed]
-  }
-
-  get closed () {
-    return this[kClosed]
   }
 
   get [kPending] () {
@@ -266,141 +253,68 @@ class Client extends Dispatcher {
     this.once('connect', cb)
   }
 
-  dispatch (opts, handler) {
-    if (!handler || typeof handler !== 'object') {
-      throw new InvalidArgumentError('handler must be an object')
+  [kDispatch] (opts, handler) {
+    const { maxRedirections = this[kMaxRedirections] } = opts
+    if (maxRedirections) {
+      handler = new RedirectHandler(this, maxRedirections, opts, handler)
     }
 
-    try {
-      if (!opts || typeof opts !== 'object') {
-        throw new InvalidArgumentError('opts must be an object.')
-      }
+    const origin = opts.origin || this[kUrl].origin
 
-      if (this[kDestroyed]) {
-        throw new ClientDestroyedError()
-      }
+    const request = new Request(origin, opts, handler)
 
-      if (this[kClosed]) {
-        throw new ClientClosedError()
-      }
+    this[kQueue].push(request)
+    if (this[kResuming]) {
+      // Do nothing.
+    } else if (util.bodyLength(request.body) == null && util.isIterable(request.body)) {
+      // Wait a tick in case stream/iterator is ended in the same tick.
+      this[kResuming] = 1
+      process.nextTick(resume, this)
+    } else {
+      resume(this, true)
+    }
 
-      const { maxRedirections = this[kMaxRedirections] } = opts
-      if (maxRedirections) {
-        handler = new RedirectHandler(this, maxRedirections, opts, handler)
-      }
-
-      const origin = opts.origin || this[kUrl].origin
-
-      const request = new Request(origin, opts, handler)
-
-      this[kQueue].push(request)
-      if (this[kResuming]) {
-        // Do nothing.
-      } else if (util.bodyLength(request.body) == null && util.isIterable(request.body)) {
-        // Wait a tick in case stream/iterator is ended in the same tick.
-        this[kResuming] = 1
-        process.nextTick(resume, this)
-      } else {
-        resume(this, true)
-      }
-
-      if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
-        this[kNeedDrain] = 2
-      }
-    } catch (err) {
-      if (typeof handler.onError !== 'function') {
-        throw new InvalidArgumentError('invalid onError method')
-      }
-
-      handler.onError(err)
+    if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
+      this[kNeedDrain] = 2
     }
 
     return this[kNeedDrain] < 2
   }
 
-  close (callback) {
-    if (callback === undefined) {
-      return new Promise((resolve, reject) => {
-        this.close((err, data) => {
-          return err ? reject(err) : resolve(data)
-        })
-      })
-    }
-
-    if (typeof callback !== 'function') {
-      throw new InvalidArgumentError('invalid callback')
-    }
-
-    if (this[kDestroyed]) {
-      queueMicrotask(() => callback(new ClientDestroyedError(), null))
-      return
-    }
-
-    this[kClosed] = true
-
-    if (!this[kSize]) {
-      this.destroy(callback)
-    } else {
-      this[kOnDestroyed].push(callback)
-    }
+  async [kClose] () {
+    return new Promise((resolve) => {
+      if (!this[kSize]) {
+        this.destroy(resolve)
+      } else {
+        this[kClosedResolve] = resolve
+      }
+    })
   }
 
-  destroy (err, callback) {
-    if (typeof err === 'function') {
-      callback = err
-      err = null
-    }
+  async [kDestroy] (err) {
+    return new Promise((resolve) => {
+      const requests = this[kQueue].splice(this[kPendingIdx])
+      for (let i = 0; i < requests.length; i++) {
+        const request = requests[i]
+        errorRequest(this, request, err)
+      }
 
-    if (callback === undefined) {
-      return new Promise((resolve, reject) => {
-        this.destroy(err, (err, data) => {
-          return err ? /* istanbul ignore next: should never error */ reject(err) : resolve(data)
-        })
-      })
-    }
+      const callback = () => {
+        if (this[kClosedResolve]) {
+          this[kClosedResolve]()
+          this[kClosedResolve] = null
+        }
+        resolve()
+      }
 
-    if (typeof callback !== 'function') {
-      throw new InvalidArgumentError('invalid callback')
-    }
-
-    if (this[kDestroyed]) {
-      if (this[kOnDestroyed]) {
-        this[kOnDestroyed].push(callback)
+      if (!this[kSocket]) {
+        queueMicrotask(callback)
       } else {
-        queueMicrotask(() => callback(null, null))
+        util.destroy(this[kSocket].on('close', callback), err)
       }
-      return
-    }
 
-    if (!err) {
-      err = new ClientDestroyedError()
-    }
-
-    const requests = this[kQueue].splice(this[kPendingIdx])
-    for (let i = 0; i < requests.length; i++) {
-      const request = requests[i]
-      errorRequest(this, request, err)
-    }
-
-    this[kClosed] = true
-    this[kDestroyed] = true
-    this[kOnDestroyed].push(callback)
-
-    const onDestroyed = () => {
-      const callbacks = this[kOnDestroyed]
-      this[kOnDestroyed] = null
-      for (let i = 0; i < callbacks.length; i++) {
-        callbacks[i](null, null)
-      }
-    }
-
-    if (!this[kSocket]) {
-      queueMicrotask(onDestroyed)
-    } else {
-      util.destroy(this[kSocket].on('close', onDestroyed), err)
-    }
-
-    resume(this)
+      resume(this)
+    })
   }
 }
 
@@ -476,7 +390,6 @@ async function lazyllhttp () {
 let llhttpInstance = null
 let llhttpPromise = lazyllhttp()
   .catch(() => {
-    // TODO: Emit warning?
   })
 
 let currentParser = null
@@ -511,7 +424,6 @@ class Parser {
 
     this.bytesRead = 0
 
-    this.trailer = ''
     this.keepAlive = ''
     this.contentLength = ''
   }
@@ -586,7 +498,6 @@ class Parser {
       currentBufferPtr = llhttp.malloc(currentBufferSize)
     }
 
-    // TODO (perf): Can we avoid this copy somehow?
     new Uint8Array(llhttp.memory.buffer, currentBufferPtr, currentBufferSize).set(data)
 
     // Call `execute` on the wasm parser.
@@ -635,12 +546,10 @@ class Parser {
     try {
       try {
         currentParser = this
-        this.llhttp.llhttp_finish(this.ptr) // TODO (fix): Check ret?
       } finally {
         currentParser = null
       }
     } catch (err) {
-      // TODO (fix): What if socket is already destroyed? Error will be swallowed.
       /* istanbul ignore next: difficult to make a test case for */
       util.destroy(this.socket, err)
     }
@@ -704,8 +613,6 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
-    } else if (key.length === 7 && key.toString().toLowerCase() === 'trailer') {
-      this.trailer += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -782,19 +689,15 @@ class Parser {
       return -1
     }
 
-    // TODO: Check for content-length mismatch from server?
-
     assert(!this.upgrade)
     assert(this.statusCode < 200)
-
-    // TODO: More statusCode validation?
 
     if (statusCode === 100) {
       util.destroy(socket, new SocketError('bad response', util.getSocketInfo(socket)))
       return -1
     }
 
-    /* istanbul ignore if: this can only happen if server is misbehaving */
+    /* this can only happen if server is misbehaving */
     if (upgrade && !request.upgrade) {
       util.destroy(socket, new SocketError('bad upgrade', util.getSocketInfo(socket)))
       return -1
@@ -817,7 +720,7 @@ class Parser {
       }
     }
 
-    if (request.method === 'CONNECT' && statusCode >= 200 && statusCode < 300) {
+    if (request.method === 'CONNECT') {
       assert(client[kRunning] === 1)
       this.upgrade = true
       return 2
@@ -912,7 +815,7 @@ class Parser {
   }
 
   onMessageComplete () {
-    const { client, socket, statusCode, upgrade, trailer, headers, contentLength, bytesRead, shouldKeepAlive } = this
+    const { client, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this
 
     if (socket.destroyed && (!statusCode || shouldKeepAlive)) {
       return -1
@@ -931,7 +834,6 @@ class Parser {
     this.statusText = ''
     this.bytesRead = 0
     this.contentLength = ''
-    this.trailer = ''
     this.keepAlive = ''
 
     assert(this.headers.length % 2 === 0)
@@ -940,23 +842,6 @@ class Parser {
 
     if (statusCode < 200) {
       return
-    }
-
-    const trailers = trailer ? trailer.split(/,\s*/) : []
-    for (let i = 0; i < trailers.length; i++) {
-      const trailer = trailers[i]
-      let found = false
-      for (let n = 0; n < headers.length; n += 2) {
-        const key = headers[n]
-        if (key.length === trailer.length && key.toString().toLowerCase() === trailer.toLowerCase()) {
-          found = true
-          break
-        }
-      }
-      if (!found) {
-        util.destroy(socket, new TrailerMismatchError())
-        return -1
-      }
     }
 
     /* istanbul ignore next: should be handled by llhttp? */
@@ -979,7 +864,6 @@ class Parser {
       util.destroy(socket, new InformationalError('reset'))
       return constants.ERROR.PAUSED
     } else if (!shouldKeepAlive) {
-      // TODO: What if running > 0?
       util.destroy(socket, new InformationalError('reset'))
       return constants.ERROR.PAUSED
     } else if (socket[kReset] && client[kRunning] === 0) {
@@ -989,6 +873,11 @@ class Parser {
       // have been queued since then.
       util.destroy(socket, new InformationalError('reset'))
       return constants.ERROR.PAUSED
+    } else if (client[kPipelining] === 1) {
+      // We must wait a full event loop cycle to reuse this socket to make sure
+      // that non-spec compliant servers are not closing the connection even if they
+      // said they won't.
+      setImmediate(resume, client)
     } else {
       resume(client)
     }
@@ -1000,10 +889,8 @@ function onParserTimeout (parser) {
 
   /* istanbul ignore else */
   if (timeoutType === TIMEOUT_HEADERS) {
-    if (!socket[kWriting]) {
-      assert(!parser.paused, 'cannot be paused while waiting for headers')
-      util.destroy(socket, new HeadersTimeoutError())
-    }
+    assert(!parser.paused, 'cannot be paused while waiting for headers')
+    util.destroy(socket, new HeadersTimeoutError())
   } else if (timeoutType === TIMEOUT_BODY) {
     if (!parser.paused) {
       util.destroy(socket, new BodyTimeoutError())
@@ -1079,7 +966,7 @@ function onSocketClose () {
 
   client[kSocket] = null
 
-  if (client[kDestroyed]) {
+  if (client.destroyed) {
     assert(client[kPending] === 0)
 
     // Fail entire queue.
@@ -1251,14 +1138,14 @@ function resume (client, sync) {
 
 function _resume (client, sync) {
   while (true) {
-    if (client[kDestroyed]) {
+    if (client.destroyed) {
       assert(client[kPending] === 0)
       return
     }
 
-    if (client[kClosed] && !client[kSize]) {
-      client.destroy(util.nop)
-      continue
+    if (client.closed && !client[kSize]) {
+      client.destroy()
+      return
     }
 
     const socket = client[kSocket]
@@ -1479,8 +1366,6 @@ function write (client, request) {
     socket[kBlocking] = true
   }
 
-  // TODO: Expect: 100-continue
-
   let header = `${method} ${path} HTTP/1.1\r\n`
 
   if (typeof host === 'string') {
@@ -1600,7 +1485,6 @@ function writeStream ({ body, client, request, socket, contentLength, header, ex
 
     writer.destroy(err)
 
-    // TODO (fix): Avoid using err.message for logic.
     if (err && (err.code !== 'UND_ERR_INFO' || err.message !== 'reset')) {
       util.destroy(body, err)
     } else {
@@ -1679,7 +1563,6 @@ async function writeIterable ({ body, client, request, socket, contentLength, he
 
   const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header })
   try {
-    // TODO (fix): What if socket errors while waiting for body?
     // It's up to the user to somehow abort the async iterable.
     for await (const chunk of body) {
       if (socket[kError]) {
@@ -1730,7 +1613,6 @@ class AsyncWriter {
       return true
     }
 
-    // TODO: What if not ended and bytesWritten === contentLength?
     // We should defer writing chunks.
     if (contentLength !== null && bytesWritten + len > contentLength) {
       if (client[kStrictContentLength]) {
@@ -1800,7 +1682,6 @@ class AsyncWriter {
       }
     }
 
-    // TODO (fix): Add comment clarifying what this does?
     if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
       // istanbul ignore else: only for jest
       if (socket[kParser].timeout.refresh) {

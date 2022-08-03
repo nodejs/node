@@ -939,6 +939,9 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
     return NoChange();
   }
 
+  // Don't inline anything for class constructors.
+  if (IsClassConstructor(shared.kind())) return NoChange();
+
   MapRef function_map =
       native_context().GetFunctionMapFromIndex(shared.function_map_index());
   DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
@@ -958,7 +961,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // Emit code to allocate the JSFunction instance.
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(function_map.instance_size(), allocation, Type::Function());
+  a.Allocate(function_map.instance_size(), allocation,
+             Type::CallableFunction());
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
           jsgraph()->EmptyFixedArrayConstant());
@@ -1324,7 +1328,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   MapRef standard_map =
       broker->target_native_context().object_function().initial_map(
           broker->dependencies());
-  if (prototype.equals(standard_map.prototype().value())) {
+  if (prototype.equals(standard_map.prototype())) {
     return standard_map;
   }
   if (prototype.map().oddball_type() == OddballType::kNull) {

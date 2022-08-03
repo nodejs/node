@@ -244,9 +244,9 @@ void V8ConsoleMessage::reportToFrontend(
           .setLevel(level)
           .setText(m_message)
           .build();
-  result->setLine(static_cast<int>(m_lineNumber));
-  result->setColumn(static_cast<int>(m_columnNumber));
-  result->setUrl(m_url);
+  if (m_lineNumber) result->setLine(m_lineNumber);
+  if (m_columnNumber) result->setColumn(m_columnNumber);
+  if (!m_url.isEmpty()) result->setUrl(m_url);
   frontend->messageAdded(std::move(result));
 }
 
@@ -396,23 +396,11 @@ V8ConsoleMessage::getAssociatedExceptionData(
 
   v8::Isolate* isolate = inspector->isolate();
   v8::HandleScope handles(isolate);
-  v8::Local<v8::Context> context;
-  if (!inspector->exceptionMetaDataContext().ToLocal(&context)) return nullptr;
   v8::MaybeLocal<v8::Value> maybe_exception = m_arguments[0]->Get(isolate);
   v8::Local<v8::Value> exception;
   if (!maybe_exception.ToLocal(&exception)) return nullptr;
 
-  v8::MaybeLocal<v8::Object> maybe_data =
-      inspector->getAssociatedExceptionData(exception);
-  v8::Local<v8::Object> data;
-  if (!maybe_data.ToLocal(&data)) return nullptr;
-  v8::TryCatch tryCatch(isolate);
-  v8::MicrotasksScope microtasksScope(isolate,
-                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Context::Scope contextScope(context);
-  std::unique_ptr<protocol::DictionaryValue> jsonObject;
-  objectToProtocolValue(context, data, 2, &jsonObject);
-  return jsonObject;
+  return inspector->getAssociatedExceptionDataForProtocol(exception);
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>
@@ -479,8 +467,10 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     clientLevel = v8::Isolate::kMessageError;
   } else if (type == ConsoleAPIType::kWarning) {
     clientLevel = v8::Isolate::kMessageWarning;
-  } else if (type == ConsoleAPIType::kInfo || type == ConsoleAPIType::kLog) {
+  } else if (type == ConsoleAPIType::kInfo) {
     clientLevel = v8::Isolate::kMessageInfo;
+  } else if (type == ConsoleAPIType::kLog) {
+    clientLevel = v8::Isolate::kMessageLog;
   }
 
   if (type != ConsoleAPIType::kClear) {

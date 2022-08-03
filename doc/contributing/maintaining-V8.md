@@ -208,6 +208,64 @@ backport the fix:
 Abandoned V8 branches are supported in the Node.js repository. The fix needs
 to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
+As an example for how to backport changes, consider the bug
+[RegExp show inconsistent result with other browsers](https://crbug.com/v8/5199).
+From the bug we can see that it was merged by V8 into 5.2 and 5.3, and not into
+V8 5.1 (since it was already abandoned). Since Node.js `v6.x` uses V8 5.1, the
+fix needed to be backported.
+
+#### Backporting with `git-node` (recommended)
+
+You can use [`git-node`][] to help you backport patches. This removes
+some manual steps and is recommended.
+
+Here are the steps for the bug mentioned above:
+
+1. Install `git-node` by installing [`node-core-utils`][].
+2. Install the prerequisites for [`git-node-v8`][].
+3. Find the commit hash linked-to in the issue (in this case a51f429).
+4. Checkout a branch off the appropriate _vY.x-staging_ branch (e.g.
+   _v6.x-staging_ to fix an issue in V8 5.1).
+5. Run `git node v8 backport a51f429`.
+6. If there are conflicts, `git-node` will wait for you to resolve them:
+
+```console
+$ git node v8 backport a51f429
+✔ Update local V8 clone
+❯ V8 commit backport
+  ✔ Get current V8 version
+  ✔ Generate patches
+  ❯ Apply and commit patches to deps/v8
+    ❯ Commit a51f429772d1
+      ⠏ Apply patch
+      ◼ Increment embedder version number
+      ◼ Commit patch
+
+? Resolve merge conflicts and enter 'RESOLVED' ‣
+```
+
+Resolve conflicts, stage the files (you may need to open another terminal or use
+a GUI git client), then return to the terminal running `git-node`, type
+`RESOLVED`, and hit <kbd>Enter</kbd>.
+
+7. After you resolve conflicts (or if there are no conflicts), the
+   output should look like this:
+
+```console
+$ git node v8 backport a51f429
+✔ Update local V8 clone
+✔ V8 commit backport
+```
+
+8. Open a PR against the v6.x-staging branch in the Node.js repository.
+   Launch the normal and [V8 CI][] using the Node.js CI system. We only
+   needed to backport to v6.x as the other LTS branches weren't affected
+   by this bug.
+
+See [`git-node-v8-backport`][] for more documentation and additional options.
+
+#### Backporting manually
+
 * For each abandoned V8 branch corresponding to an LTS branch that is affected
   by the bug:
   * Checkout a branch off the appropriate _vY.x-staging_ branch (e.g.
@@ -224,14 +282,7 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
     run V8 tests.[^2]
 
-The [`git-node`][] tool can be used to simplify this task. Run
-`git node v8 backport <sha>` to cherry-pick a commit.
-
-An example for workflow how to cherry-pick consider the bug
-[RegExp show inconsistent result with other browsers](https://crbug.com/v8/5199).
-From the bug we can see that it was merged by V8 into 5.2 and 5.3, and not into
-V8 5.1 (since it was already abandoned). Since Node.js `v6.x` uses V8 5.1, the
-fix needed to be cherry-picked. To cherry-pick, here's an example workflow:
+Here are the steps for the bug mentioned above:
 
 * Download and apply the commit linked-to in the issue (in this case a51f429):
 
@@ -270,6 +321,7 @@ Refs: https://github.com/v8/v8/commit/a51f429772d1e796744244128c9feeab4c26a854
 PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 
+* Increase the `v8_embedder_string` number in `common.gypi`.
 * Open a PR against the `v6.x-staging` branch in the Node.js repository. Launch
   the normal and [V8 CI][] using the Node.js CI system. We only needed to
   backport to `v6.x` as the other LTS branches weren't affected by this bug.
@@ -322,16 +374,26 @@ compute the diff between these tags on the V8 repository, and then apply that
 patch on the copy of V8 in Node.js. This should preserve the patches/backports
 that Node.js may be floating (or else cause a merge conflict).
 
+#### Applying minor updates with `git-node` (recommended)
+
+1. Install [`git-node`][] by installing [`node-core-utils`][].
+2. Install the prerequisites for [`git-node-v8`][].
+3. Run `git node v8 minor` to apply a minor update.
+
+See [`git-node-v8-minor`][] for more documentation and additional options.
+
+#### Applying minor updates manually
+
 The rough outline of the process is:
 
 ```bash
 # Assuming your fork of Node.js is checked out in $NODE_DIR
-# and you want to update the Node.js master branch.
+# and you want to update the Node.js main branch.
 # Find the current (OLD) version in
 # $NODE_DIR/deps/v8/include/v8-version.h
 cd $NODE_DIR
-git checkout master
-git merge --ff-only origin/master
+git checkout main
+git merge --ff-only origin/main
 git checkout -b V8_NEW_VERSION
 curl -L https://github.com/v8/v8/compare/${V8_OLD_VERSION}...${V8_NEW_VERSION}.patch | git apply --directory=deps/v8
 # You may want to amend the commit message to describe the nature of the update
@@ -340,18 +402,15 @@ curl -L https://github.com/v8/v8/compare/${V8_OLD_VERSION}...${V8_NEW_VERSION}.p
 V8 also keeps tags of the form _5.4-lkgr_ which point to the _Last Known Good
 Revision_ from the 5.4 branch that can be useful in the update process above.
 
-The [`git-node`][] tool can be used to simplify this task. Run `git node v8 minor`
-to apply a minor update.
-
 ### Major updates
 
-We upgrade the version of V8 in Node.js master whenever a V8 release goes stable
+We upgrade the version of V8 in Node.js `main` whenever a V8 release goes stable
 upstream, that is, whenever a new release of Chrome comes out.
 
 Upgrading major versions would be much harder to do with the patch mechanism
 above. A better strategy is to
 
-1. Audit the current master branch and look at the patches that have been
+1. Audit the current `main` branch and look at the patches that have been
    floated since the last major V8 update.
 2. Replace the copy of V8 in Node.js with a fresh checkout of the latest stable
    V8 branch. Special care must be taken to recursively update the DEPS that V8
@@ -394,7 +453,7 @@ branches. This has several benefits:
 * The history of the V8 branch in `nodejs/v8` becomes purer and it would make it
   easier to pull in the V8 team for help with reviewing.
 * It would make it simpler to setup an automated build that tracks Node.js
-  master + V8 lkgr integration build.
+  `main` + V8 lkgr integration build.
 
 This would require some tooling to:
 
@@ -407,10 +466,8 @@ This would require some tooling to:
 [^1]: Node.js 0.12 and older are intentionally omitted from this document
     as their support has ended.
 
-[^2]: The V8 tests still require Python 2. To run these tests locally, you can
-    run `PYTHON2 ./configure.py` before running `make test-v8`, in the root
-    of this repository. On macOS, this also requires a full Xcode install,
-    not just the "command line tools" for Xcode.
+[^2]: On macOS, the V8 tests require a full Xcode install, not just the "command
+    line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
 [Node.js CI]: https://ci.nodejs.org/job/node-test-pull-request/
@@ -425,8 +482,12 @@ This would require some tooling to:
 [NodeJS-Backport-Review-V8]: https://bugs.chromium.org/p/v8/issues/list?can=1&q=label%3ANodeJS-Backport-Review
 [V8 CI]: https://ci.nodejs.org/job/node-test-commit-v8-linux/
 [V8ActiveBranches]: https://build.chromium.org/p/client.v8.branches/console
-[V8Contributing]: https://github.com/v8/v8/wiki/Contributing
-[V8MergingPatching]: https://github.com/v8/v8/wiki/Merging%20&%20Patching
+[V8Contributing]: https://v8.dev/docs/contribute
+[V8MergingPatching]: https://v8.dev/docs/merge-patch
 [V8TemplateMergeRequest]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20merge%20request
 [V8TemplateUpstreamBug]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20upstream%20bug
+[`git-node-v8-backport`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-backport-sha
+[`git-node-v8-minor`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md#git-node-v8-minor
+[`git-node-v8`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
+[`node-core-utils`]: https://github.com/nodejs/node-core-utils#Install

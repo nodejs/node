@@ -15,9 +15,10 @@ Node.js supports the following [Web Performance APIs][]:
 * [High Resolution Time][]
 * [Performance Timeline][]
 * [User Timing][]
+* [Resource Timing][]
 
 ```js
-const { PerformanceObserver, performance } = require('perf_hooks');
+const { PerformanceObserver, performance } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((items) => {
   console.log(items.getEntries()[0].duration);
@@ -64,7 +65,18 @@ added: v16.7.0
 * `name` {string}
 
 If `name` is not provided, removes all `PerformanceMeasure` objects from the
-Performance Timeline. If `name` is provided, removes only the named mark.
+Performance Timeline. If `name` is provided, removes only the named measure.
+
+### `performance.clearResourceTimings([name])`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* `name` {string}
+
+If `name` is not provided, removes all `PerformanceResourceTiming` objects from
+the Resource Timeline. If `name` is provided, removes only the named resource.
 
 ### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 
@@ -111,8 +123,8 @@ of how a mostly idle process will have a high ELU.
 
 ```js
 'use strict';
-const { eventLoopUtilization } = require('perf_hooks').performance;
-const { spawnSync } = require('child_process');
+const { eventLoopUtilization } = require('node:perf_hooks').performance;
+const { spawnSync } = require('node:child_process');
 
 setImmediate(() => {
   const elu = eventLoopUtilization();
@@ -184,7 +196,7 @@ changes:
 * `options` {Object}
   * `detail` {any} Additional optional detail to include with the mark.
   * `startTime` {number} An optional timestamp to be used as the mark time.
-    **Defaults**: `performance.now()`.
+    **Default**: `performance.now()`.
 
 Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `PerformanceMark` is a subclass of `PerformanceEntry` whose
@@ -197,6 +209,31 @@ and can be queried with `performance.getEntries`,
 `performance.getEntriesByName`, and `performance.getEntriesByType`. When the
 observation is performed, the entries should be cleared from the global
 Performance Timeline manually with `performance.clearMarks`.
+
+### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* `timingInfo` {Object} [Fetch Timing Info][]
+* `requestedUrl` {string} The resource url
+* `initiatorType` {string} The initiator name, e.g: 'fetch'
+* `global` {Object}
+* `cacheMode` {string} The cache mode must be an empty string ('') or 'local'
+
+_This property is an extension by Node.js. It is not available in Web browsers._
+
+Creates a new `PerformanceResourceTiming` entry in the Resource Timeline. A
+`PerformanceResourceTiming` is a subclass of `PerformanceEntry` whose
+`performanceEntry.entryType` is always `'resource'`. Performance resources
+are used to mark moments in the Resource Timeline.
+
+The created `PerformanceMark` entry is put in the global Resource Timeline
+and can be queried with `performance.getEntries`,
+`performance.getEntriesByName`, and `performance.getEntriesByType`. When the
+observation is performed, the entries should be cleared from the global
+Performance Timeline manually with `performance.clearResourceTimings`.
 
 ### `performance.measure(name[, startMarkOrOptions[, endMark]])`
 
@@ -312,7 +349,7 @@ event type in order for the timing details to be accessed.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 function someFunction() {
   console.log('hello world');
@@ -484,6 +521,24 @@ property will be an {Object} with two properties:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY`
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE`
 
+### HTTP ('http') Details
+
+When `performanceEntry.type` is equal to `'http'`, the `performanceEntry.detail`
+property will be an {Object} containing additional information.
+
+If `performanceEntry.name` is equal to `HttpClient`, the `detail`
+will contain the following properties: `req`, `res`. And the `req` property
+will be an {Object} containing `method`, `url`, `headers`, the `res` property
+will be an {Object} containing `statusCode`, `statusMessage`, `headers`.
+
+If `performanceEntry.name` is equal to `HttpRequest`, the `detail`
+will contain the following properties: `req`, `res`. And the `req` property
+will be an {Object} containing `method`, `url`, `headers`, the `res` property
+will be an {Object} containing `statusCode`, `statusMessage`, `headers`.
+
+This could add additional memory overhead and should only be used for
+diagnostic purposes, not left turned on in production by default.
+
 ### HTTP/2 ('http2') Details
 
 When `performanceEntry.type` is equal to `'http2'`, the
@@ -530,6 +585,32 @@ contain the following properties:
 When `performanceEntry.type` is equal to `'function'`, the
 `performanceEntry.detail` property will be an {Array} listing
 the input arguments to the timed function.
+
+### Net ('net') Details
+
+When `performanceEntry.type` is equal to `'net'`, the
+`performanceEntry.detail` property will be an {Object} containing
+additional information.
+
+If `performanceEntry.name` is equal to `connect`, the `detail`
+will contain the following properties: `host`, `port`.
+
+### DNS ('dns') Details
+
+When `performanceEntry.type` is equal to `'dns'`, the
+`performanceEntry.detail` property will be an {Object} containing
+additional information.
+
+If `performanceEntry.name` is equal to `lookup`, the `detail`
+will contain the following properties: `hostname`, `family`, `hints`, `verbatim`,
+`addresses`.
+
+If `performanceEntry.name` is equal to `lookupService`, the `detail` will
+contain the following properties: `host`, `port`, `hostname`, `service`.
+
+If `performanceEntry.name` is equal to `queryxxx` or `getHostByAddr`, the `detail` will
+contain the following properties: `host`, `ttl`, `result`. The value of `result` is
+same as the result of `queryxxx` or `getHostByAddr`.
 
 ## Class: `PerformanceNodeTiming`
 
@@ -629,6 +710,188 @@ added: v8.5.0
 The high resolution millisecond timestamp at which the V8 platform was
 initialized.
 
+## Class: `PerformanceResourceTiming`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* Extends: {PerformanceEntry}
+
+Provides detailed network timing data regarding the loading of an application's
+resources.
+
+The constructor of this class is not exposed to users directly.
+
+### `performanceResourceTiming.workerStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp at immediately before dispatching
+the `fetch` request. If the resource is not intercepted by a worker the property
+will always return 0.
+
+### `performanceResourceTiming.redirectStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp that represents the start time
+of the fetch which initiates the redirect.
+
+### `performanceResourceTiming.redirectEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp that will be created immediately after
+receiving the last byte of the response of the last redirect.
+
+### `performanceResourceTiming.fetchStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp immediately before the Node.js starts
+to fetch the resource.
+
+### `performanceResourceTiming.domainLookupStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp immediately before the Node.js starts
+the domain name lookup for the resource.
+
+### `performanceResourceTiming.domainLookupEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after the Node.js finished the domain name lookup for the resource.
+
+### `performanceResourceTiming.connectStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js starts to establish the connection to the server to retrieve
+the resource.
+
+### `performanceResourceTiming.connectEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js finishes establishing the connection to the server to retrieve
+the resource.
+
+### `performanceResourceTiming.secureConnectionStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js starts the handshake process to secure the current connection.
+
+### `performanceResourceTiming.requestStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js receives the first byte of the response from the server.
+
+### `performanceResourceTiming.responseEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the last byte of the resource or immediately before
+the transport connection is closed, whichever comes first.
+
+### `performanceResourceTiming.transferSize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) of the fetched resource. The size
+includes the response header fields plus the response payload body.
+
+### `performanceResourceTiming.encodedBodySize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) received from the fetch
+(HTTP or cache), of the payload body, before removing any applied
+content-codings.
+
+### `performanceResourceTiming.decodedBodySize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) received from the fetch
+(HTTP or cache), of the message body, after removing any applied
+content-codings.
+
+### `performanceResourceTiming.toJSON()`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+Returns a `object` that is the JSON representation of the
+`PerformanceResourceTiming` object
+
 ## Class: `perf_hooks.PerformanceObserver`
 
 ### `new PerformanceObserver(callback)`
@@ -636,7 +899,7 @@ initialized.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -654,7 +917,7 @@ changes:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries());
@@ -720,7 +983,7 @@ or `options.type`:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   // Called once asynchronously. `list` contains three items.
@@ -756,7 +1019,7 @@ with respect to `performanceEntry.startTime`.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntries());
@@ -806,7 +1069,7 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByName('meow'));
@@ -862,7 +1125,7 @@ is equal to `type`.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByType('mark'));
@@ -904,7 +1167,7 @@ added:
   * `lowest` {number|bigint} The lowest discernible value. Must be an integer
     value greater than 0. **Default:** `1`.
   * `highest` {number|bigint} The highest recordable value. Must be an integer
-    value that is equal to or greater than two times `min`.
+    value that is equal to or greater than two times `lowest`.
     **Default:** `Number.MAX_SAFE_INTEGER`.
   * `figures` {number} The number of accuracy digits. Must be a number between
     `1` and `5`. **Default:** `3`.
@@ -935,7 +1198,7 @@ of the timer, and those delays are specifically what this API is intended to
 detect.
 
 ```js
-const { monitorEventLoopDelay } = require('perf_hooks');
+const { monitorEventLoopDelay } = require('node:perf_hooks');
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
 // Do something.
@@ -1204,11 +1467,11 @@ to execute the callback).
 
 ```js
 'use strict';
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const set = new Set();
 const hook = async_hooks.createHook({
@@ -1253,8 +1516,8 @@ dependencies:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
-const mod = require('module');
+} = require('node:perf_hooks');
+const mod = require('node:module');
 
 // Monkey patch the require function
 mod.Module.prototype.require =
@@ -1276,9 +1539,77 @@ obs.observe({ entryTypes: ['function'], buffered: true });
 require('some-module');
 ```
 
+### Measuring how long one HTTP round-trip takes
+
+The following example is used to trace the time spent by HTTP client
+(`OutgoingMessage`) and HTTP request (`IncomingMessage`). For HTTP client,
+it means the time interval between starting the request and receiving the
+response, and for HTTP request, it means the time interval between receiving
+the request and sending the response:
+
+```js
+'use strict';
+const { PerformanceObserver } = require('node:perf_hooks');
+const http = require('node:http');
+
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+
+obs.observe({ entryTypes: ['http'] });
+
+const PORT = 8080;
+
+http.createServer((req, res) => {
+  res.end('ok');
+}).listen(PORT, () => {
+  http.get(`http://127.0.0.1:${PORT}`);
+});
+```
+
+### Measuring how long the `net.connect` (only for TCP) takes when the connection is successful
+
+```js
+'use strict';
+const { PerformanceObserver } = require('node:perf_hooks');
+const net = require('node:net');
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+obs.observe({ entryTypes: ['net'] });
+const PORT = 8080;
+net.createServer((socket) => {
+  socket.destroy();
+}).listen(PORT, () => {
+  net.connect(PORT);
+});
+```
+
+### Measuring how long the DNS takes when the request is successful
+
+```js
+'use strict';
+const { PerformanceObserver } = require('node:perf_hooks');
+const dns = require('node:dns');
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+obs.observe({ entryTypes: ['dns'] });
+dns.lookup('localhost', () => {});
+dns.promises.resolve('localhost');
+```
+
 [Async Hooks]: async_hooks.md
+[Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
+[Resource Timing]: https://www.w3.org/TR/resource-timing-2/
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
 [Worker threads]: worker_threads.md#worker-threads

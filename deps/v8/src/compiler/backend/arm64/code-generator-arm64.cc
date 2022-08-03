@@ -255,6 +255,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
+    // Access below the stack pointer is not expected in arm64 and is actively
+    // prevented at run time in the simulator.
+    DCHECK_IMPLIES(offset.from_stack_pointer(), offset.offset() >= 0);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
@@ -287,8 +290,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, ne,
                      exit());
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
-                                             : RememberedSetAction::kOmit;
+        mode_ > RecordWriteMode::kValueIsMap ||
+                FLAG_use_full_record_write_builtin
+            ? RememberedSetAction::kEmit
+            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -878,7 +883,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
+        __ Call(BUILTIN_CODE(isolate(), AbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
       __ Debug("kArchAbortCSADcheck", 0, BREAK);
@@ -958,6 +963,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset = Operand(i.InputRegister(1));
       }
       Register value = i.InputRegister(2);
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
@@ -1894,8 +1907,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicDecompressAnyTagged(i.OutputRegister(), i.InputRegister(0),
                                    i.InputRegister(1), i.TempRegister(0));
       break;
-    case kArm64LdrDecodeCagedPointer:
-      __ LoadCagedPointerField(i.OutputRegister(), i.MemoryOperand());
+    case kArm64LdrDecodeSandboxedPointer:
+      __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1910,8 +1923,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputRegister(2), i.InputRegister(0),
                                 i.InputRegister(1), i.TempRegister(0));
       break;
-    case kArm64StrEncodeCagedPointer:
-      __ StoreCagedPointerField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
+    case kArm64StrEncodeSandboxedPointer:
+      __ StoreSandboxedPointerField(i.InputOrZeroRegister64(0),
+                                    i.MemoryOperand(1));
       break;
     case kArm64LdrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -2905,8 +2919,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   AssembleArchBranch(instr, branch);
 }
 
-void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target)) __ B(GetLabel(target));
+void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
+    RpoNumber target) {
+  __ B(GetLabel(target));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2998,17 +3013,17 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Save FP registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK(saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kSystemPointerSize));
   }
 
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
   saved_count = saves.Count();
   if (saved_count != 0) {
     frame->AllocateSavedCalleeRegisterSlots(saved_count);
@@ -3025,11 +3040,11 @@ void CodeGenerator::AssembleConstructFrame() {
   int required_slots =
       frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
 
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
   DCHECK_EQ(saves.Count() % 2, 0);
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   DCHECK_EQ(saves_fp.Count() % 2, 0);
   // The number of return slots should be even after aligning the Frame.
   const int returns = frame()->GetReturnSlotCount();
@@ -3184,11 +3199,11 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,
-                 saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+                 saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
   __ PushCPURegList(saves_fp);
 
   // Save registers.
-  __ PushCPURegList<TurboAssembler::kSignLR>(saves);
+  __ PushCPURegList(saves);
 
   if (returns != 0) {
     __ Claim(returns);
@@ -3204,13 +3219,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   // Restore registers.
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
-  __ PopCPURegList<TurboAssembler::kAuthLR>(saves);
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
+  __ PopCPURegList(saves);
 
   // Restore fp registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   __ PopCPURegList(saves_fp);
 
   unwinding_info_writer_.MarkBlockWillExit();
@@ -3254,7 +3269,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ Ldr(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
@@ -3264,10 +3279,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     Label argc_reg_has_final_count;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
-    if (!kJSArgcIncludesReceiver) {
-      __ Add(argc_reg, argc_reg, 1);  // Consider the receiver.
-    }
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
       __ Cmp(argc_reg, Operand(parameter_slots));
       __ B(&argc_reg_has_final_count, ge);
@@ -3294,24 +3306,18 @@ void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
   __ ForceConstantPoolEmissionWithoutJump();
-  // We are conservative here, assuming all deopts are eager with resume deopts.
-  DCHECK_GE(Deoptimizer::kEagerWithResumeDeoptExitSize,
-            Deoptimizer::kLazyDeoptExitSize);
-  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
-            Deoptimizer::kNonLazyDeoptExitSize);
-  __ CheckVeneerPool(false, false,
-                     static_cast<int>(exits->size()) *
-                         Deoptimizer::kEagerWithResumeDeoptExitSize);
+  // We are conservative here, reserving sufficient space for the largest deopt
+  // kind.
+  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
+  __ CheckVeneerPool(
+      false, false,
+      static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
 
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
-  bool saw_deopt_with_resume_reason[kDeoptimizeReasonCount] = {false};
   for (auto exit : *exits) {
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;
-    if (exit->kind() == DeoptimizeKind::kEagerWithResume) {
-      saw_deopt_with_resume_reason[static_cast<int>(exit->reason())] = true;
-    }
   }
 
   // Emit the jumps to deoptimization entries.
@@ -3321,21 +3327,9 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      for (int j = 0; j < kDeoptimizeReasonCount; j++) {
-        if (!saw_deopt_with_resume_reason[j]) continue;
-        DeoptimizeReason reason = static_cast<DeoptimizeReason>(j);
-        __ bind(&jump_deoptimization_or_resume_entry_labels_[j]);
-        __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptWithResumeBuiltin(reason),
-                                scratch);
-        __ Jump(scratch);
-      }
-    } else {
-      __ bind(&jump_deoptimization_entry_labels_[i]);
-      __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind),
-                              scratch);
-      __ Jump(scratch);
-    }
+    __ bind(&jump_deoptimization_entry_labels_[i]);
+    __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind), scratch);
+    __ Jump(scratch);
   }
 }
 

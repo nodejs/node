@@ -155,10 +155,10 @@ const { Blob } = require('buffer');
 // Ensure that Duplex.from works for blobs
 {
   const blob = new Blob(['blob']);
-  const expecteByteLength = blob.size;
+  const expectedByteLength = blob.size;
   const duplex = Duplex.from(blob);
   duplex.on('data', common.mustCall((arrayBuffer) => {
-    assert.strictEqual(arrayBuffer.byteLength, expecteByteLength);
+    assert.strictEqual(arrayBuffer.byteLength, expectedByteLength);
   }));
 }
 

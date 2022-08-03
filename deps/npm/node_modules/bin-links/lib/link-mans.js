@@ -11,7 +11,7 @@ const linkMans = ({ path, pkg, top, force }) => {
   // break any links to c:\\blah or /foo/blah or ../blah
   // and filter out duplicates
   const set = [...new Set(pkg.man.map(man =>
-    man ? join('/', man).replace(/\\|:/g, '/').substr(1) : null)
+    man ? join('/', man).replace(/\\|:/g, '/').slice(1) : null)
     .filter(man => typeof man === 'string'))]
 
   return Promise.all(set.map(man => {

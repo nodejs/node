@@ -8,6 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -529,7 +530,8 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
 
   Handle<PreparseData> Serialize(LocalIsolate* isolate) final {
     DCHECK(!data_->is_null());
-    DCHECK(isolate->heap()->ContainsLocalHandle(data_.location()));
+    DCHECK_IMPLIES(!isolate->is_main_thread(),
+                   isolate->heap()->ContainsLocalHandle(data_.location()));
     return data_;
   }
 

@@ -20,7 +20,7 @@ module.exports = {
         type: "layout",
 
         docs: {
-            description: "enforce consistent line breaks inside function parentheses",
+            description: "Enforce consistent line breaks inside function parentheses",
             recommended: false,
             url: "https://eslint.org/docs/rules/function-paren-newline"
         },
@@ -183,7 +183,7 @@ module.exports = {
         /**
          * Gets the left paren and right paren tokens of a node.
          * @param {ASTNode} node The node with parens
-         * @throws {TypeError} Unexecpted node type.
+         * @throws {TypeError} Unexpected node type.
          * @returns {Object} An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token.
          * Can also return `null` if an expression has no parens (e.g. a NewExpression with no arguments, or an ArrowFunctionExpression
          * with a single parameter)
@@ -191,10 +191,13 @@ module.exports = {
         function getParenTokens(node) {
             switch (node.type) {
                 case "NewExpression":
-                    if (!node.arguments.length && !(
-                        astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
-                        astUtils.isClosingParenToken(sourceCode.getLastToken(node))
-                    )) {
+                    if (!node.arguments.length &&
+                        !(
+                            astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
+                            astUtils.isClosingParenToken(sourceCode.getLastToken(node)) &&
+                            node.callee.range[1] < node.range[1]
+                        )
+                    ) {
 
                         // If the NewExpression does not have parens (e.g. `new Foo`), return null.
                         return null;

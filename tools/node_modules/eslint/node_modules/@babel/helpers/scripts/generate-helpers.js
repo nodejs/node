@@ -1,7 +1,7 @@
 import fs from "fs";
 import { join } from "path";
 import { URL, fileURLToPath } from "url";
-import { minify } from "terser"; // eslint-disable-line
+import { minify } from "terser"; // eslint-disable-line import/no-extraneous-dependencies
 
 const HELPERS_FOLDER = new URL("../src/helpers", import.meta.url);
 const IGNORED_FILES = new Set(["package.json"]);
@@ -14,10 +14,10 @@ export default async function generateHelpers() {
 
 import template from "@babel/template";
 
-function helper(minVersion, source) {
+function helper(minVersion: string, source: string) {
   return Object.freeze({
     minVersion,
-    ast: () => template.program.ast(source),
+    ast: () => template.program.ast(source, { preserveComments: true }),
   })
 }
 

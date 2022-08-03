@@ -310,3 +310,41 @@ t.test('npm help with complex installation path finds proper help file', async t
 
   t.match(openUrlArg, /commands(\/|\\)npm-install.html$/, 'attempts to open the correct url')
 })
+
+t.test('npm help - prefers npm help pages', async t => {
+  // Unusual ordering is to get full test coverage of all branches inside the
+  // sort function.
+  globResult = [
+    '/root/man/man6/npm-install.6',
+    '/root/man/man1/install.1',
+    '/root/man/man5/npm-install.5',
+  ]
+  t.teardown(() => {
+    globResult = globDefaults
+    spawnBin = null
+    spawnArgs = null
+  })
+  await help.exec(['install'])
+
+  t.equal(spawnBin, 'man', 'calls man by default')
+  t.strictSame(spawnArgs, ['/root/man/man5/npm-install.5'], 'passes the correct arguments')
+})
+
+t.test('npm help - works in the presence of strange man pages', async t => {
+  // Unusual ordering is to get full test coverage of all branches inside the
+  // sort function.
+  globResult = [
+    '/root/man/man6/config.6strange',
+    '/root/man/man1/config.1',
+    '/root/man/man5/config.5ssl',
+  ]
+  t.teardown(() => {
+    globResult = globDefaults
+    spawnBin = null
+    spawnArgs = null
+  })
+  await help.exec(['config'])
+
+  t.equal(spawnBin, 'man', 'calls man by default')
+  t.strictSame(spawnArgs, ['/root/man/man1/config.1'], 'passes the correct arguments')
+})

@@ -555,7 +555,8 @@ class ImplementationVisitor {
   VisitResult Visit(IncrementDecrementExpression* expr);
   VisitResult Visit(AssignmentExpression* expr);
   VisitResult Visit(StringLiteralExpression* expr);
-  VisitResult Visit(NumberLiteralExpression* expr);
+  VisitResult Visit(FloatingPointLiteralExpression* expr);
+  VisitResult Visit(IntegerLiteralExpression* expr);
   VisitResult Visit(AssumeTypeImpossibleExpression* expr);
   VisitResult Visit(TryLabelExpression* expr);
   VisitResult Visit(StatementExpression* expr);

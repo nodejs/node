@@ -139,6 +139,9 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
+.It Fl -experimental-global-customevent
+Expose the CustomEvent on the global scope.
+.
 .It Fl -experimental-global-webcrypto
 Expose the Web Crypto API on the global scope.
 .
@@ -155,6 +158,9 @@ Enable experimental support for loading modules using `import` over `https:`.
 .
 .It Fl -experimental-policy
 Use the specified file as a security policy.
+.
+.It Fl -experimental-shadow-realm
+Use this flag to enable ShadowRealm support.
 .
 .It Fl -no-experimental-fetch
 Disable experimental support for the Fetch API.
@@ -270,7 +276,7 @@ This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
-Specify the maximum size of HTTP headers in bytes. Defaults to 16 KB.
+Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -380,6 +386,13 @@ the secure heap. The default is 0. The value must be a power of two.
 .
 .It Fl -secure-heap-min Ns = Ns Ar n
 Specify the minimum allocation from the OpenSSL secure heap. The default is 2. The value must be a power of two.
+.
+.It Fl -test
+Starts the Node.js command line test runner.
+.
+.It Fl -test-only
+Configures the test runner to only execute top level tests that have the `only`
+option set.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
@@ -638,6 +651,7 @@ instead of printing to stderr.
 Equivalent to passing
 .Fl -redirect-warnings Ar file
 on the command line.
+.
 .It Ev NODE_REPL_HISTORY Ar file
 Path to the
 .Ar file
@@ -646,6 +660,10 @@ The default path is
 .Sy ~/.node_repl_history ,
 which is overridden by this variable.
 Setting the value to an empty string ("" or " ") will disable persistent REPL history.
+.
+.It Ev NODE_REPL_EXTERNAL_MODULE Ar file
+Path to a Node.js module which will be loaded in place of the built-in REPL.
+Overriding this value to an empty string (`''`) will use the built-in REPL.
 .
 .It Ev NODE_SKIP_PLATFORM_CHECK
 When set to
@@ -681,6 +699,9 @@ is enabled, this overrides and sets OpenSSL's directory containing trusted certi
 If
 .Fl -use-openssl-ca
 is enabled, this overrides and sets OpenSSL's file containing trusted certificates.
+.
+.It Ev TZ
+Specify the timezone configuration.
 .
 .It Ev UV_THREADPOOL_SIZE Ar size
 Sets the number of threads used in libuv's threadpool to

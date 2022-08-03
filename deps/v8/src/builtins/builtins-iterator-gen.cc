@@ -218,7 +218,7 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
+TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {
   Label done(this);
   GrowableFixedArray list(state());
@@ -279,10 +279,17 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
   BIND(&done);
   // 6. Return list.
-  return list.ToJSArray(context);
+  return list.ToFixedArray();
 }
 
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto iterable = Parameter<Object>(Descriptor::kIterable);
+
+  Return(StringListFromIterable(context, iterable));
+}
+
+TF_BUILTIN(StringFixedArrayFromIterable, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<Object>(Descriptor::kIterable);
 

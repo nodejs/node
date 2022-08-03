@@ -10,7 +10,7 @@ t.afterEach(t => {
 
 t.test('should pack current directory with no arguments', async t => {
   const { npm, outputs, logs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'test-package',
         version: '1.0.0',
@@ -27,7 +27,7 @@ t.test('should pack current directory with no arguments', async t => {
 
 t.test('follows pack-destination config', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'test-package',
         version: '1.0.0',
@@ -45,7 +45,7 @@ t.test('follows pack-destination config', async t => {
 
 t.test('should pack given directory for scoped package', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: '@npm/test-package',
         version: '1.0.0',
@@ -61,7 +61,7 @@ t.test('should pack given directory for scoped package', async t => {
 
 t.test('should log output as valid json', async t => {
   const { npm, outputs, logs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'test-package',
         version: '1.0.0',
@@ -79,7 +79,7 @@ t.test('should log output as valid json', async t => {
 
 t.test('dry run', async t => {
   const { npm, outputs, logs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'test-package',
         version: '1.0.0',
@@ -97,7 +97,7 @@ t.test('dry run', async t => {
 
 t.test('invalid packument', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': '{}',
     },
   })
@@ -111,7 +111,7 @@ t.test('invalid packument', async t => {
 
 t.test('workspaces', async t => {
   const loadWorkspaces = (t) => loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify(
         {
           name: 'workspaces-test',

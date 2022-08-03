@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {delay} from '../../helper.mjs';
 import {Timeline} from '../../timeline.mjs';
 import {SelectTimeEvent} from '../events.mjs';
-import {CSSColor, DOM, SVG} from '../helper.mjs';
+import {CSSColor, delay, SVG} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
 
@@ -108,19 +107,19 @@ export class TimelineTrackStackedBase extends TimelineTrackBase {
   }
 
   _drawItem(item, i, outline = false) {
-    const x = this.timeToPosition(item.time);
+    const x = roundTo3Digits(this.timeToPosition(item.time));
     const y = (item.depth + 1) * kItemHeight;
-    let width = item.duration * this._timeToPixel;
+    let width = roundTo3Digits(item.duration * this._timeToPixel);
     if (outline) {
       return `<rect x=${x} y=${y} width=${width} height=${
-          kItemHeight - 1} class=flameSelected />`;
+          kItemHeight - 1} class=fs />`;
     }
     let color = this._legend.colorForType(item.type);
     if (i % 2 == 1) {
       color = CSSColor.darken(color, 20);
     }
     return `<rect x=${x} y=${y} width=${width} height=${kItemHeight - 1} fill=${
-        color} class=flame />`;
+        color} class=f />`;
   }
 
   _drawItemText(item) {
@@ -141,4 +140,8 @@ export class TimelineTrackStackedBase extends TimelineTrackBase {
     buffer += `<text x=${x + 1} y=${y - 3} class=txt>${text}</text>`
     return buffer;
   }
+}
+
+function roundTo3Digits(value) {
+  return ((value * 1000) | 0) / 1000;
 }

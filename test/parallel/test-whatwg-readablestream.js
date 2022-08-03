@@ -32,6 +32,7 @@ const {
   readableStreamDefaultControllerCanCloseOrEnqueue,
   readableByteStreamControllerClose,
   readableByteStreamControllerRespond,
+  readableStreamReaderGenericRelease,
 } = require('internal/webstreams/readablestream');
 
 const {
@@ -369,6 +370,24 @@ assert.throws(() => {
   assert.rejects(closedBefore, {
     code: 'ERR_INVALID_STATE',
   });
+}
+
+{
+  const stream = new ReadableStream();
+  const iterable = stream.values();
+  readableStreamReaderGenericRelease(stream[kState].reader);
+  assert.rejects(iterable.next(), {
+    code: 'ERR_INVALID_STATE',
+  }).then(common.mustCall());
+}
+
+{
+  const stream = new ReadableStream();
+  const iterable = stream.values();
+  readableStreamReaderGenericRelease(stream[kState].reader);
+  assert.rejects(iterable.return(), {
+    code: 'ERR_INVALID_STATE',
+  }).then(common.mustCall());
 }
 
 {
@@ -1285,7 +1304,6 @@ class Source {
   });
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
     for await (const _ of stream.values({ preventCancel: true }))
       return;
   }
@@ -1300,7 +1318,6 @@ class Source {
   const stream = new ReadableStream(source);
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
     for await (const _ of stream.values({ preventCancel: false }))
       return;
   }
@@ -1355,6 +1372,9 @@ class Source {
     code: 'ERR_INVALID_THIS',
   });
   assert.throws(() => ReadableStream.prototype.tee.call({}), {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.throws(() => ReadableStream.prototype.values.call({}), {
     code: 'ERR_INVALID_THIS',
   });
   assert.throws(() => ReadableStream.prototype[kTransfer].call({}), {

@@ -94,3 +94,18 @@ cc2(t);
 cc2(t);
 %OptimizeFunctionOnNextCall(cc2);
 cc2(t);
+
+function string_table_lookup_sliced_thin_string(a, b) {
+  // Make a ConsString.
+  var s = a + b;
+  // Slice a substring out of it.
+  var slice = s.substring(0, 20);
+  // Make the original string thin.
+  var o = {};
+  o[s];
+  // Try to internalize the SlicedString.
+  o[slice];
+}
+
+string_table_lookup_sliced_thin_string(
+    'abcdefghijklmnopqrstuvwxyz', '0123456789');

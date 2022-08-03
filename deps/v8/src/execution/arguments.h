@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
+#include "src/execution/clobber-registers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
@@ -50,24 +51,25 @@ class Arguments {
     DCHECK_GE(length_, 0);
   }
 
-  Object operator[](int index) const {
+  V8_INLINE Object operator[](int index) const {
     return Object(*address_of_arg_at(index));
   }
 
   template <class S = Object>
-  inline Handle<S> at(int index) const;
+  V8_INLINE Handle<S> at(int index) const;
 
-  inline int smi_at(int index) const;
+  V8_INLINE int smi_value_at(int index) const;
+  V8_INLINE uint32_t positive_smi_value_at(int index) const;
 
-  inline int tagged_index_at(int index) const;
+  V8_INLINE int tagged_index_value_at(int index) const;
 
-  inline double number_at(int index) const;
+  V8_INLINE double number_value_at(int index) const;
 
-  inline FullObjectSlot slot_at(int index) const {
+  V8_INLINE FullObjectSlot slot_at(int index) const {
     return FullObjectSlot(address_of_arg_at(index));
   }
 
-  inline Address* address_of_arg_at(int index) const {
+  V8_INLINE Address* address_of_arg_at(int index) const {
     DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
@@ -78,7 +80,7 @@ class Arguments {
   }
 
   // Get the total number of arguments including the receiver.
-  int length() const { return static_cast<int>(length_); }
+  V8_INLINE int length() const { return static_cast<int>(length_); }
 
   // Arguments on the stack are in reverse order (compared to an array).
   FullObjectSlot first_slot() const {
@@ -104,8 +106,6 @@ Handle<S> Arguments<T>::at(int index) const {
   Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
   return Handle<S>::cast(obj);
 }
-
-double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 #ifdef DEBUG
 #define CLOBBER_DOUBLE_REGISTERS() ClobberDoubleRegisters(1, 2, 3, 4);

@@ -81,6 +81,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init.license": "ISC",
   "init.module": "{HOME}/.npm-init.js",
   "init.version": "1.0.0",
+  "install-links": false,
   "key": null,
   "legacy-bundling": false,
   "legacy-peer-deps": false,
@@ -89,6 +90,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "location": "user",
   "lockfile-version": null,
   "loglevel": "notice",
+  "logs-dir": null,
   "logs-max": 10,
   "long": false,
   "maxsockets": 15,
@@ -101,6 +103,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "npm-version": "{NPM-VERSION}",
   "offline": false,
   "omit": [],
+  "omit-lockfile-registry-resolved": false,
   "only": null,
   "optional": null,
   "otp": null,
@@ -155,6 +158,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "which": null,
   "workspace": [],
   "workspaces": null,
+  "workspaces-update": true,
   "yes": null,
   "metrics-registry": "https://registry.npmjs.org/"
 }
@@ -232,6 +236,7 @@ init.author.url = ""
 init.license = "ISC"
 init.module = "{HOME}/.npm-init.js"
 init.version = "1.0.0"
+install-links = false
 json = false
 key = null
 legacy-bundling = false
@@ -241,6 +246,7 @@ local-address = null
 location = "user"
 lockfile-version = null
 loglevel = "notice"
+logs-dir = null
 logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
@@ -252,6 +258,7 @@ noproxy = [""]
 npm-version = "{NPM-VERSION}"
 offline = false
 omit = []
+omit-lockfile-registry-resolved = false
 only = null
 optional = null
 otp = null
@@ -308,6 +315,7 @@ viewer = "{VIEWER}"
 which = null
 workspace = []
 workspaces = null
+workspaces-update = true
 yes = null
 
 ; "global" config from {GLOBALPREFIX}/npmrc
@@ -338,6 +346,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.
@@ -351,6 +362,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.
@@ -379,6 +393,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.

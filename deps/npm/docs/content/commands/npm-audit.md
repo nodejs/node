@@ -11,7 +11,7 @@ description: Run a security audit
 <!-- see lib/commands/audit.js -->
 
 ```bash
-npm audit [fix]
+npm audit [fix|signatures]
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -40,6 +40,58 @@ vulnerability is found. It may be useful in CI environments to include the
 `--audit-level` parameter to specify the minimum vulnerability level that
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.
+
+### Audit Signatures
+
+To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
+
+Registry signatures can be verified using the following `audit` command:
+
+```bash
+$ npm audit signatures
+```
+
+The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:
+
+1. Signatures are provided in the package's `packument` in each published version within the `dist` object:
+
+```json
+"dist":{
+  "..omitted..": "..omitted..",
+  "signatures": [{
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "sig": "a312b9c3cb4a1b693e8ebac5ee1ca9cc01f2661c14391917dcb111517f72370809..."
+  }]
+}
+```
+
+See this [example](https://registry.npmjs.org/light-cycle/1.4.3) of a signed package from the public npm registry.
+
+The `sig` is generated using the following template: `${package.name}@${package.version}:${package.dist.integrity}` and the `keyid` has to match one of the public signing keys below.
+
+2. Public signing keys are provided at `registry-host.tld/-/npm/v1/keys` in the following format:
+
+```
+{
+  "keys": [{
+    "expires": null,
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "keytype": "ecdsa-sha2-nistp256",
+    "scheme": "ecdsa-sha2-nistp256",
+    "key": "{{B64_PUBLIC_KEY}}"
+  }]
+}
+```
+
+Keys response:
+
+- `expires`: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- `keydid`: sha256 fingerprint of the public key
+- `keytype`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
+- `scheme`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
+- `key`: base64 encoded public key
+
+See this <a href="https://registry.npmjs.org/-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>.
 
 ### Audit Endpoints
 
@@ -246,6 +298,7 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
 * Allow clobbering existing values in `npm pkg`
+* Allow unpublishing of entire packages (not just a single version).
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
@@ -306,6 +359,36 @@ variable will be set to `'production'` for all lifecycle scripts.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### `foreground-scripts`
+
+* Default: false
+* Type: Boolean
+
+Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.
+
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `ignore-scripts`
+
+* Default: false
+* Type: Boolean
+
+If true, npm does not run scripts specified in package.json files.
+
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
+will still run their intended script if `ignore-scripts` is set, but they
+will *not* run any pre- or post-scripts.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### `workspace`
 
 * Default:
@@ -362,6 +445,20 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

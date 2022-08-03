@@ -41,6 +41,8 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 
+enum OSRCodeCacheStateOfSFI : uint8_t;
+
 namespace wasm {
 struct WasmModule;
 class ValueType;
@@ -210,10 +212,6 @@ class SharedFunctionInfo
   template <typename IsolateT>
   inline AbstractCode abstract_code(IsolateT* isolate);
 
-  // Tells whether or not this shared function info has an attached
-  // BytecodeArray.
-  inline bool IsInterpreted() const;
-
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,
@@ -351,6 +349,7 @@ class SharedFunctionInfo
   inline bool HasWasmExportedFunctionData() const;
   inline bool HasWasmJSFunctionData() const;
   inline bool HasWasmCapiFunctionData() const;
+  inline bool HasWasmOnFulfilledData() const;
   inline AsmWasmData asm_wasm_data() const;
   inline void set_asm_wasm_data(AsmWasmData data);
 
@@ -448,6 +447,8 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
 
+  DECL_BOOLEAN_ACCESSORS(maglev_compilation_failed)
+
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 
@@ -519,6 +520,10 @@ class SharedFunctionInfo
   // shared function info.
   void DisableOptimization(BailoutReason reason);
 
+  inline OSRCodeCacheStateOfSFI osr_code_cache_state() const;
+
+  inline void set_osr_code_cache_state(OSRCodeCacheStateOfSFI state);
+
   // This class constructor needs to call out to an instance fields
   // initializer. This flag is set when creating the
   // SharedFunctionInfo as a reminder to emit the initializer call
@@ -577,7 +582,7 @@ class SharedFunctionInfo
   };
   // Returns the first value that applies (see enum definition for the order).
   template <typename IsolateT>
-  Inlineability GetInlineability(IsolateT* isolate, bool is_turboprop) const;
+  Inlineability GetInlineability(IsolateT* isolate) const;
 
   // Source size of this function.
   int SourceSize();

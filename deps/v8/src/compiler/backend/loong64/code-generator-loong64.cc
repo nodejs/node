@@ -164,8 +164,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
-                                             : RememberedSetAction::kOmit;
+        mode_ > RecordWriteMode::kValueIsMap ||
+                FLAG_use_full_record_write_builtin
+            ? RememberedSetAction::kEmit
+            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -441,9 +443,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
-    __ ExtractBits(i.InputRegister(2), i.InputRegister(2), zero_reg, size,     \
+    __ ExtractBits(i.TempRegister(2), i.InputRegister(2), zero_reg, size,      \
                    sign_extend);                                               \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
+    __ BranchShort(&exit, ne, i.TempRegister(2),                               \
                    Operand(i.OutputRegister(0)));                              \
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
                   size);                                                       \
@@ -962,11 +964,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Div_w:
       __ Div_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Div_wu:
       __ Div_wu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Mod_w:
       __ Mod_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -979,11 +981,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Div_d:
       __ Div_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Div_du:
       __ Div_du(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Mod_d:
       __ Mod_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1938,8 +1940,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   AssembleArchBranch(instr, branch);
 }
 
-void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));
+void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
+    RpoNumber target) {
+  __ Branch(GetLabel(target));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2178,17 +2181,17 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
-    int count = base::bits::CountPopulation(saves_fpu);
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fpu.is_empty()) {
+    int count = saves_fpu.Count();
     DCHECK_EQ(kNumCalleeSavedFPU, count);
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kSystemPointerSize));
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
-    int count = base::bits::CountPopulation(saves);
+  if (!saves.is_empty()) {
+    int count = saves.Count();
     frame->AllocateSavedCalleeRegisterSlots(count);
   }
 }
@@ -2246,7 +2249,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
@@ -2290,20 +2293,20 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
 
   // Skip callee-saved and return slots, which are pushed below.
-  required_slots -= base::bits::CountPopulation(saves);
-  required_slots -= base::bits::CountPopulation(saves_fpu);
+  required_slots -= saves.Count();
+  required_slots -= saves_fpu.Count();
   required_slots -= returns;
   if (required_slots > 0) {
     __ Sub_d(sp, sp, Operand(required_slots * kSystemPointerSize));
   }
 
-  if (saves_fpu != 0) {
+  if (!saves_fpu.is_empty()) {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
-    DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation(saves_fpu));
+    DCHECK_EQ(kNumCalleeSavedFPU, saves_fpu.Count());
   }
 
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     // Save callee-saved registers.
     __ MultiPush(saves);
   }
@@ -2324,13 +2327,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore GP registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ MultiPop(saves);
   }
 
   // Restore FPU registers.
-  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
+  const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fpu.is_empty()) {
     __ MultiPopFPU(saves_fpu);
   }
 
@@ -2382,9 +2385,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_count).
-    if (!kJSArgcIncludesReceiver) {
-      __ Add_d(t0, t0, Operand(1));  // Also pop the receiver.
-    }
     if (parameter_slots > 1) {
       __ li(t1, parameter_slots);
       __ slt(t2, t0, t1);

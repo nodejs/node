@@ -196,6 +196,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_EXTERNAL_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
@@ -257,6 +258,8 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_SHADOW_REALM_TYPE:
+    case JS_SHARED_STRUCT_TYPE:
     case JS_TEMPORAL_CALENDAR_TYPE:
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
@@ -269,13 +272,14 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
-    case WASM_TAG_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_STRUCT_TYPE:
+    case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case WEAK_CELL_TYPE:
@@ -285,8 +289,10 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
+    case JS_WRAPPED_FUNCTION_TYPE:
+      DCHECK(!map.is_undetectable());
+      return kOtherCallable;
     case JS_FUNCTION_TYPE:
-    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -295,7 +301,9 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       DCHECK(!map.is_undetectable());
-      return kFunction;
+      return kCallableFunction;
+    case JS_CLASS_CONSTRUCTOR_TYPE:
+      return kClassConstructor;
     case JS_PROXY_TYPE:
       DCHECK(!map.is_undetectable());
       if (map.is_callable()) return kCallableProxy;

@@ -72,7 +72,8 @@ Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationAlignment alignment) {
   DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
-  if (!result.IsRetry()) return result.ToObject().address();
+  HeapObject object;
+  if (result.To(&object)) return object.address();
   return PerformCollectionAndAllocateAgain(object_size, type, origin,
                                            alignment);
 }

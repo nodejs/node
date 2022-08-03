@@ -127,8 +127,10 @@ class Body {
       : this.size ? new MinipassSized({ size: this.size })
       : new Minipass()
 
-    // allow timeout on slow response body
-    const resTimeout = this.timeout ? setTimeout(() => {
+    // allow timeout on slow response body, but only if the stream is still writable. this
+    // makes the timeout center on the socket stream from lib/index.js rather than the
+    // intermediary minipass stream we create to receive the data
+    const resTimeout = this.timeout && stream.writable ? setTimeout(() => {
       stream.emit('error', new FetchError(
         `Response timeout while trying to fetch ${
           this.url} (over ${this.timeout}ms)`, 'body-timeout'))

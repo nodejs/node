@@ -14,6 +14,7 @@
   V(_, calendars_string, "calendars")                               \
   V(_, cardinal_string, "cardinal")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
+  V(_, ceil_string, "ceil")                                         \
   V(_, compare_string, "compare")                                   \
   V(_, collation_string, "collation")                               \
   V(_, collations_string, "collations")                             \
@@ -30,15 +31,15 @@
   V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
-  V(_, era_string, "era")                                           \
-  V(_, eraYear_string, "eraYear")                                   \
   V(_, exceptZero_string, "exceptZero")                             \
+  V(_, expand_string, "expand")                                     \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
   V(_, fallback_string, "fallback")                                 \
   V(_, first_string, "first")                                       \
   V(_, firstDay_string, "firstDay")                                 \
+  V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
@@ -51,6 +52,11 @@
   V(_, h12_string, "h12")                                           \
   V(_, h23_string, "h23")                                           \
   V(_, h24_string, "h24")                                           \
+  V(_, halfCeil_string, "halfCeil")                                 \
+  V(_, halfEven_string, "halfEven")                                 \
+  V(_, halfExpand_string, "halfExpand")                             \
+  V(_, halfFloor_string, "halfFloor")                               \
+  V(_, halfTrunc_string, "halfTrunc")                               \
   V(_, hour12_string, "hour12")                                     \
   V(_, hourCycle_string, "hourCycle")                               \
   V(_, hourCycles_string, "hourCycles")                             \
@@ -62,6 +68,7 @@
   V(_, kana_string, "kana")                                         \
   V(_, language_string, "language")                                 \
   V(_, languageDisplay_string, "languageDisplay")                   \
+  V(_, lessPrecision_string, "lessPrecision")                       \
   V(_, letter_string, "letter")                                     \
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
@@ -71,13 +78,17 @@
   V(_, ltr_string, "ltr")                                           \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
   V(_, maximumSignificantDigits_string, "maximumSignificantDigits") \
+  V(_, min2_string, "min2")                                         \
   V(_, minimalDays_string, "minimalDays")                           \
   V(_, minimumFractionDigits_string, "minimumFractionDigits")       \
   V(_, minimumIntegerDigits_string, "minimumIntegerDigits")         \
   V(_, minimumSignificantDigits_string, "minimumSignificantDigits") \
+  V(_, minus_0, "-0")                                               \
   V(_, minusSign_string, "minusSign")                               \
+  V(_, morePrecision_string, "morePrecision")                       \
   V(_, nan_string, "nan")                                           \
   V(_, narrowSymbol_string, "narrowSymbol")                         \
+  V(_, negative_string, "negative")                                 \
   V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
   V(_, notation_string, "notation")                                 \
@@ -91,6 +102,8 @@
   V(_, quarter_string, "quarter")                                   \
   V(_, region_string, "region")                                     \
   V(_, relatedYear_string, "relatedYear")                           \
+  V(_, roundingMode_string, "roundingMode")                         \
+  V(_, roundingPriority_string, "roundingPriority")                 \
   V(_, rtl_string, "rtl")                                           \
   V(_, scientific_string, "scientific")                             \
   V(_, segment_string, "segment")                                   \
@@ -103,12 +116,15 @@
   V(_, standard_string, "standard")                                 \
   V(_, startRange_string, "startRange")                             \
   V(_, strict_string, "strict")                                     \
+  V(_, stripIfInteger_string, "stripIfInteger")                     \
   V(_, style_string, "style")                                       \
   V(_, term_string, "term")                                         \
   V(_, textInfo_string, "textInfo")                                 \
   V(_, timeStyle_string, "timeStyle")                               \
   V(_, timeZones_string, "timeZones")                               \
   V(_, timeZoneName_string, "timeZoneName")                         \
+  V(_, trailingZeroDisplay_string, "trailingZeroDisplay")           \
+  V(_, trunc_string, "trunc")                                       \
   V(_, type_string, "type")                                         \
   V(_, unknown_string, "unknown")                                   \
   V(_, upper_string, "upper")                                       \
@@ -168,6 +184,8 @@
   V(_, computed_string, "<computed>")                                 \
   V(_, configurable_string, "configurable")                           \
   V(_, conjunction_string, "conjunction")                             \
+  V(_, console_string, "console")                                     \
+  V(_, constrain_string, "constrain")                                 \
   V(_, construct_string, "construct")                                 \
   V(_, constructor_string, "constructor")                             \
   V(_, current_string, "current")                                     \
@@ -208,6 +226,8 @@
   V(_, epochMilliseconds_string, "epochMilliseconds")                 \
   V(_, epochNanoseconds_string, "epochNanoseconds")                   \
   V(_, epochSeconds_string, "epochSeconds")                           \
+  V(_, era_string, "era")                                             \
+  V(_, eraYear_string, "eraYear")                                     \
   V(_, errors_string, "errors")                                       \
   V(_, error_to_string, "[object Error]")                             \
   V(_, eval_string, "eval")                                           \
@@ -229,6 +249,7 @@
   V(_, get_string, "get")                                             \
   V(_, getOffsetNanosecondsFor_string, "getOffsetNanosecondsFor")     \
   V(_, getOwnPropertyDescriptor_string, "getOwnPropertyDescriptor")   \
+  V(_, getPossibleInstantsFor_string, "getPossibleInstantsFor")       \
   V(_, getPrototypeOf_string, "getPrototypeOf")                       \
   V(_, global_string, "global")                                       \
   V(_, globalThis_string, "globalThis")                               \
@@ -326,6 +347,8 @@
   V(_, overflow_string, "overflow")                                   \
   V(_, ownKeys_string, "ownKeys")                                     \
   V(_, percent_string, "percent")                                     \
+  V(_, plainDate_string, "plainDate")                                 \
+  V(_, plainTime_string, "plainTime")                                 \
   V(_, position_string, "position")                                   \
   V(_, preventExtensions_string, "preventExtensions")                 \
   V(_, private_constructor_string, "#constructor")                    \
@@ -343,11 +366,13 @@
   V(_, RegExp_string, "RegExp")                                       \
   V(_, regexp_to_string, "[object RegExp]")                           \
   V(_, reject_string, "reject")                                       \
+  V(_, relativeTo_string, "relativeTo")                               \
   V(_, resizable_string, "resizable")                                 \
   V(_, ResizableArrayBuffer_string, "ResizableArrayBuffer")           \
   V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
+  V(_, roundingIncrement_string, "roundingIncrement")                 \
   V(_, RuntimeError_string, "RuntimeError")                           \
   V(_, WebAssemblyException_string, "WebAssembly.Exception")          \
   V(_, Script_string, "Script")                                       \
@@ -361,6 +386,7 @@
   V(_, set_string, "set")                                             \
   V(_, SetIterator_string, "Set Iterator")                            \
   V(_, setPrototypeOf_string, "setPrototypeOf")                       \
+  V(_, ShadowRealm_string, "ShadowRealm")                             \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                 \
   V(_, sign_string, "sign")                                           \
   V(_, smallestUnit_string, "smallestUnit")                           \
@@ -415,15 +441,15 @@
 
 #define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)    \
   V(_, array_buffer_wasm_memory_symbol)        \
-  V(_, call_site_frame_info_symbol)            \
+  V(_, call_site_info_symbol)                  \
   V(_, console_context_id_symbol)              \
   V(_, console_context_name_symbol)            \
   V(_, class_fields_symbol)                    \
   V(_, class_positions_symbol)                 \
-  V(_, detailed_stack_trace_symbol)            \
   V(_, elements_transition_symbol)             \
   V(_, error_end_pos_symbol)                   \
   V(_, error_script_symbol)                    \
+  V(_, error_stack_symbol)                     \
   V(_, error_start_pos_symbol)                 \
   V(_, frozen_symbol)                          \
   V(_, interpreter_trampoline_symbol)          \
@@ -436,11 +462,11 @@
   V(_, promise_debug_message_symbol)           \
   V(_, promise_forwarding_handler_symbol)      \
   V(_, promise_handled_by_symbol)              \
+  V(_, promise_awaited_by_symbol)              \
   V(_, regexp_result_names_symbol)             \
   V(_, regexp_result_regexp_input_symbol)      \
   V(_, regexp_result_regexp_last_index_symbol) \
   V(_, sealed_symbol)                          \
-  V(_, stack_trace_symbol)                     \
   V(_, strict_function_transition_symbol)      \
   V(_, wasm_exception_tag_symbol)              \
   V(_, wasm_exception_values_symbol)           \
@@ -501,6 +527,7 @@
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
+  F(HEAP_EXTERNAL_NEAR_HEAP_LIMIT)                   \
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
@@ -516,6 +543,7 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
+  F(MC_SWEEP_EXTERNAL_POINTER_TABLE)                 \
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)                 \
   F(MC_COMPLETE_SWEEPING)                            \
   F(MC_EVACUATE_CANDIDATES)                          \

@@ -5,7 +5,6 @@
 #include "src/heap/gc-idle-time-handler.h"
 
 #include "src/flags/flags.h"
-#include "src/heap/gc-tracer.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

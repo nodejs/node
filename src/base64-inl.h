@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base64.h"
+#include "libbase64.h"
 #include "util.h"
 
 namespace node {
@@ -131,6 +132,11 @@ inline size_t base64_encode(const char* src,
 
   dlen = base64_encoded_size(slen, mode);
 
+  if (mode == Base64Mode::NORMAL) {
+    ::base64_encode(src, slen, dst, &dlen, 0);
+    return dlen;
+  }
+
   unsigned a;
   unsigned b;
   unsigned c;
@@ -163,10 +169,6 @@ inline size_t base64_encode(const char* src,
       a = src[i + 0] & 0xff;
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[(a & 3) << 4];
-      if (mode == Base64Mode::NORMAL) {
-        dst[k + 2] = '=';
-        dst[k + 3] = '=';
-      }
       break;
     case 2:
       a = src[i + 0] & 0xff;
@@ -174,8 +176,6 @@ inline size_t base64_encode(const char* src,
       dst[k + 0] = table[a >> 2];
       dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
       dst[k + 2] = table[(b & 0x0f) << 2];
-      if (mode == Base64Mode::NORMAL)
-        dst[k + 3] = '=';
       break;
   }
 

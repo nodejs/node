@@ -175,8 +175,8 @@ class V8_EXPORT ArrayBuffer : public Object {
     /**
      * Convenience allocator.
      *
-     * When the virtual memory cage is enabled, this allocator will allocate its
-     * backing memory inside the cage. Otherwise, it will rely on malloc/free.
+     * When the sandbox is enabled, this allocator will allocate its backing
+     * memory inside the sandbox. Otherwise, it will rely on malloc/free.
      *
      * Caller takes ownership, i.e. the returned object needs to be freed using
      * |delete allocator| once it is no longer in use.
@@ -255,6 +255,12 @@ class V8_EXPORT ArrayBuffer : public Object {
    * should not attempt to manage lifetime of the storage through other means.
    */
   std::shared_ptr<BackingStore> GetBackingStore();
+
+  /**
+   * More efficient shortcut for GetBackingStore()->Data(). The returned pointer
+   * is valid as long as the ArrayBuffer is alive.
+   */
+  void* Data() const;
 
   V8_INLINE static ArrayBuffer* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -413,6 +419,12 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * should not attempt to manage lifetime of the storage through other means.
    */
   std::shared_ptr<BackingStore> GetBackingStore();
+
+  /**
+   * More efficient shortcut for GetBackingStore()->Data(). The returned pointer
+   * is valid as long as the ArrayBuffer is alive.
+   */
+  void* Data() const;
 
   V8_INLINE static SharedArrayBuffer* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

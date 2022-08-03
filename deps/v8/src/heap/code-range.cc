@@ -53,6 +53,11 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
         CHECK(IsAligned(result, alignment));
         return result;
       }
+      // The empty memory_ranges means that GetFreeMemoryRangesWithin() API
+      // is not supported, so use the lowest address from the preferred region
+      // as a hint because it'll be at least as good as the fallback hint but
+      // with a higher chances to point to the free address space range.
+      return RoundUp(preferred_region.begin(), alignment);
     }
     return RoundUp(FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint),
                    alignment);
@@ -124,16 +129,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
           : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
-  // V8_EXTERNAL_CODE_SPACE imposes additional alignment requirement for the
-  // base address, so make sure the hint calculation function takes that into
-  // account. Otherwise the allocated reservation might be outside of the
-  // preferred region (see Isolate::GetShortBuiltinsCallRegion()).
-  const size_t hint_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? RoundUp(params.base_alignment, allocate_page_size)
-          : allocate_page_size;
   params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, hint_alignment);
+      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
@@ -175,7 +172,10 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                           size_t embedded_blob_code_size) {
   base::MutexGuard guard(&remap_embedded_builtins_mutex_);
 
-  const base::AddressRegion& code_region = reservation()->region();
+  // Remap embedded builtins into the end of the address range controlled by
+  // the BoundedPageAllocator.
+  const base::AddressRegion code_region(page_allocator()->begin(),
+                                        page_allocator()->size());
   CHECK_NE(code_region.begin(), kNullAddress);
   CHECK(!code_region.is_empty());
 
@@ -191,6 +191,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   }
 
   const size_t kAllocatePageSize = page_allocator()->AllocatePageSize();
+  const size_t kCommitPageSize = page_allocator()->CommitPageSize();
   size_t allocate_code_size =
       RoundUp(embedded_blob_code_size, kAllocatePageSize);
 
@@ -207,8 +208,31 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
         isolate, "Can't allocate space for re-embedded builtins");
   }
 
-  size_t code_size =
-      RoundUp(embedded_blob_code_size, page_allocator()->CommitPageSize());
+  size_t code_size = RoundUp(embedded_blob_code_size, kCommitPageSize);
+  if constexpr (base::OS::IsRemapPageSupported()) {
+    // By default, the embedded builtins are not remapped, but copied. This
+    // costs memory, since builtins become private dirty anonymous memory,
+    // rather than shared, clean, file-backed memory for the embedded version.
+    // If the OS supports it, we can remap the builtins *on top* of the space
+    // allocated in the code range, making the "copy" shared, clean, file-backed
+    // memory, and thus saving sizeof(builtins).
+    //
+    // Builtins should start at a page boundary, see
+    // platform-embedded-file-writer-mac.cc. If it's not the case (e.g. if the
+    // embedded builtins are not coming from the binary), fall back to copying.
+    if (IsAligned(reinterpret_cast<uintptr_t>(embedded_blob_code),
+                  kCommitPageSize)) {
+      bool ok = base::OS::RemapPages(embedded_blob_code, code_size,
+                                     embedded_blob_code_copy,
+                                     base::OS::MemoryPermission::kReadExecute);
+
+      if (ok) {
+        embedded_blob_code_copy_.store(embedded_blob_code_copy,
+                                       std::memory_order_release);
+        return embedded_blob_code_copy;
+      }
+    }
+  }
 
   if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
                                         PageAllocator::kReadWrite)) {

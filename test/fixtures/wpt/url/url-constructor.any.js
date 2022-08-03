@@ -1,7 +1,7 @@
 // META: timeout=long
 
 function bURL(url, base) {
-  return new URL(url, base || "about:blank")
+  return base ? new URL(url, base) : new URL(url)
 }
 
 function runURLTests(urltests) {

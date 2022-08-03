@@ -36,7 +36,7 @@ void RunU64BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64Atomic##Name) {                          \
     RunU64BinOp(execution_tier, kExprI64Atomic##Name, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 void RunU32BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
@@ -65,7 +65,7 @@ void RunU32BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64Atomic##Name##32U) {                          \
     RunU32BinOp(execution_tier, kExprI64Atomic##Name##32U, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 void RunU16BinOp(TestExecutionTier tier, WasmOpcode wasm_op,
@@ -94,7 +94,7 @@ void RunU16BinOp(TestExecutionTier tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64Atomic##Name##16U) {                          \
     RunU16BinOp(execution_tier, kExprI64Atomic##Name##16U, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 void RunU8BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
@@ -122,7 +122,7 @@ void RunU8BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64Atomic##Name##8U) {                         \
     RunU8BinOp(execution_tier, kExprI64Atomic##Name##8U, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicCompareExchange) {
@@ -380,7 +380,7 @@ void RunDropTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64Atomic##Name##Drop) {                    \
     RunDropTest(execution_tier, kExprI64Atomic##Name, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicSub16UDrop) {
@@ -499,7 +499,7 @@ void RunConvertTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64AtomicConvert##Name) {                      \
     RunConvertTest(execution_tier, kExprI64Atomic##Name, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicConvertCompareExchange) {
@@ -546,7 +546,7 @@ void RunNonConstIndexTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   WASM_EXEC_TEST(I64AtomicConstIndex##Name##Narrow) {                      \
     RunNonConstIndexTest(execution_tier, kExprI64Atomic##Name##32U, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 // Test a set of Regular operations
@@ -554,7 +554,7 @@ OPERATION_LIST(TEST_OPERATION)
   WASM_EXEC_TEST(I64AtomicConstIndex##Name) {                         \
     RunNonConstIndexTest(execution_tier, kExprI64Atomic##Name, Name); \
   }
-OPERATION_LIST(TEST_OPERATION)
+WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {

@@ -1,29 +1,97 @@
 'use strict'
 
-const { kProxy } = require('./core/symbols')
-const url = require('url')
+const { kClose, kDestroy } = require('./core/symbols')
+const Client = require('./agent')
 const Agent = require('./agent')
-const Dispatcher = require('./dispatcher')
-const { InvalidArgumentError } = require('./core/errors')
+const DispatcherBase = require('./dispatcher-base')
+const { InvalidArgumentError, RequestAbortedError } = require('./core/errors')
+const buildConnector = require('./core/connect')
 
 const kAgent = Symbol('proxy agent')
+const kClient = Symbol('proxy client')
+const kProxyHeaders = Symbol('proxy headers')
+const kRequestTls = Symbol('request tls settings')
+const kProxyTls = Symbol('proxy tls settings')
+const kConnectEndpoint = Symbol('connect endpoint function')
 
-class ProxyAgent extends Dispatcher {
+function defaultProtocolPort (protocol) {
+  return protocol === 'https:' ? 443 : 80
+}
+
+class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
-    this[kProxy] = buildProxyOptions(opts)
-    this[kAgent] = new Agent(opts)
+
+    if (typeof opts === 'string') {
+      opts = { uri: opts }
+    }
+
+    if (!opts || !opts.uri) {
+      throw new InvalidArgumentError('Proxy opts.uri is mandatory')
+    }
+
+    this[kRequestTls] = opts.requestTls
+    this[kProxyTls] = opts.proxyTls
+    this[kProxyHeaders] = {}
+
+    if (opts.auth) {
+      this[kProxyHeaders]['proxy-authorization'] = `Basic ${opts.auth}`
+    }
+
+    const { origin, port } = new URL(opts.uri)
+
+    const connect = buildConnector({ ...opts.proxyTls })
+    this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
+    this[kClient] = new Client({ origin: opts.origin, connect })
+    this[kAgent] = new Agent({
+      ...opts,
+      connect: async (opts, callback) => {
+        let requestedHost = opts.host
+        if (!opts.port) {
+          requestedHost += `:${defaultProtocolPort(opts.protocol)}`
+        }
+        try {
+          const { socket, statusCode } = await this[kClient].connect({
+            origin,
+            port,
+            path: requestedHost,
+            signal: opts.signal,
+            headers: {
+              ...this[kProxyHeaders],
+              host: opts.host
+            }
+          })
+          if (statusCode !== 200) {
+            socket.on('error', () => {}).destroy()
+            callback(new RequestAbortedError('Proxy response !== 200 when HTTP Tunneling'))
+          }
+          if (opts.protocol !== 'https:') {
+            callback(null, socket)
+            return
+          }
+          let servername
+          if (this[kRequestTls]) {
+            servername = this[kRequestTls].servername
+          } else {
+            servername = opts.servername
+          }
+          this[kConnectEndpoint]({ ...opts, servername, httpSocket: socket }, callback)
+        } catch (err) {
+          callback(err)
+        }
+      }
+    })
   }
 
   dispatch (opts, handler) {
-    const { host } = url.parse(opts.origin)
+    const { host } = new URL(opts.origin)
+    const headers = buildHeaders(opts.headers)
+    throwIfProxyAuthIsSent(headers)
     return this[kAgent].dispatch(
       {
         ...opts,
-        origin: this[kProxy].uri,
-        path: opts.origin + opts.path,
         headers: {
-          ...opts.headers,
+          ...headers,
           host
         }
       },
@@ -31,23 +99,51 @@ class ProxyAgent extends Dispatcher {
     )
   }
 
-  async close () {
+  async [kClose] () {
     await this[kAgent].close()
+    await this[kClient].close()
+  }
+
+  async [kDestroy] () {
+    await this[kAgent].destroy()
+    await this[kClient].destroy()
   }
 }
 
-function buildProxyOptions (opts) {
-  if (typeof opts === 'string') {
-    opts = { uri: opts }
+/**
+ * @param {string[] | Record<string, string>} headers
+ * @returns {Record<string, string>}
+ */
+function buildHeaders (headers) {
+  // When using undici.fetch, the headers list is stored
+  // as an array.
+  if (Array.isArray(headers)) {
+    /** @type {Record<string, string>} */
+    const headersPair = {}
+
+    for (let i = 0; i < headers.length; i += 2) {
+      headersPair[headers[i]] = headers[i + 1]
+    }
+
+    return headersPair
   }
 
-  if (!opts || !opts.uri) {
-    throw new InvalidArgumentError('Proxy opts.uri is mandatory')
-  }
+  return headers
+}
 
-  return {
-    uri: opts.uri,
-    protocol: opts.protocol || 'https'
+/**
+ * @param {Record<string, string>} headers
+ *
+ * Previous versions of ProxyAgent suggests the Proxy-Authorization in request headers
+ * Nevertheless, it was changed and to avoid a security vulnerability by end users
+ * this check was created.
+ * It should be removed in the next major version for performance reasons
+ */
+function throwIfProxyAuthIsSent (headers) {
+  const existProxyAuth = headers && Object.keys(headers)
+    .find((key) => key.toLowerCase() === 'proxy-authorization')
+  if (existProxyAuth) {
+    throw new InvalidArgumentError('Proxy-Authorization should be sent in ProxyAgent constructor')
   }
 }
 

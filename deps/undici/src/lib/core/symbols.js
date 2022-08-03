@@ -1,4 +1,7 @@
 module.exports = {
+  kClose: Symbol('close'),
+  kDestroy: Symbol('destroy'),
+  kDispatch: Symbol('dispatch'),
   kUrl: Symbol('url'),
   kWriting: Symbol('writing'),
   kResuming: Symbol('resuming'),

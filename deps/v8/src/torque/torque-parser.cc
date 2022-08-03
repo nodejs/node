@@ -48,6 +48,13 @@ class BuildFlags : public ContextualClass<BuildFlags> {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
     build_flags_["V8_EXTERNAL_CODE_SPACE"] = V8_EXTERNAL_CODE_SPACE_BOOL;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
+    build_flags_["V8_ENABLE_SWISS_NAME_DICTIONARY"] =
+        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL;
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+    build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = true;
+#else
+    build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = false;
+#endif
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
@@ -60,6 +67,7 @@ class BuildFlags : public ContextualClass<BuildFlags> {
 #else
     build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
 #endif
+    build_flags_["DEBUG"] = DEBUG_BOOL;
   }
   static bool GetFlag(const std::string& name, const char* production) {
     auto it = Get().build_flags_.find(name);
@@ -84,6 +92,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<bool>::id =
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<int32_t>::id =
     ParseResultTypeId::kInt32;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<double>::id =
+    ParseResultTypeId::kDouble;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<IntegerLiteral>::id = ParseResultTypeId::kIntegerLiteral;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<std::string>>::id =
@@ -267,6 +281,8 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kGenericParameters;
 
 namespace {
+
+bool ProcessIfAnnotation(ParseResultIterator* child_results);
 
 base::Optional<ParseResult> AddGlobalDeclarations(
     ParseResultIterator* child_results) {
@@ -695,9 +711,11 @@ base::Optional<ParseResult> MakeExternConstDeclaration(
 
 base::Optional<ParseResult> MakeTypeAliasDeclaration(
     ParseResultIterator* child_results) {
+  bool enabled = ProcessIfAnnotation(child_results);
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
-  Declaration* result = MakeNode<TypeAliasDeclaration>(name, type);
+  std::vector<Declaration*> result = {};
+  if (enabled) result = {MakeNode<TypeAliasDeclaration>(name, type)};
   return ParseResult{result};
 }
 
@@ -840,8 +858,22 @@ class AnnotationSet {
   std::map<std::string, std::pair<AnnotationParameter, SourcePosition>> map_;
 };
 
-base::Optional<ParseResult> MakeInt32(ParseResultIterator* child_results) {
-  std::string value = child_results->NextAs<std::string>();
+bool ProcessIfAnnotation(ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {},
+                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  if (base::Optional<std::string> condition =
+          annotations.GetStringParam(ANNOTATION_IF)) {
+    if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) return false;
+  }
+  if (base::Optional<std::string> condition =
+          annotations.GetStringParam(ANNOTATION_IFNOT)) {
+    if (BuildFlags::GetFlag(*condition, ANNOTATION_IFNOT)) return false;
+  }
+  return true;
+}
+
+base::Optional<ParseResult> YieldInt32(ParseResultIterator* child_results) {
+  std::string value = child_results->matched_input().ToString();
   size_t num_chars_converted = 0;
   int result = 0;
   try {
@@ -856,6 +888,43 @@ base::Optional<ParseResult> MakeInt32(ParseResultIterator* child_results) {
   // Tokenizer shouldn't have included extra trailing characters.
   DCHECK_EQ(num_chars_converted, value.size());
   return ParseResult{result};
+}
+
+base::Optional<ParseResult> YieldDouble(ParseResultIterator* child_results) {
+  std::string value = child_results->matched_input().ToString();
+  size_t num_chars_converted = 0;
+  double result = 0;
+  try {
+    result = std::stod(value, &num_chars_converted);
+  } catch (const std::out_of_range&) {
+    Error("double literal out-of-range");
+    return ParseResult{result};
+  }
+  // Tokenizer shouldn't have included extra trailing characters.
+  DCHECK_EQ(num_chars_converted, value.size());
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> YieldIntegerLiteral(
+    ParseResultIterator* child_results) {
+  std::string value = child_results->matched_input().ToString();
+  // Consume a leading minus.
+  bool negative = false;
+  if (value.size() > 0 && value[0] == '-') {
+    negative = true;
+    value = value.substr(1);
+  }
+  uint64_t absolute_value;
+  try {
+    size_t parsed = 0;
+    absolute_value = std::stoull(value, &parsed, 0);
+    DCHECK_EQ(parsed, value.size());
+  } catch (const std::invalid_argument&) {
+    Error("integer literal could not be parsed").Throw();
+  } catch (const std::out_of_range&) {
+    Error("integer literal value out of range").Throw();
+  }
+  return ParseResult(IntegerLiteral(negative, absolute_value));
 }
 
 base::Optional<ParseResult> MakeStringAnnotationParameter(
@@ -906,7 +975,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
        ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
-       ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
+       ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
+       ANNOTATION_CPP_OBJECT_DEFINITION},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
        ANNOTATION_INSTANCE_TYPE_VALUE});
   ClassFlags flags = ClassFlag::kNone;
@@ -950,6 +1020,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT)) {
     flags |= ClassFlag::kLowestInstanceTypeWithinParent;
+  }
+  if (annotations.Contains(ANNOTATION_CPP_OBJECT_DEFINITION)) {
+    flags |= ClassFlag::kCppObjectDefinition;
   }
 
   auto is_extern = child_results->NextAs<bool>();
@@ -1878,29 +1951,17 @@ base::Optional<ParseResult> MakeAssignmentExpression(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeNumberLiteralExpression(
+base::Optional<ParseResult> MakeFloatingPointLiteralExpression(
     ParseResultIterator* child_results) {
-  auto number = child_results->NextAs<std::string>();
-  // TODO(turbofan): Support 64bit literals.
-  // Meanwhile, we type it as constexpr float64 when out of int32 range.
-  double value = 0;
-  try {
-#if defined(V8_OS_SOLARIS)
-    // stod() on Solaris does not currently support hex strings. Use strtol()
-    // specifically for hex literals until stod() support is available.
-    if (number.find("0x") == std::string::npos &&
-        number.find("0X") == std::string::npos) {
-      value = std::stod(number);
-    } else {
-      value = static_cast<double>(strtol(number.c_str(), nullptr, 0));
-    }
-#else
-    value = std::stod(number);
-#endif  // !defined(V8_OS_SOLARIS)
-  } catch (const std::out_of_range&) {
-    Error("double literal out-of-range").Throw();
-  }
-  Expression* result = MakeNode<NumberLiteralExpression>(value);
+  auto value = child_results->NextAs<double>();
+  Expression* result = MakeNode<FloatingPointLiteralExpression>(value);
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeIntegerLiteralExpression(
+    ParseResultIterator* child_results) {
+  auto value = child_results->NextAs<IntegerLiteral>();
+  Expression* result = MakeNode<IntegerLiteralExpression>(std::move(value));
   return ParseResult{result};
 }
 
@@ -2060,8 +2121,19 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
       // Internally, an optional field is just an indexed field where the count
       // is zero or one.
       index = MakeNode<ConditionalExpression>(
-          *index, MakeNode<NumberLiteralExpression>(1),
-          MakeNode<NumberLiteralExpression>(0));
+          *index,
+          MakeCall(
+              MakeNode<Identifier>("FromConstexpr"),
+              {MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                             MakeNode<Identifier>("intptr"),
+                                             std::vector<TypeExpression*>{})},
+              {MakeNode<IntegerLiteralExpression>(IntegerLiteral(1))}, {}),
+          MakeCall(
+              MakeNode<Identifier>("FromConstexpr"),
+              {MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                             MakeNode<Identifier>("intptr"),
+                                             std::vector<TypeExpression*>{})},
+              {MakeNode<IntegerLiteralExpression>(IntegerLiteral(0))}, {}));
     }
     index_info = ClassFieldIndexInfo{*index, optional};
   }
@@ -2180,12 +2252,24 @@ struct TorqueGrammar : Grammar {
     return false;
   }
 
-  static bool MatchDecimalLiteral(InputPosition* pos) {
+  static bool MatchIntegerLiteral(InputPosition* pos) {
     InputPosition current = *pos;
     bool found_digit = false;
     MatchString("-", &current);
     while (MatchChar(std::isdigit, &current)) found_digit = true;
-    MatchString(".", &current);
+    if (found_digit) {
+      *pos = current;
+      return true;
+    }
+    return false;
+  }
+
+  static bool MatchFloatingPointLiteral(InputPosition* pos) {
+    InputPosition current = *pos;
+    bool found_digit = false;
+    MatchString("-", &current);
+    while (MatchChar(std::isdigit, &current)) found_digit = true;
+    if (!MatchString(".", &current)) return false;
     while (MatchChar(std::isdigit, &current)) found_digit = true;
     if (!found_digit) return false;
     *pos = current;
@@ -2205,21 +2289,10 @@ struct TorqueGrammar : Grammar {
       ParseResultIterator* child_results) {
     std::vector<T> l = {};
     if (!first) l = child_results->NextAs<std::vector<T>>();
-    AnnotationSet annotations(child_results, {},
-                              {ANNOTATION_IF, ANNOTATION_IFNOT});
-    bool skipped = false;
-    if (base::Optional<std::string> condition =
-            annotations.GetStringParam(ANNOTATION_IF)) {
-      if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) skipped = true;
-    }
-    if (base::Optional<std::string> condition =
-            annotations.GetStringParam(ANNOTATION_IFNOT)) {
-      if (BuildFlags::GetFlag(*condition, ANNOTATION_IFNOT)) skipped = true;
-    }
+    bool enabled = ProcessIfAnnotation(child_results);
     T x = child_results->NextAs<T>();
 
-    if (skipped) return ParseResult{std::move(l)};
-    l.push_back(std::move(x));
+    if (enabled) l.push_back(std::move(x));
     return ParseResult{std::move(l)};
   }
 
@@ -2270,13 +2343,18 @@ struct TorqueGrammar : Grammar {
   // Result: std::string
   Symbol externalString = {Rule({&stringLiteral}, StringLiteralUnquoteAction)};
 
-  // Result: std::string
-  Symbol decimalLiteral = {
-      Rule({Pattern(MatchDecimalLiteral)}, YieldMatchedInput),
-      Rule({Pattern(MatchHexLiteral)}, YieldMatchedInput)};
+  // Result: IntegerLiteral
+  Symbol integerLiteral = {
+      Rule({Pattern(MatchIntegerLiteral)}, YieldIntegerLiteral),
+      Rule({Pattern(MatchHexLiteral)}, YieldIntegerLiteral)};
+
+  // Result: double
+  Symbol floatingPointLiteral = {
+      Rule({Pattern(MatchFloatingPointLiteral)}, YieldDouble)};
 
   // Result: int32_t
-  Symbol int32Literal = {Rule({&decimalLiteral}, MakeInt32)};
+  Symbol int32Literal = {Rule({Pattern(MatchIntegerLiteral)}, YieldInt32),
+                         Rule({Pattern(MatchHexLiteral)}, YieldInt32)};
 
   // Result: AnnotationParameter
   Symbol annotationParameter = {
@@ -2495,7 +2573,8 @@ struct TorqueGrammar : Grammar {
            MakeReferenceFieldAccessExpression),
       Rule({&primaryExpression, Token("["), expression, Token("]")},
            MakeElementAccessExpression),
-      Rule({&decimalLiteral}, MakeNumberLiteralExpression),
+      Rule({&integerLiteral}, MakeIntegerLiteralExpression),
+      Rule({&floatingPointLiteral}, MakeFloatingPointLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
       Rule({&simpleType, &initializerList}, MakeStructExpression),
       Rule({&newExpression}),
@@ -2721,8 +2800,8 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("constexpr"), &externalString})),
             Token(";")},
            MakeAbstractTypeDeclaration),
-      Rule({Token("type"), &name, Token("="), &type, Token(";")},
-           AsSingletonVector<Declaration*, MakeTypeAliasDeclaration>()),
+      Rule({annotations, Token("type"), &name, Token("="), &type, Token(";")},
+           MakeTypeAliasDeclaration),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &returnType, &optionalBody},
