@@ -114,11 +114,11 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
       { encoding: 'utf8' },
     );
 
-    assert.match(stdout, /resolve arg count: 3/);
+    assert.match(stdout, /^resolve arg count: 3$/m);
     assert.match(stdout, /specifier: 'node:fs'/);
     assert.match(stdout, /next: \[AsyncFunction: nextResolve\]/);
 
-    assert.match(stdout, /load arg count: 3/);
+    assert.match(stdout, /^load arg count: 3$/m);
     assert.match(stdout, /url: 'node:fs'/);
     assert.match(stdout, /next: \[AsyncFunction: nextLoad\]/);
   });
