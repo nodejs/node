@@ -116,7 +116,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
@@ -189,7 +189,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -311,7 +311,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_getrusage");
 
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 16);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;

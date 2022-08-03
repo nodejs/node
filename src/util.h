@@ -535,17 +535,14 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string ToString() const { return std::string(out(), length()); }
 };
 
-#define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsArrayBufferView());                                          \
-  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
-  std::shared_ptr<v8::BackingStore> name##_bs =                               \
-      name->Buffer()->GetBackingStore();                                      \
-  const size_t name##_offset = name->ByteOffset();                            \
-  const size_t name##_length = name->ByteLength();                            \
-  char* const name##_data =                                                   \
-      static_cast<char*>(name##_bs->Data()) + name##_offset;                  \
-  if (name##_length > 0)                                                      \
-    CHECK_NE(name##_data, nullptr);
+#define SPREAD_BUFFER_ARG(val, name)                                           \
+  CHECK((val)->IsArrayBufferView());                                           \
+  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();       \
+  const size_t name##_offset = name->ByteOffset();                             \
+  const size_t name##_length = name->ByteLength();                             \
+  char* const name##_data =                                                    \
+      static_cast<char*>(name->Buffer()->Data()) + name##_offset;              \
+  if (name##_length > 0) CHECK_NE(name##_data, nullptr);
 
 // Use this when a variable or parameter is unused in order to explicitly
 // silence a compiler warning about that.

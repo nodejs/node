@@ -244,8 +244,7 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
-      ui->ByteOffset();
+  return static_cast<char*>(ui->Buffer()->Data()) + ui->ByteOffset();
 }
 
 
@@ -1157,14 +1156,13 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
 
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
   Local<ArrayBuffer> buf = dest->Buffer();
-  char* write_result =
-      static_cast<char*>(buf->GetBackingStore()->Data()) + dest->ByteOffset();
+  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
   // results = [ read, written ]
   Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
   uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->GetBackingStore()->Data()) +
+      static_cast<char*>(result_arr->Buffer()->Data()) +
       result_arr->ByteOffset());
 
   int nchars;
@@ -1228,6 +1226,27 @@ void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+namespace {
+
+std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
+  void* pointer;
+  size_t byte_length;
+  if (buffer->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = buffer.As<ArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else if (buffer->IsSharedArrayBuffer()) {
+    Local<SharedArrayBuffer> ab = buffer.As<SharedArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else {
+    UNREACHABLE();  // Caller must validate.
+  }
+  return {pointer, byte_length};
+}
+
+}  // namespace
+
 void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[0] == Destination ArrayBuffer
   // args[1] == Destination ArrayBuffer Offset
@@ -1241,32 +1260,24 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsUint32());
   CHECK(args[4]->IsUint32());
 
-  std::shared_ptr<BackingStore> destination;
-  std::shared_ptr<BackingStore> source;
+  void* destination;
+  size_t destination_byte_length;
+  std::tie(destination, destination_byte_length) =
+      DecomposeBufferToParts(args[0]);
 
-  if (args[0]->IsArrayBuffer()) {
-    destination = args[0].As<ArrayBuffer>()->GetBackingStore();
-  } else if (args[0]->IsSharedArrayBuffer()) {
-    destination = args[0].As<SharedArrayBuffer>()->GetBackingStore();
-  }
-
-  if (args[2]->IsArrayBuffer()) {
-    source = args[2].As<ArrayBuffer>()->GetBackingStore();
-  } else if (args[0]->IsSharedArrayBuffer()) {
-    source = args[2].As<SharedArrayBuffer>()->GetBackingStore();
-  }
+  void* source;
+  size_t source_byte_length;
+  std::tie(source, source_byte_length) = DecomposeBufferToParts(args[2]);
 
   uint32_t destination_offset = args[1].As<Uint32>()->Value();
   uint32_t source_offset = args[3].As<Uint32>()->Value();
   size_t bytes_to_copy = args[4].As<Uint32>()->Value();
 
-  CHECK_GE(destination->ByteLength() - destination_offset, bytes_to_copy);
-  CHECK_GE(source->ByteLength() - source_offset, bytes_to_copy);
+  CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
+  CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
 
-  uint8_t* dest =
-      static_cast<uint8_t*>(destination->Data()) + destination_offset;
-  uint8_t* src =
-      static_cast<uint8_t*>(source->Data()) + source_offset;
+  uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset;
+  uint8_t* src = static_cast<uint8_t*>(source) + source_offset;
   memcpy(dest, src, bytes_to_copy);
 }
 
