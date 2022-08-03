@@ -109,6 +109,7 @@
 /src/node.cc @nodejs/startup
 /src/node_code_cache_stub.cc @nodejs/startup
 /src/node_native_module* @nodejs/startup
+/src/node_snapshot* @nodejs/startup
 /lib/internal/bootstrap/* @nodejs/startup
 /tools/code_cache/* @nodejs/startup
 /tools/snapshot/* @nodejs/startup
