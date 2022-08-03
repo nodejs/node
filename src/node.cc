@@ -646,16 +646,12 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
     // anything.
     for (auto& s : stdio) {
       const int fd = &s - stdio;
-      if (fstat(fd, &s.stat) == 0)
-        continue;
+      if (fstat(fd, &s.stat) == 0) continue;
       // Anything but EBADF means something is seriously wrong.  We don't
       // have to special-case EINTR, fstat() is not interruptible.
-      if (errno != EBADF)
-        ABORT();
-      if (fd != open("/dev/null", O_RDWR))
-        ABORT();
-      if (fstat(fd, &s.stat) != 0)
-        ABORT();
+      if (errno != EBADF) ABORT();
+      if (fd != open("/dev/null", O_RDWR)) ABORT();
+      if (fstat(fd, &s.stat) != 0) ABORT();
     }
   }
 
@@ -679,16 +675,14 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       const int fd = &s - stdio;
       int err;
 
-      do
-        s.flags = fcntl(fd, F_GETFL);
+      do s.flags = fcntl(fd, F_GETFL);
       while (s.flags == -1 && errno == EINTR);  // NOLINT
       CHECK_NE(s.flags, -1);
 
       if (uv_guess_handle(fd) != UV_TTY) continue;
       s.isatty = true;
 
-      do
-        err = tcgetattr(fd, &s.termios);
+      do err = tcgetattr(fd, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(err, 0);
     }
@@ -754,19 +748,17 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
         // Ignore _close result. If it fails or not depends on used Windows
         // version. We will just check _open result.
         _close(fd);
-        if (fd != _open("nul", _O_RDWR))
-          ABORT();
+        if (fd != _open("nul", _O_RDWR)) ABORT();
       }
     }
   }
 #endif  // _WIN32
 }
 
-
 // Safe to call more than once and from signal handlers.
 void ResetStdio() {
   if (init_process_flags.load() &
-          ProcessInitializationFlags::kNoStdioInitialization) {
+      ProcessInitializationFlags::kNoStdioInitialization) {
     return;
   }
 
@@ -1025,8 +1017,8 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 }
 
 std::unique_ptr<InitializationResult> InitializeOncePerProcess(
-  const std::vector<std::string>& args,
-  ProcessInitializationFlags::Flags flags) {
+    const std::vector<std::string>& args,
+    ProcessInitializationFlags::Flags flags) {
   auto result = std::make_unique<InitializationResultImpl>();
   result->args_ = args;
 
@@ -1155,8 +1147,8 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
       // not useful as an exit code at all.
       result->exit_code_ = ERR_GET_REASON(ERR_peek_error());
       result->early_return_ = true;
-      result->errors_.emplace_back(
-          "OpenSSL configuration error:\n" + GetOpenSSLErrorString());
+      result->errors_.emplace_back("OpenSSL configuration error:\n" +
+                                   GetOpenSSLErrorString());
       return result;
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
@@ -1171,7 +1163,7 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
       result->early_return_ = true;
       result->errors_.emplace_back(
           "OpenSSL error when trying to enable FIPS:\n" +
-              GetOpenSSLErrorString());
+          GetOpenSSLErrorString());
       return result;
     }
 
@@ -1326,8 +1318,8 @@ int Start(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
-  std::unique_ptr<InitializationResult> result = InitializeOncePerProcess(
-    std::vector<std::string>(argv, argv + argc));
+  std::unique_ptr<InitializationResult> result =
+      InitializeOncePerProcess(std::vector<std::string>(argv, argv + argc));
   for (const std::string& error : result->errors()) {
     FPrintF(stderr, "%s: %s\n", result->args().at(0), error);
   }

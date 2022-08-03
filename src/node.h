@@ -261,15 +261,10 @@ enum Flags : uint64_t {
   // a flags argument to the InitializeOncePerProcess() replacement
   // function.
   kLegacyInitializeNodeWithArgsBehavior =
-    kNoStdioInitialization |
-    kNoDefaultSignalHandling |
-    kNoInitializeV8 |
-    kNoInitializeNodeV8Platform |
-    kNoInitOpenSSL |
-    kNoParseGlobalDebugVariables |
-    kNoAdjustResourceLimits |
-    kNoUseLargePages |
-    kNoPrintHelpOrVersionOutput,
+      kNoStdioInitialization | kNoDefaultSignalHandling | kNoInitializeV8 |
+      kNoInitializeNodeV8Platform | kNoInitOpenSSL |
+      kNoParseGlobalDebugVariables | kNoAdjustResourceLimits |
+      kNoUseLargePages | kNoPrintHelpOrVersionOutput,
 };
 }  // namespace ProcessFlags
 // TODO(addaleax): Make this the canonical name, as it is more descriptive.
@@ -317,12 +312,12 @@ NODE_EXTERN int Stop(Environment* env);
 // The subset is roughly equivalent to the one given by
 // `ProcessInitializationFlags::kLegacyInitializeNodeWithArgsBehavior`.
 NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
-    NODE_EXTERN int InitializeNodeWithArgs(
-        std::vector<std::string>* argv,
-        std::vector<std::string>* exec_argv,
-        std::vector<std::string>* errors,
-        ProcessInitializationFlags::Flags flags =
-            ProcessInitializationFlags::kNoFlags));
+                NODE_EXTERN int InitializeNodeWithArgs(
+                    std::vector<std::string>* argv,
+                    std::vector<std::string>* exec_argv,
+                    std::vector<std::string>* errors,
+                    ProcessInitializationFlags::Flags flags =
+                        ProcessInitializationFlags::kNoFlags));
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from args, and return information about the initialization success,
