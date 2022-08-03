@@ -2780,7 +2780,7 @@ napi_status NAPI_CDECL napi_create_arraybuffer(napi_env env,
   // Optionally return a pointer to the buffer's data, to avoid another call to
   // retrieve it.
   if (data != nullptr) {
-    *data = buffer->GetBackingStore()->Data();
+    *data = buffer->Data();
   }
 
   *result = v8impl::JsValueFromV8LocalValue(buffer);
@@ -2814,15 +2814,14 @@ napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  std::shared_ptr<v8::BackingStore> backing_store =
-      value.As<v8::ArrayBuffer>()->GetBackingStore();
+  v8::Local<v8::ArrayBuffer> ab = value.As<v8::ArrayBuffer>();
 
   if (data != nullptr) {
-    *data = backing_store->Data();
+    *data = ab->Data();
   }
 
   if (byte_length != nullptr) {
-    *byte_length = backing_store->ByteLength();
+    *byte_length = ab->ByteLength();
   }
 
   return napi_clear_last_error(env);
@@ -2963,8 +2962,7 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
   }
 
   if (data != nullptr) {
-    *data = static_cast<uint8_t*>(buffer->GetBackingStore()->Data()) +
-            array->ByteOffset();
+    *data = static_cast<uint8_t*>(buffer->Data()) + array->ByteOffset();
   }
 
   if (arraybuffer != nullptr) {
@@ -3044,8 +3042,7 @@ napi_status NAPI_CDECL napi_get_dataview_info(napi_env env,
   }
 
   if (data != nullptr) {
-    *data = static_cast<uint8_t*>(buffer->GetBackingStore()->Data()) +
-            array->ByteOffset();
+    *data = static_cast<uint8_t*>(buffer->Data()) + array->ByteOffset();
   }
 
   if (arraybuffer != nullptr) {
@@ -3255,8 +3252,8 @@ napi_status NAPI_CDECL napi_is_detached_arraybuffer(napi_env env,
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
 
-  *result = value->IsArrayBuffer() &&
-            value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
+  *result =
+      value->IsArrayBuffer() && value.As<v8::ArrayBuffer>()->Data() == nullptr;
 
   return napi_clear_last_error(env);
 }
