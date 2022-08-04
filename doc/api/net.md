@@ -284,7 +284,7 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 ### Event: `'drop'`
 
 <!-- YAML
-added: REPLACEME
+added: v18.6.0
 -->
 
 When the number of connections reaches the threshold of `server.maxConnections`,
@@ -294,6 +294,7 @@ TCP server, the argument is as follows, otherwise the argument is `undefined`.
 * `data` {Object} The argument passed to event listener.
   * `localAddress` {string}  Local address.
   * `localPort` {number} Local port.
+  * `localFamily` {string} Local family.
   * `remoteAddress` {string} Remote address.
   * `remotePort` {number} Remote port.
   * `remoteFamily` {string} Remote IP family. `'IPv4'` or `'IPv6'`.
@@ -1046,6 +1047,16 @@ added: v0.9.6
 * {integer}
 
 The numeric representation of the local port. For example, `80` or `21`.
+
+### `socket.localFamily`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The string representation of the local IP family. `'IPv4'` or `'IPv6'`.
 
 ### `socket.pause()`
 

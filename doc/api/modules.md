@@ -1093,7 +1093,7 @@ This section was moved to
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
-[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid

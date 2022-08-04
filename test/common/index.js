@@ -24,7 +24,7 @@
 const process = global.process;  // Some tests tamper with the process global.
 
 const assert = require('assert');
-const { exec, execSync, spawnSync } = require('child_process');
+const { exec, execSync, spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
@@ -315,6 +315,9 @@ if (hasCrypto && global.crypto) {
   knownGlobals.push(global.CryptoKey);
   knownGlobals.push(global.SubtleCrypto);
 }
+if (global.CustomEvent) {
+  knownGlobals.push(global.CustomEvent);
+}
 if (global.ReadableStream) {
   knownGlobals.push(
     global.ReadableStream,
@@ -517,6 +520,52 @@ function mustNotCall(msg) {
       `${msg || 'function should not have been called'} at ${callSite}` +
       argsInfo);
   };
+}
+
+const _mustNotMutateObjectDeepProxies = new WeakMap();
+
+function mustNotMutateObjectDeep(original) {
+  // Return primitives and functions directly. Primitives are immutable, and
+  // proxied functions are impossible to compare against originals, e.g. with
+  // `assert.deepEqual()`.
+  if (original === null || typeof original !== 'object') {
+    return original;
+  }
+
+  const cachedProxy = _mustNotMutateObjectDeepProxies.get(original);
+  if (cachedProxy) {
+    return cachedProxy;
+  }
+
+  const _mustNotMutateObjectDeepHandler = {
+    __proto__: null,
+    defineProperty(target, property, descriptor) {
+      assert.fail(`Expected no side effects, got ${inspect(property)} ` +
+                  'defined');
+    },
+    deleteProperty(target, property) {
+      assert.fail(`Expected no side effects, got ${inspect(property)} ` +
+                  'deleted');
+    },
+    get(target, prop, receiver) {
+      return mustNotMutateObjectDeep(Reflect.get(target, prop, receiver));
+    },
+    preventExtensions(target) {
+      assert.fail('Expected no side effects, got extensions prevented on ' +
+                  inspect(target));
+    },
+    set(target, property, value, receiver) {
+      assert.fail(`Expected no side effects, got ${inspect(value)} ` +
+                  `assigned to ${inspect(property)}`);
+    },
+    setPrototypeOf(target, prototype) {
+      assert.fail(`Expected no side effects, got set prototype to ${prototype}`);
+    }
+  };
+
+  const proxy = new Proxy(original, _mustNotMutateObjectDeepHandler);
+  _mustNotMutateObjectDeepProxies.set(original, proxy);
+  return proxy;
 }
 
 function printSkipMessage(msg) {
@@ -793,6 +842,36 @@ function requireNoPackageJSONAbove(dir = __dirname) {
   }
 }
 
+function spawnPromisified(...args) {
+  let stderr = '';
+  let stdout = '';
+
+  const child = spawn(...args);
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (data) => { stderr += data; });
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (data) => { stdout += data; });
+
+  return new Promise((resolve, reject) => {
+    child.on('close', (code, signal) => {
+      resolve({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+    child.on('error', (code, signal) => {
+      reject({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+  });
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -827,6 +906,7 @@ const common = {
   mustCall,
   mustCallAtLeast,
   mustNotCall,
+  mustNotMutateObjectDeep,
   mustSucceed,
   nodeProcessAborted,
   PIPE,
@@ -841,6 +921,7 @@ const common = {
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfWorker,
+  spawnPromisified,
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

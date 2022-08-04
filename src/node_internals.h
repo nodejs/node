@@ -290,7 +290,10 @@ class ThreadPoolWork {
 #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
+bool SafeGetenv(const char* key,
+                std::string* text,
+                std::shared_ptr<KVStore> env_vars = nullptr,
+                v8::Isolate* isolate = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
@@ -403,6 +406,25 @@ std::string Basename(const std::string& str, const std::string& extension);
 
 node_module napi_module_to_node_module(const napi_module* mod);
 
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec);
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec);
+std::ostream& operator<<(std::ostream& output, const PropInfo& d);
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const ImmediateInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const TickInfo::SerializeInfo& d);
+std::ostream& operator<<(std::ostream& output,
+                         const AsyncHooks::SerializeInfo& d);
+
+namespace performance {
+std::ostream& operator<<(std::ostream& output,
+                         const PerformanceState::SerializeInfo& d);
+}
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

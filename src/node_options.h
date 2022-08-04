@@ -108,6 +108,7 @@ class EnvironmentOptions : public Options {
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;
+  bool experimental_global_customevent = false;
   bool experimental_global_web_crypto = false;
   bool experimental_https_modules = false;
   std::string experimental_specifier_resolution;
@@ -187,7 +188,9 @@ class EnvironmentOptions : public Options {
   bool tls_max_v1_3 = false;
   std::string tls_keylog;
 
-  std::vector<std::string> preload_modules;
+  std::vector<std::string> preload_cjs_modules;
+
+  std::vector<std::string> preload_esm_modules;
 
   std::vector<std::string> user_argv;
 
@@ -236,6 +239,7 @@ class PerProcessOptions : public Options {
   // snapshot used in different isolates in the same process to be the same.
   // Therefore --node-snapshot is a per-process option.
   bool node_snapshot = true;
+  std::string snapshot_blob;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;

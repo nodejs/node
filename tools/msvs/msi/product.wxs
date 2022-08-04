@@ -80,13 +80,6 @@
       <ComponentRef Id="InstallToolsBat" />
       <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="Product.Generated"/>
-
-      <Feature Id="NodeEtwSupport"
-               Level="1"
-               Title="!(loc.NodeEtwSupport_Title)"
-               Description="!(loc.NodeEtwSupport_Description)">
-        <ComponentRef Id="NodeEtwSupport"/>
-      </Feature>
     </Feature>
 
     <Feature Id="corepack"
@@ -175,14 +168,6 @@
       <Component Id="InstallToolsBat">
         <File Id="InstallToolsBat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.bat"/>
       </Component>
-
-      <?if $(var.NoETW) != 1 ?>
-      <Component Id="NodeEtwSupport">
-        <File Id="node_etw_provider.man" Source="$(var.RepoDir)\src\res\node_etw_provider.man">
-          <util:EventManifest MessageFile="[INSTALLDIR]node.exe" ResourceFile="[INSTALLDIR]node.exe"/>
-        </File>
-      </Component>
-      <?endif?>
     </DirectoryRef>
 
     <DirectoryRef Id="INSTALLDIR">

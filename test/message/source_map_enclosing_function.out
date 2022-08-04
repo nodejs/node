@@ -1,6 +1,6 @@
-*enclosing-call-site.js:16
-      throw new Error('an error!')
-                ^
+*enclosing-call-site.js:26
+  throw err
+  ^
 
 Error: an error!
     at functionD (*enclosing-call-site.js:16:17)

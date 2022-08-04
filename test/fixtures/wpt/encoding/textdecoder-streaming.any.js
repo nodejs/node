@@ -28,10 +28,11 @@ var octets = {
                 var decoder = new TextDecoder(encoding);
                 for (var i = 0; i < encoded.length; i += len) {
                     var sub = [];
-                    for (var j = i; j < encoded.length && j < i + len; ++j)
+                    for (var j = i; j < encoded.length && j < i + len; ++j) {
                         sub.push(encoded[j]);
-                        var uintArray = new Uint8Array(createBuffer(arrayBufferOrSharedArrayBuffer, sub.length));
-                        uintArray.set(sub);
+                    }
+                    var uintArray = new Uint8Array(createBuffer(arrayBufferOrSharedArrayBuffer, sub.length));
+                    uintArray.set(sub);
                     out += decoder.decode(uintArray, {stream: true});
                 }
                 out += decoder.decode();
@@ -39,4 +40,50 @@ var octets = {
             }, 'Streaming decode: ' + encoding + ', ' + len + ' byte window (' + arrayBufferOrSharedArrayBuffer + ')');
         }
     });
+
+    test(() => {
+        function bytes(byteArray) {
+            const view = new Uint8Array(createBuffer(arrayBufferOrSharedArrayBuffer, byteArray.length));
+            view.set(byteArray);
+            return view;
+        }
+
+        const decoder = new TextDecoder();
+
+        assert_equals(decoder.decode(bytes([0xC1]), {stream: true}), "\uFFFD");
+        assert_equals(decoder.decode(), "");
+
+        assert_equals(decoder.decode(bytes([0xF5]), {stream: true}), "\uFFFD");
+        assert_equals(decoder.decode(), "");
+
+        assert_equals(decoder.decode(bytes([0xE0, 0x41]), {stream: true}), "\uFFFDA");
+        assert_equals(decoder.decode(bytes([0x42])), "B");
+
+        assert_equals(decoder.decode(bytes([0xE0, 0x80]), {stream: true}), "\uFFFD\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80])), "\uFFFD");
+
+        assert_equals(decoder.decode(bytes([0xED, 0xA0]), {stream: true}), "\uFFFD\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80])), "\uFFFD");
+
+        assert_equals(decoder.decode(bytes([0xF0, 0x41]), {stream: true}), "\uFFFDA");
+        assert_equals(decoder.decode(bytes([0x42]), {stream: true}), "B");
+        assert_equals(decoder.decode(bytes([0x43])), "C");
+
+        assert_equals(decoder.decode(bytes([0xF0, 0x80]), {stream: true}), "\uFFFD\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80]), {stream: true}), "\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80])), "\uFFFD");
+
+        assert_equals(decoder.decode(bytes([0xF4, 0xA0]), {stream: true}), "\uFFFD\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80]), {stream: true}), "\uFFFD");
+        assert_equals(decoder.decode(bytes([0x80])), "\uFFFD");
+
+        assert_equals(decoder.decode(bytes([0xF0, 0x90, 0x41]), {stream: true}), "\uFFFDA");
+        assert_equals(decoder.decode(bytes([0x42])), "B");
+
+        // 4-byte UTF-8 sequences always correspond to non-BMP characters. Here
+        // we make sure that, although the first 3 bytes are enough to emit the
+        // lead surrogate, it only gets emitted when the fourth byte is read.
+        assert_equals(decoder.decode(bytes([0xF0, 0x9F, 0x92]), {stream: true}), "");
+        assert_equals(decoder.decode(bytes([0xA9])), "\u{1F4A9}");
+    }, `Streaming decode: UTF-8 chunk tests (${arrayBufferOrSharedArrayBuffer})`);
 })

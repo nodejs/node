@@ -203,5 +203,25 @@ new RuleTester({
         code: 'new Proxy({}, { ...{ __proto__: null } })',
         errors: [{ message: /null-prototype/ }]
       },
+      {
+        code: 'PromisePrototypeCatch(promise, ()=>{})',
+        errors: [{ message: /\bPromisePrototypeThen\b/ }]
+      },
+      {
+        code: 'PromiseAll([])',
+        errors: [{ message: /\bSafePromiseAll\b/ }]
+      },
+      {
+        code: 'PromiseAllSettled([])',
+        errors: [{ message: /\bSafePromiseAllSettled\b/ }]
+      },
+      {
+        code: 'PromiseAny([])',
+        errors: [{ message: /\bSafePromiseAny\b/ }]
+      },
+      {
+        code: 'PromiseRace([])',
+        errors: [{ message: /\bSafePromiseRace\b/ }]
+      },
     ]
   });

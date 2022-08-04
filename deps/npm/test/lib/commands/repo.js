@@ -311,4 +311,12 @@ t.test('workspaces', async t => {
     )
     t.match({}, opened, 'opened no repo urls')
   })
+
+  t.test('package arg and workspace', async (t) => {
+    npm.config.set('workspace', ['workspace-a'])
+    await npm.exec('repo', ['.'])
+    t.match({
+      'https://github.com/npm/workspaces-test': 1,
+    }, opened, 'opened url for package arg, not workspace')
+  })
 })

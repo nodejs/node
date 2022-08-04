@@ -190,7 +190,7 @@ All commands:
 
                     Options:
                     [--registry <registry>] [--scope <@scope>]
-                    [--auth-type <legacy|webauthn|sso|saml|oauth>]
+                    [--auth-type <legacy|web|sso|saml|oauth|webauthn>]
 
                     aliases: login, add-user
 
@@ -199,7 +199,7 @@ All commands:
     audit           Run a security audit
 
                     Usage:
-                    npm audit [fix]
+                    npm audit [fix|signatures]
 
                     Options:
                     [--audit-level <info|low|moderate|high|critical|none>] [--dry-run] [-f|--force]
@@ -254,8 +254,13 @@ All commands:
                     npm ci
 
                     Options:
-                    [--no-audit] [--foreground-scripts] [--ignore-scripts]
-                    [--script-shell <script-shell>]
+                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
+                    [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+                    [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+                    [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
+                    [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
                     aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -511,8 +516,13 @@ All commands:
                     npm install-ci-test
 
                     Options:
-                    [--no-audit] [--foreground-scripts] [--ignore-scripts]
-                    [--script-shell <script-shell>]
+                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
+                    [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
+                    [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+                    [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
+                    [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
                     alias: cit
 
@@ -577,7 +587,7 @@ All commands:
 
                     Options:
                     [--registry <registry>] [--scope <@scope>]
-                    [--auth-type <legacy|webauthn|sso|saml|oauth>]
+                    [--auth-type <legacy|web|sso|saml|oauth|webauthn>]
 
                     aliases: login, add-user
 

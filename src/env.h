@@ -164,15 +164,16 @@ class NoArrayBufferZeroFillScope {
 // Private symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only and have a
 // "node:" prefix to avoid name clashes with third-party code.
-#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
-  V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
-  V(arrow_message_private_symbol, "node:arrowMessage")                        \
-  V(contextify_context_private_symbol, "node:contextify:context")             \
-  V(contextify_global_private_symbol, "node:contextify:global")               \
-  V(decorated_private_symbol, "node:decorated")                               \
-  V(napi_type_tag, "node:napi:type_tag")                                      \
-  V(napi_wrapper, "node:napi:wrapper")                                        \
-  V(untransferable_object_private_symbol, "node:untransferableObject")        \
+#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                               \
+  V(alpn_buffer_private_symbol, "node:alpnBuffer")                             \
+  V(arrow_message_private_symbol, "node:arrowMessage")                         \
+  V(contextify_context_private_symbol, "node:contextify:context")              \
+  V(contextify_global_private_symbol, "node:contextify:global")                \
+  V(decorated_private_symbol, "node:decorated")                                \
+  V(napi_type_tag, "node:napi:type_tag")                                       \
+  V(napi_wrapper, "node:napi:wrapper")                                         \
+  V(untransferable_object_private_symbol, "node:untransferableObject")         \
+  V(exiting_aliased_Uint32Array, "node:exiting_aliased_Uint32Array")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
@@ -469,7 +470,7 @@ class NoArrayBufferZeroFillScope {
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
+#define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(base_object_ctor_template, v8::FunctionTemplate)                           \
@@ -525,6 +526,7 @@ class NoArrayBufferZeroFillScope {
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \
   V(fs_use_promises_symbol, v8::Symbol)                                        \
+  V(get_source_map_error_source, v8::Function)                                 \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2session_on_altsvc_function, v8::Function)                             \
@@ -575,17 +577,32 @@ class NoArrayBufferZeroFillScope {
 class Environment;
 
 typedef size_t SnapshotIndex;
+
+struct PropInfo {
+  std::string name;     // name for debugging
+  uint32_t id;          // In the list - in case there are any empty entries
+  SnapshotIndex index;  // In the snapshot
+};
+
+struct IsolateDataSerializeInfo {
+  std::vector<SnapshotIndex> primitive_values;
+  std::vector<PropInfo> template_values;
+
+  friend std::ostream& operator<<(std::ostream& o,
+                                  const IsolateDataSerializeInfo& i);
+};
+
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
-              const std::vector<size_t>* indexes = nullptr);
+              const IsolateDataSerializeInfo* isolate_data_info = nullptr);
   SET_MEMORY_INFO_NAME(IsolateData)
   SET_SELF_SIZE(IsolateData)
   void MemoryInfo(MemoryTracker* tracker) const override;
-  std::vector<size_t> Serialize(v8::SnapshotCreator* creator);
+  IsolateDataSerializeInfo Serialize(v8::SnapshotCreator* creator);
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -609,6 +626,13 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #undef VY
 #undef VS
 #undef VP
+
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> PropertyName() const;                             \
+  inline void set_##PropertyName(v8::Local<TypeName> value);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   size_t max_young_gen_size = 1;
@@ -621,20 +645,24 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   IsolateData& operator=(IsolateData&&) = delete;
 
  private:
-  void DeserializeProperties(const std::vector<size_t>* indexes);
+  void DeserializeProperties(const IsolateDataSerializeInfo* isolate_data_info);
   void CreateProperties();
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VT(PropertyName, TypeName) V(TypeName, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   v8::Eternal<TypeName> PropertyName ## _;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_ISOLATE_TEMPLATE_PROPERTIES(VT)
 #undef V
-#undef VY
+#undef V
+#undef VT
 #undef VS
+#undef VY
 #undef VP
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
@@ -656,34 +684,6 @@ struct ContextInfo {
 };
 
 class EnabledDebugList;
-
-class KVStore {
- public:
-  KVStore() = default;
-  virtual ~KVStore() = default;
-  KVStore(const KVStore&) = delete;
-  KVStore& operator=(const KVStore&) = delete;
-  KVStore(KVStore&&) = delete;
-  KVStore& operator=(KVStore&&) = delete;
-
-  virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
-                                         v8::Local<v8::String> key) const = 0;
-  virtual v8::Maybe<std::string> Get(const char* key) const = 0;
-  virtual void Set(v8::Isolate* isolate,
-                   v8::Local<v8::String> key,
-                   v8::Local<v8::String> value) = 0;
-  virtual int32_t Query(v8::Isolate* isolate,
-                        v8::Local<v8::String> key) const = 0;
-  virtual int32_t Query(const char* key) const = 0;
-  virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
-  virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
-
-  virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
-  virtual v8::Maybe<bool> AssignFromObject(v8::Local<v8::Context> context,
-                                           v8::Local<v8::Object> entries);
-
-  static std::shared_ptr<KVStore> CreateMapKVStore();
-};
 
 namespace per_process {
 extern std::shared_ptr<KVStore> system_environment;
@@ -953,12 +953,6 @@ class CleanupHookCallback {
   uint64_t insertion_order_counter_;
 };
 
-struct PropInfo {
-  std::string name;     // name for debugging
-  size_t id;            // In the list - in case there are any empty entries
-  SnapshotIndex index;  // In the snapshot
-};
-
 typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> holder,
                                            int index,
@@ -980,10 +974,10 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
+  AliasedBufferIndex exiting;
   AliasedBufferIndex stream_base_state;
   AliasedBufferIndex should_abort_on_uncaught_toggle;
 
-  std::vector<PropInfo> persistent_templates;
   std::vector<PropInfo> persistent_values;
 
   SnapshotIndex context;
@@ -991,22 +985,40 @@ struct EnvSerializeInfo {
 };
 
 struct SnapshotData {
+  enum class DataOwnership { kOwned, kNotOwned };
+
+  static const uint32_t kMagic = 0x143da19;
+  static const SnapshotIndex kNodeBaseContextIndex = 0;
+  static const SnapshotIndex kNodeMainContextIndex = kNodeBaseContextIndex + 1;
+
+  DataOwnership data_ownership = DataOwnership::kOwned;
+
   // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
   // building process.
-  v8::StartupData v8_snapshot_blob_data;
+  v8::StartupData v8_snapshot_blob_data{nullptr, 0};
 
-  static const size_t kNodeBaseContextIndex = 0;
-  static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
-
-  std::vector<size_t> isolate_data_indices;
+  IsolateDataSerializeInfo isolate_data_info;
   // TODO(joyeecheung): there should be a vector of env_info once we snapshot
   // the worker environments.
   EnvSerializeInfo env_info;
+
   // A vector of built-in ids and v8::ScriptCompiler::CachedData, this can be
   // shared across Node.js instances because they are supposed to share the
   // read only space. We use native_module::CodeCacheInfo because
   // v8::ScriptCompiler::CachedData is not copyable.
   std::vector<native_module::CodeCacheInfo> code_cache;
+
+  void ToBlob(FILE* out) const;
+  static void FromBlob(SnapshotData* out, FILE* in);
+
+  ~SnapshotData();
+
+  SnapshotData(const SnapshotData&) = delete;
+  SnapshotData& operator=(const SnapshotData&) = delete;
+  SnapshotData(SnapshotData&&) = delete;
+  SnapshotData& operator=(SnapshotData&&) = delete;
+
+  SnapshotData() = default;
 };
 
 class Environment : public MemoryRetainer {
@@ -1168,6 +1180,11 @@ class Environment : public MemoryRetainer {
   inline void set_force_context_aware(bool value);
   inline bool force_context_aware() const;
 
+  // This is a pseudo-boolean that keeps track of whether the process is
+  // exiting.
+  inline void set_exiting(bool value);
+  inline AliasedUint32Array& exiting();
+
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
   inline bool abort_on_uncaught_exception() const;
@@ -1280,56 +1297,6 @@ class Environment : public MemoryRetainer {
                                const char* path = nullptr,
                                const char* dest = nullptr);
 
-  v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
-      v8::FunctionCallback callback,
-      v8::Local<v8::Signature> signature = v8::Local<v8::Signature>(),
-      v8::ConstructorBehavior behavior = v8::ConstructorBehavior::kAllow,
-      v8::SideEffectType side_effect = v8::SideEffectType::kHasSideEffect,
-      const v8::CFunction* c_function = nullptr);
-
-  // Convenience methods for NewFunctionTemplate().
-  void SetMethod(v8::Local<v8::Object> that,
-                 const char* name,
-                 v8::FunctionCallback callback);
-
-  void SetFastMethod(v8::Local<v8::Object> that,
-                     const char* name,
-                     v8::FunctionCallback slow_callback,
-                     const v8::CFunction* c_function);
-
-  void SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
-                      const char* name,
-                      v8::FunctionCallback callback);
-
-  void SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
-                         const char* name,
-                         v8::FunctionCallback callback);
-
-  // Safe variants denote the function has no side effects.
-  void SetMethodNoSideEffect(v8::Local<v8::Object> that,
-                             const char* name,
-                             v8::FunctionCallback callback);
-  void SetProtoMethodNoSideEffect(v8::Local<v8::FunctionTemplate> that,
-                                  const char* name,
-                                  v8::FunctionCallback callback);
-
-  enum class SetConstructorFunctionFlag {
-    NONE,
-    SET_CLASS_NAME,
-  };
-
-  void SetConstructorFunction(v8::Local<v8::Object> that,
-                              const char* name,
-                              v8::Local<v8::FunctionTemplate> tmpl,
-                              SetConstructorFunctionFlag flag =
-                                  SetConstructorFunctionFlag::SET_CLASS_NAME);
-
-  void SetConstructorFunction(v8::Local<v8::Object> that,
-                              v8::Local<v8::String> name,
-                              v8::Local<v8::FunctionTemplate> tmpl,
-                              SetConstructorFunctionFlag flag =
-                                  SetConstructorFunctionFlag::SET_CLASS_NAME);
-
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
@@ -1357,8 +1324,8 @@ class Environment : public MemoryRetainer {
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   inline v8::Local<v8::Context> context() const;
@@ -1377,6 +1344,13 @@ class Environment : public MemoryRetainer {
 
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
+
+  inline uint64_t time_origin() {
+    return time_origin_;
+  }
+  inline double time_origin_timestamp() {
+    return time_origin_timestamp_;
+  }
 
   inline bool EmitProcessEnvWarning() {
     bool current_value = emit_env_nonstring_warning_;
@@ -1558,6 +1532,8 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
+  AliasedUint32Array exiting_;
+
   AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
@@ -1565,7 +1541,10 @@ class Environment : public MemoryRetainer {
 
   AliasedInt32Array stream_base_state_;
 
-  uint64_t environment_start_time_;
+  // https://w3c.github.io/hr-time/#dfn-time-origin
+  uint64_t time_origin_;
+  // https://w3c.github.io/hr-time/#dfn-get-time-origin-timestamp
+  double time_origin_timestamp_;
   std::unique_ptr<performance::PerformanceState> performance_state_;
 
   bool has_run_bootstrapping_code_ = false;
@@ -1651,7 +1630,6 @@ class Environment : public MemoryRetainer {
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   v8::Global<v8::Context> context_;

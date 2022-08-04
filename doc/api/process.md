@@ -1075,7 +1075,6 @@ An example of the possible output looks like:
      node_shared_http_parser: 'false',
      node_shared_libuv: 'false',
      node_shared_zlib: 'false',
-     node_use_dtrace: 'false',
      node_use_openssl: 'true',
      node_shared_openssl: 'false',
      strict_aliasing: 'true',
@@ -3822,6 +3821,9 @@ cases:
   options were set, but the port number chosen was invalid or unavailable.
 * `13` **Unfinished Top-Level Await**: `await` was used outside of a function
   in the top-level code, but the passed `Promise` never resolved.
+* `14` **Snapshot Failure**: Node.js was started to build a V8 startup
+  snapshot and it failed because certain requirements of the state of
+  the application were not met.
 * `>128` **Signal Exits**: If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
   value of the signal code. This is a standard POSIX practice, since

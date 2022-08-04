@@ -184,7 +184,7 @@ directory <code>.</code> is that the folder <code>packages/a</code> will get sym
 structure of files and folders:</p>
 <pre><code>.
 +-- node_modules
-|  `-- packages/a -&gt; ../packages/a
+|  `-- a -&gt; ../packages/a
 +-- package-lock.json
 +-- package.json
 `-- packages
@@ -223,13 +223,13 @@ respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
 <p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifities of how Node.js handles module resolution</a> it's possible to consume any defined workspace
 by its declared <code>package.json</code> <code>name</code>. Continuing from the example defined
-above, let's also create a Node.js script that will require the <code>workspace-a</code>
+above, let's also create a Node.js script that will require the workspace <code>a</code>
 example module, e.g:</p>
-<pre><code>// ./workspace-a/index.js
+<pre><code>// ./packages/a/index.js
 module.exports = 'a'
 
 // ./lib/index.js
-const moduleA = require('workspace-a')
+const moduleA = require('a')
 console.log(moduleA) // -&gt; a
 </code></pre>
 <p>When running it with:</p>
@@ -240,7 +240,9 @@ in such a way that is also easy to <a href="../commands/npm-publish.html">publis
 nested workspaces to be consumed elsewhere.</p>
 <h3 id="running-commands-in-the-context-of-workspaces">Running commands in the context of workspaces</h3>
 <p>You can use the <code>workspace</code> configuration option to run commands in the context
-of a configured workspace.</p>
+of a configured workspace.
+Additionally, if your current directory is in a workspace, the <code>workspace</code>
+configuration is implicitly set, and <code>prefix</code> is set to the root workspace.</p>
 <p>Following is a quick example on how to use the <code>npm run</code> command in the context
 of nested workspaces. For a project containing multiple workspaces, e.g:</p>
 <pre><code>.
@@ -255,7 +257,10 @@ of nested workspaces. For a project containing multiple workspaces, e.g:</p>
 given command in the context of that specific workspace. e.g:</p>
 <pre><code>npm run test --workspace=a
 </code></pre>
-<p>This will run the <code>test</code> script defined within the
+<p>You could also run the command within the workspace.</p>
+<pre><code>cd packages/a &amp;&amp; npm run test
+</code></pre>
+<p>Either will run the <code>test</code> script defined within the
 <code>./packages/a/package.json</code> file.</p>
 <p>Please note that you can also specify this argument multiple times in the
 command-line in order to target multiple workspaces, e.g:</p>

@@ -371,6 +371,14 @@ inline bool Environment::force_context_aware() const {
   return options_->force_context_aware;
 }
 
+inline void Environment::set_exiting(bool value) {
+  exiting_[0] = value ? 1 : 0;
+}
+
+inline AliasedUint32Array& Environment::exiting() {
+  return exiting_;
+}
+
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }
@@ -876,6 +884,16 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> IsolateData::PropertyName() const {               \
+    return PropertyName##_.Get(isolate_);                                      \
+  }                                                                            \
+  inline void IsolateData::set_##PropertyName(v8::Local<TypeName> value) {     \
+    PropertyName##_.Set(isolate_, value);                                      \
+  }
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -891,14 +909,24 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
-#define V(PropertyName, TypeName)                                             \
-  inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return PersistentToLocal::Strong(PropertyName ## _);                      \
-  }                                                                           \
-  inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
-    PropertyName ## _.Reset(isolate(), value);                                \
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> Environment::PropertyName() const {               \
+    return isolate_data()->PropertyName();                                     \
+  }                                                                            \
+  inline void Environment::set_##PropertyName(v8::Local<TypeName> value) {     \
+    DCHECK(isolate_data()->PropertyName().IsEmpty());                          \
+    isolate_data()->set_##PropertyName(value);                                 \
   }
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> Environment::PropertyName() const {               \
+    return PersistentToLocal::Strong(PropertyName##_);                         \
+  }                                                                            \
+  inline void Environment::set_##PropertyName(v8::Local<TypeName> value) {     \
+    PropertyName##_.Reset(isolate(), value);                                   \
+  }
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
 

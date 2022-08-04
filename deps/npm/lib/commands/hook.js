@@ -22,7 +22,7 @@ class Hook extends BaseCommand {
   static ignoreImplicitWorkspace = true
 
   async exec (args) {
-    return otplease({
+    return otplease(this.npm, {
       ...this.npm.flatOptions,
     }, (opts) => {
       switch (args[0]) {

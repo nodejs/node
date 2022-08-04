@@ -710,9 +710,7 @@ void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
 Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(resource_limits_));
 
-  memcpy(ab->GetBackingStore()->Data(),
-         resource_limits_,
-         sizeof(resource_limits_));
+  memcpy(ab->Data(), resource_limits_, sizeof(resource_limits_));
   return Float64Array::New(ab, 0, kTotalResourceLimitCount);
 }
 
@@ -816,8 +814,7 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   double loop_start_time = w->env_->performance_state()->milestones[
       node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
   CHECK_GE(loop_start_time, 0);
-  args.GetReturnValue().Set(
-      (loop_start_time - node::performance::timeOrigin) / 1e6);
+  args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
 namespace {
@@ -840,65 +837,66 @@ void InitWorker(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   {
-    Local<FunctionTemplate> w = env->NewFunctionTemplate(Worker::New);
+    Local<FunctionTemplate> w = NewFunctionTemplate(isolate, Worker::New);
 
     w->InstanceTemplate()->SetInternalFieldCount(
         Worker::kInternalFieldCount);
     w->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(w, "startThread", Worker::StartThread);
-    env->SetProtoMethod(w, "stopThread", Worker::StopThread);
-    env->SetProtoMethod(w, "hasRef", Worker::HasRef);
-    env->SetProtoMethod(w, "ref", Worker::Ref);
-    env->SetProtoMethod(w, "unref", Worker::Unref);
-    env->SetProtoMethod(w, "getResourceLimits", Worker::GetResourceLimits);
-    env->SetProtoMethod(w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
-    env->SetProtoMethod(w, "loopIdleTime", Worker::LoopIdleTime);
-    env->SetProtoMethod(w, "loopStartTime", Worker::LoopStartTime);
+    SetProtoMethod(isolate, w, "startThread", Worker::StartThread);
+    SetProtoMethod(isolate, w, "stopThread", Worker::StopThread);
+    SetProtoMethod(isolate, w, "hasRef", Worker::HasRef);
+    SetProtoMethod(isolate, w, "ref", Worker::Ref);
+    SetProtoMethod(isolate, w, "unref", Worker::Unref);
+    SetProtoMethod(isolate, w, "getResourceLimits", Worker::GetResourceLimits);
+    SetProtoMethod(isolate, w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
+    SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
+    SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
 
-    env->SetConstructorFunction(target, "Worker", w);
+    SetConstructorFunction(context, target, "Worker", w);
   }
 
   {
-    Local<FunctionTemplate> wst = FunctionTemplate::New(env->isolate());
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
 
     wst->InstanceTemplate()->SetInternalFieldCount(
         WorkerHeapSnapshotTaker::kInternalFieldCount);
     wst->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
     Local<String> wst_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "WorkerHeapSnapshotTaker");
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapSnapshotTaker");
     wst->SetClassName(wst_string);
     env->set_worker_heap_snapshot_taker_template(wst->InstanceTemplate());
   }
 
-  env->SetMethod(target, "getEnvMessagePort", GetEnvMessagePort);
+  SetMethod(context, target, "getEnvMessagePort", GetEnvMessagePort);
 
   target
       ->Set(env->context(),
             env->thread_id_string(),
-            Number::New(env->isolate(), static_cast<double>(env->thread_id())))
+            Number::New(isolate, static_cast<double>(env->thread_id())))
       .Check();
 
   target
       ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "isMainThread"),
-            Boolean::New(env->isolate(), env->is_main_thread()))
+            FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
+            Boolean::New(isolate, env->is_main_thread()))
       .Check();
 
   target
       ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "ownsProcessState"),
-            Boolean::New(env->isolate(), env->owns_process_state()))
+            FIXED_ONE_BYTE_STRING(isolate, "ownsProcessState"),
+            Boolean::New(isolate, env->owns_process_state()))
       .Check();
 
   if (!env->is_main_thread()) {
     target
         ->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "resourceLimits"),
-              env->worker_context()->GetResourceLimits(env->isolate()))
+              FIXED_ONE_BYTE_STRING(isolate, "resourceLimits"),
+              env->worker_context()->GetResourceLimits(isolate))
         .Check();
   }
 

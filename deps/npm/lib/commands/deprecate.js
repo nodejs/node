@@ -60,7 +60,7 @@ class Deprecate extends BaseCommand {
         packument.versions[v].deprecated = msg
       })
 
-    return otplease(this.npm.flatOptions, opts => fetch(uri, {
+    return otplease(this.npm, this.npm.flatOptions, opts => fetch(uri, {
       ...opts,
       spec: p,
       method: 'PUT',

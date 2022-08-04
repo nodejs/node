@@ -50,7 +50,7 @@ class AliasedBufferBase {
     // allocate v8 ArrayBuffer
     v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
         isolate_, size_in_bytes);
-    buffer_ = static_cast<NativeT*>(ab->GetBackingStore()->Data());
+    buffer_ = static_cast<NativeT*>(ab->Data());
 
     // allocate v8 TypedArray
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, count);
@@ -119,8 +119,7 @@ class AliasedBufferBase {
     // be removed when we expand the snapshot support.
     DCHECK_EQ(count_, arr->Length());
     DCHECK_EQ(byte_offset_, arr->ByteOffset());
-    uint8_t* raw =
-        static_cast<uint8_t*>(arr->Buffer()->GetBackingStore()->Data());
+    uint8_t* raw = static_cast<uint8_t*>(arr->Buffer()->Data());
     buffer_ = reinterpret_cast<NativeT*>(raw + byte_offset_);
     js_array_.Reset(isolate_, arr);
     index_ = nullptr;
@@ -278,7 +277,7 @@ class AliasedBufferBase {
         isolate_, new_size_in_bytes);
 
     // allocate new native buffer
-    NativeT* new_buffer = static_cast<NativeT*>(ab->GetBackingStore()->Data());
+    NativeT* new_buffer = static_cast<NativeT*>(ab->Data());
     // copy old content
     memcpy(new_buffer, buffer_, old_size_in_bytes);
 
@@ -307,7 +306,7 @@ typedef AliasedBufferBase<int32_t, v8::Int32Array> AliasedInt32Array;
 typedef AliasedBufferBase<uint8_t, v8::Uint8Array> AliasedUint8Array;
 typedef AliasedBufferBase<uint32_t, v8::Uint32Array> AliasedUint32Array;
 typedef AliasedBufferBase<double, v8::Float64Array> AliasedFloat64Array;
-typedef AliasedBufferBase<uint64_t, v8::BigUint64Array> AliasedBigUint64Array;
+typedef AliasedBufferBase<int64_t, v8::BigInt64Array> AliasedBigInt64Array;
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

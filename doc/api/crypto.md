@@ -395,11 +395,11 @@ Example: Using `Cipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 
 import {
   pipeline
-} from 'stream';
+} from 'node:stream';
 
 const {
   scrypt,
@@ -675,6 +675,7 @@ const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
@@ -711,6 +712,7 @@ const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
+  let chunk;
   while (null !== (chunk = decipher.read())) {
     decrypted += chunk.toString('utf8');
   }
@@ -733,7 +735,7 @@ Example: Using `Decipher` and piped streams:
 import {
   createReadStream,
   createWriteStream,
-} from 'fs';
+} from 'node:fs';
 import { Buffer } from 'node:buffer';
 const {
   scryptSync,
@@ -1181,20 +1183,16 @@ const { createDiffieHellmanGroup } = require('node:crypto');
 const dh = createDiffieHellmanGroup('modp1');
 ```
 
-The name (e.g. `'modp1'`) is taken from [RFC 2412][] (modp1 and 2) and
-[RFC 3526][]:
+The following groups are supported:
 
-```console
-$ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
-modp1  #  768 bits
-modp2  # 1024 bits
-modp5  # 1536 bits
-modp14 # 2048 bits
-modp15 # etc.
-modp16
-modp17
-modp18
-```
+* `'modp1'` (768 bits, [RFC 2409][] Section 6.1)
+* `'modp2'` (1024 bits, [RFC 2409][] Section 6.2)
+* `'modp5'` (1536 bits, [RFC 3526][] Section 2)
+* `'modp14'` (2048 bits, [RFC 3526][] Section 3)
+* `'modp15'` (3072 bits, [RFC 3526][] Section 4)
+* `'modp16'` (4096 bits, [RFC 3526][] Section 5)
+* `'modp17'` (6144 bits, [RFC 3526][] Section 6)
+* `'modp18'` (8192 bits, [RFC 3526][] Section 7)
 
 ## Class: `ECDH`
 
@@ -3315,7 +3313,7 @@ Example: generating the sha256 sum of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 import { argv } from 'node:process';
 const {
   createHash
@@ -3401,7 +3399,7 @@ Example: generating the sha256 HMAC of a file
 ```mjs
 import {
   createReadStream
-} from 'fs';
+} from 'node:fs';
 import { argv } from 'node:process';
 const {
   createHmac
@@ -6105,6 +6103,7 @@ See the [list of SSL OP Flags][] for details.
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
+[RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
@@ -6158,7 +6157,7 @@ See the [list of SSL OP Flags][] for details.
 [`hash.update()`]: #hashupdatedata-inputencoding
 [`hmac.digest()`]: #hmacdigestencoding
 [`hmac.update()`]: #hmacupdatedata-inputencoding
-[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`keyObject.export()`]: #keyobjectexportoptions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding

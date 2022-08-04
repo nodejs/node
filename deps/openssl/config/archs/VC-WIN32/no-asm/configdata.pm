@@ -287,7 +287,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x55e1a1cb0ac8)",
+    "RANLIB" => "CODE(0x55829a8f72e8)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",

@@ -331,11 +331,11 @@ MaybeLocal<Object> V8CpuProfilerConnection::GetProfile(Local<Object> result) {
 
 void V8CpuProfilerConnection::Start() {
   DispatchMessage("Profiler.enable");
-  DispatchMessage("Profiler.start");
   std::string params = R"({ "interval": )";
   params += std::to_string(env()->cpu_prof_interval());
   params += " }";
   DispatchMessage("Profiler.setSamplingInterval", params.c_str());
+  DispatchMessage("Profiler.start");
 }
 
 void V8CpuProfilerConnection::End() {
@@ -507,11 +507,11 @@ static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
-  env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
-  env->SetMethod(target, "takeCoverage", TakeCoverage);
-  env->SetMethod(target, "stopCoverage", StopCoverage);
+  SetMethod(context, target, "setCoverageDirectory", SetCoverageDirectory);
+  SetMethod(
+      context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
+  SetMethod(context, target, "takeCoverage", TakeCoverage);
+  SetMethod(context, target, "stopCoverage", StopCoverage);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

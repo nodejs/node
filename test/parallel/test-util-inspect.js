@@ -1172,6 +1172,7 @@ if (typeof Symbol !== 'undefined') {
 {
   assert.strictEqual(util.inspect(new Set()), 'Set(0) {}');
   assert.strictEqual(util.inspect(new Set([1, 2, 3])), 'Set(3) { 1, 2, 3 }');
+  assert.strictEqual(util.inspect(new Set([1, 2, 3]), { maxArrayLength: 1 }), 'Set(3) { 1, ... 2 more items }');
   const set = new Set(['foo']);
   set.bar = 42;
   assert.strictEqual(
@@ -1192,6 +1193,8 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new Map()), 'Map(0) {}');
   assert.strictEqual(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
                      "Map(3) { 1 => 'a', 2 => 'b', 3 => 'c' }");
+  assert.strictEqual(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']]), { maxArrayLength: 1 }),
+                     "Map(3) { 1 => 'a', ... 2 more items }");
   const map = new Map([['foo', null]]);
   map.bar = 42;
   assert.strictEqual(util.inspect(map, true),

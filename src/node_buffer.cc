@@ -244,8 +244,7 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
-      ui->ByteOffset();
+  return static_cast<char*>(ui->Buffer()->Data()) + ui->ByteOffset();
 }
 
 
@@ -497,6 +496,7 @@ MaybeLocal<Object> New(Environment* env,
     if (length > kMaxLength) {
       Isolate* isolate(env->isolate());
       isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+      free(data);
       return Local<Object>();
     }
   }
@@ -666,12 +666,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     // Write initial String to Buffer, then use that memory to copy remainder
     // of string. Correct the string length for cases like HEX where less than
     // the total string length is written.
-    str_length = StringBytes::Write(env->isolate(),
-                                    ts_obj_data + start,
-                                    fill_length,
-                                    str_obj,
-                                    enc,
-                                    nullptr);
+    str_length = StringBytes::Write(
+        env->isolate(), ts_obj_data + start, fill_length, str_obj, enc);
   }
 
 start_fill:
@@ -730,12 +726,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
 
-  uint32_t written = StringBytes::Write(env->isolate(),
-                                        ts_obj_data + offset,
-                                        max_length,
-                                        str,
-                                        encoding,
-                                        nullptr);
+  uint32_t written = StringBytes::Write(
+      env->isolate(), ts_obj_data + offset, max_length, str, encoding);
   args.GetReturnValue().Set(written);
 }
 
@@ -1156,14 +1148,13 @@ static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
 
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
   Local<ArrayBuffer> buf = dest->Buffer();
-  char* write_result =
-      static_cast<char*>(buf->GetBackingStore()->Data()) + dest->ByteOffset();
+  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
   // results = [ read, written ]
   Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
   uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->GetBackingStore()->Data()) +
+      static_cast<char*>(result_arr->Buffer()->Data()) +
       result_arr->ByteOffset());
 
   int nchars;
@@ -1227,6 +1218,27 @@ void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+namespace {
+
+std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
+  void* pointer;
+  size_t byte_length;
+  if (buffer->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = buffer.As<ArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else if (buffer->IsSharedArrayBuffer()) {
+    Local<SharedArrayBuffer> ab = buffer.As<SharedArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else {
+    UNREACHABLE();  // Caller must validate.
+  }
+  return {pointer, byte_length};
+}
+
+}  // namespace
+
 void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   // args[0] == Destination ArrayBuffer
   // args[1] == Destination ArrayBuffer Offset
@@ -1240,32 +1252,24 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[3]->IsUint32());
   CHECK(args[4]->IsUint32());
 
-  std::shared_ptr<BackingStore> destination;
-  std::shared_ptr<BackingStore> source;
+  void* destination;
+  size_t destination_byte_length;
+  std::tie(destination, destination_byte_length) =
+      DecomposeBufferToParts(args[0]);
 
-  if (args[0]->IsArrayBuffer()) {
-    destination = args[0].As<ArrayBuffer>()->GetBackingStore();
-  } else if (args[0]->IsSharedArrayBuffer()) {
-    destination = args[0].As<SharedArrayBuffer>()->GetBackingStore();
-  }
-
-  if (args[2]->IsArrayBuffer()) {
-    source = args[2].As<ArrayBuffer>()->GetBackingStore();
-  } else if (args[0]->IsSharedArrayBuffer()) {
-    source = args[2].As<SharedArrayBuffer>()->GetBackingStore();
-  }
+  void* source;
+  size_t source_byte_length;
+  std::tie(source, source_byte_length) = DecomposeBufferToParts(args[2]);
 
   uint32_t destination_offset = args[1].As<Uint32>()->Value();
   uint32_t source_offset = args[3].As<Uint32>()->Value();
   size_t bytes_to_copy = args[4].As<Uint32>()->Value();
 
-  CHECK_GE(destination->ByteLength() - destination_offset, bytes_to_copy);
-  CHECK_GE(source->ByteLength() - source_offset, bytes_to_copy);
+  CHECK_GE(destination_byte_length - destination_offset, bytes_to_copy);
+  CHECK_GE(source_byte_length - source_offset, bytes_to_copy);
 
-  uint8_t* dest =
-      static_cast<uint8_t*>(destination->Data()) + destination_offset;
-  uint8_t* src =
-      static_cast<uint8_t*>(source->Data()) + source_offset;
+  uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset;
+  uint8_t* src = static_cast<uint8_t*>(source) + source_offset;
   memcpy(dest, src, bytes_to_copy);
 }
 
@@ -1274,54 +1278,60 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-  env->SetMethod(target, "setBufferPrototype", SetBufferPrototype);
-  env->SetMethodNoSideEffect(target, "createFromString", CreateFromString);
+  SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
+  SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
 
-  env->SetMethodNoSideEffect(target, "byteLengthUtf8", ByteLengthUtf8);
-  env->SetMethod(target, "copy", Copy);
-  env->SetMethodNoSideEffect(target, "compare", Compare);
-  env->SetMethodNoSideEffect(target, "compareOffset", CompareOffset);
-  env->SetMethod(target, "fill", Fill);
-  env->SetMethodNoSideEffect(target, "indexOfBuffer", IndexOfBuffer);
-  env->SetMethodNoSideEffect(target, "indexOfNumber", IndexOfNumber);
-  env->SetMethodNoSideEffect(target, "indexOfString", IndexOfString);
+  SetMethodNoSideEffect(context, target, "byteLengthUtf8", ByteLengthUtf8);
+  SetMethod(context, target, "copy", Copy);
+  SetMethodNoSideEffect(context, target, "compare", Compare);
+  SetMethodNoSideEffect(context, target, "compareOffset", CompareOffset);
+  SetMethod(context, target, "fill", Fill);
+  SetMethodNoSideEffect(context, target, "indexOfBuffer", IndexOfBuffer);
+  SetMethodNoSideEffect(context, target, "indexOfNumber", IndexOfNumber);
+  SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
-  env->SetMethod(target, "detachArrayBuffer", DetachArrayBuffer);
-  env->SetMethod(target, "copyArrayBuffer", CopyArrayBuffer);
+  SetMethod(context, target, "detachArrayBuffer", DetachArrayBuffer);
+  SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
 
-  env->SetMethod(target, "swap16", Swap16);
-  env->SetMethod(target, "swap32", Swap32);
-  env->SetMethod(target, "swap64", Swap64);
+  SetMethod(context, target, "swap16", Swap16);
+  SetMethod(context, target, "swap32", Swap32);
+  SetMethod(context, target, "swap64", Swap64);
 
-  env->SetMethod(target, "encodeInto", EncodeInto);
-  env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
+  SetMethod(context, target, "encodeInto", EncodeInto);
+  SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Number::New(env->isolate(), kMaxLength)).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kMaxLength"),
+            Number::New(isolate, kMaxLength))
+      .Check();
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
-              Integer::New(env->isolate(), String::kMaxLength)).Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kStringMaxLength"),
+            Integer::New(isolate, String::kMaxLength))
+      .Check();
 
-  env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
-  env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
-  env->SetMethodNoSideEffect(target, "base64urlSlice", StringSlice<BASE64URL>);
-  env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
-  env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
-  env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
-  env->SetMethodNoSideEffect(target, "utf8Slice", StringSlice<UTF8>);
+  SetMethodNoSideEffect(context, target, "asciiSlice", StringSlice<ASCII>);
+  SetMethodNoSideEffect(context, target, "base64Slice", StringSlice<BASE64>);
+  SetMethodNoSideEffect(
+      context, target, "base64urlSlice", StringSlice<BASE64URL>);
+  SetMethodNoSideEffect(context, target, "latin1Slice", StringSlice<LATIN1>);
+  SetMethodNoSideEffect(context, target, "hexSlice", StringSlice<HEX>);
+  SetMethodNoSideEffect(context, target, "ucs2Slice", StringSlice<UCS2>);
+  SetMethodNoSideEffect(context, target, "utf8Slice", StringSlice<UTF8>);
 
-  env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
-  env->SetMethod(target, "base64Write", StringWrite<BASE64>);
-  env->SetMethod(target, "base64urlWrite", StringWrite<BASE64URL>);
-  env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
-  env->SetMethod(target, "hexWrite", StringWrite<HEX>);
-  env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
-  env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
+  SetMethod(context, target, "asciiWrite", StringWrite<ASCII>);
+  SetMethod(context, target, "base64Write", StringWrite<BASE64>);
+  SetMethod(context, target, "base64urlWrite", StringWrite<BASE64URL>);
+  SetMethod(context, target, "latin1Write", StringWrite<LATIN1>);
+  SetMethod(context, target, "hexWrite", StringWrite<HEX>);
+  SetMethod(context, target, "ucs2Write", StringWrite<UCS2>);
+  SetMethod(context, target, "utf8Write", StringWrite<UTF8>);
 
-  env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
+  SetMethod(context, target, "getZeroFillToggle", GetZeroFillToggle);
 }
 
 }  // anonymous namespace
