@@ -336,7 +336,10 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
-Note, enabling source maps can introduce latency to your application when `Error.stack` is accessed. If you access `Error.stack` frequently in your application, take into account the performance implications of `--enable-source-maps`.
+Note, enabling source maps can introduce latency to your application
+when `Error.stack` is accessed. If you access `Error.stack` frequently
+in your application, take into account the performance implications
+of `--enable-source-maps`.
 
 ### `--experimental-global-customevent`
 
