@@ -4,9 +4,9 @@
 #include "crypto/crypto_util.h"
 #endif  // HAVE_OPENSSL
 #include "debug_utils-inl.h"
+#include "node_builtins.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"

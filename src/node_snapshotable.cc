@@ -6,13 +6,13 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_blob.h"
+#include "node_builtins.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
-#include "node_native_module.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
 #include "node_v8.h"
@@ -42,14 +42,14 @@ using v8::Value;
 const uint32_t SnapshotData::kMagic;
 
 std::ostream& operator<<(std::ostream& output,
-                         const native_module::CodeCacheInfo& info) {
-  output << "<native_module::CodeCacheInfo id=" << info.id
+                         const builtins::CodeCacheInfo& info) {
+  output << "<builtins::CodeCacheInfo id=" << info.id
          << ", size=" << info.data.size() << ">\n";
   return output;
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const std::vector<native_module::CodeCacheInfo>& vec) {
+                         const std::vector<builtins::CodeCacheInfo>& vec) {
   output << "{\n";
   for (const auto& info : vec) {
     output << info;
@@ -91,7 +91,7 @@ class FileIO {
   template <typename T>
   std::string GetName() const {
 #define TYPE_LIST(V)                                                           \
-  V(native_module::CodeCacheInfo)                                              \
+  V(builtins::CodeCacheInfo)                                                   \
   V(PropInfo)                                                                  \
   V(std::string)
 
@@ -389,27 +389,27 @@ size_t FileWriter::Write(const v8::StartupData& data) {
   return written_total;
 }
 
-// Layout of native_module::CodeCacheInfo
+// Layout of builtins::CodeCacheInfo
 // [  4/8 bytes ]  length of the module id string
 // [    ...     ]  |length| bytes of module id
 // [  4/8 bytes ]  length of module code cache
 // [    ...     ]  |length| bytes of module code cache
 template <>
-native_module::CodeCacheInfo FileReader::Read() {
-  Debug("Read<native_module::CodeCacheInfo>()\n");
+builtins::CodeCacheInfo FileReader::Read() {
+  Debug("Read<builtins::CodeCacheInfo>()\n");
 
-  native_module::CodeCacheInfo result{ReadString(), ReadVector<uint8_t>()};
+  builtins::CodeCacheInfo result{ReadString(), ReadVector<uint8_t>()};
 
   if (is_debug) {
     std::string str = ToStr(result);
-    Debug("Read<native_module::CodeCacheInfo>() %s\n", str.c_str());
+    Debug("Read<builtins::CodeCacheInfo>() %s\n", str.c_str());
   }
   return result;
 }
 
 template <>
-size_t FileWriter::Write(const native_module::CodeCacheInfo& data) {
-  Debug("\nWrite<native_module::CodeCacheInfo>() id = %s"
+size_t FileWriter::Write(const builtins::CodeCacheInfo& data) {
+  Debug("\nWrite<builtins::CodeCacheInfo>() id = %s"
         ", size=%d\n",
         data.id.c_str(),
         data.data.size());
@@ -417,8 +417,7 @@ size_t FileWriter::Write(const native_module::CodeCacheInfo& data) {
   size_t written_total = WriteString(data.id);
   written_total += WriteVector<uint8_t>(data.data);
 
-  Debug("Write<native_module::CodeCacheInfo>() wrote %d bytes\n",
-        written_total);
+  Debug("Write<builtins::CodeCacheInfo>() wrote %d bytes\n", written_total);
   return written_total;
 }
 
@@ -640,7 +639,7 @@ EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
   result.bindings = ReadVector<PropInfo>();
-  result.native_modules = ReadVector<std::string>();
+  result.builtins = ReadVector<std::string>();
   result.async_hooks = Read<AsyncHooks::SerializeInfo>();
   result.tick_info = Read<TickInfo::SerializeInfo>();
   result.immediate_info = Read<ImmediateInfo::SerializeInfo>();
@@ -663,7 +662,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
 
   // Use += here to ensure order of evaluation.
   size_t written_total = WriteVector<PropInfo>(data.bindings);
-  written_total += WriteVector<std::string>(data.native_modules);
+  written_total += WriteVector<std::string>(data.builtins);
   written_total += Write<AsyncHooks::SerializeInfo>(data.async_hooks);
   written_total += Write<TickInfo::SerializeInfo>(data.tick_info);
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
@@ -709,7 +708,7 @@ void SnapshotData::ToBlob(FILE* out) const {
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
   written_total += w.Write<EnvSerializeInfo>(env_info);
   w.Debug("Write code_cache\n");
-  written_total += w.WriteVector<native_module::CodeCacheInfo>(code_cache);
+  written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 }
 
@@ -734,7 +733,7 @@ void SnapshotData::FromBlob(SnapshotData* out, FILE* in) {
   out->isolate_data_info = r.Read<IsolateDataSerializeInfo>();
   out->env_info = r.Read<EnvSerializeInfo>();
   r.Debug("Read code_cache\n");
-  out->code_cache = r.ReadVector<native_module::CodeCacheInfo>();
+  out->code_cache = r.ReadVector<builtins::CodeCacheInfo>();
 
   r.Debug("SnapshotData::FromBlob() read %d bytes\n", r.read_total);
 }
@@ -778,7 +777,7 @@ static std::string FormatSize(size_t size) {
 }
 
 static void WriteStaticCodeCacheData(std::ostream* ss,
-                                     const native_module::CodeCacheInfo& info) {
+                                     const builtins::CodeCacheInfo& info) {
   *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
   WriteVector(ss, info.data.data(), info.data.size());
   *ss << "};";
@@ -986,11 +985,10 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
-      if (!native_module::NativeModuleLoader::CompileAllBuiltins(
-              main_context)) {
+      if (!builtins::BuiltinLoader::CompileAllBuiltins(main_context)) {
         return UNCAUGHT_EXCEPTION_ERROR;
       }
-      native_module::NativeModuleLoader::CopyCodeCache(&(out->code_cache));
+      builtins::BuiltinLoader::CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
         std::string size_str = FormatSize(item.data.size());
         per_process::Debug(DebugCategory::MKSNAPSHOT,

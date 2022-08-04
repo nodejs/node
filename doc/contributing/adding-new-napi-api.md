@@ -1,6 +1,6 @@
 # Contributing a new API to Node-API
 
-Node-API is the next-generation ABI-stable API for native modules.
+Node-API is the next-generation ABI-stable API for native addons.
 While improving the API surface is encouraged and welcomed, the following are
 a set of principles and guidelines to keep in mind while adding a new
 Node-API.

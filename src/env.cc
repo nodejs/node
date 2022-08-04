@@ -1597,11 +1597,11 @@ void Environment::PrintInfoForSnapshotIfDebug() {
     fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
     PrintAllBaseObjects();
     fprintf(stderr, "\nNative modules without cache:\n");
-    for (const auto& s : native_modules_without_cache) {
+    for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nNative modules with cache:\n");
-    for (const auto& s : native_modules_with_cache) {
+    for (const auto& s : builtins_with_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nStatic bindings (need to be registered):\n");
@@ -1657,8 +1657,8 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   SerializeBindingData(this, creator, &info);
   // Currently all modules are compiled without cache in builtin snapshot
   // builder.
-  info.native_modules = std::vector<std::string>(
-      native_modules_without_cache.begin(), native_modules_without_cache.end());
+  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
+                                           builtins_without_cache.end());
 
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
@@ -1717,9 +1717,9 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << "// -- bindings begins --\n"
          << i.bindings << ",\n"
          << "// -- bindings ends --\n"
-         << "// -- native_modules begins --\n"
-         << i.native_modules << ",\n"
-         << "// -- native_modules ends --\n"
+         << "// -- builtins begins --\n"
+         << i.builtins << ",\n"
+         << "// -- builtins ends --\n"
          << "// -- async_hooks begins --\n"
          << i.async_hooks << ",\n"
          << "// -- async_hooks ends --\n"
@@ -1767,7 +1767,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 
   RunDeserializeRequests();
 
-  native_modules_in_snapshot = info->native_modules;
+  builtins_in_snapshot = info->builtins;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
@@ -1988,9 +1988,8 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("native_modules_with_cache", native_modules_with_cache);
-  tracker->TrackField("native_modules_without_cache",
-                      native_modules_without_cache);
+  tracker->TrackField("builtins_with_cache", builtins_with_cache);
+  tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
   tracker->TrackField("exiting", exiting_);

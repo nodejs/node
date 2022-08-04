@@ -1996,7 +1996,7 @@ changes:
 
 Type: Compile-time
 
-Certain versions of `node::MakeCallback` APIs available to native modules are
+Certain versions of `node::MakeCallback` APIs available to native addons are
 deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
@@ -2746,7 +2746,7 @@ changes:
 Type: Documentation-only
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
-with native modules. It was incomplete so far and instead it's better to rely
+of built-in modules. It was incomplete so far and instead it's better to rely
 upon `require('node:module').builtinModules`.
 
 ### DEP0143: `Transform._transformState`

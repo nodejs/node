@@ -43,8 +43,8 @@ struct sockaddr;
 
 namespace node {
 
-namespace native_module {
-class NativeModuleLoader;
+namespace builtins {
+class BuiltinLoader;
 }
 
 namespace per_process {

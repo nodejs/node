@@ -28,11 +28,11 @@
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_binding.h"
+#include "node_builtins.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
-#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_process-inl.h"
@@ -121,7 +121,7 @@
 
 namespace node {
 
-using native_module::NativeModuleLoader;
+using builtins::BuiltinLoader;
 
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -172,7 +172,7 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      NativeModuleLoader::LookupAndCompile(env->context(), id, env);
+      BuiltinLoader::LookupAndCompile(env->context(), id, env);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -292,7 +292,7 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
   EscapableHandleScope scope(isolate_);
 
   // Arguments must match the parameters specified in
-  // NativeModuleLoader::LookupAndCompile().
+  // BuiltinLoader::LookupAndCompile().
   std::vector<Local<Value>> loaders_args = {
       process_object(),
       NewFunctionTemplate(isolate_, binding::GetLinkedBinding)
@@ -319,7 +319,7 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
   Local<Value> require =
       loader_exports_obj->Get(context(), require_string()).ToLocalChecked();
   CHECK(require->IsFunction());
-  set_native_module_require(require.As<Function>());
+  set_builtin_module_require(require.As<Function>());
 
   return scope.Escape(loader_exports);
 }
@@ -328,13 +328,12 @@ MaybeLocal<Value> Environment::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
   // Arguments must match the parameters specified in
-  // NativeModuleLoader::LookupAndCompile().
+  // BuiltinLoader::LookupAndCompile().
   // process, require, internalBinding, primordials
-  std::vector<Local<Value>> node_args = {
-      process_object(),
-      native_module_require(),
-      internal_binding_loader(),
-      primordials()};
+  std::vector<Local<Value>> node_args = {process_object(),
+                                         builtin_module_require(),
+                                         internal_binding_loader(),
+                                         primordials()};
 
   MaybeLocal<Value> result =
       ExecuteBootstrapper(this, "internal/bootstrap/node", &node_args);
@@ -414,9 +413,9 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   CHECK_NOT_NULL(main_script_id);
 
   // Arguments must match the parameters specified in
-  // NativeModuleLoader::LookupAndCompile().
+  // BuiltinLoader::LookupAndCompile().
   std::vector<Local<Value>> arguments = {env->process_object(),
-                                         env->native_module_require(),
+                                         env->builtin_module_require(),
                                          env->internal_binding_loader(),
                                          env->primordials()};
 
@@ -437,8 +436,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
 
     StartExecutionCallbackInfo info = {
-      env->process_object(),
-      env->native_module_require(),
+        env->process_object(),
+        env->builtin_module_require(),
     };
 
     return scope.EscapeMaybe(cb(info));
@@ -975,7 +974,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
-  // able to set it and native modules will not load for them.
+  // able to set it and native addons will not load for them.
   node_is_initialized = true;
   return 0;
 }
@@ -1265,7 +1264,7 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
   }
 
   if ((*snapshot_data_ptr) != nullptr) {
-    NativeModuleLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
+    BuiltinLoader::RefreshCodeCache((*snapshot_data_ptr)->code_cache);
   }
   NodeMainInstance main_instance(*snapshot_data_ptr,
                                  uv_default_loop(),
