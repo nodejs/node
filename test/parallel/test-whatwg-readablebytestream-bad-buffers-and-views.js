@@ -51,4 +51,48 @@ let pass = 0;
   reader.read(new Uint8Array([4, 5, 6]));
 }
 
+{
+  const stream = new ReadableStream({
+    start(c) {
+      c.enqueue(new Uint8Array([1, 2, 3]));
+    },
+    type: 'bytes',
+  });
+  const reader = stream.getReader({ mode: 'byob' });
+  const view = new Uint8Array();
+  reader
+    .read(view)
+    .then(common.mustNotCall())
+    .catch(
+      common.mustCall(
+        common.expectsError({
+          code: 'ERR_INVALID_STATE',
+          name: 'TypeError',
+        }),
+      ),
+    );
+}
+
+{
+  const stream = new ReadableStream({
+    start(c) {
+      c.enqueue(new Uint8Array([1, 2, 3]));
+    },
+    type: 'bytes',
+  });
+  const reader = stream.getReader({ mode: 'byob' });
+  const view = new Uint8Array(new ArrayBuffer(10), 0, 0);
+  reader
+    .read(view)
+    .then(common.mustNotCall())
+    .catch(
+      common.mustCall(
+        common.expectsError({
+          code: 'ERR_INVALID_STATE',
+          name: 'TypeError',
+        }),
+      ),
+    );
+}
+
 process.on('exit', () => assert.strictEqual(pass, 2));
