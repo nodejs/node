@@ -60,7 +60,7 @@ and is as follows:
    users what configuration to put in this file to get Node.js to support
    their file type.
 3. When Node.js is run with the correct configuration, either in a file or
-   `NODE_OPTIONS` or flags, the unknown file type is executed as expected. 
+   `NODE_OPTIONS` or flags, the unknown file type is executed as expected.
 
 Some additional specifics around the current approach include:
 
