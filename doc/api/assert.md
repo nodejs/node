@@ -351,8 +351,6 @@ const tracker = new assert.CallTracker();
 
 function func() {}
 
-function foo() {}
-
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
 const callsfunc = tracker.calls(func, 2);
