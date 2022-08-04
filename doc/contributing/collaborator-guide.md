@@ -255,7 +255,7 @@ Windows and ARM platforms are only kept for seven days.
 
 If new commits are pushed to the pull request branch after the latest Jenkins CI run,
 a fresh CI run is required. It can be started by pressing "Retry" on the left
-sidebar, or by adding `request-ci` label to the pull request.
+sidebar, or by adding the `request-ci` label to the pull request.
 
 #### Useful Jenkins CI jobs
 
