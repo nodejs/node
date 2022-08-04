@@ -112,11 +112,14 @@ the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
-The `ArrayBufferOfViewContents` class is a helper utility that abstracts
+The `ArrayBufferOrViewContents` class is a helper utility that abstracts
 `ArrayBuffer`, `TypedArray`, or `DataView` inputs and provides access to
 their underlying data pointers. It is used extensively through `src/crypto`
 to make it easier to deal with inputs that allow any `ArrayBuffer`-backed
 object.
+
+The lifetime of `ArrayBufferOrViewContents` should not exceed the
+lifetime of its input.
 
 ### Key objects
 
