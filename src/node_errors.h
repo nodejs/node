@@ -167,7 +167,7 @@ ERRORS_WITH_CODE(V)
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
-    "Loading non context-aware native modules has been disabled")              \
+    "Loading non context-aware native addons has been disabled")               \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \

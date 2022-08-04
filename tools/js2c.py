@@ -48,24 +48,24 @@ def ReadFile(filename):
 
 TEMPLATE = """
 #include "env-inl.h"
-#include "node_native_module.h"
+#include "node_builtins.h"
 #include "node_internals.h"
 
 namespace node {{
 
-namespace native_module {{
+namespace builtins {{
 
 {0}
 
-void NativeModuleLoader::LoadJavaScriptSource() {{
+void BuiltinLoader::LoadJavaScriptSource() {{
   {1}
 }}
 
-UnionBytes NativeModuleLoader::GetConfig() {{
+UnionBytes BuiltinLoader::GetConfig() {{
   return UnionBytes(config_raw, {2});  // config.gypi
 }}
 
-}}  // namespace native_module
+}}  // namespace builtins
 
 }}  // namespace node
 """
