@@ -87,6 +87,8 @@ In order to update Node.js with a new version of llhttp:
 * copy the contents of the `release` directory from the directory you
   checked llhttp out to
   [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp)
+* update the llhttp version number in the project line in CMakeLists.txt
+  to match that set in include/llhttp.h
 
 It should look like the following:
 
