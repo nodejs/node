@@ -536,9 +536,8 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   if (UNLIKELY(key_buf.size() > INT_MAX))
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
 
-  ArrayBufferOrViewContents<unsigned char> iv_buf;
-  if (!args[2]->IsNull())
-    iv_buf = ArrayBufferOrViewContents<unsigned char>(args[2]);
+  ArrayBufferOrViewContents<unsigned char> iv_buf(
+      !args[2]->IsNull() ? args[2] : Local<Value>());
 
   if (UNLIKELY(!iv_buf.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
@@ -1061,12 +1060,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
 
-  ArrayBufferOrViewContents<unsigned char> oaep_label;
-  if (!args[offset + 3]->IsUndefined()) {
-    oaep_label = ArrayBufferOrViewContents<unsigned char>(args[offset + 3]);
-    if (UNLIKELY(!oaep_label.CheckSizeInt32()))
-      return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
-  }
+  ArrayBufferOrViewContents<unsigned char> oaep_label(
+      !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
+  if (UNLIKELY(!oaep_label.CheckSizeInt32()))
+    return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
 
   std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
