@@ -426,6 +426,8 @@ For information about the governance of the Node.js project, see
   **Stewart X Addison** <<sxa@redhat.com>> (he/him)
 * [targos](https://github.com/targos) -
   **Michaël Zasso** <<targos@protonmail.com>> (he/him)
+* [theanarkh](https://github.com/theanarkh) -
+  **theanarkh** <<theratliter@gmail.com>> (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
   **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
 * [tniessen](https://github.com/tniessen) -
