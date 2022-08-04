@@ -3,7 +3,7 @@
 
 #ifdef BUILDING_NODE_EXTENSION
 #ifdef _WIN32
-// Building native module against node
+// Building native addon against node
 #define NAPI_EXTERN __declspec(dllimport)
 #elif defined(__wasm32__)
 #define NAPI_EXTERN __attribute__((__import_module__("napi")))
