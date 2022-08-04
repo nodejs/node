@@ -1014,7 +1014,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
   // Must be out of HandleScope
   out->v8_snapshot_blob_data =
-      creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kClear);
+      creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kKeep);
 
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
