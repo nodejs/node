@@ -150,7 +150,7 @@ ssize_t DecodeWrite(Isolate* isolate,
                     size_t buflen,
                     Local<Value> val,
                     enum encoding encoding) {
-  return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
+  return StringBytes::Write(isolate, buf, buflen, val, encoding);
 }
 
 }  // namespace node
