@@ -420,6 +420,8 @@ namespace performance {
 std::ostream& operator<<(std::ostream& output,
                          const PerformanceState::SerializeInfo& d);
 }
+
+bool linux_at_secure();
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

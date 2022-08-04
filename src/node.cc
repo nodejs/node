@@ -81,10 +81,6 @@
 #endif
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
-#ifdef __linux__
-#include <sys/auxv.h>
-#endif  // __linux__
-
 // ========== global C headers ==========
 
 #include <fcntl.h>  // _O_RDWR
@@ -140,8 +136,6 @@ using v8::V8;
 using v8::Value;
 
 namespace per_process {
-
-extern bool linux_at_secure;
 
 // node_revert.h
 // Bit flag used to track security reverts.
@@ -626,10 +620,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   // which can be called from signal handlers.
   CHECK(init_process_flags.is_lock_free());
   init_process_flags.store(flags);
-
-#ifdef __linux__
-  node::per_process::linux_at_secure = getauxval(AT_SECURE);
-#endif
 
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     atexit(ResetStdio);
@@ -1146,7 +1136,7 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
 
     if (ERR_peek_error() != 0) {
       // XXX: ERR_GET_REASON does not return something that is
-      // not useful as an exit code at all.
+      // useful as an exit code at all.
       result->exit_code_ = ERR_GET_REASON(ERR_peek_error());
       result->early_return_ = true;
       result->errors_.emplace_back("OpenSSL configuration error:\n" +
@@ -1160,7 +1150,7 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
 #endif
     if (!crypto::ProcessFipsOptions()) {
       // XXX: ERR_GET_REASON does not return something that is
-      // not useful as an exit code at all.
+      // useful as an exit code at all.
       result->exit_code_ = ERR_GET_REASON(ERR_peek_error());
       result->early_return_ = true;
       result->errors_.emplace_back(
