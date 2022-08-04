@@ -253,7 +253,7 @@ current job but re-run everything else. Start a fresh CI if more than seven days
 have elapsed since the original failing CI as the compiled binaries for the
 Windows and ARM platforms are only kept for seven days.
 
-If new changes are made on the pull request branch after latest Jenkins CI run,
+If new commits are pushed to the pull request branch after the latest Jenkins CI run,
 a fresh CI run is required. It can be started by pressing "Retry" on the left
 sidebar, or by adding `request-ci` label to the pull request.
 
