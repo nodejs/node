@@ -101,6 +101,28 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
   });
 
+  it('should accept only the correct arguments', async () => {
+    const { stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-log-args.mjs'),
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-with-too-many-args.mjs'),
+        ...commonArgs,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    assert.match(stdout, /^resolve arg count: 3$/m);
+    assert.match(stdout, /specifier: 'node:fs'/);
+    assert.match(stdout, /next: \[AsyncFunction: nextResolve\]/);
+
+    assert.match(stdout, /^load arg count: 3$/m);
+    assert.match(stdout, /url: 'node:fs'/);
+    assert.match(stdout, /next: \[AsyncFunction: nextLoad\]/);
+  });
+
   it('should result in proper output from multiple changes in resolve hooks', async () => {
     const { code, stderr, stdout } = await spawnPromisified(
       execPath,
