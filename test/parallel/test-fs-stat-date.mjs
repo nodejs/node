@@ -66,7 +66,8 @@ async function runTest(atime, mtime, margin = 0) {
   // TODO(LiviaMedeiros): investigate outdated stat time on FreeBSD.
   // On Windows, filetime is stored and handled differently. Supporting dates
   // after Y2038 is preferred over supporting dates before 1970-01-01.
-  if (!common.isFreeBSD && !common.isWindows) {
+  if (!common.isFreeBSD && !common.isWindows &&
+    !(process.arch === 'arm' && process.platform === 'linux')) {
     await runTest(-40691, -355, 1); // Potential precision loss on 32bit
     await runTest(-355, -40691, 1);  // Potential precision loss on 32bit
     await runTest(-1, -1);
