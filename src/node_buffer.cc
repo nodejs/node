@@ -666,12 +666,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     // Write initial String to Buffer, then use that memory to copy remainder
     // of string. Correct the string length for cases like HEX where less than
     // the total string length is written.
-    str_length = StringBytes::Write(env->isolate(),
-                                    ts_obj_data + start,
-                                    fill_length,
-                                    str_obj,
-                                    enc,
-                                    nullptr);
+    str_length = StringBytes::Write(
+        env->isolate(), ts_obj_data + start, fill_length, str_obj, enc);
   }
 
 start_fill:
@@ -730,12 +726,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
 
-  uint32_t written = StringBytes::Write(env->isolate(),
-                                        ts_obj_data + offset,
-                                        max_length,
-                                        str,
-                                        encoding,
-                                        nullptr);
+  uint32_t written = StringBytes::Write(
+      env->isolate(), ts_obj_data + offset, max_length, str, encoding);
   args.GetReturnValue().Set(written);
 }
 
