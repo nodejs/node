@@ -1316,7 +1316,10 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 
 <!-- YAML
 added: v14.3.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated
 
 Print short summaries of calls to [`Atomics.wait()`][] to stderr.
 The output could look like this:
