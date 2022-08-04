@@ -1,6 +1,7 @@
 #include "node_main_instance.h"
 #include <memory>
 #include "debug_utils-inl.h"
+#include "node_builtins.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options-inl.h"

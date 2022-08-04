@@ -35,8 +35,8 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_external_reference.h"
+#include "node_builtins.h"
 #include "node_main_instance.h"
-#include "node_native_module.h"
 #include "node_options.h"
 #include "node_perf_common.h"
 #include "node_snapshotable.h"
@@ -548,7 +548,7 @@ class NoArrayBufferZeroFillScope {
   V(maybe_cache_generated_source_map, v8::Function)                            \
   V(messaging_deserialize_create_object, v8::Function)                         \
   V(message_port, v8::Object)                                                  \
-  V(native_module_require, v8::Function)                                       \
+  V(builtin_module_require, v8::Function)                                      \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
   V(prepare_stack_trace_callback, v8::Function)                                \
@@ -947,7 +947,7 @@ struct DeserializeRequest {
 
 struct EnvSerializeInfo {
   std::vector<PropInfo> bindings;
-  std::vector<std::string> native_modules;
+  std::vector<std::string> builtins;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
@@ -1154,11 +1154,11 @@ class Environment : public MemoryRetainer {
   inline std::vector<double>* destroy_async_id_list();
 
   std::set<struct node_module*> internal_bindings;
-  std::set<std::string> native_modules_with_cache;
-  std::set<std::string> native_modules_without_cache;
+  std::set<std::string> builtins_with_cache;
+  std::set<std::string> builtins_without_cache;
   // This is only filled during deserialization. We use a vector since
   // it's only used for tests.
-  std::vector<std::string> native_modules_in_snapshot;
+  std::vector<std::string> builtins_in_snapshot;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;

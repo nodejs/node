@@ -28,11 +28,12 @@
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_binding.h"
+#include "node_builtins.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
-#include "node_native_module_env.h"
+#include "node_builtins_env.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_process-inl.h"
@@ -126,8 +127,6 @@
 
 namespace node {
 
-using native_module::NativeModuleEnv;
-
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -181,7 +180,8 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
                                       std::vector<Local<Value>>* arguments) {
   EscapableHandleScope scope(env->isolate());
   MaybeLocal<Function> maybe_fn =
-      NativeModuleEnv::LookupAndCompile(env->context(), id, parameters, env);
+      builtins::BuiltinEnv::LookupAndCompile(env->context(),
+          id, parameters, env);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -336,7 +336,7 @@ MaybeLocal<Value> Environment::BootstrapInternalLoaders() {
   Local<Value> require =
       loader_exports_obj->Get(context(), require_string()).ToLocalChecked();
   CHECK(require->IsFunction());
-  set_native_module_require(require.As<Function>());
+  set_builtin_module_require(require.As<Function>());
 
   return scope.Escape(loader_exports);
 }
@@ -352,7 +352,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
       primordials_string()};
   std::vector<Local<Value>> node_args = {
       process_object(),
-      native_module_require(),
+      builtin_module_require(),
       internal_binding_loader(),
       primordials()};
 
@@ -441,7 +441,7 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 
   std::vector<Local<Value>> arguments = {
       env->process_object(),
-      env->native_module_require(),
+      env->builtin_module_require(),
       env->internal_binding_loader(),
       env->primordials(),
       NewFunctionTemplate(env->isolate(), MarkBootstrapComplete)
@@ -466,8 +466,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
       return {};
 
     StartExecutionCallbackInfo info = {
-      env->process_object(),
-      env->native_module_require(),
+        env->process_object(),
+        env->builtin_module_require(),
     };
 
     return scope.EscapeMaybe(cb(info));
@@ -982,11 +982,11 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
 
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
-  NativeModuleEnv::InitializeCodeCache();
+  builtins::BuiltinEnv::InitializeCodeCache();
 
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
-  // able to set it and native modules will not load for them.
+  // able to set it and native addons will not load for them.
   node_is_initialized = true;
   return 0;
 }

@@ -56,6 +56,7 @@ class ExternalReferenceRegistry {
   V(binding)                                                                   \
   V(blob)                                                                      \
   V(buffer)                                                                    \
+  V(builtins)                                                                  \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(env_var)                                                                   \
@@ -67,7 +68,6 @@ class ExternalReferenceRegistry {
   V(heap_utils)                                                                \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
-  V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
   V(performance)                                                               \
