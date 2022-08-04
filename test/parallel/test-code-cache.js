@@ -13,7 +13,7 @@ const {
 const {
   getCacheUsage,
   moduleCategories: { canBeRequired, cannotBeRequired }
-} = internalBinding('native_module');
+} = internalBinding('builtins');
 
 for (const key of canBeRequired) {
   require(`node:${key}`);

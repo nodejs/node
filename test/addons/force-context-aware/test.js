@@ -5,4 +5,4 @@ const assert = require('assert');
 
 assert.throws(() => {
   require(`./build/${common.buildType}/binding`);
-}, /^Error: Loading non context-aware native modules has been disabled$/);
+}, /^Error: Loading non context-aware native addons has been disabled$/);

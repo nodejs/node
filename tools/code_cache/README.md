@@ -18,8 +18,8 @@ In the default build of the Node.js executable, to embed the V8 code cache of
 the native modules into the Node.js executable, `libnode` is first built with
 these unresolved symbols:
 
-- `node::native_module::has_code_cache`
-- `node::native_module::NativeModuleEnv::InitializeCodeCache`
+- `node::builtins::has_code_cache`
+- `node::builtins::NativeModuleEnv::InitializeCodeCache`
 
 Then the `mkcodecache` executable is built with C++ files in this directory,
 as well as `src/node_code_cache_stub.cc` which defines the unresolved symbols.

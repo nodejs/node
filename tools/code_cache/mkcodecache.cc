@@ -9,7 +9,7 @@
 #include "libplatform/libplatform.h"
 #include "v8.h"
 
-using node::native_module::CodeCacheBuilder;
+using node::builtins::CodeCacheBuilder;
 using v8::ArrayBuffer;
 using v8::Context;
 using v8::HandleScope;

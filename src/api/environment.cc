@@ -1,8 +1,10 @@
 #include "node.h"
+#include "node_builtins.h"
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "node_native_module_env.h"
+#include "node_builtins_env.h"
+#include "node_options-inl.h"
 #include "node_platform.h"
 #include "node_v8_platform-inl.h"
 #include "uv.h"
@@ -434,7 +436,7 @@ MaybeLocal<Value> LoadEnvironment(
 
         // TODO(addaleax): Avoid having a global table for all scripts.
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        native_module::NativeModuleEnv::Add(
+        builtins::BuiltinEnv::Add(
             name.c_str(),
             UnionBytes(**main_utf16, main_utf16->length()));
         env->set_main_utf16(std::move(main_utf16));
@@ -443,7 +445,7 @@ MaybeLocal<Value> LoadEnvironment(
             env->require_string()};
         std::vector<Local<Value>> args = {
             env->process_object(),
-            env->native_module_require()};
+            env->builtin_module_require()};
         return ExecuteBootstrapper(env, name.c_str(), &params, &args);
       });
 }
@@ -685,7 +687,7 @@ bool InitializePrimordials(Local<Context> context) {
         global_string, exports_string, primordials_string};
     Local<Value> arguments[] = {context->Global(), exports, primordials};
     MaybeLocal<Function> maybe_fn =
-        native_module::NativeModuleEnv::LookupAndCompile(
+        builtins::BuiltinEnv::LookupAndCompile(
             context, *module, &parameters, nullptr);
     Local<Function> fn;
     if (!maybe_fn.ToLocal(&fn)) {

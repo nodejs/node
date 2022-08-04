@@ -1,9 +1,12 @@
-#include "node_native_module.h"
-#include "util-inl.h"
+#include "node_builtins.h"
 #include "debug_utils-inl.h"
+#include "env-inl.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
+#include "util-inl.h"
 
 namespace node {
-namespace native_module {
+namespace builtins {
 
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -16,21 +19,21 @@ using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 
-NativeModuleLoader NativeModuleLoader::instance_;
+BuiltinLoader BuiltinLoader::instance_;
 
-NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
+BuiltinLoader::BuiltinLoader() : config_(GetConfig()) {
   LoadJavaScriptSource();
 }
 
-NativeModuleLoader* NativeModuleLoader::GetInstance() {
+BuiltinLoader* BuiltinLoader::GetInstance() {
   return &instance_;
 }
 
-bool NativeModuleLoader::Exists(const char* id) {
+bool BuiltinLoader::Exists(const char* id) {
   return source_.find(id) != source_.end();
 }
 
-bool NativeModuleLoader::Add(const char* id, const UnionBytes& source) {
+bool BuiltinLoader::Add(const char* id, const UnionBytes& source) {
   if (Exists(id)) {
     return false;
   }
@@ -38,7 +41,7 @@ bool NativeModuleLoader::Add(const char* id, const UnionBytes& source) {
   return true;
 }
 
-Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context) {
+Local<Object> BuiltinLoader::GetSourceObject(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   Local<Object> out = Object::New(isolate);
   for (auto const& x : source_) {
@@ -48,11 +51,11 @@ Local<Object> NativeModuleLoader::GetSourceObject(Local<Context> context) {
   return out;
 }
 
-Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate) {
+Local<String> BuiltinLoader::GetConfigString(Isolate* isolate) {
   return config_.ToStringChecked(isolate);
 }
 
-std::vector<std::string> NativeModuleLoader::GetModuleIds() {
+std::vector<std::string> BuiltinLoader::GetBuiltinIds() {
   std::vector<std::string> ids;
   ids.reserve(source_.size());
   for (auto const& x : source_) {
@@ -61,9 +64,9 @@ std::vector<std::string> NativeModuleLoader::GetModuleIds() {
   return ids;
 }
 
-void NativeModuleLoader::InitializeModuleCategories() {
-  if (module_categories_.is_initialized) {
-    DCHECK(!module_categories_.can_be_required.empty());
+void BuiltinLoader::InitializeBuiltinCategories() {
+  if (builtin_categories_.is_initialized) {
+    DCHECK(!builtin_categories_.can_be_required.empty());
     return;
   }
 
@@ -79,17 +82,16 @@ void NativeModuleLoader::InitializeModuleCategories() {
     "internal/main/"
   };
 
-  module_categories_.can_be_required.emplace(
+  builtin_categories_.can_be_required.emplace(
       "internal/deps/cjs-module-lexer/lexer");
 
-  module_categories_.cannot_be_required = std::set<std::string> {
+  builtin_categories_.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
-      "inspector",
-      "internal/util/inspector",
+    "inspector", "internal/util/inspector",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
-      "trace_events",
+        "trace_events",
 #endif  // !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
 
 #if !HAVE_OPENSSL
@@ -123,46 +125,45 @@ void NativeModuleLoader::InitializeModuleCategories() {
         continue;
       }
       if (id.find(prefix) == 0 &&
-          module_categories_.can_be_required.count(id) == 0) {
-        module_categories_.cannot_be_required.emplace(id);
+          builtin_categories_.can_be_required.count(id) == 0) {
+        builtin_categories_.cannot_be_required.emplace(id);
       }
     }
   }
 
   for (auto const& x : source_) {
     const std::string& id = x.first;
-    if (0 == module_categories_.cannot_be_required.count(id)) {
-      module_categories_.can_be_required.emplace(id);
+    if (0 == builtin_categories_.cannot_be_required.count(id)) {
+      builtin_categories_.can_be_required.emplace(id);
     }
   }
 
-  module_categories_.is_initialized = true;
+  builtin_categories_.is_initialized = true;
 }
 
-const std::set<std::string>& NativeModuleLoader::GetCannotBeRequired() {
-  InitializeModuleCategories();
-  return module_categories_.cannot_be_required;
+const std::set<std::string>& BuiltinLoader::GetCannotBeRequired() {
+  InitializeBuiltinCategories();
+  return builtin_categories_.cannot_be_required;
 }
 
-const std::set<std::string>& NativeModuleLoader::GetCanBeRequired() {
-  InitializeModuleCategories();
-  return module_categories_.can_be_required;
+const std::set<std::string>& BuiltinLoader::GetCanBeRequired() {
+  InitializeBuiltinCategories();
+  return builtin_categories_.can_be_required;
 }
 
-bool NativeModuleLoader::CanBeRequired(const char* id) {
+bool BuiltinLoader::CanBeRequired(const char* id) {
   return GetCanBeRequired().count(id) == 1;
 }
 
-bool NativeModuleLoader::CannotBeRequired(const char* id) {
+bool BuiltinLoader::CannotBeRequired(const char* id) {
   return GetCannotBeRequired().count(id) == 1;
 }
 
-NativeModuleCacheMap* NativeModuleLoader::code_cache() {
+BuiltinCodeCacheMap* BuiltinLoader::code_cache() {
   return &code_cache_;
 }
 
-ScriptCompiler::CachedData* NativeModuleLoader::GetCodeCache(
-    const char* id) const {
+ScriptCompiler::CachedData* BuiltinLoader::GetCodeCache(const char* id) const {
   Mutex::ScopedLock lock(code_cache_mutex_);
   const auto it = code_cache_.find(id);
   if (it == code_cache_.end()) {
@@ -172,10 +173,10 @@ ScriptCompiler::CachedData* NativeModuleLoader::GetCodeCache(
   return it->second.get();
 }
 
-MaybeLocal<Function> NativeModuleLoader::CompileAsModule(
+MaybeLocal<Function> BuiltinLoader::CompileAsModule(
     Local<Context> context,
     const char* id,
-    NativeModuleLoader::Result* result) {
+    BuiltinLoader::Result* result) {
   Isolate* isolate = context->GetIsolate();
   std::vector<Local<String>> parameters = {
       FIXED_ONE_BYTE_STRING(isolate, "exports"),
@@ -204,8 +205,8 @@ static std::string OnDiskFileName(const char* id) {
 }
 #endif  // NODE_BUILTIN_MODULES_PATH
 
-MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
-                                                               const char* id) {
+MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
+                                                    const char* id) {
 #ifdef NODE_BUILTIN_MODULES_PATH
   if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
 #endif  // NODE_BUILTIN_MODULES_PATH
@@ -238,16 +239,16 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
-MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
+MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
     std::vector<Local<String>>* parameters,
-    NativeModuleLoader::Result* result) {
+    BuiltinLoader::Result* result) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
 
   Local<String> source;
-  if (!LoadBuiltinModuleSource(isolate, id).ToLocal(&source)) {
+  if (!LoadBuiltinSource(isolate, id).ToLocal(&source)) {
     return {};
   }
 
@@ -286,7 +287,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
                                                nullptr,
                                                options);
 
-  // This could fail when there are early errors in the native modules,
+  // This could fail when there are early errors in the built-in modules,
   // e.g. the syntax errors
   Local<Function> fun;
   if (!maybe_fun.ToLocal(&fun)) {
@@ -320,5 +321,5 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   return scope.Escape(fun);
 }
 
-}  // namespace native_module
+}  // namespace builtins
 }  // namespace node

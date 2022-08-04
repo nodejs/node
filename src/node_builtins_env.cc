@@ -1,9 +1,9 @@
-#include "node_native_module_env.h"
+#include "node_builtins_env.h"
 #include "env-inl.h"
 #include "node_external_reference.h"
 
 namespace node {
-namespace native_module {
+namespace builtins {
 
 using v8::Context;
 using v8::DEFAULT;
@@ -33,23 +33,23 @@ Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
   return out;
 }
 
-bool NativeModuleEnv::Add(const char* id, const UnionBytes& source) {
-  return NativeModuleLoader::GetInstance()->Add(id, source);
+bool BuiltinEnv::Add(const char* id, const UnionBytes& source) {
+  return BuiltinLoader::GetInstance()->Add(id, source);
 }
 
-bool NativeModuleEnv::Exists(const char* id) {
-  return NativeModuleLoader::GetInstance()->Exists(id);
+bool BuiltinEnv::Exists(const char* id) {
+  return BuiltinLoader::GetInstance()->Exists(id);
 }
 
-Local<Object> NativeModuleEnv::GetSourceObject(Local<Context> context) {
-  return NativeModuleLoader::GetInstance()->GetSourceObject(context);
+Local<Object> BuiltinEnv::GetSourceObject(Local<Context> context) {
+  return BuiltinLoader::GetInstance()->GetSourceObject(context);
 }
 
-Local<String> NativeModuleEnv::GetConfigString(Isolate* isolate) {
-  return NativeModuleLoader::GetInstance()->GetConfigString(isolate);
+Local<String> BuiltinEnv::GetConfigString(Isolate* isolate) {
+  return BuiltinLoader::GetInstance()->GetConfigString(isolate);
 }
 
-void NativeModuleEnv::GetModuleCategories(
+void BuiltinEnv::GetModuleCategories(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
@@ -58,9 +58,9 @@ void NativeModuleEnv::GetModuleCategories(
 
   // Copy from the per-process categories
   std::set<std::string> cannot_be_required =
-      NativeModuleLoader::GetInstance()->GetCannotBeRequired();
+      BuiltinLoader::GetInstance()->GetCannotBeRequired();
   std::set<std::string> can_be_required =
-      NativeModuleLoader::GetInstance()->GetCanBeRequired();
+      BuiltinLoader::GetInstance()->GetCanBeRequired();
 
   if (!env->owns_process_state()) {
     can_be_required.erase("trace_events");
@@ -80,7 +80,7 @@ void NativeModuleEnv::GetModuleCategories(
   info.GetReturnValue().Set(result);
 }
 
-void NativeModuleEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
+void BuiltinEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -88,56 +88,56 @@ void NativeModuleEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithCache"),
-            ToJsSet(context, env->native_modules_with_cache))
+            ToJsSet(context, env->builtins_with_cache))
       .FromJust();
   result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithoutCache"),
-            ToJsSet(context, env->native_modules_without_cache))
+            ToJsSet(context, env->builtins_without_cache))
       .FromJust();
 
   result
       ->Set(env->context(),
             OneByteString(isolate, "compiledInSnapshot"),
-            ToV8Value(env->context(), env->native_modules_in_snapshot)
+            ToV8Value(env->context(), env->builtins_in_snapshot)
                 .ToLocalChecked())
       .FromJust();
 
   args.GetReturnValue().Set(result);
 }
 
-void NativeModuleEnv::ModuleIdsGetter(Local<Name> property,
+void BuiltinEnv::ModuleIdsGetter(Local<Name> property,
                                       const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
 
   std::vector<std::string> ids =
-      NativeModuleLoader::GetInstance()->GetModuleIds();
+      BuiltinLoader::GetInstance()->GetBuiltinIds();
   info.GetReturnValue().Set(
       ToV8Value(isolate->GetCurrentContext(), ids).ToLocalChecked());
 }
 
-void NativeModuleEnv::ConfigStringGetter(
+void BuiltinEnv::ConfigStringGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(GetConfigString(info.GetIsolate()));
 }
 
-void NativeModuleEnv::RecordResult(const char* id,
-                                   NativeModuleLoader::Result result,
+void BuiltinEnv::RecordResult(const char* id,
+                                   BuiltinLoader::Result result,
                                    Environment* env) {
-  if (result == NativeModuleLoader::Result::kWithCache) {
-    env->native_modules_with_cache.insert(id);
+  if (result == BuiltinLoader::Result::kWithCache) {
+    env->builtins_with_cache.insert(id);
   } else {
-    env->native_modules_without_cache.insert(id);
+    env->builtins_without_cache.insert(id);
   }
 }
-void NativeModuleEnv::CompileFunction(const FunctionCallbackInfo<Value>& args) {
+void BuiltinEnv::CompileFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
   node::Utf8Value id_v(env->isolate(), args[0].As<String>());
   const char* id = *id_v;
-  NativeModuleLoader::Result result;
+  BuiltinLoader::Result result;
   MaybeLocal<Function> maybe =
-      NativeModuleLoader::GetInstance()->CompileAsModule(
+      BuiltinLoader::GetInstance()->CompileAsModule(
           env->context(), id, &result);
   RecordResult(id, result, env);
   Local<Function> fn;
@@ -149,14 +149,14 @@ void NativeModuleEnv::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
-MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
+MaybeLocal<Function> BuiltinEnv::LookupAndCompile(
     Local<Context> context,
     const char* id,
     std::vector<Local<String>>* parameters,
     Environment* optional_env) {
-  NativeModuleLoader::Result result;
+  BuiltinLoader::Result result;
   MaybeLocal<Function> maybe =
-      NativeModuleLoader::GetInstance()->LookupAndCompile(
+      BuiltinLoader::GetInstance()->LookupAndCompile(
           context, id, parameters, &result);
   if (optional_env != nullptr) {
     RecordResult(id, result, optional_env);
@@ -172,7 +172,7 @@ void HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize
 // is used to initialize to the binding, but it is the current convention.
 // Rename this across the code base to something that makes more sense.
-void NativeModuleEnv::Initialize(Local<Object> target,
+void BuiltinEnv::Initialize(Local<Object> target,
                                  Local<Value> unused,
                                  Local<Context> context,
                                  void* priv) {
@@ -190,7 +190,7 @@ void NativeModuleEnv::Initialize(Local<Object> target,
       .Check();
   target
       ->SetAccessor(context,
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "moduleIds"),
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "builtinIds"),
                     ModuleIdsGetter,
                     nullptr,
                     MaybeLocal<Value>(),
@@ -210,15 +210,15 @@ void NativeModuleEnv::Initialize(Local<Object> target,
                     SideEffectType::kHasNoSideEffect)
       .Check();
 
-  SetMethod(context, target, "getCacheUsage", NativeModuleEnv::GetCacheUsage);
+  SetMethod(context, target, "getCacheUsage", BuiltinEnv::GetCacheUsage);
   SetMethod(
-      context, target, "compileFunction", NativeModuleEnv::CompileFunction);
+      context, target, "compileFunction", BuiltinEnv::CompileFunction);
   SetMethod(context, target, "hasCachedBuiltins", HasCachedBuiltins);
-  // internalBinding('native_module') should be frozen
+  // internalBinding('builtins') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
 
-void NativeModuleEnv::RegisterExternalReferences(
+void BuiltinEnv::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(ConfigStringGetter);
   registry->Register(ModuleIdsGetter);
@@ -228,11 +228,11 @@ void NativeModuleEnv::RegisterExternalReferences(
   registry->Register(HasCachedBuiltins);
 }
 
-}  // namespace native_module
+}  // namespace builtins
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(
-    native_module, node::native_module::NativeModuleEnv::Initialize)
+    builtins, node::builtins::BuiltinEnv::Initialize)
 NODE_MODULE_EXTERNAL_REFERENCE(
-    native_module,
-    node::native_module::NativeModuleEnv::RegisterExternalReferences)
+    builtins,
+    node::builtins::BuiltinEnv::RegisterExternalReferences)
