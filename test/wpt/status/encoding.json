@@ -48,8 +48,35 @@
   "unsupported-encodings.any.js": {
     "skip": "decoding-helpers.js needs XMLHttpRequest"
   },
-  "streams/*.js": {
-    "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  "streams/decode-ignore-bom.any.js": {
+    "requires": ["small-icu"]
+  },
+  "streams/realms.window.js": {
+    "skip": "window is not defined"
+  },
+  "streams/decode-attributes.any.js": {
+    "requires": ["full-icu"]
+  },
+  "streams/decode-incomplete-input.any.js": {
+    "requires": ["small-icu"]
+  },
+  "streams/decode-utf8.any.js": {
+    "requires": ["small-icu"],
+    "fail": {
+      "unexpected": [
+        "promise_test: Unhandled rejection with value: object 'TypeError: Cannot perform Construct on a detached ArrayBuffer'"
+      ]
+    }
+  },
+  "streams/decode-bad-chunks.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_unreached: Should have rejected: write should reject Reached unreachable code"
+      ]
+    }
+  },
+  "streams/decode-non-utf8.any.js": {
+    "requires": ["full-icu"]
   },
   "encodeInto.any.js": {
     "requires": ["small-icu"]
