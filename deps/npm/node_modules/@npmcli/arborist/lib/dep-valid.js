@@ -20,7 +20,7 @@ const depValid = (child, requested, requestor) => {
       // file: deps that depend on other files/dirs, we must resolve the
       // location based on the *requestor* file/dir, not where it ends up.
       // '' is equivalent to '*'
-      requested = npa.resolve(child.name, requested || '*', fromPath(requestor))
+      requested = npa.resolve(child.name, requested || '*', fromPath(requestor, requestor.edgesOut.get(child.name)))
     } catch (er) {
       // Not invalid because the child doesn't match, but because
       // the spec itself is not supported.  Nothing would match,

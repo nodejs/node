@@ -69,6 +69,8 @@ const consistentResolve = require('./consistent-resolve.js')
 const printableTree = require('./printable.js')
 const CaseInsensitiveMap = require('./case-insensitive-map.js')
 
+const querySelectorAll = require('./query-selector-all.js')
+
 class Node {
   constructor (options) {
     // NB: path can be null if it's a link target
@@ -1444,6 +1446,12 @@ class Node {
     const dir = dirname(nm)
     const base = scoped ? `${basename(d)}/${basename(rp)}` : basename(rp)
     return base === name && basename(nm) === 'node_modules' ? dir : false
+  }
+
+  // maybe accept both string value or array of strings
+  // seems to be what dom API does
+  querySelectorAll (query) {
+    return querySelectorAll(this, query)
   }
 
   toJSON () {
