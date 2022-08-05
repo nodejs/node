@@ -1266,7 +1266,7 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     // snapshot, but we will skip it if --no-node-snapshot is specified.
     const node::SnapshotData* read_data =
         SnapshotBuilder::GetEmbeddedSnapshotData();
-    if (read_data->Check()) {
+    if (read_data != nullptr && read_data->Check()) {
       // If we fail to read the embedded snapshot, treat it as if Node.js
       // was built without one.
       *snapshot_data_ptr = read_data;
