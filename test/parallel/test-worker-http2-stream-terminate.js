@@ -11,8 +11,8 @@ const { Worker, parentPort } = require('worker_threads');
 // stream activity is ongoing, in particular the C++ function
 // ReportWritesToJSStreamListener::OnStreamAfterReqFinished.
 
-const MAX_ITERATIONS = 20;
-const MAX_THREADS = 10;
+const MAX_ITERATIONS = 5;
+const MAX_THREADS = 6;
 
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {

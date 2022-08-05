@@ -6,8 +6,8 @@ const fs = require('fs/promises');
 const { scheduler } = require('timers/promises');
 const { parentPort, Worker } = require('worker_threads');
 
-const MAX_ITERATIONS = 20;
-const MAX_THREADS = 10;
+const MAX_ITERATIONS = 5;
+const MAX_THREADS = 6;
 
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {
