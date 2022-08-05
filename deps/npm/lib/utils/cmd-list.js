@@ -114,6 +114,7 @@ const cmdList = [
   'profile',
   'prune',
   'publish',
+  'query',
   'rebuild',
   'repo',
   'restart',

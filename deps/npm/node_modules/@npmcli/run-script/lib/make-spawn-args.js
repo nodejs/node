@@ -20,6 +20,7 @@ const makeSpawnArgs = options => {
     event,
     path,
     scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
+    binPaths,
     env = {},
     stdio,
     cmd,
@@ -27,7 +28,7 @@ const makeSpawnArgs = options => {
     stdioString = false,
   } = options
 
-  const spawnEnv = setPATH(path, {
+  const spawnEnv = setPATH(path, binPaths, {
     // we need to at least save the PATH environment var
     ...process.env,
     ...env,
@@ -100,7 +101,9 @@ const makeSpawnArgs = options => {
     // delete the script, this is just a best effort
     try {
       unlink(scriptFile)
-    } catch (err) {}
+    } catch (err) {
+      // ignore errors
+    }
   }
 
   return [scriptShell, spawnArgs, spawnOpts, cleanup]

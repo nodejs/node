@@ -67,7 +67,7 @@ $ npm ci
 added 154 packages in 5s
 ```
 
-Configure Travis to build using `npm ci` instead of `npm install`:
+Configure Travis CI to build using `npm ci` instead of `npm install`:
 
 ```bash
 # .travis.yml

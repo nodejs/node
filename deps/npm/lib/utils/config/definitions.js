@@ -1470,7 +1470,7 @@ define('package', {
   hint: '<package-spec>',
   type: [String, Array],
   description: `
-    The package to install for [\`npm exec\`](/commands/npm-exec)
+    The package or packages to install for [\`npm exec\`](/commands/npm-exec)
   `,
   flatten,
 })
@@ -1645,6 +1645,24 @@ define('registry', {
   type: url,
   description: `
     The base URL of the npm registry.
+  `,
+  flatten,
+})
+
+define('replace-registry-host', {
+  default: 'npmjs',
+  hint: '<npmjs|never|always> | hostname',
+  type: ['npmjs', 'never', 'always', String],
+  description: `
+    Defines behavior for replacing the registry host in a lockfile with the
+    configured registry.
+
+    The default behavior is to replace package dist URLs from the default
+    registry (https://registry.npmjs.org) to the configured registry. If set to
+    "never", then use the registry value. If set to "always", then replace the
+    registry host with the configured host every time.
+
+    You may also specify a bare hostname (e.g., "registry.npmjs.org").
   `,
   flatten,
 })

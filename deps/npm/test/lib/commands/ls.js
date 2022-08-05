@@ -178,6 +178,44 @@ t.test('ls', t => {
     )
   })
 
+  t.test('workspace and missing optional dep', async t => {
+    npm.prefix = npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'root',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        optionalDependencies: {
+          bar: '^1.0.0',
+        },
+        workspaces: ['./baz'],
+      }),
+      baz: {
+        'package.json': JSON.stringify({
+          name: 'baz',
+          version: '1.0.0',
+        }),
+      },
+      node_modules: {
+        baz: t.fixture('symlink', '../baz'),
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    npm.flatOptions.includeWorkspaceRoot = true
+    t.teardown(() => {
+      delete npm.flatOptions.includeWorkspaceRoot
+    })
+
+    await ls.execWorkspaces([], ['baz'])
+    t.matchSnapshot(redactCwd(result), 'should omit missing optional dep')
+  })
+
   t.test('extraneous deps', async t => {
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({

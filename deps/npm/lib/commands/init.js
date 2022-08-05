@@ -10,7 +10,6 @@ const PackageJson = require('@npmcli/package-json')
 const log = require('../utils/log-shim.js')
 const updateWorkspaces = require('../workspaces/update-workspaces.js')
 
-const getLocationMsg = require('../exec/get-workspace-location-msg.js')
 const BaseCommand = require('../base-command.js')
 
 class Init extends BaseCommand {
@@ -119,13 +118,7 @@ class Init extends BaseCommand {
       localBin,
       globalBin,
     } = this.npm
-    // this function is definitely called.  But because of coverage map stuff
-    // it ends up both uncovered, and the coverage report doesn't even mention.
-    // the tests do assert that some output happens, so we know this line is
-    // being hit.
-    /* istanbul ignore next */
-    const output = (...outputArgs) => this.npm.output(...outputArgs)
-    const locationMsg = await getLocationMsg({ color, path })
+    const output = this.npm.output.bind(this.npm)
     const runPath = path
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const yes = this.npm.config.get('yes')
@@ -135,7 +128,6 @@ class Init extends BaseCommand {
       args: newArgs,
       color,
       localBin,
-      locationMsg,
       globalBin,
       output,
       path,
