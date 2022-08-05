@@ -224,6 +224,7 @@ namespace node {
 class IsolateData;
 class Environment;
 class MultiIsolatePlatform;
+class InitializationResultImpl;
 
 namespace ProcessFlags {
 enum Flags : uint64_t {
@@ -293,6 +294,10 @@ class NODE_EXTERN InitializationResult {
   // If kNoInitializeNodeV8Platform was not specified, the global Node.js
   // platform instance.
   virtual MultiIsolatePlatform* platform() const = 0;
+
+ private:
+  InitializationResult() = default;
+  friend class InitializationResultImpl;
 };
 
 // TODO(addaleax): Officially deprecate this and replace it with something
