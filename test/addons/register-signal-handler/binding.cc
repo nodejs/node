@@ -13,6 +13,7 @@ using v8::Value;
 void Handler(int signo, siginfo_t* siginfo, void* ucontext) {
   char signo_char = signo;
   int written;
+  assert(signo == siginfo->si_signo);
   do {
     written = write(1, &signo_char, 1);  // write() is signal-safe.
   } while (written == -1 && errno == EINTR);
