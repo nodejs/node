@@ -13,6 +13,7 @@
 #endif
 #ifdef __linux__
 #include <linux/capability.h>
+#include <sys/auxv.h>
 #include <sys/syscall.h>
 #endif  // __linux__
 
@@ -31,9 +32,18 @@ using v8::TryCatch;
 using v8::Uint32;
 using v8::Value;
 
-namespace per_process {
-bool linux_at_secure = false;
-}  // namespace per_process
+bool linux_at_secure() {
+  // This could reasonably be a static variable, but this way
+  // we can guarantee that this function is always usable
+  // and returns the correct value,  e.g. even in static
+  // initialization code in other files.
+#ifdef __linux__
+  static const bool value = getauxval(AT_SECURE);
+  return value;
+#else
+  return false;
+#endif
+}
 
 namespace credentials {
 
@@ -70,11 +80,10 @@ bool SafeGetenv(const char* key,
                 v8::Isolate* isolate) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
-  if ((!HasOnly(CAP_NET_BIND_SERVICE) && per_process::linux_at_secure) ||
+  if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
       getuid() != geteuid() || getgid() != getegid())
 #else
-  if (per_process::linux_at_secure || getuid() != geteuid() ||
-      getgid() != getegid())
+  if (linux_at_secure() || getuid() != geteuid() || getgid() != getegid())
 #endif
     goto fail;
 #endif

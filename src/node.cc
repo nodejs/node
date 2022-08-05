@@ -567,37 +567,8 @@ static struct {
 } stdio[1 + STDERR_FILENO];
 #endif  // __POSIX__
 
-
-inline void PlatformInit() {
+void ResetSignalHandlers() {
 #ifdef __POSIX__
-#if HAVE_INSPECTOR
-  sigset_t sigmask;
-  sigemptyset(&sigmask);
-  sigaddset(&sigmask, SIGUSR1);
-  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
-#endif  // HAVE_INSPECTOR
-
-  // Make sure file descriptors 0-2 are valid before we start logging anything.
-  for (auto& s : stdio) {
-    const int fd = &s - stdio;
-    if (fstat(fd, &s.stat) == 0)
-      continue;
-    // Anything but EBADF means something is seriously wrong.  We don't
-    // have to special-case EINTR, fstat() is not interruptible.
-    if (errno != EBADF)
-      ABORT();
-    if (fd != open("/dev/null", O_RDWR))
-      ABORT();
-    if (fstat(fd, &s.stat) != 0)
-      ABORT();
-  }
-
-#if HAVE_INSPECTOR
-  CHECK_EQ(err, 0);
-#endif  // HAVE_INSPECTOR
-
-  // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
-#ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -611,94 +582,150 @@ inline void PlatformInit() {
     act.sa_handler = (nr == SIGPIPE || nr == SIGXFSZ) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
-#endif  // !NODE_SHARED_MODE
+#endif  // __POSIX__
+}
 
-  // Record the state of the stdio file descriptors so we can restore it
-  // on exit.  Needs to happen before installing signal handlers because
-  // they make use of that information.
-  for (auto& s : stdio) {
-    const int fd = &s - stdio;
-    int err;
+static std::atomic<uint64_t> init_process_flags = 0;
 
-    do
-      s.flags = fcntl(fd, F_GETFL);
-    while (s.flags == -1 && errno == EINTR);  // NOLINT
-    CHECK_NE(s.flags, -1);
+static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+  // init_process_flags is accessed in ResetStdio(),
+  // which can be called from signal handlers.
+  CHECK(init_process_flags.is_lock_free());
+  init_process_flags.store(flags);
 
-    if (uv_guess_handle(fd) != UV_TTY) continue;
-    s.isatty = true;
-
-    do
-      err = tcgetattr(fd, &s.termios);
-    while (err == -1 && errno == EINTR);  // NOLINT
-    CHECK_EQ(err, 0);
+  if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
+    atexit(ResetStdio);
   }
 
-  RegisterSignalHandler(SIGINT, SignalExit, true);
-  RegisterSignalHandler(SIGTERM, SignalExit, true);
+#ifdef __POSIX__
+  if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
+    // Disable stdio buffering, it interacts poorly with printf()
+    // calls elsewhere in the program (e.g., any logging from V8.)
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
+
+    // Make sure file descriptors 0-2 are valid before we start logging
+    // anything.
+    for (auto& s : stdio) {
+      const int fd = &s - stdio;
+      if (fstat(fd, &s.stat) == 0) continue;
+      // Anything but EBADF means something is seriously wrong.  We don't
+      // have to special-case EINTR, fstat() is not interruptible.
+      if (errno != EBADF) ABORT();
+      if (fd != open("/dev/null", O_RDWR)) ABORT();
+      if (fstat(fd, &s.stat) != 0) ABORT();
+    }
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+#if HAVE_INSPECTOR
+    sigset_t sigmask;
+    sigemptyset(&sigmask);
+    sigaddset(&sigmask, SIGUSR1);
+    const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+    CHECK_EQ(err, 0);
+#endif  // HAVE_INSPECTOR
+
+    ResetSignalHandlers();
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
+    // Record the state of the stdio file descriptors so we can restore it
+    // on exit.  Needs to happen before installing signal handlers because
+    // they make use of that information.
+    for (auto& s : stdio) {
+      const int fd = &s - stdio;
+      int err;
+
+      do {
+        s.flags = fcntl(fd, F_GETFL);
+      } while (s.flags == -1 && errno == EINTR);  // NOLINT
+      CHECK_NE(s.flags, -1);
+
+      if (uv_guess_handle(fd) != UV_TTY) continue;
+      s.isatty = true;
+
+      do {
+        err = tcgetattr(fd, &s.termios);
+      } while (err == -1 && errno == EINTR);  // NOLINT
+      CHECK_EQ(err, 0);
+    }
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+    RegisterSignalHandler(SIGINT, SignalExit, true);
+    RegisterSignalHandler(SIGTERM, SignalExit, true);
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER
 #if defined(_WIN32)
-  {
-    constexpr ULONG first = TRUE;
-    per_process::old_vectored_exception_handler =
-        AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
-  }
-#else
-  // Tell V8 to disable emitting WebAssembly
-  // memory bounds checks. This means that we have
-  // to catch the SIGSEGV in TrapWebAssemblyOrContinue
-  // and pass the signal context to V8.
-  {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = TrapWebAssemblyOrContinue;
-    sa.sa_flags = SA_SIGINFO;
-    CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
-  }
-#endif  // defined(_WIN32)
-  V8::EnableWebAssemblyTrapHandler(false);
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
-
-  // Raise the open file descriptor limit.
-  struct rlimit lim;
-  if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
-    // Do a binary search for the limit.
-    rlim_t min = lim.rlim_cur;
-    rlim_t max = 1 << 20;
-    // But if there's a defined upper bound, don't search, just set it.
-    if (lim.rlim_max != RLIM_INFINITY) {
-      min = lim.rlim_max;
-      max = lim.rlim_max;
+    {
+      constexpr ULONG first = TRUE;
+      per_process::old_vectored_exception_handler =
+          AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
     }
-    do {
-      lim.rlim_cur = min + (max - min) / 2;
-      if (setrlimit(RLIMIT_NOFILE, &lim)) {
-        max = lim.rlim_cur;
-      } else {
-        min = lim.rlim_cur;
+#else
+    // Tell V8 to disable emitting WebAssembly
+    // memory bounds checks. This means that we have
+    // to catch the SIGSEGV in TrapWebAssemblyOrContinue
+    // and pass the signal context to V8.
+    {
+      struct sigaction sa;
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_sigaction = TrapWebAssemblyOrContinue;
+      sa.sa_flags = SA_SIGINFO;
+      CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+    }
+#endif  // defined(_WIN32)
+    V8::EnableWebAssemblyTrapHandler(false);
+#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoAdjustResourceLimits)) {
+    // Raise the open file descriptor limit.
+    struct rlimit lim;
+    if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
+      // Do a binary search for the limit.
+      rlim_t min = lim.rlim_cur;
+      rlim_t max = 1 << 20;
+      // But if there's a defined upper bound, don't search, just set it.
+      if (lim.rlim_max != RLIM_INFINITY) {
+        min = lim.rlim_max;
+        max = lim.rlim_max;
       }
-    } while (min + 1 < max);
+      do {
+        lim.rlim_cur = min + (max - min) / 2;
+        if (setrlimit(RLIMIT_NOFILE, &lim)) {
+          max = lim.rlim_cur;
+        } else {
+          min = lim.rlim_cur;
+        }
+      } while (min + 1 < max);
+    }
   }
 #endif  // __POSIX__
 #ifdef _WIN32
-  for (int fd = 0; fd <= 2; ++fd) {
-    auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
-    if (handle == INVALID_HANDLE_VALUE ||
-        GetFileType(handle) == FILE_TYPE_UNKNOWN) {
-      // Ignore _close result. If it fails or not depends on used Windows
-      // version. We will just check _open result.
-      _close(fd);
-      if (fd != _open("nul", _O_RDWR))
-        ABORT();
+  if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
+    for (int fd = 0; fd <= 2; ++fd) {
+      auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+      if (handle == INVALID_HANDLE_VALUE ||
+          GetFileType(handle) == FILE_TYPE_UNKNOWN) {
+        // Ignore _close result. If it fails or not depends on used Windows
+        // version. We will just check _open result.
+        _close(fd);
+        if (fd != _open("nul", _O_RDWR)) ABORT();
+      }
     }
   }
 #endif  // _WIN32
 }
 
-
 // Safe to call more than once and from signal handlers.
 void ResetStdio() {
+  if (init_process_flags.load() &
+      ProcessInitializationFlags::kNoStdioInitialization) {
+    return;
+  }
+
   uv_tty_reset_mode();
 #ifdef __POSIX__
   for (auto& s : stdio) {
@@ -834,10 +861,12 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
 
 static std::atomic_bool init_called{false};
 
+// TODO(addaleax): Turn this into a wrapper around InitializeOncePerProcess()
+// (with the corresponding additional flags set), then eventually remove this.
 int InitializeNodeWithArgs(std::vector<std::string>* argv,
                            std::vector<std::string>* exec_argv,
                            std::vector<std::string>* errors,
-                           ProcessFlags::Flags flags) {
+                           ProcessInitializationFlags::Flags flags) {
   // Make sure InitializeNodeWithArgs() is called only once.
   CHECK(!init_called.exchange(true));
 
@@ -848,8 +877,10 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   binding::RegisterBuiltinModules();
 
   // Make inherited handles noninheritable.
-  if (!(flags & ProcessFlags::kEnableStdioInheritance))
+  if (!(flags & ProcessInitializationFlags::kEnableStdioInheritance) &&
+      !(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     uv_disable_stdio_inheritance();
+  }
 
   // Cache the original command line to be
   // used in diagnostic reports.
@@ -865,7 +896,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  if (!(flags & ProcessFlags::kDisableNodeOptionsEnv)) {
+  if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
     std::string node_options;
 
     if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
@@ -886,7 +917,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   }
 #endif
 
-  if (!(flags & ProcessFlags::kDisableCLIOptions)) {
+  if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
     const int exit_code = ProcessGlobalArgs(argv,
                                             exec_argv,
                                             errors,
@@ -899,7 +930,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
     uv_set_process_title(per_process::cli_options->title.c_str());
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  if (!(flags & ProcessFlags::kNoICU)) {
+  if (!(flags & ProcessInitializationFlags::kNoICU)) {
     // If the parameter isn't given, use the env variable.
     if (per_process::cli_options->icu_data_dir.empty())
       credentials::SafeGetenv("NODE_ICU_DATA",
@@ -949,82 +980,78 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   return 0;
 }
 
-InitializationResult InitializeOncePerProcess(int argc, char** argv) {
-  return InitializeOncePerProcess(argc, argv, kDefaultInitialization);
-}
+std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+    const std::vector<std::string>& args,
+    ProcessInitializationFlags::Flags flags) {
+  auto result = std::make_unique<InitializationResultImpl>();
+  result->args_ = args;
 
-InitializationResult InitializeOncePerProcess(
-  int argc,
-  char** argv,
-  InitializationSettingsFlags flags,
-  ProcessFlags::Flags process_flags) {
-  uint64_t init_flags = flags;
-  if (init_flags & kDefaultInitialization) {
-    init_flags = init_flags | kInitializeV8 | kInitOpenSSL | kRunPlatformInit;
+  if (!(flags & ProcessInitializationFlags::kNoParseGlobalDebugVariables)) {
+    // Initialized the enabled list for Debug() calls with system
+    // environment variables.
+    per_process::enabled_debug_list.Parse();
   }
 
-  // Initialized the enabled list for Debug() calls with system
-  // environment variables.
-  per_process::enabled_debug_list.Parse();
-
-  atexit(ResetStdio);
-
-  if (init_flags & kRunPlatformInit)
-    PlatformInit();
-
-  CHECK_GT(argc, 0);
-
-  // Hack around with the argv pointer. Used for process.title = "blah".
-  argv = uv_setup_args(argc, argv);
-
-  InitializationResult result;
-  result.args = std::vector<std::string>(argv, argv + argc);
-  std::vector<std::string> errors;
+  PlatformInit(flags);
 
   // This needs to run *before* V8::Initialize().
   {
-    result.exit_code = InitializeNodeWithArgs(
-        &(result.args), &(result.exec_args), &errors, process_flags);
-    for (const std::string& error : errors)
-      fprintf(stderr, "%s: %s\n", result.args.at(0).c_str(), error.c_str());
-    if (result.exit_code != 0) {
-      result.early_return = true;
+    result->exit_code_ = InitializeNodeWithArgs(
+        &result->args_, &result->exec_args_, &result->errors_, flags);
+    if (result->exit_code() != 0) {
+      result->early_return_ = true;
       return result;
     }
   }
 
-  if (per_process::cli_options->use_largepages == "on" ||
-      per_process::cli_options->use_largepages == "silent") {
-    int result = node::MapStaticCodeToLargePages();
-    if (per_process::cli_options->use_largepages == "on" && result != 0) {
-      fprintf(stderr, "%s\n", node::LargePagesError(result));
+  if (!(flags & ProcessInitializationFlags::kNoUseLargePages) &&
+      (per_process::cli_options->use_largepages == "on" ||
+       per_process::cli_options->use_largepages == "silent")) {
+    int lp_result = node::MapStaticCodeToLargePages();
+    if (per_process::cli_options->use_largepages == "on" && lp_result != 0) {
+      result->errors_.emplace_back(node::LargePagesError(lp_result));
     }
   }
 
-  if (per_process::cli_options->print_version) {
-    printf("%s\n", NODE_VERSION);
-    result.exit_code = 0;
-    result.early_return = true;
-    return result;
+  if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {
+    if (per_process::cli_options->print_version) {
+      printf("%s\n", NODE_VERSION);
+      result->exit_code_ = 0;
+      result->early_return_ = true;
+      return result;
+    }
+
+    if (per_process::cli_options->print_bash_completion) {
+      std::string completion = options_parser::GetBashCompletion();
+      printf("%s\n", completion.c_str());
+      result->exit_code_ = 0;
+      result->early_return_ = true;
+      return result;
+    }
+
+    if (per_process::cli_options->print_v8_help) {
+      V8::SetFlagsFromString("--help", static_cast<size_t>(6));
+      result->exit_code_ = 0;
+      result->early_return_ = true;
+      return result;
+    }
   }
 
-  if (per_process::cli_options->print_bash_completion) {
-    std::string completion = options_parser::GetBashCompletion();
-    printf("%s\n", completion.c_str());
-    result.exit_code = 0;
-    result.early_return = true;
-    return result;
-  }
-
-  if (per_process::cli_options->print_v8_help) {
-    V8::SetFlagsFromString("--help", static_cast<size_t>(6));
-    result.exit_code = 0;
-    result.early_return = true;
-    return result;
-  }
-
-  if (init_flags & kInitOpenSSL) {
+  if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
+    auto GetOpenSSLErrorString = []() -> std::string {
+      std::string ret;
+      ERR_print_errors_cb(
+          [](const char* str, size_t len, void* opaque) {
+            std::string* ret = static_cast<std::string*>(opaque);
+            ret->append(str, len);
+            ret->append("\n");
+            return 0;
+          },
+          static_cast<void*>(&ret));
+      return ret;
+    };
+
     {
       std::string extra_ca_certs;
       if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
@@ -1080,10 +1107,12 @@ InitializationResult InitializeOncePerProcess(
     OPENSSL_INIT_free(settings);
 
     if (ERR_peek_error() != 0) {
-      result.exit_code = ERR_GET_REASON(ERR_peek_error());
-      result.early_return = true;
-      fprintf(stderr, "OpenSSL configuration error:\n");
-      ERR_print_errors_fp(stderr);
+      // XXX: ERR_GET_REASON does not return something that is
+      // useful as an exit code at all.
+      result->exit_code_ = ERR_GET_REASON(ERR_peek_error());
+      result->early_return_ = true;
+      result->errors_.emplace_back("OpenSSL configuration error:\n" +
+                                   GetOpenSSLErrorString());
       return result;
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
@@ -1091,22 +1120,30 @@ InitializationResult InitializeOncePerProcess(
       OPENSSL_init();
     }
 #endif
-  if (!crypto::ProcessFipsOptions()) {
-      result.exit_code = ERR_GET_REASON(ERR_peek_error());
-      result.early_return = true;
-      fprintf(stderr, "OpenSSL error when trying to enable FIPS:\n");
-      ERR_print_errors_fp(stderr);
+    if (!crypto::ProcessFipsOptions()) {
+      // XXX: ERR_GET_REASON does not return something that is
+      // useful as an exit code at all.
+      result->exit_code_ = ERR_GET_REASON(ERR_peek_error());
+      result->early_return_ = true;
+      result->errors_.emplace_back(
+          "OpenSSL error when trying to enable FIPS:\n" +
+          GetOpenSSLErrorString());
       return result;
+    }
+
+    // V8 on Windows doesn't have a good source of entropy. Seed it from
+    // OpenSSL's pool.
+    V8::SetEntropySource(crypto::EntropySource);
+#endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
 
-  // V8 on Windows doesn't have a good source of entropy. Seed it from
-  // OpenSSL's pool.
-  V8::SetEntropySource(crypto::EntropySource);
-#endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
-}
-  per_process::v8_platform.Initialize(
-      static_cast<int>(per_process::cli_options->v8_thread_pool_size));
-  if (init_flags & kInitializeV8) {
+  if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
+    per_process::v8_platform.Initialize(
+        static_cast<int>(per_process::cli_options->v8_thread_pool_size));
+    result->platform_ = per_process::v8_platform.Platform();
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
     V8::Initialize();
   }
 
@@ -1117,30 +1154,47 @@ InitializationResult InitializeOncePerProcess(
 }
 
 void TearDownOncePerProcess() {
+  const uint64_t flags = init_process_flags.load();
+  ResetStdio();
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+    ResetSignalHandlers();
+  }
+
   per_process::v8_initialized = false;
-  V8::Dispose();
+  if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
+    V8::Dispose();
+  }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER && defined(_WIN32)
-  RemoveVectoredExceptionHandler(per_process::old_vectored_exception_handler);
+  if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+    RemoveVectoredExceptionHandler(per_process::old_vectored_exception_handler);
+  }
 #endif
 
-  // uv_run cannot be called from the time before the beforeExit callback
-  // runs until the program exits unless the event loop has any referenced
-  // handles after beforeExit terminates. This prevents unrefed timers
-  // that happen to terminate during shutdown from being run unsafely.
-  // Since uv_run cannot be called, uv_async handles held by the platform
-  // will never be fully cleaned up.
-  per_process::v8_platform.Dispose();
+  if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
+    V8::DisposePlatform();
+    // uv_run cannot be called from the time before the beforeExit callback
+    // runs until the program exits unless the event loop has any referenced
+    // handles after beforeExit terminates. This prevents unrefed timers
+    // that happen to terminate during shutdown from being run unsafely.
+    // Since uv_run cannot be called, uv_async handles held by the platform
+    // will never be fully cleaned up.
+    per_process::v8_platform.Dispose();
+  }
 }
 
+InitializationResult::~InitializationResult() {}
+InitializationResultImpl::~InitializationResultImpl() {}
+
 int GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
-                                 InitializationResult* result) {
+                                 const InitializationResult* result) {
+  int exit_code = result->exit_code();
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
 
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
-  if (result->args[1] == "node:embedded_snapshot_main") {
+  if (result->args()[1] == "node:embedded_snapshot_main") {
     *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
     if (*snapshot_data_ptr == nullptr) {
       // The Node.js binary is built without embedded snapshot
@@ -1148,19 +1202,19 @@ int GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
               "node:embedded_snapshot_main was specified as snapshot "
               "entry point but Node.js was built without embedded "
               "snapshot.\n");
-      result->exit_code = 1;
-      return result->exit_code;
+      exit_code = 1;
+      return exit_code;
     }
   } else {
     // Otherwise, load and run the specified main script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    result->exit_code = node::SnapshotBuilder::Generate(
-        generated_data.get(), result->args, result->exec_args);
-    if (result->exit_code == 0) {
+    exit_code = node::SnapshotBuilder::Generate(
+        generated_data.get(), result->args(), result->exec_args());
+    if (exit_code == 0) {
       *snapshot_data_ptr = generated_data.release();
     } else {
-      return result->exit_code;
+      return exit_code;
     }
   }
 
@@ -1181,13 +1235,14 @@ int GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     fprintf(stderr,
             "Cannot open %s for writing a snapshot.\n",
             snapshot_blob_path.c_str());
-    result->exit_code = 1;
+    exit_code = 1;
   }
-  return result->exit_code;
+  return exit_code;
 }
 
 int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
-                           InitializationResult* result) {
+                           const InitializationResult* result) {
+  int exit_code = result->exit_code();
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
   // --snapshot-blob indicates that we are reading a customized snapshot.
@@ -1196,8 +1251,8 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      result->exit_code = 1;
-      return result->exit_code;
+      exit_code = 1;
+      return exit_code;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     SnapshotData::FromBlob(read_data.get(), fp);
@@ -1215,19 +1270,28 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
   NodeMainInstance main_instance(*snapshot_data_ptr,
                                  uv_default_loop(),
                                  per_process::v8_platform.Platform(),
-                                 result->args,
-                                 result->exec_args);
-  result->exit_code = main_instance.Run();
-  return result->exit_code;
+                                 result->args(),
+                                 result->exec_args());
+  exit_code = main_instance.Run();
+  return exit_code;
 }
 
 int Start(int argc, char** argv) {
-  InitializationResult result = InitializeOncePerProcess(argc, argv);
-  if (result.early_return) {
-    return result.exit_code;
+  CHECK_GT(argc, 0);
+
+  // Hack around with the argv pointer. Used for process.title = "blah".
+  argv = uv_setup_args(argc, argv);
+
+  std::unique_ptr<InitializationResult> result =
+      InitializeOncePerProcess(std::vector<std::string>(argv, argv + argc));
+  for (const std::string& error : result->errors()) {
+    FPrintF(stderr, "%s: %s\n", result->args().at(0), error);
+  }
+  if (result->early_return()) {
+    return result->exit_code();
   }
 
-  DCHECK_EQ(result.exit_code, 0);
+  DCHECK_EQ(result->exit_code(), 0);
   const SnapshotData* snapshot_data = nullptr;
 
   auto cleanup_process = OnScopeLeave([&]() {
@@ -1243,17 +1307,17 @@ int Start(int argc, char** argv) {
 
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->build_snapshot) {
-    if (result.args.size() < 2) {
+    if (result->args().size() < 2) {
       fprintf(stderr,
               "--build-snapshot must be used with an entry point script.\n"
               "Usage: node --build-snapshot /path/to/entry.js\n");
       return 9;
     }
-    return GenerateAndWriteSnapshotData(&snapshot_data, &result);
+    return GenerateAndWriteSnapshotData(&snapshot_data, result.get());
   }
 
   // Without --build-snapshot, we are in snapshot loading mode.
-  return LoadSnapshotDataAndRun(&snapshot_data, &result);
+  return LoadSnapshotDataAndRun(&snapshot_data, result.get());
 }
 
 int Stop(Environment* env) {

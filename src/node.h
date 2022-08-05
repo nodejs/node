@@ -223,11 +223,14 @@ namespace node {
 
 class IsolateData;
 class Environment;
+class MultiIsolatePlatform;
+class InitializationResultImpl;
 
 namespace ProcessFlags {
 enum Flags : uint64_t {
   kNoFlags = 0,
   // Enable stdio inheritance, which is disabled by default.
+  // This flag is also implied by kNoStdioInitialization.
   kEnableStdioInheritance = 1 << 0,
   // Disable reading the NODE_OPTIONS environment variable.
   kDisableNodeOptionsEnv = 1 << 1,
@@ -235,8 +238,67 @@ enum Flags : uint64_t {
   kDisableCLIOptions = 1 << 2,
   // Do not initialize ICU.
   kNoICU = 1 << 3,
+  // Do not modify stdio file descriptor or TTY state.
+  kNoStdioInitialization = 1 << 4,
+  // Do not register Node.js-specific signal handlers
+  // and reset other signal handlers to default state.
+  kNoDefaultSignalHandling = 1 << 5,
+  // Do not perform V8 initialization.
+  kNoInitializeV8 = 1 << 6,
+  // Do not initialize a default Node.js-provided V8 platform instance.
+  kNoInitializeNodeV8Platform = 1 << 7,
+  // Do not initialize OpenSSL config.
+  kNoInitOpenSSL = 1 << 8,
+  // Do not initialize Node.js debugging based on environment variables.
+  kNoParseGlobalDebugVariables = 1 << 9,
+  // Do not adjust OS resource limits for this process.
+  kNoAdjustResourceLimits = 1 << 10,
+  // Do not map code segments into large pages for this process.
+  kNoUseLargePages = 1 << 11,
+  // Skip printing output for --help, --version, --v8-options.
+  kNoPrintHelpOrVersionOutput = 1 << 12,
+
+  // Emulate the behavior of InitializeNodeWithArgs() when passing
+  // a flags argument to the InitializeOncePerProcess() replacement
+  // function.
+  kLegacyInitializeNodeWithArgsBehavior =
+      kNoStdioInitialization | kNoDefaultSignalHandling | kNoInitializeV8 |
+      kNoInitializeNodeV8Platform | kNoInitOpenSSL |
+      kNoParseGlobalDebugVariables | kNoAdjustResourceLimits |
+      kNoUseLargePages | kNoPrintHelpOrVersionOutput,
 };
 }  // namespace ProcessFlags
+// TODO(addaleax): Make this the canonical name, as it is more descriptive.
+namespace ProcessInitializationFlags = ProcessFlags;
+
+class NODE_EXTERN InitializationResult {
+ public:
+  virtual ~InitializationResult();
+
+  // Returns a suggested process exit code.
+  virtual int exit_code() const = 0;
+
+  // Returns 'true' if initialization was aborted early due to errors.
+  virtual bool early_return() const = 0;
+
+  // Returns the parsed list of non-Node.js arguments.
+  virtual const std::vector<std::string>& args() const = 0;
+
+  // Returns the parsed list of Node.js arguments.
+  virtual const std::vector<std::string>& exec_args() const = 0;
+
+  // Returns an array of errors. Note that these may be warnings
+  // whose existence does not imply a non-zero exit code.
+  virtual const std::vector<std::string>& errors() const = 0;
+
+  // If kNoInitializeNodeV8Platform was not specified, the global Node.js
+  // platform instance.
+  virtual MultiIsolatePlatform* platform() const = 0;
+
+ private:
+  InitializationResult() = default;
+  friend class InitializationResultImpl;
+};
 
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
@@ -250,11 +312,40 @@ NODE_EXTERN int Stop(Environment* env);
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
 // the arguments to `errors`. The return value is a suggested exit code for the
 // program; If it is 0, then initializing Node.js succeeded.
-NODE_EXTERN int InitializeNodeWithArgs(
-    std::vector<std::string>* argv,
-    std::vector<std::string>* exec_argv,
-    std::vector<std::string>* errors,
-    ProcessFlags::Flags flags = ProcessFlags::kNoFlags);
+// This runs a subset of the initialization performed by
+// InitializeOncePerProcess(), which supersedes this function.
+// The subset is roughly equivalent to the one given by
+// `ProcessInitializationFlags::kLegacyInitializeNodeWithArgsBehavior`.
+NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
+                NODE_EXTERN int InitializeNodeWithArgs(
+                    std::vector<std::string>* argv,
+                    std::vector<std::string>* exec_argv,
+                    std::vector<std::string>* errors,
+                    ProcessInitializationFlags::Flags flags =
+                        ProcessInitializationFlags::kNoFlags));
+
+// Set up per-process state needed to run Node.js. This will consume arguments
+// from args, and return information about the initialization success,
+// including the arguments split into argv/exec_argv, a list of potential
+// errors encountered during initialization, and a potential suggested
+// exit code.
+NODE_EXTERN std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+    const std::vector<std::string>& args,
+    ProcessInitializationFlags::Flags flags =
+        ProcessInitializationFlags::kNoFlags);
+// Undoes the initialization performed by InitializeOncePerProcess(),
+// where cleanup is necessary.
+NODE_EXTERN void TearDownOncePerProcess();
+// Convenience overload for specifying multiple flags without having
+// to worry about casts.
+inline std::unique_ptr<InitializationResult> InitializeOncePerProcess(
+    const std::vector<std::string>& args,
+    std::initializer_list<ProcessInitializationFlags::Flags> list) {
+  uint64_t flags_accum = ProcessInitializationFlags::kNoFlags;
+  for (const auto flag : list) flags_accum |= static_cast<uint64_t>(flag);
+  return InitializeOncePerProcess(
+      args, static_cast<ProcessInitializationFlags::Flags>(flags_accum));
+}
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,
