@@ -1076,9 +1076,8 @@ This is a one-time fix-up, please be patient...
           // if it fails at this point, though, dont' worry because it
           // may well be an optional dep that has gone missing.  it'll
           // fail later anyway.
-          const from = fromPath(placed)
           promises.push(...this[_problemEdges](placed).map(e =>
-            this[_fetchManifest](npa.resolve(e.name, e.spec, from))
+            this[_fetchManifest](npa.resolve(e.name, e.spec, fromPath(placed, e)))
               .catch(er => null)))
         },
       })

@@ -116,6 +116,7 @@ Array [
   "read-only",
   "rebuild-bundle",
   "registry",
+  "replace-registry-host",
   "save",
   "save-bundle",
   "save-dev",
@@ -1315,7 +1316,7 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for packa
 * Default:
 * Type: String (can be set multiple times)
 
-The package to install for [\`npm exec\`](/commands/npm-exec)
+The package or packages to install for [\`npm exec\`](/commands/npm-exec)
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for package-lock 1`] = `
@@ -1458,6 +1459,23 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for regis
 * Type: URL
 
 The base URL of the npm registry.
+`
+
+exports[`test/lib/utils/config/definitions.js TAP > config description for replace-registry-host 1`] = `
+#### \`replace-registry-host\`
+
+* Default: "npmjs"
+* Type: "npmjs", "never", "always", or String
+
+Defines behavior for replacing the registry host in a lockfile with the
+configured registry.
+
+The default behavior is to replace package dist URLs from the default
+registry (https://registry.npmjs.org) to the configured registry. If set to
+"never", then use the registry value. If set to "always", then replace the
+registry host with the configured host every time.
+
+You may also specify a bare hostname (e.g., "registry.npmjs.org").
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save 1`] = `
