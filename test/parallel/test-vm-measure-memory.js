@@ -15,8 +15,10 @@ expectExperimentalWarning();
   vm.measureMemory({ execution: 'eager' })
     .then(common.mustCall(assertSummaryShape));
 
-  vm.measureMemory({ mode: 'detailed', execution: 'eager' })
-    .then(common.mustCall(assertSingleDetailedShape));
+  if (!common.isWindows) {
+    vm.measureMemory({ mode: 'detailed', execution: 'eager' })
+      .then(common.mustCall(assertSingleDetailedShape));
+  }
 
   vm.measureMemory({ mode: 'summary', execution: 'eager' })
     .then(common.mustCall(assertSummaryShape));
