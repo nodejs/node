@@ -34,6 +34,11 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
   })
 
   const tryOpen = await new Promise(resolve => {
+    rl.on('SIGINT', () => {
+      rl.close()
+      resolve('SIGINT')
+    })
+
     rl.question(prompt, () => {
       resolve(true)
     })
@@ -49,6 +54,10 @@ const promptOpen = async (npm, url, title, prompt, emitter) => {
       })
     }
   })
+
+  if (tryOpen === 'SIGINT') {
+    throw new Error('canceled')
+  }
 
   if (!tryOpen) {
     return

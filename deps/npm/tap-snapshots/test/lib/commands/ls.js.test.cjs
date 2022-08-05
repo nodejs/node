@@ -678,6 +678,13 @@ dedupe-entries@1.0.0 {CWD}/tap-testdir-ls-ls-with-no-args-dedupe-entries-and-not
 
 `
 
+exports[`test/lib/commands/ls.js TAP ls workspace and missing optional dep > should omit missing optional dep 1`] = `
+root@ {CWD}/tap-testdir-ls-ls-workspace-and-missing-optional-dep
++-- baz@1.0.0 -> ./baz
+\`-- foo@1.0.0
+
+`
+
 exports[`test/lib/commands/ls.js TAP show multiple invalid reasons > ls result 1`] = `
 test-npm-ls@1.0.0 {cwd}/tap-testdir-ls-show-multiple-invalid-reasons
 +-- cat@1.0.0 invalid: "^2.0.0" from the root project
