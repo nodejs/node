@@ -23,13 +23,16 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
 int main(int argc, char** argv) {
   argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
-  std::vector<std::string> exec_args;
-  std::vector<std::string> errors;
-  int exit_code = node::InitializeNodeWithArgs(&args, &exec_args, &errors);
-  for (const std::string& error : errors)
+  std::unique_ptr<node::InitializationResult> result =
+      node::InitializeOncePerProcess(
+          args,
+          {node::ProcessInitializationFlags::kNoInitializeV8,
+           node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
+
+  for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
-  if (exit_code != 0) {
-    return exit_code;
+  if (result->early_return() != 0) {
+    return result->exit_code();
   }
 
   std::unique_ptr<MultiIsolatePlatform> platform =
@@ -37,10 +40,13 @@ int main(int argc, char** argv) {
   V8::InitializePlatform(platform.get());
   V8::Initialize();
 
-  int ret = RunNodeInstance(platform.get(), args, exec_args);
+  int ret =
+      RunNodeInstance(platform.get(), result->args(), result->exec_args());
 
   V8::Dispose();
   V8::DisposePlatform();
+
+  node::TearDownOncePerProcess();
   return ret;
 }
 
