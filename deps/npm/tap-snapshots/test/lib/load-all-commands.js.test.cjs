@@ -693,6 +693,20 @@ Options:
 Run "npm help publish" for more info
 `
 
+exports[`test/lib/load-all-commands.js TAP load each command query > must match snapshot 1`] = `
+Retrieve a filtered list of packages
+
+Usage:
+npm query <selector>
+
+Options:
+[-g|--global]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces] [--include-workspace-root]
+
+Run "npm help query" for more info
+`
+
 exports[`test/lib/load-all-commands.js TAP load each command rebuild > must match snapshot 1`] = `
 Rebuild a package
 

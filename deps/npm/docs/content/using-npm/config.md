@@ -1244,7 +1244,7 @@ Directory in which `npm pack` will save tarballs.
 * Default:
 * Type: String (can be set multiple times)
 
-The package to install for [`npm exec`](/commands/npm-exec)
+The package or packages to install for [`npm exec`](/commands/npm-exec)
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -1389,6 +1389,24 @@ Rebuild bundled dependencies after installation.
 * Type: URL
 
 The base URL of the npm registry.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `replace-registry-host`
+
+* Default: "npmjs"
+* Type: "npmjs", "never", "always", or String
+
+Defines behavior for replacing the registry host in a lockfile with the
+configured registry.
+
+The default behavior is to replace package dist URLs from the default
+registry (https://registry.npmjs.org) to the configured registry. If set to
+"never", then use the registry value. If set to "always", then replace the
+registry host with the configured host every time.
+
+You may also specify a bare hostname (e.g., "registry.npmjs.org").
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

@@ -1,7 +1,7 @@
 const { join, sep } = require('path')
 
 const getOptions = require('./common/get-options.js')
-const mkdir = require('./mkdir/index.js')
+const mkdir = require('./mkdir.js')
 const mkdtemp = require('./mkdtemp.js')
 const rm = require('./rm/index.js')
 

@@ -1,31 +1,6 @@
+const path = require('path')
 const libexec = require('libnpmexec')
 const BaseCommand = require('../base-command.js')
-const getLocationMsg = require('../exec/get-workspace-location-msg.js')
-
-// it's like this:
-//
-// npm x pkg@version <-- runs the bin named "pkg" or the only bin if only 1
-//
-// { name: 'pkg', bin: { pkg: 'pkg.js', foo: 'foo.js' }} <-- run pkg
-// { name: 'pkg', bin: { foo: 'foo.js' }} <-- run foo?
-//
-// npm x -p pkg@version -- foo
-//
-// npm x -p pkg@version -- foo --registry=/dev/null
-//
-// const pkg = npm.config.get('package') || getPackageFrom(args[0])
-// const cmd = getCommand(pkg, args[0])
-// --> npm x -c 'cmd ...args.slice(1)'
-//
-// we've resolved cmd and args, and escaped them properly, and installed the
-// relevant packages.
-//
-// Add the ${npx install prefix}/node_modules/.bin to PATH
-//
-// pkg = readPackageJson('./package.json')
-// pkg.scripts.___npx = ${the -c arg}
-// runScript({ pkg, event: 'npx', ... })
-// process.env.npm_lifecycle_event = 'npx'
 
 class Exec extends BaseCommand {
   static description = 'Run a command from a local or remote npm package'
@@ -49,8 +24,10 @@ class Exec extends BaseCommand {
   static isShellout = true
 
   async exec (_args, { locationMsg, runPath } = {}) {
-    const path = this.npm.localPrefix
+    // This is where libnpmexec will look for locally installed packages
+    const localPrefix = this.npm.localPrefix
 
+    // This is where libnpmexec will actually run the scripts from
     if (!runPath) {
       runPath = process.cwd()
     }
@@ -61,8 +38,9 @@ class Exec extends BaseCommand {
       flatOptions,
       localBin,
       globalBin,
+      globalDir,
     } = this.npm
-    const output = (...outputArgs) => this.npm.output(...outputArgs)
+    const output = this.npm.output.bind(this.npm)
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const packages = this.npm.config.get('package')
     const yes = this.npm.config.get('yes')
@@ -81,9 +59,10 @@ class Exec extends BaseCommand {
       localBin,
       locationMsg,
       globalBin,
+      globalPath: path.resolve(globalDir, '..'),
       output,
       packages,
-      path,
+      path: localPrefix,
       runPath,
       scriptShell,
       yes,
@@ -92,10 +71,10 @@ class Exec extends BaseCommand {
 
   async execWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
-    const color = this.npm.color
 
-    for (const path of this.workspacePaths) {
-      const locationMsg = await getLocationMsg({ color, path })
+    for (const [name, path] of this.workspaces) {
+      const locationMsg =
+        `in workspace ${this.npm.chalk.green(name)} at location:\n${this.npm.chalk.dim(path)}`
       await this.exec(args, { locationMsg, runPath: path })
     }
   }

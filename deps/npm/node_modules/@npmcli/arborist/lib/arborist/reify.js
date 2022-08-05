@@ -712,13 +712,19 @@ module.exports = cls => class Reifier extends cls {
   [_registryResolved] (resolved) {
     // the default registry url is a magic value meaning "the currently
     // configured registry".
+    // `resolved` must never be falsey.
     //
     // XXX: use a magic string that isn't also a valid value, like
     // ${REGISTRY} or something.  This has to be threaded through the
     // Shrinkwrap and Node classes carefully, so for now, just treat
     // the default reg as the magical animal that it has been.
-    return resolved && resolved
-      .replace(/^https?:\/\/registry\.npmjs\.org\//, this.registry)
+    const resolvedURL = new URL(resolved)
+    if ((this.options.replaceRegistryHost === resolvedURL.hostname)
+      || this.options.replaceRegistryHost === 'always') {
+      // this.registry always has a trailing slash
+      resolved = `${this.registry.slice(0, -1)}${resolvedURL.pathname}${resolvedURL.searchParams}`
+    }
+    return resolved
   }
 
   // bundles are *sort of* like shrinkwraps, in that the branch is defined
