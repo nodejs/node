@@ -1,5 +1,5 @@
 {
-  "version": "8.15.1",
+  "version": "8.16.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -62,7 +62,7 @@
     "@npmcli/fs": "^2.1.0",
     "@npmcli/map-workspaces": "^2.0.3",
     "@npmcli/package-json": "^2.0.0",
-    "@npmcli/run-script": "^4.1.7",
+    "@npmcli/run-script": "^4.2.0",
     "abbrev": "~1.1.1",
     "archy": "~1.0.0",
     "cacache": "^16.1.1",

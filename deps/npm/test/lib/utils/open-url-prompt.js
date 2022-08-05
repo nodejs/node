@@ -28,6 +28,8 @@ const opener = (url, opts, cb) => {
 }
 
 let questionShouldResolve = true
+let openUrlPromptInterrupted = false
+
 const readline = {
   createInterface: () => ({
     question: (_q, cb) => {
@@ -36,6 +38,11 @@ const readline = {
       }
     },
     close: () => {},
+    on: (_signal, cb) => {
+      if (openUrlPromptInterrupted && _signal === 'SIGINT') {
+        cb()
+      }
+    },
   }),
 }
 
@@ -147,4 +154,26 @@ t.test('returns error when opener errors', async t => {
     'got the correct error'
   )
   t.equal(openerUrl, 'https://www.npmjs.com', 'did not open')
+})
+
+t.test('throws "canceled" error on SIGINT', async t => {
+  t.teardown(() => {
+    openerUrl = null
+    openerOpts = null
+    OUTPUT.length = 0
+    questionShouldResolve = true
+    openUrlPromptInterrupted = false
+  })
+
+  questionShouldResolve = false
+  openUrlPromptInterrupted = true
+  const emitter = new EventEmitter()
+
+  const open = openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt', emitter)
+
+  try {
+    await open
+  } catch (err) {
+    t.equal(err.message, 'canceled')
+  }
 })
