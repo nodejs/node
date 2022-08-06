@@ -47,7 +47,9 @@ dependencies: dict[str, Dependency] = {
         version=vp.get_libuv_version(), cpe=CPE(vendor="libuv_project", product="libuv")
     ),
     "undici": Dependency(
-        version=vp.get_undici_version(), cpe=None, keyword="undici", npm_name="undici"
+        version=vp.get_undici_version(),
+        cpe=CPE(vendor="nodejs", product="undici"),
+        npm_name="undici",
     ),
     "OpenSSL": Dependency(
         version=vp.get_openssl_version(), cpe=CPE(vendor="openssl", product="openssl")
