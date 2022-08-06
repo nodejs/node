@@ -711,19 +711,20 @@ void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
 
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
 #ifndef OPENSSL_NO_ENGINE
-  env->SetMethod(target, "setEngine", SetEngine);
+  SetMethod(context, target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-  env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
-  env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-  env->SetMethodNoSideEffect(target, "testFipsCrypto", TestFipsCrypto);
+  SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
+  SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
+  SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
 
-  env->SetMethod(target, "secureBuffer", SecureBuffer);
-  env->SetMethod(target, "secureHeapUsed", SecureHeapUsed);
+  SetMethod(context, target, "secureBuffer", SecureBuffer);
+  SetMethod(context, target, "secureHeapUsed", SecureHeapUsed);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #ifndef OPENSSL_NO_ENGINE

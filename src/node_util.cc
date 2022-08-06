@@ -347,6 +347,7 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
 #define V(name, _)                                                            \
   target->Set(context,                                                        \
@@ -368,18 +369,21 @@ void Initialize(Local<Object> target,
   V(kRejected);
 #undef V
 
-  env->SetMethodNoSideEffect(target, "getHiddenValue", GetHiddenValue);
-  env->SetMethod(target, "setHiddenValue", SetHiddenValue);
-  env->SetMethodNoSideEffect(target, "getPromiseDetails", GetPromiseDetails);
-  env->SetMethodNoSideEffect(target, "getProxyDetails", GetProxyDetails);
-  env->SetMethodNoSideEffect(target, "previewEntries", PreviewEntries);
-  env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
-                                     GetOwnNonIndexProperties);
-  env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
-  env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
-  env->SetMethod(target, "sleep", Sleep);
+  SetMethodNoSideEffect(context, target, "getHiddenValue", GetHiddenValue);
+  SetMethod(context, target, "setHiddenValue", SetHiddenValue);
+  SetMethodNoSideEffect(
+      context, target, "getPromiseDetails", GetPromiseDetails);
+  SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
+  SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
+  SetMethodNoSideEffect(
+      context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
+  SetMethodNoSideEffect(
+      context, target, "getConstructorName", GetConstructorName);
+  SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
+  SetMethod(context, target, "sleep", Sleep);
 
-  env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethod(
+      context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
   NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
@@ -394,24 +398,24 @@ void Initialize(Local<Object> target,
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
   CHECK(target
-            ->Set(env->context(),
+            ->Set(context,
                   should_abort_on_uncaught_toggle,
                   env->should_abort_on_uncaught_toggle().GetJSArray())
             .FromJust());
 
   Local<FunctionTemplate> weak_ref =
-      env->NewFunctionTemplate(WeakReference::New);
+      NewFunctionTemplate(isolate, WeakReference::New);
   weak_ref->InstanceTemplate()->SetInternalFieldCount(
       WeakReference::kInternalFieldCount);
   weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
-  env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
-  env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);
-  env->SetProtoMethod(weak_ref, "decRef", WeakReference::DecRef);
-  env->SetConstructorFunction(target, "WeakReference", weak_ref);
+  SetProtoMethod(isolate, weak_ref, "get", WeakReference::Get);
+  SetProtoMethod(isolate, weak_ref, "incRef", WeakReference::IncRef);
+  SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);
+  SetConstructorFunction(context, target, "WeakReference", weak_ref);
 
-  env->SetMethod(target, "guessHandleType", GuessHandleType);
+  SetMethod(context, target, "guessHandleType", GuessHandleType);
 
-  env->SetMethodNoSideEffect(target, "toUSVString", ToUSVString);
+  SetMethodNoSideEffect(context, target, "toUSVString", ToUSVString);
 }
 
 }  // namespace util

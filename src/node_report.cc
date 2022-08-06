@@ -27,15 +27,9 @@ constexpr int NODE_REPORT_VERSION = 2;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 
+namespace node {
 namespace report {
-using node::arraysize;
-using node::ConditionVariable;
-using node::DiagnosticFilename;
-using node::Environment;
-using node::JSONWriter;
-using node::Mutex;
-using node::NativeSymbolDebuggingContext;
-using node::TIME_TYPE;
+
 using node::worker::Worker;
 using v8::Array;
 using v8::Context;
@@ -53,8 +47,6 @@ using v8::String;
 using v8::TryCatch;
 using v8::V8;
 using v8::Value;
-
-namespace per_process = node::per_process;
 
 // Internal/static function declarations
 static void WriteNodeReport(Isolate* isolate,
@@ -129,7 +121,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     // Regular file. Append filename to directory path if one was specified
     if (report_directory.length() > 0) {
       std::string pathname = report_directory;
-      pathname += node::kPathSeparator;
+      pathname += kPathSeparator;
       pathname += filename;
       outfile.open(pathname, std::ios::out | std::ios::binary);
     } else {
@@ -260,9 +252,9 @@ static void WriteNodeReport(Isolate* isolate,
   }
 
   // Report out the command line.
-  if (!node::per_process::cli_options->cmdline.empty()) {
+  if (!per_process::cli_options->cmdline.empty()) {
     writer.json_arraystart("commandLine");
-    for (const std::string& arg : node::per_process::cli_options->cmdline) {
+    for (const std::string& arg : per_process::cli_options->cmdline) {
       writer.json_element(arg);
     }
     writer.json_arrayend();
@@ -377,8 +369,8 @@ static void PrintVersionInformation(JSONWriter* writer) {
 
   // Report Process word size
   writer->json_keyvalue("wordSize", sizeof(void*) * 8);
-  writer->json_keyvalue("arch", node::per_process::metadata.arch);
-  writer->json_keyvalue("platform", node::per_process::metadata.platform);
+  writer->json_keyvalue("arch", per_process::metadata.arch);
+  writer->json_keyvalue("platform", per_process::metadata.platform);
 
   // Report deps component versions
   PrintComponentVersions(writer);
@@ -528,7 +520,7 @@ static Maybe<std::string> ErrorToString(Isolate* isolate,
     maybe_str = error->ToString(context);
   } else if (error->IsObject()) {
     MaybeLocal<Value> stack = error.As<Object>()->Get(
-        context, node::FIXED_ONE_BYTE_STRING(isolate, "stack"));
+        context, FIXED_ONE_BYTE_STRING(isolate, "stack"));
     if (!stack.IsEmpty() && stack.ToLocalChecked()->IsString()) {
       maybe_str = stack.ToLocalChecked().As<String>();
     }
@@ -656,7 +648,7 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 static void PrintResourceUsage(JSONWriter* writer) {
   // Get process uptime in seconds
   uint64_t uptime =
-      (uv_hrtime() - node::per_process::node_start_time) / (NANOS_PER_SEC);
+      (uv_hrtime() - per_process::node_start_time) / (NANOS_PER_SEC);
   if (uptime == 0) uptime = 1;  // avoid division by zero.
 
   // Process and current thread usage statistics
@@ -714,7 +706,7 @@ static void PrintSystemInformation(JSONWriter* writer) {
   writer->json_objectstart("environmentVariables");
 
   {
-    Mutex::ScopedLock lock(node::per_process::env_var_mutex);
+    Mutex::ScopedLock lock(per_process::env_var_mutex);
     r = uv_os_environ(&envitems, &envcount);
   }
 
@@ -794,8 +786,7 @@ static void PrintComponentVersions(JSONWriter* writer) {
 
   writer->json_objectstart("componentVersions");
 
-#define V(key)                                                                 \
-  writer->json_keyvalue(#key, node::per_process::metadata.versions.key);
+#define V(key) writer->json_keyvalue(#key, per_process::metadata.versions.key);
   NODE_VERSIONS_KEYS(V)
 #undef V
 
@@ -805,18 +796,17 @@ static void PrintComponentVersions(JSONWriter* writer) {
 // Report runtime release information.
 static void PrintRelease(JSONWriter* writer) {
   writer->json_objectstart("release");
-  writer->json_keyvalue("name", node::per_process::metadata.release.name);
+  writer->json_keyvalue("name", per_process::metadata.release.name);
 #if NODE_VERSION_IS_LTS
-  writer->json_keyvalue("lts", node::per_process::metadata.release.lts);
+  writer->json_keyvalue("lts", per_process::metadata.release.lts);
 #endif
 
 #ifdef NODE_HAS_RELEASE_URLS
   writer->json_keyvalue("headersUrl",
-                        node::per_process::metadata.release.headers_url);
-  writer->json_keyvalue("sourceUrl",
-                        node::per_process::metadata.release.source_url);
+                        per_process::metadata.release.headers_url);
+  writer->json_keyvalue("sourceUrl", per_process::metadata.release.source_url);
 #ifdef _WIN32
-  writer->json_keyvalue("libUrl", node::per_process::metadata.release.lib_url);
+  writer->json_keyvalue("libUrl", per_process::metadata.release.lib_url);
 #endif  // _WIN32
 #endif  // NODE_HAS_RELEASE_URLS
 
@@ -824,3 +814,4 @@ static void PrintRelease(JSONWriter* writer) {
 }
 
 }  // namespace report
+}  // namespace node

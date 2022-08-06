@@ -540,7 +540,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::throw_deprecation,
             kAllowedInEnvironment);
   AddOption("--trace-atomics-wait",
-            "trace Atomics.wait() operations",
+            "(deprecated) trace Atomics.wait() operations",
             &EnvironmentOptions::trace_atomics_wait,
             kAllowedInEnvironment);
   AddOption("--trace-deprecation",
@@ -772,6 +772,13 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "",  // It's a debug-only option.
             &PerProcessOptions::node_snapshot,
             kAllowedInEnvironment);
+  AddOption("--snapshot-blob",
+            "Path to the snapshot blob that's either the result of snapshot"
+            "building, or the blob that is used to restore the application "
+            "state",
+            &PerProcessOptions::snapshot_blob,
+            kAllowedInEnvironment);
+
   // 12.x renamed this inadvertently, so alias it for consistency within the
   // release line, while using the original name for consistency with older
   // release lines.
@@ -1160,8 +1167,9 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  env->SetMethodNoSideEffect(target, "getCLIOptions", GetCLIOptions);
-  env->SetMethodNoSideEffect(target, "getEmbedderOptions", GetEmbedderOptions);
+  SetMethodNoSideEffect(context, target, "getCLIOptions", GetCLIOptions);
+  SetMethodNoSideEffect(
+      context, target, "getEmbedderOptions", GetEmbedderOptions);
 
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvironment);

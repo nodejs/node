@@ -452,13 +452,12 @@ MaybeLocal<Value> LoadEnvironment(
         native_module::NativeModuleLoader::Add(
             name.c_str(), UnionBytes(**main_utf16, main_utf16->length()));
         env->set_main_utf16(std::move(main_utf16));
-        std::vector<Local<String>> params = {
-            env->process_string(),
-            env->require_string()};
+        // Arguments must match the parameters specified in
+        // NativeModuleLoader::LookupAndCompile().
         std::vector<Local<Value>> args = {
             env->process_object(),
             env->native_module_require()};
-        return ExecuteBootstrapper(env, name.c_str(), &params, &args);
+        return ExecuteBootstrapper(env, name.c_str(), &args);
       });
 }
 
@@ -683,8 +682,6 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
 
   Local<String> primordials_string =
       FIXED_ONE_BYTE_STRING(isolate, "primordials");
-  Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
-  Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
 
   // Create primordials first and make it available to per-context scripts.
   Local<Object> primordials = Object::New(isolate);
@@ -700,12 +697,12 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
                                         nullptr};
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    std::vector<Local<String>> parameters = {
-        global_string, exports_string, primordials_string};
+    // Arguments must match the parameters specified in
+    // NativeModuleLoader::LookupAndCompile().
     Local<Value> arguments[] = {context->Global(), exports, primordials};
     MaybeLocal<Function> maybe_fn =
         native_module::NativeModuleLoader::LookupAndCompile(
-            context, *module, &parameters, nullptr);
+            context, *module, nullptr);
     Local<Function> fn;
     if (!maybe_fn.ToLocal(&fn)) {
       return Nothing<bool>();

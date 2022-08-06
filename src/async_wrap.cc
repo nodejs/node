@@ -337,12 +337,14 @@ void AsyncWrap::SetCallbackTrampoline(const FunctionCallbackInfo<Value>& args) {
 Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->async_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
-    env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
-    env->SetProtoMethod(tmpl, "getProviderType", AsyncWrap::GetProviderType);
+    SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
+    SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
+    SetProtoMethod(
+        isolate, tmpl, "getProviderType", AsyncWrap::GetProviderType);
     env->set_async_wrap_ctor_template(tmpl);
   }
   return tmpl;
@@ -356,15 +358,15 @@ void AsyncWrap::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  env->SetMethod(target, "setupHooks", SetupHooks);
-  env->SetMethod(target, "setCallbackTrampoline", SetCallbackTrampoline);
-  env->SetMethod(target, "pushAsyncContext", PushAsyncContext);
-  env->SetMethod(target, "popAsyncContext", PopAsyncContext);
-  env->SetMethod(target, "executionAsyncResource", ExecutionAsyncResource);
-  env->SetMethod(target, "clearAsyncIdStack", ClearAsyncIdStack);
-  env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
-  env->SetMethod(target, "setPromiseHooks", SetPromiseHooks);
-  env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
+  SetMethod(context, target, "setupHooks", SetupHooks);
+  SetMethod(context, target, "setCallbackTrampoline", SetCallbackTrampoline);
+  SetMethod(context, target, "pushAsyncContext", PushAsyncContext);
+  SetMethod(context, target, "popAsyncContext", PopAsyncContext);
+  SetMethod(context, target, "executionAsyncResource", ExecutionAsyncResource);
+  SetMethod(context, target, "clearAsyncIdStack", ClearAsyncIdStack);
+  SetMethod(context, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
+  SetMethod(context, target, "setPromiseHooks", SetPromiseHooks);
+  SetMethod(context, target, "registerDestroyHook", RegisterDestroyHook);
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);

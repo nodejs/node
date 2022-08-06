@@ -58,8 +58,13 @@ load_64byte_table (const uint8_t *p)
 #include "../generic/32/dec_loop.c"
 #include "../generic/64/enc_loop.c"
 #include "dec_loop.c"
-#include "enc_reshuffle.c"
-#include "enc_loop.c"
+
+#ifdef BASE64_NEON64_USE_ASM
+# include "enc_loop_asm.c"
+#else
+# include "enc_reshuffle.c"
+# include "enc_loop.c"
+#endif
 
 #endif	// BASE64_USE_NEON64
 

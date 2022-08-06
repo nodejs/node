@@ -267,6 +267,12 @@ void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
       args.GetIsolate(), env->time_origin_timestamp() / MICROS_PER_MILLIS));
 }
 
+void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->performance_state()->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -291,19 +297,22 @@ void Initialize(Local<Object> target,
   target->Set(context, performanceEntryString, fn).Check();
   env->set_performance_entry_template(fn);
 
-  env->SetMethod(target, "markMilestone", MarkMilestone);
-  env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
-  env->SetMethod(target,
-                 "installGarbageCollectionTracking",
-                 InstallGarbageCollectionTracking);
-  env->SetMethod(target,
-                 "removeGarbageCollectionTracking",
-                 RemoveGarbageCollectionTracking);
-  env->SetMethod(target, "notify", Notify);
-  env->SetMethod(target, "loopIdleTime", LoopIdleTime);
-  env->SetMethod(target, "getTimeOrigin", GetTimeOrigin);
-  env->SetMethod(target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  env->SetMethod(target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(context, target, "markMilestone", MarkMilestone);
+  SetMethod(context, target, "setupObservers", SetupPerformanceObservers);
+  SetMethod(context,
+            target,
+            "installGarbageCollectionTracking",
+            InstallGarbageCollectionTracking);
+  SetMethod(context,
+            target,
+            "removeGarbageCollectionTracking",
+            RemoveGarbageCollectionTracking);
+  SetMethod(context, target, "notify", Notify);
+  SetMethod(context, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(context, target, "getTimeOrigin", GetTimeOrigin);
+  SetMethod(context, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  SetMethod(context, target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(context, target, "markBootstrapComplete", MarkBootstrapComplete);
 
   Local<Object> constants = Object::New(isolate);
 
@@ -358,6 +367,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetTimeOrigin);
   registry->Register(GetTimeOriginTimeStamp);
   registry->Register(CreateELDHistogram);
+  registry->Register(MarkBootstrapComplete);
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
 }
