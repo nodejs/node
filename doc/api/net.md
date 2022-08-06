@@ -825,6 +825,16 @@ added: v0.5.3
 
 The amount of bytes sent.
 
+### `socket.writeQueueSize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer}
+
+The amount of bytes in libuv write queue.
+
 ### `socket.connect()`
 
 Initiate a connection on a given socket.
