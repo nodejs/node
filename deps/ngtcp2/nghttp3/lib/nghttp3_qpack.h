@@ -118,7 +118,7 @@ void nghttp3_qpack_header_block_ref_del(nghttp3_qpack_header_block_ref *ref,
                                         const nghttp3_mem *mem);
 
 typedef struct nghttp3_qpack_stream {
-  nghttp3_map_entry me;
+  int64_t stream_id;
   /* refs is an array of pointer to nghttp3_qpack_header_block_ref in
      the order of the time they are encoded.  HTTP/3 allows multiple
      header blocks (e.g., non-final response headers, final response
@@ -154,18 +154,15 @@ typedef struct nghttp3_qpack_context {
      NGHTTP3_QPACK_ENTRY_OVERHEAD bytes overhead per each entry. */
   size_t dtable_size;
   size_t dtable_sum;
-  /* hard_max_dtable_size is the maximum size of dynamic table.  In
-     HTTP/3, it is notified by decoder as
-     SETTINGS_QPACK_MAX_TABLE_CAPACITY.  Any value lower than or equal
-     to SETTINGS_QPACK_MAX_TABLE_CAPACITY is OK because encoder has
-     the authority to decide how many entries are inserted into
-     dynamic table. */
-  size_t hard_max_dtable_size;
-  /* max_dtable_size is the effective maximum size of dynamic table. */
-  size_t max_dtable_size;
-  /* max_blocked is the maximum number of stream which can be
+  /* hard_max_dtable_capacity is the upper bound of
+     max_dtable_capacity. */
+  size_t hard_max_dtable_capacity;
+  /* max_dtable_capacity is the maximum capacity of the dynamic
+     table. */
+  size_t max_dtable_capacity;
+  /* max_blocked_streams is the maximum number of stream which can be
      blocked. */
-  size_t max_blocked;
+  size_t max_blocked_streams;
   /* next_absidx is the next absolute index for nghttp3_qpack_entry.
      It is equivalent to insert count. */
   uint64_t next_absidx;
@@ -218,10 +215,10 @@ typedef enum nghttp3_qpack_decoder_stream_opcode {
 /* QPACK encoder flags */
 
 /* NGHTTP3_QPACK_ENCODER_FLAG_NONE indicates that no flag is set. */
-#define NGHTTP3_QPACK_ENCODER_FLAG_NONE 0x00
+#define NGHTTP3_QPACK_ENCODER_FLAG_NONE 0x00u
 /* NGHTTP3_QPACK_ENCODER_FLAG_PENDING_SET_DTABLE_CAP indicates that
    Set Dynamic Table Capacity is required. */
-#define NGHTTP3_QPACK_ENCODER_FLAG_PENDING_SET_DTABLE_CAP 0x01
+#define NGHTTP3_QPACK_ENCODER_FLAG_PENDING_SET_DTABLE_CAP 0x01u
 
 struct nghttp3_qpack_encoder {
   nghttp3_qpack_context ctx;
@@ -260,9 +257,8 @@ struct nghttp3_qpack_encoder {
 
 /*
  * nghttp3_qpack_encoder_init initializes |encoder|.
- * |max_dtable_size| is the maximum size of dynamic table.
- * |max_blocked| is the maximum number of stream which can be blocked.
- * |mem| is a memory allocator.
+ * |hard_max_dtable_capacity| is the upper bound of the dynamic table
+ * capacity.  |mem| is a memory allocator.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -271,7 +267,7 @@ struct nghttp3_qpack_encoder {
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_init(nghttp3_qpack_encoder *encoder,
-                               size_t max_dtable_size, size_t max_blocked,
+                               size_t hard_max_dtable_capacity,
                                const nghttp3_mem *mem);
 
 /*
@@ -629,6 +625,44 @@ int nghttp3_qpack_encoder_dtable_literal_add(nghttp3_qpack_encoder *encoder,
                                              int32_t token, uint32_t hash);
 
 /*
+ * `nghttp3_qpack_encoder_ack_header` tells |encoder| that header
+ * block for a stream denoted by |stream_id| was acknowledged by
+ * decoder.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_QPACK_DECODER_STREAM_ERROR`
+ *     Section Acknowledgement for a stream denoted by |stream_id| is
+ *     unexpected.
+ */
+int nghttp3_qpack_encoder_ack_header(nghttp3_qpack_encoder *encoder,
+                                     int64_t stream_id);
+
+/*
+ * `nghttp3_qpack_encoder_add_icnt` increments known received count of
+ * |encoder| by |n|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ * :macro:`NGHTTP3_ERR_QPACK_DECODER_STREAM_ERROR`
+ *     |n| is too large.
+ */
+int nghttp3_qpack_encoder_add_icnt(nghttp3_qpack_encoder *encoder, uint64_t n);
+
+/*
+ * `nghttp3_qpack_encoder_cancel_stream` tells |encoder| that stream
+ * denoted by |stream_id| is cancelled.  This function is provided for
+ * debugging purpose only.  In HTTP/3, |encoder| knows this by reading
+ * decoder stream with `nghttp3_qpack_encoder_read_decoder()`.
+ */
+void nghttp3_qpack_encoder_cancel_stream(nghttp3_qpack_encoder *encoder,
+                                         int64_t stream_id);
+
+/*
  * nghttp3_qpack_context_dtable_get returns dynamic table entry whose
  * absolute index is |absidx|.  This function assumes that such entry
  * exists.
@@ -749,9 +783,9 @@ struct nghttp3_qpack_decoder {
 
 /*
  * nghttp3_qpack_decoder_init initializes |decoder|.
- * |max_dtable_size| is the maximum size of dynamic table.
- * |max_blocked| is the maximum number of stream which can be blocked.
- * |mem| is a memory allocator.
+ * |hard_max_dtable_capacity| is the upper bound of the dynamic table
+ * capacity.  |max_blocked_streams| is the maximum number of stream
+ * which can be blocked.  |mem| is a memory allocator.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -760,7 +794,8 @@ struct nghttp3_qpack_decoder {
  *     Out of memory.
  */
 int nghttp3_qpack_decoder_init(nghttp3_qpack_decoder *decoder,
-                               size_t max_dtable_size, size_t max_blocked,
+                               size_t hard_max_dtable_capacity,
+                               size_t max_blocked_streams,
                                const nghttp3_mem *mem);
 
 /*
@@ -935,9 +970,9 @@ void nghttp3_qpack_decoder_emit_indexed(nghttp3_qpack_decoder *decoder,
                                         nghttp3_qpack_stream_context *sctx,
                                         nghttp3_qpack_nv *nv);
 
-void nghttp3_qpack_decoder_emit_indexed_name(nghttp3_qpack_decoder *decoder,
-                                             nghttp3_qpack_stream_context *sctx,
-                                             nghttp3_qpack_nv *nv);
+int nghttp3_qpack_decoder_emit_indexed_name(nghttp3_qpack_decoder *decoder,
+                                            nghttp3_qpack_stream_context *sctx,
+                                            nghttp3_qpack_nv *nv);
 
 void nghttp3_qpack_decoder_emit_literal(nghttp3_qpack_decoder *decoder,
                                         nghttp3_qpack_stream_context *sctx,
