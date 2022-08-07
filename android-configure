@@ -21,8 +21,6 @@ if [ $ANDROID_SDK_VERSION -lt 24 ]; then
   echo "$ANDROID_SDK_VERSION should equal or later than 24 (Android 7.0)"
 fi
 
-CC_VER="4.9"
-
 case $ARCH in
     arm)
         DEST_CPU="arm"
