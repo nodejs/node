@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
-const { Worker, parentPort } = require('worker_threads');
+const { parentPort, Worker } = require('worker_threads');
 
 // This test ensures that workers can be terminated without error while
 // stream activity is ongoing, in particular the C++ function
