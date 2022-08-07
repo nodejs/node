@@ -4,16 +4,13 @@ const assert = require('assert');
 const net = require('net');
 const dc = require('diagnostics_channel');
 
-const netClientSocketChannel = dc.channel('net.client.socket');
-const netServerSocketChannel = dc.channel('net.server.socket');
-
 const isNetSocket = (socket) => socket instanceof net.Socket;
 
-netClientSocketChannel.subscribe(common.mustCall(({ socket }) => {
+dc.subscribe('net.client.socket', common.mustCall(({ socket }) => {
   assert.strictEqual(isNetSocket(socket), true);
 }));
 
-netServerSocketChannel.subscribe(common.mustCall(({ socket }) => {
+dc.subscribe('net.server.socket', common.mustCall(({ socket }) => {
   assert.strictEqual(isNetSocket(socket), true);
 }));
 
