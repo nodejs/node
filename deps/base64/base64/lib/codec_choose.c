@@ -10,7 +10,7 @@
 
 #if (__x86_64__ || __i386__ || _M_X86 || _M_X64)
   #define BASE64_X86
-  #if (HAVE_SSSE3 || HAVE_SSE41 || HAVE_SSE42 || HAVE_AVX || HAVE_AVX2)
+  #if (HAVE_SSSE3 || HAVE_SSE41 || HAVE_SSE42 || HAVE_AVX || HAVE_AVX2 || HAVE_AVX512)
     #define BASE64_X86_SIMD
   #endif
 #endif
@@ -31,7 +31,7 @@
 		__cpuid_count(__level, 0, __eax, __ebx, __ecx, __edx)
 #else
 	#include <cpuid.h>
-	#if HAVE_AVX2 || HAVE_AVX
+	#if HAVE_AVX512 || HAVE_AVX2 || HAVE_AVX
 		#if ((__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 2) || (__clang_major__ >= 3))
 			static inline uint64_t _xgetbv (uint32_t index)
 			{
@@ -45,6 +45,10 @@
 	#endif
 #endif
 
+#ifndef bit_AVX512
+#define bit_AVX512vl (1 << 31)
+#define bit_AVX512vbmi (1 << 1)
+#endif
 #ifndef bit_AVX2
 #define bit_AVX2 (1 << 5)
 #endif
@@ -75,6 +79,7 @@
 	BASE64_ENC_FUNCTION(arch);	\
 	BASE64_DEC_FUNCTION(arch);	\
 
+BASE64_CODEC_FUNCS(avx512)
 BASE64_CODEC_FUNCS(avx2)
 BASE64_CODEC_FUNCS(neon32)
 BASE64_CODEC_FUNCS(neon64)
@@ -93,6 +98,11 @@ codec_choose_forced (struct codec *codec, int flags)
 
 	if (!(flags & 0xFF)) {
 		return false;
+	}
+	if (flags & BASE64_FORCE_AVX512) {
+		codec->enc = base64_stream_encode_avx512;
+		codec->dec = base64_stream_decode_avx512;
+		return true;
 	}
 	if (flags & BASE64_FORCE_AVX2) {
 		codec->enc = base64_stream_encode_avx2;
@@ -178,8 +188,8 @@ codec_choose_x86 (struct codec *codec)
 	max_level = __get_cpuid_max(0, NULL);
 	#endif
 
-	#if HAVE_AVX2 || HAVE_AVX
-	// Check for AVX/AVX2 support:
+	#if HAVE_AVX512 || HAVE_AVX2 || HAVE_AVX
+	// Check for AVX/AVX2/AVX512 support:
 	// Checking for AVX requires 3 things:
 	// 1) CPUID indicates that the OS uses XSAVE and XRSTORE instructions
 	//    (allowing saving YMM registers on context switch)
@@ -195,6 +205,16 @@ codec_choose_x86 (struct codec *codec)
 			uint64_t xcr_mask;
 			xcr_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
 			if (xcr_mask & _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS) {
+				#if HAVE_AVX512
+				if (max_level >= 7) {
+					__cpuid_count(7, 0, eax, ebx, ecx, edx);
+					if (ebx & bit_AVX512vl && ecx & bit_AVX512VBMI) {
+						codec->enc = base64_stream_encode_avx512;
+						codec->dec = base64_stream_decode_avx512;
+						return true;
+					}
+				}
+				#endif
 				#if HAVE_AVX2
 				if (max_level >= 7) {
 					__cpuid_count(7, 0, eax, ebx, ecx, edx);

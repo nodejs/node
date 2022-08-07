@@ -118,6 +118,7 @@ add_library(base64
     lib/arch/sse42/codec.c
     lib/arch/avx/codec.c
     lib/arch/avx2/codec.c
+    lib/arch/avx512/codec.c
 
     lib/arch/neon32/codec.c
     lib/arch/neon64/codec.c
