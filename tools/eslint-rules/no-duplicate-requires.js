@@ -4,26 +4,11 @@
  */
 'use strict';
 
-const { isRequireCall, isString } = require('./rules-utils.js');
+const { isTopLevelRequireCall, isString } = require('./rules-utils.js');
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-
-const secondLevelTypes = [
-  'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression',
-  'ClassBody', 'MethodDefinition',
-];
-
-function isTopLevel(node) {
-  while (!secondLevelTypes.includes(node.type)) {
-    node = node.parent;
-    if (!node) {
-      return true;
-    }
-  }
-  return false;
-}
 
 module.exports = (context) => {
   if (context.parserOptions.sourceType === 'module') {
@@ -43,7 +28,7 @@ module.exports = (context) => {
 
   const rules = {
     CallExpression: (node) => {
-      if (isRequireCall(node) && isTopLevel(node)) {
+      if (isTopLevelRequireCall(node)) {
         const moduleName = getRequiredModuleNameFromCall(node);
         if (moduleName === undefined) {
           return;

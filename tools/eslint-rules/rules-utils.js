@@ -8,6 +8,23 @@ function isRequireCall(node) {
 }
 module.exports.isRequireCall = isRequireCall;
 
+module.exports.isTopLevelRequireCall = function(node) {
+  const secondLevelTypes = [
+    'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression',
+    'ClassBody', 'MethodDefinition',
+  ];
+  const isTopLevel = (node) => {
+    while (!secondLevelTypes.includes(node.type)) {
+      node = node.parent;
+      if (!node) {
+        return true;
+      }
+    }
+    return false;
+  };
+  return isRequireCall(node) && isTopLevel(node);
+};
+
 module.exports.isString = function(node) {
   return node && node.type === 'Literal' && typeof node.value === 'string';
 };
