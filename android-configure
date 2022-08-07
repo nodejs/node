@@ -17,16 +17,14 @@ NDK_PATH=$1
 ARCH="$2"
 ANDROID_SDK_VERSION=$3
 
-if [ $ANDROID_SDK_VERSION -lt 23 ]; then
-  echo "$ANDROID_SDK_VERSION should equal or later than 23(Android 6.0)"
+if [ $ANDROID_SDK_VERSION -lt 24 ]; then
+  echo "$ANDROID_SDK_VERSION should equal or later than 24 (Android 7.0)"
 fi
-
-CC_VER="4.9"
 
 case $ARCH in
     arm)
         DEST_CPU="arm"
-        TOOLCHAIN_NAME="armv7-linux-androideabi"
+        TOOLCHAIN_NAME="armv7a-linux-androideabi"
         ;;
     x86)
         DEST_CPU="ia32"
