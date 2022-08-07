@@ -17,16 +17,20 @@ function serverHandler(req, res) {
 }
 
 const cpus = os.cpus().length;
+const numRequests = 36;
 let createClients = true;
 let done = 0;
 let count = 0;
 let countGC = 0;
 
 const server = http.createServer(serverHandler);
-server.listen(0, common.mustCall(getAll));
+server.listen(0, common.mustCall(() => getAll(numRequests)));
 
-function getAll() {
+function getAll(requestsRemaining) {
   if (!createClients)
+    return;
+
+  if (requestsRemaining <= 0)
     return;
 
   const req = http.get({
@@ -40,11 +44,11 @@ function getAll() {
   count++;
   onGC(req, { ongc });
 
-  setImmediate(getAll);
+  setImmediate(getAll, requestsRemaining - 1);
 }
 
 for (let i = 0; i < cpus; i++)
-  getAll();
+  getAll(numRequests);
 
 function cb(res) {
   res.resume();
