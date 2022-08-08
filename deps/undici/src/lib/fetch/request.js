@@ -367,9 +367,9 @@ class Request {
       }
 
       if (signal.aborted) {
-        ac.abort()
+        ac.abort(signal.reason)
       } else {
-        const abort = () => ac.abort()
+        const abort = () => ac.abort(signal.reason)
         signal.addEventListener('abort', abort, { once: true })
         requestFinalizer.register(this, { signal, abort })
       }
@@ -726,12 +726,12 @@ class Request {
     // 4. Make clonedRequestObject’s signal follow this’s signal.
     const ac = new AbortController()
     if (this.signal.aborted) {
-      ac.abort()
+      ac.abort(this.signal.reason)
     } else {
       this.signal.addEventListener(
         'abort',
-        function () {
-          ac.abort()
+        () => {
+          ac.abort(this.signal.reason)
         },
         { once: true }
       )
