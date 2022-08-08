@@ -74,7 +74,7 @@ declare namespace MockInterceptor {
     origin: string;
     method: string;
     body?: BodyInit | Dispatcher.DispatchOptions['body'];
-    headers: Headers;
+    headers: Headers | Record<string, string>;
     maxRedirections: number;
   }
 

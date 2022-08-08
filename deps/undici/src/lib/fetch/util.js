@@ -82,6 +82,13 @@ function isFileLike (object) {
   )
 }
 
+function isErrorLike (object) {
+  return object instanceof Error || (
+    object?.constructor?.name === 'Error' ||
+    object?.constructor?.name === 'DOMException'
+  )
+}
+
 // Check whether |statusText| is a ByteString and
 // matches the Reason-Phrase token production.
 // RFC 2616: https://tools.ietf.org/html/rfc2616
@@ -469,5 +476,6 @@ module.exports = {
   makeIterator,
   isValidHeaderName,
   isValidHeaderValue,
-  hasOwn
+  hasOwn,
+  isErrorLike
 }

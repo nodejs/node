@@ -75,14 +75,12 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
       })
     }
 
-    const timeoutId = timeout
-      ? setTimeout(onConnectTimeout, timeout, socket)
-      : null
+    const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout)
 
     socket
       .setNoDelay(true)
       .once(protocol === 'https:' ? 'secureConnect' : 'connect', function () {
-        clearTimeout(timeoutId)
+        cancelTimeout()
 
         if (callback) {
           const cb = callback
@@ -91,7 +89,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         }
       })
       .on('error', function (err) {
-        clearTimeout(timeoutId)
+        cancelTimeout()
 
         if (callback) {
           const cb = callback
@@ -101,6 +99,31 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
       })
 
     return socket
+  }
+}
+
+function setupTimeout (onConnectTimeout, timeout) {
+  if (!timeout) {
+    return () => {}
+  }
+
+  let s1 = null
+  let s2 = null
+  const timeoutId = setTimeout(() => {
+    // setImmediate is added to make sure that we priotorise socket error events over timeouts
+    s1 = setImmediate(() => {
+      if (process.platform === 'win32') {
+        // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
+        s2 = setImmediate(() => onConnectTimeout())
+      } else {
+        onConnectTimeout()
+      }
+    })
+  }, timeout)
+  return () => {
+    clearTimeout(timeoutId)
+    clearImmediate(s1)
+    clearImmediate(s2)
   }
 }
 

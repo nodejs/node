@@ -10,7 +10,8 @@ const {
   isCancelled,
   isAborted,
   isBlobLike,
-  serializeJavascriptValueToJSONString
+  serializeJavascriptValueToJSONString,
+  isErrorLike
 } = require('./util')
 const {
   redirectStatus,
@@ -347,15 +348,15 @@ function makeResponse (init) {
 }
 
 function makeNetworkError (reason) {
+  const isError = isErrorLike(reason)
   return makeResponse({
     type: 'error',
     status: 0,
-    error:
-      reason instanceof Error
-        ? reason
-        : new Error(reason ? String(reason) : reason, {
-          cause: reason instanceof Error ? reason : undefined
-        }),
+    error: isError
+      ? reason
+      : new Error(reason ? String(reason) : reason, {
+        cause: isError ? reason : undefined
+      }),
     aborted: reason && reason.name === 'AbortError'
   })
 }

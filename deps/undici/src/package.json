@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.8.0",
+  "version": "5.8.1",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -67,6 +67,7 @@
     "@sinonjs/fake-timers": "^9.1.2",
     "@types/node": "^17.0.29",
     "abort-controller": "^3.0.0",
+    "atomic-sleep": "^1.0.0",
     "busboy": "^1.6.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",

@@ -255,7 +255,7 @@ function percentDecode (input) {
   }
 
   // 3. Return output.
-  return Uint8Array.of(...output)
+  return Uint8Array.from(output)
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type

@@ -1,5 +1,6 @@
 import Client = require('./client')
 import Dispatcher = require('./dispatcher')
+import TPoolStats = require('./pool-stats')
 import { URL } from 'url'
 
 export = Pool
@@ -10,9 +11,12 @@ declare class Pool extends Dispatcher {
   closed: boolean;
   /** `true` after `pool.destroyed()` has been called or `pool.close()` has been called and the pool shutdown has completed. */
   destroyed: boolean;
+  /** Aggregate stats for a Pool. */
+  readonly stats: TPoolStats;
 }
 
 declare namespace Pool {
+  export type PoolStats = TPoolStats;
   export interface Options extends Client.Options {
     /** Default: `(origin, opts) => new Client(origin, opts)`. */
     factory?(origin: URL, opts: object): Dispatcher;
