@@ -8,10 +8,6 @@ import path from 'node:path';
 import assert from 'node:assert';
 import tmpdir from '../common/tmpdir.js';
 
-if (process.arch === 'arm' && process.platform === 'linux') {
-  common.skip('stats return 0 on arm/linux');
-}
-
 // On some platforms (for example, ppc64) boundaries are tighter
 // than usual. If we catch these errors, skip corresponding test.
 const ignoredErrors = new Set(['EINVAL', 'EOVERFLOW']);
@@ -20,6 +16,14 @@ tmpdir.refresh();
 const filepath = path.resolve(tmpdir.path, 'timestamp');
 
 await (await fsPromises.open(filepath, 'w')).close();
+
+// Perform a trivial check to determine if filesystem supports setting
+// and retrieving atime and mtime. If it doesn't, skip the test.
+await fsPromises.utimes(filepath, 2, 2);
+const { atimeMs, mtimeMs } = await fsPromises.stat(filepath);
+if (atimeMs !== 2000 || mtimeMs !== 2000) {
+  common.skip(`Unsupported filesystem (atime=${atimeMs}, mtime=${mtimeMs})`);
+}
 
 // Date might round down timestamp
 function closeEnough(actual, expected, margin) {
