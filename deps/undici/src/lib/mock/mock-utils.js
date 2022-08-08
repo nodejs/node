@@ -38,7 +38,7 @@ function lowerCaseEntries (headers) {
 function getHeaderByName (headers, key) {
   if (Array.isArray(headers)) {
     for (let i = 0; i < headers.length; i += 2) {
-      if (headers[i] === key) {
+      if (headers[i].toLocaleLowerCase() === key.toLocaleLowerCase()) {
         return headers[i + 1]
       }
     }
@@ -47,19 +47,24 @@ function getHeaderByName (headers, key) {
   } else if (typeof headers.get === 'function') {
     return headers.get(key)
   } else {
-    return headers[key]
+    return lowerCaseEntries(headers)[key.toLocaleLowerCase()]
   }
+}
+
+/** @param {string[]} headers */
+function buildHeadersFromArray (headers) { // fetch HeadersList
+  const clone = headers.slice()
+  const entries = []
+  for (let index = 0; index < clone.length; index += 2) {
+    entries.push([clone[index], clone[index + 1]])
+  }
+  return Object.fromEntries(entries)
 }
 
 function matchHeaders (mockDispatch, headers) {
   if (typeof mockDispatch.headers === 'function') {
     if (Array.isArray(headers)) { // fetch HeadersList
-      const clone = headers.slice()
-      const entries = []
-      for (let index = 0; index < clone.length; index += 2) {
-        entries.push([clone[index], clone[index + 1]])
-      }
-      headers = Object.fromEntries(entries)
+      headers = buildHeadersFromArray(headers)
     }
     return mockDispatch.headers(headers ? lowerCaseEntries(headers) : {})
   }
@@ -284,7 +289,13 @@ function mockDispatch (opts, handler) {
   }
 
   function handleReply (mockDispatches) {
-    const responseData = getResponseData(typeof data === 'function' ? data(opts) : data)
+    // fetch's HeadersList is a 1D string array
+    const optsHeaders = Array.isArray(opts.headers)
+      ? buildHeadersFromArray(opts.headers)
+      : opts.headers
+    const responseData = getResponseData(
+      typeof data === 'function' ? data({ ...opts, headers: optsHeaders }) : data
+    )
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 

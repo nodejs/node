@@ -388,8 +388,9 @@ webidl.converters.DOMString = function (V, opts = {}) {
   return String(V)
 }
 
+// Check for 0 or more characters outside of the latin1 range.
 // eslint-disable-next-line no-control-regex
-const isNotLatin1 = /[^\u0000-\u00ff]/
+const isLatin1 = /^[\u0000-\u00ff]{0,}$/
 
 // https://webidl.spec.whatwg.org/#es-ByteString
 webidl.converters.ByteString = function (V) {
@@ -399,7 +400,7 @@ webidl.converters.ByteString = function (V) {
 
   // 2. If the value of any element of x is greater than
   //    255, then throw a TypeError.
-  if (isNotLatin1.test(x)) {
+  if (!isLatin1.test(x)) {
     throw new TypeError('Argument is not a ByteString')
   }
 
