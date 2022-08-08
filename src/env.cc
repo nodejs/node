@@ -2080,7 +2080,6 @@ void BaseObject::MakeWeak() {
       WeakCallbackType::kParameter);
 }
 
-
 // This just has to be different from the Chromium ones:
 // https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
 // Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
