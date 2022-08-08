@@ -452,7 +452,7 @@ const vectors = {
     [1, true, {}, [], undefined, null].forEach(async (namedCurve) => {
       await assert.rejects(
         subtle.generateKey({ name, namedCurve }, true, privateUsages), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          name: 'NotSupportedError'
         });
     });
   }
