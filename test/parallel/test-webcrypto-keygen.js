@@ -512,14 +512,14 @@ const vectors = {
     [1, 100, 257].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name, length }, true, usages), {
-          code: 'ERR_INVALID_ARG_VALUE'
+          name: 'OperationError'
         });
     });
 
     ['', {}, [], false, null, undefined].forEach(async (length) => {
       await assert.rejects(
         subtle.generateKey({ name, length }, true, usages), {
-          code: 'ERR_INVALID_ARG_TYPE'
+          name: 'OperationError',
         });
     });
   }
