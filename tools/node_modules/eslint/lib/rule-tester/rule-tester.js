@@ -305,6 +305,36 @@ function getCommentsDeprecation() {
     );
 }
 
+/**
+ * Emit a deprecation warning if function-style format is being used.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitLegacyRuleAPIWarning(ruleName) {
+    if (!emitLegacyRuleAPIWarning[`warned-${ruleName}`]) {
+        emitLegacyRuleAPIWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/developer-guide/working-with-rules`,
+            "DeprecationWarning"
+        );
+    }
+}
+
+/**
+ * Emit a deprecation warning if rule has options but is missing the "meta.schema" property
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitMissingSchemaWarning(ruleName) {
+    if (!emitMissingSchemaWarning[`warned-${ruleName}`]) {
+        emitMissingSchemaWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule has options but is missing the "meta.schema" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas`,
+            "DeprecationWarning"
+        );
+    }
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -521,6 +551,9 @@ class RuleTester {
             ].concat(scenarioErrors).join("\n"));
         }
 
+        if (typeof rule === "function") {
+            emitLegacyRuleAPIWarning(ruleName);
+        }
 
         linter.defineRule(ruleName, Object.assign({}, rule, {
 
@@ -578,6 +611,15 @@ class RuleTester {
 
             if (hasOwnProperty(item, "options")) {
                 assert(Array.isArray(item.options), "options must be an array");
+                if (
+                    item.options.length > 0 &&
+                    typeof rule === "object" &&
+                    (
+                        !rule.meta || (rule.meta && (typeof rule.meta.schema === "undefined" || rule.meta.schema === null))
+                    )
+                ) {
+                    emitMissingSchemaWarning(ruleName);
+                }
                 config.rules[ruleName] = [1].concat(item.options);
             } else {
                 config.rules[ruleName] = 1;
