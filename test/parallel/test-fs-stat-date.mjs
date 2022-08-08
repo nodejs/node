@@ -17,6 +17,14 @@ const filepath = path.resolve(tmpdir.path, 'timestamp');
 
 await (await fsPromises.open(filepath, 'w')).close();
 
+// Perform a trivial check to determine if filesystem supports setting
+// and retrieving atime and mtime. If it doesn't, skip the test.
+await fsPromises.utimes(filepath, 2, 2);
+const { atimeMs, mtimeMs } = await fsPromises.stat(filepath);
+if (atimeMs !== 2000 || mtimeMs !== 2000) {
+  common.skip(`Unsupported filesystem (atime=${atimeMs}, mtime=${mtimeMs})`);
+}
+
 // Date might round down timestamp
 function closeEnough(actual, expected, margin) {
   // On ppc64, value is rounded to seconds
