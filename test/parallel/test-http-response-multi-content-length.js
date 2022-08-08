@@ -23,7 +23,7 @@ function test(server) {
 // Test adding an extra content-length header using setHeader().
 {
   const server = http.createServer((req, res) => {
-    res.setHeader('content-length', [2, 1]);
+    res.setHeader('content-length', [4, 2]);
     res.end('ok');
   });
 
@@ -33,7 +33,7 @@ function test(server) {
 // Test adding an extra content-length header using writeHead().
 {
   const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'content-length': [1, 2] });
+    res.writeHead(200, { 'content-length': [2, 4] });
     res.end('ok');
   });
 

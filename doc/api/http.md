@@ -423,8 +423,9 @@ the data is read it will consume memory that can eventually lead to a
 For backward compatibility, `res` will only emit `'error'` if there is an
 `'error'` listener registered.
 
-Node.js does not check whether Content-Length and the length of the
-body which has been transmitted are equal or not.
+Set `content-length` header to limit the message size. Exceeding the
+`content-length` header value will result in a [`TypeError`][] being thrown,
+identified by `code: 'ERR_HTTP_CONTENT_LENGTH_EXCEEDED'`.
 
 ### Event: `'abort'`
 
@@ -2208,9 +2209,9 @@ const server = http.createServer((req, res) => {
 ```
 
 `Content-Length` is given in bytes, not characters. Use
-[`Buffer.byteLength()`][] to determine the length of the body in bytes. Node.js
-does not check whether `Content-Length` and the length of the body which has
-been transmitted are equal or not.
+[`Buffer.byteLength()`][] to determine the length of the body in bytes.
+Exceeding the `content-length` header value will result in a [`TypeError`][]
+being thrown, identified by `code: 'ERR_HTTP_CONTENT_LENGTH_EXCEEDED'`.
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.

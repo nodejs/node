@@ -1394,6 +1394,12 @@ An invalid symlink type was passed to the [`fs.symlink()`][] or
 
 An attempt was made to add more headers after the headers had already been sent.
 
+<a id="ERR_HTTP_CONTENT_LENGTH_EXCEEDED"></a>
+
+### `ERR_HTTP_CONTENT_LENGTH_EXCEEDED`
+
+The content-length exceeded than the one set in header.
+
 <a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
 
 ### `ERR_HTTP_INVALID_HEADER_VALUE`
