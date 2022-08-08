@@ -33,7 +33,8 @@ const {
   isBlobLike,
   sameOrigin,
   isCancelled,
-  isAborted
+  isAborted,
+  isErrorLike
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
@@ -1854,7 +1855,7 @@ async function httpNetworkFetch (
       timingInfo.decodedBodySize += bytes?.byteLength ?? 0
 
       // 6. If bytes is failure, then terminate fetchParams’s controller.
-      if (bytes instanceof Error) {
+      if (isErrorLike(bytes)) {
         fetchParams.controller.terminate(bytes)
         return
       }
@@ -1894,7 +1895,7 @@ async function httpNetworkFetch (
       // 3. Otherwise, if stream is readable, error stream with a TypeError.
       if (isReadable(stream)) {
         fetchParams.controller.controller.error(new TypeError('terminated', {
-          cause: reason instanceof Error ? reason : undefined
+          cause: isErrorLike(reason) ? reason : undefined
         }))
       }
     }
@@ -1942,14 +1943,17 @@ async function httpNetworkFetch (
           }
 
           let codings = []
+          let location = ''
 
           const headers = new Headers()
           for (let n = 0; n < headersList.length; n += 2) {
-            const key = headersList[n + 0].toString()
-            const val = headersList[n + 1].toString()
+            const key = headersList[n + 0].toString('latin1')
+            const val = headersList[n + 1].toString('latin1')
 
             if (key.toLowerCase() === 'content-encoding') {
               codings = val.split(',').map((x) => x.trim())
+            } else if (key.toLowerCase() === 'location') {
+              location = val
             }
 
             headers.append(key, val)
@@ -1960,7 +1964,7 @@ async function httpNetworkFetch (
           const decoders = []
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status)) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !(request.redirect === 'follow' && location)) {
             for (const coding of codings) {
               if (/(x-)?gzip/.test(coding)) {
                 decoders.push(zlib.createGunzip())
@@ -1980,7 +1984,7 @@ async function httpNetworkFetch (
             statusText,
             headersList: headers[kHeadersList],
             body: decoders.length
-              ? pipeline(this.body, ...decoders, () => {})
+              ? pipeline(this.body, ...decoders, () => { })
               : this.body.on('error', () => {})
           })
 
