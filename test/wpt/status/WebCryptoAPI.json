@@ -2690,48 +2690,12 @@
   "generateKey/failures_ECDH.https.any.js": {
     "fail": {
       "expected": [
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, false, [deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, true, [deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, false, [deriveBits, deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, true, [deriveBits, deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, false, [deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, true, [deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, false, [])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, true, [])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: P-512}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, false, [deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, true, [deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, false, [deriveBits, deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, true, [deriveBits, deriveKey])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, false, [deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, true, [deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, false, [])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, true, [])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, false, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad algorithm property: generateKey({name: ECDH, namedCurve: Curve25519}, true, [deriveKey, deriveBits, deriveKey, deriveBits, deriveKey, deriveBits])"
       ]
     }
   },
   "generateKey/failures_ECDSA.https.any.js": {
     "fail": {
       "expected": [
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, false, [sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, true, [sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, false, [verify, sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, true, [verify, sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, false, [])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, true, [])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, false, [sign, verify, sign, sign, verify])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: P-512}, true, [sign, verify, sign, sign, verify])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, false, [sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, true, [sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, false, [verify, sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, true, [verify, sign])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, false, [])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, true, [])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, false, [sign, verify, sign, sign, verify])",
-        "Bad algorithm property: generateKey({name: ECDSA, namedCurve: Curve25519}, true, [sign, verify, sign, sign, verify])"
       ]
     }
   },
