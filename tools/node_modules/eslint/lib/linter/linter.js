@@ -1608,6 +1608,11 @@ class Linter {
             ...languageOptions.globals
         };
 
+        // double check that there is a parser to avoid mysterious error messages
+        if (!languageOptions.parser) {
+            throw new TypeError(`No parser specified for ${options.filename}`);
+        }
+
         // Espree expects this information to be passed in
         if (isEspree(languageOptions.parser)) {
             const parserOptions = languageOptions.parserOptions;
@@ -1770,11 +1775,23 @@ class Linter {
         debug("With flat config: %s", options.filename);
 
         // we need a filename to match configs against
-        const filename = options.filename || "<input>";
+        const filename = options.filename || "__placeholder__.js";
 
         // Store the config array in order to get plugin envs and rules later.
         internalSlotsMap.get(this).lastConfigArray = configArray;
         const config = configArray.getConfig(filename);
+
+        if (!config) {
+            return [
+                {
+                    ruleId: null,
+                    severity: 1,
+                    message: `No matching configuration found for ${filename}.`,
+                    line: 0,
+                    column: 0
+                }
+            ];
+        }
 
         // Verify.
         if (config.processor) {

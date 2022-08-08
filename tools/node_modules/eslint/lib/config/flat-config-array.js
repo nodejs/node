@@ -36,6 +36,8 @@ function splitPluginIdentifier(identifier) {
     };
 }
 
+const originalBaseConfig = Symbol("originalBaseConfig");
+
 //-----------------------------------------------------------------------------
 // Exports
 //-----------------------------------------------------------------------------
@@ -48,10 +50,14 @@ class FlatConfigArray extends ConfigArray {
     /**
      * Creates a new instance.
      * @param {*[]} configs An array of configuration information.
-     * @param {{basePath: string, baseConfig: FlatConfig}} options The options
+     * @param {{basePath: string, shouldIgnore: boolean, baseConfig: FlatConfig}} options The options
      *      to use for the config array instance.
      */
-    constructor(configs, { basePath, baseConfig = defaultConfig } = {}) {
+    constructor(configs, {
+        basePath,
+        shouldIgnore = true,
+        baseConfig = defaultConfig
+    } = {}) {
         super(configs, {
             basePath,
             schema: flatConfigSchema
@@ -62,6 +68,22 @@ class FlatConfigArray extends ConfigArray {
         } else {
             this.unshift(baseConfig);
         }
+
+        /**
+         * The baes config used to build the config array.
+         * @type {Array<FlatConfig>}
+         */
+        this[originalBaseConfig] = baseConfig;
+        Object.defineProperty(this, originalBaseConfig, { writable: false });
+
+        /**
+         * Determines if `ignores` fields should be honored.
+         * If true, then all `ignores` fields are honored.
+         * if false, then only `ignores` fields in the baseConfig are honored.
+         * @type {boolean}
+         */
+        this.shouldIgnore = shouldIgnore;
+        Object.defineProperty(this, "shouldIgnore", { writable: false });
     }
 
     /* eslint-disable class-methods-use-this -- Desired as instance method */
@@ -85,6 +107,23 @@ class FlatConfigArray extends ConfigArray {
              * so requiring `eslint-all.js` module loads all rule modules as a consequence.
              */
             return require("../../conf/eslint-all");
+        }
+
+        /*
+         * If `shouldIgnore` is false, we remove any ignore patterns specified
+         * in the config so long as it's not a default config and it doesn't
+         * have a `files` entry.
+         */
+        if (
+            !this.shouldIgnore &&
+            !this[originalBaseConfig].includes(config) &&
+            config.ignores &&
+            !config.files
+        ) {
+            /* eslint-disable-next-line no-unused-vars -- need to strip off other keys */
+            const { ignores, ...otherKeys } = config;
+
+            return otherKeys;
         }
 
         return config;
