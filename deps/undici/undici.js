@@ -1281,10 +1281,10 @@ var require_webidl = __commonJS({
       }
       return String(V);
     };
-    var isNotLatin1 = /[^\u0000-\u00ff]/;
+    var isLatin1 = /^[\u0000-\u00ff]{0,}$/;
     webidl.converters.ByteString = function(V) {
       const x = webidl.converters.DOMString(V);
-      if (isNotLatin1.test(x)) {
+      if (!isLatin1.test(x)) {
         throw new TypeError("Argument is not a ByteString");
       }
       return x;
@@ -1671,6 +1671,9 @@ var require_util2 = __commonJS({
       }
       return object instanceof File || object && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && /^(File)$/.test(object[Symbol.toStringTag]);
     }
+    function isErrorLike(object) {
+      return object instanceof Error || (object?.constructor?.name === "Error" || object?.constructor?.name === "DOMException");
+    }
     function isValidReasonPhrase(statusText) {
       for (let i = 0; i < statusText.length; ++i) {
         const c = statusText.charCodeAt(i);
@@ -1877,7 +1880,8 @@ var require_util2 = __commonJS({
       makeIterator,
       isValidHeaderName,
       isValidHeaderValue,
-      hasOwn
+      hasOwn,
+      isErrorLike
     };
   }
 });
@@ -2300,7 +2304,16 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
             let entries;
             try {
-              entries = new URLSearchParams(await this.text());
+              let text = "";
+              const textDecoder = new TextDecoder("utf-8", { ignoreBOM: true });
+              for await (const chunk of consumeBody(this[kState].body)) {
+                if (!isUint8Array(chunk)) {
+                  throw new TypeError("Expected Uint8Array chunk");
+                }
+                text += textDecoder.decode(chunk, { stream: true });
+              }
+              text += textDecoder.decode();
+              entries = new URLSearchParams(text);
             } catch (err) {
               throw Object.assign(new TypeError(), { cause: err });
             }
@@ -2792,16 +2805,16 @@ var require_connect = __commonJS({
             host: hostname
           });
         }
-        const timeoutId = timeout ? setTimeout(onConnectTimeout, timeout, socket) : null;
+        const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout);
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
-          clearTimeout(timeoutId);
+          cancelTimeout();
           if (callback) {
             const cb = callback;
             callback = null;
             cb(null, this);
           }
         }).on("error", function(err) {
-          clearTimeout(timeoutId);
+          cancelTimeout();
           if (callback) {
             const cb = callback;
             callback = null;
@@ -2809,6 +2822,28 @@ var require_connect = __commonJS({
           }
         });
         return socket;
+      };
+    }
+    function setupTimeout(onConnectTimeout2, timeout) {
+      if (!timeout) {
+        return () => {
+        };
+      }
+      let s1 = null;
+      let s2 = null;
+      const timeoutId = setTimeout(() => {
+        s1 = setImmediate(() => {
+          if (process.platform === "win32") {
+            s2 = setImmediate(() => onConnectTimeout2());
+          } else {
+            onConnectTimeout2();
+          }
+        });
+      }, timeout);
+      return () => {
+        clearTimeout(timeoutId);
+        clearImmediate(s1);
+        clearImmediate(s2);
       };
     }
     function onConnectTimeout(socket) {
@@ -5047,7 +5082,8 @@ var require_response = __commonJS({
       isCancelled,
       isAborted,
       isBlobLike,
-      serializeJavascriptValueToJSONString
+      serializeJavascriptValueToJSONString,
+      isErrorLike
     } = require_util2();
     var {
       redirectStatus,
@@ -5245,11 +5281,12 @@ var require_response = __commonJS({
       };
     }
     function makeNetworkError(reason) {
+      const isError = isErrorLike(reason);
       return makeResponse({
         type: "error",
         status: 0,
-        error: reason instanceof Error ? reason : new Error(reason ? String(reason) : reason, {
-          cause: reason instanceof Error ? reason : void 0
+        error: isError ? reason : new Error(reason ? String(reason) : reason, {
+          cause: isError ? reason : void 0
         }),
         aborted: reason && reason.name === "AbortError"
       });
@@ -5586,9 +5623,9 @@ var require_request2 = __commonJS({
             throw new TypeError("Failed to construct 'Request': member signal is not of type AbortSignal.");
           }
           if (signal.aborted) {
-            ac.abort();
+            ac.abort(signal.reason);
           } else {
-            const abort = () => ac.abort();
+            const abort = () => ac.abort(signal.reason);
             signal.addEventListener("abort", abort, { once: true });
             requestFinalizer.register(this, { signal, abort });
           }
@@ -5767,10 +5804,10 @@ var require_request2 = __commonJS({
         clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm];
         const ac = new AbortController();
         if (this.signal.aborted) {
-          ac.abort();
+          ac.abort(this.signal.reason);
         } else {
-          this.signal.addEventListener("abort", function() {
-            ac.abort();
+          this.signal.addEventListener("abort", () => {
+            ac.abort(this.signal.reason);
           }, { once: true });
         }
         clonedRequestObject[kSignal] = ac.signal;
@@ -6035,7 +6072,7 @@ var require_dataURL = __commonJS({
           i += 2;
         }
       }
-      return Uint8Array.of(...output);
+      return Uint8Array.from(output);
     }
     function parseMIMEType(input) {
       input = input.trim();
@@ -6182,7 +6219,8 @@ var require_fetch = __commonJS({
       isBlobLike,
       sameOrigin,
       isCancelled,
-      isAborted
+      isAborted,
+      isErrorLike
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var assert = require("assert");
@@ -6945,7 +6983,7 @@ var require_fetch = __commonJS({
             return;
           }
           timingInfo.decodedBodySize += bytes?.byteLength ?? 0;
-          if (bytes instanceof Error) {
+          if (isErrorLike(bytes)) {
             fetchParams.controller.terminate(bytes);
             return;
           }
@@ -6968,7 +7006,7 @@ var require_fetch = __commonJS({
         } else {
           if (isReadable(stream)) {
             fetchParams.controller.controller.error(new TypeError("terminated", {
-              cause: reason instanceof Error ? reason : void 0
+              cause: isErrorLike(reason) ? reason : void 0
             }));
           }
         }
@@ -7003,18 +7041,21 @@ var require_fetch = __commonJS({
               return;
             }
             let codings = [];
+            let location = "";
             const headers = new Headers();
             for (let n = 0; n < headersList.length; n += 2) {
-              const key = headersList[n + 0].toString();
-              const val = headersList[n + 1].toString();
+              const key = headersList[n + 0].toString("latin1");
+              const val = headersList[n + 1].toString("latin1");
               if (key.toLowerCase() === "content-encoding") {
                 codings = val.split(",").map((x) => x.trim());
+              } else if (key.toLowerCase() === "location") {
+                location = val;
               }
               headers.append(key, val);
             }
             this.body = new Readable({ read: resume });
             const decoders = [];
-            if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status)) {
+            if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !(request.redirect === "follow" && location)) {
               for (const coding of codings) {
                 if (/(x-)?gzip/.test(coding)) {
                   decoders.push(zlib.createGunzip());

@@ -404,7 +404,18 @@ function bodyMixinMethods (instance) {
         // 1. Let entries be the result of parsing bytes.
         let entries
         try {
-          entries = new URLSearchParams(await this.text())
+          let text = ''
+          // application/x-www-form-urlencoded parser will keep the BOM.
+          // https://url.spec.whatwg.org/#concept-urlencoded-parser
+          const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true })
+          for await (const chunk of consumeBody(this[kState].body)) {
+            if (!isUint8Array(chunk)) {
+              throw new TypeError('Expected Uint8Array chunk')
+            }
+            text += textDecoder.decode(chunk, { stream: true })
+          }
+          text += textDecoder.decode()
+          entries = new URLSearchParams(text)
         } catch (err) {
           // istanbul ignore next: Unclear when new URLSearchParams can fail on a string.
           // 2. If entries is failure, then throw a TypeError.
