@@ -1256,8 +1256,8 @@ int LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     if (!SnapshotData::FromBlob(read_data.get(), fp)) {
       // If we fail to read the customized snapshot, simply exit with 1.
-      result->exit_code = 1;
-      return result->exit_code;
+      exit_code = 1;
+      return exit_code;
     }
     *snapshot_data_ptr = read_data.release();
     fclose(fp);
