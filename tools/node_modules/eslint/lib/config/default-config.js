@@ -15,7 +15,6 @@ const Rules = require("../rules");
 // Helpers
 //-----------------------------------------------------------------------------
 
-
 exports.defaultConfig = [
     {
         plugins: {
@@ -41,21 +40,31 @@ exports.defaultConfig = [
                 })
             }
         },
-        ignores: [
-            "**/node_modules/**",
-            ".git/**"
-        ],
         languageOptions: {
-            ecmaVersion: "latest",
             sourceType: "module",
+            ecmaVersion: "latest",
             parser: "@/espree",
             parserOptions: {}
         }
     },
+
+    // default ignores are listed here
+    {
+        ignores: [
+            "**/node_modules/**",
+            ".git/**"
+        ]
+    },
+
+    // intentionally empty config to ensure these files are globbed by default
+    {
+        files: ["**/*.js", "**/*.mjs"]
+    },
     {
         files: ["**/*.cjs"],
         languageOptions: {
-            sourceType: "commonjs"
+            sourceType: "commonjs",
+            ecmaVersion: "latest"
         }
     }
 ];

@@ -3,6 +3,7 @@
 let { readFileSync } = require('fs')
 let { join } = require('path')
 
+require('./check-npm-version')
 let updateDb = require('./')
 
 const ROOT = __dirname

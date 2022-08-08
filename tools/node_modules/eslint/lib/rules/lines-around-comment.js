@@ -231,9 +231,15 @@ module.exports = {
             const parent = getParentNodeOfToken(token);
 
             if (parent && isParentNodeType(parent, nodeType)) {
-                const parentStartNodeOrToken = parent.type === "StaticBlock"
-                    ? sourceCode.getFirstToken(parent, { skip: 1 }) // opening brace of the static block
-                    : parent;
+                let parentStartNodeOrToken = parent;
+
+                if (parent.type === "StaticBlock") {
+                    parentStartNodeOrToken = sourceCode.getFirstToken(parent, { skip: 1 }); // opening brace of the static block
+                } else if (parent.type === "SwitchStatement") {
+                    parentStartNodeOrToken = sourceCode.getTokenAfter(parent.discriminant, {
+                        filter: astUtils.isOpeningBraceToken
+                    }); // opening brace of the switch statement
+                }
 
                 return token.loc.start.line - parentStartNodeOrToken.loc.start.line === 1;
             }
@@ -264,7 +270,8 @@ module.exports = {
                 isCommentAtParentStart(token, "ClassBody") ||
                 isCommentAtParentStart(token, "BlockStatement") ||
                 isCommentAtParentStart(token, "StaticBlock") ||
-                isCommentAtParentStart(token, "SwitchCase")
+                isCommentAtParentStart(token, "SwitchCase") ||
+                isCommentAtParentStart(token, "SwitchStatement")
             );
         }
 

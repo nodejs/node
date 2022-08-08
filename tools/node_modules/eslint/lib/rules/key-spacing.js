@@ -9,6 +9,9 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
+const GraphemeSplitter = require("grapheme-splitter");
+
+const splitter = new GraphemeSplitter();
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -508,7 +511,7 @@ module.exports = {
             const startToken = sourceCode.getFirstToken(property);
             const endToken = getLastTokenBeforeColon(property.key);
 
-            return endToken.range[1] - startToken.range[0];
+            return splitter.countGraphemes(sourceCode.getText().slice(startToken.range[0], endToken.range[1]));
         }
 
         /**

@@ -480,51 +480,54 @@ class FlatRuleTester {
             ].concat(scenarioErrors).join("\n"));
         }
 
-        const baseConfig = {
-            plugins: {
+        const baseConfig = [
+            {
+                plugins: {
 
-                // copy root plugin over
-                "@": {
+                    // copy root plugin over
+                    "@": {
 
-                    /*
-                     * Parsers are wrapped to detect more errors, so this needs
-                     * to be a new object for each call to run(), otherwise the
-                     * parsers will be wrapped multiple times.
-                     */
-                    parsers: {
-                        ...defaultConfig[0].plugins["@"].parsers
+                        /*
+                         * Parsers are wrapped to detect more errors, so this needs
+                         * to be a new object for each call to run(), otherwise the
+                         * parsers will be wrapped multiple times.
+                         */
+                        parsers: {
+                            ...defaultConfig[0].plugins["@"].parsers
+                        },
+
+                        /*
+                         * The rules key on the default plugin is a proxy to lazy-load
+                         * just the rules that are needed. So, don't create a new object
+                         * here, just use the default one to keep that performance
+                         * enhancement.
+                         */
+                        rules: defaultConfig[0].plugins["@"].rules
                     },
+                    "rule-to-test": {
+                        rules: {
+                            [ruleName]: Object.assign({}, rule, {
 
-                    /*
-                     * The rules key on the default plugin is a proxy to lazy-load
-                     * just the rules that are needed. So, don't create a new object
-                     * here, just use the default one to keep that performance
-                     * enhancement.
-                     */
-                    rules: defaultConfig[0].plugins["@"].rules
-                },
-                "rule-to-test": {
-                    rules: {
-                        [ruleName]: Object.assign({}, rule, {
+                                // Create a wrapper rule that freezes the `context` properties.
+                                create(context) {
+                                    freezeDeeply(context.options);
+                                    freezeDeeply(context.settings);
+                                    freezeDeeply(context.parserOptions);
 
-                            // Create a wrapper rule that freezes the `context` properties.
-                            create(context) {
-                                freezeDeeply(context.options);
-                                freezeDeeply(context.settings);
-                                freezeDeeply(context.parserOptions);
+                                    // freezeDeeply(context.languageOptions);
 
-                                // freezeDeeply(context.languageOptions);
-
-                                return (typeof rule === "function" ? rule : rule.create)(context);
-                            }
-                        })
+                                    return (typeof rule === "function" ? rule : rule.create)(context);
+                                }
+                            })
+                        }
                     }
+                },
+                languageOptions: {
+                    ...defaultConfig[0].languageOptions
                 }
             },
-            languageOptions: {
-                ...defaultConfig[0].languageOptions
-            }
-        };
+            ...defaultConfig.slice(1)
+        ];
 
         /**
          * Run the rule for the given item
