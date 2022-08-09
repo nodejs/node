@@ -984,6 +984,19 @@ struct EnvSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const EnvSerializeInfo& i);
 };
 
+struct SnapshotMetadata {
+  // For now kFullyCustomized is only built with the --build-snapshot CLI flag.
+  // We might want to add more types of snapshots in the future.
+  enum class Type : uint8_t { kDefault, kFullyCustomized };
+
+  Type type;
+  std::string node_version;
+  std::string node_arch;
+  std::string node_platform;
+  // Result of v8::ScriptCompiler::CachedDataVersionTag().
+  uint32_t v8_cache_version_tag;
+};
+
 struct SnapshotData {
   enum class DataOwnership { kOwned, kNotOwned };
 
@@ -992,6 +1005,8 @@ struct SnapshotData {
   static const SnapshotIndex kNodeMainContextIndex = kNodeBaseContextIndex + 1;
 
   DataOwnership data_ownership = DataOwnership::kOwned;
+
+  SnapshotMetadata metadata;
 
   // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
   // building process.
@@ -1009,7 +1024,10 @@ struct SnapshotData {
   std::vector<builtins::CodeCacheInfo> code_cache;
 
   void ToBlob(FILE* out) const;
-  static void FromBlob(SnapshotData* out, FILE* in);
+  // If returns false, the metadata doesn't match the current Node.js binary,
+  // and the caller should not consume the snapshot data.
+  bool Check() const;
+  static bool FromBlob(SnapshotData* out, FILE* in);
 
   ~SnapshotData();
 

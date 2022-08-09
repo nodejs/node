@@ -1198,6 +1198,15 @@ in the current working directory.
 When used without `--build-snapshot`, `--snapshot-blob` specifies the
 path to the blob that will be used to restore the application state.
 
+When loading a snapshot, Node.js checks that:
+
+1. The version, architecture and platform of the running Node.js binary
+   are exactly the same as that of the binary that generates the snapshot.
+2. The V8 flags and CPU features are compatible with that of the binary
+   that generates the snapshot.
+
+If they don't match, Node.js would refuse to load the snapshot and exit with 1.
+
 ### `--test`
 
 <!-- YAML
