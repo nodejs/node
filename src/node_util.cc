@@ -1,3 +1,4 @@
+#include "node_util.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -15,7 +16,7 @@ using v8::Context;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Global;
+using v8::HandleScope;
 using v8::IndexFilter;
 using v8::Integer;
 using v8::Isolate;
@@ -207,52 +208,106 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
-class WeakReference : public BaseObject {
- public:
-  WeakReference(Environment* env, Local<Object> object, Local<Object> target)
-    : BaseObject(env, object) {
-    MakeWeak();
+WeakReference::WeakReference(Environment* env,
+                             Local<Object> object,
+                             Local<Object> target)
+    : WeakReference(env, object, target, 0) {}
+
+WeakReference::WeakReference(Environment* env,
+                             Local<Object> object,
+                             Local<Object> target,
+                             uint64_t reference_count)
+    : SnapshotableObject(env, object, type_int),
+      reference_count_(reference_count) {
+  MakeWeak();
+  if (!target.IsEmpty()) {
     target_.Reset(env->isolate(), target);
-    target_.SetWeak();
+    if (reference_count_ == 0) {
+      target_.SetWeak();
+    }
+  }
+}
+
+bool WeakReference::PrepareForSerialization(Local<Context> context,
+                                            v8::SnapshotCreator* creator) {
+  if (target_.IsEmpty()) {
+    target_index_ = 0;
+    return true;
   }
 
-  static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    CHECK(args.IsConstructCall());
-    CHECK(args[0]->IsObject());
-    new WeakReference(env, args.This(), args[0].As<Object>());
+  // Users can still hold strong references to target in addition to the
+  // reference that we manage here, and they could expect that the referenced
+  // object remains the same as long as that external strong reference
+  // is alive. Since we have no way to know if there is any other reference
+  // keeping the target alive, the best we can do to maintain consistency is to
+  // simply save a reference to the target in the snapshot (effectively making
+  // it strong) during serialization, and restore it during deserialization.
+  // If there's no known counted reference from our side, we'll make the
+  // reference here weak upon deserialization so that it can be GC'ed if users
+  // do not hold additional references to it.
+  Local<Object> target = target_.Get(context->GetIsolate());
+  target_index_ = creator->AddData(context, target);
+  DCHECK_NE(target_index_, 0);
+  target_.Reset();
+  return true;
+}
+
+InternalFieldInfoBase* WeakReference::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  info->target = target_index_;
+  info->reference_count = reference_count_;
+  return info;
+}
+
+void WeakReference::Deserialize(Local<Context> context,
+                                Local<Object> holder,
+                                int index,
+                                InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  HandleScope scope(context->GetIsolate());
+
+  InternalFieldInfo* weak_info = reinterpret_cast<InternalFieldInfo*>(info);
+  Local<Object> target;
+  if (weak_info->target != 0) {
+    target = context->GetDataFromSnapshotOnce<Object>(weak_info->target)
+                 .ToLocalChecked();
   }
+  new WeakReference(Environment::GetCurrent(context),
+                    holder,
+                    target,
+                    weak_info->reference_count);
+}
 
-  static void Get(const FunctionCallbackInfo<Value>& args) {
-    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-    Isolate* isolate = args.GetIsolate();
-    if (!weak_ref->target_.IsEmpty())
-      args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
-  }
+void WeakReference::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsObject());
+  new WeakReference(env, args.This(), args[0].As<Object>());
+}
 
-  static void IncRef(const FunctionCallbackInfo<Value>& args) {
-    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-    weak_ref->reference_count_++;
-    if (weak_ref->target_.IsEmpty()) return;
-    if (weak_ref->reference_count_ == 1) weak_ref->target_.ClearWeak();
-  }
+void WeakReference::Get(const FunctionCallbackInfo<Value>& args) {
+  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+  Isolate* isolate = args.GetIsolate();
+  if (!weak_ref->target_.IsEmpty())
+    args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
+}
 
-  static void DecRef(const FunctionCallbackInfo<Value>& args) {
-    WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-    CHECK_GE(weak_ref->reference_count_, 1);
-    weak_ref->reference_count_--;
-    if (weak_ref->target_.IsEmpty()) return;
-    if (weak_ref->reference_count_ == 0) weak_ref->target_.SetWeak();
-  }
+void WeakReference::IncRef(const FunctionCallbackInfo<Value>& args) {
+  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+  weak_ref->reference_count_++;
+  if (weak_ref->target_.IsEmpty()) return;
+  if (weak_ref->reference_count_ == 1) weak_ref->target_.ClearWeak();
+}
 
-  SET_MEMORY_INFO_NAME(WeakReference)
-  SET_SELF_SIZE(WeakReference)
-  SET_NO_MEMORY_INFO()
-
- private:
-  Global<Object> target_;
-  uint64_t reference_count_ = 0;
-};
+void WeakReference::DecRef(const FunctionCallbackInfo<Value>& args) {
+  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+  CHECK_GE(weak_ref->reference_count_, 1);
+  weak_ref->reference_count_--;
+  if (weak_ref->target_.IsEmpty()) return;
+  if (weak_ref->reference_count_ == 0) weak_ref->target_.SetWeak();
+}
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
