@@ -116,7 +116,7 @@ describe('assert.snapshot', { concurrency: true }, () => {
     const filename = 'updated.mjs';
     await writeFile(getSnapshotPath(filename), '1:\n\'test\'');
     const { stderr, code, snapshot } = await spawnTmpfile('await assert.snapshot(\'changed\');',
-                                                          filename, { NODE_UPDATE_SNAPSHOT: '1' });
+                                                          filename, { ...process.env, NODE_UPDATE_SNAPSHOT: '1' });
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(snapshot, '1:\n\'changed\'');
