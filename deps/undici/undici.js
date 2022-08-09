@@ -737,9 +737,15 @@ var require_util = __commonJS({
       }
       if (!(url instanceof URL)) {
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
-        const origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        const path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
-        url = new URL(path, origin);
+        let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
+        let path = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        if (origin.endsWith("/")) {
+          origin = origin.substring(0, origin.length - 1);
+        }
+        if (path && !path.startsWith("/")) {
+          path = `/${path}`;
+        }
+        url = new URL(origin + path);
       }
       return url;
     }
@@ -1281,11 +1287,13 @@ var require_webidl = __commonJS({
       }
       return String(V);
     };
-    var isLatin1 = /^[\u0000-\u00ff]{0,}$/;
     webidl.converters.ByteString = function(V) {
       const x = webidl.converters.DOMString(V);
-      if (!isLatin1.test(x)) {
-        throw new TypeError("Argument is not a ByteString");
+      for (let index = 0; index < x.length; index++) {
+        const charCode = x.charCodeAt(index);
+        if (charCode > 255) {
+          throw new TypeError(`Cannot convert argument to a ByteString because the character atindex ${index} has a value of ${charCode} which is greater than 255.`);
+        }
       }
       return x;
     };
@@ -2580,7 +2588,7 @@ var require_request = __commonJS({
         if (!Number.isFinite(request.contentLength)) {
           throw new InvalidArgumentError("invalid content-length header");
         }
-      } else if (request.contentType === null && key.length === 12 && key.toLowerCase() === "content-type") {
+      } else if (request.contentType === null && key.length === 12 && key.toLowerCase() === "content-type" && headerCharRegex.exec(val) === null) {
         request.contentType = val;
         request.headers += `${key}: ${val}\r
 `;
