@@ -18,7 +18,8 @@ class ExternalReferenceRegistry;
   V(fs_binding_data, fs::BindingData)                                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \
   V(blob_binding_data, BlobBindingData)                                        \
-  V(process_binding_data, process::BindingData)
+  V(process_binding_data, process::BindingData)                                \
+  V(util_weak_reference, util::WeakReference)
 
 enum class EmbedderObjectType : uint8_t {
 #define V(PropertyName, NativeType) k_##PropertyName,
