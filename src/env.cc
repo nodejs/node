@@ -1654,7 +1654,6 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  SerializeBindingData(this, creator, &info);
   // Currently all modules are compiled without cache in builtin snapshot
   // builder.
   info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
@@ -1681,6 +1680,10 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   } while (0);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
+
+  // Do this after other creator->AddData() calls so that Snapshotable objects
+  // can use 0 to indicate that a SnapshotIndex is invalid.
+  SerializeSnapshotableObjects(this, creator, &info);
 
   info.context = creator->AddData(ctx, context());
   return info;
@@ -1714,9 +1717,9 @@ std::ostream& operator<<(std::ostream& output,
 
 std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   output << "{\n"
-         << "// -- bindings begins --\n"
-         << i.bindings << ",\n"
-         << "// -- bindings ends --\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
          << "// -- builtins begins --\n"
          << i.builtins << ",\n"
          << "// -- builtins ends --\n"
@@ -1743,7 +1746,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
 void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
-                                            InternalFieldInfo* info) {
+                                            InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
