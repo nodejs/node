@@ -53,7 +53,12 @@ function makeDispatcher (fn) {
         throw new InvalidArgumentError('invalid opts.path')
       }
 
-      url = new URL(opts.path, util.parseOrigin(url))
+      let path = opts.path
+      if (!opts.path.startsWith('/')) {
+        path = `/${path}`
+      }
+
+      url = new URL(util.parseOrigin(url).origin + path)
     } else {
       if (!opts) {
         opts = typeof url === 'object' ? url : {}

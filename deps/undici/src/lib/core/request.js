@@ -297,7 +297,8 @@ function processHeader (request, key, val) {
   } else if (
     request.contentType === null &&
     key.length === 12 &&
-    key.toLowerCase() === 'content-type'
+    key.toLowerCase() === 'content-type' &&
+    headerCharRegex.exec(val) === null
   ) {
     request.contentType = val
     request.headers += `${key}: ${val}\r\n`
