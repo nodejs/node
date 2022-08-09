@@ -261,6 +261,21 @@ std::ostream& operator<<(std::ostream& output,
   return output;
 }
 
+std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
+  output << "{\n"
+         << "  "
+         << (i.type == SnapshotMetadata::Type::kDefault
+                 ? "SnapshotMetadata::Type::kDefault"
+                 : "SnapshotMetadata::Type::kFullyCustomized")
+         << ", // type\n"
+         << "  \"" << i.node_version << "\", // node_version\n"
+         << "  \"" << i.node_arch << "\", // node_arch\n"
+         << "  \"" << i.node_platform << "\", // node_platform\n"
+         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
+         << "}";
+  return output;
+}
+
 IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
   IsolateDataSerializeInfo info;
