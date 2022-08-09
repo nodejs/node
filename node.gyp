@@ -628,6 +628,7 @@
         'src/node_stat_watcher.h',
         'src/node_union_bytes.h',
         'src/node_url.h',
+        'src/node_util.h',
         'src/node_version.h',
         'src/node_v8.h',
         'src/node_v8_platform-inl.h',

@@ -15,6 +15,7 @@
 #include "node_metadata.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
+#include "node_util.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 
