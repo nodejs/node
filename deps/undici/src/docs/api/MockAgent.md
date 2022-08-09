@@ -177,6 +177,23 @@ for await (const data of result2.body) {
   console.log('data', data.toString('utf8')) // data hello
 }
 ```
+#### Example - Mock different requests within the same file
+```js
+const { MockAgent, setGlobalDispatcher } = require('undici');
+const agent = new MockAgent();
+agent.disableNetConnect();
+setGlobalDispatcher(agent);
+describe('Test', () => {
+  it('200', async () => {
+    const mockAgent = agent.get('http://test.com');
+    // your test
+  });
+  it('200', async () => {
+    const mockAgent = agent.get('http://testing.com');
+    // your test
+  });
+});
+```
 
 #### Example - Mocked request with query body, headers and trailers
 
