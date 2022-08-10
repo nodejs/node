@@ -10,26 +10,14 @@ AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
     at c (*if-error-has-good-stack.js:*:*)
     at b (*if-error-has-good-stack.js:*:*)
     at a (*if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
-    at Module._compile (node:internal/modules/cjs/loader:*:*)
-    at Module._extensions..js (node:internal/modules/cjs/loader:*:*)
-    at Module.load (node:internal/modules/cjs/loader:*:*)
-    at Module._load (node:internal/modules/cjs/loader:*:*)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)
-    at node:internal/main/run_main_module:*:* {
+    at Object.<anonymous> (*if-error-has-good-stack.js:*:*) {
   generatedMessage: false,
   code: 'ERR_ASSERTION',
   actual: Error: test error
       at c (*if-error-has-good-stack.js:*:*)
       at b (*if-error-has-good-stack.js:*:*)
       at a (*if-error-has-good-stack.js:*:*)
-      at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
-      at Module._compile (node:internal/modules/cjs/loader:*:*)
-      at Module._extensions..js (node:internal/modules/cjs/loader:*:*)
-      at Module.load (node:internal/modules/cjs/loader:*:*)
-      at Module._load (node:internal/modules/cjs/loader:*:*)
-      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)
-      at node:internal/main/run_main_module:*:*
+      at Object.<anonymous> (*if-error-has-good-stack.js:*:*),
   expected: null,
   operator: 'ifError'
 }
