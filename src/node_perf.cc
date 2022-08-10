@@ -116,7 +116,13 @@ void MarkGarbageCollectionStart(
     GCCallbackFlags flags,
     void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // Prevent gc callback from reentering with different type
+  // See https://github.com/nodejs/node/issues/44046
+  if (env->performance_state()->current_gc_type != 0) {
+    return;
+  }
   env->performance_state()->performance_last_gc_start_mark = PERFORMANCE_NOW();
+  env->performance_state()->current_gc_type = type;
 }
 
 MaybeLocal<Object> GCPerformanceEntryTraits::GetDetails(
@@ -153,6 +159,10 @@ void MarkGarbageCollectionEnd(
     void* data) {
   Environment* env = static_cast<Environment*>(data);
   PerformanceState* state = env->performance_state();
+  if (type != state->current_gc_type) {
+    return;
+  }
+  env->performance_state()->current_gc_type = 0;
   // If no one is listening to gc performance entries, do not create them.
   if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
     return;
@@ -178,6 +188,8 @@ void MarkGarbageCollectionEnd(
 
 void GarbageCollectionCleanupHook(void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // Reset current_gc_type to 0
+  env->performance_state()->current_gc_type = 0;
   env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
   env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
 }
@@ -185,7 +197,8 @@ void GarbageCollectionCleanupHook(void* data) {
 static void InstallGarbageCollectionTracking(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
+  // Reset current_gc_type to 0
+  env->performance_state()->current_gc_type = 0;
   env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
