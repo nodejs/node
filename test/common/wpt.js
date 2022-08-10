@@ -5,6 +5,7 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
+const events = require('events');
 const { inspect } = require('util');
 const { Worker } = require('worker_threads');
 
@@ -152,7 +153,8 @@ class WPTTestSpec {
     this.filename = filename;
 
     this.requires = new Set();
-    this.failReasons = [];
+    this.failedTests = [];
+    this.flakyTests = [];
     this.skipReasons = [];
     for (const item of rules) {
       if (item.requires.length) {
@@ -160,13 +162,21 @@ class WPTTestSpec {
           this.requires.add(req);
         }
       }
-      if (item.fail) {
-        this.failReasons.push(item.fail);
+      if (Array.isArray(item.fail?.expected)) {
+        this.failedTests.push(...item.fail.expected);
+      }
+      if (Array.isArray(item.fail?.flaky)) {
+        this.failedTests.push(...item.fail.flaky);
+        this.flakyTests.push(...item.fail.flaky);
       }
       if (item.skip) {
         this.skipReasons.push(item.skip);
       }
     }
+
+    this.failedTests = [...new Set(this.failedTests)];
+    this.flakyTests = [...new Set(this.flakyTests)];
+    this.skipReasons = [...new Set(this.skipReasons)];
   }
 
   getRelativePath() {
@@ -368,7 +378,7 @@ class WPTRunner {
 
   // TODO(joyeecheung): work with the upstream to port more tests in .html
   // to .js.
-  runJsTests() {
+  async runJsTests() {
     let queue = [];
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,
@@ -459,6 +469,8 @@ class WPTRunner {
         );
         this.inProgress.delete(testFileName);
       });
+
+      await events.once(worker, 'exit').catch(() => {});
     }
 
     process.on('exit', () => {
@@ -469,33 +481,71 @@ class WPTRunner {
         }
       }
       inspect.defaultOptions.depth = Infinity;
-      console.log(this.results);
+      // Sorts the rules to have consistent output
+      console.log(JSON.stringify(Object.keys(this.results).sort().reduce(
+        (obj, key) => {
+          obj[key] = this.results[key];
+          return obj;
+        },
+        {}
+      ), null, 2));
 
       const failures = [];
       let expectedFailures = 0;
       let skipped = 0;
-      for (const key of Object.keys(this.results)) {
-        const item = this.results[key];
-        if (item.fail && item.fail.unexpected) {
+      for (const [key, item] of Object.entries(this.results)) {
+        if (item.fail?.unexpected) {
           failures.push(key);
         }
-        if (item.fail && item.fail.expected) {
+        if (item.fail?.expected) {
           expectedFailures++;
         }
         if (item.skip) {
           skipped++;
         }
       }
+
+      const unexpectedPasses = [];
+      for (const [key, specMap] of this.specMap) {
+        // File has no expected failures
+        if (!specMap.failedTests.length) {
+          continue;
+        }
+
+        // File was (maybe even conditionally) skipped
+        if (this.results[key]?.skip) {
+          continue;
+        }
+
+        // Full check: every expected to fail test is present
+        if (specMap.failedTests.some((expectedToFail) => {
+          if (specMap.flakyTests.includes(expectedToFail)) {
+            return false;
+          }
+          return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
+        })) {
+          unexpectedPasses.push(key);
+          continue;
+        }
+      }
+
       const ran = total - skipped;
       const passed = ran - expectedFailures - failures.length;
       console.log(`Ran ${ran}/${total} tests, ${skipped} skipped,`,
                   `${passed} passed, ${expectedFailures} expected failures,`,
-                  `${failures.length} unexpected failures`);
+                  `${failures.length} unexpected failures,`,
+                  `${unexpectedPasses.length} unexpected passes`);
       if (failures.length > 0) {
         const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
         throw new Error(
           `Found ${failures.length} unexpected failures. ` +
           `Consider updating ${file} for these files:\n${failures.join('\n')}`);
+      }
+      if (unexpectedPasses.length > 0) {
+        const file = path.join('test', 'wpt', 'status', `${this.path}.json`);
+        throw new Error(
+          `Found ${unexpectedPasses.length} unexpected passes. ` +
+          `Consider updating ${file} for these files:\n${unexpectedPasses.join('\n')}`);
       }
     });
   }
@@ -577,8 +627,9 @@ class WPTRunner {
       if (!result[item.status][key]) {
         result[item.status][key] = [];
       }
-      if (result[item.status][key].indexOf(item.reason) === -1) {
-        result[item.status][key].push(item.reason);
+      const hasName = result[item.status][key].includes(item.name);
+      if (!hasName) {
+        result[item.status][key].push(item.name);
       }
     }
   }
@@ -589,10 +640,10 @@ class WPTRunner {
 
   fail(filename, test, status) {
     const spec = this.specMap.get(filename);
-    const expected = !!(spec.failReasons.length);
+    const expected = spec.failedTests.includes(test.name);
     if (expected) {
       console.log(`[EXPECTED_FAILURE][${status.toUpperCase()}] ${test.name}`);
-      console.log(spec.failReasons.join('; '));
+      console.log(test.message || status);
     } else {
       console.log(`[UNEXPECTED_FAILURE][${status.toUpperCase()}] ${test.name}`);
     }
@@ -604,6 +655,7 @@ class WPTRunner {
                     ` ${require.main.filename} ${filename}`;
     console.log(`Command: ${command}\n`);
     this.addTestResult(filename, {
+      name: test.name,
       expected,
       status: kFail,
       reason: test.message || status

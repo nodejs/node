@@ -91,7 +91,11 @@ add this to `test/wpt/status/url.json`:
 
 ```json
   "url-searchparams.any.js": {
-    "fail": "explain why the test fails, ideally with links"
+    "fail": {
+      "expected": [
+        "test name in the WPT test case, e.g. second argument passed to test()"
+      ]
+    }
   }
 ```
 
@@ -155,8 +159,17 @@ expected failures.
     // Optional: the test will be skipped with the reason printed
     "skip": "explain why we cannot run a test that's supposed to pass",
 
-    // Optional: the test will be skipped with the reason printed
-    "fail": "explain why we the test is expected to fail"
+    // Optional: failing tests
+    "fail": {
+      "note": "You may leave an optional arbitrary note e.g. with TODOs",
+      "expected": [
+        "test name in the WPT test case, e.g. second argument passed to test()",
+        "another test name"
+      ],
+      "flaky": [
+        "flaky test name"
+      ]
+    }
   }
 }
 ```
