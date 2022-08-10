@@ -5,7 +5,6 @@
   "origin.sub.any.js": {
     "skip": "CORS not implemented"
   },
-
   "abort.any.js": {
     "skip": "WPTRunner does not support fetch()"
   },
