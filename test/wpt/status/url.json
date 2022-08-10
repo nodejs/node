@@ -10,7 +10,7 @@
     "requires": ["small-icu"]
   },
   "urlencoded-parser.any.js": {
-    "fail": "missing Request and Response"
+    "requires": ["small-icu"]
   },
   "url-constructor.any.js": {
     "requires": ["small-icu"]
