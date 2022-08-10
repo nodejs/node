@@ -2006,7 +2006,7 @@ argument, then `error` is assumed to be omitted and the string will be used for
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
-## `assert.snapshot(value[, name])`
+## `assert.snapshot(value, name)`
 
 <!-- YAML
 added: REPLACEME
@@ -2014,14 +2014,12 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `value` {string} the value to snapshot
+* `value` {any} the value to snapshot
 * `name` {string} the name of snapshot.
-  in case order of snapshots is non-deterministic,
-  it is recommended to use named snapshots
-  **Default:** ordinal number of the snapshot.
 * Returns: {Promise}
 
 reads a snapshot from a file, and compares `value` to the snapshot.
+`value` is serialized with [`util.inspect()`][]
 If the value is not strictly equal to the snapshot,
 `assert.snapshot()` will return a rejected `Promise`
 with an [`AssertionError`][].
@@ -2501,5 +2499,6 @@ argument.
 [`process.on('exit')`]: process.md#event-exit
 [`tracker.calls()`]: #trackercallsfn-exact
 [`tracker.verify()`]: #trackerverify
+[`util.inspect()`]: util.md#utilinspectobject-options
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
