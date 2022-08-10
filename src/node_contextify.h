@@ -174,14 +174,14 @@ class CompiledFnEntry final : public BaseObject {
   CompiledFnEntry(Environment* env,
                   v8::Local<v8::Object> object,
                   uint32_t id,
-                  v8::Local<v8::ScriptOrModule> script);
+                  v8::Local<v8::Function> fn);
   ~CompiledFnEntry();
 
   bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
 
  private:
   uint32_t id_;
-  v8::Global<v8::ScriptOrModule> script_;
+  v8::Global<v8::Function> fn_;
 
   static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);
 };

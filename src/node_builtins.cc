@@ -243,9 +243,9 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   ScriptCompiler::CachedData* cached_data = nullptr;
   {
     // Note: The lock here should not extend into the
-    // `CompileFunctionInContext()` call below, because this function may
-    // recurse if there is a syntax error during bootstrap (because the fatal
-    // exception handler is invoked, which may load built-in modules).
+    // `CompileFunction()` call below, because this function may recurse if
+    // there is a syntax error during bootstrap (because the fatal exception
+    // handler is invoked, which may load built-in modules).
     Mutex::ScopedLock lock(code_cache_mutex_);
     auto cache_it = code_cache_.find(id);
     if (cache_it != code_cache_.end()) {
@@ -267,20 +267,20 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
                      has_cache ? "with" : "without");
 
   MaybeLocal<Function> maybe_fun =
-      ScriptCompiler::CompileFunctionInContext(context,
-                                               &script_source,
-                                               parameters->size(),
-                                               parameters->data(),
-                                               0,
-                                               nullptr,
-                                               options);
+      ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters->size(),
+                                      parameters->data(),
+                                      0,
+                                      nullptr,
+                                      options);
 
   // This could fail when there are early errors in the built-in modules,
   // e.g. the syntax errors
   Local<Function> fun;
   if (!maybe_fun.ToLocal(&fun)) {
     // In the case of early errors, v8 is already capable of
-    // decorating the stack for us - note that we use CompileFunctionInContext
+    // decorating the stack for us - note that we use CompileFunction
     // so there is no need to worry about wrappers.
     return MaybeLocal<Function>();
   }
