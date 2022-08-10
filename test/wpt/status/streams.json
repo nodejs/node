@@ -6,6 +6,13 @@
     "skip": "Browser-specific test"
   },
   "readable-byte-streams/bad-buffers-and-views.any.js": {
-    "fail": "TODO: implement detached ArrayBuffer support"
+    "fail": {
+      "note": "TODO: implement detached ArrayBuffer support",
+      "expected": [
+        "ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has been detached (in the readable state)",
+        "ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer has been detached (in the closed state)",
+        "ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer is zero-length (in the readable state)"
+      ]
+    }
   }
 }

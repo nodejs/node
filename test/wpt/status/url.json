@@ -10,7 +10,7 @@
     "requires": ["small-icu"]
   },
   "urlencoded-parser.any.js": {
-    "fail": "missing Request and Response"
+    "skip": "missing Request and Response"
   },
   "url-constructor.any.js": {
     "requires": ["small-icu"]
@@ -25,6 +25,6 @@
     "skip": "already tested in url-setters.any.js"
   },
   "idlharness.any.js": {
-    "fail": "Fixed in a semver-major change: https://github.com/nodejs/node/pull/39752"
+    "skip": "Fixed in a semver-major change: https://github.com/nodejs/node/pull/39752"
   }
 }
