@@ -43,43 +43,43 @@ describe('assert.snapshot', { concurrency: true }, () => {
     const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/basic.mjs'));
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
-    assert.strictEqual(snapshot, 'name:\n\'test\'');
+    assert.match(snapshot, /^name:\r?\n'test'$/);
   });
 
   it('should write multiple snapshots', async () => {
     const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/multiple.mjs'));
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
-    assert.strictEqual(snapshot, 'name:\n\'test\'\n#*#*#*$#*#*#*#*#*#*$#*#*#\nanother name:\n\'test\'');
+    assert.match(snapshot, /^name:\n'test'\r?\n#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\r?\nanother name:\r?\n'test'$/);
   });
 
   it('should succeed running multiple times', async () => {
     let result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, 'snapshot:\n\'test\'');
+    assert.match(result.snapshot, /^snapshot:\r?\n'test'$/);
 
     result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, 'snapshot:\n\'test\'');
+    assert.match(result.snapshot, /^snapshot:\r?\n'test'$/);
   });
 
   it('should fail when name is not provided', async () => {
     for (const name of [1, undefined, null, {}, function() {}]) {
       await assert.rejects(() => assert.snapshot('', name), {
-        code: 'ERR_INVALID_ARG_TYPE', 
+        code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
         message: /^The "name" argument must be of type string/
       });
-    }    
+    }
   });
 
   it('should fail when value does not match snapshot', async () => {
     const { code, stderr, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/value-changed.mjs'));
     assert.match(stderr, /AssertionError \[ERR_ASSERTION\]/);
     assert.strictEqual(code, 1);
-    assert.strictEqual(snapshot, 'snapshot:\n\'original\'');
+    assert.match(snapshot, /^snapshot:\r?\n'original'$/);
   });
 
   it('should fail when snapshot does not contain a named snapshot', async () => {
@@ -87,7 +87,7 @@ describe('assert.snapshot', { concurrency: true }, () => {
     assert.match(stderr, /AssertionError \[ERR_ASSERTION\]/);
     assert.match(stderr, /Snapshot "non existing" does not exist/);
     assert.strictEqual(code, 1);
-    assert.strictEqual(snapshot, 'another name:\n\'test\'\n#*#*#*$#*#*#*#*#*#*$#*#*#\nname:\n\'test\'');
+    assert.match(snapshot, /^another name:\n'test'\r?\n#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\r?\nname:\r?\n'test'$/);
   });
 
   it('should snapshot a random replaced value', async () => {
@@ -113,7 +113,7 @@ describe('assert.snapshot', { concurrency: true }, () => {
                                                           filename, { ...process.env, NODE_UPDATE_SNAPSHOT: '1' });
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
-    assert.strictEqual(snapshot, 'snapshot:\n\'changed\'');
+    assert.match(snapshot, /^snapshot:\r?\n'changed'$/);
   });
 
   it('snapshot file should have the name of the module - esm', async () => {
