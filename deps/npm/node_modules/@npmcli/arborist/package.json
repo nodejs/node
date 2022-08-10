@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -21,7 +21,7 @@
     "minimatch": "^5.1.0",
     "mkdirp": "^1.0.4",
     "mkdirp-infer-owner": "^2.0.0",
-    "nopt": "^5.0.0",
+    "nopt": "^6.0.0",
     "npm-install-checks": "^5.0.0",
     "npm-package-arg": "^9.0.0",
     "npm-pick-manifest": "^7.0.0",

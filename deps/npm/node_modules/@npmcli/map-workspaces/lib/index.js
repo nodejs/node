@@ -12,7 +12,7 @@ function appendNegatedPatterns (patterns) {
   for (let pattern of patterns) {
     const excl = pattern.match(/^!+/)
     if (excl) {
-      pattern = pattern.substr(excl[0].length)
+      pattern = pattern.slice(excl[0].length)
     }
 
     // strip off any / from the start of the pattern.  /foo => foo

@@ -1,19 +1,10 @@
 /* eslint camelcase: "off" */
 const isWindows = require('./is-windows.js')
 const setPATH = require('./set-path.js')
-const { unlinkSync: unlink, writeFileSync: writeFile } = require('fs')
-const { tmpdir } = require('os')
 const { resolve } = require('path')
 const which = require('which')
 const npm_config_node_gyp = require.resolve('node-gyp/bin/node-gyp.js')
 const escape = require('./escape.js')
-const { randomBytes } = require('crypto')
-
-const translateWinPathToPosix = (path) => {
-  return path
-    .replace(/^([A-z]):/, '/$1')
-    .replace(/\\/g, '/')
-}
 
 const makeSpawnArgs = options => {
   const {
@@ -38,10 +29,7 @@ const makeSpawnArgs = options => {
     npm_config_node_gyp,
   })
 
-  const fileName = escape.filename(`${event}-${randomBytes(4).toString('hex')}`)
-  let scriptFile
-  let script = ''
-
+  let doubleEscape = false
   const isCmd = /(?:^|\\)cmd(?:\.exe)?$/i.test(scriptShell)
   if (isCmd) {
     let initialCmd = ''
@@ -68,26 +56,18 @@ const makeSpawnArgs = options => {
       pathToInitial = initialCmd.toLowerCase()
     }
 
-    const doubleEscape = pathToInitial.endsWith('.cmd') || pathToInitial.endsWith('.bat')
-
-    scriptFile = resolve(tmpdir(), `${fileName}.cmd`)
-    script += '@echo off\n'
-    script += cmd
-    if (args.length) {
-      script += ` ${args.map((arg) => escape.cmd(arg, doubleEscape)).join(' ')}`
-    }
-  } else {
-    scriptFile = resolve(tmpdir(), `${fileName}.sh`)
-    script = cmd
-    if (args.length) {
-      script += ` ${args.map((arg) => escape.sh(arg)).join(' ')}`
-    }
+    doubleEscape = pathToInitial.endsWith('.cmd') || pathToInitial.endsWith('.bat')
   }
 
-  writeFile(scriptFile, script)
+  let script = cmd
+  for (const arg of args) {
+    script += isCmd
+      ? ` ${escape.cmd(arg, doubleEscape)}`
+      : ` ${escape.sh(arg)}`
+  }
   const spawnArgs = isCmd
-    ? ['/d', '/s', '/c', escape.cmd(scriptFile)]
-    : [isWindows ? translateWinPathToPosix(scriptFile) : scriptFile]
+    ? ['/d', '/s', '/c', script]
+    : ['-c', '--', script]
 
   const spawnOpts = {
     env: spawnEnv,
@@ -97,16 +77,7 @@ const makeSpawnArgs = options => {
     ...(isCmd ? { windowsVerbatimArguments: true } : {}),
   }
 
-  const cleanup = () => {
-    // delete the script, this is just a best effort
-    try {
-      unlink(scriptFile)
-    } catch (err) {
-      // ignore errors
-    }
-  }
-
-  return [scriptShell, spawnArgs, spawnOpts, cleanup]
+  return [scriptShell, spawnArgs, spawnOpts]
 }
 
 module.exports = makeSpawnArgs

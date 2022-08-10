@@ -58,6 +58,7 @@ class Query extends BaseCommand {
     const opts = {
       ...this.npm.flatOptions,
       path: where,
+      forceActual: true,
     }
     const arb = new Arborist(opts)
     const tree = await arb.loadActual(opts)
