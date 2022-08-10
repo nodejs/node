@@ -11,4 +11,8 @@ const runner = new WPTRunner('WebCryptoAPI');
 // Set Node.js flags required for the tests.
 runner.setFlags(['--experimental-global-webcrypto']);
 
+runner.setInitScript(`
+  global.location = {};
+`);
+
 runner.runJsTests();

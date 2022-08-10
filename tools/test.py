@@ -957,7 +957,7 @@ class Context(object):
 
   def GetTimeout(self, mode, section=''):
     timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
-    if section == 'pummel' or section == 'benchmark':
+    if section == 'pummel' or section == 'benchmark' or section == 'wpt':
       timeout = timeout * 6
     return timeout
 

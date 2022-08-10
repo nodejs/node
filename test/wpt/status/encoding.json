@@ -22,25 +22,25 @@
   },
   "iso-2022-jp-decoder.any.js": {
     "requires": ["full-icu"],
-    "fail": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
+    "skip": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
   },
   "textdecoder-byte-order-marks.any.js": {
     "requires": ["small-icu"]
   },
   "textdecoder-fatal-single-byte.any.js": {
     "requires": ["full-icu"],
-    "fail": "The iso-8859-16 encoding is not supported"
+    "skip": "The iso-8859-16 encoding is not supported"
   },
   "textdecoder-labels.any.js": {
     "requires": ["full-icu"],
-    "fail": "The iso-8859-16 encoding is not supported"
+    "skip": "The iso-8859-16 encoding is not supported"
   },
   "textencoder-constructor-non-utf.any.js": {
     "requires": ["full-icu"],
-    "fail": "The iso-8859-16 encoding is not supported"
+    "skip": "The iso-8859-16 encoding is not supported"
   },
   "idlharness.any.js": {
-    "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+    "skip": "No implementation of TextDecoderStream and TextEncoderStream"
   },
   "replacement-encodings.any.js": {
     "skip": "decoding-helpers.js needs XMLHttpRequest"
@@ -63,15 +63,15 @@
   "streams/decode-utf8.any.js": {
     "requires": ["small-icu"],
     "fail": {
-      "unexpected": [
-        "promise_test: Unhandled rejection with value: object 'TypeError: Cannot perform Construct on a detached ArrayBuffer'"
+      "expected": [
+        "decoding a transferred ArrayBuffer chunk should give no output"
       ]
     }
   },
   "streams/decode-bad-chunks.any.js": {
     "fail": {
-      "unexpected": [
-        "assert_unreached: Should have rejected: write should reject Reached unreachable code"
+      "expected": [
+        "chunk of type undefined should error the stream"
       ]
     }
   },

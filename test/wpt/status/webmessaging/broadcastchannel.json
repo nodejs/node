@@ -1,25 +1,27 @@
 {
   "basics.any.js": {
     "fail": {
-      "unexpected": [
-        "assert_equals: origin expected \"https://example.com\" but got \"\"",
-        "assert_equals: target for event 0 expected object \"[object EventTarget]\" but got object \"[object EventTarget]\""
+      "expected": [
+        "postMessage results in correct event",
+        "messages are delivered in port creation order"
+      ],
+      "flaky": [
+        "Closing a channel in onmessage prevents already queued tasks from firing onmessage events"
       ]
     }
   },
   "interface.any.js": {
     "fail": {
-      "unexpected": [
-        "assert_throws_dom: function \"() => c.postMessage('')\" threw object \"Error: BroadcastChannel is closed.\" that is not a DOMException InvalidStateError: property \"code\" is equal to 0, expected 11",
-        "assert_not_equals: got disallowed value undefined",
-        "assert_throws_dom: function \"() => c.postMessage(new Symbol())\" threw object \"Error: BroadcastChannel is closed.\" that is not a DOMException InvalidStateError: property \"code\" is equal to 0, expected 11"
+      "expected": [
+        "postMessage after close should throw",
+        "postMessage should throw InvalidStateError after close, even with uncloneable data"
       ]
     }
   },
   "origin.window.js": {
     "fail": {
       "expected": [
-        "document is not defined"
+        "Serialization of BroadcastChannel origin"
       ]
     }
   }
