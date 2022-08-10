@@ -1583,7 +1583,7 @@ class NinjaWriter:
         elif spec["type"] == "static_library":
             self.target.binary = self.ComputeOutput(spec)
             if (
-                self.flavor not in ("mac", "openbsd", "netbsd", "win")
+                self.flavor not in ("mac", "openbsd", "netbsd", "win", "ios")
                 and not self.is_standalone_static_library
             ):
                 self.ninja.build(
@@ -2496,7 +2496,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             ),
         )
 
-    if flavor != "mac" and flavor != "win":
+    if flavor != "mac" and flavor != "win" and flavor != "ios":
         master_ninja.rule(
             "alink",
             description="AR $out",
