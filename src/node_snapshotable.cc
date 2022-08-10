@@ -1108,6 +1108,17 @@ void DeserializeNodeInternalFields(Local<Object> holder,
   }
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
+    default: {
+      // This should only be reachable during development when trying to
+      // deserialize a snapshot blob built by a version of Node.js that
+      // has more recognizable EmbedderObjectTypes than the deserializing
+      // Node.js binary.
+      fprintf(stderr,
+              "Unknown embedder object type %" PRIu8 ", possibly caused by "
+              "mismatched Node.js versions\n",
+              static_cast<uint8_t>(info->type));
+      ABORT();
+    }
   }
 }
 
@@ -1164,6 +1175,9 @@ void SerializeSnapshotableObjects(Environment* env,
                                   EnvSerializeInfo* info) {
   uint32_t i = 0;
   env->ForEachBaseObject([&](BaseObject* obj) {
+    // If there are any BaseObjects that are not snapshotable left
+    // during context serialization, V8 would crash due to unregistered
+    // global handles and print detailed information about them.
     if (!obj->is_snapshotable()) {
       return;
     }
