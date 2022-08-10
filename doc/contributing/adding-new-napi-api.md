@@ -18,7 +18,7 @@ Node-API.
     ABI compatibility with other versions of Node.js.
 * New API **should** be agnostic towards the underlying JavaScript VM.
 * New API PRs **must** have a corresponding documentation update.
-* New API PRs **must** be tagged as **n-api**.
+* New API PRs **must** be tagged as **node-api**.
 * There **must** be at least one test case showing how to use the API.
 * There **should** be at least one test case per interesting use of the API.
 * There **should** be a sample provided that operates in a realistic way
@@ -38,7 +38,7 @@ Node-API.
   * Experimental status exit criteria **must** involve at least the
     following:
     * A new PR **must** be opened in `nodejs/node` to remove experimental
-      status. This PR **must** be tagged as **n-api** and **semver-minor**.
+      status. This PR **must** be tagged as **node-api** and **semver-minor**.
     * Exiting an API from experimental **must** be signed off by the team.
     * If a backport is merited, an API **must** have a down-level
       implementation.
