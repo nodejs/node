@@ -70,7 +70,6 @@ using v8::PropertyHandlerFlags;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
-using v8::ScriptOrModule;
 using v8::String;
 using v8::Uint32;
 using v8::UnboundScript;
@@ -1130,11 +1129,15 @@ void ContextifyContext::CompileFunction(
     }
   }
 
-  Local<ScriptOrModule> script;
-  MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunctionInContext(
-      parsing_context, &source, params.size(), params.data(),
-      context_extensions.size(), context_extensions.data(), options,
-      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script);
+  MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
+      parsing_context,
+      &source,
+      params.size(),
+      params.data(),
+      context_extensions.size(),
+      context_extensions.data(),
+      options,
+      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
@@ -1150,7 +1153,7 @@ void ContextifyContext::CompileFunction(
            context).ToLocal(&cache_key)) {
     return;
   }
-  CompiledFnEntry* entry = new CompiledFnEntry(env, cache_key, id, script);
+  CompiledFnEntry* entry = new CompiledFnEntry(env, cache_key, id, fn);
   env->id_to_function_map.emplace(id, entry);
 
   Local<Object> result = Object::New(isolate);
@@ -1196,16 +1199,14 @@ void CompiledFnEntry::WeakCallback(
 CompiledFnEntry::CompiledFnEntry(Environment* env,
                                  Local<Object> object,
                                  uint32_t id,
-                                 Local<ScriptOrModule> script)
-    : BaseObject(env, object),
-      id_(id),
-      script_(env->isolate(), script) {
-  script_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+                                 Local<Function> fn)
+    : BaseObject(env, object), id_(id), fn_(env->isolate(), fn) {
+  fn_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
 }
 
 CompiledFnEntry::~CompiledFnEntry() {
   env()->id_to_function_map.erase(id_);
-  script_.ClearWeak();
+  fn_.ClearWeak();
 }
 
 static void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
