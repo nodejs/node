@@ -43,11 +43,11 @@ describe('assert.snapshot', { concurrency: true }, () => {
     const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/basic.mjs'));
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
-    assert.strictEqual(snapshot, '1:\n\'test\'\n#*#*#*$#*#*#*#*#*#*$#*#*#\n2:\n\'test\'');
+    assert.strictEqual(snapshot, 'name:\n\'test\'');
   });
 
-  it('should accept named snapshots', async () => {
-    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/named.mjs'));
+  it('should write multiple snapshots', async () => {
+    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/multiple.mjs'));
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
     assert.strictEqual(snapshot, 'name:\n\'test\'\n#*#*#*$#*#*#*#*#*#*$#*#*#\nanother name:\n\'test\'');
@@ -57,19 +57,29 @@ describe('assert.snapshot', { concurrency: true }, () => {
     let result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, '1:\n\'test\'');
+    assert.strictEqual(result.snapshot, 'snapshot:\n\'test\'');
 
     result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, '1:\n\'test\'');
+    assert.strictEqual(result.snapshot, 'snapshot:\n\'test\'');
+  });
+
+  it('should fail when name is not provided', async () => {
+    for (const name of [1, undefined, null, {}, function() {}]) {
+      await assert.rejects(() => assert.snapshot('', name), {
+        code: 'ERR_INVALID_ARG_TYPE', 
+        name: 'TypeError',
+        message: /^The "name" argument must be of type string/
+      });
+    }    
   });
 
   it('should fail when value does not match snapshot', async () => {
     const { code, stderr, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/value-changed.mjs'));
     assert.match(stderr, /AssertionError \[ERR_ASSERTION\]/);
     assert.strictEqual(code, 1);
-    assert.strictEqual(snapshot, '1:\n\'original\'');
+    assert.strictEqual(snapshot, 'snapshot:\n\'original\'');
   });
 
   it('should fail when snapshot does not contain a named snapshot', async () => {
@@ -80,46 +90,30 @@ describe('assert.snapshot', { concurrency: true }, () => {
     assert.strictEqual(snapshot, 'another name:\n\'test\'\n#*#*#*$#*#*#*#*#*#*$#*#*#\nname:\n\'test\'');
   });
 
-  it('should fail if multiple snapshots use the same name', async () => {
-    const { code, stderr, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/same-name.mjs'));
-    assert.match(stderr, /AssertionError \[ERR_ASSERTION\]/);
-    assert.match(stderr, /Snapshot "name" already used/);
-    assert.strictEqual(code, 1);
-    assert.strictEqual(snapshot.code, 'ENOENT');
-  });
-
   it('should snapshot a random replaced value', async () => {
-    let result = await spawnFixture(fixtures.path('assert-snapshot/random.mjs'));
-    assert.strictEqual(result.stderr, '');
-    assert.strictEqual(result.code, 0);
-    const originalSnapshot = result.snapshot;
-
-    result = await spawnFixture(fixtures.path('assert-snapshot/random.mjs'));
-    assert.strictEqual(result.stderr, '');
-    assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, originalSnapshot);
+    const originalSnapshot = await readFile(fixtures.path('assert-snapshot/random.snapshot'), 'utf8');
+    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/random.mjs'));
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(snapshot, originalSnapshot);
   });
 
   it('should serialize values', async () => {
-    let result = await spawnFixture(fixtures.path('assert-snapshot/serialize.mjs'));
-    assert.strictEqual(result.stderr, '');
-    assert.strictEqual(result.code, 0);
-    const originalSnapshot = result.snapshot;
-
-    result = await spawnFixture(fixtures.path('assert-snapshot/serialize.mjs'));
-    assert.strictEqual(result.stderr, '');
-    assert.strictEqual(result.code, 0);
-    assert.strictEqual(result.snapshot, originalSnapshot);
+    const originalSnapshot = await readFile(fixtures.path('assert-snapshot/serialize.snapshot'), 'utf8');
+    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/serialize.mjs'));
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(snapshot, originalSnapshot);
   });
 
   it('should override snapshot when NODE_UPDATE_SNAPSHOT=1', async () => {
     const filename = 'updated.mjs';
-    await writeFile(getSnapshotPath(filename), '1:\n\'test\'');
-    const { stderr, code, snapshot } = await spawnTmpfile('await assert.snapshot(\'changed\');',
+    await writeFile(getSnapshotPath(filename), 'snapshot:\n\'test\'');
+    const { stderr, code, snapshot } = await spawnTmpfile('await assert.snapshot(\'changed\', \'snapshot\');',
                                                           filename, { ...process.env, NODE_UPDATE_SNAPSHOT: '1' });
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
-    assert.strictEqual(snapshot, '1:\n\'changed\'');
+    assert.strictEqual(snapshot, 'snapshot:\n\'changed\'');
   });
 
   it('snapshot file should have the name of the module - esm', async () => {
