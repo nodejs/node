@@ -14,15 +14,15 @@ function getSnapshotPath(filename) {
   return path.join(tmpdir.path, dir, `${name}.snapshot`);
 }
 
-async function spawnTmpfile(content = '', filename, env) {
+async function spawnTmpfile(content = '', filename, extraFlags = []) {
   const header = filename.endsWith('.mjs') ?
     'import assert from \'node:assert\';' :
     'const assert = require(\'node:assert\');';
   await writeFile(path.join(tmpdir.path, filename), `${header}\n${content}`);
   const { stdout, stderr, code } = await spawnPromisified(
     execPath,
-    ['--no-warnings', filename],
-    { cwd: tmpdir.path, env });
+    ['--no-warnings', ...extraFlags, filename],
+    { cwd: tmpdir.path });
 
   const snapshotPath = getSnapshotPath(filename);
   const snapshot = await readFile(snapshotPath, 'utf8').catch((err) => err);
@@ -109,11 +109,11 @@ describe('assert.snapshot', { concurrency: true }, () => {
     assert.strictEqual(snapshot, originalSnapshot);
   });
 
-  it('should override snapshot when NODE_UPDATE_SNAPSHOT=1', async () => {
+  it('should override snapshot when passing --update-assert-snapshot', async () => {
     const filename = 'updated.mjs';
     await writeFile(getSnapshotPath(filename), 'snapshot:\n\'test\'');
     const { stderr, code, snapshot } = await spawnTmpfile('await assert.snapshot(\'changed\', \'snapshot\');',
-                                                          filename, { ...process.env, NODE_UPDATE_SNAPSHOT: '1' });
+                                                          filename, ['--update-assert-snapshot']);
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
     assert.match(snapshot, /^snapshot:\r?\n'changed'$/);

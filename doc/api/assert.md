@@ -2027,7 +2027,7 @@ with an [`AssertionError`][].
 If the snapshot file does not exist, the snapshot is written.
 
 In case it is needed to force a snapshot update,
-set `process.env.NODE_UPDATE_SNAPSHOT=1`;
+use [`--enable-source-maps`][];
 
 By default, a snapshot is read and written to a file,
 using the same name as the main entrypoint with `.snapshot` as the extension.
@@ -2473,6 +2473,7 @@ argument.
 [`AssertionError`]: #class-assertassertionerror
 [`CallTracker`]: #class-assertcalltracker
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+[`--update-assert-snapshot`]: cli.md#--update-assert-snapshot
 [`ERR_INVALID_RETURN_VALUE`]: errors.md#err_invalid_return_value
 [`Error.captureStackTrace`]: errors.md#errorcapturestacktracetargetobject-constructoropt
 [`Error`]: errors.md#class-error

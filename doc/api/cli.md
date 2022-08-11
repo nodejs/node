@@ -1488,6 +1488,14 @@ occurs. One of the following modes can be chosen:
 If a rejection happens during the command line entry point's ES module static
 loading phase, it will always raise it as an uncaught exception.
 
+### `--update-assert-snapshot`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Force updating snapshot files for [`assert.snapshot()`][]
+
 ### `--use-bundled-ca`, `--use-openssl-ca`
 
 <!-- YAML

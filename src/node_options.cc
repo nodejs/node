@@ -622,6 +622,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::force_repl);
   AddAlias("-i", "--interactive");
 
+  AddOption("--update-assert-snapshot",
+            "update assert snapshot files",
+            &EnvironmentOptions::update_assert_snapshot,
+            kAllowedInEnvironment);
+
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
 
   AddOption("--tls-keylog",
