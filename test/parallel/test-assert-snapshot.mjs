@@ -90,7 +90,7 @@ describe('assert.snapshot', { concurrency: true }, () => {
     assert.match(stderr, /AssertionError \[ERR_ASSERTION\]/);
     assert.match(stderr, /Snapshot "non existing" does not exist/);
     assert.strictEqual(code, 1);
-    assert.match(snapshot, /^another name:\n'test'\r?\n#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\r?\nname:\r?\n'test'$/);
+    assert.match(snapshot, /^another name:\r?\n'test'\r?\n#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\r?\nname:\r?\n'test'$/);
   });
 
   it('should snapshot a random replaced value', async () => {
