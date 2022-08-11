@@ -4168,11 +4168,15 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44201
+    description: The input keying material can now be zero-length.
 -->
 
 * `digest` {string} The digest algorithm to use.
 * `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
-  keying material. It must be at least one byte in length.
+  keying material. Must be provided but can be zero-length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.
@@ -4222,11 +4226,15 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44201
+    description: The input keying material can now be zero-length.
 -->
 
 * `digest` {string} The digest algorithm to use.
 * `ikm` {string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} The input
-  keying material. It must be at least one byte in length.
+  keying material. Must be provided but can be zero-length.
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must
   be provided but can be zero-length.
 * `info` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional info value.

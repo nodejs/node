@@ -120,6 +120,8 @@ const {
 
 const algorithms = [
   ['sha256', 'secret', 'salt', 'info', 10],
+  ['sha256', '', '', '', 10],
+  ['sha256', '', 'salt', '', 10],
   ['sha512', 'secret', 'salt', '', 15],
 ];
 if (!common.hasOpenSSL3)
