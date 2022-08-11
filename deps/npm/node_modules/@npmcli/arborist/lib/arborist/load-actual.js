@@ -115,6 +115,7 @@ module.exports = cls => class ActualLoader extends cls {
       root = null,
       transplantFilter = () => true,
       ignoreMissing = false,
+      forceActual = false,
     } = options
     this[_filter] = filter
     this[_transplantFilter] = transplantFilter
@@ -141,26 +142,30 @@ module.exports = cls => class ActualLoader extends cls {
 
     this[_actualTree].assertRootOverrides()
 
-    // Note: hidden lockfile will be rejected if it's not the latest thing
-    // in the folder, or if any of the entries in the hidden lockfile are
-    // missing.
-    const meta = await Shrinkwrap.load({
-      path: this[_actualTree].path,
-      hiddenLockfile: true,
-      resolveOptions: this.options,
-    })
-    if (meta.loadedFromDisk) {
-      this[_actualTree].meta = meta
-      return this[_loadActualVirtually]({ root })
-    } else {
+    // if forceActual is set, don't even try the hidden lockfile
+    if (!forceActual) {
+      // Note: hidden lockfile will be rejected if it's not the latest thing
+      // in the folder, or if any of the entries in the hidden lockfile are
+      // missing.
       const meta = await Shrinkwrap.load({
         path: this[_actualTree].path,
-        lockfileVersion: this.options.lockfileVersion,
+        hiddenLockfile: true,
         resolveOptions: this.options,
       })
-      this[_actualTree].meta = meta
-      return this[_loadActualActually]({ root, ignoreMissing })
+
+      if (meta.loadedFromDisk) {
+        this[_actualTree].meta = meta
+        return this[_loadActualVirtually]({ root })
+      }
     }
+
+    const meta = await Shrinkwrap.load({
+      path: this[_actualTree].path,
+      lockfileVersion: this.options.lockfileVersion,
+      resolveOptions: this.options,
+    })
+    this[_actualTree].meta = meta
+    return this[_loadActualActually]({ root, ignoreMissing })
   }
 
   async [_loadActualVirtually] ({ root }) {

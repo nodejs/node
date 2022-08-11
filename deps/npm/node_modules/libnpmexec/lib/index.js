@@ -28,7 +28,7 @@ const binPaths = []
 const manifests = new Map()
 
 const getManifest = async (spec, flatOptions) => {
-  if (!manifests.get(spec.raw)) {
+  if (!manifests.has(spec.raw)) {
     const manifest = await pacote.manifest(spec, { ...flatOptions, preferOnline: true })
     manifests.set(spec.raw, manifest)
   }
@@ -36,6 +36,7 @@ const getManifest = async (spec, flatOptions) => {
 }
 
 // Returns the required manifest if the spec is missing from the tree
+// Returns the found node if it is in the tree
 const missingFromTree = async ({ spec, tree, flatOptions }) => {
   if (spec.registry && (spec.rawSpec === '' || spec.type !== 'tag')) {
     // registry spec that is not a specific tag.
@@ -43,20 +44,21 @@ const missingFromTree = async ({ spec, tree, flatOptions }) => {
     for (const node of nodesBySpec) {
       if (spec.type === 'tag') {
         // package requested by name only
-        return
+        return { node }
       } else if (spec.type === 'version') {
         // package requested by specific version
         if (node.pkgid === spec.raw) {
-          return
+          return { node }
         }
       } else {
         // package requested by version range, only remaining registry type
         if (semver.satisfies(node.package.version, spec.rawSpec)) {
-          return
+          return { node }
         }
       }
     }
-    return await getManifest(spec, flatOptions)
+    const manifest = await getManifest(spec, flatOptions)
+    return { manifest }
   } else {
     // non-registry spec, or a specific tag.  Look up manifest and check
     // resolved to see if it's in the tree.
@@ -65,10 +67,10 @@ const missingFromTree = async ({ spec, tree, flatOptions }) => {
     for (const node of nodesByManifest) {
       if (node.package.resolved === manifest._resolved) {
         // we have a package by the same name and the same resolved destination, nothing to add.
-        return
+        return { node }
       }
     }
-    return manifest
+    return { manifest }
   }
 }
 
@@ -80,7 +82,7 @@ const exec = async (opts) => {
     localBin = resolve('./node_modules/.bin'),
     locationMsg = undefined,
     globalBin = '',
-    globalPath = '',
+    globalPath,
     output,
     // dereference values because we manipulate it later
     packages: [...packages] = [],
@@ -118,7 +120,7 @@ const exec = async (opts) => {
     if (localBinPath) {
       binPaths.push(localBinPath)
       return await run()
-    } else if (await fileExists(`${globalBin}/${args[0]}`)) {
+    } else if (globalPath && await fileExists(`${globalBin}/${args[0]}`)) {
       binPaths.push(globalBin)
       return await run()
     }
@@ -132,35 +134,37 @@ const exec = async (opts) => {
 
   // Find anything that isn't installed locally
   const needInstall = []
-  await Promise.all(packages.map(async pkg => {
+  let commandManifest
+  await Promise.all(packages.map(async (pkg, i) => {
     const spec = npa(pkg, path)
-    const manifest = await missingFromTree({ spec, tree: localTree, flatOptions })
+    const { manifest, node } = await missingFromTree({ spec, tree: localTree, flatOptions })
     if (manifest) {
       // Package does not exist in the local tree
       needInstall.push({ spec, manifest })
+      if (i === 0) {
+        commandManifest = manifest
+      }
+    } else if (i === 0) {
+      // The node.package has enough to look up the bin
+      commandManifest = node.package
     }
   }))
 
   if (needPackageCommandSwap) {
-    // Either we have a scoped package or the bin of our package we inferred
-    // from arg[0] might not be identical to the package name
     const spec = npa(args[0])
-    let commandManifest
-    if (needInstall.length === 0) {
-      commandManifest = await getManifest(spec, flatOptions)
-    } else {
-      commandManifest = needInstall[0].manifest
-    }
 
     args[0] = getBinFromManifest(commandManifest)
 
-    // See if the package is installed globally, and run the translated bin
-    const globalArb = new Arborist({ ...flatOptions, path: globalPath, global: true })
-    const globalTree = await globalArb.loadActual()
-    const globalManifest = await missingFromTree({ spec, tree: globalTree, flatOptions })
-    if (!globalManifest) {
-      binPaths.push(globalBin)
-      return await run()
+    if (needInstall.length > 0 && globalPath) {
+      // See if the package is installed globally, and run the translated bin
+      const globalArb = new Arborist({ ...flatOptions, path: globalPath, global: true })
+      const globalTree = await globalArb.loadActual()
+      const { manifest: globalManifest } =
+        await missingFromTree({ spec, tree: globalTree, flatOptions })
+      if (!globalManifest && await fileExists(`${globalBin}/${args[0]}`)) {
+        binPaths.push(globalBin)
+        return await run()
+      }
     }
   }
 
@@ -183,7 +187,7 @@ const exec = async (opts) => {
     })
     const npxTree = await npxArb.loadActual()
     await Promise.all(needInstall.map(async ({ spec }) => {
-      const manifest = await missingFromTree({ spec, tree: npxTree, flatOptions })
+      const { manifest } = await missingFromTree({ spec, tree: npxTree, flatOptions })
       if (manifest) {
         // Manifest is not in npxCache, we need to install it there
         if (!spec.registry) {

@@ -371,7 +371,7 @@ t.test('workspaces', t => {
     })
     const init = new Init(npm)
     await init.execWorkspaces([], ['a'])
-    const output = npm._mockOutputs.map(arr => arr.map(i => i.replace(/[0-9]*ms$/, '100ms')))
+    const output = npm._mockOutputs.map(arr => arr.map(i => i.replace(/[0-9]*m?s$/, '100ms')))
     t.matchSnapshot(output, 'should print helper info')
     const lockFilePath = resolve(npm.localPrefix, 'package-lock.json')
     const lockFile = fs.readFileSync(lockFilePath, { encoding: 'utf8' })

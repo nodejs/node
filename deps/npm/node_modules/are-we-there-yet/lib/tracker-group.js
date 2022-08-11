@@ -103,7 +103,7 @@ TrackerGroup.prototype.finish = function () {
 var buffer = '                                  '
 TrackerGroup.prototype.debug = function (depth) {
   depth = depth || 0
-  var indent = depth ? buffer.substr(0, depth) : ''
+  var indent = depth ? buffer.slice(0, depth) : ''
   var output = indent + (this.name || 'top') + ': ' + this.completed() + '\n'
   this.trackers.forEach(function (tracker) {
     if (tracker instanceof TrackerGroup) {
