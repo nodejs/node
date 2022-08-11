@@ -34,6 +34,7 @@ class Exec extends BaseCommand {
 
     const args = [..._args]
     const call = this.npm.config.get('call')
+    let globalPath
     const {
       flatOptions,
       localBin,
@@ -44,6 +45,12 @@ class Exec extends BaseCommand {
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const packages = this.npm.config.get('package')
     const yes = this.npm.config.get('yes')
+    // --prefix sets both of these to the same thing, meaning the global prefix
+    // is invalid (i.e. no lib/node_modules).  This is not a trivial thing to
+    // untangle and fix so we work around it here.
+    if (this.npm.localPrefix !== this.npm.globalPrefix) {
+      globalPath = path.resolve(globalDir, '..')
+    }
 
     if (call && _args.length) {
       throw this.usageError()
@@ -59,7 +66,7 @@ class Exec extends BaseCommand {
       localBin,
       locationMsg,
       globalBin,
-      globalPath: path.resolve(globalDir, '..'),
+      globalPath,
       output,
       packages,
       path: localPrefix,
