@@ -4,7 +4,7 @@
 
 **Note: These instructions will be undone if you reinstall or upgrade npm or node! For a more permanent (and simpler) solution, see [Force-npm-to-use-global-node-gyp.md](Force-npm-to-use-global-node-gyp.md). (npm 6 or older only!)**
 
-[Many issues](https://github.com/nodejs/node-gyp/labels/ERR%21%20node-gyp%20-v%20%3C%3D%20v5.1.0) are opened by users who are
+[Many issues](https://github.com/nodejs/node-gyp/issues?q=label%3A"ERR!+node-gyp+-v+<%3D+v9.x.x") are opened by users who are
 not running a [current version of node-gyp](https://github.com/nodejs/node-gyp/releases).
 
 `npm` bundles its own, internal, copy of `node-gyp`. This internal copy is independent of any globally installed copy of node-gyp that
