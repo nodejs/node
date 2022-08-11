@@ -17,6 +17,7 @@ if (win) {
 function configure (gyp, argv, callback) {
   var python
   var buildDir = path.resolve('build')
+  var buildBinsDir = path.join(buildDir, 'node_gyp_bins')
   var configNames = ['config.gypi', 'common.gypi']
   var configs = []
   var nodeDir
@@ -73,7 +74,9 @@ function configure (gyp, argv, callback) {
 
   function createBuildDir () {
     log.verbose('build dir', 'attempting to create "build" dir: %s', buildDir)
-    fs.mkdir(buildDir, { recursive: true }, function (err, isNew) {
+
+    const deepestBuildDirSubdirectory = win ? buildDir : buildBinsDir
+    fs.mkdir(deepestBuildDirSubdirectory, { recursive: true }, function (err, isNew) {
       if (err) {
         return callback(err)
       }
@@ -84,8 +87,28 @@ function configure (gyp, argv, callback) {
         findVisualStudio(release.semver, gyp.opts.msvs_version,
           createConfigFile)
       } else {
+        createPythonSymlink()
         createConfigFile()
       }
+    })
+  }
+
+  function createPythonSymlink () {
+    const symlinkDestination = path.join(buildBinsDir, 'python3')
+
+    log.verbose('python symlink', `creating symlink to "${python}" at "${symlinkDestination}"`)
+
+    fs.unlink(symlinkDestination, function (err) {
+      if (err && err.code !== 'ENOENT') {
+        log.verbose('python symlink', 'error when attempting to remove existing symlink')
+        log.verbose('python symlink', err.stack, 'errno: ' + err.errno)
+      }
+      fs.symlink(python, symlinkDestination, function (err) {
+        if (err) {
+          log.verbose('python symlink', 'error when attempting to create Python symlink')
+          log.verbose('python symlink', err.stack, 'errno: ' + err.errno)
+        }
+      })
     })
   }
 

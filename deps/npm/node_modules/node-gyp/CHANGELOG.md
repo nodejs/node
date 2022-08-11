@@ -1,5 +1,37 @@
 # Changelog
 
+## [9.1.0](https://www.github.com/nodejs/node-gyp/compare/v9.0.0...v9.1.0) (2022-07-13)
+
+
+### Features
+
+* Update function getSDK() to support Windows 11 SDK ([#2565](https://www.github.com/nodejs/node-gyp/issues/2565)) ([ea8520e](https://www.github.com/nodejs/node-gyp/commit/ea8520e3855374bd15b6d001fe112d58a8d7d737))
+
+
+### Bug Fixes
+
+* extend tap timeout length to allow for slow CI ([6f74c76](https://www.github.com/nodejs/node-gyp/commit/6f74c762fe3c19bdd20245cb5c02e2dfa65d9451))
+* new ca & server certs, bundle in .js file and unpack for testing ([147e3d3](https://www.github.com/nodejs/node-gyp/commit/147e3d34f44a97deb7aa507207680cf0f4e662a2))
+* re-label ([#2689](https://www.github.com/nodejs/node-gyp/issues/2689)) ([f0b7863](https://www.github.com/nodejs/node-gyp/commit/f0b7863dadfa365afc173025ae95351aec79abd9))
+* typo on readme ([bf81cd4](https://www.github.com/nodejs/node-gyp/commit/bf81cd452b931dd4dfa82762c23dd530a075d992))
+
+
+### Doc
+
+* update docs/README.md with latest version number ([62d2815](https://www.github.com/nodejs/node-gyp/commit/62d28151bf8266a34e1bcceeb25b4e6e2ae5ca5d))
+
+
+### Core
+
+* update due to rename of primary branch ([ca1f068](https://www.github.com/nodejs/node-gyp/commit/ca1f0681a5567ca8cd51acebccd37a633f19bc6a))
+
+
+### Tests
+
+* Try msvs-version: [2016, 2019, 2022] ([#2700](https://www.github.com/nodejs/node-gyp/issues/2700)) ([68b5b5b](https://www.github.com/nodejs/node-gyp/commit/68b5b5be9c94ac20c55e88654ff6f55234d7130a))
+* Upgrade GitHub Actions ([#2623](https://www.github.com/nodejs/node-gyp/issues/2623)) ([245cd5b](https://www.github.com/nodejs/node-gyp/commit/245cd5bbe4441d4f05e88f2fa20a86425419b6af))
+* Upgrade GitHub Actions ([#2701](https://www.github.com/nodejs/node-gyp/issues/2701)) ([1c64ca7](https://www.github.com/nodejs/node-gyp/commit/1c64ca7f4702c6eb43ecd16fbd67b5d939041621))
+
 ## [9.0.0](https://www.github.com/nodejs/node-gyp/compare/v8.4.1...v9.0.0) (2022-02-24)
 
 

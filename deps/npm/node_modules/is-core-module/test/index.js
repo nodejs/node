@@ -44,7 +44,7 @@ test('core modules', function (t) {
 	t.test('core via repl module', { skip: !data.repl }, function (st) {
 		var libs = require('repl')._builtinLibs; // eslint-disable-line no-underscore-dangle
 		if (!libs) {
-			st.skip('module.builtinModules does not exist');
+			st.skip('repl._builtinLibs does not exist');
 		} else {
 			for (var i = 0; i < libs.length; ++i) {
 				var mod = libs[i];

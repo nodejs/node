@@ -1,4 +1,4 @@
-## Versions of `node-gyp` that are earlier than v8.x.x
+## Versions of `node-gyp` that are earlier than v9.x.x
 
 Please look thru your error log for the string `gyp info using node-gyp@` and if that version number is less than the [current release of node-gyp](https://github.com/nodejs/node-gyp/releases) then __please upgrade__ using [these instructions](https://github.com/nodejs/node-gyp/blob/master/docs/Updating-npm-bundled-node-gyp.md) and then try your command again.
 
