@@ -37,8 +37,7 @@ const kPasswords = {
   long: '55736572732073686f756c64207069636b206c6f6' +
         'e6720706173737068726173657320286e6f742075' +
         '73652073686f72742070617373776f7264732921',
-  // TODO(@jasnell): Zero-length password not currently supported
-  // empty: ''
+  empty: ''
 };
 
 const kSalts = {
@@ -256,110 +255,110 @@ const kDerivations = {
       }
     }
   },
-  // empty: {
-  //   short: {
-  //     'SHA-384': {
-  //       '1': 'e9f0da1e97dfa455f858ce6b9af1ecc0299' +
-  //            'f125ff1a847eb5d4955866f43e604',
-  //       '1000': '7ff7954aeddf41795fc8300666786d49' +
-  //               '74269aa91cc7e93811c953331d56d609',
-  //       '100000': '1c73132b6a55e9d9de2cdbfe1f55bf' +
-  //                 '0ab59fd91f78f109c50096038b8557b147'
-  //     },
-  //     'SHA-512': {
-  //       '1': 'e7e2b41f4887421bcb764eb4a56f63d2502' +
-  //            'e33c764fbdf60626ad42ed9672342',
-  //       '1000': 'd561c4c84e9c60ba4752a2d383bf55ef' +
-  //               'f643fc9e452252d6821e39449350cf72',
-  //       '100000': 'efd00752bc9ffafb5a399dd1d5834e' +
-  //                 '8d2c2b676ecd4b2063fb1fe581d0f1380b'
-  //     },
-  //     'SHA-1': {
-  //       '1': 'a667da47b8f857b7c65f70a6c8e7a06ce0d' +
-  //            '25211a2b6ebaf58dcaaf268b46b1d',
-  //       '1000': '72c92bbd3ddab4789e88e42ad1cda83c' +
-  //               'c0729e6cb5106a577e50d5cf61782481',
-  //       '100000': '06e19e1b83e6480b1554df2b31a2c9' +
-  //                 '2d1bfcf9bc1bdbc8751ff8685bdeef7dc9'
-  //     },
-  //     'SHA-256': {
-  //       '1': '2ddb49243eb3b5912cb260cdd87fb04ef0d' +
-  //            '111bfa44d40a45e02a8a5c3c1518d',
-  //       '1000': '2835f3ed53565420c90951509b0c1173' +
-  //               'b645174f1546ab3ac3e6c85cb471b53b',
-  //       '100000': '80aed905ca32ae0bb2a9d8f532f048' +
-  //                 'a0e672463eef9f83dfa7d88bca726553ea'
-  //     }
-  //   },
-  //   long: {
-  //     'SHA-384': {
-  //       '1': '7b0bcca81dd637a3b3398666619716c5f2b1' +
-  //            'f4a5c24e85c18a9955559e4d7692',
-  //       '1000': '8bb89cf71972fe5acc16fdc5f8cffd2c2' +
-  //               'e7178c086b3bbe61cc1314619135958',
-  //       '100000': '26c6a8ae4bd1fbe715ae478efff3eca' +
-  //                 'e83afa617ed35bd4a3f63c3da76a42d22'
-  //     },
-  //     'SHA-512': {
-  //       '1': 'bb73f8168a8f391d3d54ca892fb72b8e603' +
-  //            '5e37f891e5a70491b94dc05510bc4',
-  //       '1000': '5cacc16cdfbe052cfd73a9891b8c0e78' +
-  //               'b19b2e07eae2423d48fed5e08aa8494b',
-  //       '100000': '87fdfc293392cbf33ecc9b5141a2fe' +
-  //                 'fa74d150499756863c484c0a78b6274d7f'
-  //     },
-  //     'SHA-1': {
-  //       '1': '1f46b40cf2fb3dc41a3d9ced8897b861050' +
-  //            '36810e2bfac7040814bd65d428d67',
-  //       '1000': 'cc5748ecc41288a0e13368543aaa2ef6' +
-  //               '2c97ba7518fa88f6e11c35763fc930b4',
-  //       '100000': '33e2993bf4729dc993fff66e69cc55' +
-  //                 '777135ebfabce533575bce4a96645a742c'
-  //     },
-  //     'SHA-256': {
-  //       '1': '61c935c462c3321c89663545d13a4f6b52b' +
-  //            '5191cfb7479e58dcfe6444d43106c',
-  //       '1000': '1353f7458237ab332ee052e29f829a2a' +
-  //               'b90e72630ea10493b4eecffb9ff89e1d',
-  //       '100000': '79baf80ec582920538801e9d929ce0' +
-  //                 '7084277987488d733a026852c452f06fb4'
-  //     }
-  //   },
-  //   empty: {
-  //     'SHA-384': {
-  //       '1': '4bb042a5c28cee6f66f991c717fd7702677' +
-  //            '87e2bb3031eae270d87d63ad99534',
-  //       '1000': '9cbfe72d194da34e17c821dd1569ef50' +
-  //               'a86eb4d893591776adc6a5c21e0031cf',
-  //       '100000': 'ed6bd7282567abe48d542d067d09f4' +
-  //                 '04bd044ae2cefe11dacc531c4764cd35cd'
-  //     },
-  //     'SHA-512': {
-  //       '1': '6d2ecbbbfb2e6dcd7056faf9af6aa06eae5' +
-  //            '94391db983279a6bf27e0eb228614',
-  //       '1000': 'cb93096c3a02beeb1c5fac36765c9011' +
-  //               'fe99f8d8ea62366048fc98cb98dfea8f',
-  //       '100000': '89e16254ebad5cba72e0aebe1614c7' +
-  //                 'f9b795a7505f2637206ce10a3449a2b8bb'
-  //     },
-  //     'SHA-1': {
-  //       '1': '1e437a1c79d75be61e91141dae20affc489' +
-  //            '2cc99abcc3fe753887bccc8920176',
-  //       '1000': '6e40910ac02ec89cebb9d898b13a09d1' +
-  //               'cd7adf6f8cc08cc473302c8973aa2e19',
-  //       '100000': 'a9e1bebb36bc26d7c997d5483cbc8d' +
-  //                 'e4a419d1e706571342632586ec330a7290'
-  //     },
-  //     'SHA-256': {
-  //       '1': 'f7ce0b653d2d72a4108cf5abe912ffdd777' +
-  //            '616dbbb27a70e8204f3ae2d0f6fad',
-  //       '1000': '4fc58a21c100ce1835b8f9991d738b56' +
-  //               '965d14b24e1761fbdffc69ac5e0b667a',
-  //       '100000': '64a868d4b23af696d3734d0b814d04' +
-  //                 'cdd1ac280128e97653a05f32b49c13a29a'
-  //     }
-  //   }
-  // }
+  empty: {
+    short: {
+      'SHA-384': {
+        '1': 'e9f0da1e97dfa455f858ce6b9af1ecc0299' +
+             'f125ff1a847eb5d4955866f43e604',
+        '1000': '7ff7954aeddf41795fc8300666786d49' +
+                '74269aa91cc7e93811c953331d56d609',
+        '100000': '1c73132b6a55e9d9de2cdbfe1f55bf' +
+                  '0ab59fd91f78f109c50096038b8557b147'
+      },
+      'SHA-512': {
+        '1': 'e7e2b41f4887421bcb764eb4a56f63d2502' +
+             'e33c764fbdf60626ad42ed9672342',
+        '1000': 'd561c4c84e9c60ba4752a2d383bf55ef' +
+                'f643fc9e452252d6821e39449350cf72',
+        '100000': 'efd00752bc9ffafb5a399dd1d5834e' +
+                  '8d2c2b676ecd4b2063fb1fe581d0f1380b'
+      },
+      'SHA-1': {
+        '1': 'a667da47b8f857b7c65f70a6c8e7a06ce0d' +
+             '25211a2b6ebaf58dcaaf268b46b1d',
+        '1000': '72c92bbd3ddab4789e88e42ad1cda83c' +
+                'c0729e6cb5106a577e50d5cf61782481',
+        '100000': '06e19e1b83e6480b1554df2b31a2c9' +
+                  '2d1bfcf9bc1bdbc8751ff8685bdeef7dc9'
+      },
+      'SHA-256': {
+        '1': '2ddb49243eb3b5912cb260cdd87fb04ef0d' +
+             '111bfa44d40a45e02a8a5c3c1518d',
+        '1000': '2835f3ed53565420c90951509b0c1173' +
+                'b645174f1546ab3ac3e6c85cb471b53b',
+        '100000': '80aed905ca32ae0bb2a9d8f532f048' +
+                  'a0e672463eef9f83dfa7d88bca726553ea'
+      }
+    },
+    long: {
+      'SHA-384': {
+        '1': '7b0bcca81dd637a3b3398666619716c5f2b1' +
+             'f4a5c24e85c18a9955559e4d7692',
+        '1000': '8bb89cf71972fe5acc16fdc5f8cffd2c2' +
+                'e7178c086b3bbe61cc1314619135958',
+        '100000': '26c6a8ae4bd1fbe715ae478efff3eca' +
+                  'e83afa617ed35bd4a3f63c3da76a42d22'
+      },
+      'SHA-512': {
+        '1': 'bb73f8168a8f391d3d54ca892fb72b8e603' +
+             '5e37f891e5a70491b94dc05510bc4',
+        '1000': '5cacc16cdfbe052cfd73a9891b8c0e78' +
+                'b19b2e07eae2423d48fed5e08aa8494b',
+        '100000': '87fdfc293392cbf33ecc9b5141a2fe' +
+                  'fa74d150499756863c484c0a78b6274d7f'
+      },
+      'SHA-1': {
+        '1': '1f46b40cf2fb3dc41a3d9ced8897b861050' +
+             '36810e2bfac7040814bd65d428d67',
+        '1000': 'cc5748ecc41288a0e13368543aaa2ef6' +
+                '2c97ba7518fa88f6e11c35763fc930b4',
+        '100000': '33e2993bf4729dc993fff66e69cc55' +
+                  '777135ebfabce533575bce4a96645a742c'
+      },
+      'SHA-256': {
+        '1': '61c935c462c3321c89663545d13a4f6b52b' +
+             '5191cfb7479e58dcfe6444d43106c',
+        '1000': '1353f7458237ab332ee052e29f829a2a' +
+                'b90e72630ea10493b4eecffb9ff89e1d',
+        '100000': '79baf80ec582920538801e9d929ce0' +
+                  '7084277987488d733a026852c452f06fb4'
+      }
+    },
+    empty: {
+      'SHA-384': {
+        '1': '4bb042a5c28cee6f66f991c717fd7702677' +
+             '87e2bb3031eae270d87d63ad99534',
+        '1000': '9cbfe72d194da34e17c821dd1569ef50' +
+                'a86eb4d893591776adc6a5c21e0031cf',
+        '100000': 'ed6bd7282567abe48d542d067d09f4' +
+                  '04bd044ae2cefe11dacc531c4764cd35cd'
+      },
+      'SHA-512': {
+        '1': '6d2ecbbbfb2e6dcd7056faf9af6aa06eae5' +
+             '94391db983279a6bf27e0eb228614',
+        '1000': 'cb93096c3a02beeb1c5fac36765c9011' +
+                'fe99f8d8ea62366048fc98cb98dfea8f',
+        '100000': '89e16254ebad5cba72e0aebe1614c7' +
+                  'f9b795a7505f2637206ce10a3449a2b8bb'
+      },
+      'SHA-1': {
+        '1': '1e437a1c79d75be61e91141dae20affc489' +
+             '2cc99abcc3fe753887bccc8920176',
+        '1000': '6e40910ac02ec89cebb9d898b13a09d1' +
+                'cd7adf6f8cc08cc473302c8973aa2e19',
+        '100000': 'a9e1bebb36bc26d7c997d5483cbc8d' +
+                  'e4a419d1e706571342632586ec330a7290'
+      },
+      'SHA-256': {
+        '1': 'f7ce0b653d2d72a4108cf5abe912ffdd777' +
+             '616dbbb27a70e8204f3ae2d0f6fad',
+        '1000': '4fc58a21c100ce1835b8f9991d738b56' +
+                '965d14b24e1761fbdffc69ac5e0b667a',
+        '100000': '64a868d4b23af696d3734d0b814d04' +
+                  'cdd1ac280128e97653a05f32b49c13a29a'
+      }
+    }
+  }
 };
 
 async function setupBaseKeys() {
