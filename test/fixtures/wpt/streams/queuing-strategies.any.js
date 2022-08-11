@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 'use strict';
 
 const highWaterMarkConversions = new Map([
@@ -75,7 +75,22 @@ for (const QueuingStrategy of [CountQueuingStrategy, ByteLengthQueuingStrategy])
     assert_equals(sc.size(), 2, 'size() on the subclass should override the parent');
     assert_true(sc.subClassMethod(), 'subClassMethod() should work');
   }, `${QueuingStrategy.name}: subclassing should work correctly`);
+
+  test(() => {
+    const size = new QueuingStrategy({ highWaterMark: 5 }).size;
+    assert_false('prototype' in size);
+  }, `${QueuingStrategy.name}: size should not have a prototype property`);
 }
+
+test(() => {
+  const size = new CountQueuingStrategy({ highWaterMark: 5 }).size;
+  assert_throws_js(TypeError, () => new size());
+}, `CountQueuingStrategy: size should not be a constructor`);
+
+test(() => {
+  const size = new ByteLengthQueuingStrategy({ highWaterMark: 5 }).size;
+  assert_throws_js(TypeError, () => new size({ byteLength: 1024 }));
+}, `ByteLengthQueuingStrategy: size should not be a constructor`);
 
 test(() => {
   const size = (new CountQueuingStrategy({ highWaterMark: 5 })).size;
