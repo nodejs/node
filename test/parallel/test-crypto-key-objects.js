@@ -34,18 +34,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
                                     'ascii');
 
 {
-  // Attempting to create an empty key should throw.
-  assert.throws(() => {
-    createSecretKey(Buffer.alloc(0));
-  }, {
-    name: 'RangeError',
-    code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "key.byteLength" is out of range. ' +
-             'It must be > 0. Received 0'
-  });
-}
-
-{
   // Attempting to create a key of a wrong type should throw
   const TYPE = 'wrong_type';
 
@@ -869,4 +857,14 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert(!first.publicKey.equals(second.privateKey));
   assert(!first.privateKey.equals(second.privateKey));
   assert(!first.privateKey.equals(second.publicKey));
+}
+
+{
+  const first = createSecretKey(Buffer.alloc(0));
+  const second = createSecretKey(new ArrayBuffer(0));
+  const third = createSecretKey(Buffer.alloc(1));
+  assert(first.equals(first));
+  assert(first.equals(second));
+  assert(!first.equals(third));
+  assert(!third.equals(first));
 }
