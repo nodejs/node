@@ -4,7 +4,7 @@ import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import path from 'node:path';
 import { execPath } from 'node:process';
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile, readFile, unlink } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 tmpdir.refresh();
@@ -40,26 +40,29 @@ async function spawnFixture(filename) {
 
 describe('assert.snapshot', { concurrency: true }, () => {
   it('should write snapshot', async () => {
-    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/basic.mjs'));
+    const { stderr, code, snapshot, snapshotPath } = await spawnFixture(fixtures.path('assert-snapshot/basic.mjs'));
+    await unlink(snapshotPath);
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
     assert.match(snapshot, /^name:\r?\n'test'$/);
   });
 
   it('should write multiple snapshots', async () => {
-    const { stderr, code, snapshot } = await spawnFixture(fixtures.path('assert-snapshot/multiple.mjs'));
+    const { stderr, code, snapshot, snapshotPath } = await spawnFixture(fixtures.path('assert-snapshot/multiple.mjs'));
+    await unlink(snapshotPath);
     assert.strictEqual(stderr, '');
     assert.strictEqual(code, 0);
     assert.match(snapshot, /^name:\n'test'\r?\n#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\*#\r?\nanother name:\r?\n'test'$/);
   });
 
   it('should succeed running multiple times', async () => {
-    let result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
+    let result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'), false);
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
     assert.match(result.snapshot, /^snapshot:\r?\n'test'$/);
 
     result = await spawnFixture(fixtures.path('assert-snapshot/single.mjs'));
+    await unlink(result.snapshotPath);
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.code, 0);
     assert.match(result.snapshot, /^snapshot:\r?\n'test'$/);
