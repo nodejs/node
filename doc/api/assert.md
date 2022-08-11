@@ -2027,7 +2027,7 @@ with an [`AssertionError`][].
 If the snapshot file does not exist, the snapshot is written.
 
 In case it is needed to force a snapshot update,
-use [`--enable-source-maps`][];
+use [`--update-assert-snapshot`][];
 
 By default, a snapshot is read and written to a file,
 using the same name as the main entrypoint with `.snapshot` as the extension.
@@ -2468,12 +2468,12 @@ argument.
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
+[`--update-assert-snapshot`]: cli.md#--update-assert-snapshot
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
 [`CallTracker`]: #class-assertcalltracker
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
-[`--update-assert-snapshot`]: cli.md#--update-assert-snapshot
 [`ERR_INVALID_RETURN_VALUE`]: errors.md#err_invalid_return_value
 [`Error.captureStackTrace`]: errors.md#errorcapturestacktracetargetobject-constructoropt
 [`Error`]: errors.md#class-error

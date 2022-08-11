@@ -1857,6 +1857,7 @@ Node.js options that are allowed are:
 * `--trace-warnings`
 * `--track-heap-objects`
 * `--unhandled-rejections`
+* `--update-assert-snapshot`
 * `--use-bundled-ca`
 * `--use-largepages`
 * `--use-openssl-ca`
@@ -2232,6 +2233,7 @@ done
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
+[`assert.snapshot()`]: assert.md##assertsnapshotvalue-name
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
