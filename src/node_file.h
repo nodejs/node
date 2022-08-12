@@ -23,6 +23,7 @@ class BindingData : public SnapshotableObject {
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
 
+  using InternalFieldInfo = InternalFieldInfoBase;
   SERIALIZABLE_OBJECT_METHODS()
   static constexpr FastStringKey type_name{"node::fs::BindingData"};
   static constexpr EmbedderObjectType type_int =
