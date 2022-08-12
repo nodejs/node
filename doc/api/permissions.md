@@ -1,4 +1,28 @@
-# Policies
+# Permissions
+
+This section exposes security features available to be adopted in a
+Node.js application. The available scopes are:
+
+* [Resource-based permissions](#resource-based-permissions)
+* [Process-based permissions](#process-based-permissions)
+
+Resource-based permissions stands for the managment of modules using
+policies. A policy can guarantee which module/resource is available
+during the application execution.
+
+Process-based permissions stands for the management of resources such
+as _File System_ or _Network_. A permission can be configured to restrict
+access to specific resources, for instance, one can restrict access to
+all the _File System_ write.
+
+Both permissions can be used together to provide a safer environment.
+
+**Note**: if you find a potential security vulnerability on Node.js,
+refer to our [Security Policy][].
+
+## Resource-based permissions
+
+## Policies
 
 <!--introduced_in=v11.8.0-->
 
@@ -22,7 +46,7 @@ by the running Node.js application in any way. A typical setup would be to
 create the policy file as a different user id than the one running Node.js
 and granting read permissions to the user id running Node.js.
 
-## Enabling
+### Enabling
 
 <!-- type=misc -->
 
@@ -48,9 +72,9 @@ even if the file is changed on disk.
 node --experimental-policy=policy.json --policy-integrity="sha384-SggXRQHwCG8g+DktYYzxkXRIkTiEYWBHqev0xnpCxYlqMBufKZHAHQM3/boDaI/0" app.js
 ```
 
-## Features
+### Features
 
-### Error behavior
+#### Error behavior
 
 When a policy check fails, Node.js by default will throw an error.
 It is possible to change the error behavior to one of a few possibilities
@@ -74,7 +98,7 @@ available to change the behavior:
 }
 ```
 
-### Integrity checks
+#### Integrity checks
 
 Policy files must use integrity checks with Subresource Integrity strings
 compatible with the browser
@@ -116,7 +140,7 @@ body for the resource which can be useful for local development. It is not
 recommended in production since it would allow unexpected alteration of
 resources to be considered valid.
 
-### Dependency redirection
+#### Dependency redirection
 
 An application may need to ship patched versions of modules or to prevent
 modules from allowing all modules access to all other modules. Redirection
@@ -423,6 +447,9 @@ not adopt the origin of the `blob:` URL.
 Additionally, import maps only work on `import` so it may be desirable to add a
 `"import"` condition to all dependency mappings.
 
+## Process-based permissions
+
 [import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [special schemes]: https://url.spec.whatwg.org/#special-scheme
+[Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
