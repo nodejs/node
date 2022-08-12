@@ -2654,33 +2654,12 @@
   "encrypt_decrypt/aes_cbc.https.any.js": {
     "fail": {
       "expected": [
-        "AES-CBC 128-bit key, zeroPadChar",
-        "AES-CBC 128-bit key, bigPadChar",
-        "AES-CBC 128-bit key, inconsistentPadChars",
-        "AES-CBC 192-bit key, zeroPadChar",
-        "AES-CBC 192-bit key, bigPadChar",
-        "AES-CBC 192-bit key, inconsistentPadChars",
-        "AES-CBC 256-bit key, zeroPadChar",
-        "AES-CBC 256-bit key, bigPadChar",
-        "AES-CBC 256-bit key, inconsistentPadChars"
       ]
     }
   },
   "encrypt_decrypt/rsa_oaep.https.any.js": {
     "fail": {
       "expected": [
-        "RSA-OAEP with SHA-1 and no label too long plaintext",
-        "RSA-OAEP with SHA-256 and no label too long plaintext",
-        "RSA-OAEP with SHA-384 and no label too long plaintext",
-        "RSA-OAEP with SHA-512 and no label too long plaintext",
-        "RSA-OAEP with SHA-1 and empty label too long plaintext",
-        "RSA-OAEP with SHA-256 and empty label too long plaintext",
-        "RSA-OAEP with SHA-384 and empty label too long plaintext",
-        "RSA-OAEP with SHA-512 and empty label too long plaintext",
-        "RSA-OAEP with SHA-1 and a label too long plaintext",
-        "RSA-OAEP with SHA-256 and a label too long plaintext",
-        "RSA-OAEP with SHA-384 and a label too long plaintext",
-        "RSA-OAEP with SHA-512 and a label too long plaintext"
       ]
     }
   },
