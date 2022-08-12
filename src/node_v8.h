@@ -11,12 +11,14 @@
 
 namespace node {
 class Environment;
-struct InternalFieldInfo;
+struct InternalFieldInfoBase;
 
 namespace v8_utils {
 class BindingData : public SnapshotableObject {
  public:
   BindingData(Environment* env, v8::Local<v8::Object> obj);
+
+  using InternalFieldInfo = InternalFieldInfoBase;
 
   SERIALIZABLE_OBJECT_METHODS()
   static constexpr FastStringKey type_name{"node::v8::BindingData"};

@@ -50,6 +50,8 @@ class BindingData : public SnapshotableObject {
   void AddMethods();
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
+  using InternalFieldInfo = InternalFieldInfoBase;
+
   SERIALIZABLE_OBJECT_METHODS()
   static constexpr FastStringKey type_name{"node::process::BindingData"};
   static constexpr EmbedderObjectType type_int =

@@ -2400,7 +2400,7 @@ BindingData::BindingData(Environment* env, v8::Local<v8::Object> wrap)
 void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
-                              InternalFieldInfo* info) {
+                              InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
@@ -2408,18 +2408,22 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-void BindingData::PrepareForSerialization(Local<Context> context,
+bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
   CHECK(file_handle_read_wrap_freelist.empty());
   // We'll just re-initialize the buffers in the constructor since their
   // contents can be thrown away once consumed in the previous call.
   stats_field_array.Release();
   stats_field_bigint_array.Release();
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
 }
 
-InternalFieldInfo* BindingData::Serialize(int index) {
+InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
 }
 

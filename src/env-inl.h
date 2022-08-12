@@ -835,17 +835,6 @@ void Environment::ForEachBaseObject(T&& iterator) {
   }
 }
 
-template <typename T>
-void Environment::ForEachBindingData(T&& iterator) {
-  BindingDataStore* map = static_cast<BindingDataStore*>(
-      context()->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(map);
-  for (auto& it : *map) {
-    iterator(it.first, it.second);
-  }
-}
-
 void Environment::modify_base_object_count(int64_t delta) {
   base_object_count_ += delta;
 }

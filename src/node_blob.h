@@ -146,6 +146,8 @@ class BlobBindingData : public SnapshotableObject {
  public:
   explicit BlobBindingData(Environment* env, v8::Local<v8::Object> wrap);
 
+  using InternalFieldInfo = InternalFieldInfoBase;
+
   SERIALIZABLE_OBJECT_METHODS()
 
   static constexpr FastStringKey type_name{"node::BlobBindingData"};
