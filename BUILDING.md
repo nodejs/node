@@ -37,7 +37,7 @@ file a new issue.
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
-  * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
+  * [Android](#android)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
     * [Unix/macOS](#unixmacos)
@@ -647,7 +647,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android/Android-based devices (e.g. Firefox OS)
+### Android
 
 Android is not a supported platform. Patches to improve the Android build are
 welcome. There is no testing on Android in the current continuous integration
@@ -655,13 +655,16 @@ environment. The participation of people dedicated and determined to improve
 Android building, testing, and support is encouraged.
 
 Be sure you have downloaded and extracted
-[Android NDK](https://developer.android.com/tools/sdk/ndk/index.html) before in
+[Android NDK](https://developer.android.com/ndk) before in
 a folder. Then run:
 
 ```console
-$ ./android-configure /path/to/your/android-ndk
-$ make
+$ source ./android-configure /path/to/your/android-ndk target_arch android_sdk_version
+$ make -j4
 ```
+
+The Android SDK version should be at least 24 (Android 7.0) and the target
+architecture supports \[arm, arm64/aarch64, x86, x86\_64].
 
 ## `Intl` (ECMA-402) support
 
