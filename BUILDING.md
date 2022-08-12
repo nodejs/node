@@ -37,6 +37,7 @@ file a new issue.
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
+    * [Building a debug build](#building-a-debug-build-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
@@ -646,6 +647,16 @@ To test if Node.js was built correctly:
 ```console
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
+
+#### Building a debug build
+
+To build a debug binary:
+
+```console
+> .\vcbuild debug
+```
+
+This will generate a debug binary in `out\Debug\node.exe`
 
 ### Android/Android-based devices (e.g. Firefox OS)
 
