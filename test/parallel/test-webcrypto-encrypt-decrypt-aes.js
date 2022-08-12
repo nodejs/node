@@ -119,7 +119,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        name: 'OperationError'
       }));
     });
 
@@ -158,7 +158,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        name: 'OperationError'
       }));
     });
 
@@ -195,7 +195,7 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
 
     decryptionFailing.forEach((vector) => {
       variations.push(assert.rejects(testDecrypt(vector), {
-        message: /bad decrypt/
+        name: 'OperationError'
       }));
     });
 
