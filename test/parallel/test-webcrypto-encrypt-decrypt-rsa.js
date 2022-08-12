@@ -127,7 +127,7 @@ async function testEncryptionLongPlaintext({ algorithm,
 
   return assert.rejects(
     subtle.encrypt(algorithm, publicKey, newplaintext), {
-      message: /data too large/
+      name: 'OperationError'
     });
 }
 
