@@ -1208,6 +1208,10 @@ def configure_node(o):
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
+  # Enable branch protection for arm64
+  if target_arch == 'arm64':
+    o['cflags']+=['-msign-return-address=all']
+
   if options.node_snapshot_main is not None:
     if options.shared:
       # This should be possible to fix, but we will need to refactor the
