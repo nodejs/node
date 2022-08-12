@@ -462,11 +462,10 @@ BlobBindingData::StoredDataObject BlobBindingData::get_data_object(
   return entry->second;
 }
 
-void BlobBindingData::Deserialize(
-    Local<Context> context,
-    Local<Object> holder,
-    int index,
-    InternalFieldInfo* info) {
+void BlobBindingData::Deserialize(Local<Context> context,
+                                  Local<Object> holder,
+                                  int index,
+                                  InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
@@ -475,15 +474,18 @@ void BlobBindingData::Deserialize(
   CHECK_NOT_NULL(binding);
 }
 
-void BlobBindingData::PrepareForSerialization(
-    Local<Context> context,
-    v8::SnapshotCreator* creator) {
+bool BlobBindingData::PrepareForSerialization(Local<Context> context,
+                                              v8::SnapshotCreator* creator) {
   // Stored blob objects are not actually persisted.
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
 }
 
-InternalFieldInfo* BlobBindingData::Serialize(int index) {
+InternalFieldInfoBase* BlobBindingData::Serialize(int index) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
 }
 

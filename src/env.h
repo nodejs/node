@@ -956,19 +956,19 @@ class CleanupHookCallback {
 typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> holder,
                                            int index,
-                                           InternalFieldInfo* info);
+                                           InternalFieldInfoBase* info);
 struct DeserializeRequest {
   DeserializeRequestCallback cb;
   v8::Global<v8::Object> holder;
   int index;
-  InternalFieldInfo* info = nullptr;  // Owned by the request
+  InternalFieldInfoBase* info = nullptr;  // Owned by the request
 
   // Move constructor
   DeserializeRequest(DeserializeRequest&& other) = default;
 };
 
 struct EnvSerializeInfo {
-  std::vector<PropInfo> bindings;
+  std::vector<PropInfo> native_objects;
   std::vector<std::string> builtins;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
@@ -1062,7 +1062,7 @@ class Environment : public MemoryRetainer {
   void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                  v8::Local<v8::Object> holder,
                                  int index,
-                                 InternalFieldInfo* info);
+                                 InternalFieldInfoBase* info);
   void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
@@ -1485,7 +1485,7 @@ class Environment : public MemoryRetainer {
   void RemoveUnmanagedFd(int fd);
 
   template <typename T>
-  void ForEachBindingData(T&& iterator);
+  void ForEachBaseObject(T&& iterator);
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
@@ -1642,9 +1642,6 @@ class Environment : public MemoryRetainer {
 
   std::function<void(Environment*, int)> process_exit_handler_ {
       DefaultProcessExitHandler };
-
-  template <typename T>
-  void ForEachBaseObject(T&& iterator);
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)

@@ -638,7 +638,7 @@ template <>
 EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
-  result.bindings = ReadVector<PropInfo>();
+  result.native_objects = ReadVector<PropInfo>();
   result.builtins = ReadVector<std::string>();
   result.async_hooks = Read<AsyncHooks::SerializeInfo>();
   result.tick_info = Read<TickInfo::SerializeInfo>();
@@ -661,7 +661,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   }
 
   // Use += here to ensure order of evaluation.
-  size_t written_total = WriteVector<PropInfo>(data.bindings);
+  size_t written_total = WriteVector<PropInfo>(data.native_objects);
   written_total += WriteVector<std::string>(data.builtins);
   written_total += Write<AsyncHooks::SerializeInfo>(data.async_hooks);
   written_total += Write<TickInfo::SerializeInfo>(data.tick_info);
@@ -1179,17 +1179,6 @@ const char* SnapshotableObject::GetTypeNameChars() const {
   }
 }
 
-bool IsSnapshotableType(FastStringKey key) {
-#define V(PropertyName, NativeTypeName)                                        \
-  if (key == NativeTypeName::type_name) {                                      \
-    return true;                                                               \
-  }
-  SERIALIZABLE_OBJECT_TYPES(V)
-#undef V
-
-  return false;
-}
-
 void DeserializeNodeInternalFields(Local<Object> holder,
                                    int index,
                                    StartupData payload,
@@ -1212,10 +1201,10 @@ void DeserializeNodeInternalFields(Local<Object> holder,
   DCHECK_EQ(index, BaseObject::kEmbedderType);
 
   Environment* env_ptr = static_cast<Environment*>(env);
-  const InternalFieldInfo* info =
-      reinterpret_cast<const InternalFieldInfo*>(payload.data);
+  const InternalFieldInfoBase* info =
+      reinterpret_cast<const InternalFieldInfoBase*>(payload.data);
   // TODO(joyeecheung): we can add a constant kNodeEmbedderId to the
-  // beginning of every InternalFieldInfo to ensure that we don't
+  // beginning of every InternalFieldInfoBase to ensure that we don't
   // step on payloads that were not serialized by Node.js.
   switch (info->type) {
 #define V(PropertyName, NativeTypeName)                                        \
@@ -1225,12 +1214,25 @@ void DeserializeNodeInternalFields(Local<Object> holder,
                        (*holder),                                              \
                        NativeTypeName::type_name.c_str());                     \
     env_ptr->EnqueueDeserializeRequest(                                        \
-        NativeTypeName::Deserialize, holder, index, info->Copy());             \
+        NativeTypeName::Deserialize,                                           \
+        holder,                                                                \
+        index,                                                                 \
+        info->Copy<NativeTypeName::InternalFieldInfo>());                      \
     break;                                                                     \
   }
     SERIALIZABLE_OBJECT_TYPES(V)
 #undef V
-    default: { UNREACHABLE(); }
+    default: {
+      // This should only be reachable during development when trying to
+      // deserialize a snapshot blob built by a version of Node.js that
+      // has more recognizable EmbedderObjectTypes than the deserializing
+      // Node.js binary.
+      fprintf(stderr,
+              "Unknown embedder object type %" PRIu8 ", possibly caused by "
+              "mismatched Node.js versions\n",
+              static_cast<uint8_t>(info->type));
+      ABORT();
+    }
   }
 }
 
@@ -1263,17 +1265,17 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                      static_cast<int>(index),
                      *holder);
 
-  void* binding_ptr =
+  void* native_ptr =
       holder->GetAlignedPointerFromInternalField(BaseObject::kSlot);
-  per_process::Debug(DebugCategory::MKSNAPSHOT, "binding = %p\n", binding_ptr);
-  DCHECK(static_cast<BaseObject*>(binding_ptr)->is_snapshotable());
-  SnapshotableObject* obj = static_cast<SnapshotableObject*>(binding_ptr);
+  per_process::Debug(DebugCategory::MKSNAPSHOT, "native = %p\n", native_ptr);
+  DCHECK(static_cast<BaseObject*>(native_ptr)->is_snapshotable());
+  SnapshotableObject* obj = static_cast<SnapshotableObject*>(native_ptr);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
                      *holder,
                      obj->GetTypeNameChars());
-  InternalFieldInfo* info = obj->Serialize(index);
+  InternalFieldInfoBase* info = obj->Serialize(index);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "payload size=%d\n",
@@ -1282,31 +1284,35 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                      static_cast<int>(info->length)};
 }
 
-void SerializeBindingData(Environment* env,
-                          SnapshotCreator* creator,
-                          EnvSerializeInfo* info) {
+void SerializeSnapshotableObjects(Environment* env,
+                                  SnapshotCreator* creator,
+                                  EnvSerializeInfo* info) {
   uint32_t i = 0;
-  env->ForEachBindingData([&](FastStringKey key,
-                              BaseObjectPtr<BaseObject> binding) {
-    per_process::Debug(DebugCategory::MKSNAPSHOT,
-                       "Serialize binding %i (%p), object=%p, type=%s\n",
-                       static_cast<int>(i),
-                       binding.get(),
-                       *(binding->object()),
-                       key.c_str());
+  env->ForEachBaseObject([&](BaseObject* obj) {
+    // If there are any BaseObjects that are not snapshotable left
+    // during context serialization, V8 would crash due to unregistered
+    // global handles and print detailed information about them.
+    if (!obj->is_snapshotable()) {
+      return;
+    }
+    SnapshotableObject* ptr = static_cast<SnapshotableObject*>(obj);
 
-    if (IsSnapshotableType(key)) {
-      SnapshotIndex index = creator->AddData(env->context(), binding->object());
+    const char* type_name = ptr->GetTypeNameChars();
+    per_process::Debug(DebugCategory::MKSNAPSHOT,
+                       "Serialize snapshotable object %i (%p), "
+                       "object=%p, type=%s\n",
+                       static_cast<int>(i),
+                       ptr,
+                       *(ptr->object()),
+                       type_name);
+
+    if (ptr->PrepareForSerialization(env->context(), creator)) {
+      SnapshotIndex index = creator->AddData(env->context(), obj->object());
       per_process::Debug(DebugCategory::MKSNAPSHOT,
                          "Serialized with index=%d\n",
                          static_cast<int>(index));
-      info->bindings.push_back({key.c_str(), i, index});
-      SnapshotableObject* ptr = static_cast<SnapshotableObject*>(binding.get());
-      ptr->PrepareForSerialization(env->context(), creator);
-    } else {
-      UNREACHABLE();
+      info->native_objects.push_back({type_name, i, index});
     }
-
     i++;
   });
 }
