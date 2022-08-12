@@ -1,26 +1,19 @@
 # Permissions
 
-This section exposes security features available to be adopted in a
-Node.js application. The available scopes are:
+Permissions can be used to control what system resources the
+Node.js process has access to or what actions the process can take
+with those resources. Permissions can also control what modules can
+be accessed by other modules.
 
-* [Resource-based permissions](#resource-based-permissions)
-* [Process-based permissions](#process-based-permissions)
+* [Module-based permissions](#module-based-permissions) control which files
+  or URLs are available to other modules during application execution.
+  This can be used to control what modules can be accessed by third-party
+  dependencies, for example.
 
-Resource-based permissions stands for the managment of modules using
-policies. A policy can guarantee which module/resource is available
-during the application execution.
+If you find a potential security vulnerability, please refer to our
+[Security Policy][].
 
-Process-based permissions stands for the management of resources such
-as _File System_ or _Network_. A permission can be configured to restrict
-access to specific resources, for instance, one can restrict access to
-all the _File System_ write.
-
-Both permissions can be used together to provide a safer environment.
-
-**Note**: if you find a potential security vulnerability on Node.js,
-refer to our [Security Policy][].
-
-## Resource-based permissions
+## Module-based permissions
 
 ## Policies
 
@@ -447,9 +440,7 @@ not adopt the origin of the `blob:` URL.
 Additionally, import maps only work on `import` so it may be desirable to add a
 `"import"` condition to all dependency mappings.
 
-## Process-based permissions
-
+[Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [special schemes]: https://url.spec.whatwg.org/#special-scheme
-[Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
