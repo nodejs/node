@@ -524,23 +524,27 @@ void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
   NumberImpl(FromJSObject<BindingData>(args.Holder()));
 }
 
-void BindingData::PrepareForSerialization(Local<Context> context,
+bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
   // It's not worth keeping.
   // Release it, we will recreate it when the instance is dehydrated.
   array_buffer_.Reset();
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
 }
 
-InternalFieldInfo* BindingData::Serialize(int index) {
+InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
 }
 
 void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
-                              InternalFieldInfo* info) {
+                              InternalFieldInfoBase* info) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   v8::HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
