@@ -377,8 +377,11 @@ const vectors = {
         modulusLength,
         publicExponent: new Uint8Array(publicExponent),
         hash
-      }, true, usages), {
-        name: 'OperationError',
+      }, true, usages), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        assert.ok(err.cause instanceof Error);
+        assert.match(err.cause?.message, /pub exponent out of range/);
+        return true;
       });
     }));
   }

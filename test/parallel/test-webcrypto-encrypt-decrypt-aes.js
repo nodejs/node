@@ -118,8 +118,11 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     });
 
     decryptionFailing.forEach((vector) => {
-      variations.push(assert.rejects(testDecrypt(vector), {
-        name: 'OperationError'
+      variations.push(assert.rejects(testDecrypt(vector), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        assert.ok(err.cause instanceof Error);
+        assert.match(err.cause?.message, /bad decrypt/);
+        return true;
       }));
     });
 
@@ -157,8 +160,11 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     });
 
     decryptionFailing.forEach((vector) => {
-      variations.push(assert.rejects(testDecrypt(vector), {
-        name: 'OperationError'
+      variations.push(assert.rejects(testDecrypt(vector), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        assert.ok(err.cause instanceof Error);
+        assert.match(err.cause?.message, /foo/);
+        return true;
       }));
     });
 
@@ -194,8 +200,11 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     });
 
     decryptionFailing.forEach((vector) => {
-      variations.push(assert.rejects(testDecrypt(vector), {
-        name: 'OperationError'
+      variations.push(assert.rejects(testDecrypt(vector), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        assert.ok(err.cause instanceof Error);
+        assert.match(err.cause?.message, /foo/);
+        return true;
       }));
     });
 

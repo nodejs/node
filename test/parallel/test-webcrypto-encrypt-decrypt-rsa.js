@@ -126,8 +126,11 @@ async function testEncryptionLongPlaintext({ algorithm,
   newplaintext[plaintext.byteLength] = 32;
 
   return assert.rejects(
-    subtle.encrypt(algorithm, publicKey, newplaintext), {
-      name: 'OperationError'
+    subtle.encrypt(algorithm, publicKey, newplaintext), (err) => {
+      assert.strictEqual(err.name, 'OperationError');
+      assert.ok(err.cause instanceof Error);
+      assert.match(err.cause?.message, /data too large for key size/);
+      return true;
     });
 }
 
