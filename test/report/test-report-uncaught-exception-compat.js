@@ -7,8 +7,6 @@ const helper = require('../common/report');
 const tmpdir = require('../common/tmpdir');
 
 if (process.argv[2] === 'child') {
-  process.report.directory = process.argv[3];
-
   throw new Error('test error');
 }
 
@@ -18,8 +16,9 @@ const child = childProcess.spawn(process.execPath, [
   '--report-compact',
   __filename,
   'child',
-  tmpdir.path,
-]);
+], {
+  cwd: tmpdir.path
+});
 child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 1);
   const reports = helper.findReports(child.pid, tmpdir.path);
