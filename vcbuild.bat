@@ -253,6 +253,14 @@ if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 :vs-set-2022
 if defined target_env if "%target_env%" NEQ "vs2022" goto vs-set-2019
 echo Looking for Visual Studio 2022
+@rem Visual Studio 2022 17.4 added support for native host tools on ARM64
+@rem https://devblogs.microsoft.com/visualstudio/arm64-visual-studio/
+if _%PROCESSOR_ARCHITECTURE%_==_ARM64_ set msvs_host_arch=arm64
+if _%PROCESSOR_ARCHITEW6432%_==_ARM64_ set msvs_host_arch=arm64
+set vcvarsall_arg=%msvs_host_arch%_%target_arch%
+if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
+if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
+if %target_arch%==arm64 if %msvs_host_arch%==arm64 set vcvarsall_arg=arm64
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
