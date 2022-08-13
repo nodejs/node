@@ -683,8 +683,8 @@ is set to describe how authorization failed. Depending on the settings
 of the TLS server, unauthorized connections may still be accepted.
 
 The `tlsSocket.alpnProtocol` property is a string that contains the selected
-ALPN protocol. When ALPN has no selected protocol, `tlsSocket.alpnProtocol`
-equals `false`.
+ALPN protocol. When ALPN has no selected protocol because the client or the
+server did not send an ALPN extension, `tlsSocket.alpnProtocol` equals `false`.
 
 The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
@@ -2012,6 +2012,11 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44031
+    description: If `ALPNProtocols` is set, incoming connections that send an
+                 ALPN extension with no supported protocols are terminated with
+                 a fatal `no_application_protocol` alert.
   - version: v12.3.0
     pr-url: https://github.com/nodejs/node/pull/27665
     description: The `options` parameter now supports `net.createServer()`
