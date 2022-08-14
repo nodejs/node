@@ -1,6 +1,8 @@
 'use strict';
 
 require('../common');
+Error.stackTraceLimit = 4;
+
 const assert = require('assert');
 
 let err;

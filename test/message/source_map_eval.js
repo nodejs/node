@@ -2,6 +2,8 @@
 
 'use strict';
 require('../common');
+Error.stackTraceLimit = 3;
+
 const fs = require('fs');
 
 const content = fs.readFileSync(require.resolve('../fixtures/source-map/tabs.js'), 'utf8');

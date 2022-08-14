@@ -1,5 +1,7 @@
 'use strict';
 require('../common');
+Error.stackTraceLimit = 2;
+
 const EventEmitter = require('events');
 
 function foo() {
