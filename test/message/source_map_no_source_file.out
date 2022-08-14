@@ -5,13 +5,5 @@
 Error: foo
     at Throw (*file-not-exists.ts:2:9)
     at Object.<anonymous> (*file-not-exists.ts:5:1)
-    at Module._compile (node:internal/modules/cjs/loader:*)
-    at Module._extensions..js (node:internal/modules/cjs/loader:*)
-    at Module.load (node:internal/modules/cjs/loader:*)
-    at Module._load (node:internal/modules/cjs/loader:*)
-    at Module.require (node:internal/modules/cjs/loader:*)
-    at require (node:internal/modules/cjs/helpers:*)
-    at Object.<anonymous> (*source_map_no_source_file.js:6:1)
-    at Module._compile (node:internal/modules/cjs/loader:*)
 
 Node.js *
