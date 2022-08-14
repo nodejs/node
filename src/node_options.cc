@@ -140,7 +140,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (heap_snapshot_near_heap_limit < 0) {
-    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
+    errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
   if (test_runner) {
