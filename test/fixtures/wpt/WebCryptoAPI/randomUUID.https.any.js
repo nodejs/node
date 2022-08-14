@@ -14,7 +14,7 @@ function randomUUID() {
 
 // UUID is in namespace format (16 bytes separated by dashes):
 test(function() {
-    const UUIDRegex = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/
+    const UUIDRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
     for (let i = 0; i < iterations; i++) {
         assert_true(UUIDRegex.test(randomUUID()));
     }
