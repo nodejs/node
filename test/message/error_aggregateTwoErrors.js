@@ -2,6 +2,8 @@
 'use strict';
 
 require('../common');
+Error.stackTraceLimit = 1;
+
 const { aggregateTwoErrors } = require('internal/errors');
 
 const originalError = new Error('original');
