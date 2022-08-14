@@ -101,6 +101,7 @@ subSystemLabels:
   /^lib\/worker_threads.js$/: worker
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
+  /^lib\/internal\/webstreams/: web streams
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -123,6 +124,7 @@ exlusiveLabels:
   /^test\/report\//: test, report
   /^test\/fixtures\/es-module/: test, esm
   /^test\/es-module\//: test, esm
+  /^test\/fixtures\/wpt\/streams//: test, web streams
 
   /^test\//: test
 
