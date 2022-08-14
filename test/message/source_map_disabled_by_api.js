@@ -2,6 +2,7 @@
 
 'use strict';
 require('../common');
+Error.stackTraceLimit = 5;
 
 process.setSourceMapsEnabled(false);
 
