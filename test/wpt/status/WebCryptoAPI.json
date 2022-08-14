@@ -1,63 +1,6 @@
 {
-  "derive_bits_keys/hkdf.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "derive_bits_keys/pbkdf2.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "encrypt_decrypt/aes_cbc.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "encrypt_decrypt/rsa_oaep.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_AES-CBC.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_AES-CTR.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_AES-GCM.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_AES-KW.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_ECDH.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
-  },
-  "generateKey/failures_ECDSA.https.any.js": {
-    "fail": {
-      "expected": [
-      ]
-    }
+  "algorithm-discards-context.https.window.js": {
+    "skip": "Not relevant in Node.js context"
   },
   "historical.any.js": {
     "skip": "Not relevant in Node.js context"
