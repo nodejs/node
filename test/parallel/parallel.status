@@ -85,6 +85,7 @@ test-crypto-secure-heap: SKIP
 test-dgram-connect: PASS, FLAKY
 test-http-client-parse-error: PASS, FLAKY
 test-http-multi-line-headers: PASS, FLAKY
+test-http-pipeline-requests-connection-leak: PASS, FLAKY
 test-http-server-unconsume: PASS, FLAKY
 test-http-upgrade-advertise: PASS, FLAKY
 test-tls-client-mindhsize: PASS, FLAKY
