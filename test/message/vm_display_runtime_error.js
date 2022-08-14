@@ -21,6 +21,8 @@
 
 'use strict';
 require('../common');
+Error.stackTraceLimit = 4;
+
 const vm = require('vm');
 
 console.error('beginning');
