@@ -44,10 +44,12 @@ const ARGS = [
   const report = reports[0];
   helper.validate(report);
 
+  const content = require(report);
   // Errors occur in a context where env is not available, so thread ID is
   // unknown. Assert this, to verify that the underlying env-less situation is
   // actually reached.
-  assert.strictEqual(require(report).header.threadId, null);
+  assert.strictEqual(content.header.threadId, null);
+  assert.strictEqual(content.header.trigger, 'OOMError');
 }
 
 {
