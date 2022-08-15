@@ -2,6 +2,9 @@ name: Test Linux
 
 on:
   workflow_dispatch:
+  
+  schedule:
+    - cron: "*/30 * * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
