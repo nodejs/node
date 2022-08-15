@@ -1145,8 +1145,8 @@ changes:
                  `--report-uncaught-exception`.
 -->
 
-Enables report to be generated when the process is exiting for uncaught
-exceptions. Useful when inspecting the JavaScript stack in conjunction with
+Enables report to be generated when the process exits due to an uncaught
+exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
 
 ### `--secure-heap=n`
