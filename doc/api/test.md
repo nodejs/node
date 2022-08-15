@@ -316,6 +316,35 @@ Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
 
+## `run([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} Configuration options for running tests. The following
+  properties are supported:
+  * `concurrency` {number|boolean} If a number is provided,
+    then that many files would run in parallel.
+    If truthy, it would run (number of cpu cores - 1)
+    files in parallel.
+    If falsy, it would only run one file at a time.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `true`.
+  * `files`: {Array} An array containing the list of files to run.
+    **Default** matching files from [test runner execution model][].
+  * `signal` {AbortSignal} Allows aborting an in-progress test execution.
+  * `timeout` {number} A number of milliseconds the test execution will
+    fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+* Returns: {TapStream}
+
+```js
+run({ files: [path.resolve('./tests/test.js')] })
+  .pipe(process.stdout);
+```
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
@@ -563,6 +592,47 @@ describe('tests', async () => {
   });
 });
 ```
+
+## Class: `TapStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends {ReadableStream}
+
+A successful call to [`run()`][] method will return a new {TapStream}
+object, streaming a [TAP][] output
+`TapStream` will emit events, in the order of the tests definition
+
+### Event: `'test:diagnostic'`
+
+* `message` {string} The diagnostic message.
+
+Emitted when [`context.diagnostic`][] is called.
+
+### Event: `'test:fail'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `error` {Error} The failure casing test to fail.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test fails.
+
+### Event: `'test:pass'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test passes.
 
 ## Class: `TestContext`
 
@@ -849,6 +919,10 @@ added:
 [`--test`]: cli.md#--test
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`context.diagnostic`]: #contextdiagnosticmessage
+[`context.skip`]: #contextskipmessage
+[`context.todo`]: #contexttodomessage
+[`run()`]: #runoptions
 [`test()`]: #testname-options-fn
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
