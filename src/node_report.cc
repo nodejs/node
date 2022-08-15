@@ -26,6 +26,7 @@
 constexpr int NODE_REPORT_VERSION = 2;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
+constexpr int MAX_FRAME_COUNT = 10;
 
 namespace node {
 namespace report {
@@ -43,6 +44,10 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::RegisterState;
+using v8::SampleInfo;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::V8;
@@ -62,6 +67,9 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Isolate* isolate,
                                       Local<Value> error,
                                       const char* trigger);
+static void PrintJavaScriptStack(JSONWriter* writer,
+                                 Isolate* isolate,
+                                 const char* trigger);
 static void PrintJavaScriptErrorProperties(JSONWriter* writer,
                                            Isolate* isolate,
                                            Local<Value> error);
@@ -269,8 +277,6 @@ static void WriteNodeReport(Isolate* isolate,
     // Report summary JavaScript error stack backtrace
     PrintJavaScriptErrorStack(&writer, isolate, error, trigger);
 
-    // Report summary JavaScript error properties backtrace
-    PrintJavaScriptErrorProperties(&writer, isolate, error);
     writer.json_objectend();  // the end of 'javascriptStack'
 
     // Report V8 Heap and Garbage Collector information
@@ -317,7 +323,7 @@ static void WriteNodeReport(Isolate* isolate,
                       env,
                       "Worker thread subreport",
                       trigger,
-                      Local<Object>(),
+                      Local<Value>(),
                       os);
 
         Mutex::ScopedLock lock(workers_mutex);
@@ -534,19 +540,80 @@ static Maybe<std::string> ErrorToString(Isolate* isolate,
   return Just<>(std::string(*sv, sv.length()));
 }
 
+static void PrintEmptyJavaScriptStack(JSONWriter* writer) {
+  writer->json_keyvalue("message", "No stack.");
+  writer->json_arraystart("stack");
+  writer->json_element("Unavailable.");
+  writer->json_arrayend();
+
+  writer->json_objectstart("errorProperties");
+  writer->json_objectend();
+}
+
+// Do our best to report the JavaScript stack without calling into JavaScript.
+static void PrintJavaScriptStack(JSONWriter* writer,
+                                 Isolate* isolate,
+                                 const char* trigger) {
+  // Can not capture the stacktrace when the isolate is in a OOM state.
+  if (!strcmp(trigger, "OOMError")) {
+    PrintEmptyJavaScriptStack(writer);
+    return;
+  }
+
+  HandleScope scope(isolate);
+  RegisterState state;
+  state.pc = nullptr;
+  state.fp = &state;
+  state.sp = &state;
+
+  // in-out params
+  SampleInfo info;
+  void* samples[MAX_FRAME_COUNT];
+  isolate->GetStackSample(state, samples, MAX_FRAME_COUNT, &info);
+
+  Local<StackTrace> stack = StackTrace::CurrentStackTrace(
+      isolate, MAX_FRAME_COUNT, StackTrace::kDetailed);
+
+  if (stack->GetFrameCount() == 0) {
+    PrintEmptyJavaScriptStack(writer);
+    return;
+  }
+
+  writer->json_keyvalue("message", trigger);
+  writer->json_arraystart("stack");
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
+    Local<StackFrame> frame = stack->GetFrame(isolate, i);
+
+    Utf8Value function_name(isolate, frame->GetFunctionName());
+    Utf8Value script_name(isolate, frame->GetScriptName());
+    const int line_number = frame->GetLineNumber();
+    const int column = frame->GetColumn();
+
+    std::string stack_line = SPrintF(
+        "at %s (%s:%d:%d)", *function_name, *script_name, line_number, column);
+    writer->json_element(stack_line);
+  }
+  writer->json_arrayend();
+  writer->json_objectstart("errorProperties");
+  writer->json_objectend();
+}
+
 // Report the JavaScript stack.
 static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Isolate* isolate,
                                       Local<Value> error,
                                       const char* trigger) {
+  if (error.IsEmpty()) {
+    return PrintJavaScriptStack(writer, isolate, trigger);
+  }
+
   TryCatch try_catch(isolate);
   HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   std::string ss = "";
-  if ((!strcmp(trigger, "FatalError")) ||
-      (!strcmp(trigger, "Signal")) ||
-      (!ErrorToString(isolate, context, error).To(&ss))) {
-    ss = "No stack.\nUnavailable.\n";
+  if (!ErrorToString(isolate, context, error).To(&ss)) {
+    PrintEmptyJavaScriptStack(writer);
+    return;
   }
 
   int line = ss.find('\n');
@@ -569,6 +636,9 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
     }
     writer->json_arrayend();
   }
+
+  // Report summary JavaScript error properties backtrace
+  PrintJavaScriptErrorProperties(writer, isolate, error);
 }
 
 // Report a native stack backtrace
