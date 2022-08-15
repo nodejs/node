@@ -4,13 +4,5 @@
   },
   "transferable/deserialize-error.window.js": {
     "skip": "Browser-specific test"
-  },
-  "readable-byte-streams/bad-buffers-and-views.any.js": {
-    "fail": {
-      "note": "TODO: implement detached ArrayBuffer support",
-      "expected": [
-        "ReadableStream with byte source: respondWithNewView() throws if the supplied view's buffer is zero-length (in the readable state)"
-      ]
-    }
   }
 }
