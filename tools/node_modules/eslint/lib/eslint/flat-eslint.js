@@ -30,6 +30,7 @@ const {
 const {
     fileExists,
     findFiles,
+    getCacheFile,
 
     isNonEmptyString,
     isArrayOfNonEmptyString,
@@ -41,6 +42,7 @@ const {
 } = require("./eslint-helpers");
 const { pathToFileURL } = require("url");
 const { FlatConfigArray } = require("../config/flat-config-array");
+const LintResultCache = require("../cli-engine/lint-result-cache");
 
 /*
  * This is necessary to allow overwriting writeFile for testing purposes.
@@ -606,9 +608,20 @@ class FlatESLint {
             configType: "flat"
         });
 
+        const cacheFilePath = getCacheFile(
+            processedOptions.cacheLocation,
+            processedOptions.cwd
+        );
+
+        const lintResultCache = processedOptions.cache
+            ? new LintResultCache(cacheFilePath, processedOptions.cacheStrategy)
+            : null;
+
         privateMembers.set(this, {
             options: processedOptions,
             linter,
+            cacheFilePath,
+            lintResultCache,
             defaultConfigs,
             defaultIgnores: () => false,
             configs: null
@@ -782,6 +795,8 @@ class FlatESLint {
 
         // Delete cache file; should this be done here?
         if (!cache && cacheFilePath) {
+            debug(`Deleting cache file at ${cacheFilePath}`);
+
             try {
                 await fs.unlink(cacheFilePath);
             } catch (error) {
