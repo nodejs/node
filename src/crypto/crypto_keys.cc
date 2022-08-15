@@ -872,7 +872,6 @@ void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 std::shared_ptr<KeyObjectData> KeyObjectData::CreateSecret(ByteSource key) {
-  CHECK(key);
   return std::shared_ptr<KeyObjectData>(new KeyObjectData(std::move(key)));
 }
 
@@ -1390,8 +1389,9 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
   Local<Function> key_ctor;
   Local<Value> arg = FIXED_ONE_BYTE_STRING(env->isolate(),
                                            "internal/crypto/keys");
-  if (env->native_module_require()->
-      Call(context, Null(env->isolate()), 1, &arg).IsEmpty()) {
+  if (env->builtin_module_require()
+          ->Call(context, Null(env->isolate()), 1, &arg)
+          .IsEmpty()) {
     return {};
   }
   switch (data_->GetKeyType()) {

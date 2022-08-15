@@ -4,7 +4,7 @@
     "path": "common"
   },
   "console": {
-    "commit": "3b1f72e99a91d31551edd2147dc7b564eaf25d72",
+    "commit": "767ae354642bee1e4d90b28df4480475b9260e14",
     "path": "console"
   },
   "dom/abort": {
@@ -24,7 +24,7 @@
     "path": "FileAPI"
   },
   "hr-time": {
-    "commit": "9910784394858a8e34d9eb4e5d00788765abf837",
+    "commit": "34cafd797e58dad280d20040eee012d49ccfa91f",
     "path": "hr-time"
   },
   "html/webappapis/atob": {
@@ -68,7 +68,7 @@
     "path": "user-timing"
   },
   "wasm/jsapi": {
-    "commit": "1dd414c79616489ea021c800eb0375a709e8114e",
+    "commit": "d8dbe6990bed03ec03beee25069a9347d4c3d6d5",
     "path": "wasm/jsapi"
   },
   "wasm/webapi": {
@@ -76,7 +76,7 @@
     "path": "wasm/webapi"
   },
   "WebCryptoAPI": {
-    "commit": "cdd0f03df41b222aed098fbbb11c6a3cc500a86b",
+    "commit": "edca84af42bd7e84da94e63b322fe343191842d2",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {

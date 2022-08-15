@@ -1996,7 +1996,7 @@ changes:
 
 Type: Compile-time
 
-Certain versions of `node::MakeCallback` APIs available to native modules are
+Certain versions of `node::MakeCallback` APIs available to native addons are
 deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
@@ -2746,7 +2746,7 @@ changes:
 Type: Documentation-only
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
-with native modules. It was incomplete so far and instead it's better to rely
+of built-in modules. It was incomplete so far and instead it's better to rely
 upon `require('node:module').builtinModules`.
 
 ### DEP0143: `Transform._transformState`
@@ -3177,6 +3177,19 @@ Type: Documentation-only
 `code` values other than `undefined`, `null`, integer numbers and integer
 strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
 
+### DEP0165: `--trace-atomics-wait`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44093
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`--trace-atomics-wait`][] flag is deprecated.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3184,6 +3197,7 @@ strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
+[`--trace-atomics-wait`]: cli.md#--trace-atomics-wait
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray

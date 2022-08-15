@@ -1,0 +1,245 @@
+.TH "DEPENDENCY" "" "August 2022" "" ""
+.SH "NAME"
+\fBDependency\fR
+.SS Description
+.P
+The npm help \fBquery\fP commmand exposes a new dependency selector syntax (informed by & respecting many aspects of the CSS Selectors 4 Spec \fIhttps://dev\.w3\.org/csswg/selectors4/#relational)\fR which:
+.RS 0
+.IP \(bu 2
+Standardizes the shape of, & querying of, dependency graphs with a robust object model, metadata & selector syntax
+.IP \(bu 2
+Leverages existing, known language syntax & operators from CSS to make disparate package information broadly accessible
+.IP \(bu 2
+Unlocks the ability to answer complex, multi\-faceted questions about dependencies, their relationships & associative metadata
+.IP \(bu 2
+Consolidates redundant logic of similar query commands in \fBnpm\fP (ex\. \fBnpm fund\fP, \fBnpm ls\fP, \fBnpm outdated\fP, \fBnpm audit\fP \.\.\.)
+
+.RE
+.SS Dependency Selector Syntax \fBv1\.0\.0\fP
+.SS Overview:
+.RS 0
+.IP \(bu 2
+there is no "type" or "tag" selectors (ex\. \fBdiv, h1, a\fP) as a dependency/target is the only type of \fBNode\fP that can be queried
+.IP \(bu 2
+the term "dependencies" is in reference to any \fBNode\fP found in a \fBtree\fP returned by \fBArborist\fP
+
+.RE
+.SS Combinators
+.RS 0
+.IP \(bu 2
+\fB>\fP direct descendant/child
+.IP \(bu 2
+\fB \fP any descendant/child
+.IP \(bu 2
+\fB~\fP sibling
+
+.RE
+.SS Selectors
+.RS 0
+.IP \(bu 2
+\fB*\fP universal selector
+.IP \(bu 2
+\fB#<name>\fP dependency selector (equivalent to \fB[name="\.\.\."]\fP)
+.IP \(bu 2
+\fB#<name>@<version>\fP (equivalent to \fB[name=<name>]:semver(<version>)\fP)
+.IP \(bu 2
+\fB,\fP selector list delimiter
+.IP \(bu 2
+\fB\|\.\fP dependency type selector
+.IP \(bu 2
+\fB:\fP pseudo selector
+
+.RE
+.SS Dependency Type Selectors
+.RS 0
+.IP \(bu 2
+\fB\|\.prod\fP dependency found in the \fBdependencies\fP section of \fBpackage\.json\fP, or is a child of said dependency
+.IP \(bu 2
+\fB\|\.dev\fP dependency found in the \fBdevDependencies\fP section of \fBpackage\.json\fP, or is a child of said dependency
+.IP \(bu 2
+\fB\|\.optional\fP dependency found in the \fBoptionalDependencies\fP section of \fBpackage\.json\fP, or has \fB"optional": true\fP set in its entry in the \fBpeerDependenciesMeta\fP section of \fBpackage\.json\fP, or a child of said dependency
+.IP \(bu 2
+\fB\|\.peer\fP dependency found in the \fBpeerDependencies\fP section of \fBpackage\.json\fP
+.IP \(bu 2
+\fB\|\.workspace\fP dependency found in the \fBworkspaces\fP \fIhttps://docs\.npmjs\.com/cli/v8/using\-npm/workspaces\fR section of \fBpackage\.json\fP
+.IP \(bu 2
+\fB\|\.bundled\fP dependency found in the \fBbundleDependencies\fP section of \fBpackage\.json\fP, or is a child of said dependency
+
+.RE
+.SS Pseudo Selectors
+.RS 0
+.IP \(bu 2
+\fB:not(<selector>)\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:not\fR
+.IP \(bu 2
+\fB:has(<selector>)\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:has\fR
+.IP \(bu 2
+\fB:is(<selector list>)\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:is\fR
+.IP \(bu 2
+\fB:root\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:root\fR matches the root node/dependency
+.IP \(bu 2
+\fB:scope\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:scope\fR matches node/dependency it was queried against
+.IP \(bu 2
+\fB:empty\fP \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/:empty\fR when a dependency has no dependencies
+.IP \(bu 2
+\fB:private\fP \fIhttps://docs\.npmjs\.com/cli/v8/configuring\-npm/package\-json#private\fR when a dependency is private
+.IP \(bu 2
+\fB:link\fP when a dependency is linked (for instance, workspaces or packages manually \fBlinked\fP \fIhttps://docs\.npmjs\.com/cli/v8/commands/npm\-link\fR
+.IP \(bu 2
+\fB:deduped\fP when a dependency has been deduped (note that this does \fInot\fR always mean the dependency has been hoisted to the root of node_modules)
+.IP \(bu 2
+\fB:override\fP when a dependency is an override (not implemented yet)
+.IP \(bu 2
+\fB:extraneous\fP when a dependency exists but is not defined as a dependency of any node
+.IP \(bu 2
+\fB:invalid\fP when a dependency version is out of its ancestors specified range
+.IP \(bu 2
+\fB:missing\fP when a dependency is not found on disk
+.IP \(bu 2
+\fB:semver(<spec>)\fP matching a valid \fBnode\-semver\fP \fIhttps://github\.com/npm/node\-semver\fR spec
+.IP \(bu 2
+\fB:path(<path>)\fP glob \fIhttps://www\.npmjs\.com/package/glob\fR matching based on dependencies path relative to the project
+.IP \(bu 2
+\fB:type(<type>)\fP based on currently recognized types \fIhttps://github\.com/npm/npm\-package\-arg#result\-object\fR
+
+.RE
+.SS Attribute Selectors \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/Attribute_selectors\fR
+.P
+The attribute selector evaluates the key/value pairs in \fBpackage\.json\fP if they are \fBString\fPs\.
+.RS 0
+.IP \(bu 2
+\fB[]\fP attribute selector (ie\. existence of attribute)
+.IP \(bu 2
+\fB[attribute=value]\fP attribute value is equivalant\.\.\.
+.IP \(bu 2
+\fB[attribute~=value]\fP attribute value contains word\.\.\.
+.IP \(bu 2
+\fB[attribute*=value]\fP attribute value contains string\.\.\.
+.IP \(bu 2
+\fB[attribute|=value]\fP attribute value is equal to or starts with\.\.\.
+.IP \(bu 2
+\fB[attribute^=value]\fP attribute value starts with\.\.\.
+.IP \(bu 2
+\fB[attribute$=value]\fP attribute value ends with\.\.\.
+
+.RE
+.SS \fBArray\fP & \fBObject\fP Attribute Selectors
+.P
+The generic \fB:attr()\fP pseudo selector standardizes a pattern which can be used for attribute selection of \fBObject\fPs, \fBArray\fPs or \fBArrays\fP of \fBObject\fPs accessible via \fBArborist\fP\|'s \fBNode\.package\fP metadata\. This allows for iterative attribute selection beyond top\-level \fBString\fP evaluation\. The last argument passed to \fB:attr()\fP must be an \fBattribute\fP selector or a nested \fB:attr()\fP\|\. See examples below:
+.SS \fBObjects\fP
+.P
+.RS 2
+.nf
+/* return dependencies that have a `scripts\.test` containing `"tap"` */
+*:attr(scripts, [test~=tap])
+.fi
+.RE
+.SS Nested \fBObjects\fP
+.P
+Nested objects are expressed as sequential arguments to \fB:attr()\fP\|\.
+.P
+.RS 2
+.nf
+/* return dependencies that have a testling config for opera browsers */
+*:attr(testling, browsers, [~=opera])
+.fi
+.RE
+.SS \fBArrays\fP
+.P
+\fBArray\fPs specifically uses a special/reserved \fB\|\.\fP character in place of a typical attribute name\. \fBArrays\fP also support exact \fBvalue\fP matching when a \fBString\fP is passed to the selector\.
+.SS Example of an \fBArray\fP Attribute Selection:
+.P
+.RS 2
+.nf
+/* removes the distinction between properties & arrays */
+/* ie\. we'd have to check the property & iterate to match selection */
+*:attr([keywords^=react])
+*:attr(contributors, :attr([name~=Jordan]))
+.fi
+.RE
+.SS Example of an \fBArray\fP matching directly to a value:
+.P
+.RS 2
+.nf
+/* return dependencies that have the exact keyword "react" */
+/* this is equivalent to `*:keywords([value="react"])` */
+*:attr([keywords=react])
+.fi
+.RE
+.SS Example of an \fBArray\fP of \fBObject\fPs:
+.P
+.RS 2
+.nf
+/* returns */
+*:attr(contributors, [email=ruyadorno@github\.com])
+.fi
+.RE
+.SS Groups
+.P
+Dependency groups are defined by the package relationships to their ancestors (ie\. the dependency types that are defined in \fBpackage\.json\fP)\. This approach is user\-centric as the ecosystem has been taught to think about dependencies in these groups first\-and\-foremost\. Dependencies are allowed to be included in multiple groups (ex\. a \fBprod\fP dependency may also be a \fBdev\fP dependency (in that it's also required by another \fBdev\fP dependency) & may also be \fBbundled\fP \- a selector for that type of dependency would look like: \fB*\.prod\.dev\.bundled\fP)\.
+.RS 0
+.IP \(bu 2
+\fB\|\.prod\fP
+.IP \(bu 2
+\fB\|\.dev\fP
+.IP \(bu 2
+\fB\|\.optional\fP
+.IP \(bu 2
+\fB\|\.peer\fP
+.IP \(bu 2
+\fB\|\.bundled\fP
+.IP \(bu 2
+\fB\|\.workspace\fP
+
+.RE
+.P
+Please note that currently \fBworkspace\fP deps are always \fBprod\fP dependencies\.  Additionally the \fB\|\.root\fP dependency is also considered a \fBprod\fP dependency\.
+.SS Programmatic Usage
+.RS 0
+.IP \(bu 2
+\fBArborist\fP\|'s \fBNode\fP Class has a \fB\|\.querySelectorAll()\fP method
+.RS
+.IP \(bu 2
+this method will return a filtered, flattened dependency Arborist \fBNode\fP list based on a valid query selector
+
+.RE
+
+.RE
+.P
+.RS 2
+.nf
+const Arborist = require('@npmcli/arborist')
+const arb = new Arborist({})
+.fi
+.RE
+.P
+.RS 2
+.nf
+// root\-level
+arb\.loadActual((tree) => {
+  // query all production dependencies
+  const results = await tree\.querySelectorAll('\.prod')
+  console\.log(results)
+})
+.fi
+.RE
+.P
+.RS 2
+.nf
+// iterative
+arb\.loadActual((tree) => {
+  // query for the deduped version of react
+  const results = await tree\.querySelectorAll('#react:not(:deduped)')
+  // query the deduped react for git deps
+  const deps = await results[0]\.querySelectorAll(':type(git)')
+  console\.log(deps)
+})
+.fi
+.RE
+.SH See Also
+.RS 0
+.IP \(bu 2
+npm help query
+.IP \(bu 2
+@npmcli/arborist \fIhttps://npm\.im/@npmcli/arborist\fR
+
+.RE

@@ -261,6 +261,21 @@ std::ostream& operator<<(std::ostream& output,
   return output;
 }
 
+std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
+  output << "{\n"
+         << "  "
+         << (i.type == SnapshotMetadata::Type::kDefault
+                 ? "SnapshotMetadata::Type::kDefault"
+                 : "SnapshotMetadata::Type::kFullyCustomized")
+         << ", // type\n"
+         << "  \"" << i.node_version << "\", // node_version\n"
+         << "  \"" << i.node_arch << "\", // node_arch\n"
+         << "  \"" << i.node_platform << "\", // node_platform\n"
+         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
+         << "}";
+  return output;
+}
+
 IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
   IsolateDataSerializeInfo info;
@@ -1597,11 +1612,11 @@ void Environment::PrintInfoForSnapshotIfDebug() {
     fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
     PrintAllBaseObjects();
     fprintf(stderr, "\nNative modules without cache:\n");
-    for (const auto& s : native_modules_without_cache) {
+    for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nNative modules with cache:\n");
-    for (const auto& s : native_modules_with_cache) {
+    for (const auto& s : builtins_with_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nStatic bindings (need to be registered):\n");
@@ -1654,11 +1669,10 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  SerializeBindingData(this, creator, &info);
   // Currently all modules are compiled without cache in builtin snapshot
   // builder.
-  info.native_modules = std::vector<std::string>(
-      native_modules_without_cache.begin(), native_modules_without_cache.end());
+  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
+                                           builtins_without_cache.end());
 
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
@@ -1681,6 +1695,10 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   } while (0);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #undef V
+
+  // Do this after other creator->AddData() calls so that Snapshotable objects
+  // can use 0 to indicate that a SnapshotIndex is invalid.
+  SerializeSnapshotableObjects(this, creator, &info);
 
   info.context = creator->AddData(ctx, context());
   return info;
@@ -1714,12 +1732,12 @@ std::ostream& operator<<(std::ostream& output,
 
 std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   output << "{\n"
-         << "// -- bindings begins --\n"
-         << i.bindings << ",\n"
-         << "// -- bindings ends --\n"
-         << "// -- native_modules begins --\n"
-         << i.native_modules << ",\n"
-         << "// -- native_modules ends --\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
+         << "// -- builtins begins --\n"
+         << i.builtins << ",\n"
+         << "// -- builtins ends --\n"
          << "// -- async_hooks begins --\n"
          << i.async_hooks << ",\n"
          << "// -- async_hooks ends --\n"
@@ -1743,7 +1761,8 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
 void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
-                                            InternalFieldInfo* info) {
+                                            InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
 }
@@ -1767,7 +1786,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 
   RunDeserializeRequests();
 
-  native_modules_in_snapshot = info->native_modules;
+  builtins_in_snapshot = info->builtins;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
@@ -1988,9 +2007,8 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("native_modules_with_cache", native_modules_with_cache);
-  tracker->TrackField("native_modules_without_cache",
-                      native_modules_without_cache);
+  tracker->TrackField("builtins_with_cache", builtins_with_cache);
+  tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
   tracker->TrackField("exiting", exiting_);
@@ -2027,7 +2045,9 @@ void Environment::RunWeakRefCleanup() {
 BaseObject::BaseObject(Environment* env, Local<Object> object)
     : persistent_handle_(env->isolate(), object), env_(env) {
   CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
+  CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                           &kNodeEmbedderId);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot,
                                            static_cast<void*>(this));
   env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
@@ -2078,10 +2098,19 @@ void BaseObject::MakeWeak() {
       WeakCallbackType::kParameter);
 }
 
+// This just has to be different from the Chromium ones:
+// https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
+// Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
+// misinterpret the data stored in the embedder fields and try to garbage
+// collect them.
+uint16_t kNodeEmbedderId = 0x90de;
+
 void BaseObject::LazilyInitializedJSTemplateConstructor(
     const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
-  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                                &kNodeEmbedderId);
   args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
 }
 

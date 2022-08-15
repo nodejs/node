@@ -140,7 +140,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (heap_snapshot_near_heap_limit < 0) {
-    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
+    errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
   if (test_runner) {
@@ -540,7 +540,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::throw_deprecation,
             kAllowedInEnvironment);
   AddOption("--trace-atomics-wait",
-            "trace Atomics.wait() operations",
+            "(deprecated) trace Atomics.wait() operations",
             &EnvironmentOptions::trace_atomics_wait,
             kAllowedInEnvironment);
   AddOption("--trace-deprecation",
@@ -621,6 +621,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "to be a terminal",
             &EnvironmentOptions::force_repl);
   AddAlias("-i", "--interactive");
+
+  AddOption("--update-assert-snapshot",
+            "update assert snapshot files",
+            &EnvironmentOptions::update_assert_snapshot,
+            kAllowedInEnvironment);
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
 

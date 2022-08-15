@@ -4,9 +4,9 @@
 #include "crypto/crypto_util.h"
 #endif  // HAVE_OPENSSL
 #include "debug_utils-inl.h"
+#include "node_builtins.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_native_module.h"
 #include "node_options-inl.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
@@ -138,21 +138,6 @@ void NodeMainInstance::Run(int* exit_code, Environment* env) {
 
     *exit_code = SpinEventLoop(env).FromMaybe(1);
   }
-
-  ResetStdio();
-
-  // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
-  // make sense here.
-#if HAVE_INSPECTOR && defined(__POSIX__) && !defined(NODE_SHARED_MODE)
-  struct sigaction act;
-  memset(&act, 0, sizeof(act));
-  for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-    if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
-      continue;
-    act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
-    CHECK_EQ(0, sigaction(nr, &act, nullptr));
-  }
-#endif
 
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();

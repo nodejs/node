@@ -1,5 +1,3 @@
-const fs = require('fs')
-const path = require('path')
 const t = require('tap')
 const tspawk = require('../../fixtures/tspawk')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
@@ -26,15 +24,11 @@ t.test('should run stop script from package.json', async t => {
       loglevel: 'silent',
     },
   })
-  const [scriptShell] = makeSpawnArgs({ path: npm.prefix, cmd: 'node ./test-stop.js' })
-  const script = spawk.spawn(scriptShell, (args) => {
-    const lastArg = args[args.length - 1]
-    const rightExtension = lastArg.endsWith('.cmd') || lastArg.endsWith('.sh')
-    const rightFilename = path.basename(lastArg).startsWith('stop')
-    const rightContents = fs.readFileSync(lastArg, { encoding: 'utf8' })
-      .trim().endsWith('foo')
-    return rightExtension && rightFilename && rightContents
-  })
+  const [scriptShell, scriptArgs] = makeSpawnArgs({ path: npm.prefix, cmd: 'node ./test-stop.js' })
+  let scriptContent = scriptArgs.pop()
+  scriptContent += ' foo'
+  scriptArgs.push(scriptContent)
+  const script = spawk.spawn(scriptShell, scriptArgs)
   await npm.exec('stop', ['foo'])
   t.ok(script.called, 'script ran')
 })

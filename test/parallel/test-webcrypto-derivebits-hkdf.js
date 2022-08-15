@@ -31,7 +31,7 @@ const kDerivedKeys = {
   short: '5040737377307264',
   long: '55736572732073686f756c64207069636b206c6f6e6720706173737068726' +
           '173657320286e6f74207573652073686f72742070617373776f7264732921',
-  // empty: ''
+  empty: ''
 };
 
 const kSalts = {
@@ -259,15 +259,18 @@ async function testDeriveBitsBadLengths(
   return Promise.all([
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], 0), {
-        message: /length cannot be zero/
+        message: /length cannot be zero/,
+        name: 'OperationError',
       }),
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], null), {
-        code: 'ERR_INVALID_ARG_TYPE'
+        message: 'length cannot be null',
+        name: 'OperationError',
       }),
     assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], 15), {
-        message: /length must be a multiple of 8/
+        message: /length must be a multiple of 8/,
+        name: 'OperationError',
       }),
   ]);
 }

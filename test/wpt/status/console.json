@@ -1,5 +1,11 @@
 {
   "idlharness.any.js": {
-    "fail": ".table, .dir and .timeLog parameter lengths are wrong"
+    "fail": {
+      "flaky": [
+        "console namespace: operation assert(optional boolean, any...)",
+        "console namespace: operation table(optional any, optional sequence<DOMString>)",
+        "console namespace: operation dir(optional any, optional object?)"
+      ]
+    }
   }
 }

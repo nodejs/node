@@ -108,14 +108,25 @@ function parseURL (url) {
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
-    const origin = url.origin != null
+    let origin = url.origin != null
       ? url.origin
       : `${url.protocol}//${url.hostname}:${port}`
-    const path = url.path != null
+    let path = url.path != null
       ? url.path
       : `${url.pathname || ''}${url.search || ''}`
 
-    url = new URL(path, origin)
+    if (origin.endsWith('/')) {
+      origin = origin.substring(0, origin.length - 1)
+    }
+
+    if (path && !path.startsWith('/')) {
+      path = `/${path}`
+    }
+    // new URL(path, origin) is unsafe when `path` contains an absolute URL
+    // From https://developer.mozilla.org/en-US/docs/Web/API/URL/URL:
+    // If first parameter is a relative URL, second param is required, and will be used as the base URL.
+    // If first parameter is an absolute URL, a given second param will be ignored.
+    url = new URL(origin + path)
   }
 
   return url
