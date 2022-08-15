@@ -501,6 +501,36 @@ void OnFatalError(const char* location, const char* message) {
   ABORT();
 }
 
+void OOMErrorHandler(const char* location, bool is_heap_oom) {
+  const char* message =
+      is_heap_oom ? "Allocation failed - JavaScript heap out of memory"
+                  : "Allocation failed - process out of memory";
+  if (location) {
+    FPrintF(stderr, "FATAL ERROR: %s %s\n", location, message);
+  } else {
+    FPrintF(stderr, "FATAL ERROR: %s\n", message);
+  }
+
+  Isolate* isolate = Isolate::TryGetCurrent();
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
+  }
+  bool report_on_fatalerror;
+  {
+    Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+    report_on_fatalerror = per_process::cli_options->report_on_fatalerror;
+  }
+
+  if (report_on_fatalerror) {
+    report::TriggerNodeReport(
+        isolate, env, message, "OOMError", "", Local<Object>());
+  }
+
+  fflush(stderr);
+  ABORT();
+}
+
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
