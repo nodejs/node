@@ -392,6 +392,7 @@ static void ReportFatalException(Environment* env,
   }
 
   node::Utf8Value trace(env->isolate(), stack_trace);
+  std::string report_message = "Exception";
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !stack_trace->IsUndefined()) {
@@ -424,6 +425,8 @@ static void ReportFatalException(Environment* env,
     } else {
       node::Utf8Value name_string(env->isolate(), name.ToLocalChecked());
       node::Utf8Value message_string(env->isolate(), message.ToLocalChecked());
+      // Update the report message if it is an object has message property.
+      report_message = message_string.ToString();
 
       if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         FPrintF(stderr, "%s: %s\n", name_string, message_string);
@@ -443,6 +446,11 @@ static void ReportFatalException(Environment* env,
               "was thrown)\n",
               fs::Basename(argv0, ".exe"));
     }
+  }
+
+  if (env->isolate_data()->options()->report_uncaught_exception) {
+    report::TriggerNodeReport(
+        isolate, env, report_message.c_str(), "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {

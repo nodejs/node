@@ -1139,6 +1139,9 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44208
+    description: Report is not generated if the uncaught exception is handled.
   - version:
      - v13.12.0
      - v12.17.0
@@ -1150,9 +1153,9 @@ changes:
                  `--report-uncaught-exception`.
 -->
 
-Enables report to be generated on uncaught exceptions. Useful when inspecting
-the JavaScript stack in conjunction with native stack and other runtime
-environment data.
+Enables report to be generated when the process exits due to an uncaught
+exception. Useful when inspecting the JavaScript stack in conjunction with
+native stack and other runtime environment data.
 
 ### `--secure-heap=n`
 
