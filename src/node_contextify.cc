@@ -28,6 +28,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_snapshot_builder.h"
 #include "node_watchdog.h"
 #include "util-inl.h"
 
@@ -118,6 +119,9 @@ ContextifyContext::ContextifyContext(
     object_template = CreateGlobalTemplate(env->isolate());
     env->set_contextify_global_template(object_template);
   }
+  bool use_node_snapshot = per_process::cli_options->node_snapshot;
+  const SnapshotData* snapshot_data =
+      use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData() : nullptr;
 
   MicrotaskQueue* queue =
       microtask_queue()
@@ -125,7 +129,7 @@ ContextifyContext::ContextifyContext(
           : env->isolate()->GetCurrentContext()->GetMicrotaskQueue();
 
   Local<Context> v8_context;
-  if (!(CreateV8Context(env->isolate(), object_template, queue)
+  if (!(CreateV8Context(env->isolate(), object_template, snapshot_data, queue)
             .ToLocal(&v8_context)) ||
       !InitializeContext(v8_context, env, sandbox_obj, options)) {
     // Allocation failure, maximum call stack size reached, termination, etc.
@@ -190,17 +194,28 @@ Local<ObjectTemplate> ContextifyContext::CreateGlobalTemplate(
 MaybeLocal<Context> ContextifyContext::CreateV8Context(
     Isolate* isolate,
     Local<ObjectTemplate> object_template,
+    const SnapshotData* snapshot_data,
     MicrotaskQueue* queue) {
   EscapableHandleScope scope(isolate);
 
-  Local<Context> ctx = Context::New(isolate,
-                                    nullptr,  // extensions
-                                    object_template,
-                                    {},  // global object
-                                    {},  // deserialization callback
-                                    queue);
-  if (ctx.IsEmpty()) return MaybeLocal<Context>();
-
+  Local<Context> ctx;
+  if (snapshot_data == nullptr) {
+    ctx = Context::New(isolate,
+                       nullptr,  // extensions
+                       object_template,
+                       {},  // global object
+                       {},  // deserialization callback
+                       queue);
+    if (ctx.IsEmpty()) return MaybeLocal<Context>();
+  } else if (!Context::FromSnapshot(isolate,
+                             SnapshotData::kNodeVMContextIndex,
+                             {},       // deserialization callback
+                             nullptr,  // extensions
+                             {},       // global object
+                             queue)
+           .ToLocal(&ctx)) {
+    return MaybeLocal<Context>();
+  }
   return scope.Escape(ctx);
 }
 

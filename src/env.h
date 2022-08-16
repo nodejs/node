@@ -1002,7 +1002,8 @@ struct SnapshotData {
   enum class DataOwnership { kOwned, kNotOwned };
 
   static const uint32_t kMagic = 0x143da19;
-  static const SnapshotIndex kNodeBaseContextIndex = 0;
+  static const SnapshotIndex kNodeVMContextIndex = 0;
+  static const SnapshotIndex kNodeBaseContextIndex = kNodeVMContextIndex + 1;
   static const SnapshotIndex kNodeMainContextIndex = kNodeBaseContextIndex + 1;
 
   DataOwnership data_ownership = DataOwnership::kOwned;
