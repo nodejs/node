@@ -75,8 +75,9 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#include <memory>
 #include <functional>
+#include <memory>
+#include <ostream>
 
 // We cannot use __POSIX__ in this header because that's only defined when
 // building Node.js.
@@ -616,6 +617,33 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> PrepareStackTraceCallback(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> exception,
     v8::Local<v8::Array> trace);
+
+// Writes a diagnostic report to a file. If filename is not provided, the
+// default filename includes the date, time, PID, and a sequence number.
+// The report's JavaScript stack trace is taken from err, if present.
+// If isolate is nullptr, no information about the JavaScript environment
+// is included in the report.
+// Returns the filename of the written report.
+NODE_EXTERN std::string TriggerNodeReport(v8::Isolate* isolate,
+                                          const char* message,
+                                          const char* trigger,
+                                          const std::string& filename,
+                                          v8::Local<v8::Value> error);
+NODE_EXTERN std::string TriggerNodeReport(Environment* env,
+                                          const char* message,
+                                          const char* trigger,
+                                          const std::string& filename,
+                                          v8::Local<v8::Value> error);
+NODE_EXTERN void GetNodeReport(v8::Isolate* isolate,
+                               const char* message,
+                               const char* trigger,
+                               v8::Local<v8::Value> error,
+                               std::ostream& out);
+NODE_EXTERN void GetNodeReport(Environment* env,
+                               const char* message,
+                               const char* trigger,
+                               v8::Local<v8::Value> error,
+                               std::ostream& out);
 
 // This returns the MultiIsolatePlatform used for an Environment or IsolateData
 // instance, if one exists.

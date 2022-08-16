@@ -449,8 +449,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    report::TriggerNodeReport(
-        isolate, env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -482,10 +481,6 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   Isolate* isolate = Isolate::TryGetCurrent();
-  Environment* env = nullptr;
-  if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
-  }
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
@@ -493,8 +488,7 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   if (report_on_fatalerror) {
-    report::TriggerNodeReport(
-        isolate, env, message, "FatalError", "", Local<Object>());
+    TriggerNodeReport(isolate, message, "FatalError", "", Local<Object>());
   }
 
   fflush(stderr);
@@ -512,10 +506,6 @@ void OOMErrorHandler(const char* location, bool is_heap_oom) {
   }
 
   Isolate* isolate = Isolate::TryGetCurrent();
-  Environment* env = nullptr;
-  if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
-  }
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
@@ -523,8 +513,7 @@ void OOMErrorHandler(const char* location, bool is_heap_oom) {
   }
 
   if (report_on_fatalerror) {
-    report::TriggerNodeReport(
-        isolate, env, message, "OOMError", "", Local<Object>());
+    TriggerNodeReport(isolate, message, "OOMError", "", Local<Object>());
   }
 
   fflush(stderr);
