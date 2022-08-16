@@ -43,17 +43,20 @@ struct ContextOptions {
 
 class ContextifyContext {
  public:
-  enum InternalFields { kSlot, kInternalFieldCount };
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     const ContextOptions& options);
   ~ContextifyContext();
   static void CleanupHook(void* arg);
 
-  v8::MaybeLocal<v8::Object> CreateDataWrapper(Environment* env);
-  v8::MaybeLocal<v8::Context> CreateV8Context(Environment* env,
-                                              v8::Local<v8::Object> sandbox_obj,
-                                              const ContextOptions& options);
+  static v8::MaybeLocal<v8::Context> CreateV8Context(
+      v8::Isolate* isolate,
+      v8::Local<v8::ObjectTemplate> object_template,
+      v8::MicrotaskQueue* queue);
+  bool InitializeContext(v8::Local<v8::Context> ctx,
+                         Environment* env,
+                         v8::Local<v8::Object> sandbox_obj,
+                         const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
@@ -83,11 +86,14 @@ class ContextifyContext {
     return microtask_queue_wrap_->microtask_queue();
   }
 
-
   template <typename T>
   static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
 
+  static v8::Local<v8::ObjectTemplate> CreateGlobalTemplate(
+      v8::Isolate* isolate);
+
  private:
+  static bool IsStillInitializing(const ContextifyContext* ctx);
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CompileFunction(
@@ -150,7 +156,8 @@ class ContextifyScript : public BaseObject {
   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
   static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static bool EvalMachine(Environment* env,
+  static bool EvalMachine(v8::Local<v8::Context> context,
+                          Environment* env,
                           const int64_t timeout,
                           const bool display_errors,
                           const bool break_on_sigint,
