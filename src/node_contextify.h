@@ -52,6 +52,7 @@ class ContextifyContext {
   static v8::MaybeLocal<v8::Context> CreateV8Context(
       v8::Isolate* isolate,
       v8::Local<v8::ObjectTemplate> object_template,
+      const SnapshotData* snapshot_data,
       v8::MicrotaskQueue* queue);
   bool InitializeContext(v8::Local<v8::Context> ctx,
                          Environment* env,
