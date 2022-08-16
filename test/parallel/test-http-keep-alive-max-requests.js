@@ -14,7 +14,7 @@ function assertResponse(headers, body, expectClosed) {
     assert.match(body, /Hello World!/m);
   } else {
     assert.match(headers, /Connection: keep-alive\r\n/m);
-    assert.match(headers, /Keep-Alive: timeout=5\r\n/m);
+    assert.match(headers, /Keep-Alive: timeout=5, max=3\r\n/m);
     assert.match(body, /Hello World!/m);
   }
 }
