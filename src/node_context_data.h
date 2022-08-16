@@ -32,11 +32,15 @@ namespace node {
 #define NODE_CONTEXT_ALLOW_CODE_GENERATION_FROM_STRINGS_INDEX 36
 #endif
 
+#ifndef NODE_CONTEXT_CONTEXTIFY_CONTEXT_INDEX
+#define NODE_CONTEXT_CONTEXTIFY_CONTEXT_INDEX 37
+#endif
+
 // NODE_CONTEXT_TAG must be greater than any embedder indexes so that a single
 // check on the number of embedder data fields can assure the presence of all
 // embedder indexes.
 #ifndef NODE_CONTEXT_TAG
-#define NODE_CONTEXT_TAG 37
+#define NODE_CONTEXT_TAG 38
 #endif
 
 enum ContextEmbedderIndex {
@@ -46,6 +50,7 @@ enum ContextEmbedderIndex {
   kBindingListIndex = NODE_BINDING_LIST_INDEX,
   kAllowCodeGenerationFromStrings =
       NODE_CONTEXT_ALLOW_CODE_GENERATION_FROM_STRINGS_INDEX,
+  kContextifyContext = NODE_CONTEXT_CONTEXTIFY_CONTEXT_INDEX,
   kContextTag = NODE_CONTEXT_TAG,
 };
 
