@@ -10,9 +10,8 @@ const error = new Error('test error');
 tmpdir.refresh();
 process.report.directory = tmpdir.path;
 
-// First, install an uncaught exception hook.
-process.setUncaughtExceptionCaptureCallback(common.mustCall());
-// Do not install process uncaughtException handler.
+// Make sure the uncaughtException listener is called.
+process.on('uncaughtException', common.mustCall());
 
 process.on('exit', (code) => {
   assert.strictEqual(code, 0);
