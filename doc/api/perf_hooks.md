@@ -317,6 +317,8 @@ added: REPLACEME
 Sets the global performance resource timing buffer size to the specified number
 of "resource" type performance entry objects.
 
+By default the max buffer size is set to 250.
+
 ### `performance.timeOrigin`
 
 <!-- YAML
