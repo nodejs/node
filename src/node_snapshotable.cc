@@ -7,6 +7,7 @@
 #include "env-inl.h"
 #include "node_blob.h"
 #include "node_builtins.h"
+#include "node_contextify.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
@@ -32,6 +33,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::SnapshotCreator;
@@ -1031,6 +1033,19 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // The default context with only things created by V8.
     Local<Context> default_context = Context::New(isolate);
 
+    // The context used by the vm module.
+    Local<Context> vm_context;
+    {
+      Local<ObjectTemplate> global_template =
+          main_instance->isolate_data()->contextify_global_template();
+      CHECK(!global_template.IsEmpty());
+      if (!contextify::ContextifyContext::CreateV8Context(
+               isolate, global_template, nullptr, nullptr)
+               .ToLocal(&vm_context)) {
+        return SNAPSHOT_ERROR;
+      }
+    }
+
     // The Node.js-specific context with primodials, can be used by workers
     // TODO(joyeecheung): investigate if this can be used by vm contexts
     // without breaking compatibility.
@@ -1112,7 +1127,9 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // blob is created. So initialize all the contexts before adding them.
     // TODO(joyeecheung): figure out how to remove this restriction.
     creator.SetDefaultContext(default_context);
-    size_t index = creator.AddContext(base_context);
+    size_t index = creator.AddContext(vm_context);
+    CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
+    index = creator.AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
     index = creator.AddContext(main_context,
                                {SerializeNodeContextInternalFields, env});
