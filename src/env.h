@@ -349,6 +349,7 @@ class NoArrayBufferZeroFillScope {
   V(nistcurve_string, "nistCurve")                                             \
   V(node_string, "node")                                                       \
   V(nsname_string, "nsname")                                                   \
+  V(object_string, "Object")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
@@ -477,6 +478,7 @@ class NoArrayBufferZeroFillScope {
   V(binding_data_ctor_template, v8::FunctionTemplate)                          \
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
+  V(contextify_global_template, v8::ObjectTemplate)                            \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
@@ -560,7 +562,6 @@ class NoArrayBufferZeroFillScope {
   V(primordials_safe_weak_set_prototype_object, v8::Object)                    \
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
-  V(script_data_constructor_function, v8::Function)                            \
   V(snapshot_serialize_callback, v8::Function)                                 \
   V(snapshot_deserialize_callback, v8::Function)                               \
   V(snapshot_deserialize_main, v8::Function)                                   \

@@ -6,6 +6,7 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
+#include "node_contextify.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
@@ -444,6 +445,8 @@ void IsolateData::CreateProperties() {
 #undef V
 
   // TODO(legendecas): eagerly create per isolate templates.
+  set_contextify_global_template(
+      contextify::ContextifyContext::CreateGlobalTemplate(isolate_));
 }
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -512,12 +515,18 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 
 void Environment::AssignToContext(Local<v8::Context> context,
                                   const ContextInfo& info) {
-  ContextEmbedderTag::TagNodeContext(context);
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
+
+  // ContextifyContexts will update this to a pointer to the native object.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextifyContext, nullptr);
+
+  // This must not be done before other context fields are initialized.
+  ContextEmbedderTag::TagNodeContext(context);
 
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);

@@ -30,7 +30,12 @@ class ExternalReferenceRegistry {
   V(v8::GenericNamedPropertyDeleterCallback)                                   \
   V(v8::GenericNamedPropertyEnumeratorCallback)                                \
   V(v8::GenericNamedPropertyQueryCallback)                                     \
-  V(v8::GenericNamedPropertySetterCallback)
+  V(v8::GenericNamedPropertySetterCallback)                                    \
+  V(v8::IndexedPropertySetterCallback)                                         \
+  V(v8::IndexedPropertyDefinerCallback)                                        \
+  V(v8::IndexedPropertyDeleterCallback)                                        \
+  V(v8::IndexedPropertyQueryCallback)                                          \
+  V(v8::IndexedPropertyDescriptorCallback)
 
 #define V(ExternalReferenceType)                                               \
   void Register(ExternalReferenceType addr) { RegisterT(addr); }
