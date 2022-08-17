@@ -182,6 +182,9 @@ void UDPWrap::Initialize(Local<Object> target,
   SetProtoMethod(isolate, t, "setBroadcast", SetBroadcast);
   SetProtoMethod(isolate, t, "setTTL", SetTTL);
   SetProtoMethod(isolate, t, "bufferSize", BufferSize);
+  SetProtoMethodNoSideEffect(isolate, t, "getSendQueueSize", GetSendQueueSize);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getSendQueueCount", GetSendQueueCount);
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
@@ -783,6 +786,23 @@ MaybeLocal<Object> UDPWrap::Instantiate(Environment* env,
   return env->udp_constructor_function()->NewInstance(env->context());
 }
 
+void UDPWrap::GetSendQueueSize(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
+
+  size_t size = uv_udp_get_send_queue_size(&wrap->handle_);
+  args.GetReturnValue().Set(static_cast<double>(size));
+}
+
+void UDPWrap::GetSendQueueCount(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
+
+  size_t count = uv_udp_get_send_queue_count(&wrap->handle_);
+  args.GetReturnValue().Set(static_cast<double>(count));
+}
 
 }  // namespace node
 
