@@ -436,9 +436,6 @@ function processOptions({
     if (typeof cache !== "boolean") {
         errors.push("'cache' must be a boolean.");
     }
-    if (cache) {
-        errors.push("'cache' option is not yet supported.");
-    }
     if (!isNonEmptyString(cacheLocation)) {
         errors.push("'cacheLocation' must be a non-empty string.");
     }

@@ -139,30 +139,71 @@ class FlatConfigArray extends ConfigArray {
     [ConfigArraySymbol.finalizeConfig](config) {
 
         const { plugins, languageOptions, processor } = config;
+        let parserName, processorName;
+        let invalidParser = false,
+            invalidProcessor = false;
 
         // Check parser value
-        if (languageOptions && languageOptions.parser && typeof languageOptions.parser === "string") {
-            const { pluginName, objectName: parserName } = splitPluginIdentifier(languageOptions.parser);
+        if (languageOptions && languageOptions.parser) {
+            if (typeof languageOptions.parser === "string") {
+                const { pluginName, objectName: localParserName } = splitPluginIdentifier(languageOptions.parser);
 
-            if (!plugins || !plugins[pluginName] || !plugins[pluginName].parsers || !plugins[pluginName].parsers[parserName]) {
-                throw new TypeError(`Key "parser": Could not find "${parserName}" in plugin "${pluginName}".`);
+                parserName = languageOptions.parser;
+
+                if (!plugins || !plugins[pluginName] || !plugins[pluginName].parsers || !plugins[pluginName].parsers[localParserName]) {
+                    throw new TypeError(`Key "parser": Could not find "${localParserName}" in plugin "${pluginName}".`);
+                }
+
+                languageOptions.parser = plugins[pluginName].parsers[localParserName];
+            } else {
+                invalidParser = true;
             }
-
-            languageOptions.parser = plugins[pluginName].parsers[parserName];
         }
 
         // Check processor value
-        if (processor && typeof processor === "string") {
-            const { pluginName, objectName: processorName } = splitPluginIdentifier(processor);
+        if (processor) {
+            if (typeof processor === "string") {
+                const { pluginName, objectName: localProcessorName } = splitPluginIdentifier(processor);
 
-            if (!plugins || !plugins[pluginName] || !plugins[pluginName].processors || !plugins[pluginName].processors[processorName]) {
-                throw new TypeError(`Key "processor": Could not find "${processorName}" in plugin "${pluginName}".`);
+                processorName = processor;
+
+                if (!plugins || !plugins[pluginName] || !plugins[pluginName].processors || !plugins[pluginName].processors[localProcessorName]) {
+                    throw new TypeError(`Key "processor": Could not find "${localProcessorName}" in plugin "${pluginName}".`);
+                }
+
+                config.processor = plugins[pluginName].processors[localProcessorName];
+            } else {
+                invalidProcessor = true;
             }
-
-            config.processor = plugins[pluginName].processors[processorName];
         }
 
         ruleValidator.validate(config);
+
+        // apply special logic for serialization into JSON
+        /* eslint-disable object-shorthand -- shorthand would change "this" value */
+        Object.defineProperty(config, "toJSON", {
+            value: function() {
+
+                if (invalidParser) {
+                    throw new Error("Caching is not supported when parser is an object.");
+                }
+
+                if (invalidProcessor) {
+                    throw new Error("Caching is not supported when processor is an object.");
+                }
+
+                return {
+                    ...this,
+                    plugins: Object.keys(plugins),
+                    languageOptions: {
+                        ...languageOptions,
+                        parser: parserName
+                    },
+                    processor: processorName
+                };
+            }
+        });
+        /* eslint-enable object-shorthand -- ok to enable now */
 
         return config;
     }
