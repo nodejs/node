@@ -10,7 +10,7 @@ partial interface Performance {
 };
 typedef sequence<PerformanceEntry> PerformanceEntryList;
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface PerformanceEntry {
   readonly    attribute DOMString           name;
   readonly    attribute DOMString           entryType;
@@ -22,7 +22,7 @@ interface PerformanceEntry {
 callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList entries,
                                              PerformanceObserver observer,
                                              optional PerformanceObserverCallbackOptions options = {});
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface PerformanceObserver {
   constructor(PerformanceObserverCallback callback);
   undefined observe (optional PerformanceObserverInit options = {});
@@ -41,7 +41,7 @@ dictionary PerformanceObserverInit {
   boolean buffered;
 };
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface PerformanceObserverEntryList {
   PerformanceEntryList getEntries();
   PerformanceEntryList getEntriesByType (DOMString type);
