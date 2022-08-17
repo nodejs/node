@@ -1064,6 +1064,9 @@ changes:
 
 Name of the file to which the report will be written.
 
+If the filename is set to `'stdout'` or `'stderr'`, the report is written to
+the stdout or stderr of the process respectively.
+
 ### `--report-on-fatalerror`
 
 <!-- YAML
