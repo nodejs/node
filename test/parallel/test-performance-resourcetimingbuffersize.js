@@ -30,6 +30,11 @@ const initiatorType = '';
 const cacheMode = '';
 
 async function main() {
+  const invalidValues = [ null, undefined, true, false, -1, 1.1, Infinity, NaN, '', 'foo', {}, [], () => {} ];
+  for (const value of invalidValues) {
+    assert.throws(() => performance.setResourceTimingBufferSize(value), `${value} should throw`);
+  }
+
   performance.setResourceTimingBufferSize(1);
   performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, globalThis, cacheMode);
   // Trigger a resourcetimingbufferfull event.
