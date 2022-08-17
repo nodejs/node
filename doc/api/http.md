@@ -2129,9 +2129,40 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: v0.3.0
 -->
 
-Sends a HTTP/1.1 100 Continue message to the client, indicating that
+Sends an HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on
 `Server`.
+
+### `response.writeEarlyHints(links[, callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `links` {string|Array}
+* `callback` {Function}
+
+Sends an HTTP/1.1 103 Early Hints message to the client with a Link header,
+indicating that the user agent can preload/preconnect the linked resources.
+The `links` can be a string or an array of strings containing the values
+of the `Link` header. The optional `callback` argument will be called when
+the response message has been written.
+
+**Example**
+
+```js
+const earlyHintsLink = '</styles.css>; rel=preload; as=style';
+response.writeEarlyHints(earlyHintsLink);
+
+const earlyHintsLinks = [
+  '</styles.css>; rel=preload; as=style',
+  '</scripts.js>; rel=preload; as=script',
+];
+response.writeEarlyHints(earlyHintsLinks);
+
+const earlyHintsCallback = () => console.log('early hints message sent');
+response.writeEarlyHints(earlyHintsLinks, earlyHintsCallback);
+```
 
 ### `response.writeHead(statusCode[, statusMessage][, headers])`
 
