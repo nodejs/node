@@ -179,7 +179,7 @@ const customTypesMap = {
   'PerformanceNodeTiming':
     'perf_hooks.html#class-performancenodetiming',
   'PerformanceObserver':
-    'perf_hooks.html#class-perf_hooksperformanceobserver',
+    'perf_hooks.html#class-performanceobserver',
   'PerformanceObserverEntryList':
     'perf_hooks.html#class-performanceobserverentrylist',
 

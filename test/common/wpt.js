@@ -298,7 +298,7 @@ class WPTRunner {
     this.resource = new ResourceLoader(path);
 
     this.flags = [];
-    this.dummyGlobalThisScript = null;
+    this.globalThisInitScripts = [];
     this.initScript = null;
 
     this.status = new StatusLoader(path);
@@ -340,17 +340,17 @@ class WPTRunner {
   }
 
   get fullInitScript() {
-    if (this.initScript === null && this.dummyGlobalThisScript === null) {
-      return null;
-    }
-
-    if (this.initScript === null) {
-      return this.dummyGlobalThisScript;
-    } else if (this.dummyGlobalThisScript === null) {
+    if (this.globalThisInitScripts.length === null) {
       return this.initScript;
     }
 
-    return `${this.dummyGlobalThisScript}\n\n//===\n${this.initScript}`;
+    const globalThisInitScript = this.globalThisInitScripts.join('\n\n//===\n');
+
+    if (this.initScript === null) {
+      return globalThisInitScript;
+    }
+
+    return `${globalThisInitScript}\n\n//===\n${this.initScript}`;
   }
 
   /**
@@ -361,8 +361,9 @@ class WPTRunner {
   pretendGlobalThisAs(name) {
     switch (name) {
       case 'Window': {
-        this.dummyGlobalThisScript =
-          'global.Window = Object.getPrototypeOf(globalThis).constructor;';
+        this.globalThisInitScripts.push(
+          `global.Window = Object.getPrototypeOf(globalThis).constructor;
+          self.GLOBAL.isWorker = () => false;`);
         break;
       }
 
@@ -374,6 +375,36 @@ class WPTRunner {
 
       default: throw new Error(`Invalid globalThis type ${name}.`);
     }
+  }
+
+  brandCheckGlobalScopeAttribute(name) {
+    // TODO(legendecas): idlharness GlobalScope attribute receiver validation.
+    const script = `
+      const desc = Object.getOwnPropertyDescriptor(globalThis, '${name}');
+      function getter() {
+        // Mimic GlobalScope instance brand check.
+        if (this !== globalThis) {
+          throw new TypeError('Illegal invocation');
+        }
+        return desc.get();
+      }
+      Object.defineProperty(getter, 'name', { value: 'get ${name}' });
+
+      function setter(value) {
+        // Mimic GlobalScope instance brand check.
+        if (this !== globalThis) {
+          throw new TypeError('Illegal invocation');
+        }
+        desc.set(value);
+      }
+      Object.defineProperty(setter, 'name', { value: 'set ${name}' });
+
+      Object.defineProperty(globalThis, '${name}', {
+        get: getter,
+        set: setter,
+      });
+    `;
+    this.globalThisInitScripts.push(script);
   }
 
   // TODO(joyeecheung): work with the upstream to port more tests in .html

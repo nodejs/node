@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="timeout" content="long">
+<title>Resource Timing: EventSource timing behavior</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+</head>
+</script>
+<script>
+    async_test(t => {
+        const repetitions = 2;
+        const url = new URL(`/eventsource/resources/message.py`, location.href);
+        const eventSource = new EventSource(url);
+        let messages = 0;
+        t.add_cleanup(() => eventSource.close());
+        eventSource.addEventListener('message', () => {
+            ++messages;
+        })
+
+        new PerformanceObserver(() => {
+            const entries = performance.getEntriesByName(url);
+            assert_greater_than_equal(entries.length, messages - 1);
+            if (entries.length === repetitions)
+                t.done();
+        }).observe({type: 'resource'});
+    }, "ResourceTiming for EventSource should reflect number of re-connections to source");
+</script>
+</body>
+</html>

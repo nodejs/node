@@ -4,26 +4,55 @@ const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('performance-timeline');
 
-// Needed to access to DOMException.
-runner.setFlags(['--expose-internals']);
-
+runner.pretendGlobalThisAs('Window');
+runner.brandCheckGlobalScopeAttribute('performance');
 runner.setInitScript(`
   const {
-    PerformanceMark,
-    PerformanceMeasure,
+    PerformanceEntry,
     PerformanceObserver,
     PerformanceObserverEntryList,
-    performance,
   } = require('perf_hooks');
-  global.PerformanceMark = performance;
-  global.PerformanceMeasure = performance;
-  global.PerformanceObserver = PerformanceObserver;
-  global.PerformanceObserverEntryList = PerformanceObserverEntryList;
-  global.performance = performance;
+  Object.defineProperty(global, 'PerformanceEntry', {
+    value: PerformanceEntry,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
+  Object.defineProperty(global, 'PerformanceObserver', {
+    value: PerformanceObserver,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
+  Object.defineProperty(global, 'PerformanceObserverEntryList', {
+    value: PerformanceObserverEntryList,
+    enumerable: false,
+    writable: true,
+    configurable: true,
+  });
 
-  const { internalBinding } = require('internal/test/binding');
-  const { DOMException } = internalBinding('messaging');
-  global.DOMException = DOMException;
+  // Create a dummy resource timing entry to mimic how the browser would
+  // record the initial page load.
+  performance.markResourceTiming({
+    startTime: 0,
+    endTime: 0,
+    finalServiceWorkerStartTime: 0,
+    redirectStartTime: 0,
+    redirectEndTime: 0,
+    postRedirectStartTime: 0,
+    finalConnectionTimingInfo: {
+      domainLookupStartTime: 0,
+      domainLookupEndTime: 0,
+      connectionStartTime: 0,
+      connectionEndTime: 0,
+      secureConnectionStartTime: 0,
+      ALPNNegotiatedProtocol: '',
+    },
+    finalNetworkRequestStartTime: 0,
+    finalNetworkResponseStartTime: 0,
+    encodedBodySize: 0,
+    decodedBodySize: 0,
+  }, 'https://nodejs.org', '', global, '');
 `);
 
 runner.runJsTests();
