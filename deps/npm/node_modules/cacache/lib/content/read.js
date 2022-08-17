@@ -81,7 +81,7 @@ function readStream (cache, integrity, opts = {}) {
       return stream.emit('error', sizeError(size, stat.size))
     }
 
-    readPipeline(cpath, stat.size, sri, stream)
+    return readPipeline(cpath, stat.size, sri, stream)
   }).catch(err => stream.emit('error', err))
 
   return stream

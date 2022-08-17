@@ -155,6 +155,7 @@ function getStream (cache, key, opts = {}) {
       stream.unshift(memoStream)
     }
     stream.unshift(src)
+    return stream
   }).catch((err) => stream.emit('error', err))
 
   return stream
