@@ -6,22 +6,20 @@ const {
   PerformanceObserver,
   PerformanceEntry,
   PerformanceMark,
+  performance,
   performance: {
     nodeTiming,
-    mark,
-    measure,
-    clearMarks,
   },
 } = require('perf_hooks');
 
 assert(PerformanceObserver);
 assert(PerformanceEntry);
 assert(PerformanceMark);
-assert(mark);
-assert(measure);
+assert(performance.mark);
+assert(performance.measure);
 
 [undefined, 'a', 'null', 1, true].forEach((i) => {
-  const m = mark(i);
+  const m = performance.mark(i);
   assert(m instanceof PerformanceEntry);
   assert(m instanceof PerformanceMark);
 
@@ -32,20 +30,20 @@ assert(measure);
   assert.strictEqual(m.detail, null);
 });
 
-clearMarks();
+performance.clearMarks();
 
-assert.throws(() => mark(Symbol('a')), {
+assert.throws(() => performance.mark(Symbol('a')), {
   message: /Cannot convert a Symbol value to a string/
 });
 
 [undefined, null].forEach((detail) => {
-  const m = mark('a', { detail });
+  const m = performance.mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
   assert.strictEqual(m.detail, null);
 });
 [1, 'any', {}, [], /a/].forEach((detail) => {
-  const m = mark('a', { detail });
+  const m = performance.mark('a', { detail });
   assert.strictEqual(m.name, 'a');
   assert.strictEqual(m.entryType, 'mark');
   // Value of detail is structured cloned.
@@ -55,31 +53,31 @@ assert.throws(() => mark(Symbol('a')), {
   }
 });
 
-clearMarks();
+performance.clearMarks();
 
 {
-  const m = mark('a', { startTime: 1 });
+  const m = performance.mark('a', { startTime: 1 });
   assert.strictEqual(m.startTime, 1);
 }
 
-assert.throws(() => mark('a', { startTime: 'a' }), {
+assert.throws(() => performance.mark('a', { startTime: 'a' }), {
   code: 'ERR_INVALID_ARG_TYPE'
 });
 
-clearMarks();
-clearMarks(1);
-clearMarks(null);
+performance.clearMarks();
+performance.clearMarks(1);
+performance.clearMarks(null);
 
-assert.throws(() => clearMarks(Symbol('foo')), {
+assert.throws(() => performance.clearMarks(Symbol('foo')), {
   message: /Cannot convert a Symbol value to a string/
 });
 
 {
-  mark('a', { startTime: 0 });
-  mark('b', { startTime: 10 });
+  performance.mark('a', { startTime: 0 });
+  performance.mark('b', { startTime: 10 });
 
   {
-    const m3 = measure('foo', 'a', 'b');
+    const m3 = performance.measure('foo', 'a', 'b');
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, 0);
@@ -87,7 +85,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', 'a');
+    const m3 = performance.measure('foo', 'a');
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, 0);
@@ -95,7 +93,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', { start: 'a' });
+    const m3 = performance.measure('foo', { start: 'a' });
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, 0);
@@ -103,7 +101,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', { end: 'b' });
+    const m3 = performance.measure('foo', { end: 'b' });
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, 0);
@@ -111,7 +109,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', { duration: 11, end: 'b' });
+    const m3 = performance.measure('foo', { duration: 11, end: 'b' });
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, -1);
@@ -119,7 +117,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', { duration: 11, start: 'b' });
+    const m3 = performance.measure('foo', { duration: 11, start: 'b' });
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, 10);
@@ -127,7 +125,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', 'nodeStart');
+    const m3 = performance.measure('foo', 'nodeStart');
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, nodeTiming.nodeStart);
@@ -135,7 +133,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', 'nodeStart', 'bootstrapComplete');
+    const m3 = performance.measure('foo', 'nodeStart', 'bootstrapComplete');
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, nodeTiming.nodeStart);
@@ -145,14 +143,14 @@ assert.throws(() => clearMarks(Symbol('foo')), {
   }
 
   {
-    const m3 = measure('foo', { start: 'nodeStart', duration: 10 });
+    const m3 = performance.measure('foo', { start: 'nodeStart', duration: 10 });
     assert.strictEqual(m3.name, 'foo');
     assert.strictEqual(m3.entryType, 'measure');
     assert.strictEqual(m3.startTime, nodeTiming.nodeStart);
     assert.strictEqual(m3.duration, 10);
   }
 
-  clearMarks();
+  performance.clearMarks();
 }
 
 {
@@ -184,7 +182,7 @@ assert.throws(() => clearMarks(Symbol('foo')), {
     obs.disconnect();
   }));
   obs.observe({ entryTypes: ['mark', 'measure'] });
-  mark('a');
-  mark('b');
-  measure('a to b', 'a', 'b');
+  performance.mark('a');
+  performance.mark('b');
+  performance.measure('a to b', 'a', 'b');
 }

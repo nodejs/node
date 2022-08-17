@@ -11,6 +11,7 @@ partial interface mixin WindowOrWorkerGlobalScope {
 interface Crypto {
   [SecureContext] readonly attribute SubtleCrypto subtle;
   ArrayBufferView getRandomValues(ArrayBufferView array);
+  [SecureContext] DOMString randomUUID();
 };
 
 typedef (object or DOMString) AlgorithmIdentifier;
@@ -29,7 +30,7 @@ enum KeyType { "public", "private", "secret" };
 
 enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey" };
 
-[SecureContext,Exposed=(Window,Worker)]
+[SecureContext,Exposed=(Window,Worker),Serializable]
 interface CryptoKey {
   readonly attribute KeyType type;
   readonly attribute boolean extractable;
