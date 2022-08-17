@@ -4005,6 +4005,32 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
+### `response.writeEarlyHints(links)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `links` {string|Array}
+
+Sends a status `103 Early Hints` to the client with a Link header,
+indicating that the user agent can preload/preconnect the linked resources.
+The `links` can be a string or an array of strings containing the values
+of the `Link` header.
+
+**Example**
+
+```js
+const earlyHintsLink = '</styles.css>; rel=preload; as=style';
+response.writeEarlyHints(earlyHintsLink);
+
+const earlyHintsLinks = [
+  '</styles.css>; rel=preload; as=style',
+  '</scripts.js>; rel=preload; as=script',
+];
+response.writeEarlyHints(earlyHintsLinks);
+```
+
 #### `response.writeHead(statusCode[, statusMessage][, headers])`
 
 <!-- YAML
