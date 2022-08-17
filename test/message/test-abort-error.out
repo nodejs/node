@@ -1,0 +1,6 @@
+AbortError: The operation was aborted
+    at setImmediate (node:timers/promises:*:*)
+    at Object.<anonymous> (*) {
+  code: 'ABORT_ERR',
+  [cause]: [DOMException [AbortError]: This operation was aborted]
+}
