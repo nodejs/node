@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 'use strict';
 
 // Tests which patch the global environment are kept separate to avoid
@@ -22,6 +22,7 @@ test(t => {
 
   const trappedProperties = ['highWaterMark', 'size', 'start', 'type', 'mode'];
   for (const property of trappedProperties) {
+    // eslint-disable-next-line no-extend-native, accessor-pairs
     Object.defineProperty(Object.prototype, property, {
       get() { throw new Error(`${property} getter called`); },
       configurable: true

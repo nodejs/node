@@ -1,15 +1,17 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 'use strict';
 
 // Tests which patch the global environment are kept separate to avoid
 // interfering with other tests.
 
 test(t => {
+  // eslint-disable-next-line no-extend-native, accessor-pairs
   Object.defineProperty(Object.prototype, 'highWaterMark', {
     set() { throw new Error('highWaterMark setter called'); },
     configurable: true
   });
 
+  // eslint-disable-next-line no-extend-native, accessor-pairs
   Object.defineProperty(Object.prototype, 'size', {
     set() { throw new Error('size setter called'); },
     configurable: true

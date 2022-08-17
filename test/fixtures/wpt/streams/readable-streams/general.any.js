@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 // META: script=../resources/test-utils.js
 // META: script=../resources/rs-utils.js
 'use strict';
@@ -630,6 +630,7 @@ promise_test(() => {
   let pullCalled = 0;
   let cancelCalled = 0;
 
+  /* eslint-disable no-use-before-define */
   class Source {
     start(c) {
       startCalled++;

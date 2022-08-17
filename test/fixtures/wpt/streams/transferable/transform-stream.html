@@ -66,9 +66,14 @@ promise_test(t => {
       controller.close();
     }
   });
+  let resolve;
+  const ready = new Promise(r => resolve = r);
   let result = '';
   const sink = new WritableStream({
     write(chunk) {
+      if (result) {
+        resolve();
+      }
       result += chunk;
     }
   });
@@ -93,8 +98,7 @@ promise_test(t => {
   });
   postMessage({source, sink, transform1, transform2}, '*',
               [source, transform1, sink, transform2]);
-  return promise
-    .then(() => delay(0))
+  return ready
     .then(() => {
       assert_equals(result, 'HELLO HELLO THERE THERE ',
                     'transforms should have been applied');
