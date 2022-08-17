@@ -3,6 +3,7 @@
 self.recordingReadableStream = (extras = {}, strategy) => {
   let controllerToCopyOver;
   const stream = new ReadableStream({
+    type: extras.type,
     start(controller) {
       controllerToCopyOver = controller;
 

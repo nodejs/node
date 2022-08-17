@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 // META: script=../resources/rs-utils.js
 'use strict';
 
@@ -512,3 +512,28 @@ promise_test(() => {
     reader.releaseLock();
   });
 }, 'controller.close() should clear the list of pending read requests');
+
+promise_test(t => {
+
+  let controller;
+  const rs = new ReadableStream({
+    start(c) {
+      controller = c;
+    }
+  });
+
+  const reader1 = rs.getReader();
+  const promise1 = promise_rejects_js(t, TypeError, reader1.read(), 'read() from reader1 should reject when reader1 is released');
+  reader1.releaseLock();
+
+  controller.enqueue('a');
+
+  const reader2 = rs.getReader();
+  const promise2 = reader2.read().then(r => {
+    assert_object_equals(r, { value: 'a', done: false }, 'read() from reader2 should resolve with enqueued chunk');
+  })
+  reader2.releaseLock();
+
+  return Promise.all([promise1, promise2]);
+
+}, 'Second reader can read chunks after first reader was released with pending read requests');
