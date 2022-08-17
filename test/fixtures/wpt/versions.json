@@ -44,12 +44,16 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "fc086c82d5a7e9b01a684a23336d6d1f9e79e303",
+    "commit": "df731dab88a1a25c04eb7e6238c11dc28fda0801",
     "path": "interfaces"
   },
   "performance-timeline": {
     "commit": "17ebc3aea0d6321e69554067c39ab5855e6fb67e",
     "path": "performance-timeline"
+  },
+  "resource-timing": {
+    "commit": "22d38586d04c1d22b64db36f439c6bb84f03db7d",
+    "path": "resource-timing"
   },
   "resources": {
     "commit": "c5b428f15acfb17fe59b5a6f04a21c288a76ed36",

@@ -49,6 +49,11 @@ Node.js instance. It is similar to [`window.performance`][] in browsers.
 
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * `name` {string}
@@ -60,6 +65,11 @@ Performance Timeline. If `name` is provided, removes only the named mark.
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * `name` {string}
@@ -73,6 +83,11 @@ Performance Timeline. If `name` is provided, removes only the named measure.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * `name` {string}
@@ -147,6 +162,11 @@ are not guaranteed to reflect any correct state of the event loop.
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * Returns: {PerformanceEntry\[]}
@@ -160,6 +180,11 @@ performance entries of certain types or that have certain names, see
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * `name` {string}
@@ -175,6 +200,11 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * `type` {string}
@@ -189,6 +219,10 @@ is equal to `type`.
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to the User Timing Level 3 specification.
@@ -244,6 +278,10 @@ Performance Timeline manually with `performance.clearResourceTimings`.
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to the User Timing Level 3 specification.
@@ -305,6 +343,11 @@ metrics for specific Node.js operational milestones.
 
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 * Returns: {number}
@@ -316,6 +359,11 @@ the start of the current `node` process.
 
 <!-- YAML
 added: v18.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 Sets the global performance resource timing buffer size to the specified number
@@ -393,6 +441,11 @@ invoked.
 
 <!-- YAML
 added: v16.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the `performance` object as
+                 the receiver.
 -->
 
 An object which is JSON representation of the `performance` object. It
@@ -416,20 +469,17 @@ more entries to be added to the performance timeline buffer.
 added: v8.5.0
 -->
 
-### `performanceEntry.detail`
-
-<!-- YAML
-added: v16.0.0
--->
-
-* {any}
-
-Additional detail specific to the `entryType`.
+The constructor of this class is not exposed to users directly.
 
 ### `performanceEntry.duration`
 
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceEntry` object as the receiver.
 -->
 
 * {number}
@@ -441,6 +491,11 @@ be meaningful for all Performance Entry types.
 
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceEntry` object as the receiver.
 -->
 
 * {string}
@@ -455,7 +510,123 @@ The type of the performance entry. It may be one of:
 * `'http2'` (Node.js only)
 * `'http'` (Node.js only)
 
-### `performanceEntry.flags`
+### `performanceEntry.name`
+
+<!-- YAML
+added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceEntry` object as the receiver.
+-->
+
+* {string}
+
+The name of the performance entry.
+
+### `performanceEntry.startTime`
+
+<!-- YAML
+added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceEntry` object as the receiver.
+-->
+
+* {number}
+
+The high resolution millisecond timestamp marking the starting time of the
+Performance Entry.
+
+## Class: `PerformanceMark`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+-->
+
+* Extends: {PerformanceEntry}
+
+Exposes marks created via the `Performance.mark()` method.
+
+### `performanceMark.detail`
+
+<!-- YAML
+added: v16.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceMark` object as the receiver.
+-->
+
+* {any}
+
+Additional detail specified when creating with `Performance.mark()` method.
+
+## Class: `PerformanceMeasure`
+
+<!-- YAML
+added:
+  - v18.2.0
+  - v16.17.0
+-->
+
+* Extends: {PerformanceEntry}
+
+Exposes measures created via the `Performance.measure()` method.
+
+The constructor of this class is not exposed to users directly.
+
+### `performanceMeasure.detail`
+
+<!-- YAML
+added: v16.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceMeasure` object as the receiver.
+-->
+
+* {any}
+
+Additional detail specified when creating with `Performance.measure()` method.
+
+## Class: `PerformanceNodeEntry`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {PerformanceEntry}
+
+_This class is an extension by Node.js. It is not available in Web browsers._
+
+Provides detailed Node.js timing data.
+
+The constructor of this class is not exposed to users directly.
+
+### `performanceNodeEntry.detail`
+
+<!-- YAML
+added: v16.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceNodeEntry` object as the receiver.
+-->
+
+* {any}
+
+Additional detail specific to the `entryType`.
+
+### `performanceNodeEntry.flags`
 
 <!-- YAML
 added:
@@ -468,9 +639,9 @@ changes:
                  when entryType is 'gc'.
 -->
 
-* {number}
+> Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-_This property is an extension by Node.js. It is not available in Web browsers._
+* {number}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
 property contains additional information about garbage collection operation.
@@ -484,17 +655,7 @@ The value may be one of:
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE`
 
-### `performanceEntry.name`
-
-<!-- YAML
-added: v8.5.0
--->
-
-* {string}
-
-The name of the performance entry.
-
-### `performanceEntry.kind`
+### `performanceNodeEntry.kind`
 
 <!-- YAML
 added: v8.5.0
@@ -505,9 +666,9 @@ changes:
                  when entryType is 'gc'.
 -->
 
-* {number}
+> Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-_This property is an extension by Node.js. It is not available in Web browsers._
+* {number}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.kind`
 property identifies the type of garbage collection operation that occurred.
@@ -518,21 +679,10 @@ The value may be one of:
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_INCREMENTAL`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_WEAKCB`
 
-### `performanceEntry.startTime`
-
-<!-- YAML
-added: v8.5.0
--->
-
-* {number}
-
-The high resolution millisecond timestamp marking the starting time of the
-Performance Entry.
-
 ### Garbage Collection ('gc') Details
 
-When `performanceEntry.type` is equal to `'gc'`, the `performanceEntry.detail`
-property will be an {Object} with two properties:
+When `performanceEntry.type` is equal to `'gc'`, the
+`performanceNodeEntry.detail` property will be an {Object} with two properties:
 
 * `kind` {number} One of:
   * `perf_hooks.constants.NODE_PERFORMANCE_GC_MAJOR`
@@ -550,8 +700,9 @@ property will be an {Object} with two properties:
 
 ### HTTP ('http') Details
 
-When `performanceEntry.type` is equal to `'http'`, the `performanceEntry.detail`
-property will be an {Object} containing additional information.
+When `performanceEntry.type` is equal to `'http'`, the
+`performanceNodeEntry.detail` property will be an {Object} containing
+additional information.
 
 If `performanceEntry.name` is equal to `HttpClient`, the `detail`
 will contain the following properties: `req`, `res`. And the `req` property
@@ -569,7 +720,7 @@ diagnostic purposes, not left turned on in production by default.
 ### HTTP/2 ('http2') Details
 
 When `performanceEntry.type` is equal to `'http2'`, the
-`performanceEntry.detail` property will be an {Object} containing
+`performanceNodeEntry.detail` property will be an {Object} containing
 additional performance information.
 
 If `performanceEntry.name` is equal to `Http2Stream`, the `detail`
@@ -610,13 +761,13 @@ contain the following properties:
 ### Timerify ('function') Details
 
 When `performanceEntry.type` is equal to `'function'`, the
-`performanceEntry.detail` property will be an {Array} listing
+`performanceNodeEntry.detail` property will be an {Array} listing
 the input arguments to the timed function.
 
 ### Net ('net') Details
 
 When `performanceEntry.type` is equal to `'net'`, the
-`performanceEntry.detail` property will be an {Object} containing
+`performanceNodeEntry.detail` property will be an {Object} containing
 additional information.
 
 If `performanceEntry.name` is equal to `connect`, the `detail`
@@ -625,7 +776,7 @@ will contain the following properties: `host`, `port`.
 ### DNS ('dns') Details
 
 When `performanceEntry.type` is equal to `'dns'`, the
-`performanceEntry.detail` property will be an {Object} containing
+`performanceNodeEntry.detail` property will be an {Object} containing
 additional information.
 
 If `performanceEntry.name` is equal to `lookup`, the `detail`
@@ -758,6 +909,11 @@ The constructor of this class is not exposed to users directly.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -772,6 +928,11 @@ will always return 0.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -785,6 +946,11 @@ of the fetch which initiates the redirect.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -798,6 +964,11 @@ receiving the last byte of the response of the last redirect.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -811,6 +982,11 @@ to fetch the resource.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -824,6 +1000,11 @@ the domain name lookup for the resource.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -837,6 +1018,11 @@ after the Node.js finished the domain name lookup for the resource.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -851,6 +1037,11 @@ the resource.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -865,6 +1056,11 @@ the resource.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -878,6 +1074,11 @@ before Node.js starts the handshake process to secure the current connection.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -891,6 +1092,11 @@ before Node.js receives the first byte of the response from the server.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -905,6 +1111,11 @@ the transport connection is closed, whichever comes first.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -918,6 +1129,11 @@ includes the response header fields plus the response payload body.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -932,6 +1148,11 @@ content-codings.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This property getter must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 * {number}
@@ -946,12 +1167,17 @@ content-codings.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44483
+    description: This method must be called with the
+                 `PerformanceResourceTiming` object as the receiver.
 -->
 
 Returns a `object` that is the JSON representation of the
 `PerformanceResourceTiming` object
 
-## Class: `perf_hooks.PerformanceObserver`
+## Class: `PerformanceObserver`
 
 ### `new PerformanceObserver(callback)`
 

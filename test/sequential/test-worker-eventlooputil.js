@@ -9,7 +9,8 @@ const {
   MessagePort,
   parentPort,
 } = require('worker_threads');
-const { eventLoopUtilization, now } = require('perf_hooks').performance;
+const { performance } = require('perf_hooks');
+const { eventLoopUtilization } = require('perf_hooks').performance;
 
 // Use argv to detect whether we're running as a Worker called by this test vs.
 // this test also being called as a Worker.
@@ -35,8 +36,8 @@ function workerOnMetricsMsg(msg) {
 
   if (msg.cmd === 'spin') {
     const elu = eventLoopUtilization();
-    const t = now();
-    while (now() - t < msg.dur);
+    const t = performance.now();
+    while (performance.now() - t < msg.dur);
     return this.postMessage(eventLoopUtilization(elu));
   }
 }
