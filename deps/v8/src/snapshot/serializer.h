@@ -307,7 +307,7 @@ class Serializer : public SerializerDeserializer {
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
   bool allow_unknown_external_references_for_testing() const {
-    return (flags_ & Snapshot::kAllowUnknownExternalReferencesForTesting) != 0;
+    return true;
   }
   bool allow_active_isolate_for_testing() const {
     return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
