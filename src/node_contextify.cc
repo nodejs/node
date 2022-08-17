@@ -206,14 +206,16 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
                        {},  // global object
                        {},  // deserialization callback
                        queue);
-    if (ctx.IsEmpty()) return MaybeLocal<Context>();
+    if (ctx.IsEmpty() || InitializeBaseContextForSnapshot(ctx).IsNothing()) {
+      return MaybeLocal<Context>();
+    }
   } else if (!Context::FromSnapshot(isolate,
-                             SnapshotData::kNodeVMContextIndex,
-                             {},       // deserialization callback
-                             nullptr,  // extensions
-                             {},       // global object
-                             queue)
-           .ToLocal(&ctx)) {
+                                    SnapshotData::kNodeVMContextIndex,
+                                    {},       // deserialization callback
+                                    nullptr,  // extensions
+                                    {},       // global object
+                                    queue)
+                  .ToLocal(&ctx)) {
     return MaybeLocal<Context>();
   }
   return scope.Escape(ctx);
