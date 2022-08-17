@@ -1573,9 +1573,6 @@ class Environment : public MemoryRetainer {
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
-  static void* const kNodeContextTagPtr;
-  static int const kNodeContextTag;
-
 #if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
   bool is_in_inspector_console_call_ = false;

@@ -61,9 +61,9 @@ using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 using worker::Worker;
 
-int const Environment::kNodeContextTag = 0x6e6f64;
-void* const Environment::kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(&Environment::kNodeContextTag));
+int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
+void* const ContextEmbedderTag::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&ContextEmbedderTag::kNodeContextTag));
 
 void AsyncHooks::SetJSPromiseHooks(Local<Function> init,
                                    Local<Function> before,
@@ -512,11 +512,9 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 
 void Environment::AssignToContext(Local<v8::Context> context,
                                   const ContextInfo& info) {
+  ContextEmbedderTag::TagNodeContext(context);
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
-  // Used by Environment::GetCurrent to know that we are on a node context.
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag,
-                                           Environment::kNodeContextTagPtr);
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
