@@ -716,21 +716,19 @@ TEST(MakingExternalOneByteStringConditions) {
   Local<String> tiny_local_string = v8_str("s");
   Local<String> local_string = v8_str("s1234");
 
+  // Single-character strings should not be externalized because they
+  // are always in the RO-space.
+  CHECK(!tiny_local_string->CanMakeExternal());
   if (!v8::internal::FLAG_single_generation) {
     // We should refuse to externalize new space strings.
     CHECK(!local_string->CanMakeExternal());
     // Trigger GCs so that the newly allocated string moves to old gen.
     CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    CHECK(!tiny_local_string->CanMakeExternal());
   }
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
-
-  // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled, but they are if sandboxed external pointers are enabled.
-  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
-               i::kTaggedSize == i::kSystemPointerSize,
-           tiny_local_string->CanMakeExternal());
 }
 
 

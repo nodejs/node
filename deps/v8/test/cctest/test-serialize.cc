@@ -785,9 +785,9 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   DisableAlwaysOpt();
   const char* source1 =
       R"javascript(
-      // String would be internalized if it came from a literal so create "A"
+      // String would be internalized if it came from a literal so create "AB"
       // via a function call.
-      var global = String.fromCharCode(65);
+      var global = String.fromCharCode(65, 66);
       function f() { return global; }
       )javascript";
 
@@ -808,7 +808,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
     CHECK(result->IsString());
     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
-    CHECK_EQ(std::string(str.ToCString().get()), "A");
+    CHECK_EQ(std::string(str.ToCString().get()), "AB");
     CHECK(!str.IsInternalizedString());
     CHECK(!i::ReadOnlyHeap::Contains(str));
   }

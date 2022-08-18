@@ -269,36 +269,6 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 }
 
-
-// Copies Latin1 characters to the given fixed array looking up
-// one-char strings in the cache. Gives up on the first char that is
-// not in the cache and fills the remainder with smi zeros. Returns
-// the length of the successfully copied prefix.
-static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
-                                         FixedArray elements, int length) {
-  DisallowGarbageCollection no_gc;
-  FixedArray one_byte_cache = heap->single_character_string_cache();
-  Object undefined = ReadOnlyRoots(heap).undefined_value();
-  int i;
-  WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
-  for (i = 0; i < length; ++i) {
-    Object value = one_byte_cache.get(chars[i]);
-    if (value == undefined) break;
-    elements.set(i, value, mode);
-  }
-  if (i < length) {
-    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::zero(), length - i);
-  }
-#ifdef DEBUG
-  for (int j = 0; j < length; ++j) {
-    Object element = elements.get(j);
-    DCHECK(element == Smi::zero() ||
-           (element.IsString() && String::cast(element).LooksValid()));
-  }
-#endif
-  return i;
-}
-
 // Converts a String to JSArray.
 // For example, "foo" => ["f", "o", "o"].
 RUNTIME_FUNCTION(Runtime_StringToArray) {
@@ -311,31 +281,28 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   const int length =
       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
-  Handle<FixedArray> elements;
-  int position = 0;
+  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
-    // Try using cached chars where possible.
-    elements = isolate->factory()->NewFixedArray(length);
-
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
-    if (content.IsOneByte()) {
-      base::Vector<const uint8_t> chars = content.ToOneByteVector();
-      // Note, this will initialize all elements (not only the prefix)
-      // to prevent GC from seeing partially initialized array.
-      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),
-                                               *elements, length);
-    } else {
-      MemsetTagged(elements->data_start(),
-                   ReadOnlyRoots(isolate).undefined_value(), length);
+    // Use pre-initialized single characters.
+    base::Vector<const uint8_t> chars = content.ToOneByteVector();
+    FixedArray one_byte_table =
+        isolate->heap()->single_character_string_table();
+    for (int i = 0; i < length; ++i) {
+      Object value = one_byte_table.get(chars[i]);
+      DCHECK(value.IsString());
+      DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
+      // The single-character strings are in RO space so it should
+      // be safe to skip the write barriers.
+      elements->set(i, value, SKIP_WRITE_BARRIER);
     }
   } else {
-    elements = isolate->factory()->NewFixedArray(length);
-  }
-  for (int i = position; i < length; ++i) {
-    Handle<Object> str =
-        isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
-    elements->set(i, *str);
+    for (int i = 0; i < length; ++i) {
+      Handle<Object> str =
+          isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
+      elements->set(i, *str);
+    }
   }
 
 #ifdef DEBUG

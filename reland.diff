@@ -1,0 +1,663 @@
+From 0b350fea4378fc0792184870d11e75832e05abbc Mon Sep 17 00:00:00 2001
+From: Joyee Cheung <joyee@igalia.com>
+Date: Fri, 29 Jul 2022 18:35:23 +0800
+Subject: [PATCH] Reland "[heap] pre-populate the single_character_string_cache"
+
+This is a reland of commit 07e11a64e4394de038722be84bea3ec51812ce24.
+
+The original change removed the fill_thehole_and_call_runtime bailout
+in StringBuiltinsAssembler::StringToArray() so when the string
+is external and cannot be unpacked, the FixedArray won't be filled
+with holes before we call into the runtime, thus failing a
+heap verification if a GC happens before the array is filled. This
+reland adds back the bailout for this case.
+
+Bug: v8:12718, chromium:1330410
+
+Original change's description:
+> [heap] pre-populate the single_character_string_cache
+>
+> This simplifies the code and removes the runtime overhead of
+> spontaneously adding strings to the cache.
+>
+> Bug: v8:12718
+> Change-Id: I2ed49bd82e3baf2563eeb8f463be72c0308c52c5
+> Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/3616553
+> Reviewed-by: Dominik Inführ <dinfuehr@chromium.org>
+> Reviewed-by: Leszek Swirski <leszeks@chromium.org>
+> Reviewed-by: Jakob Kummerow <jkummerow@chromium.org>
+> Reviewed-by: Tobias Tebbi <tebbi@chromium.org>
+> Commit-Queue: Joyee Cheung <joyee@igalia.com>
+> Cr-Commit-Position: refs/heads/main@{#80803}
+
+Change-Id: I25e8724d511a8d0d971fa2a9b6ba8a0eafce4413
+---
+
+diff --git a/src/builtins/builtins-string-gen.cc b/src/builtins/builtins-string-gen.cc
+index c54769c..335e21c 100644
+--- a/src/builtins/builtins-string-gen.cc
++++ b/src/builtins/builtins-string-gen.cc
+@@ -1269,7 +1269,7 @@
+     TNode<RawPtrT> string_data =
+         to_direct.PointerToData(&fill_thehole_and_call_runtime);
+     TNode<IntPtrT> string_data_offset = to_direct.offset();
+-    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
++    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
+ 
+     BuildFastLoop<IntPtrT>(
+         IntPtrConstant(0), length,
+@@ -1285,9 +1285,7 @@
+           TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
+           TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
+ 
+-          // If we cannot find a char in the cache, fill the hole for the fixed
+-          // array, and call runtime.
+-          GotoIf(IsUndefined(entry), &fill_thehole_and_call_runtime);
++          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
+ 
+           StoreFixedArrayElement(elements, index, entry);
+         },
+diff --git a/src/codegen/code-stub-assembler.cc b/src/codegen/code-stub-assembler.cc
+index f0e6ef1..dae35ee 100644
+--- a/src/codegen/code-stub-assembler.cc
++++ b/src/codegen/code-stub-assembler.cc
+@@ -7063,34 +7063,15 @@
+   BIND(&if_codeisonebyte);
+   {
+     // Load the isolate wide single character string cache.
+-    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
++    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
+     TNode<IntPtrT> code_index = Signed(ChangeUint32ToWord(code));
+ 
+-    // Check if we have an entry for the {code} in the single character string
+-    // cache already.
+-    Label if_entryisundefined(this, Label::kDeferred),
+-        if_entryisnotundefined(this);
+     TNode<Object> entry = UnsafeLoadFixedArrayElement(cache, code_index);
+-    Branch(IsUndefined(entry), &if_entryisundefined, &if_entryisnotundefined);
++    CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
+ 
+-    BIND(&if_entryisundefined);
+-    {
+-      // Allocate a new SeqOneByteString for {code} and store it in the {cache}.
+-      TNode<String> result = AllocateSeqOneByteString(1);
+-      StoreNoWriteBarrier(
+-          MachineRepresentation::kWord8, result,
+-          IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag), code);
+-      StoreFixedArrayElement(cache, code_index, result);
+-      var_result = result;
+-      Goto(&if_done);
+-    }
+-
+-    BIND(&if_entryisnotundefined);
+-    {
+-      // Return the entry from the {cache}.
+-      var_result = CAST(entry);
+-      Goto(&if_done);
+-    }
++    // Return the entry from the {cache}.
++    var_result = CAST(entry);
++    Goto(&if_done);
+   }
+ 
+   BIND(&if_codeistwobyte);
+diff --git a/src/codegen/code-stub-assembler.h b/src/codegen/code-stub-assembler.h
+index a39d447..d1c5796 100644
+--- a/src/codegen/code-stub-assembler.h
++++ b/src/codegen/code-stub-assembler.h
+@@ -120,8 +120,8 @@
+   V(ShadowRealmImportValueFulfilledSFI,                                        \
+     shadow_realm_import_value_fulfilled_sfi,                                   \
+     ShadowRealmImportValueFulfilledSFI)                                        \
+-  V(SingleCharacterStringCache, single_character_string_cache,                 \
+-    SingleCharacterStringCache)                                                \
++  V(SingleCharacterStringTable, single_character_string_table,                 \
++    SingleCharacterStringTable)                                                \
+   V(StringIteratorProtector, string_iterator_protector,                        \
+     StringIteratorProtector)                                                   \
+   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
+diff --git a/src/compiler/effect-control-linearizer.cc b/src/compiler/effect-control-linearizer.cc
+index 59e474a..82bf05c 100644
+--- a/src/compiler/effect-control-linearizer.cc
++++ b/src/compiler/effect-control-linearizer.cc
+@@ -4037,7 +4037,6 @@
+   Node* code = __ Word32And(value, __ Uint32Constant(0xFFFF));
+ 
+   auto if_not_one_byte = __ MakeDeferredLabel();
+-  auto cache_miss = __ MakeDeferredLabel();
+   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+ 
+   // Check if the {code} is a one byte character
+@@ -4045,46 +4044,19 @@
+       code, __ Uint32Constant(String::kMaxOneByteCharCode));
+   __ GotoIfNot(check1, &if_not_one_byte);
+   {
+-    // Load the isolate wide single character string cache.
+-    Node* cache = __ HeapConstant(factory()->single_character_string_cache());
++    // Load the isolate wide single character string table.
++    Node* table = __ HeapConstant(factory()->single_character_string_table());
+ 
+-    // Compute the {cache} index for {code}.
++    // Compute the {table} index for {code}.
+     Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
+ 
+-    // Check if we have an entry for the {code} in the single character string
+-    // cache already.
++    // Load the string for the {code} from the single character string
++    // table.
+     Node* entry =
+-        __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
++        __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
+ 
+-    Node* check2 = __ TaggedEqual(entry, __ UndefinedConstant());
+-    __ GotoIf(check2, &cache_miss);
+-
+-    // Use the {entry} from the {cache}.
++    // Use the {entry} from the {table}.
+     __ Goto(&done, entry);
+-
+-    __ Bind(&cache_miss);
+-    {
+-      // Allocate a new SeqOneByteString for {code}.
+-      Node* vtrue2 =
+-          __ Allocate(AllocationType::kYoung,
+-                      __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
+-      __ StoreField(AccessBuilder::ForMap(), vtrue2,
+-                    __ HeapConstant(factory()->one_byte_string_map()));
+-      __ StoreField(AccessBuilder::ForNameRawHashField(), vtrue2,
+-                    __ Int32Constant(Name::kEmptyHashField));
+-      __ StoreField(AccessBuilder::ForStringLength(), vtrue2,
+-                    __ Int32Constant(1));
+-      __ Store(
+-          StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+-          vtrue2,
+-          __ IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
+-          code);
+-
+-      // Remember it in the {cache}.
+-      __ StoreElement(AccessBuilder::ForFixedArrayElement(), cache, index,
+-                      vtrue2);
+-      __ Goto(&done, vtrue2);
+-    }
+   }
+ 
+   __ Bind(&if_not_one_byte);
+@@ -4156,7 +4128,6 @@
+ 
+   auto if_not_single_code = __ MakeDeferredLabel();
+   auto if_not_one_byte = __ MakeDeferredLabel();
+-  auto cache_miss = __ MakeDeferredLabel();
+   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+ 
+   // Check if the {code} is a single code unit
+@@ -4169,46 +4140,19 @@
+         code, __ Uint32Constant(String::kMaxOneByteCharCode));
+     __ GotoIfNot(check1, &if_not_one_byte);
+     {
+-      // Load the isolate wide single character string cache.
+-      Node* cache = __ HeapConstant(factory()->single_character_string_cache());
++      // Load the isolate wide single character string table.
++      Node* table = __ HeapConstant(factory()->single_character_string_table());
+ 
+-      // Compute the {cache} index for {code}.
++      // Compute the {table} index for {code}.
+       Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
+ 
+-      // Check if we have an entry for the {code} in the single character string
+-      // cache already.
++      // Load the string for the {code} from the single character string
++      // table.
+       Node* entry =
+-          __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
++          __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
+ 
+-      Node* check2 = __ TaggedEqual(entry, __ UndefinedConstant());
+-      __ GotoIf(check2, &cache_miss);
+-
+-      // Use the {entry} from the {cache}.
++      // Use the {entry} from the {table}.
+       __ Goto(&done, entry);
+-
+-      __ Bind(&cache_miss);
+-      {
+-        // Allocate a new SeqOneByteString for {code}.
+-        Node* vtrue2 =
+-            __ Allocate(AllocationType::kYoung,
+-                        __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
+-        __ StoreField(AccessBuilder::ForMap(), vtrue2,
+-                      __ HeapConstant(factory()->one_byte_string_map()));
+-        __ StoreField(AccessBuilder::ForNameRawHashField(), vtrue2,
+-                      __ Int32Constant(Name::kEmptyHashField));
+-        __ StoreField(AccessBuilder::ForStringLength(), vtrue2,
+-                      __ Int32Constant(1));
+-        __ Store(
+-            StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+-            vtrue2,
+-            __ IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
+-            code);
+-
+-        // Remember it in the {cache}.
+-        __ StoreElement(AccessBuilder::ForFixedArrayElement(), cache, index,
+-                        vtrue2);
+-        __ Goto(&done, vtrue2);
+-      }
+     }
+ 
+     __ Bind(&if_not_one_byte);
+diff --git a/src/heap/factory.cc b/src/heap/factory.cc
+index dd02ec9..661c4e0 100644
+--- a/src/heap/factory.cc
++++ b/src/heap/factory.cc
+@@ -1060,18 +1060,10 @@
+ 
+ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
+   if (code <= unibrow::Latin1::kMaxChar) {
+-    {
+-      DisallowGarbageCollection no_gc;
+-      Object value = single_character_string_cache()->get(code);
+-      if (value != *undefined_value()) {
+-        return handle(String::cast(value), isolate());
+-      }
+-    }
+-    uint8_t buffer[] = {static_cast<uint8_t>(code)};
+-    Handle<String> result =
+-        InternalizeString(base::Vector<const uint8_t>(buffer, 1));
+-    single_character_string_cache()->set(code, *result);
+-    return result;
++    DisallowGarbageCollection no_gc;
++    Object value = single_character_string_table()->get(code);
++    DCHECK_NE(value, *undefined_value());
++    return handle(String::cast(value), isolate());
+   }
+   uint16_t buffer[] = {code};
+   return InternalizeString(base::Vector<const uint16_t>(buffer, 1));
+diff --git a/src/heap/object-stats.cc b/src/heap/object-stats.cc
+index 4a1b07e..1a8484c 100644
+--- a/src/heap/object-stats.cc
++++ b/src/heap/object-stats.cc
+@@ -813,8 +813,8 @@
+   RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
+                                  ObjectStats::NUMBER_STRING_CACHE_TYPE);
+   RecordSimpleVirtualObjectStats(
+-      HeapObject(), heap_->single_character_string_cache(),
+-      ObjectStats::SINGLE_CHARACTER_STRING_CACHE_TYPE);
++      HeapObject(), heap_->single_character_string_table(),
++      ObjectStats::SINGLE_CHARACTER_STRING_TABLE_TYPE);
+   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
+                                  ObjectStats::STRING_SPLIT_CACHE_TYPE);
+   RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),
+diff --git a/src/heap/object-stats.h b/src/heap/object-stats.h
+index edc68f6..371ed94 100644
+--- a/src/heap/object-stats.h
++++ b/src/heap/object-stats.h
+@@ -76,7 +76,7 @@
+   V(SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE)    \
+   V(SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE)    \
+   V(SERIALIZED_OBJECTS_TYPE)                     \
+-  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)          \
++  V(SINGLE_CHARACTER_STRING_TABLE_TYPE)          \
+   V(STRING_SPLIT_CACHE_TYPE)                     \
+   V(STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE)      \
+   V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
+diff --git a/src/heap/setup-heap-internal.cc b/src/heap/setup-heap-internal.cc
+index 0e86540..dbe0a60 100644
+--- a/src/heap/setup-heap-internal.cc
++++ b/src/heap/setup-heap-internal.cc
+@@ -686,9 +686,17 @@
+ 
+   set_weak_refs_keep_during_job(roots.undefined_value());
+ 
+-  // Allocate cache for single character one byte strings.
+-  set_single_character_string_cache(*factory->NewFixedArray(
+-      String::kMaxOneByteCharCode + 1, AllocationType::kOld));
++  // Allocate and initialize table for single character one byte strings.
++  int table_size = String::kMaxOneByteCharCode + 1;
++  set_single_character_string_table(
++      *factory->NewFixedArray(table_size, AllocationType::kOld));
++  for (int i = 0; i < table_size; ++i) {
++    uint8_t code = static_cast<uint8_t>(i);
++    Handle<String> str =
++        factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
++    DCHECK(ReadOnlyHeap::Contains(*str));
++    single_character_string_table().set(i, *str);
++  }
+ 
+   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
+     Handle<String> str =
+diff --git a/src/objects/fixed-array.h b/src/objects/fixed-array.h
+index 7affe41..79e8c33 100644
+--- a/src/objects/fixed-array.h
++++ b/src/objects/fixed-array.h
+@@ -50,7 +50,7 @@
+   V(SCRIPT_LIST_SUB_TYPE)                        \
+   V(SERIALIZED_OBJECTS_SUB_TYPE)                 \
+   V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
+-  V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
++  V(SINGLE_CHARACTER_STRING_TABLE_SUB_TYPE)      \
+   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
+   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
+   V(TEMPLATE_INFO_SUB_TYPE)                      \
+diff --git a/src/objects/lookup.cc b/src/objects/lookup.cc
+index d8cb70e..e01d88b 100644
+--- a/src/objects/lookup.cc
++++ b/src/objects/lookup.cc
+@@ -1543,7 +1543,7 @@
+   // - elements[i] (immutable if constant; be careful around dictionaries).
+   // - holder.AsJSPrimitiveWrapper.value.AsString.length (immutable).
+   // - holder.AsJSPrimitiveWrapper.value.AsString[i] (immutable).
+-  // - single_character_string_cache()->get().
++  // - single_character_string_table()->get().
+ 
+   if (IsFrozenElementsKind(elements_kind)) {
+     if (!elements.IsFixedArray()) return kGaveUp;
+@@ -1612,9 +1612,10 @@
+ 
+   if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
+ 
+-  Object value = isolate->factory()->single_character_string_cache()->get(
++  Object value = isolate->factory()->single_character_string_table()->get(
+       charcode, kRelaxedLoad);
+-  if (value == ReadOnlyRoots(isolate).undefined_value()) return kGaveUp;
++
++  DCHECK_NE(value, ReadOnlyRoots(isolate).undefined_value());
+ 
+   *result_out = String::cast(value);
+   return kPresent;
+diff --git a/src/roots/roots.h b/src/roots/roots.h
+index 460bbf7..5161244 100644
+--- a/src/roots/roots.h
++++ b/src/roots/roots.h
+@@ -243,9 +243,10 @@
+   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
+   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+   /* Caches */                                                                 \
+-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+   V(FixedArray, string_split_cache, StringSplitCache)                          \
+   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
++  /* Table of strings of one-byte single characters */                         \
++  V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
+   /* Indirection lists for isolate-independent builtins */                     \
+   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
+   /* Internal SharedFunctionInfos */                                           \
+diff --git a/src/runtime/runtime-strings.cc b/src/runtime/runtime-strings.cc
+index 6676ec3..a6d9e99 100644
+--- a/src/runtime/runtime-strings.cc
++++ b/src/runtime/runtime-strings.cc
+@@ -263,36 +263,6 @@
+   }
+ }
+ 
+-
+-// Copies Latin1 characters to the given fixed array looking up
+-// one-char strings in the cache. Gives up on the first char that is
+-// not in the cache and fills the remainder with smi zeros. Returns
+-// the length of the successfully copied prefix.
+-static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
+-                                         FixedArray elements, int length) {
+-  DisallowGarbageCollection no_gc;
+-  FixedArray one_byte_cache = heap->single_character_string_cache();
+-  Object undefined = ReadOnlyRoots(heap).undefined_value();
+-  int i;
+-  WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
+-  for (i = 0; i < length; ++i) {
+-    Object value = one_byte_cache.get(chars[i]);
+-    if (value == undefined) break;
+-    elements.set(i, value, mode);
+-  }
+-  if (i < length) {
+-    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::zero(), length - i);
+-  }
+-#ifdef DEBUG
+-  for (int j = 0; j < length; ++j) {
+-    Object element = elements.get(j);
+-    DCHECK(element == Smi::zero() ||
+-           (element.IsString() && String::cast(element).LooksValid()));
+-  }
+-#endif
+-  return i;
+-}
+-
+ // Converts a String to JSArray.
+ // For example, "foo" => ["f", "o", "o"].
+ RUNTIME_FUNCTION(Runtime_StringToArray) {
+@@ -305,31 +275,28 @@
+   const int length =
+       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
+ 
+-  Handle<FixedArray> elements;
+-  int position = 0;
++  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
+   if (s->IsFlat() && s->IsOneByteRepresentation()) {
+-    // Try using cached chars where possible.
+-    elements = isolate->factory()->NewFixedArray(length);
+-
+     DisallowGarbageCollection no_gc;
+     String::FlatContent content = s->GetFlatContent(no_gc);
+-    if (content.IsOneByte()) {
+-      base::Vector<const uint8_t> chars = content.ToOneByteVector();
+-      // Note, this will initialize all elements (not only the prefix)
+-      // to prevent GC from seeing partially initialized array.
+-      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),
+-                                               *elements, length);
+-    } else {
+-      MemsetTagged(elements->data_start(),
+-                   ReadOnlyRoots(isolate).undefined_value(), length);
++    // Use pre-initialized single characters.
++    base::Vector<const uint8_t> chars = content.ToOneByteVector();
++    FixedArray one_byte_table =
++        isolate->heap()->single_character_string_table();
++    for (int i = 0; i < length; ++i) {
++      Object value = one_byte_table.get(chars[i]);
++      DCHECK(value.IsString());
++      DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
++      // The single-character strings are in RO space so it should
++      // be safe to skip the write barriers.
++      elements->set(i, value, SKIP_WRITE_BARRIER);
+     }
+   } else {
+-    elements = isolate->factory()->NewFixedArray(length);
+-  }
+-  for (int i = position; i < length; ++i) {
+-    Handle<Object> str =
+-        isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
+-    elements->set(i, *str);
++    for (int i = 0; i < length; ++i) {
++      Handle<Object> str =
++          isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
++      elements->set(i, *str);
++    }
+   }
+ 
+ #ifdef DEBUG
+diff --git a/test/cctest/test-api.cc b/test/cctest/test-api.cc
+index ca10963..7bbe938 100644
+--- a/test/cctest/test-api.cc
++++ b/test/cctest/test-api.cc
+@@ -708,21 +708,19 @@
+   Local<String> tiny_local_string = v8_str("s");
+   Local<String> local_string = v8_str("s1234");
+ 
++  // Single-character strings should not be externalized because they
++  // are always in the RO-space.
++  CHECK(!tiny_local_string->CanMakeExternal());
+   if (!v8::internal::FLAG_single_generation) {
+     // We should refuse to externalize new space strings.
+     CHECK(!local_string->CanMakeExternal());
+     // Trigger GCs so that the newly allocated string moves to old gen.
+     CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+     CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
++    CHECK(!tiny_local_string->CanMakeExternal());
+   }
+   // Old space strings should be accepted.
+   CHECK(local_string->CanMakeExternal());
+-
+-  // Tiny strings are not in-place externalizable when pointer compression is
+-  // enabled, but they are if sandboxed external pointers are enabled.
+-  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+-               i::kTaggedSize == i::kSystemPointerSize,
+-           tiny_local_string->CanMakeExternal());
+ }
+ 
+ 
+diff --git a/test/cctest/test-serialize.cc b/test/cctest/test-serialize.cc
+index 811faff..c0d52d0 100644
+--- a/test/cctest/test-serialize.cc
++++ b/test/cctest/test-serialize.cc
+@@ -778,9 +778,9 @@
+   DisableAlwaysOpt();
+   const char* source1 =
+       R"javascript(
+-      // String would be internalized if it came from a literal so create "A"
++      // String would be internalized if it came from a literal so create "AB"
+       // via a function call.
+-      var global = String.fromCharCode(65);
++      var global = String.fromCharCode(65, 66);
+       function f() { return global; }
+       )javascript";
+ 
+@@ -801,7 +801,7 @@
+     v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
+     CHECK(result->IsString());
+     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
+-    CHECK_EQ(std::string(str.ToCString().get()), "A");
++    CHECK_EQ(std::string(str.ToCString().get()), "AB");
+     CHECK(!str.IsInternalizedString());
+     CHECK(!i::ReadOnlyHeap::Contains(str));
+   }
+diff --git a/tools/v8heapconst.py b/tools/v8heapconst.py
+index 92bfaf6..7a650f4 100644
+--- a/tools/v8heapconst.py
++++ b/tools/v8heapconst.py
+@@ -504,69 +504,69 @@
+   ("read_only_space", 0x03655): "EmptyFunctionScopeInfo",
+   ("read_only_space", 0x03679): "NativeScopeInfo",
+   ("read_only_space", 0x03691): "HashSeed",
+-  ("old_space", 0x04231): "ArgumentsIteratorAccessor",
+-  ("old_space", 0x04259): "ArrayLengthAccessor",
+-  ("old_space", 0x04281): "BoundFunctionLengthAccessor",
+-  ("old_space", 0x042a9): "BoundFunctionNameAccessor",
+-  ("old_space", 0x042d1): "ErrorStackAccessor",
+-  ("old_space", 0x042f9): "FunctionArgumentsAccessor",
+-  ("old_space", 0x04321): "FunctionCallerAccessor",
+-  ("old_space", 0x04349): "FunctionNameAccessor",
+-  ("old_space", 0x04371): "FunctionLengthAccessor",
+-  ("old_space", 0x04399): "FunctionPrototypeAccessor",
+-  ("old_space", 0x043c1): "SharedArrayLengthAccessor",
+-  ("old_space", 0x043e9): "StringLengthAccessor",
+-  ("old_space", 0x04411): "ValueUnavailableAccessor",
+-  ("old_space", 0x04439): "WrappedFunctionLengthAccessor",
+-  ("old_space", 0x04461): "WrappedFunctionNameAccessor",
+-  ("old_space", 0x04489): "InvalidPrototypeValidityCell",
+-  ("old_space", 0x04491): "EmptyScript",
+-  ("old_space", 0x044d5): "ManyClosuresCell",
+-  ("old_space", 0x044e1): "ArrayConstructorProtector",
+-  ("old_space", 0x044f5): "NoElementsProtector",
+-  ("old_space", 0x04509): "MegaDOMProtector",
+-  ("old_space", 0x0451d): "IsConcatSpreadableProtector",
+-  ("old_space", 0x04531): "ArraySpeciesProtector",
+-  ("old_space", 0x04545): "TypedArraySpeciesProtector",
+-  ("old_space", 0x04559): "PromiseSpeciesProtector",
+-  ("old_space", 0x0456d): "RegExpSpeciesProtector",
+-  ("old_space", 0x04581): "StringLengthProtector",
+-  ("old_space", 0x04595): "ArrayIteratorProtector",
+-  ("old_space", 0x045a9): "ArrayBufferDetachingProtector",
+-  ("old_space", 0x045bd): "PromiseHookProtector",
+-  ("old_space", 0x045d1): "PromiseResolveProtector",
+-  ("old_space", 0x045e5): "MapIteratorProtector",
+-  ("old_space", 0x045f9): "PromiseThenProtector",
+-  ("old_space", 0x0460d): "SetIteratorProtector",
+-  ("old_space", 0x04621): "StringIteratorProtector",
+-  ("old_space", 0x04635): "SingleCharacterStringCache",
+-  ("old_space", 0x04a3d): "StringSplitCache",
+-  ("old_space", 0x04e45): "RegExpMultipleCache",
+-  ("old_space", 0x0524d): "BuiltinsConstantsTable",
+-  ("old_space", 0x0568d): "AsyncFunctionAwaitRejectSharedFun",
+-  ("old_space", 0x056b1): "AsyncFunctionAwaitResolveSharedFun",
+-  ("old_space", 0x056d5): "AsyncGeneratorAwaitRejectSharedFun",
+-  ("old_space", 0x056f9): "AsyncGeneratorAwaitResolveSharedFun",
+-  ("old_space", 0x0571d): "AsyncGeneratorYieldResolveSharedFun",
+-  ("old_space", 0x05741): "AsyncGeneratorReturnResolveSharedFun",
+-  ("old_space", 0x05765): "AsyncGeneratorReturnClosedRejectSharedFun",
+-  ("old_space", 0x05789): "AsyncGeneratorReturnClosedResolveSharedFun",
+-  ("old_space", 0x057ad): "AsyncIteratorValueUnwrapSharedFun",
+-  ("old_space", 0x057d1): "PromiseAllResolveElementSharedFun",
+-  ("old_space", 0x057f5): "PromiseAllSettledResolveElementSharedFun",
+-  ("old_space", 0x05819): "PromiseAllSettledRejectElementSharedFun",
+-  ("old_space", 0x0583d): "PromiseAnyRejectElementSharedFun",
+-  ("old_space", 0x05861): "PromiseCapabilityDefaultRejectSharedFun",
+-  ("old_space", 0x05885): "PromiseCapabilityDefaultResolveSharedFun",
+-  ("old_space", 0x058a9): "PromiseCatchFinallySharedFun",
+-  ("old_space", 0x058cd): "PromiseGetCapabilitiesExecutorSharedFun",
+-  ("old_space", 0x058f1): "PromiseThenFinallySharedFun",
+-  ("old_space", 0x05915): "PromiseThrowerFinallySharedFun",
+-  ("old_space", 0x05939): "PromiseValueThunkFinallySharedFun",
+-  ("old_space", 0x0595d): "ProxyRevokeSharedFun",
+-  ("old_space", 0x05981): "ShadowRealmImportValueFulfilledSFI",
+-  ("old_space", 0x059a5): "SourceTextModuleExecuteAsyncModuleFulfilledSFI",
+-  ("old_space", 0x059c9): "SourceTextModuleExecuteAsyncModuleRejectedSFI",
++  ("old_space", 0x04221): "ArgumentsIteratorAccessor",
++  ("old_space", 0x04249): "ArrayLengthAccessor",
++  ("old_space", 0x04271): "BoundFunctionLengthAccessor",
++  ("old_space", 0x04299): "BoundFunctionNameAccessor",
++  ("old_space", 0x042c1): "ErrorStackAccessor",
++  ("old_space", 0x042e9): "FunctionArgumentsAccessor",
++  ("old_space", 0x04311): "FunctionCallerAccessor",
++  ("old_space", 0x04339): "FunctionNameAccessor",
++  ("old_space", 0x04361): "FunctionLengthAccessor",
++  ("old_space", 0x04389): "FunctionPrototypeAccessor",
++  ("old_space", 0x043b1): "SharedArrayLengthAccessor",
++  ("old_space", 0x043d9): "StringLengthAccessor",
++  ("old_space", 0x04401): "ValueUnavailableAccessor",
++  ("old_space", 0x04429): "WrappedFunctionLengthAccessor",
++  ("old_space", 0x04451): "WrappedFunctionNameAccessor",
++  ("old_space", 0x04479): "InvalidPrototypeValidityCell",
++  ("old_space", 0x04481): "EmptyScript",
++  ("old_space", 0x044c5): "ManyClosuresCell",
++  ("old_space", 0x044d1): "ArrayConstructorProtector",
++  ("old_space", 0x044e5): "NoElementsProtector",
++  ("old_space", 0x044f9): "MegaDOMProtector",
++  ("old_space", 0x0450d): "IsConcatSpreadableProtector",
++  ("old_space", 0x04521): "ArraySpeciesProtector",
++  ("old_space", 0x04535): "TypedArraySpeciesProtector",
++  ("old_space", 0x04549): "PromiseSpeciesProtector",
++  ("old_space", 0x0455d): "RegExpSpeciesProtector",
++  ("old_space", 0x04571): "StringLengthProtector",
++  ("old_space", 0x04585): "ArrayIteratorProtector",
++  ("old_space", 0x04599): "ArrayBufferDetachingProtector",
++  ("old_space", 0x045ad): "PromiseHookProtector",
++  ("old_space", 0x045c1): "PromiseResolveProtector",
++  ("old_space", 0x045d5): "MapIteratorProtector",
++  ("old_space", 0x045e9): "PromiseThenProtector",
++  ("old_space", 0x045fd): "SetIteratorProtector",
++  ("old_space", 0x04611): "StringIteratorProtector",
++  ("old_space", 0x04625): "StringSplitCache",
++  ("old_space", 0x04a2d): "RegExpMultipleCache",
++  ("old_space", 0x04e35): "SingleCharacterStringTable",
++  ("old_space", 0x0523d): "BuiltinsConstantsTable",
++  ("old_space", 0x0567d): "AsyncFunctionAwaitRejectSharedFun",
++  ("old_space", 0x056a1): "AsyncFunctionAwaitResolveSharedFun",
++  ("old_space", 0x056c5): "AsyncGeneratorAwaitRejectSharedFun",
++  ("old_space", 0x056e9): "AsyncGeneratorAwaitResolveSharedFun",
++  ("old_space", 0x0570d): "AsyncGeneratorYieldResolveSharedFun",
++  ("old_space", 0x05731): "AsyncGeneratorReturnResolveSharedFun",
++  ("old_space", 0x05755): "AsyncGeneratorReturnClosedRejectSharedFun",
++  ("old_space", 0x05779): "AsyncGeneratorReturnClosedResolveSharedFun",
++  ("old_space", 0x0579d): "AsyncIteratorValueUnwrapSharedFun",
++  ("old_space", 0x057c1): "PromiseAllResolveElementSharedFun",
++  ("old_space", 0x057e5): "PromiseAllSettledResolveElementSharedFun",
++  ("old_space", 0x05809): "PromiseAllSettledRejectElementSharedFun",
++  ("old_space", 0x0582d): "PromiseAnyRejectElementSharedFun",
++  ("old_space", 0x05851): "PromiseCapabilityDefaultRejectSharedFun",
++  ("old_space", 0x05875): "PromiseCapabilityDefaultResolveSharedFun",
++  ("old_space", 0x05899): "PromiseCatchFinallySharedFun",
++  ("old_space", 0x058bd): "PromiseGetCapabilitiesExecutorSharedFun",
++  ("old_space", 0x058e1): "PromiseThenFinallySharedFun",
++  ("old_space", 0x05905): "PromiseThrowerFinallySharedFun",
++  ("old_space", 0x05929): "PromiseValueThunkFinallySharedFun",
++  ("old_space", 0x0594d): "ProxyRevokeSharedFun",
++  ("old_space", 0x05971): "ShadowRealmImportValueFulfilledSFI",
++  ("old_space", 0x05995): "SourceTextModuleExecuteAsyncModuleFulfilledSFI",
++  ("old_space", 0x059b9): "SourceTextModuleExecuteAsyncModuleRejectedSFI",
+ }
+ 
+ # Lower 32 bits of first page addresses for various heap spaces.

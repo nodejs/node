@@ -810,8 +810,8 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
                                  ObjectStats::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(
-      HeapObject(), heap_->single_character_string_cache(),
-      ObjectStats::SINGLE_CHARACTER_STRING_CACHE_TYPE);
+      HeapObject(), heap_->single_character_string_table(),
+      ObjectStats::SINGLE_CHARACTER_STRING_TABLE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  ObjectStats::STRING_SPLIT_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),

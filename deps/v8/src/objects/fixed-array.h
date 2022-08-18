@@ -50,7 +50,7 @@ namespace internal {
   V(SCRIPT_LIST_SUB_TYPE)                        \
   V(SERIALIZED_OBJECTS_SUB_TYPE)                 \
   V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
-  V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
+  V(SINGLE_CHARACTER_STRING_TABLE_SUB_TYPE)      \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
   V(TEMPLATE_INFO_SUB_TYPE)                      \

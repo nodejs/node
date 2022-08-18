@@ -246,9 +246,10 @@ class Symbol;
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
   /* Caches */                                                                 \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
+  /* Table of strings of one-byte single characters */                         \
+  V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Internal SharedFunctionInfos */                                           \

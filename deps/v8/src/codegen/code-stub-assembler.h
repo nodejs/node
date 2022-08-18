@@ -111,8 +111,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ProxyRevokeSharedFun, proxy_revoke_shared_fun, ProxyRevokeSharedFun)       \
   V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)  \
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
-  V(SingleCharacterStringCache, single_character_string_cache,                 \
-    SingleCharacterStringCache)                                                \
+  V(SingleCharacterStringTable, single_character_string_table,                 \
+    SingleCharacterStringTable)                                                \
   V(StringIteratorProtector, string_iterator_protector,                        \
     StringIteratorProtector)                                                   \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \

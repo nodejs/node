@@ -945,18 +945,10 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
 
 Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= unibrow::Latin1::kMaxChar) {
-    {
-      DisallowGarbageCollection no_gc;
-      Object value = single_character_string_cache()->get(code);
-      if (value != *undefined_value()) {
-        return handle(String::cast(value), isolate());
-      }
-    }
-    uint8_t buffer[] = {static_cast<uint8_t>(code)};
-    Handle<String> result =
-        InternalizeString(base::Vector<const uint8_t>(buffer, 1));
-    single_character_string_cache()->set(code, *result);
-    return result;
+    DisallowGarbageCollection no_gc;
+    Object value = single_character_string_table()->get(code);
+    DCHECK_NE(value, *undefined_value());
+    return handle(String::cast(value), isolate());
   }
   uint16_t buffer[] = {code};
   return InternalizeString(base::Vector<const uint16_t>(buffer, 1));

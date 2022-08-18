@@ -1276,7 +1276,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
+    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1292,9 +1292,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
           TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
 
-          // If we cannot find a char in the cache, fill the hole for the fixed
-          // array, and call runtime.
-          GotoIf(IsUndefined(entry), &fill_thehole_and_call_runtime);
+          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
 
           StoreFixedArrayElement(elements, index, entry);
         },

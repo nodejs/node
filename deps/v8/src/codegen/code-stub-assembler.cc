@@ -7077,34 +7077,15 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
   BIND(&if_codeisonebyte);
   {
     // Load the isolate wide single character string cache.
-    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
+    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
     TNode<IntPtrT> code_index = Signed(ChangeUint32ToWord(code));
 
-    // Check if we have an entry for the {code} in the single character string
-    // cache already.
-    Label if_entryisundefined(this, Label::kDeferred),
-        if_entryisnotundefined(this);
     TNode<Object> entry = UnsafeLoadFixedArrayElement(cache, code_index);
-    Branch(IsUndefined(entry), &if_entryisundefined, &if_entryisnotundefined);
+    CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
 
-    BIND(&if_entryisundefined);
-    {
-      // Allocate a new SeqOneByteString for {code} and store it in the {cache}.
-      TNode<String> result = AllocateSeqOneByteString(1);
-      StoreNoWriteBarrier(
-          MachineRepresentation::kWord8, result,
-          IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag), code);
-      StoreFixedArrayElement(cache, code_index, result);
-      var_result = result;
-      Goto(&if_done);
-    }
-
-    BIND(&if_entryisnotundefined);
-    {
-      // Return the entry from the {cache}.
-      var_result = CAST(entry);
-      Goto(&if_done);
-    }
+    // Return the entry from the {cache}.
+    var_result = CAST(entry);
+    Goto(&if_done);
   }
 
   BIND(&if_codeistwobyte);
