@@ -11,12 +11,14 @@ function extractDescription (d) {
   // the first block of text before the first heading
   // that isn't the first line heading
   d = d.trim().split('\n')
-  for (var s = 0; d[s] && d[s].trim().match(/^(#|$)/); s++) {
-    ;
+  let s = 0
+  while (d[s] && d[s].trim().match(/^(#|$)/)) {
+    s++
   }
-  var l = d.length
-  for (var e = s + 1; e < l && d[e].trim(); e++) {
-    ;
+  const l = d.length
+  let e = s + 1
+  while (e < l && d[e].trim()) {
+    e++
   }
   return d.slice(s, e).join(' ').trim()
 }

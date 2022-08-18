@@ -334,6 +334,10 @@ class Node {
     return `${myname}@${alias}${version}`
   }
 
+  get overridden () {
+    return !!(this.overrides && this.overrides.value && this.overrides.name === this.name)
+  }
+
   get package () {
     return this[_package]
   }

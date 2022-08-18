@@ -239,7 +239,7 @@ class GitFetcher extends Fetcher {
     tarballOk = tarballOk &&
       h && resolved === repoUrl(h, { noCommittish: false }) && h.tarball
 
-    return cacache.tmp.withTmp(this.cache, o, tmp => {
+    return cacache.tmp.withTmp(this.cache, o, async tmp => {
       // if we're resolved, and have a tarball url, shell out to RemoteFetcher
       if (tarballOk) {
         const nameat = this.spec.name ? `${this.spec.name}@` : ''
@@ -259,16 +259,15 @@ class GitFetcher extends Fetcher {
         })
       }
 
-      return (
+      const sha = await (
         h ? this[_cloneHosted](ref, tmp)
         : this[_cloneRepo](this.spec.fetchSpec, ref, tmp)
-      ).then(sha => {
-        this.resolvedSha = sha
-        if (!this.resolved) {
-          this[_addGitSha](sha)
-        }
-      })
-        .then(() => handler(tmp))
+      )
+      this.resolvedSha = sha
+      if (!this.resolved) {
+        await this[_addGitSha](sha)
+      }
+      return handler(tmp)
     })
   }
 
