@@ -60,17 +60,12 @@ let pass = 0;
   });
   const reader = stream.getReader({ mode: 'byob' });
   const view = new Uint8Array();
-  reader
-    .read(view)
-    .then(common.mustNotCall())
-    .catch(
-      common.mustCall(
-        common.expectsError({
-          code: 'ERR_INVALID_STATE',
-          name: 'TypeError',
-        }),
-      ),
-    );
+  assert
+    .rejects(reader.read(view), {
+      code: 'ERR_INVALID_STATE',
+      name: 'TypeError',
+    })
+    .then(common.mustCall());
 }
 
 {
@@ -82,17 +77,12 @@ let pass = 0;
   });
   const reader = stream.getReader({ mode: 'byob' });
   const view = new Uint8Array(new ArrayBuffer(10), 0, 0);
-  reader
-    .read(view)
-    .then(common.mustNotCall())
-    .catch(
-      common.mustCall(
-        common.expectsError({
-          code: 'ERR_INVALID_STATE',
-          name: 'TypeError',
-        }),
-      ),
-    );
+  assert
+    .rejects(reader.read(view), {
+      code: 'ERR_INVALID_STATE',
+      name: 'TypeError',
+    })
+    .then(common.mustCall());
 }
 
 process.on('exit', () => assert.strictEqual(pass, 2));
