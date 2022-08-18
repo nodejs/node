@@ -50,11 +50,15 @@ const update = (path, uid, gid) => {
     if (uid === stat.uid && gid === stat.gid) {
       return
     }
-  } catch (err) {}
+  } catch {
+    // ignore errors
+  }
 
   try {
     fs.chownSync(path, uid, gid)
-  } catch (err) {}
+  } catch {
+    // ignore errors
+  }
 }
 
 // accepts a `path` and the `owner` property of an options object and normalizes

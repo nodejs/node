@@ -97,14 +97,19 @@ const moveFile = async (source, destination, options = {}, root = true, symlinks
       }
       // try to determine what the actual file is so we can create the correct
       // type of symlink in windows
-      let targetStat
+      let targetStat = 'file'
       try {
         targetStat = await stat(resolve(dirname(symSource), target))
-      } catch (err) {}
+        if (targetStat.isDirectory()) {
+          targetStat = 'junction'
+        }
+      } catch {
+        // targetStat remains 'file'
+      }
       await symlink(
         target,
         symDestination,
-        targetStat && targetStat.isDirectory() ? 'junction' : 'file'
+        targetStat
       )
     }))
     await rimraf(source)
@@ -157,14 +162,19 @@ const moveFileSync = (source, destination, options = {}, root = true, symlinks =
       }
       // try to determine what the actual file is so we can create the correct
       // type of symlink in windows
-      let targetStat
+      let targetStat = 'file'
       try {
         targetStat = statSync(resolve(dirname(symSource), target))
-      } catch (err) {}
+        if (targetStat.isDirectory()) {
+          targetStat = 'junction'
+        }
+      } catch {
+        // targetStat remains 'file'
+      }
       symlinkSync(
         target,
         symDestination,
-        targetStat && targetStat.isDirectory() ? 'junction' : 'file'
+        targetStat
       )
     }
     rimrafSync(source)

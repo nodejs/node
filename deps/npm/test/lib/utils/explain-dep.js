@@ -129,6 +129,23 @@ const cases = {
     dependents: [],
     extraneous: true,
   },
+
+  overridden: {
+    name: 'overridden-root',
+    version: '1.0.0',
+    location: 'node_modules/overridden-root',
+    overridden: true,
+    dependents: [{
+      type: 'prod',
+      name: 'overridden-dep',
+      spec: '1.0.0',
+      rawSpec: '^2.0.0',
+      overridden: true,
+      from: {
+        location: '/path/to/project',
+      },
+    }],
+  },
 }
 
 cases.manyDeps = {

@@ -73,6 +73,7 @@ const run = async ({
       event: 'npx',
       args,
       stdio: 'inherit',
+      scriptShell,
     })
   } finally {
     npmlog.enableProgress()

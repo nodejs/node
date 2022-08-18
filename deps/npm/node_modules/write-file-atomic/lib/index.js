@@ -39,7 +39,9 @@ function cleanupOnExit (tmpfile) {
   return () => {
     try {
       fs.unlinkSync(typeof tmpfile === 'function' ? tmpfile() : tmpfile)
-    } catch (_) {}
+    } catch {
+      // ignore errors
+    }
   }
 }
 
@@ -156,7 +158,7 @@ async function writeFileAsync (filename, data, options = {}) {
   }
 }
 
-function writeFile (filename, data, options, callback) {
+async function writeFile (filename, data, options, callback) {
   if (options instanceof Function) {
     callback = options
     options = {}
@@ -164,7 +166,12 @@ function writeFile (filename, data, options, callback) {
 
   const promise = writeFileAsync(filename, data, options)
   if (callback) {
-    promise.then(callback, callback)
+    try {
+      const result = await promise
+      return callback(result)
+    } catch (err) {
+      return callback(err)
+    }
   }
 
   return promise

@@ -64,6 +64,8 @@ const linkGently = async ({ path, to, from, absFrom, force }) => {
         if (target.indexOf(path) === 0 || force) {
           return rm(to).then(() => CLOBBER)
         }
+        // neither skip nor clobber
+        return false
       })
     } else {
       // doesn't exist, dir might not either

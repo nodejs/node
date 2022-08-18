@@ -873,7 +873,7 @@ be found or fails to install, then you may put it in the
 `optionalDependencies` object.  This is a map of package name to version or
 url, just like the `dependencies` object.  The difference is that build
 failures do not cause installation to fail.  Running `npm install
---no-optional` will prevent these dependencies from being installed.
+--omit=optional` will prevent these dependencies from being installed.
 
 It is still your program's responsibility to handle the lack of the
 dependency.  For example, something like this:

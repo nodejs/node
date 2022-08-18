@@ -56,12 +56,12 @@ const shimBin = ({ path, to, from, absFrom, force }) => {
     }
 
     if (force) {
-      return
+      return false
     }
 
     return Promise.all(shims.map((s, i) => [s, stats[i]]).map(([s, st]) => {
       if (!st) {
-        return
+        return false
       }
       return readCmdShim(s)
         .then(target => {
@@ -69,6 +69,7 @@ const shimBin = ({ path, to, from, absFrom, force }) => {
           if (target.indexOf(resolve(path)) !== 0) {
             return failEEXIST({ from, to, path })
           }
+          return false
         }, er => handleReadCmdShimError({ er, from, to }))
     }))
   })
