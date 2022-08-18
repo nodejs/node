@@ -22,7 +22,8 @@ exports[`test/lib/commands/query.js TAP global > should return global package 1`
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `
@@ -51,7 +52,8 @@ exports[`test/lib/commands/query.js TAP include-workspace-root > should return w
     ],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   },
   {
     "name": "c",
@@ -66,7 +68,8 @@ exports[`test/lib/commands/query.js TAP include-workspace-root > should return w
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `
@@ -86,7 +89,8 @@ exports[`test/lib/commands/query.js TAP linked node > should return linked node 
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `
@@ -111,7 +115,8 @@ exports[`test/lib/commands/query.js TAP recursive tree > should return everythin
     ],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   },
   {
     "pkgid": "a@",
@@ -125,7 +130,8 @@ exports[`test/lib/commands/query.js TAP recursive tree > should return everythin
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   },
   {
     "pkgid": "b@",
@@ -139,7 +145,8 @@ exports[`test/lib/commands/query.js TAP recursive tree > should return everythin
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `
@@ -167,7 +174,8 @@ exports[`test/lib/commands/query.js TAP simple query > should return root object
     ],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   },
   {
     "pkgid": "a@",
@@ -181,7 +189,8 @@ exports[`test/lib/commands/query.js TAP simple query > should return root object
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   },
   {
     "pkgid": "b@",
@@ -195,7 +204,8 @@ exports[`test/lib/commands/query.js TAP simple query > should return root object
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `
@@ -215,7 +225,8 @@ exports[`test/lib/commands/query.js TAP workspace query > should return workspac
     "to": [],
     "dev": false,
     "inBundle": false,
-    "deduped": false
+    "deduped": false,
+    "overridden": false
   }
 ]
 `

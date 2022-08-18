@@ -61,7 +61,9 @@ function checkErrors (method, res, startTime, opts) {
       let parsed = body
       try {
         parsed = JSON.parse(body.toString('utf8'))
-      } catch (e) {}
+      } catch {
+        // ignore errors
+      }
       if (res.status === 401 && res.headers.get('www-authenticate')) {
         const auth = res.headers.get('www-authenticate')
           .split(/,\s*/)

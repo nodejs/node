@@ -803,7 +803,7 @@ none.</p>
 be found or fails to install, then you may put it in the
 <code>optionalDependencies</code> object.  This is a map of package name to version or
 url, just like the <code>dependencies</code> object.  The difference is that build
-failures do not cause installation to fail.  Running <code>npm install --no-optional</code> will prevent these dependencies from being installed.</p>
+failures do not cause installation to fail.  Running <code>npm install --omit=optional</code> will prevent these dependencies from being installed.</p>
 <p>It is still your program's responsibility to handle the lack of the
 dependency.  For example, something like this:</p>
 <pre lang="js"><code>try {

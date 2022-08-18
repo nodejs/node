@@ -18,10 +18,15 @@ const run = conf => {
     case 'tarball':
       if (!conf._[2] || conf._[2] === '-') {
         return pacote.tarball.stream(conf._[1], stream => {
-          stream.pipe(conf.testStdout ||
-          /* istanbul ignore next */ process.stdout)
+          stream.pipe(
+            conf.testStdout ||
+            /* istanbul ignore next */
+            process.stdout
+          )
           // make sure it resolves something falsey
-          return stream.promise().then(() => {})
+          return stream.promise().then(() => {
+            return false
+          })
         }, conf)
       } else {
         return pacote.tarball.file(conf._[1], conf._[2], conf)
