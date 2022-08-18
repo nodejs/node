@@ -1001,6 +1001,10 @@ changes:
       used for generated code.
     * `stackSizeMb` {number} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
+  * `timeout` {number} In milliseconds the maximum amount of time the worker
+    is allowed to run. **Default:** `undefined`.
+  * `signal` {AbortSignal} Allow closing the worker using an
+    AbortSignal.
 
 ### Event: `'error'`
 
@@ -1063,6 +1067,15 @@ added: v10.5.0
 
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
+
+### Event: `'timeout'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'timeout'` event is emitted when the maximum amount of execution time
+reaches the threshold of `options.timeout`.
 
 ### `worker.getHeapSnapshot()`
 
@@ -1271,6 +1284,14 @@ added: v10.5.0
 Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
+
+### `worker.clearTimer()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Cancel the timer created by `options.timeout`.
 
 ## Notes
 
