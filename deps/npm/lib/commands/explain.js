@@ -59,7 +59,7 @@ class Explain extends ArboristWorkspaceCmd {
 
     const expls = []
     for (const node of nodes) {
-      const { extraneous, dev, optional, devOptional, peer, inBundle } = node
+      const { extraneous, dev, optional, devOptional, peer, inBundle, overridden } = node
       const expl = node.explain()
       if (extraneous) {
         expl.extraneous = true
@@ -69,6 +69,7 @@ class Explain extends ArboristWorkspaceCmd {
         expl.devOptional = devOptional
         expl.peer = peer
         expl.bundled = inBundle
+        expl.overridden = overridden
       }
       expls.push(expl)
     }

@@ -1,5 +1,5 @@
 {
-  "version": "8.17.0",
+  "version": "8.18.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -103,12 +103,12 @@
     "npm-package-arg": "^9.1.0",
     "npm-pick-manifest": "^7.0.1",
     "npm-profile": "^6.2.0",
-    "npm-registry-fetch": "^13.3.0",
+    "npm-registry-fetch": "^13.3.1",
     "npm-user-validate": "^1.0.1",
     "npmlog": "^6.0.2",
     "opener": "^1.5.2",
     "p-map": "^4.0.0",
-    "pacote": "^13.6.1",
+    "pacote": "^13.6.2",
     "parse-conflict-json": "^2.0.2",
     "proc-log": "^2.0.1",
     "qrcode-terminal": "^0.12.0",

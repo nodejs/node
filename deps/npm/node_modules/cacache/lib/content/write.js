@@ -80,9 +80,11 @@ class CacacheWriteStream extends Flush {
         // defer this one tick by rejecting a promise on it.
         return Promise.reject(e).catch(cb)
       }
+      // eslint-disable-next-line promise/catch-or-return
       this.handleContentP.then(
         (res) => {
           res.integrity && this.emit('integrity', res.integrity)
+          // eslint-disable-next-line promise/always-return
           res.size !== null && this.emit('size', res.size)
           cb()
         },

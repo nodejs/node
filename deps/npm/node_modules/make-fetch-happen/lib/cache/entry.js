@@ -288,6 +288,7 @@ class CacheEntry {
         // stick a flag on here so downstream users will know if they can expect integrity events
         tee.pipe(cacheStream)
         // TODO if the cache write fails, log a warning but return the response anyway
+        // eslint-disable-next-line promise/catch-or-return
         cacheStream.promise().then(cacheWriteResolve, cacheWriteReject)
         body.unshift(tee)
         body.unshift(this.response.body)
