@@ -17,12 +17,13 @@ const zlib = require('zlib');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  dur: [5],
+  duration: [5],
+  encoding: ['', 'utf-8'],
   len: [1024, 16 * 1024 * 1024],
   concurrent: [1, 10]
 });
 
-function main({ len, dur, concurrent }) {
+function main({ len, duration, concurrent, encoding }) {
   try {
     fs.unlinkSync(filename);
   } catch {
@@ -47,10 +48,10 @@ function main({ len, dur, concurrent }) {
     } catch {
       // Continue regardless of error.
     }
-  }, dur * 1000);
+  }, duration * 1000);
 
   function read() {
-    fs.readFile(filename, afterRead);
+    fs.readFile(filename, encoding, afterRead);
   }
 
   function afterRead(er, data) {
