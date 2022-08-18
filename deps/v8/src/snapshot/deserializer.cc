@@ -517,7 +517,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         // to |ObjectDeserializer::CommitPostProcessedObjects()|.
         new_allocation_sites_.push_back(Handle<AllocationSite>::cast(obj));
       } else {
-        DCHECK(CanBeDeferred(*obj));
+        // We dont defer ByteArray because JSTypedArray needs the base_pointer
+        // ByteArray immediately if it's on heap.
+        DCHECK(CanBeDeferred(*obj) ||
+               InstanceTypeChecker::IsByteArray(instance_type));
       }
     }
   }

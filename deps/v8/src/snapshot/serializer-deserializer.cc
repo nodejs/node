@@ -51,10 +51,13 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
   // 3. JS objects with embedder fields cannot be deferred because the
   // serialize/deserialize callbacks need the back reference immediately to
   // identify the object.
+  // 4. ByteArray cannot be deferred as JSTypedArray needs the base_pointer
+  // ByteArray immediately if it's on heap.
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
   return !o.IsMap() && !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0);
+         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0) &&
+         !o.IsByteArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(

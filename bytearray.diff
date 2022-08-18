@@ -1,0 +1,114 @@
+From d69c7937c99da7f67c3877cd63ae81d2c55978f3 Mon Sep 17 00:00:00 2001
+From: jameslahm <wangao.james@bytedance.com>
+Date: Mon, 08 Aug 2022 17:49:14 +0800
+Subject: [PATCH] [snapshot] Dont defer ByteArray when serializing
+
+JSTypedArray needs the base_pointer ByteArray immediately
+if it's on heap. JSTypedArray's base_pointer was initialized
+to Smi::uninitialized_deserialization_value at first when
+deserializing, and if base_pointer was deferred, we will
+mistakenly check JSTypedArray not on heap.
+
+Bug: v8:13149
+Change-Id: I104c83ff9a2017de1c8071a9e116baa602f6977d
+Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/3813068
+Reviewed-by: Jakob Linke <jgruber@chromium.org>
+Commit-Queue: 王澳 <wangao.james@bytedance.com>
+Cr-Commit-Position: refs/heads/main@{#82254}
+---
+
+diff --git a/src/snapshot/deserializer.cc b/src/snapshot/deserializer.cc
+index 87c43cf..40b3d98 100644
+--- a/src/snapshot/deserializer.cc
++++ b/src/snapshot/deserializer.cc
+@@ -380,6 +380,8 @@
+     }
+   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
+     auto typed_array = JSTypedArray::cast(raw_obj);
++    // Note: ByteArray objects must not be deferred s.t. they are
++    // available here for is_on_heap(). See also: CanBeDeferred.
+     // Fixup typed array pointers.
+     if (typed_array.is_on_heap()) {
+       typed_array.AddExternalPointerCompensationForDeserialization(
+@@ -468,7 +470,10 @@
+         // to |ObjectDeserializer::CommitPostProcessedObjects()|.
+         new_allocation_sites_.push_back(Handle<AllocationSite>::cast(obj));
+       } else {
+-        DCHECK(CanBeDeferred(*obj));
++        // We dont defer ByteArray because JSTypedArray needs the base_pointer
++        // ByteArray immediately if it's on heap.
++        DCHECK(CanBeDeferred(*obj) ||
++               InstanceTypeChecker::IsByteArray(instance_type));
+       }
+     }
+   }
+diff --git a/src/snapshot/serializer-deserializer.cc b/src/snapshot/serializer-deserializer.cc
+index b68ec38..f0a8fe4 100644
+--- a/src/snapshot/serializer-deserializer.cc
++++ b/src/snapshot/serializer-deserializer.cc
+@@ -50,10 +50,13 @@
+   // 3. JS objects with embedder fields cannot be deferred because the
+   // serialize/deserialize callbacks need the back reference immediately to
+   // identify the object.
++  // 4. ByteArray cannot be deferred as JSTypedArray needs the base_pointer
++  // ByteArray immediately if it's on heap.
+   // TODO(leszeks): Could we defer string serialization if forward references
+   // were resolved after object post processing?
+   return !o.IsMap() && !o.IsInternalizedString() &&
+-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0);
++         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0) &&
++         !o.IsByteArray();
+ }
+ 
+ void SerializerDeserializer::RestoreExternalReferenceRedirector(
+diff --git a/test/cctest/test-serialize.cc b/test/cctest/test-serialize.cc
+index c0d52d0..81ab42c 100644
+--- a/test/cctest/test-serialize.cc
++++ b/test/cctest/test-serialize.cc
+@@ -4969,6 +4969,46 @@
+   delete[] blob.data;
+ }
+ 
++UNINITIALIZED_TEST(SnapshotCreatorDontDeferByteArrayForTypedArray) {
++  DisableAlwaysOpt();
++  v8::StartupData blob;
++  {
++    v8::SnapshotCreator creator;
++    v8::Isolate* isolate = creator.GetIsolate();
++    {
++      v8::HandleScope handle_scope(isolate);
++
++      v8::Local<v8::Context> context = v8::Context::New(isolate);
++      v8::Context::Scope context_scope(context);
++      CompileRun(
++          "const z = new Uint8Array(1);\n"
++          "class A { \n"
++          "  static x() { \n"
++          "  } \n"
++          "} \n"
++          "class B extends A {} \n"
++          "B.foo = ''; \n"
++          "class C extends B {} \n"
++          "class D extends C {} \n"
++          "class E extends B {} \n"
++          "function F() {} \n"
++          "Object.setPrototypeOf(F, D); \n");
++      creator.SetDefaultContext(context);
++    }
++
++    blob =
++        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
++    CHECK(blob.raw_size > 0 && blob.data != nullptr);
++  }
++  {
++    SnapshotCreator creator(nullptr, &blob);
++    v8::Isolate* isolate = creator.GetIsolate();
++    v8::HandleScope scope(isolate);
++    USE(v8::Context::New(isolate));
++  }
++  delete[] blob.data;
++}
++
+ class V8_NODISCARD DisableLazySourcePositionScope {
+  public:
+   DisableLazySourcePositionScope()
