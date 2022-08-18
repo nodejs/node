@@ -349,7 +349,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       std::vector<BaseObjectPtr<BaseObject>> nested_transferables;
       if (!host_objects_[i]->NestedTransferables().To(&nested_transferables))
         return Nothing<bool>();
-      for (auto nested_transferable : nested_transferables) {
+      for (auto& nested_transferable : nested_transferables) {
         if (std::find(host_objects_.begin(),
                       host_objects_.end(),
                       nested_transferable) == host_objects_.end()) {
