@@ -4,12 +4,7 @@
 // during snapshot serialization and installed again during
 // deserialization.
 
-const common = require('../common');
-
-if (process.features.debug) {
-  common.skip('V8 snapshot does not work with mutated globals yet: ' +
-              'https://bugs.chromium.org/p/v8/issues/detail?id=12772');
-}
+require('../common');
 
 const assert = require('assert');
 const { spawnSync } = require('child_process');
