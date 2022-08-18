@@ -20,6 +20,7 @@ class QuerySelectorItem {
     this.dev = node.target.dev
     this.inBundle = node.target.inBundle
     this.deduped = this.from.length > 1
+    this.overridden = node.overridden
     for (const edge of node.target.edgesIn) {
       this.from.push(edge.from.location)
     }

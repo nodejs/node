@@ -285,6 +285,7 @@ function lsStream (cache) {
       }))
     }))
     stream.end()
+    return stream
   }).catch(err => stream.emit('error', err))
 
   return stream

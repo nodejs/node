@@ -254,6 +254,7 @@ class FetcherBase {
     cstream.on('error', err => stream.emit('error', err))
     stream.pipe(cstream)
 
+    // eslint-disable-next-line promise/catch-or-return
     cstream.promise().catch(() => {}).then(() => middleStream.end())
     return middleStream
   }
@@ -269,7 +270,10 @@ class FetcherBase {
   }
 
   // override the types getter
-  get types () {}
+  get types () {
+    return false
+  }
+
   [_assertType] () {
     if (this.types && !this.types.includes(this.spec.type)) {
       throw new TypeError(`Wrong spec type (${

@@ -262,6 +262,10 @@ class Results {
       !internalSelector.has(node))
   }
 
+  overriddenPseudo () {
+    return this.initialItems.filter(node => node.overridden)
+  }
+
   pathPseudo () {
     return this.initialItems.filter(node => {
       if (!this.currentAstNode.pathValue) {
