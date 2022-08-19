@@ -674,7 +674,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
 
-    if (should_pause) {
+    if constexpr (should_pause) {
       llhttp_pause(&parser->parser_);
     } else {
       llhttp_resume(&parser->parser_);
