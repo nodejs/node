@@ -958,6 +958,16 @@ const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
 )";
 }
 
+// Reset context settings that need to be initialized again after
+// deserialization.
+static void ResetContextSettingsBeforeSnapshot(Local<Context> context) {
+  // Reset the AllowCodeGenerationFromStrings flag to true (default value) so
+  // that it can be re-initialized with v8 flag
+  // --disallow-code-generation-from-strings and recognized in
+  // node::InitializeContextRuntime.
+  context->AllowCodeGenerationFromStrings(true);
+}
+
 Mutex SnapshotBuilder::snapshot_data_mutex_;
 
 const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
@@ -1053,6 +1063,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     if (base_context.IsEmpty()) {
       return BOOTSTRAP_ERROR;
     }
+    ResetContextSettingsBeforeSnapshot(base_context);
 
     Local<Context> main_context = NewContext(isolate);
     if (main_context.IsEmpty()) {
@@ -1121,6 +1132,8 @@ int SnapshotBuilder::Generate(SnapshotData* out,
                            size_str.c_str());
       }
 #endif
+
+      ResetContextSettingsBeforeSnapshot(main_context);
     }
 
     // Global handles to the contexts can't be disposed before the
