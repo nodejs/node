@@ -126,7 +126,7 @@ There is the ECMAScript module loader:
 * It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
   files.
 * It can be used to load JavaScript CommonJS modules. Such modules
-  are passed through the `es-module-lexer` to try to identify named exports,
+  are passed through the [cjs-module-lexer][] to try to identify named exports,
   which are available if they can be determined through static analysis.
   Imported CommonJS modules have their URLs converted to absolute
   paths and are then loaded via the CommonJS module loader.
@@ -1345,3 +1345,6 @@ This field defines [subpath imports][] for the current package.
 [supported package managers]: corepack.md#supported-package-managers
 [the dual CommonJS/ES module packages section]: #dual-commonjses-module-packages
 [the full specifier path]: esm.md#mandatory-file-extensions
+[cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
+
+<!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
