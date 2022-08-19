@@ -328,10 +328,7 @@ assert.throws(() => {
   const read1 = reader.read();
   const read2 = reader.read();
 
-  // The stream is empty so the read will never settle.
   read1.then(common.mustNotCall(), common.mustCall());
-
-  // The stream is empty so the read will never settle.
   read2.then(common.mustNotCall(), common.mustCall());
 
   assert.notStrictEqual(read1, read2);
