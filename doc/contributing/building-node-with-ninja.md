@@ -40,4 +40,13 @@ To create a debug build rather than a release build:
 ./configure --ninja --debug && make
 ```
 
+## Customizing `ninja` path
+
+On some systems (RHEL7 and below), `ninja` is not offered in the yum package.
+For these systems use the `NINJA` env var:
+
+```bash
+./configure --ninja && NINJA="ninja-build" make
+```
+
 [Ninja]: https://ninja-build.org/
