@@ -12,6 +12,8 @@ with code `0` on success. A test will fail if:
 * It never exits. In this case, the test runner will terminate the test because
   it sets a maximum time limit.
 
+it is recommended to [use `node:test`][] for handling these requirements
+
 Add tests when:
 
 * Adding new functionality.
@@ -157,6 +159,13 @@ const timer = setTimeout(fail, common.platformTimeout(4000));
 
 will create a 4-second timeout on most platforms but a longer timeout on slower
 platforms.
+
+### Use `node:test` module
+
+the internal [test runner](https://nodejs.org/api/test.html) exposes
+methods helping structure and maintain test files.
+the test runner will handle setting `process.exitCode` and will report
+the specific failing test.
 
 ### The _common_ API
 
@@ -480,3 +489,4 @@ Nightly coverage reports for the Node.js `main` branch are available at
 [directory structure overview]: https://github.com/nodejs/node/blob/HEAD/test/README.md#test-directories
 [node.green]: https://node.green/
 [test fixture]: https://github.com/google/googletest/blob/HEAD/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests-same-data-multiple-tests
+[use `node:test`]: #use-nodetest-module
