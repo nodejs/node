@@ -778,8 +778,6 @@ void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
   context_.Reset(context->GetIsolate(), context);
   AssignToContext(context, ContextInfo(""));
-  context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kContextifyContext, nullptr);
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
   } else {
