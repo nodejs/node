@@ -267,6 +267,38 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
+## `path.fromURL(pathOrUrl)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `pathOrUrl` {string|URL}.
+* Returns: {string}
+
+Converts a [`URL`][] instance to a path string,
+returns `pathOrUrl` if it is already a string.
+
+A [`TypeError`][] is thrown if `pathOrUrl` is a
+[`URL`][] with a schema other than `file://`.
+
+```js
+path.fromURL(new URL('file:///Users/node/dev'));
+// Returns: '/Users/node/dev'
+
+path.fromURL('file:///Users/node/dev');
+// Returns: 'file:///Users/node/dev'
+
+path.fromURL(new URL('file:///c:/foo.txt'));
+// Returns On Windows: 'c:\\foo.txt'
+
+path.fromURL('index/path');
+// Returns: 'index/path'
+
+path.fromURL(new URL('http://example.com'));
+// Throws 'TypeError [ERR_INVALID_URL_SCHEME]: The URL must be of scheme file'
+```
+
 ## `path.isAbsolute(path)`
 
 <!-- YAML
@@ -604,6 +636,7 @@ The API is accessible via `require('node:path').win32` or `require('node:path/wi
 
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [`TypeError`]: errors.md#class-typeerror
+[`URL`]: url.md#the-whatwg-url-api
 [`path.parse()`]: #pathparsepath
 [`path.posix`]: #pathposix
 [`path.sep`]: #pathsep
