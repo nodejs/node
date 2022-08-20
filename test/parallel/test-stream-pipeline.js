@@ -1556,3 +1556,44 @@ const tsp = require('timers/promises');
     })
   );
 }
+
+{
+  const r = new Readable({
+    read() {
+      this.push('asd');
+      this.push(null);
+    }
+  });
+  const s = new Duplex({
+    readable: false,
+    read() {},
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+  pipeline(r, s, common.mustCall((err) => {
+    assert(!err);
+    assert(s.listenerCount('error'), 1);
+  }));
+}
+
+{
+  const r = new Readable({
+    read() {
+      this.push('asd');
+      this.push(null);
+    }
+  });
+  const s = new Duplex({
+    read() {
+      this.push(null);
+    },
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+  pipeline(r, s, common.mustCall((err) => {
+    assert(!err);
+    assert(s.listenerCount('error'), 1);
+  }));
+}
