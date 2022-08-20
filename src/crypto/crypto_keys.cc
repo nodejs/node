@@ -633,44 +633,42 @@ Maybe<bool> ExportJWKInner(Environment* env,
 
 Maybe<bool> ManagedEVPPKey::ToEncodedPublicKey(
     Environment* env,
-    ManagedEVPPKey key,
     const PublicKeyEncodingConfig& config,
     Local<Value>* out) {
-  if (!key) return Nothing<bool>();
+  if (!*this) return Nothing<bool>();
   if (config.output_key_object_) {
     // Note that this has the downside of containing sensitive data of the
     // private key.
     std::shared_ptr<KeyObjectData> data =
-          KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
+        KeyObjectData::CreateAsymmetric(kKeyTypePublic, *this);
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
   } else if (config.format_ == kKeyFormatJWK) {
     std::shared_ptr<KeyObjectData> data =
-        KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(key));
+        KeyObjectData::CreateAsymmetric(kKeyTypePublic, *this);
     *out = Object::New(env->isolate());
     return ExportJWKInner(env, data, *out, false);
   }
 
-  return Tristate(WritePublicKey(env, key.get(), config).ToLocal(out));
+  return Tristate(WritePublicKey(env, get(), config).ToLocal(out));
 }
 
 Maybe<bool> ManagedEVPPKey::ToEncodedPrivateKey(
     Environment* env,
-    ManagedEVPPKey key,
     const PrivateKeyEncodingConfig& config,
     Local<Value>* out) {
-  if (!key) return Nothing<bool>();
+  if (!*this) return Nothing<bool>();
   if (config.output_key_object_) {
     std::shared_ptr<KeyObjectData> data =
-        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
+        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, *this);
     return Tristate(KeyObjectHandle::Create(env, data).ToLocal(out));
   } else if (config.format_ == kKeyFormatJWK) {
     std::shared_ptr<KeyObjectData> data =
-        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, std::move(key));
+        KeyObjectData::CreateAsymmetric(kKeyTypePrivate, *this);
     *out = Object::New(env->isolate());
     return ExportJWKInner(env, data, *out, false);
   }
 
-  return Tristate(WritePrivateKey(env, key.get(), config).ToLocal(out));
+  return Tristate(WritePrivateKey(env, get(), config).ToLocal(out));
 }
 
 NonCopyableMaybe<PrivateKeyEncodingConfig>
