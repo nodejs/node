@@ -55,6 +55,16 @@ not ok 2 - before throws
   failureType: 'hookFailed'
   error: 'failed running before hook'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
   ...
 # Subtest: after throws
     # Subtest: 1
@@ -74,6 +84,16 @@ not ok 3 - after throws
   failureType: 'hookFailed'
   error: 'failed running after hook'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
   ...
 # Subtest: beforeEach throws
     # Subtest: 1
@@ -85,6 +105,15 @@ not ok 3 - after throws
       code: 'ERR_TEST_FAILURE'
       stack: |-
         *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -93,6 +122,17 @@ not ok 3 - after throws
       failureType: 'hookFailed'
       error: 'failed running beforeEach hook'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     1..2
 not ok 4 - beforeEach throws
@@ -112,6 +152,15 @@ not ok 4 - beforeEach throws
       code: 'ERR_TEST_FAILURE'
       stack: |-
         *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -120,6 +169,17 @@ not ok 4 - beforeEach throws
       failureType: 'hookFailed'
       error: 'failed running afterEach hook'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     1..2
 not ok 5 - afterEach throws
@@ -171,6 +231,15 @@ ok 6 - test hooks
       code: 'ERR_TEST_FAILURE'
       stack: |-
         *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -180,6 +249,15 @@ ok 6 - test hooks
       error: 'failed running beforeEach hook'
       code: 'ERR_TEST_FAILURE'
       stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
         *
       ...
     1..2
@@ -200,6 +278,15 @@ not ok 7 - t.beforeEach throws
       code: 'ERR_TEST_FAILURE'
       stack: |-
         *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -209,6 +296,15 @@ not ok 7 - t.beforeEach throws
       error: 'failed running afterEach hook'
       code: 'ERR_TEST_FAILURE'
       stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
         *
       ...
     1..2
