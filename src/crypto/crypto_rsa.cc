@@ -153,7 +153,7 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset]);
       params->params.md = EVP_get_digestbyname(*digest);
       if (params->params.md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<bool>();
       }
     }
@@ -163,8 +163,8 @@ Maybe<bool> RsaKeyGenTraits::AdditionalConfig(
       Utf8Value digest(env->isolate(), args[*offset + 1]);
       params->params.mgf1_md = EVP_get_digestbyname(*digest);
       if (params->params.mgf1_md == nullptr) {
-        THROW_ERR_CRYPTO_INVALID_DIGEST(env,
-          "mgf1_md specifies an invalid digest");
+        THROW_ERR_CRYPTO_INVALID_DIGEST(
+            env, "Invalid MGF1 digest: %s", *digest);
         return Nothing<bool>();
       }
     }
