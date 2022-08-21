@@ -4,6 +4,8 @@ const { redirectStatus } = require('./constants')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
 const assert = require('assert')
+const { isUint8Array } = require('util/types')
+const { createHash } = require('crypto')
 
 let File
 
@@ -340,7 +342,8 @@ function determineRequestsReferrer (request) {
 }
 
 function matchRequestIntegrity (request, bytes) {
-  return false
+  const [algo, expectedHashValue] = request.integrity.split('-', 2)
+  return createHash(algo).update(bytes).digest('hex') === expectedHashValue
 }
 
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
@@ -439,6 +442,53 @@ function makeIterator (iterator, name) {
 }
 
 /**
+ * @see https://fetch.spec.whatwg.org/#body-fully-read
+ */
+async function fullyReadBody (body, processBody, processBodyError) {
+  // 1. If taskDestination is null, then set taskDestination to
+  //    the result of starting a new parallel queue.
+
+  // 2. Let promise be the result of fully reading body as promise
+  //    given body.
+  try {
+    /** @type {Uint8Array[]} */
+    const chunks = []
+    let length = 0
+
+    const reader = body.stream.getReader()
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done === true) {
+        break
+      }
+
+      // read-loop chunk steps
+      assert(isUint8Array(value))
+
+      chunks.push(value)
+      length += value.byteLength
+    }
+
+    // 3. Let fulfilledSteps given a byte sequence bytes be to queue
+    //    a fetch task to run processBody given bytes, with
+    //    taskDestination.
+    const fulfilledSteps = (bytes) => queueMicrotask(() => {
+      processBody(bytes)
+    })
+
+    fulfilledSteps(Buffer.concat(chunks, length))
+  } catch (err) {
+    // 4. Let rejectedSteps be to queue a fetch task to run
+    //    processBodyError, with taskDestination.
+    queueMicrotask(() => processBodyError(err))
+  }
+
+  // 5. React to promise with fulfilledSteps and rejectedSteps.
+}
+
+/**
  * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
  */
 const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
@@ -477,5 +527,6 @@ module.exports = {
   isValidHeaderName,
   isValidHeaderValue,
   hasOwn,
-  isErrorLike
+  isErrorLike,
+  fullyReadBody
 }

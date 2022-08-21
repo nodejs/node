@@ -835,7 +835,11 @@ var require_util = __commonJS({
         const key = headers[i].toString().toLowerCase();
         let val = obj[key];
         if (!val) {
-          obj[key] = headers[i + 1].toString();
+          if (Array.isArray(headers[i + 1])) {
+            obj[key] = headers[i + 1];
+          } else {
+            obj[key] = headers[i + 1].toString();
+          }
         } else {
           if (!Array.isArray(val)) {
             val = [val];
@@ -1537,7 +1541,7 @@ var require_file = __commonJS({
           if (!element.buffer) {
             bytes.push(new Uint8Array(element));
           } else {
-            bytes.push(element.buffer);
+            bytes.push(new Uint8Array(element.buffer, element.byteOffset, element.byteLength));
           }
         } else if (isBlobLike(element)) {
           bytes.push(element);
@@ -1564,6 +1568,8 @@ var require_util2 = __commonJS({
     var { performance: performance2 } = require("perf_hooks");
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
     var assert = require("assert");
+    var { isUint8Array } = require("util/types");
+    var { createHash } = require("crypto");
     var File;
     var badPorts = [
       "1",
@@ -1804,7 +1810,8 @@ var require_util2 = __commonJS({
       return "no-referrer";
     }
     function matchRequestIntegrity(request, bytes) {
-      return false;
+      const [algo, expectedHashValue] = request.integrity.split("-", 2);
+      return createHash(algo).update(bytes).digest("hex") === expectedHashValue;
     }
     function tryUpgradeRequestToAPotentiallyTrustworthyURL(request) {
     }
@@ -1854,6 +1861,28 @@ var require_util2 = __commonJS({
       Object.setPrototypeOf(i, esIteratorPrototype);
       return Object.setPrototypeOf({}, i);
     }
+    async function fullyReadBody(body, processBody, processBodyError) {
+      try {
+        const chunks = [];
+        let length = 0;
+        const reader = body.stream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done === true) {
+            break;
+          }
+          assert(isUint8Array(value));
+          chunks.push(value);
+          length += value.byteLength;
+        }
+        const fulfilledSteps = (bytes) => queueMicrotask(() => {
+          processBody(bytes);
+        });
+        fulfilledSteps(Buffer.concat(chunks, length));
+      } catch (err) {
+        queueMicrotask(() => processBodyError(err));
+      }
+    }
     var hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key));
     module2.exports = {
       isAborted,
@@ -1889,7 +1918,8 @@ var require_util2 = __commonJS({
       isValidHeaderName,
       isValidHeaderValue,
       hasOwn,
-      isErrorLike
+      isErrorLike,
+      fullyReadBody
     };
   }
 });
@@ -3903,8 +3933,10 @@ var require_client = __commonJS({
     function onParserTimeout(parser) {
       const { socket, timeoutType, client } = parser;
       if (timeoutType === TIMEOUT_HEADERS) {
-        assert(!parser.paused, "cannot be paused while waiting for headers");
-        util.destroy(socket, new HeadersTimeoutError());
+        if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
+          assert(!parser.paused, "cannot be paused while waiting for headers");
+          util.destroy(socket, new HeadersTimeoutError());
+        }
       } else if (timeoutType === TIMEOUT_BODY) {
         if (!parser.paused) {
           util.destroy(socket, new BodyTimeoutError());
@@ -4452,6 +4484,13 @@ ${len.toString(16)}\r
         this.bytesWritten += len;
         const ret = socket.write(chunk);
         request.onBodySent(chunk);
+        if (!ret) {
+          if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
+            if (socket[kParser].timeout.refresh) {
+              socket[kParser].timeout.refresh();
+            }
+          }
+        }
         return ret;
       }
       end() {
@@ -6228,7 +6267,8 @@ var require_fetch = __commonJS({
       sameOrigin,
       isCancelled,
       isAborted,
-      isErrorLike
+      isErrorLike,
+      fullyReadBody
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var assert = require("assert");
@@ -6540,11 +6580,7 @@ var require_fetch = __commonJS({
           response.body = safelyExtractBody(bytes)[0];
           fetchFinale(fetchParams, response);
         };
-        try {
-          processBody(await response.arrayBuffer());
-        } catch (err) {
-          processBodyError(err);
-        }
+        await fullyReadBody(response.body, processBody, processBodyError);
       } else {
         fetchFinale(fetchParams, response);
       }
@@ -6667,11 +6703,7 @@ var require_fetch = __commonJS({
         if (response.body == null) {
           queueMicrotask(() => processBody(null));
         } else {
-          try {
-            processBody(await response.body.stream.arrayBuffer());
-          } catch (err) {
-            processBodyError(err);
-          }
+          await fullyReadBody(response.body, processBody, processBodyError);
         }
       }
     }

@@ -34,7 +34,8 @@ const {
   sameOrigin,
   isCancelled,
   isAborted,
-  isErrorLike
+  isErrorLike,
+  fullyReadBody
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
@@ -738,11 +739,7 @@ async function mainFetch (fetchParams, recursive = false) {
     }
 
     // 4. Fully read response’s body given processBody and processBodyError.
-    try {
-      processBody(await response.arrayBuffer())
-    } catch (err) {
-      processBodyError(err)
-    }
+    await fullyReadBody(response.body, processBody, processBodyError)
   } else {
     // 21. Otherwise, run fetch finale given fetchParams and response.
     fetchFinale(fetchParams, response)
@@ -974,11 +971,7 @@ async function fetchFinale (fetchParams, response) {
     } else {
       // 4. Otherwise, fully read response’s body given processBody, processBodyError,
       // and fetchParams’s task destination.
-      try {
-        processBody(await response.body.stream.arrayBuffer())
-      } catch (err) {
-        processBodyError(err)
-      }
+      await fullyReadBody(response.body, processBody, processBodyError)
     }
   }
 }
