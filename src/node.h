@@ -1116,6 +1116,15 @@ inline void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder) {
   RemoveEnvironmentCleanupHookInternal(holder.get());
 }
 
+// This behaves like V8's Isolate::RequestInterrupt(), but also wakes up
+// the event loop if it is currently idle. Interrupt requests are drained
+// in `FreeEnvironment()`. The passed callback can not call back into
+// JavaScript.
+// This function can be called from any thread.
+NODE_EXTERN void RequestInterrupt(Environment* env,
+                                  void (*fun)(void* arg),
+                                  void* arg);
+
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
