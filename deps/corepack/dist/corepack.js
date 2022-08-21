@@ -15073,18 +15073,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "Engine": () => (/* binding */ Engine)
 /* harmony export */ });
-/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
+/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! fs */ "fs");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! path */ "path");
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! semver */ "../../../.yarn/berry/cache/semver-npm-7.3.7-3bfe704194-9.zip/node_modules/semver/index.js");
-/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(semver__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var _config_json__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../config.json */ "./config.json");
-/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
-/* harmony import */ var _folderUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./folderUtils */ "./sources/folderUtils.ts");
-/* harmony import */ var _semverUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./semverUtils */ "./sources/semverUtils.ts");
-/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./types */ "./sources/types.ts");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! process */ "process");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(process__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! semver */ "../../../.yarn/berry/cache/semver-npm-7.3.7-3bfe704194-9.zip/node_modules/semver/index.js");
+/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(semver__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _config_json__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../config.json */ "./config.json");
+/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
+/* harmony import */ var _folderUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./folderUtils */ "./sources/folderUtils.ts");
+/* harmony import */ var _semverUtils__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./semverUtils */ "./sources/semverUtils.ts");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./types */ "./sources/types.ts");
+
 
 
 
@@ -15095,11 +15098,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class Engine {
-    constructor(config = _config_json__WEBPACK_IMPORTED_MODULE_3__) {
+    constructor(config = _config_json__WEBPACK_IMPORTED_MODULE_4__) {
         this.config = config;
     }
     getPackageManagerFor(binaryName) {
-        for (const packageManager of _types__WEBPACK_IMPORTED_MODULE_7__.SupportedPackageManagerSet) {
+        for (const packageManager of _types__WEBPACK_IMPORTED_MODULE_8__.SupportedPackageManagerSet) {
             for (const rangeDefinition of Object.values(this.config.definitions[packageManager].ranges)) {
                 const bins = Array.isArray(rangeDefinition.bin)
                     ? rangeDefinition.bin
@@ -15125,14 +15128,14 @@ class Engine {
     }
     async getDefaultDescriptors() {
         const locators = [];
-        for (const name of _types__WEBPACK_IMPORTED_MODULE_7__.SupportedPackageManagerSet)
+        for (const name of _types__WEBPACK_IMPORTED_MODULE_8__.SupportedPackageManagerSet)
             locators.push({ name, range: await this.getDefaultVersion(name) });
         return locators;
     }
     async getDefaultVersion(packageManager) {
         const definition = this.config.definitions[packageManager];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${packageManager}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${packageManager}) isn't supported by this corepack build`);
         let lastKnownGood;
         try {
             lastKnownGood = JSON.parse(await fs__WEBPACK_IMPORTED_MODULE_0___default().promises.readFile(this.getLastKnownGoodFile(), `utf8`));
@@ -15140,14 +15143,21 @@ class Engine {
         catch (_a) {
             // Ignore errors; too bad
         }
-        if (typeof lastKnownGood !== `object` || lastKnownGood === null)
+        if (typeof lastKnownGood === `object` && lastKnownGood !== null &&
+            Object.prototype.hasOwnProperty.call(lastKnownGood, packageManager)) {
+            const override = lastKnownGood[packageManager];
+            if (typeof override === `string`) {
+                return override;
+            }
+        }
+        if ((process__WEBPACK_IMPORTED_MODULE_2___default().env.COREPACK_DEFAULT_TO_LATEST) === `0`)
             return definition.default;
-        if (!Object.prototype.hasOwnProperty.call(lastKnownGood, packageManager))
-            return definition.default;
-        const override = lastKnownGood[packageManager];
-        if (typeof override !== `string`)
-            return definition.default;
-        return override;
+        const reference = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchLatestStableVersion(definition.fetchLatestFrom);
+        await this.activatePackageManager({
+            name: packageManager,
+            reference,
+        });
+        return reference;
     }
     async activatePackageManager(locator) {
         const lastKnownGoodFile = this.getLastKnownGoodFile();
@@ -15167,12 +15177,12 @@ class Engine {
     async ensurePackageManager(locator) {
         const definition = this.config.definitions[locator.name];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${locator.name}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${locator.name}) isn't supported by this corepack build`);
         const ranges = Object.keys(definition.ranges).reverse();
-        const range = ranges.find(range => _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(locator.reference, range));
+        const range = ranges.find(range => _semverUtils__WEBPACK_IMPORTED_MODULE_7__.satisfiesWithPrereleases(locator.reference, range));
         if (typeof range === `undefined`)
             throw new Error(`Assertion failed: Specified resolution (${locator.reference}) isn't supported by any of ${ranges.join(`, `)}`);
-        const installedLocation = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), locator, {
+        const installedLocation = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), locator, {
             spec: definition.ranges[range],
         });
         return {
@@ -15183,17 +15193,17 @@ class Engine {
     async resolveDescriptor(descriptor, { allowTags = false, useCache = true } = {}) {
         const definition = this.config.definitions[descriptor.name];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${descriptor.name}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${descriptor.name}) isn't supported by this corepack build`);
         let finalDescriptor = descriptor;
         if (/^[a-z-]+$/.test(descriptor.range)) {
             if (!allowTags)
-                throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Packages managers can't be referended via tags in this context`);
+                throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`Packages managers can't be referended via tags in this context`);
             // We only resolve tags from the latest registry entry
             const ranges = Object.keys(definition.ranges);
             const tagRange = ranges[ranges.length - 1];
-            const tags = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.fetchAvailableTags(definition.ranges[tagRange].registry);
+            const tags = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableTags(definition.ranges[tagRange].registry);
             if (!Object.prototype.hasOwnProperty.call(tags, descriptor.range))
-                throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Tag not found (${descriptor.range})`);
+                throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`Tag not found (${descriptor.range})`);
             finalDescriptor = {
                 name: descriptor.name,
                 range: tags[descriptor.range],
@@ -15201,18 +15211,18 @@ class Engine {
         }
         // If a compatible version is already installed, no need to query one
         // from the remote listings
-        const cachedVersion = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), finalDescriptor);
+        const cachedVersion = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), finalDescriptor);
         if (cachedVersion !== null && useCache)
             return { name: finalDescriptor.name, reference: cachedVersion };
         // If the user asked for a specific version, no need to request the list of
         // available versions from the registry.
-        if (semver__WEBPACK_IMPORTED_MODULE_2___default().valid(finalDescriptor.range))
+        if (semver__WEBPACK_IMPORTED_MODULE_3___default().valid(finalDescriptor.range))
             return { name: finalDescriptor.name, reference: finalDescriptor.range };
         const candidateRangeDefinitions = Object.keys(definition.ranges).filter(range => {
-            return _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(finalDescriptor.range, range);
+            return _semverUtils__WEBPACK_IMPORTED_MODULE_7__.satisfiesWithPrereleases(finalDescriptor.range, range);
         });
         const tagResolutions = await Promise.all(candidateRangeDefinitions.map(async (range) => {
-            return [range, await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.fetchAvailableVersions(definition.ranges[range].registry)];
+            return [range, await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableVersions(definition.ranges[range].registry)];
         }));
         // If a version is available under multiple strategies (for example if
         // Yarn is published to both the v1 package and git), we only care
@@ -15222,13 +15232,13 @@ class Engine {
             for (const entry of resolutions)
                 resolutionMap.set(entry, range);
         const candidates = [...resolutionMap.keys()];
-        const maxSatisfying = semver__WEBPACK_IMPORTED_MODULE_2___default().maxSatisfying(candidates, finalDescriptor.range);
+        const maxSatisfying = semver__WEBPACK_IMPORTED_MODULE_3___default().maxSatisfying(candidates, finalDescriptor.range);
         if (maxSatisfying === null)
             return null;
         return { name: finalDescriptor.name, reference: maxSatisfying };
     }
     getLastKnownGoodFile() {
-        return path__WEBPACK_IMPORTED_MODULE_1___default().join(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), `lastKnownGood.json`);
+        return path__WEBPACK_IMPORTED_MODULE_1___default().join(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), `lastKnownGood.json`);
     }
 }
 
@@ -15677,6 +15687,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "fetchAvailableTags": () => (/* binding */ fetchAvailableTags),
 /* harmony export */   "fetchAvailableVersions": () => (/* binding */ fetchAvailableVersions),
+/* harmony export */   "fetchLatestStableVersion": () => (/* binding */ fetchLatestStableVersion),
 /* harmony export */   "findInstalledVersion": () => (/* binding */ findInstalledVersion),
 /* harmony export */   "installVersion": () => (/* binding */ installVersion),
 /* harmony export */   "runVersion": () => (/* binding */ runVersion)
@@ -15713,6 +15724,21 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
+async function fetchLatestStableVersion(spec) {
+    switch (spec.type) {
+        case `npm`: {
+            const { [`dist-tags`]: { latest }, versions: { [latest]: { dist: { shasum } } } } = await _httpUtils__WEBPACK_IMPORTED_MODULE_8__.fetchAsJson(`https://registry.npmjs.org/${spec.package}`);
+            return `${latest}+sha1.${shasum}`;
+        }
+        case `url`: {
+            const data = await _httpUtils__WEBPACK_IMPORTED_MODULE_8__.fetchAsJson(spec.url);
+            return data[spec.fields.tags].stable;
+        }
+        default: {
+            throw new Error(`Unsupported specification ${JSON.stringify(spec)}`);
+        }
+    }
+}
 async function fetchAvailableTags(spec) {
     switch (spec.type) {
         case `npm`: {
@@ -15918,19 +15944,33 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(os__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! path */ "path");
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! process */ "process");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(process__WEBPACK_IMPORTED_MODULE_3__);
+
 
 
 
 function getInstallFolder() {
-    var _a;
-    return (_a = process.env.COREPACK_HOME) !== null && _a !== void 0 ? _a : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node/corepack`);
+    var _a, _b, _c, _d, _e;
+    if ((process__WEBPACK_IMPORTED_MODULE_3___default().env.COREPACK_HOME) == null) {
+        // TODO: remove this block on the next major.
+        const oldCorepackDefaultHome = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node`, `corepack`);
+        const newCorepackDefaultHome = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((_b = (_a = (process__WEBPACK_IMPORTED_MODULE_3___default().env.XDG_CACHE_HOME)) !== null && _a !== void 0 ? _a : (process__WEBPACK_IMPORTED_MODULE_3___default().env.LOCALAPPDATA)) !== null && _b !== void 0 ? _b : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), (process__WEBPACK_IMPORTED_MODULE_3___default().platform) === `win32` ? `AppData/Local` : `.cache`), `node/corepack`);
+        if ((0,fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(oldCorepackDefaultHome) &&
+            !(0,fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(newCorepackDefaultHome)) {
+            (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(newCorepackDefaultHome, { recursive: true });
+            (0,fs__WEBPACK_IMPORTED_MODULE_0__.renameSync)(oldCorepackDefaultHome, newCorepackDefaultHome);
+        }
+        return newCorepackDefaultHome;
+    }
+    return ((_c = (process__WEBPACK_IMPORTED_MODULE_3___default().env.COREPACK_HOME)) !== null && _c !== void 0 ? _c : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((_e = (_d = (process__WEBPACK_IMPORTED_MODULE_3___default().env.XDG_CACHE_HOME)) !== null && _d !== void 0 ? _d : (process__WEBPACK_IMPORTED_MODULE_3___default().env.LOCALAPPDATA)) !== null && _e !== void 0 ? _e : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), (process__WEBPACK_IMPORTED_MODULE_3___default().platform) === `win32` ? `AppData/Local` : `.cache`), `node/corepack`));
 }
 function getTemporaryFolder(target = (0,os__WEBPACK_IMPORTED_MODULE_1__.tmpdir)()) {
     (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(target, { recursive: true });
     while (true) {
         const rnd = Math.random() * 0x100000000;
         const hex = rnd.toString(16).padStart(8, `0`);
-        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${process.pid}-${hex}`);
+        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${(process__WEBPACK_IMPORTED_MODULE_3___default().pid)}-${hex}`);
         try {
             (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(path);
             return path;
@@ -16681,6 +16721,17 @@ module.exports = require("path");
 
 /***/ }),
 
+/***/ "process":
+/*!**************************!*\
+  !*** external "process" ***!
+  \**************************/
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("process");
+
+/***/ }),
+
 /***/ "stream":
 /*!*************************!*\
   !*** external "stream" ***!
@@ -16953,7 +17004,7 @@ const supportsColor = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.17.0+sha1.05c77fb2794daa3d9b2cd0460859f1f9dc596676","transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.9.0+sha1.4226ed225337fd55f9ff7736b67048dffe1d7b16","transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","transparent":{"default":"3.2.2+sha224.634d0331703700cabfa9d9389835bd8f7426b0207ed6b74d8d34c81e","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
+module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.18.0+sha1.bd6ca7f637720441f812370363e2ae67426fb42f","fetchLatestFrom":{"type":"npm","package":"npm"},"transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.9.3+sha1.843f76d13dbfa9f6dfb5135d6fbaa8b99facacc9","fetchLatestFrom":{"type":"npm","package":"pnpm"},"transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","fetchLatestFrom":{"type":"npm","package":"yarn"},"transparent":{"default":"3.2.2+sha224.634d0331703700cabfa9d9389835bd8f7426b0207ed6b74d8d34c81e","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
 
 /***/ }),
 
@@ -16964,7 +17015,7 @@ module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.17.0+sha1.05c77
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"corepack","version":"0.12.3","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^28.0.0","@types/node":"^18.0.0","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^28.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
+module.exports = JSON.parse('{"name":"corepack","version":"0.13.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^28.0.0","@types/node":"^18.0.0","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^28.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
 
 /***/ })
 
