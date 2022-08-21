@@ -312,6 +312,17 @@ added: v8.5.0
 Returns the current high resolution millisecond timestamp, where 0 represents
 the start of the current `node` process.
 
+### `performance.setResourceTimingBufferSize(maxSize)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets the global performance resource timing buffer size to the specified number
+of "resource" type performance entry objects.
+
+By default the max buffer size is set to 250.
+
 ### `performance.timeOrigin`
 
 <!-- YAML
@@ -386,6 +397,18 @@ added: v16.1.0
 
 An object which is JSON representation of the `performance` object. It
 is similar to [`window.performance.toJSON`][] in browsers.
+
+#### Event: `'resourcetimingbufferfull'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'resourcetimingbufferfull'` event is fired when the global performance
+resource timing buffer is full. Adjust resource timing buffer size with
+`performance.setResourceTimingBufferSize()` or clear the buffer with
+`performance.clearResourceTimings()` in the event listener to allow
+more entries to be added to the performance timeline buffer.
 
 ## Class: `PerformanceEntry`
 

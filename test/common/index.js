@@ -289,6 +289,9 @@ if (global.gc) {
   knownGlobals.push(global.gc);
 }
 
+if (global.Performance) {
+  knownGlobals.push(global.Performance);
+}
 if (global.performance) {
   knownGlobals.push(global.performance);
 }
