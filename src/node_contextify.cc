@@ -864,7 +864,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() || args[0]->IsNull());
 
   Local<Context> context;
-  std::shared_ptr<v8::MicrotaskQueue> microtask_queue;
+  std::shared_ptr<MicrotaskQueue> microtask_queue;
 
   if (args[0]->IsObject()) {
     Local<Object> sandbox = args[0].As<Object>();
@@ -1247,7 +1247,7 @@ static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
           static_cast<v8::MeasureMemoryMode>(mode));
   isolate->MeasureMemory(std::move(delegate),
                          static_cast<v8::MeasureMemoryExecution>(execution));
-  v8::Local<v8::Promise> promise = resolver->GetPromise();
+  Local<Promise> promise = resolver->GetPromise();
 
   args.GetReturnValue().Set(promise);
 }
