@@ -10,7 +10,7 @@ const assert = require('assert');
 
 {
 
-  const cli = startCLI([fixtures.path('debugger/alive.js')]);
+  const cli = startCLI(['--port=0', fixtures.path('debugger/alive.js')]);
 
   function onFatal(error) {
     cli.quit();

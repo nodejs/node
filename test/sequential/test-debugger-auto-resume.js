@@ -20,7 +20,7 @@ addLibraryPath(process.env);
   const env = { ...process.env };
   env.NODE_INSPECT_RESUME_ON_START = '1';
 
-  const cli = startCLI([script], [], { env });
+  const cli = startCLI(['--port=0', script], [], { env });
 
   cli.waitForInitialBreak()
     .then(() => {

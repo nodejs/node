@@ -17,7 +17,7 @@ const path = require('path');
   const otherScriptFullPath = fixtures.path('debugger', 'cjs', 'other.js');
   const otherScript = path.relative(process.cwd(), otherScriptFullPath);
 
-  const cli = startCLI([script]);
+  const cli = startCLI(['--port=0', script]);
 
   function onFatal(error) {
     cli.quit();

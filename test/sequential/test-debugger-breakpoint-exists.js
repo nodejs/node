@@ -10,7 +10,7 @@ const startCLI = require('../common/debugger');
 // Test for "Breakpoint at specified location already exists" error.
 {
   const script = fixtures.path('debugger', 'three-lines.js');
-  const cli = startCLI([script]);
+  const cli = startCLI(['--port=0', script]);
 
   function onFatal(error) {
     cli.quit();
