@@ -839,20 +839,13 @@ ManagedEVPPKey ManagedEVPPKey::GetParsedKey(Environment* env,
   return ManagedEVPPKey(std::move(pkey));
 }
 
-KeyObjectData::KeyObjectData(
-    ByteSource symmetric_key)
+KeyObjectData::KeyObjectData(ByteSource symmetric_key)
     : key_type_(KeyType::kKeyTypeSecret),
       symmetric_key_(std::move(symmetric_key)),
-      symmetric_key_len_(symmetric_key_.size()),
       asymmetric_key_() {}
 
-KeyObjectData::KeyObjectData(
-    KeyType type,
-    const ManagedEVPPKey& pkey)
-    : key_type_(type),
-      symmetric_key_(),
-      symmetric_key_len_(0),
-      asymmetric_key_{pkey} {}
+KeyObjectData::KeyObjectData(KeyType type, const ManagedEVPPKey& pkey)
+    : key_type_(type), symmetric_key_(), asymmetric_key_{pkey} {}
 
 void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
   switch (GetKeyType()) {
@@ -896,7 +889,7 @@ const char* KeyObjectData::GetSymmetricKey() const {
 
 size_t KeyObjectData::GetSymmetricKeySize() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
-  return symmetric_key_len_;
+  return symmetric_key_.size();
 }
 
 v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
