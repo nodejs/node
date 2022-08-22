@@ -68,11 +68,9 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
   params->length = static_cast<size_t>(
       std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT));
   if (params->length > INT_MAX) {
-    const std::string msg{
-      SPrintF("length must be less than or equal to %s bits",
-              static_cast<uint64_t>(INT_MAX) * CHAR_BIT)
-    };
-    THROW_ERR_OUT_OF_RANGE(env, msg.c_str());
+    THROW_ERR_OUT_OF_RANGE(env,
+                           "length must be less than or equal to %u bits",
+                           static_cast<uint64_t>(INT_MAX) * CHAR_BIT);
     return Nothing<bool>();
   }
   *offset += 1;

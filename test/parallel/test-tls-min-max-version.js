@@ -97,6 +97,11 @@ test(U, U, 'hokey-pokey', U, U, U,
 test(U, U, U, U, U, 'hokey-pokey',
      U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
 
+// Regression test: this should not crash because node should not pass the error
+// message (including unsanitized user input) to a printf-like function.
+test(U, U, U, U, U, '%s_method',
+     U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+
 // Cannot use secureProtocol and min/max versions simultaneously.
 test(U, U, U, U, 'TLSv1.2', 'TLS1_2_method',
      U, U, 'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
