@@ -465,7 +465,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       // Windows needs to add the filename into the error message
       errmsg += *filename;
 #endif  // _WIN32
-      THROW_ERR_DLOPEN_FAILED(env, errmsg.c_str());
+      THROW_ERR_DLOPEN_FAILED(env, "%s", errmsg.c_str());
       return false;
     }
 
@@ -490,12 +490,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         mp = dlib->GetSavedModuleFromGlobalHandleMap();
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
-          char errmsg[1024];
-          snprintf(errmsg,
-                   sizeof(errmsg),
-                   "Module did not self-register: '%s'.",
-                   *filename);
-          THROW_ERR_DLOPEN_FAILED(env, errmsg);
+          THROW_ERR_DLOPEN_FAILED(
+              env, "Module did not self-register: '%s'.", *filename);
           return false;
         }
       }
@@ -510,23 +506,22 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         callback(exports, module, context);
         return true;
       }
-      char errmsg[1024];
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against a different Node.js version using"
-               "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
-               "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-               "re-installing\nthe module (for instance, using `npm rebuild` "
-               "or `npm install`).",
-               *filename,
-               mp->nm_version,
-               NODE_MODULE_VERSION);
 
+      const int actual_nm_version = mp->nm_version;
       // NOTE: `mp` is allocated inside of the shared library's memory, calling
       // `dlclose` will deallocate it
       dlib->Close();
-      THROW_ERR_DLOPEN_FAILED(env, errmsg);
+      THROW_ERR_DLOPEN_FAILED(
+          env,
+          "The module '%s'"
+          "\nwas compiled against a different Node.js version using"
+          "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
+          "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
+          "re-installing\nthe module (for instance, using `npm rebuild` "
+          "or `npm install`).",
+          *filename,
+          actual_nm_version,
+          NODE_MODULE_VERSION);
       return false;
     }
     CHECK_EQ(mp->nm_flags & NM_F_BUILTIN, 0);
@@ -607,9 +602,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
                         env->isolate()))
               .FromJust());
   } else {
-    char errmsg[1024];
-    snprintf(errmsg, sizeof(errmsg), "No such module: %s", *module_v);
-    return THROW_ERR_INVALID_MODULE(env, errmsg);
+    return THROW_ERR_INVALID_MODULE(env, "No such module: %s", *module_v);
   }
 
   args.GetReturnValue().Set(exports);
@@ -639,12 +632,8 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     mod = FindModule(modlist_linked, name, NM_F_LINKED);
 
   if (mod == nullptr) {
-    char errmsg[1024];
-    snprintf(errmsg,
-             sizeof(errmsg),
-             "No such module was linked: %s",
-             *module_name_v);
-    return THROW_ERR_INVALID_MODULE(env, errmsg);
+    return THROW_ERR_INVALID_MODULE(
+        env, "No such module was linked: %s", *module_name_v);
   }
 
   Local<Object> module = Object::New(env->isolate());
