@@ -1549,7 +1549,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, common.mustNotCall()), {
     name: 'TypeError',
     code: 'ERR_CRYPTO_INVALID_DIGEST',
-    message: 'md specifies an invalid digest'
+    message: 'Invalid digest: sha2'
   });
 
   assert.throws(() => generateKeyPair('rsa-pss', {
@@ -1558,7 +1558,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, common.mustNotCall()), {
     name: 'TypeError',
     code: 'ERR_CRYPTO_INVALID_DIGEST',
-    message: 'mgf1_md specifies an invalid digest'
+    message: 'Invalid MGF1 digest: sha2'
   });
 }
 
