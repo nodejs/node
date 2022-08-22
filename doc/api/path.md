@@ -206,6 +206,10 @@ A [`TypeError`][] is thrown if `path` is not a string.
 
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44349
+    description: The dot will be added if it is not specified in `ext`.
 -->
 
 * `pathObject` {Object} Any JavaScript object having the following properties:
@@ -253,6 +257,14 @@ path.format({
   root: '/',
   name: 'file',
   ext: '.txt'
+});
+// Returns: '/file.txt'
+
+// The dot will be added if it is not specified in `ext`.
+path.format({
+  root: '/',
+  name: 'file',
+  ext: 'txt'
 });
 // Returns: '/file.txt'
 ```
