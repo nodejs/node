@@ -71,16 +71,19 @@ void LogSecret(
     const unsigned char* secret,
     size_t secretlen) {
   auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl.get()));
-  unsigned char crandom[32];
+  // All supported versions of TLS/SSL fix the client random to the same size.
+  constexpr size_t kTlsClientRandomSize = SSL3_RANDOM_SIZE;
+  unsigned char crandom[kTlsClientRandomSize];
 
   if (keylog_cb == nullptr ||
-      SSL_get_client_random(ssl.get(), crandom, 32) != 32) {
+      SSL_get_client_random(ssl.get(), crandom, kTlsClientRandomSize) !=
+          kTlsClientRandomSize) {
     return;
   }
 
   std::string line = name;
-  line += " " + StringBytes::hex_encode(
-      reinterpret_cast<const char*>(crandom), 32);
+  line += " " + StringBytes::hex_encode(reinterpret_cast<const char*>(crandom),
+                                        kTlsClientRandomSize);
   line += " " + StringBytes::hex_encode(
       reinterpret_cast<const char*>(secret), secretlen);
   keylog_cb(ssl.get(), line.c_str());
