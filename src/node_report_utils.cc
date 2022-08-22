@@ -261,7 +261,14 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     writer->json_keyvalue("writable",
                           static_cast<bool>(uv_is_writable(&handle->stream)));
   }
-
+  if (h->type == UV_UDP) {
+    writer->json_keyvalue(
+        "writeQueueSize",
+        uv_udp_get_send_queue_size(reinterpret_cast<uv_udp_t*>(h)));
+    writer->json_keyvalue(
+        "writeQueueCount",
+        uv_udp_get_send_queue_count(reinterpret_cast<uv_udp_t*>(h)));
+  }
   writer->json_end();
 }
 
