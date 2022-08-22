@@ -283,7 +283,6 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "close", Close);
     env->SetProtoMethod(tmpl, "loadPKCS12", LoadPKCS12);
     env->SetProtoMethod(tmpl, "setTicketKeys", SetTicketKeys);
-    env->SetProtoMethod(tmpl, "setFreeListLength", SetFreeListLength);
     env->SetProtoMethod(tmpl, "enableTicketKeyCallback",
         EnableTicketKeyCallback);
 
@@ -363,7 +362,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(Close);
   registry->Register(LoadPKCS12);
   registry->Register(SetTicketKeys);
-  registry->Register(SetFreeListLength);
   registry->Register(EnableTicketKeyCallback);
   registry->Register(GetTicketKeys);
   registry->Register(GetCertificate<true>);
@@ -1117,9 +1115,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
-}
-
-void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Currently, EnableTicketKeyCallback and TicketKeyCallback are only present for
