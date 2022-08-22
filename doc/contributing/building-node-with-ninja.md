@@ -40,4 +40,13 @@ To create a debug build rather than a release build:
 ./configure --ninja --debug && make
 ```
 
+## Customizing `ninja` path
+
+On some systems (such as RHEL7 and below), the Ninja binary might be installed
+with a different name. For these systems use the `NINJA` env var:
+
+```bash
+./configure --ninja && NINJA="ninja-build" make
+```
+
 [Ninja]: https://ninja-build.org/
