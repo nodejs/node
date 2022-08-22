@@ -318,35 +318,43 @@ If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
 ```text
-$ tools/test.py test/parallel/test-stream2-transform.js
+$ <python-exec> tools/test.py test/parallel/test-stream2-transform.js
+```
+
+For example on Mac it will be:
+
+```text
+$ python3 tools/test.py child-process
 ```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-$ tools/test.py child-process
+$ <python-exec> tools/test.py child-process
 ```
 
 You can also execute the tests in a test suite directory
 (such as `test/message`):
 
 ```text
-$ tools/test.py test/message
+$ <python-exec> tools/test.py test/message
 ```
 
 If you want to check the other options, please refer to the help by using
 the `--help` option:
 
 ```text
-$ tools/test.py --help
+$ <python-exec> tools/test.py --help
 ```
 
 You can usually run tests directly with node:
 
 ```text
-$ ./node ./test/parallel/test-stream2-transform.js
+$ ./node test/parallel/test-stream2-transform.js
 ```
+
+> Info: `./node` points to your local Node.js build.
 
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
