@@ -115,6 +115,7 @@ $(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
 	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
 else
 ifeq ($(BUILD_WITH), ninja)
+NINJA ?= ninja
 ifeq ($(V),1)
 	NINJA_ARGS := $(NINJA_ARGS) -v
 endif
@@ -124,11 +125,11 @@ else
 	NINJA_ARGS := $(NINJA_ARGS) $(filter -j%,$(MAKEFLAGS))
 endif
 $(NODE_EXE): config.gypi out/Release/build.ninja
-	ninja -C out/Release $(NINJA_ARGS)
+	$(NINJA) -C out/Release $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
-	ninja -C out/Debug $(NINJA_ARGS)
+	$(NINJA) -C out/Debug $(NINJA_ARGS)
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
 $(NODE_EXE) $(NODE_G_EXE):
