@@ -561,6 +561,7 @@ void RefBase::Finalize(bool is_env_teardown) {
     napi_finalize fini = _finalize_callback;
     _finalize_callback = nullptr;
     _env->CallFinalizer(fini, _finalize_data, _finalize_hint);
+    _finalize_ran = true;
   }
 
   // this is safe because if a request to delete the reference
