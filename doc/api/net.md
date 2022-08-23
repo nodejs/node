@@ -860,7 +860,7 @@ changes:
     - v17.7.0
     - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
-    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
                  options are supported now.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
@@ -1480,6 +1480,13 @@ then returns the `net.Socket` that starts the connection.
 
 <!-- YAML
 added: v0.5.0
+changes:
+  - version:
+    - v17.7.0
+    - v16.15.0
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
+                 options are supported now.
 -->
 
 * `options` {Object}
