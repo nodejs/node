@@ -528,7 +528,7 @@ before each subtest of the current suite.
 
 ```js
 describe('tests', async () => {
-  beforeEach(() => t.diagnostics('about to run a test'));
+  beforeEach(() => t.diagnostic('about to run a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
@@ -557,7 +557,7 @@ after each subtest of the current test.
 
 ```js
 describe('tests', async () => {
-  afterEach(() => t.diagnostics('about to run a test'));
+  afterEach(() => t.diagnostic('about to run a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
@@ -598,7 +598,7 @@ before each subtest of the current test.
 
 ```js
 test('top level test', async (t) => {
-  t.beforeEach((t) => t.diagnostics(`about to run ${t.name}`));
+  t.beforeEach((t) => t.diagnostic(`about to run ${t.name}`));
   await t.test(
     'This is a subtest',
     (t) => {
@@ -630,7 +630,7 @@ after each subtest of the current test.
 
 ```js
 test('top level test', async (t) => {
-  t.afterEach((t) => t.diagnostics(`finished running ${t.name}`));
+  t.afterEach((t) => t.diagnostic(`finished running ${t.name}`));
   await t.test(
     'This is a subtest',
     (t) => {
