@@ -317,6 +317,12 @@
         }],
       ],
     }],
+    [ 'coverage=="true"', {
+      'defines': [
+        'ALLOW_ATTACHING_DEBUGGER_IN_WATCH_MODE',
+        'ALLOW_ATTACHING_DEBUGGER_IN_TEST_RUNNER',
+      ],
+    }],
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
