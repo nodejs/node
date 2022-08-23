@@ -325,7 +325,7 @@ const callsfunc = tracker.calls(func);
 ### `tracker.getCalls(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function}.
@@ -439,7 +439,7 @@ tracker.report();
 ### `tracker.reset([fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function} a tracked function to reset.
@@ -2092,7 +2092,7 @@ argument gets considered.
 ## `assert.snapshot(value, name)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 > Stability: 1 - Experimental

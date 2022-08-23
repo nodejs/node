@@ -1053,7 +1053,7 @@ The numeric representation of the local port. For example, `80` or `21`.
 ### `socket.localFamily`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * {string}

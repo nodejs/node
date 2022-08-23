@@ -464,7 +464,7 @@ This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 ### `socket.getSendQueueSize()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * Returns: {number} Number of bytes queued for sending.
@@ -472,7 +472,7 @@ added: REPLACEME
 ### `socket.getSendQueueCount()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * Returns: {number} Number of send requests currently in the queue awaiting
