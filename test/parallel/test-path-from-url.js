@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('node:assert');
-const { fromURL } = require('node:path');
+const { fromURL, win32 } = require('node:path');
 const { describe, it } = require('node:test');
 
 
@@ -19,8 +19,10 @@ describe('path.fromURL', { concurrency: true }, () => {
     .strictEqual(fromURL(new URL('file:///path/to/file')), '/path/to/file'));
   it('should remove the host from a URL instance', () => assert
     .strictEqual(fromURL(new URL('file://localhost/etc/fstab')), '/etc/fstab'));
-  it('should parse a windows file URI', { skip: !common.isWindows }, () => assert
-    .strictEqual(fromURL(new URL('file:///c:/foo.txt')), 'c:\\foo.txt'));
+  it('should parse a windows file URI', () => {
+    const fn = common.isWindows ? fromURL : win32.fromURL;
+    assert.strictEqual(fn(new URL('file:///c:/foo.txt')), 'c:\\foo.txt');
+  });
   it('should throw an error if the URL is not a file URL', () => assert
     .throws(() => fromURL(new URL('http://localhost/etc/fstab')), { code: 'ERR_INVALID_URL_SCHEME' }));
   it('should throw an error if converting invalid types', () => [{}, [], 1, null, undefined,
