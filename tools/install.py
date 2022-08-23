@@ -169,7 +169,7 @@ def files(action):
 
       # install libnode.version.so
       so_name = 'libnode.' + re.sub(r'\.x$', '.so', variables.get('shlib_suffix'))
-      action([output_prefix + so_name], variables.get('libdir') + '/' + output_lib)
+      action([output_prefix + so_name], variables.get('libdir') + '/' + so_name)
 
       # create symlink of libnode.so -> libnode.version.so (C++ addons compat)
       link_path = abspath(install_path, 'lib/libnode.so')
