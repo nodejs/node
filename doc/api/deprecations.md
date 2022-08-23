@@ -3185,7 +3185,7 @@ strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44093
     description: Documentation-only deprecation.
 -->

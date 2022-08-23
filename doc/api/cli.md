@@ -103,7 +103,7 @@ If this flag is passed, the behavior can still be set to not abort through
 ### `--build-snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1142,7 +1142,7 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44208
     description: Report is not generated if the uncaught exception is handled.
   - version:
@@ -1199,7 +1199,7 @@ The value given must be a power of two.
 ### `--snapshot-blob=path`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1348,7 +1348,7 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 
 <!-- YAML
 added: v14.3.0
-deprecated: REPLACEME
+deprecated: v18.8.0
 -->
 
 > Stability: 0 - Deprecated
@@ -1509,7 +1509,7 @@ loading phase, it will always raise it as an uncaught exception.
 ### `--update-assert-snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 Force updating snapshot files for [`assert.snapshot()`][]

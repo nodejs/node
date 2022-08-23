@@ -315,7 +315,7 @@ the start of the current `node` process.
 ### `performance.setResourceTimingBufferSize(maxSize)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 Sets the global performance resource timing buffer size to the specified number
@@ -401,7 +401,7 @@ is similar to [`window.performance.toJSON`][] in browsers.
 #### Event: `'resourcetimingbufferfull'`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 The `'resourcetimingbufferfull'` event is fired when the global performance
