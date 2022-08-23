@@ -676,6 +676,9 @@ bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
                   std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
                   bool is_main) {
+  if (!options.allow_attaching_debugger) {
+    return false;
+  }
   path_ = path;
   debug_options_ = options;
   CHECK_NOT_NULL(host_port);

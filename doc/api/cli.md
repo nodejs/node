@@ -1577,6 +1577,53 @@ on the number of online processors.
 If the value provided is larger than V8's maximum, then the largest value
 will be chosen.
 
+### `--watch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Starts Node.js in watch mode.
+When in watch mode, changes in the watched files cause the Node.js process to
+restart.
+By default, watch mode will watch the entry point
+and any required or imported module.
+Use `--watch-path` to specify what paths to watch.
+
+This flag cannot be combined with
+`--check`, `--eval`, `--interactive`, or the REPL.
+
+```console
+$ node --watch index.js
+```
+
+### `--watch-path`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Starts Node.js in watch mode and specifies what paths to watch.
+When in watch mode, changes in the watched paths cause the Node.js process to
+restart.
+This will turn off watching of required or imported modules, even when used in
+combination with `--watch`.
+
+This flag cannot be combined with
+`--check`, `--eval`, `--interactive`, or the REPL.
+
+```console
+$ node --watch-path=./src --watch-path=./tests index.js
+```
+
+This option is only supported on macOS and Windows.
+An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
+when the option is used on a platform that does not support it.
+
 ### `--zero-fill-buffers`
 
 <!-- YAML
@@ -1880,6 +1927,8 @@ Node.js options that are allowed are:
 * `--use-largepages`
 * `--use-openssl-ca`
 * `--v8-pool-size`
+* `--watch-path`
+* `--watch`
 * `--zero-fill-buffers`
 
 <!-- node-options-node end -->
