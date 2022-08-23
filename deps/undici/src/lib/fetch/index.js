@@ -13,7 +13,7 @@ const { Headers } = require('./headers')
 const { Request, makeRequest } = require('./request')
 const zlib = require('zlib')
 const {
-  matchRequestIntegrity,
+  bytesMatch,
   makePolicyContainer,
   clonePolicyContainer,
   requestBadPort,
@@ -725,7 +725,7 @@ async function mainFetch (fetchParams, recursive = false) {
     const processBody = (bytes) => {
       // 1. If bytes do not match request’s integrity metadata,
       // then run processBodyError and abort these steps. [SRI]
-      if (!matchRequestIntegrity(request, bytes)) {
+      if (!bytesMatch(bytes, request.integrity)) {
         processBodyError('integrity mismatch')
         return
       }

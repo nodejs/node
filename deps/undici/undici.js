@@ -1569,8 +1569,12 @@ var require_util2 = __commonJS({
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
     var assert = require("assert");
     var { isUint8Array } = require("util/types");
-    var { createHash } = require("crypto");
     var File;
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
     var badPorts = [
       "1",
       "7",
@@ -1809,9 +1813,48 @@ var require_util2 = __commonJS({
     function determineRequestsReferrer(request) {
       return "no-referrer";
     }
-    function matchRequestIntegrity(request, bytes) {
-      const [algo, expectedHashValue] = request.integrity.split("-", 2);
-      return createHash(algo).update(bytes).digest("hex") === expectedHashValue;
+    function bytesMatch(bytes, metadataList) {
+      if (crypto === void 0) {
+        return true;
+      }
+      const parsedMetadata = parseMetadata(metadataList);
+      if (parsedMetadata === "no metadata") {
+        return true;
+      }
+      if (parsedMetadata.length === 0) {
+        return true;
+      }
+      const metadata = parsedMetadata.sort((c, d) => d.algo.localeCompare(c.algo));
+      for (const item of metadata) {
+        const algorithm = item.algo;
+        const expectedValue = item.hash;
+        const actualValue = crypto.createHash(algorithm).update(bytes).digest("base64");
+        if (actualValue === expectedValue) {
+          return true;
+        }
+      }
+      return false;
+    }
+    var parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={1,2}))( +[\x21-\x7e]?)?/i;
+    function parseMetadata(metadata) {
+      const result = [];
+      let empty = true;
+      const supportedHashes = crypto.getHashes();
+      for (const token of metadata.split(" ")) {
+        empty = false;
+        const parsedToken = parseHashWithOptions.exec(token);
+        if (parsedToken === null || parsedToken.groups === void 0) {
+          continue;
+        }
+        const algorithm = parsedToken.groups.algo;
+        if (supportedHashes.includes(algorithm.toLowerCase())) {
+          result.push(parsedToken.groups);
+        }
+      }
+      if (empty === true) {
+        return "no metadata";
+      }
+      return result;
     }
     function tryUpgradeRequestToAPotentiallyTrustworthyURL(request) {
     }
@@ -1892,7 +1935,6 @@ var require_util2 = __commonJS({
       toUSVString,
       tryUpgradeRequestToAPotentiallyTrustworthyURL,
       coarsenedSharedCurrentTime,
-      matchRequestIntegrity,
       determineRequestsReferrer,
       makePolicyContainer,
       clonePolicyContainer,
@@ -1919,7 +1961,8 @@ var require_util2 = __commonJS({
       isValidHeaderValue,
       hasOwn,
       isErrorLike,
-      fullyReadBody
+      fullyReadBody,
+      bytesMatch
     };
   }
 });
@@ -2135,11 +2178,10 @@ var require_body = __commonJS({
       } else if (object instanceof URLSearchParams) {
         source = object.toString();
         contentType = "application/x-www-form-urlencoded;charset=UTF-8";
-      } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
-        if (object instanceof DataView) {
-          object = object.buffer;
-        }
-        source = new Uint8Array(object);
+      } else if (isArrayBuffer(object)) {
+        source = new Uint8Array(object.slice());
+      } else if (ArrayBuffer.isView(object)) {
+        source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength));
       } else if (util.isFormDataLike(object)) {
         const boundary = "----formdata-undici-" + Math.random();
         const prefix = `--${boundary}\r
@@ -4670,7 +4712,7 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util = require_util();
     var RedirectHandler = require_redirect();
-    var { WeakRef, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
+    var { WeakRef, FinalizationRegistry } = require_dispatcher_weakref()();
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
     var kOnConnectionError = Symbol("onConnectionError");
@@ -4701,7 +4743,7 @@ var require_agent = __commonJS({
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
-        this[kFinalizer] = new FinalizationRegistry2((key) => {
+        this[kFinalizer] = new FinalizationRegistry((key) => {
           const ref = this[kClients].get(key);
           if (ref !== void 0 && ref.deref() === void 0) {
             this[kClients].delete(key);
@@ -5482,6 +5524,7 @@ var require_request2 = __commonJS({
     "use strict";
     var { extractBody, mixinBody, cloneBody } = require_body();
     var { Headers, fill: fillHeaders, HeadersList } = require_headers();
+    var { FinalizationRegistry } = require_dispatcher_weakref()();
     var util = require_util();
     var {
       isValidHTTPToken,
@@ -6014,7 +6057,7 @@ var require_request2 = __commonJS({
       },
       {
         key: "signal",
-        converter: webidl.nullableConverter(webidl.converters.AbortSignal)
+        converter: webidl.nullableConverter((signal) => webidl.converters.AbortSignal(signal, { strict: false }))
       },
       {
         key: "window",
@@ -6246,7 +6289,7 @@ var require_fetch = __commonJS({
     var { Request, makeRequest } = require_request2();
     var zlib = require("zlib");
     var {
-      matchRequestIntegrity,
+      bytesMatch,
       makePolicyContainer,
       clonePolicyContainer,
       requestBadPort,
@@ -6573,7 +6616,7 @@ var require_fetch = __commonJS({
           return;
         }
         const processBody = (bytes) => {
-          if (!matchRequestIntegrity(request, bytes)) {
+          if (!bytesMatch(bytes, request.integrity)) {
             processBodyError("integrity mismatch");
             return;
           }

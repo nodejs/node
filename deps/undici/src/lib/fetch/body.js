@@ -57,16 +57,16 @@ function extractBody (object, keepalive = false) {
 
     // Set Content-Type to `application/x-www-form-urlencoded;charset=UTF-8`.
     contentType = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
-    // BufferSource
-
-    if (object instanceof DataView) {
-      // TODO: Blob doesn't seem to work with DataView?
-      object = object.buffer
-    }
+  } else if (isArrayBuffer(object)) {
+    // BufferSource/ArrayBuffer
 
     // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object)
+    source = new Uint8Array(object.slice())
+  } else if (ArrayBuffer.isView(object)) {
+    // BufferSource/ArrayBufferView
+
+    // Set source to a copy of the bytes held by object.
+    source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
     const boundary = '----formdata-undici-' + Math.random()
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
