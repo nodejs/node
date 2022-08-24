@@ -4,6 +4,7 @@
 
 const { extractBody, mixinBody, cloneBody } = require('./body')
 const { Headers, fill: fillHeaders, HeadersList } = require('./headers')
+const { FinalizationRegistry } = require('../compat/dispatcher-weakref')()
 const util = require('../core/util')
 const {
   isValidHTTPToken,
@@ -914,7 +915,10 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'signal',
     converter: webidl.nullableConverter(
-      webidl.converters.AbortSignal
+      (signal) => webidl.converters.AbortSignal(
+        signal,
+        { strict: false }
+      )
     )
   },
   {
