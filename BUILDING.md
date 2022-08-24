@@ -317,16 +317,16 @@ To run the linter without running tests, use
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
-````text
+```text
 $ python3 tools/test.py test/parallel/test-stream2-transform.js
-
+```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
 $ python3 tools/test.py child-process
-````
+```
 
 You can also execute the tests in a test suite directory
 (such as `test/message`):
