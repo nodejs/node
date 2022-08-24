@@ -10,12 +10,24 @@ const input = 'hello world';
 tmpdir.refresh();
 
 fs.promises.open(file, 'w+').then((handle) => {
-  handle.on('close', common.mustCall());
+  let calls = 0;
+  const {
+    write: originalWriteFunction,
+    writev: originalWritevFunction
+  } = handle;
+  handle.write = function write() {
+    calls++;
+    return Reflect.apply(originalWriteFunction, this, arguments);
+  };
+  handle.writev = function writev() {
+    calls++;
+    return Reflect.apply(originalWritevFunction, this, arguments);
+  };
   const stream = fs.createWriteStream(null, { fd: handle });
 
   stream.end(input);
   stream.on('close', common.mustCall(() => {
-    const output = fs.readFileSync(file, 'utf-8');
-    assert.strictEqual(output, input);
+    assert(calls > 0, 'expected at least one call to fileHandle.write or ' +
+    'fileHandle.writev, got 0');
   }));
 }).then(common.mustCall());
