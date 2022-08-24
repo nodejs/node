@@ -14,24 +14,10 @@
 #endif
 
 #include <iomanip>
+#include <sstream>
 
 namespace node {
 namespace report {
-
-// Function declarations - functions in src/node_report.cc
-std::string TriggerNodeReport(v8::Isolate* isolate,
-                              Environment* env,
-                              const char* message,
-                              const char* trigger,
-                              const std::string& name,
-                              v8::Local<v8::Value> error);
-void GetNodeReport(v8::Isolate* isolate,
-                   Environment* env,
-                   const char* message,
-                   const char* trigger,
-                   v8::Local<v8::Value> error,
-                   std::ostream& out);
-
 // Function declarations - utility functions in src/node_report_utils.cc
 void WalkHandle(uv_handle_t* h, void* arg);
 
