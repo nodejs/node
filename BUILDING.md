@@ -321,6 +321,8 @@ If you are updating tests and want to run tests in a single test file
 $ python3 tools/test.py test/parallel/test-stream2-transform.js
 ```
 
+> Note: Using `pyhton3` alias is necessary only if you don't have a python executable on your path.
+
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
