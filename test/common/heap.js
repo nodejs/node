@@ -89,7 +89,7 @@ function inspectNode(snapshot) {
 }
 
 function isEdge(edge, { node_name, edge_name }) {
-  if (edge.name !== edge_name) {
+  if (edge_name !== undefined && edge.name !== edge_name) {
     return false;
   }
   // From our internal embedded graph

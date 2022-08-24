@@ -30,6 +30,7 @@
 #include "inspector_profiler.h"
 #endif
 #include "callback_queue.h"
+#include "cleanup_queue-inl.h"
 #include "debug_utils.h"
 #include "env_properties.h"
 #include "handle_wrap.h"
@@ -490,38 +491,6 @@ class ShouldNotAbortOnUncaughtScope {
 
  private:
   Environment* env_;
-};
-
-class CleanupHookCallback {
- public:
-  typedef void (*Callback)(void*);
-
-  CleanupHookCallback(Callback fn,
-                      void* arg,
-                      uint64_t insertion_order_counter)
-      : fn_(fn), arg_(arg), insertion_order_counter_(insertion_order_counter) {}
-
-  // Only hashes `arg_`, since that is usually enough to identify the hook.
-  struct Hash {
-    inline size_t operator()(const CleanupHookCallback& cb) const;
-  };
-
-  // Compares by `fn_` and `arg_` being equal.
-  struct Equal {
-    inline bool operator()(const CleanupHookCallback& a,
-                           const CleanupHookCallback& b) const;
-  };
-
-  inline BaseObject* GetBaseObject() const;
-
- private:
-  friend class Environment;
-  Callback fn_;
-  void* arg_;
-
-  // We keep track of the insertion order for these objects, so that we can
-  // call the callbacks in reverse order when we are cleaning up.
-  uint64_t insertion_order_counter_;
 };
 
 typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
@@ -990,9 +959,8 @@ class Environment : public MemoryRetainer {
   void ScheduleTimer(int64_t duration);
   void ToggleTimerRef(bool ref);
 
-  using CleanupCallback = CleanupHookCallback::Callback;
-  inline void AddCleanupHook(CleanupCallback cb, void* arg);
-  inline void RemoveCleanupHook(CleanupCallback cb, void* arg);
+  inline void AddCleanupHook(CleanupQueue::Callback cb, void* arg);
+  inline void RemoveCleanupHook(CleanupQueue::Callback cb, void* arg);
   void RunCleanup();
 
   static size_t NearHeapLimitCallback(void* data,
@@ -1208,11 +1176,7 @@ class Environment : public MemoryRetainer {
 
   BindingDataStore bindings_;
 
-  // Use an unordered_set, so that we have efficient insertion and removal.
-  std::unordered_set<CleanupHookCallback,
-                     CleanupHookCallback::Hash,
-                     CleanupHookCallback::Equal> cleanup_hooks_;
-  uint64_t cleanup_hook_counter_ = 0;
+  CleanupQueue cleanup_queue_;
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;

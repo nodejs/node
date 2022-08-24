@@ -1000,33 +1000,10 @@ void Environment::RunCleanup() {
   bindings_.clear();
   CleanupHandles();
 
-  while (!cleanup_hooks_.empty() ||
-         native_immediates_.size() > 0 ||
+  while (!cleanup_queue_.empty() || native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
-    // Copy into a vector, since we can't sort an unordered_set in-place.
-    std::vector<CleanupHookCallback> callbacks(
-        cleanup_hooks_.begin(), cleanup_hooks_.end());
-    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
-    // need to be able to check whether they were un-scheduled by another hook.
-
-    std::sort(callbacks.begin(), callbacks.end(),
-              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
-      // Sort in descending order so that the most recently inserted callbacks
-      // are run first.
-      return a.insertion_order_counter_ > b.insertion_order_counter_;
-    });
-
-    for (const CleanupHookCallback& cb : callbacks) {
-      if (cleanup_hooks_.count(cb) == 0) {
-        // This hook was removed from the `cleanup_hooks_` set during another
-        // hook that was run earlier. Nothing to do here.
-        continue;
-      }
-
-      cb.fn_(cb.arg_);
-      cleanup_hooks_.erase(cb);
-    }
+    cleanup_queue_.Drain();
     CleanupHandles();
   }
 
@@ -1730,10 +1707,6 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
   tracker.Track(env);
-  env->ForEachBaseObject([&](BaseObject* obj) {
-    if (obj->IsDoneInitializing())
-      tracker.Track(obj);
-  });
 }
 
 size_t Environment::NearHeapLimitCallback(void* data,
@@ -1868,6 +1841,7 @@ inline size_t Environment::SelfSize() const {
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
   size -= sizeof(async_hooks_);
+  size -= sizeof(cleanup_queue_);
   size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
   return size;
@@ -1885,8 +1859,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
-  tracker->TrackFieldWithSize(
-      "cleanup_hooks", cleanup_hooks_.size() * sizeof(CleanupHookCallback));
+  tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);

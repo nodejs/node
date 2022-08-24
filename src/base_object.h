@@ -178,7 +178,7 @@ class BaseObject : public MemoryRetainer {
   // position of members in memory are predictable. For more information please
   // refer to `doc/contributing/node-postmortem-support.md`
   friend int GenDebugSymbols();
-  friend class CleanupHookCallback;
+  friend class CleanupQueue;
   template <typename T, bool kIsWeak>
   friend class BaseObjectPtrImpl;
 
