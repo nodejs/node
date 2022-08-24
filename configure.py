@@ -57,6 +57,11 @@ valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 with open ('tools/icu/icu_versions.json') as f:
   icu_versions = json.load(f)
 
+shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
+                     'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
+                     'undici/undici': 'deps/undici/undici.js'
+}
+
 # create option groups
 shared_optgroup = parser.add_argument_group("Shared libraries",
     "Flags that allows you to control whether you want to build against "
@@ -70,6 +75,9 @@ intl_optgroup = parser.add_argument_group("Internationalization",
     "library you want to build against.")
 http2_optgroup = parser.add_argument_group("HTTP2",
     "Flags that allows you to control HTTP2 features in Node.js")
+shared_builtin_optgroup = parser.add_argument_group("Shared builtins",
+    "Flags that allows you to control whether you want to build against "
+    "internal builtins or shared files.")
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
@@ -421,6 +429,16 @@ shared_optgroup.add_argument('--shared-cares-libpath',
     help='a directory to search for the shared cares DLL')
 
 parser.add_argument_group(shared_optgroup)
+
+for builtin in shareable_builtins:
+  builtin_id = 'shared_builtin_' + builtin + '_path'
+  shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
+    action='store',
+    dest='node_shared_builtin_' + builtin.replace('/', '_') + '_path',
+    help='Path to shared file for ' + builtin + ' builtin. '
+         'Will be used instead of bundled version at runtime')
+
+parser.add_argument_group(shared_builtin_optgroup)
 
 static_optgroup.add_argument('--static-zoslib-gyp',
     action='store',
@@ -1959,6 +1977,19 @@ configure_intl(output)
 configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
+
+# configure shareable builtins
+output['variables']['node_builtin_shareable_builtins'] = []
+for builtin in shareable_builtins:
+  builtin_id = 'node_shared_builtin_' + builtin.replace('/', '_') + '_path'
+  if getattr(options, builtin_id):
+    if options.with_intl == 'none':
+      option_name = '--shared-builtin-' + builtin + '-path'
+      error(option_name + ' is incompatible with --with-intl=none' )
+    else:
+      output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
+  else:
+    output['variables']['node_builtin_shareable_builtins'] += [shareable_builtins[builtin]]
 
 # Forward OSS-Fuzz settings
 output['variables']['ossfuzz'] = b(options.ossfuzz)
