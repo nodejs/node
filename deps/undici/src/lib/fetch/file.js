@@ -278,7 +278,9 @@ function processBlobParts (parts, options) {
       if (!element.buffer) { // ArrayBuffer
         bytes.push(new Uint8Array(element))
       } else {
-        bytes.push(element.buffer)
+        bytes.push(
+          new Uint8Array(element.buffer, element.byteOffset, element.byteLength)
+        )
       }
     } else if (isBlobLike(element)) {
       // 3. If element is a Blob, append the bytes it represents
