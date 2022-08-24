@@ -434,6 +434,8 @@ Emitted when server receives a request.
 
 Emitted when server sends a response.
 
+#### Net
+
 `net.client.socket`
 
 * `socket` {net.Socket}
@@ -445,6 +447,8 @@ Emitted when a new TCP or pipe client socket is created.
 * `socket` {net.Socket}
 
 Emitted when a new TCP or pipe connection is received.
+
+#### UDP
 
 `udp.socket`
 
