@@ -889,8 +889,10 @@ function onParserTimeout (parser) {
 
   /* istanbul ignore else */
   if (timeoutType === TIMEOUT_HEADERS) {
-    assert(!parser.paused, 'cannot be paused while waiting for headers')
-    util.destroy(socket, new HeadersTimeoutError())
+    if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {
+      assert(!parser.paused, 'cannot be paused while waiting for headers')
+      util.destroy(socket, new HeadersTimeoutError())
+    }
   } else if (timeoutType === TIMEOUT_BODY) {
     if (!parser.paused) {
       util.destroy(socket, new BodyTimeoutError())
@@ -1641,7 +1643,18 @@ class AsyncWriter {
     this.bytesWritten += len
 
     const ret = socket.write(chunk)
+
     request.onBodySent(chunk)
+
+    if (!ret) {
+      if (socket[kParser].timeout && socket[kParser].timeoutType === TIMEOUT_HEADERS) {
+        // istanbul ignore else: only for jest
+        if (socket[kParser].timeout.refresh) {
+          socket[kParser].timeout.refresh()
+        }
+      }
+    }
+
     return ret
   }
 

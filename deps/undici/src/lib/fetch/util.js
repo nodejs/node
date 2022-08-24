@@ -4,8 +4,19 @@ const { redirectStatus } = require('./constants')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
 const assert = require('assert')
+const { isUint8Array } = require('util/types')
 
 let File
+
+// https://nodejs.org/api/crypto.html#determining-if-crypto-support-is-unavailable
+/** @type {import('crypto')|undefined} */
+let crypto
+
+try {
+  crypto = require('crypto')
+} catch {
+
+}
 
 // https://fetch.spec.whatwg.org/#block-bad-port
 const badPorts = [
@@ -339,8 +350,114 @@ function determineRequestsReferrer (request) {
   return 'no-referrer'
 }
 
-function matchRequestIntegrity (request, bytes) {
+/**
+ * @see https://w3c.github.io/webappsec-subresource-integrity/#does-response-match-metadatalist
+ * @param {Uint8Array} bytes
+ * @param {string} metadataList
+ */
+function bytesMatch (bytes, metadataList) {
+  // If node is not built with OpenSSL support, we cannot check
+  // a request's integrity, so allow it by default (the spec will
+  // allow requests if an invalid hash is given, as precedence).
+  /* istanbul ignore if: only if node is built with --without-ssl */
+  if (crypto === undefined) {
+    return true
+  }
+
+  // 1. Let parsedMetadata be the result of parsing metadataList.
+  const parsedMetadata = parseMetadata(metadataList)
+
+  // 2. If parsedMetadata is no metadata, return true.
+  if (parsedMetadata === 'no metadata') {
+    return true
+  }
+
+  // 3. If parsedMetadata is the empty set, return true.
+  if (parsedMetadata.length === 0) {
+    return true
+  }
+
+  // 4. Let metadata be the result of getting the strongest
+  //    metadata from parsedMetadata.
+  // Note: this will only work for SHA- algorithms and it's lazy *at best*.
+  const metadata = parsedMetadata.sort((c, d) => d.algo.localeCompare(c.algo))
+
+  // 5. For each item in metadata:
+  for (const item of metadata) {
+    // 1. Let algorithm be the alg component of item.
+    const algorithm = item.algo
+
+    // 2. Let expectedValue be the val component of item.
+    const expectedValue = item.hash
+
+    // 3. Let actualValue be the result of applying algorithm to bytes.
+    // Note: "applying algorithm to bytes" converts the result to base64
+    const actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+
+    // 4. If actualValue is a case-sensitive match for expectedValue,
+    //    return true.
+    if (actualValue === expectedValue) {
+      return true
+    }
+  }
+
+  // 6. Return false.
   return false
+}
+
+// https://w3c.github.io/webappsec-subresource-integrity/#grammardef-hash-with-options
+// hash-algo is defined in Content Security Policy 2 Section 4.2
+// base64-value is similary defined there
+// VCHAR is defined https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
+const parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={1,2}))( +[\x21-\x7e]?)?/i
+
+/**
+ * @see https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
+ * @param {string} metadata
+ */
+function parseMetadata (metadata) {
+  // 1. Let result be the empty set.
+  /** @type {{ algo: string, hash: string }[]} */
+  const result = []
+
+  // 2. Let empty be equal to true.
+  let empty = true
+
+  const supportedHashes = crypto.getHashes()
+
+  // 3. For each token returned by splitting metadata on spaces:
+  for (const token of metadata.split(' ')) {
+    // 1. Set empty to false.
+    empty = false
+
+    // 2. Parse token as a hash-with-options.
+    const parsedToken = parseHashWithOptions.exec(token)
+
+    // 3. If token does not parse, continue to the next token.
+    if (parsedToken === null || parsedToken.groups === undefined) {
+      // Note: Chromium blocks the request at this point, but Firefox
+      // gives a warning that an invalid integrity was given. The
+      // correct behavior is to ignore these, and subsequently not
+      // check the integrity of the resource.
+      continue
+    }
+
+    // 4. Let algorithm be the hash-algo component of token.
+    const algorithm = parsedToken.groups.algo
+
+    // 5. If algorithm is a hash function recognized by the user
+    //    agent, add the parsed token to result.
+    if (supportedHashes.includes(algorithm.toLowerCase())) {
+      result.push(parsedToken.groups)
+    }
+  }
+
+  // 4. Return no metadata if empty is true, otherwise return result.
+  if (empty === true) {
+    return 'no metadata'
+  }
+
+  return result
 }
 
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
@@ -439,6 +556,53 @@ function makeIterator (iterator, name) {
 }
 
 /**
+ * @see https://fetch.spec.whatwg.org/#body-fully-read
+ */
+async function fullyReadBody (body, processBody, processBodyError) {
+  // 1. If taskDestination is null, then set taskDestination to
+  //    the result of starting a new parallel queue.
+
+  // 2. Let promise be the result of fully reading body as promise
+  //    given body.
+  try {
+    /** @type {Uint8Array[]} */
+    const chunks = []
+    let length = 0
+
+    const reader = body.stream.getReader()
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done === true) {
+        break
+      }
+
+      // read-loop chunk steps
+      assert(isUint8Array(value))
+
+      chunks.push(value)
+      length += value.byteLength
+    }
+
+    // 3. Let fulfilledSteps given a byte sequence bytes be to queue
+    //    a fetch task to run processBody given bytes, with
+    //    taskDestination.
+    const fulfilledSteps = (bytes) => queueMicrotask(() => {
+      processBody(bytes)
+    })
+
+    fulfilledSteps(Buffer.concat(chunks, length))
+  } catch (err) {
+    // 4. Let rejectedSteps be to queue a fetch task to run
+    //    processBodyError, with taskDestination.
+    queueMicrotask(() => processBodyError(err))
+  }
+
+  // 5. React to promise with fulfilledSteps and rejectedSteps.
+}
+
+/**
  * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
  */
 const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
@@ -451,7 +615,6 @@ module.exports = {
   toUSVString,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
   coarsenedSharedCurrentTime,
-  matchRequestIntegrity,
   determineRequestsReferrer,
   makePolicyContainer,
   clonePolicyContainer,
@@ -477,5 +640,7 @@ module.exports = {
   isValidHeaderName,
   isValidHeaderValue,
   hasOwn,
-  isErrorLike
+  isErrorLike,
+  fullyReadBody,
+  bytesMatch
 }
