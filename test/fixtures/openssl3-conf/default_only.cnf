@@ -1,0 +1,11 @@
+nodejs_conf = nodejs_init
+
+[nodejs_init]
+providers = provider_sect
+
+# List of providers to load
+[provider_sect]
+default = default_sect
+
+[default_sect]
+activate = 1
