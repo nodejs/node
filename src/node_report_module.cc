@@ -44,8 +44,7 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
   else
     error = Local<Value>();
 
-  filename = TriggerNodeReport(
-      isolate, env, *message, *trigger, filename, error);
+  filename = TriggerNodeReport(env, *message, *trigger, filename, error);
   // Return value is the report filename
   info.GetReturnValue().Set(
       String::NewFromUtf8(isolate, filename.c_str()).ToLocalChecked());
@@ -65,8 +64,7 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
   else
     error = Local<Object>();
 
-  GetNodeReport(
-      isolate, env, "JavaScript API", __func__, error, out);
+  GetNodeReport(env, "JavaScript API", __func__, error, out);
 
   // Return value is the contents of a report as a string.
   info.GetReturnValue().Set(

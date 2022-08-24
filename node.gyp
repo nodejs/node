@@ -993,6 +993,7 @@
         'test/cctest/test_node_api.cc',
         'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_report.cc',
         'test/cctest/test_json_utils.cc',
         'test/cctest/test_sockaddr.cc',
         'test/cctest/test_traced_value.cc',
