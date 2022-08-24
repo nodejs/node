@@ -158,7 +158,6 @@ class KeyObjectData : public MemoryRetainer {
 
   const KeyType key_type_;
   const ByteSource symmetric_key_;
-  const unsigned int symmetric_key_len_;
   const ManagedEVPPKey asymmetric_key_;
 };
 
