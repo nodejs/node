@@ -1,4 +1,5 @@
 #include "node_builtins.h"
+#include "node_builtins_env.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_external_reference.h"
@@ -23,6 +24,24 @@ BuiltinLoader BuiltinLoader::instance_;
 
 BuiltinLoader::BuiltinLoader() : config_(GetConfig()) {
   LoadJavaScriptSource();
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
+  AddExternalizedBuiltin(
+      "internal/deps/cjs-module-lexer/lexer",
+      STRINGIFY(NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH));
+#endif  // NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_LEXER_PATH
+
+#ifdef NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH
+  AddExternalizedBuiltin(
+      "internal/deps/cjs-module-lexer/dist/lexer",
+      STRINGIFY(NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH));
+#endif  // NODE_SHARED_BUILTIN_CJS_MODULE_LEXER_DIST_LEXER_PATH
+
+#ifdef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
+  AddExternalizedBuiltin("internal/deps/undici/undici",
+                         STRINGIFY(NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH));
+#endif  // NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
+#endif  // NODE_HAVE_I18N_SUPPORT
 }
 
 BuiltinLoader* BuiltinLoader::GetInstance() {
@@ -235,6 +254,29 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
       isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+void BuiltinLoader::AddExternalizedBuiltin(const char* id,
+                                           const char* filename) {
+  std::string source;
+  int r = ReadFileSync(&source, filename);
+  if (r != 0) {
+    fprintf(
+        stderr, "Cannot load externalized builtin: \"%s:%s\".\n", id, filename);
+    ABORT();
+    return;
+  }
+
+  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
+      icu::StringPiece(source.data(), source.length()));
+  auto source_utf16 = std::make_unique<icu::UnicodeString>(utf16);
+  BuiltinEnv::Add(id,
+      UnionBytes(reinterpret_cast<const uint16_t*>((*source_utf16).getBuffer()),
+                 utf16.length()));
+  // keep source bytes for builtin alive while BuiltinLoader exists
+  GetInstance()->externalized_source_bytes_.push_back(std::move(source_utf16));
+}
+#endif  // NODE_HAVE_I18N_SUPPORT
 
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
