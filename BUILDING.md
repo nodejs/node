@@ -1053,6 +1053,44 @@ To make `./myModule.js` available via `require('myModule')` and
 > .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```
 
+## Building to use shared dependencies at runtime
+
+By default Node.js is built so that all dependencies are bundled into
+the Node.js binary itself. This provides a single binary that includes
+the correct versions of all dependencies on which it depends.
+
+Some Node.js distributions, however, prefer to manage dependencies.
+A number of `configure` options are provided to support this use case.
+
+* For dependencies with native code, the first set of options allow
+  Node.js to be built so that it uses a shared library
+  at runtime instead of building and including the dependency
+  in the Node.js binary itself. These options are in the
+  `Shared libraries` section of the `configure` help
+  (run `./configure --help` to get the complete list).
+  They provide the ability to enable the use of a shared library,
+  to set the name of the shared library, and to set the paths that
+  contain the include and shared library files.
+
+* For dependencies with JavaScript code (including WASM), the second
+  set of options allow the Node.js binary to be built so that it loads
+  the JavaScript for dependencies at runtime instead of being built into
+  the Node.js binary itself. These options are in the `Shared builtins`
+  section of the `configure` help
+  (run `./configure --help` to get the complete list). They
+  provide the ability to set the path to an external JavaScript file
+  for the dependency to be used at runtime.
+
+It is the responsibility of any distribution
+shipping with these options to:
+
+* ensure that the shared dependencies available at runtime
+  match what is expected by the Node.js binary. A
+  mismatch may result in crashes or unexpected behavior.
+* fully test that Node.js operates as expected with the
+  external dependencies. There may be little or no test coverage
+  within the Node.js project CI for these non-default options.
+
 ## Note for downstream distributors of Node.js
 
 The Node.js ecosystem is reliant on ABI compatibility within a major release.

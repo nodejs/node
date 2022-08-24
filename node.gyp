@@ -48,9 +48,7 @@
       'deps/v8/tools/tickprocessor-driver.mjs',
       'deps/acorn/acorn/dist/acorn.js',
       'deps/acorn/acorn-walk/dist/walk.js',
-      'deps/cjs-module-lexer/lexer.js',
-      'deps/cjs-module-lexer/dist/lexer.js',
-      'deps/undici/undici.js',
+      '<@(node_builtin_shareable_builtins)',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'conditions': [
