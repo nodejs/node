@@ -1,8 +1,8 @@
-#include "env-inl.h"
-#include "json_utils.h"
 #include "node_report.h"
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
+#include "env-inl.h"
+#include "json_utils.h"
 #include "node_internals.h"
 #include "node_metadata.h"
 #include "node_mutex.h"
@@ -29,8 +29,6 @@ constexpr double SEC_PER_MICROS = 1e-6;
 constexpr int MAX_FRAME_COUNT = 10;
 
 namespace node {
-namespace report {
-
 using node::worker::Worker;
 using v8::Array;
 using v8::Context;
@@ -53,6 +51,7 @@ using v8::TryCatch;
 using v8::V8;
 using v8::Value;
 
+namespace report {
 // Internal/static function declarations
 static void WriteNodeReport(Isolate* isolate,
                             Environment* env,
@@ -82,102 +81,6 @@ static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
 static void PrintCpuInfo(JSONWriter* writer);
 static void PrintNetworkInterfaceInfo(JSONWriter* writer);
-
-// External function to trigger a report, writing to file.
-std::string TriggerNodeReport(Isolate* isolate,
-                              Environment* env,
-                              const char* message,
-                              const char* trigger,
-                              const std::string& name,
-                              Local<Value> error) {
-  std::string filename;
-
-  // Determine the required report filename. In order of priority:
-  //   1) supplied on API 2) configured on startup 3) default generated
-  if (!name.empty()) {
-    // Filename was specified as API parameter.
-    filename = name;
-  } else {
-    std::string report_filename;
-    {
-      Mutex::ScopedLock lock(per_process::cli_options_mutex);
-      report_filename = per_process::cli_options->report_filename;
-    }
-    if (report_filename.length() > 0) {
-      // File name was supplied via start-up option.
-      filename = report_filename;
-    } else {
-      filename = *DiagnosticFilename(env != nullptr ? env->thread_id() : 0,
-          "report", "json");
-    }
-  }
-
-  // Open the report file stream for writing. Supports stdout/err,
-  // user-specified or (default) generated name
-  std::ofstream outfile;
-  std::ostream* outstream;
-  if (filename == "stdout") {
-    outstream = &std::cout;
-  } else if (filename == "stderr") {
-    outstream = &std::cerr;
-  } else {
-    std::string report_directory;
-    {
-      Mutex::ScopedLock lock(per_process::cli_options_mutex);
-      report_directory = per_process::cli_options->report_directory;
-    }
-    // Regular file. Append filename to directory path if one was specified
-    if (report_directory.length() > 0) {
-      std::string pathname = report_directory;
-      pathname += kPathSeparator;
-      pathname += filename;
-      outfile.open(pathname, std::ios::out | std::ios::binary);
-    } else {
-      outfile.open(filename, std::ios::out | std::ios::binary);
-    }
-    // Check for errors on the file open
-    if (!outfile.is_open()) {
-      std::cerr << "\nFailed to open Node.js report file: " << filename;
-
-      if (report_directory.length() > 0)
-        std::cerr << " directory: " << report_directory;
-
-      std::cerr << " (errno: " << errno << ")" << std::endl;
-      return "";
-    }
-    outstream = &outfile;
-    std::cerr << "\nWriting Node.js report to file: " << filename;
-  }
-
-  bool compact;
-  {
-    Mutex::ScopedLock lock(per_process::cli_options_mutex);
-    compact = per_process::cli_options->report_compact;
-  }
-  WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
-                  error, compact);
-
-  // Do not close stdout/stderr, only close files we opened.
-  if (outfile.is_open()) {
-    outfile.close();
-  }
-
-  // Do not mix JSON and free-form text on stderr.
-  if (filename != "stderr") {
-    std::cerr << "\nNode.js report completed" << std::endl;
-  }
-  return filename;
-}
-
-// External function to trigger a report, writing to a supplied stream.
-void GetNodeReport(Isolate* isolate,
-                   Environment* env,
-                   const char* message,
-                   const char* trigger,
-                   Local<Value> error,
-                   std::ostream& out) {
-  WriteNodeReport(isolate, env, message, trigger, "", out, error, false);
-}
 
 // Internal function to coordinate and write the various
 // sections of the report to the supplied stream
@@ -319,12 +222,8 @@ static void WriteNodeReport(Isolate* isolate,
       expected_results += w->RequestInterrupt([&](Environment* env) {
         std::ostringstream os;
 
-        GetNodeReport(env->isolate(),
-                      env,
-                      "Worker thread subreport",
-                      trigger,
-                      Local<Value>(),
-                      os);
+        GetNodeReport(
+            env, "Worker thread subreport", trigger, Local<Value>(), os);
 
         Mutex::ScopedLock lock(workers_mutex);
         worker_infos.emplace_back(os.str());
@@ -884,4 +783,136 @@ static void PrintRelease(JSONWriter* writer) {
 }
 
 }  // namespace report
+
+// External function to trigger a report, writing to file.
+std::string TriggerNodeReport(Isolate* isolate,
+                              const char* message,
+                              const char* trigger,
+                              const std::string& name,
+                              Local<Value> error) {
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
+  }
+  return TriggerNodeReport(env, message, trigger, name, error);
+}
+
+// External function to trigger a report, writing to file.
+std::string TriggerNodeReport(Environment* env,
+                              const char* message,
+                              const char* trigger,
+                              const std::string& name,
+                              Local<Value> error) {
+  std::string filename;
+
+  // Determine the required report filename. In order of priority:
+  //   1) supplied on API 2) configured on startup 3) default generated
+  if (!name.empty()) {
+    // Filename was specified as API parameter.
+    filename = name;
+  } else {
+    std::string report_filename;
+    {
+      Mutex::ScopedLock lock(per_process::cli_options_mutex);
+      report_filename = per_process::cli_options->report_filename;
+    }
+    if (report_filename.length() > 0) {
+      // File name was supplied via start-up option.
+      filename = report_filename;
+    } else {
+      filename = *DiagnosticFilename(
+          env != nullptr ? env->thread_id() : 0, "report", "json");
+    }
+  }
+
+  // Open the report file stream for writing. Supports stdout/err,
+  // user-specified or (default) generated name
+  std::ofstream outfile;
+  std::ostream* outstream;
+  if (filename == "stdout") {
+    outstream = &std::cout;
+  } else if (filename == "stderr") {
+    outstream = &std::cerr;
+  } else {
+    std::string report_directory;
+    {
+      Mutex::ScopedLock lock(per_process::cli_options_mutex);
+      report_directory = per_process::cli_options->report_directory;
+    }
+    // Regular file. Append filename to directory path if one was specified
+    if (report_directory.length() > 0) {
+      std::string pathname = report_directory;
+      pathname += kPathSeparator;
+      pathname += filename;
+      outfile.open(pathname, std::ios::out | std::ios::binary);
+    } else {
+      outfile.open(filename, std::ios::out | std::ios::binary);
+    }
+    // Check for errors on the file open
+    if (!outfile.is_open()) {
+      std::cerr << "\nFailed to open Node.js report file: " << filename;
+
+      if (report_directory.length() > 0)
+        std::cerr << " directory: " << report_directory;
+
+      std::cerr << " (errno: " << errno << ")" << std::endl;
+      return "";
+    }
+    outstream = &outfile;
+    std::cerr << "\nWriting Node.js report to file: " << filename;
+  }
+
+  bool compact;
+  {
+    Mutex::ScopedLock lock(per_process::cli_options_mutex);
+    compact = per_process::cli_options->report_compact;
+  }
+
+  Isolate* isolate = nullptr;
+  if (env != nullptr) {
+    isolate = env->isolate();
+  }
+  report::WriteNodeReport(
+      isolate, env, message, trigger, filename, *outstream, error, compact);
+
+  // Do not close stdout/stderr, only close files we opened.
+  if (outfile.is_open()) {
+    outfile.close();
+  }
+
+  // Do not mix JSON and free-form text on stderr.
+  if (filename != "stderr") {
+    std::cerr << "\nNode.js report completed" << std::endl;
+  }
+  return filename;
+}
+
+// External function to trigger a report, writing to a supplied stream.
+void GetNodeReport(Isolate* isolate,
+                   const char* message,
+                   const char* trigger,
+                   Local<Value> error,
+                   std::ostream& out) {
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
+  }
+  report::WriteNodeReport(
+      isolate, env, message, trigger, "", out, error, false);
+}
+
+// External function to trigger a report, writing to a supplied stream.
+void GetNodeReport(Environment* env,
+                   const char* message,
+                   const char* trigger,
+                   Local<Value> error,
+                   std::ostream& out) {
+  Isolate* isolate = nullptr;
+  if (env != nullptr) {
+    isolate = env->isolate();
+  }
+  report::WriteNodeReport(
+      isolate, env, message, trigger, "", out, error, false);
+}
+
 }  // namespace node
