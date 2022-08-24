@@ -49,7 +49,7 @@ const OutgoingMessage = http.OutgoingMessage;
   msg._implicitHeader = function() {};
   assert.strictEqual(msg.writableLength, 0);
   msg.write('asd');
-  assert.strictEqual(msg.writableLength, 7);
+  assert.strictEqual(msg.writableLength, 3);
 }
 
 {
