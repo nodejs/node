@@ -781,43 +781,17 @@ inline void Environment::ThrowUVException(int errorno,
       UVException(isolate(), errorno, syscall, message, path, dest));
 }
 
-void Environment::AddCleanupHook(CleanupCallback fn, void* arg) {
-  auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
-    fn, arg, cleanup_hook_counter_++
-  });
-  // Make sure there was no existing element with these values.
-  CHECK_EQ(insertion_info.second, true);
+void Environment::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Add(fn, arg);
 }
 
-void Environment::RemoveCleanupHook(CleanupCallback fn, void* arg) {
-  CleanupHookCallback search { fn, arg, 0 };
-  cleanup_hooks_.erase(search);
-}
-
-size_t CleanupHookCallback::Hash::operator()(
-    const CleanupHookCallback& cb) const {
-  return std::hash<void*>()(cb.arg_);
-}
-
-bool CleanupHookCallback::Equal::operator()(
-    const CleanupHookCallback& a, const CleanupHookCallback& b) const {
-  return a.fn_ == b.fn_ && a.arg_ == b.arg_;
-}
-
-BaseObject* CleanupHookCallback::GetBaseObject() const {
-  if (fn_ == BaseObject::DeleteMe)
-    return static_cast<BaseObject*>(arg_);
-  else
-    return nullptr;
+void Environment::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Remove(fn, arg);
 }
 
 template <typename T>
 void Environment::ForEachBaseObject(T&& iterator) {
-  for (const auto& hook : cleanup_hooks_) {
-    BaseObject* obj = hook.GetBaseObject();
-    if (obj != nullptr)
-      iterator(obj);
-  }
+  cleanup_queue_.ForEachBaseObject(std::forward<T>(iterator));
 }
 
 void Environment::modify_base_object_count(int64_t delta) {
