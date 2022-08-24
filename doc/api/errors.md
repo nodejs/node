@@ -1325,6 +1325,12 @@ When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 
 <a id="ERR_FS_CP_FIFO_PIPE"></a>
 
+### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
+
+Response body size doesn't match with the specified content-length header value.
+
+<a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
+
 ### `ERR_FS_CP_FIFO_PIPE`
 
 <!--
