@@ -85,6 +85,22 @@ function matchHeaders (mockDispatch, headers) {
   return true
 }
 
+function safeUrl (path) {
+  if (typeof path !== 'string') {
+    return path
+  }
+
+  const pathSegments = path.split('?')
+
+  if (pathSegments.length !== 2) {
+    return path
+  }
+
+  const qp = new URLSearchParams(pathSegments.pop())
+  qp.sort()
+  return [...pathSegments, qp.toString()].join('?')
+}
+
 function matchKey (mockDispatch, { path, method, body, headers }) {
   const pathMatch = matchValue(mockDispatch.path, path)
   const methodMatch = matchValue(mockDispatch.method, method)
@@ -104,10 +120,11 @@ function getResponseData (data) {
 }
 
 function getMockDispatch (mockDispatches, key) {
-  const resolvedPath = key.query ? buildURL(key.path, key.query) : key.path
+  const basePath = key.query ? buildURL(key.path, key.query) : key.path
+  const resolvedPath = typeof basePath === 'string' ? safeUrl(basePath) : basePath
 
   // Match path
-  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(path, resolvedPath))
+  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath))
   if (matchedMockDispatches.length === 0) {
     throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`)
   }

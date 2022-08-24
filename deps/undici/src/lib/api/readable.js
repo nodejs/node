@@ -93,7 +93,7 @@ module.exports = class BodyReadable extends Readable {
   }
 
   push (chunk) {
-    if (this[kConsume] && chunk !== null) {
+    if (this[kConsume] && chunk !== null && this.readableLength === 0) {
       consumePush(this[kConsume], chunk)
       return this[kReading] ? super.push(chunk) : true
     }

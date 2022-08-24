@@ -244,7 +244,11 @@ function parseHeaders (headers, obj = {}) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
     if (!val) {
-      obj[key] = headers[i + 1].toString()
+      if (Array.isArray(headers[i + 1])) {
+        obj[key] = headers[i + 1]
+      } else {
+        obj[key] = headers[i + 1].toString()
+      }
     } else {
       if (!Array.isArray(val)) {
         val = [val]
