@@ -784,21 +784,8 @@ static void PrintRelease(JSONWriter* writer) {
 
 }  // namespace report
 
-// External function to trigger a report, writing to file.
 std::string TriggerNodeReport(Isolate* isolate,
-                              const char* message,
-                              const char* trigger,
-                              const std::string& name,
-                              Local<Value> error) {
-  Environment* env = nullptr;
-  if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
-  }
-  return TriggerNodeReport(env, message, trigger, name, error);
-}
-
-// External function to trigger a report, writing to file.
-std::string TriggerNodeReport(Environment* env,
+                              Environment* env,
                               const char* message,
                               const char* trigger,
                               const std::string& name,
@@ -868,10 +855,6 @@ std::string TriggerNodeReport(Environment* env,
     compact = per_process::cli_options->report_compact;
   }
 
-  Isolate* isolate = nullptr;
-  if (env != nullptr) {
-    isolate = env->isolate();
-  }
   report::WriteNodeReport(
       isolate, env, message, trigger, filename, *outstream, error, compact);
 
@@ -885,6 +868,33 @@ std::string TriggerNodeReport(Environment* env,
     std::cerr << "\nNode.js report completed" << std::endl;
   }
   return filename;
+}
+
+// External function to trigger a report, writing to file.
+std::string TriggerNodeReport(Isolate* isolate,
+                              const char* message,
+                              const char* trigger,
+                              const std::string& name,
+                              Local<Value> error) {
+  Environment* env = nullptr;
+  if (isolate != nullptr) {
+    env = Environment::GetCurrent(isolate);
+  }
+  return TriggerNodeReport(isolate, env, message, trigger, name, error);
+}
+
+// External function to trigger a report, writing to file.
+std::string TriggerNodeReport(Environment* env,
+                              const char* message,
+                              const char* trigger,
+                              const std::string& name,
+                              Local<Value> error) {
+  return TriggerNodeReport(env != nullptr ? env->isolate() : nullptr,
+                           env,
+                           message,
+                           trigger,
+                           name,
+                           error);
 }
 
 // External function to trigger a report, writing to a supplied stream.
