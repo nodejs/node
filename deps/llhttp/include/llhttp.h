@@ -3,7 +3,7 @@
 
 #define LLHTTP_VERSION_MAJOR 6
 #define LLHTTP_VERSION_MINOR 0
-#define LLHTTP_VERSION_PATCH 7
+#define LLHTTP_VERSION_PATCH 9
 
 #ifndef LLHTTP_STRICT_MODE
 # define LLHTTP_STRICT_MODE 0
@@ -102,7 +102,8 @@ enum llhttp_lenient_flags {
   LENIENT_HEADERS = 0x1,
   LENIENT_CHUNKED_LENGTH = 0x2,
   LENIENT_KEEP_ALIVE = 0x4,
-  LENIENT_TRANSFER_ENCODING = 0x8
+  LENIENT_TRANSFER_ENCODING = 0x8,
+  LENIENT_VERSION = 0x10
 };
 typedef enum llhttp_lenient_flags llhttp_lenient_flags_t;
 
