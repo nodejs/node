@@ -16,6 +16,7 @@
 #include "util-inl.h"
 
 #include <atomic>
+#include <cstring>
 #include <memory>
 
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
@@ -124,8 +125,8 @@ class BufferFinalizer : private Finalizer {
   };
 };
 
-static inline napi_env NewEnv(v8::Local<v8::Context> context,
-                              const std::string& module_filename) {
+inline napi_env NewEnv(v8::Local<v8::Context> context,
+                       const std::string& module_filename) {
   node_napi_env result;
 
   result = new node_napi_env__(context, module_filename);
