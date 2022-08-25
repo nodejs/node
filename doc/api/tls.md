@@ -1207,7 +1207,7 @@ certificate.
   It is returned as a `:` separated hexadecimal string. Example:
   `'2A:7A:C2:DD:...'`.
 * `ext_key_usage` {Array} (Optional) The extended key usage, a set of OIDs.
-* `subjectaltname` {string} (Optional) A string containing concatenated names
+* `subjectAltName` {string} (Optional) A string containing concatenated names
   for the subject, an alternative to the `subject` names.
 * `infoAccess` {Array} (Optional) An array describing the AuthorityInfoAccess,
   used with OCSP.
@@ -1252,7 +1252,7 @@ Example certificate:
      L: 'Salford',
      O: 'COMODO CA Limited',
      CN: 'COMODO RSA Domain Validation Secure Server CA' },
-  subjectaltname: 'DNS:*.nodejs.org, DNS:nodejs.org',
+  subjectAltName: 'DNS:*.nodejs.org, DNS:nodejs.org',
   infoAccess:
    { 'CA Issuers - URI':
       [ 'http://crt.comodoca.com/COMODORSADomainValidationSecureServerCA.crt' ],

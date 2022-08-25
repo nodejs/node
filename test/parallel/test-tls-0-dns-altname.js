@@ -43,7 +43,7 @@ const server = tls.createServer({
     rejectUnauthorized: false
   }, common.mustCall(() => {
     const cert = c.getPeerCertificate();
-    assert.strictEqual(cert.subjectaltname,
+    assert.strictEqual(cert.subjectAltName,
                        'DNS:"good.example.org\\u0000.evil.example.com", ' +
                            'DNS:just-another.example.com, ' +
                            'IP Address:8.8.8.8, ' +

@@ -52,7 +52,7 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
 
   cert = req.connection.getPeerCertificate();
 
-  assert.strictEqual(cert.subjectaltname, webIdUrl);
+  assert.strictEqual(cert.subjectAltName, webIdUrl);
   assert.strictEqual(cert.exponent, exponent);
   assert.strictEqual(cert.modulus, modulus);
   res.writeHead(200, { 'content-type': 'text/plain' });
