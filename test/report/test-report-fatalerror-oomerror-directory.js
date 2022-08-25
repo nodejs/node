@@ -12,8 +12,12 @@ const fixtures = require('../common/fixtures');
 
 // Common args that will cause an out-of-memory error for child process.
 const ARGS = [
-  '--max-old-space-size=20',
+  '--max-heap-size=20',
   fixtures.path('report-oom'),
+];
+const REPORT_FIELDS = [
+  ['header.trigger', 'OOMError'],
+  ['javascriptHeap.memoryLimit', 20 * 1024 * 1024 /* 20MB */],
 ];
 
 {
@@ -29,8 +33,8 @@ const ARGS = [
   assert.strictEqual(reports.length, 1);
 
   const report = reports[0];
-  helper.validate(report);
-  assert.strictEqual(require(report).header.threadId, null);
+  helper.validate(report, REPORT_FIELDS);
+
   const lines = fs.readFileSync(report, 'utf8').split('\n').length - 1;
   assert(lines > 10);
 }
