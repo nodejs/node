@@ -281,6 +281,7 @@ void Open(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
     uint32_t port = args[0].As<Uint32>()->Value();
+    CHECK_LE(port, std::numeric_limits<uint16_t>::max());
     ExclusiveAccess<HostPort>::Scoped host_port(agent->host_port());
     host_port->set_port(static_cast<int>(port));
   }
