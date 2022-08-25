@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const fs = require('fs');
 const helper = require('../common/report.js');
 const spawnSync = require('child_process').spawnSync;
 const tmpdir = require('../common/tmpdir');
@@ -13,7 +12,7 @@ const fixtures = require('../common/fixtures');
 // Common args that will cause an out-of-memory error for child process.
 const ARGS = [
   '--max-old-space-size=20',
-  fixtures.path('report-oom')
+  fixtures.path('report-oom'),
 ];
 
 {

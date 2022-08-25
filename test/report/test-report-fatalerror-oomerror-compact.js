@@ -13,7 +13,7 @@ const fixtures = require('../common/fixtures');
 // Common args that will cause an out-of-memory error for child process.
 const ARGS = [
   '--max-old-space-size=20',
-  fixtures.path('report-oom')
+  fixtures.path('report-oom'),
 ];
 
 {
