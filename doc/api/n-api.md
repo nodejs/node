@@ -1187,7 +1187,7 @@ added: v16.14.0
 
 > Stability: 1 - Experimental
 
-````c
+```c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
                                                     const char* msg);
@@ -1212,7 +1212,7 @@ napiVersion: 1
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
-````
+```
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: The `napi_value` to be checked.
