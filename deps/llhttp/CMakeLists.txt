@@ -1,21 +1,21 @@
 cmake_minimum_required(VERSION 3.5.1)
 cmake_policy(SET CMP0069 NEW)
 
-project(llhttp VERSION 6.0.5)
+project(llhttp VERSION )
 include(GNUInstallDirs)
 
 set(CMAKE_C_STANDARD 99)
 
 # By default build in relwithdebinfo type, supports both lowercase and uppercase
 if(NOT CMAKE_CONFIGURATION_TYPES)
-  set(allowableBuileTypes DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "${allowableBuileTypes}")
+  set(allowableBuildTypes DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "${allowableBuildTypes}")
   if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "" FORCE)
   else()
     string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-    if(NOT CMAKE_BUILD_TYPE IN_LIST allowableBuileTypes)
-      message(FATEL_ERROR "Invalid build type: ${CMAKE_BUILD_TYPE}")
+    if(NOT CMAKE_BUILD_TYPE IN_LIST allowableBuildTypes)
+      message(FATAL_ERROR "Invalid build type: ${CMAKE_BUILD_TYPE}")
     endif()
   endif()
 endif()
