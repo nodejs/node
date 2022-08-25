@@ -70,9 +70,10 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
         "DEP0119").IsNothing())
     return;
   }
-  int err;
-  if (!args[0]->Int32Value(env->context()).To(&err)) return;
-  CHECK_LT(err, 0);
+  if (args[0]->IsNullOrUndefined()) {
+    return args.GetReturnValue().SetUndefined();
+  }
+  const int err = args[0].As<v8::Int32>()->Value();
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }

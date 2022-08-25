@@ -47,7 +47,21 @@ function runTest(fn) {
                  `Received ${err}`
       });
   });
+
+}
+
+function errNameTest(fn) {
+  // uv.errname should not cause crash with invalid args
+  [0, 1, 2, NaN, {}, false].forEach((err) => {
+    assert.match(fn(err), /Unknown system error/);
+  });
+
+  // uv.errname should return undefined with null or undefined args
+  [null, undefined].forEach((err) => {
+    assert.strictEqual(fn(err), undefined);
+  });
 }
 
 runTest(_errnoException);
 runTest(getSystemErrorName);
+errNameTest(uv.errname);
