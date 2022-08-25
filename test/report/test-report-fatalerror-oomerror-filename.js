@@ -11,8 +11,12 @@ const fixtures = require('../common/fixtures');
 
 // Common args that will cause an out-of-memory error for child process.
 const ARGS = [
-  '--max-old-space-size=20',
+  '--max-heap-size=20',
   fixtures.path('report-oom'),
+];
+const REPORT_FIELDS = [
+  ['header.trigger', 'OOMError'],
+  ['javascriptHeap.memoryLimit', 20 * 1024 * 1024 /* 20MB */],
 ];
 
 {
@@ -34,7 +38,5 @@ const ARGS = [
   const lines = child.stderr.split('\n');
   // Skip over unavoidable free-form output and gc log from V8.
   const report = lines.find((i) => i.startsWith('{'));
-  const json = JSON.parse(report);
-
-  assert.strictEqual(json.header.threadId, null);
+  helper.validateContent(report, REPORT_FIELDS);
 }
