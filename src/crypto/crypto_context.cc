@@ -49,6 +49,10 @@ static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
 static X509_STORE* root_cert_store;
 
+static std::vector<X509Pointer> root_certs_vector;
+static Mutex root_certs_vector_mutex;
+static bool root_certs_loaded = false;
+
 static bool extra_root_certs_loaded = false;
 
 // Takes a string or buffer and loads it into a BIO.
@@ -191,25 +195,25 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 }  // namespace
 
 X509_STORE* NewRootCertStore() {
-  static std::vector<X509*> root_certs_vector;
-  static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
+  if (!root_certs_loaded &&
       per_process::cli_options->ssl_openssl_cert_store == false) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
-      X509* x509 =
+      X509Pointer x509 = X509Pointer(
           PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
                                               strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
+                            nullptr,    // no re-use of X509 structure
                             NoPasswordCallback,
-                            nullptr);  // no callback data
+                            nullptr));  // no callback data
 
       // Parse errors from the built-in roots are fatal.
       CHECK_NOT_NULL(x509);
 
-      root_certs_vector.push_back(x509);
+      root_certs_vector.push_back(std::move(x509));
     }
+
+    root_certs_loaded = true;
   }
 
   X509_STORE* store = X509_STORE_new();
@@ -223,10 +227,8 @@ X509_STORE* NewRootCertStore() {
   if (per_process::cli_options->ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
+    for (X509Pointer& cert : root_certs_vector)
+      X509_STORE_add_cert(store, cert.get());
   }
 
   return store;
@@ -1299,7 +1301,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    X509_STORE* store,
+    std::vector<X509Pointer>& certs,
     const char* file) {
   ERR_clear_error();
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -1308,10 +1310,9 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   if (!bio)
     return ERR_get_error();
 
-  while (X509* x509 =
-      PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
-    X509_STORE_add_cert(store, x509);
-    X509_free(x509);
+  while (X509Pointer x509 = X509Pointer(
+      PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr))) {
+    certs.push_back(std::move(x509));
   }
 
   unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
@@ -1329,21 +1330,17 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
 void UseExtraCaCerts(const std::string& file) {
   ClearErrorOnReturn clear_error_on_return;
 
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-
-    if (!file.empty()) {
-      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                           root_cert_store,
-                                           file.c_str());
-      if (err) {
-        fprintf(stderr,
-                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-                file.c_str(),
-                ERR_error_string(err, nullptr));
-      } else {
-        extra_root_certs_loaded = true;
-      }
+  if (!file.empty()) {
+    unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
+                                        root_certs_vector,
+                                        file.c_str());
+    if (err) {
+      fprintf(stderr,
+              "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+              file.c_str(),
+              ERR_error_string(err, nullptr));
+    } else {
+      extra_root_certs_loaded = true;
     }
   }
 }
