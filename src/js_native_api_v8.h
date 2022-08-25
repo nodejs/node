@@ -1,8 +1,6 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
 #define SRC_JS_NATIVE_API_V8_H_
 
-// This file needs to be compatible with C compilers.
-#include <string.h>  // NOLINT(modernize-deprecated-headers)
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
@@ -152,7 +150,7 @@ class EnvRefHolder {
   napi_env _env;
 };
 
-static inline napi_status napi_clear_last_error(napi_env env) {
+inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
 
   // TODO(boingoing): Should this be a callback?
@@ -162,10 +160,10 @@ static inline napi_status napi_clear_last_error(napi_env env) {
   return napi_ok;
 }
 
-static inline napi_status napi_set_last_error(napi_env env,
-                                              napi_status error_code,
-                                              uint32_t engine_error_code = 0,
-                                              void* engine_reserved = nullptr) {
+inline napi_status napi_set_last_error(napi_env env,
+                                       napi_status error_code,
+                                       uint32_t engine_error_code = 0,
+                                       void* engine_reserved = nullptr) {
   env->last_error.error_code = error_code;
   env->last_error.engine_error_code = engine_error_code;
   env->last_error.engine_reserved = engine_reserved;
@@ -274,6 +272,12 @@ static inline napi_status napi_set_last_error(napi_env env,
 
 #define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                    \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
+
+#define STATUS_CALL(call)                                                      \
+  do {                                                                         \
+    napi_status status = (call);                                               \
+    if (status != napi_ok) return status;                                      \
+  } while (0)
 
 namespace v8impl {
 
@@ -430,11 +434,5 @@ class Reference : public RefBase {
 };
 
 }  // end of namespace v8impl
-
-#define STATUS_CALL(call)                                                      \
-  do {                                                                         \
-    napi_status status = (call);                                               \
-    if (status != napi_ok) return status;                                      \
-  } while (0)
 
 #endif  // SRC_JS_NATIVE_API_V8_H_
