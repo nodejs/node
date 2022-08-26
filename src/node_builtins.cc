@@ -243,10 +243,8 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
   std::string source;
   int r = ReadFileSync(&source, filename);
   if (r != 0) {
-    fprintf(stderr,
-            "Cannot load externalized builtin: \"%s:%s\".\n",
-            id,
-            filename);
+    fprintf(
+        stderr, "Cannot load externalized builtin: \"%s:%s\".\n", id, filename);
     ABORT();
     return;
   }
