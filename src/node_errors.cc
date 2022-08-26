@@ -513,6 +513,11 @@ void OOMErrorHandler(const char* location, bool is_heap_oom) {
   }
 
   if (report_on_fatalerror) {
+    // Trigger report with the isolate. Environment::GetCurrent may return
+    // nullptr here:
+    // - If the OOM is reported by a young generation space allocation,
+    //   Isolate::GetCurrentContext returns an empty handle.
+    // - Otherwise, Isolate::GetCurrentContext returns a non-empty handle.
     TriggerNodeReport(isolate, message, "OOMError", "", Local<Object>());
   }
 
