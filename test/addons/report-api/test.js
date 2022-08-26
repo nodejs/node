@@ -9,7 +9,7 @@ const tmpdir = require('../../common/tmpdir');
 const binding = path.resolve(__dirname, `./build/${common.buildType}/binding`);
 const addon = require(binding);
 
-function myAddonMain(method, hasJavaScriptFrames) {
+function myAddonMain(method, { hasIsolate, hasEnv }) {
   tmpdir.refresh();
   process.report.directory = tmpdir.path;
 
@@ -19,26 +19,35 @@ function myAddonMain(method, hasJavaScriptFrames) {
   assert.strictEqual(reports.length, 1);
 
   const report = reports[0];
-  helper.validate(report);
+  helper.validate(report, [
+    ['header.event', 'FooMessage'],
+    ['header.trigger', 'BarTrigger'],
+  ]);
 
   const content = require(report);
-  assert.strictEqual(content.header.event, 'FooMessage');
-  assert.strictEqual(content.header.trigger, 'BarTrigger');
 
   // Check that the javascript stack is present.
-  if (hasJavaScriptFrames) {
+  if (hasIsolate) {
     assert.strictEqual(content.javascriptStack.stack.findIndex((frame) => frame.match('myAddonMain')), 0);
   } else {
     assert.strictEqual(content.javascriptStack, undefined);
   }
+
+  if (hasEnv) {
+    assert.strictEqual(content.header.threadId, 0);
+  } else {
+    assert.strictEqual(content.header.threadId, null);
+  }
 }
 
 const methods = [
-  ['triggerReport', true],
-  ['triggerReportNoIsolate', false],
-  ['triggerReportEnv', true],
-  ['triggerReportNoEnv', false],
+  ['triggerReport', true, true],
+  ['triggerReportNoIsolate', false, false],
+  ['triggerReportEnv', true, true],
+  ['triggerReportNoEnv', false, false],
+  ['triggerReportNoContext', true, false],
+  ['triggerReportNewContext', true, false],
 ];
-for (const [method, hasJavaScriptFrames] of methods) {
-  myAddonMain(method, hasJavaScriptFrames);
+for (const [method, hasIsolate, hasEnv] of methods) {
+  myAddonMain(method, { hasIsolate, hasEnv });
 }
