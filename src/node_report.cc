@@ -470,8 +470,12 @@ static void PrintJavaScriptStack(JSONWriter* writer,
   void* samples[MAX_FRAME_COUNT];
   isolate->GetStackSample(state, samples, MAX_FRAME_COUNT, &info);
 
+  constexpr StackTrace::StackTraceOptions stack_trace_options =
+      static_cast<StackTrace::StackTraceOptions>(
+          StackTrace::kDetailed |
+          StackTrace::kExposeFramesAcrossSecurityOrigins);
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(
-      isolate, MAX_FRAME_COUNT, StackTrace::kDetailed);
+      isolate, MAX_FRAME_COUNT, stack_trace_options);
 
   if (stack->GetFrameCount() == 0) {
     PrintEmptyJavaScriptStack(writer);
