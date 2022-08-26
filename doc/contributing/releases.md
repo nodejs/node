@@ -699,10 +699,16 @@ placeholders (that happens when a change previously landed on another release
 branch), keep both version numbers. Convert the YAML field to an array if it is
 not already one.
 
+[It's possible that the `cherry-pick` step will end up adding and/or
+changing unwanted lines](https://github.com/nodejs/Release/issues/771),
+please validate the changes in `doc/` folder files before confirming/continuing
+the cherry-pick step.
+
 Then finish cherry-picking and push the commit upstream:
 
 ```console
 $ git add src/node_version.h doc
+$ git diff --staged src doc # read output to validate that changes shows up as expected
 $ git cherry-pick --continue
 $ make lint
 $ git push upstream main
