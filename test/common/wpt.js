@@ -474,7 +474,6 @@ class WPTRunner {
     }
 
     process.on('exit', () => {
-      const total = this.specMap.size;
       if (this.inProgress.size > 0) {
         for (const filename of this.inProgress) {
           this.fail(filename, { name: 'Unknown' }, kIncomplete);
@@ -506,7 +505,9 @@ class WPTRunner {
       }
 
       const unexpectedPasses = [];
-      for (const [key, specMap] of this.specMap) {
+      for (const specMap of queue) {
+        const key = specMap.filename;
+
         // File has no expected failures
         if (!specMap.failedTests.length) {
           continue;
@@ -529,7 +530,8 @@ class WPTRunner {
         }
       }
 
-      const ran = total - skipped;
+      const ran = queue.length;
+      const total = ran + skipped;
       const passed = ran - expectedFailures - failures.length;
       console.log(`Ran ${ran}/${total} tests, ${skipped} skipped,`,
                   `${passed} passed, ${expectedFailures} expected failures,`,
