@@ -109,23 +109,14 @@ void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
+  std::vector<EC_builtin_curve> curves(num_curves);
+  CHECK_EQ(EC_get_builtin_curves(curves.data(), num_curves), num_curves);
 
-  if (num_curves) {
-    std::vector<EC_builtin_curve> curves(num_curves);
-
-    if (EC_get_builtin_curves(curves.data(), num_curves)) {
-      std::vector<Local<Value>> arr(num_curves);
-
-      for (size_t i = 0; i < num_curves; i++)
-        arr[i] = OneByteString(env->isolate(), OBJ_nid2sn(curves[i].nid));
-
-      args.GetReturnValue().Set(
-          Array::New(env->isolate(), arr.data(), arr.size()));
-      return;
-    }
-  }
-
-  args.GetReturnValue().Set(Array::New(env->isolate()));
+  std::vector<Local<Value>> arr(num_curves);
+  std::transform(curves.begin(), curves.end(), arr.begin(), [env](auto& curve) {
+    return OneByteString(env->isolate(), OBJ_nid2sn(curve.nid));
+  });
+  args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
 }
 
 ECDH::ECDH(Environment* env, Local<Object> wrap, ECKeyPointer&& key)
