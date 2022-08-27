@@ -21,6 +21,19 @@ const { readFileSync } = require('fs');
   );
 }
 
+// `findSourceMap()` should return undefined when no source map is found.
+{
+  const files = [
+    __filename,
+    '',
+    'invalid-file',
+  ];
+  for (const file of files) {
+    const sourceMap = findSourceMap(file);
+    assert.strictEqual(sourceMap, undefined);
+  }
+}
+
 // findSourceMap() can lookup source-maps based on URIs, in the
 // non-exceptional case.
 {
