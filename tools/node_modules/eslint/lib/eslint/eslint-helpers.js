@@ -104,6 +104,8 @@ function isGlobPattern(pattern) {
  *      false to not interpret glob patterns.
  * @param {string} args.cwd The current working directory to find from.
  * @param {FlatConfigArray} args.configs The configs for the current run.
+ * @param {boolean} args.errorOnUnmatchedPattern Determines if an unmatched pattern
+ *      should throw an error.
  * @returns {Promise<Array<string>>} The fully resolved file paths.
  * @throws {AllFilesIgnoredError} If there are no results due to an ignore pattern.
  * @throws {NoFilesFoundError} If no files matched the given patterns.
@@ -112,7 +114,8 @@ async function findFiles({
     patterns,
     globInputPaths,
     cwd,
-    configs
+    configs,
+    errorOnUnmatchedPattern
 }) {
 
     const results = [];
@@ -222,14 +225,16 @@ async function findFiles({
             }
 
             // no files were found
-            throw new NoFilesFoundError(globbyPattern, globInputPaths);
+            if (errorOnUnmatchedPattern) {
+                throw new NoFilesFoundError(globbyPattern, globInputPaths);
+            }
         }
         /* eslint-enable no-unreachable-loop -- Go back to normal. */
 
     }
 
     // there were patterns that didn't match anything, tell the user
-    if (missingPatterns.length) {
+    if (errorOnUnmatchedPattern && missingPatterns.length) {
         throw new NoFilesFoundError(missingPatterns[0], globInputPaths);
     }
 
@@ -322,6 +327,7 @@ function createIgnoreResult(filePath, baseDir) {
                 message
             }
         ],
+        suppressedMessages: [],
         errorCount: 0,
         warningCount: 1,
         fatalErrorCount: 0,
@@ -378,7 +384,6 @@ function processOptions({
     cacheStrategy = "metadata",
     cwd = process.cwd(),
     errorOnUnmatchedPattern = true,
-    extensions = null, // ← should be null by default because if it's an array then it suppresses RFC20 feature.
     fix = false,
     fixTypes = null, // ← should be null by default because if it's an array then it suppresses rules that don't have the `meta.type` property.
     globInputPaths = true,
@@ -404,6 +409,9 @@ function processOptions({
         }
         if (unknownOptionKeys.includes("envs")) {
             errors.push("'envs' has been removed.");
+        }
+        if (unknownOptionKeys.includes("extensions")) {
+            errors.push("'extensions' has been removed.");
         }
         if (unknownOptionKeys.includes("resolvePluginsRelativeTo")) {
             errors.push("'resolvePluginsRelativeTo' has been removed.");
@@ -450,9 +458,6 @@ function processOptions({
     }
     if (typeof errorOnUnmatchedPattern !== "boolean") {
         errors.push("'errorOnUnmatchedPattern' must be a boolean.");
-    }
-    if (!isArrayOfNonEmptyString(extensions) && extensions !== null) {
-        errors.push("'extensions' must be an array of non-empty strings or null.");
     }
     if (typeof fix !== "boolean" && typeof fix !== "function") {
         errors.push("'fix' must be a boolean or a function.");
@@ -507,7 +512,6 @@ function processOptions({
         overrideConfig,
         cwd,
         errorOnUnmatchedPattern,
-        extensions,
         fix,
         fixTypes,
         globInputPaths,

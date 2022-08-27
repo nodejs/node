@@ -73,7 +73,6 @@ const LintResultCache = require("../cli-engine/lint-result-cache");
  * @property {"metadata" | "content"} [cacheStrategy] The strategy used to detect changed files.
  * @property {string} [cwd] The value to use for the current working directory.
  * @property {boolean} [errorOnUnmatchedPattern] If `false` then `ESLint#lintFiles()` doesn't throw even if no target files found. Defaults to `true`.
- * @property {string[]} [extensions] An array of file extensions to check.
  * @property {boolean|Function} [fix] Execute in autofix mode. If a function, should return a boolean.
  * @property {string[]} [fixTypes] Array of rule types to apply fixes for.
  * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
@@ -321,8 +320,7 @@ async function calculateConfigArray(eslint, {
     configFile,
     ignore: shouldIgnore,
     ignorePath,
-    ignorePatterns,
-    extensions
+    ignorePatterns
 }) {
 
     // check for cached instance
@@ -364,13 +362,6 @@ async function calculateConfigArray(eslint, {
 
     // add in any configured defaults
     configs.push(...slots.defaultConfigs);
-
-    // if there are any extensions, create configs for them for easier matching
-    if (extensions && extensions.length) {
-        configs.push({
-            files: extensions.map(ext => `**/*${ext}`)
-        });
-    }
 
     let allIgnorePatterns = [];
     let ignoreFilePath;
@@ -515,6 +506,7 @@ function verifyText({
     const result = {
         filePath: filePath === "<text>" ? filePath : path.resolve(filePath),
         messages,
+        suppressedMessages: linter.getSuppressedMessages(),
         ...calculateStatsPerFile(messages)
     };
 
@@ -689,11 +681,13 @@ class FlatESLint {
 
         results.forEach(result => {
             const filteredMessages = result.messages.filter(isErrorMessage);
+            const filteredSuppressedMessages = result.suppressedMessages.filter(isErrorMessage);
 
             if (filteredMessages.length > 0) {
                 filtered.push({
                     ...result,
                     messages: filteredMessages,
+                    suppressedMessages: filteredSuppressedMessages,
                     errorCount: filteredMessages.length,
                     warningCount: 0,
                     fixableErrorCount: result.fixableErrorCount,
@@ -746,11 +740,12 @@ class FlatESLint {
              * calculated config for the given file.
              */
             const config = configs.getConfig(filePath);
+            const allMessages = result.messages.concat(result.suppressedMessages);
 
-            for (const { ruleId } of result.messages) {
+            for (const { ruleId } of allMessages) {
                 const rule = getRuleFromConfig(ruleId, config);
 
-                // ensure the rule exists exists
+                // ensure the rule exists
                 if (!rule) {
                     throw new TypeError(`Could not find the rule "${ruleId}".`);
                 }
@@ -786,8 +781,8 @@ class FlatESLint {
             fix,
             fixTypes,
             reportUnusedDisableDirectives,
-            extensions,
-            globInputPaths
+            globInputPaths,
+            errorOnUnmatchedPattern
         } = eslintOptions;
         const startTime = Date.now();
         const usedConfigs = [];
@@ -812,9 +807,9 @@ class FlatESLint {
         const filePaths = await findFiles({
             patterns: typeof patterns === "string" ? [patterns] : patterns,
             cwd,
-            extensions,
             globInputPaths,
-            configs
+            configs,
+            errorOnUnmatchedPattern
         });
 
         debug(`${filePaths.length} files found in: ${Date.now() - startTime}ms`);
@@ -1127,6 +1122,7 @@ class FlatESLint {
                 results.sort(compareResultsByFilePath);
 
                 return formatter(results, {
+                    cwd,
                     get rulesMeta() {
                         if (!rulesMeta) {
                             rulesMeta = eslint.getRulesMetaForResults(results);
@@ -1175,5 +1171,6 @@ class FlatESLint {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    FlatESLint
+    FlatESLint,
+    findFlatConfigFile
 };

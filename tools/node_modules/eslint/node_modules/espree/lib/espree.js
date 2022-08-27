@@ -15,12 +15,23 @@ const ESPRIMA_FINISH_NODE = Symbol("espree's esprimaFinishNode");
  * @param {int} end The index at which the comment ends.
  * @param {Location} startLoc The location at which the comment starts.
  * @param {Location} endLoc The location at which the comment ends.
+ * @param {string} code The source code being parsed.
  * @returns {Object} The comment object.
  * @private
  */
-function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc) {
+function convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc, code) {
+    let type;
+
+    if (block) {
+        type = "Block";
+    } else if (code.slice(start, start + 2) === "#!") {
+        type = "Hashbang";
+    } else {
+        type = "Line";
+    }
+
     const comment = {
-        type: block ? "Block" : "Line",
+        type,
         value: text
     };
 
@@ -65,6 +76,25 @@ export default () => Parser => {
                     ? new TokenTranslator(tokTypes, code)
                     : null;
 
+            /*
+             * Data that is unique to Espree and is not represented internally
+             * in Acorn.
+             *
+             * For ES2023 hashbangs, Espree will call `onComment()` during the
+             * constructor, so we must define state before having access to
+             * `this`.
+             */
+            const state = {
+                originalSourceType: originalSourceType || options.sourceType,
+                tokens: tokenTranslator ? [] : null,
+                comments: options.comment === true ? [] : null,
+                impliedStrict: ecmaFeatures.impliedStrict === true && options.ecmaVersion >= 5,
+                ecmaVersion: options.ecmaVersion,
+                jsxAttrValueToken: false,
+                lastToken: null,
+                templateElements: []
+            };
+
             // Initialize acorn parser.
             super({
 
@@ -83,38 +113,28 @@ export default () => Parser => {
                     if (tokenTranslator) {
 
                         // Use `tokens`, `ecmaVersion`, and `jsxAttrValueToken` in the state.
-                        tokenTranslator.onToken(token, this[STATE]);
+                        tokenTranslator.onToken(token, state);
                     }
                     if (token.type !== tokTypes.eof) {
-                        this[STATE].lastToken = token;
+                        state.lastToken = token;
                     }
                 },
 
                 // Collect comments
                 onComment: (block, text, start, end, startLoc, endLoc) => {
-                    if (this[STATE].comments) {
-                        const comment = convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc);
+                    if (state.comments) {
+                        const comment = convertAcornCommentToEsprimaComment(block, text, start, end, startLoc, endLoc, code);
 
-                        this[STATE].comments.push(comment);
+                        state.comments.push(comment);
                     }
                 }
             }, code);
 
             /*
-             * Data that is unique to Espree and is not represented internally in
-             * Acorn. We put all of this data into a symbol property as a way to
-             * avoid potential naming conflicts with future versions of Acorn.
+             * We put all of this data into a symbol property as a way to avoid
+             * potential naming conflicts with future versions of Acorn.
              */
-            this[STATE] = {
-                originalSourceType: originalSourceType || options.sourceType,
-                tokens: tokenTranslator ? [] : null,
-                comments: options.comment === true ? [] : null,
-                impliedStrict: ecmaFeatures.impliedStrict === true && this.options.ecmaVersion >= 5,
-                ecmaVersion: this.options.ecmaVersion,
-                jsxAttrValueToken: false,
-                lastToken: null,
-                templateElements: []
-            };
+            this[STATE] = state;
         }
 
         tokenize() {

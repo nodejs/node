@@ -76,6 +76,10 @@ module.exports = {
                     commentPattern: {
                         type: "string",
                         default: ""
+                    },
+                    allowEmptyCase: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -91,6 +95,7 @@ module.exports = {
         const options = context.options[0] || {};
         let currentCodePath = null;
         const sourceCode = context.getSourceCode();
+        const allowEmptyCase = options.allowEmptyCase || false;
 
         /*
          * We need to use leading comments of the next SwitchCase node because
@@ -104,7 +109,6 @@ module.exports = {
         } else {
             fallthroughCommentPattern = DEFAULT_FALLTHROUGH_COMMENT;
         }
-
         return {
             onCodePathStart(codePath) {
                 currentCodePath = codePath;
@@ -119,7 +123,8 @@ module.exports = {
                  * Checks whether or not there is a fallthrough comment.
                  * And reports the previous fallthrough node if that does not exist.
                  */
-                if (fallthroughCase && !hasFallthroughComment(fallthroughCase, node, context, fallthroughCommentPattern)) {
+
+                if (fallthroughCase && (!hasFallthroughComment(fallthroughCase, node, context, fallthroughCommentPattern))) {
                     context.report({
                         messageId: node.test ? "case" : "default",
                         node
@@ -137,7 +142,7 @@ module.exports = {
                  * And allows empty cases and the last case.
                  */
                 if (currentCodePath.currentSegments.some(isReachable) &&
-                    (node.consequent.length > 0 || hasBlankLinesBetween(node, nextToken)) &&
+                    (node.consequent.length > 0 || (!allowEmptyCase && hasBlankLinesBetween(node, nextToken))) &&
                     node.parent.cases[node.parent.cases.length - 1] !== node) {
                     fallthroughCase = node;
                 }
