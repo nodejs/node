@@ -9,9 +9,6 @@
 
 "use strict";
 
-// to use V8's code cache to speed up instantiation time
-require("v8-compile-cache");
-
 // must do this initialization *before* other requires in order to work
 if (process.argv.includes("--debug")) {
     require("debug").enable("eslint:*,-eslint:code-path,eslintrc:*");
@@ -137,6 +134,7 @@ ${message}`);
     // Otherwise, call the CLI.
     process.exitCode = await require("../lib/cli").execute(
         process.argv,
-        process.argv.includes("--stdin") ? await readStdin() : null
+        process.argv.includes("--stdin") ? await readStdin() : null,
+        true
     );
 }()).catch(onFatalError);
