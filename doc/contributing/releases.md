@@ -683,6 +683,7 @@ repository.
 
 ```console
 $ git checkout main
+$ git pull upstream main
 $ git cherry-pick v1.x^
 ```
 
