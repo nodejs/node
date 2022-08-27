@@ -2497,6 +2497,426 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_QUIC_AEAD_LIMIT_REACHED"></a>
+
+### `ERR_QUIC_AEAD_LIMIT_REACHED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_APPLICATION_ERROR"></a>
+
+### `ERR_QUIC_APPLICATION_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_CONNECTION_ID_LIMIT_ERROR"></a>
+
+### `ERR_QUIC_CONNECTION_ID_LIMIT_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_CONNECTION_REFUSED"></a>
+
+### `ERR_QUIC_CONNECTION_REFUSED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_CRYPTO_BUFFER_EXCEEDED"></a>
+
+### `ERR_QUIC_CRYPTO_BUFFER_EXCEEDED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_CRYPTO_ERROR"></a>
+
+### `ERR_QUIC_CRYPTO_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_ENDPOINT_FAILURE"></a>
+
+### `ERR_QUIC_ENDPOINT_FAILURE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_FINAL_SIZE_ERROR"></a>
+
+### `ERR_QUIC_FINAL_SIZE_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_FLOW_CONTROL_ERROR"></a>
+
+### `ERR_QUIC_FLOW_CONTROL_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_FRAME_ENCODING_ERROR"></a>
+
+### `ERR_QUIC_FRAME_ENCODING_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_CLOSED_CRITICAL_STREAM"></a>
+
+### `ERR_QUIC_H3_CLOSED_CRITICAL_STREAM`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_CONNECT_ERROR"></a>
+
+### `ERR_QUIC_H3_CONNECT_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_EXCESSIVE_LOAD"></a>
+
+### `ERR_QUIC_H3_EXCESSIVE_LOAD`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_FRAME_ERROR"></a>
+
+### `ERR_QUIC_H3_FRAME_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_FRAME_UNEXPECTED"></a>
+
+### `ERR_QUIC_H3_FRAME_UNEXPECTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_GENERAL_PROTOCOL_ERROR"></a>
+
+### `ERR_QUIC_H3_GENERAL_PROTOCOL_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_ID_ERROR"></a>
+
+### `ERR_QUIC_H3_ID_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_INTERNAL_ERROR"></a>
+
+### `ERR_QUIC_H3_INTERNAL_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_MESSAGE_ERROR"></a>
+
+### `ERR_QUIC_H3_MESSAGE_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_MISSING_SETTINGS"></a>
+
+### `ERR_QUIC_H3_MISSING_SETTINGS`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_REQUEST_CANCELLED"></a>
+
+### `ERR_QUIC_H3_REQUEST_CANCELLED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_REQUEST_INCOMPLETE"></a>
+
+### `ERR_QUIC_H3_REQUEST_INCOMPLETE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_REQUEST_REJECTED"></a>
+
+### `ERR_QUIC_H3_REQUEST_REJECTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_SETTINGS_ERROR"></a>
+
+### `ERR_QUIC_H3_SETTINGS_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_STREAM_CREATION_ERROR"></a>
+
+### `ERR_QUIC_H3_STREAM_CREATION_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_H3_VERSION_FALLBACK"></a>
+
+### `ERR_QUIC_H3_VERSION_FALLBACK`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_HANDSHAKE_CANCELED"></a>
+
+### `ERR_QUIC_HANDSHAKE_CANCELED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_IDLE_CLOSE"></a>
+
+### `ERR_QUIC_IDLE_CLOSE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_INTERNAL_ERROR"></a>
+
+### `ERR_QUIC_INTERNAL_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_INVALID_TOKEN"></a>
+
+### `ERR_QUIC_INVALID_TOKEN`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_KEY_UPDATE_ERROR"></a>
+
+### `ERR_QUIC_KEY_UPDATE_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_NO_VIABLE_PATH"></a>
+
+### `ERR_QUIC_NO_VIABLE_PATH`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_PROTOCOL_VIOLATION"></a>
+
+### `ERR_QUIC_PROTOCOL_VIOLATION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_QPACK_DECODER_STREAM_ERROR"></a>
+
+### `ERR_QUIC_QPACK_DECODER_STREAM_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_QPACK_DECOMPRESSION_FAILED"></a>
+
+### `ERR_QUIC_QPACK_DECOMPRESSION_FAILED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_QPACK_ENCODER_STREAM_ERROR"></a>
+
+### `ERR_QUIC_QPACK_ENCODER_STREAM_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_STREAM_LIMIT_ERROR"></a>
+
+### `ERR_QUIC_STREAM_LIMIT_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_STREAM_STATE_ERROR"></a>
+
+### `ERR_QUIC_STREAM_STATE_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_TRANSPORT_PARAMETER_ERROR"></a>
+
+### `ERR_QUIC_TRANSPORT_PARAMETER_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_UNABLE_TO_CREATE_STREAM"></a>
+
+### `ERR_QUIC_UNABLE_TO_CREATE_STREAM`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_UNKNOWN_ERROR"></a>
+
+### `ERR_QUIC_UNKNOWN_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
+<a id="ERR_QUIC_VERSION_NEGOTIATION_ERROR"></a>
+
+### `ERR_QUIC_VERSION_NEGOTIATION_ERROR`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+TBD
+
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`

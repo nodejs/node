@@ -536,6 +536,7 @@
         'src/node_zlib.cc',
         'src/pipe_wrap.cc',
         'src/process_wrap.cc',
+        'src/quic/quic.cc',
         'src/signal_wrap.cc',
         'src/spawn_sync.cc',
         'src/stream_base.cc',
@@ -643,6 +644,7 @@
         'src/node_watchdog.h',
         'src/node_worker.h',
         'src/pipe_wrap.h',
+        'src/quic/quic.h',
         'src/req_wrap.h',
         'src/req_wrap-inl.h',
         'src/spawn_sync.h',
@@ -750,6 +752,21 @@
             'Winmm',
             'Ws2_32',
           ],
+        }],
+        [ 'openssl_quic=="true"', {
+          'sources': [
+            'src/quic/crypto.cc',
+            'src/quic/endpoint.cc',
+            'src/quic/http3.cc',
+            'src/quic/session.cc',
+            'src/quic/stream.cc',
+            'src/quic/crypto.h',
+            'src/quic/defs.h',
+            'src/quic/endpoint.h',
+            'src/quic/http3.h',
+            'src/quic/session.h',
+            'src/quic/stream.h',
+          ]
         }],
         [ 'node_use_openssl=="true"', {
           'sources': [

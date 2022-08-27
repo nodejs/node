@@ -64,6 +64,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
+  V(ERR_ILLEGAL_CONSTRUCTOR, Error)                                            \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
@@ -86,7 +87,8 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
-  V(ERR_PROTO_ACCESS, Error)
+  V(ERR_PROTO_ACCESS, Error)                                                   \
+  V(ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT, Error)
 
 #define V(code, type)                                                          \
   template <typename... Args>                                                  \
@@ -152,6 +154,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_DLOPEN_FAILED, "DLOpen failed")                                        \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \
+  V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \
   V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
@@ -176,7 +179,8 @@ ERRORS_WITH_CODE(V)
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \
     "Accessing Object.prototype.__proto__ has been "                           \
-    "disallowed with --disable-proto=throw")
+    "disallowed with --disable-proto=throw")                                   \
+  V(ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT, "Failure to set SNI context")
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \

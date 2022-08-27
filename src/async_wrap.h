@@ -77,21 +77,31 @@ namespace node {
   V(ZLIB)
 
 #if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
-  V(CHECKPRIMEREQUEST)                                                        \
-  V(PBKDF2REQUEST)                                                            \
-  V(KEYPAIRGENREQUEST)                                                        \
-  V(KEYGENREQUEST)                                                            \
-  V(KEYEXPORTREQUEST)                                                         \
-  V(CIPHERREQUEST)                                                            \
-  V(DERIVEBITSREQUEST)                                                        \
-  V(HASHREQUEST)                                                              \
-  V(RANDOMBYTESREQUEST)                                                       \
-  V(RANDOMPRIMEREQUEST)                                                       \
-  V(SCRYPTREQUEST)                                                            \
-  V(SIGNREQUEST)                                                              \
-  V(TLSWRAP)                                                                  \
-  V(VERIFYREQUEST)
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                    \
+  V(CHECKPRIMEREQUEST)                                                         \
+  V(PBKDF2REQUEST)                                                             \
+  V(KEYPAIRGENREQUEST)                                                         \
+  V(KEYGENREQUEST)                                                             \
+  V(KEYEXPORTREQUEST)                                                          \
+  V(CIPHERREQUEST)                                                             \
+  V(DERIVEBITSREQUEST)                                                         \
+  V(HASHREQUEST)                                                               \
+  V(RANDOMBYTESREQUEST)                                                        \
+  V(RANDOMPRIMEREQUEST)                                                        \
+  V(SCRYPTREQUEST)                                                             \
+  V(SIGNREQUEST)                                                               \
+  V(TLSWRAP)                                                                   \
+  V(VERIFYREQUEST)                                                             \
+  V(QUICSESSION)                                                               \
+  V(QUICENDPOINT)                                                              \
+  V(QUICSTREAM)                                                                \
+  V(QUICPACKET)                                                                \
+  V(QUICENDPOINT_UDP)                                                          \
+  V(QUICSTREAMSOURCE)                                                          \
+  V(QUICSTREAMBASESOURCE)                                                      \
+  V(QUICBLOBSOURCE)                                                            \
+  V(QUICLOGSTREAM)
+
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 #endif  // HAVE_OPENSSL
