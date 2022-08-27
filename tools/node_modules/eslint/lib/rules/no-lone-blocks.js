@@ -91,7 +91,7 @@ module.exports = {
         };
 
         // ES6: report blocks without block-level bindings, or that's only child of another block
-        if (context.parserOptions.ecmaVersion >= 6) {
+        if (context.languageOptions.ecmaVersion >= 2015) {
             ruleDef = {
                 BlockStatement(node) {
                     if (isLoneBlock(node)) {

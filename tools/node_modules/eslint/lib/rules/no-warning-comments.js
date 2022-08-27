@@ -37,6 +37,15 @@ module.exports = {
                     },
                     location: {
                         enum: ["start", "anywhere"]
+                    },
+                    decoration: {
+                        type: "array",
+                        items: {
+                            type: "string",
+                            pattern: "^\\S$"
+                        },
+                        minItems: 1,
+                        uniqueItems: true
                     }
                 },
                 additionalProperties: false
@@ -53,6 +62,7 @@ module.exports = {
             configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
             location = configuration.location || "start",
+            decoration = [...configuration.decoration || []].join(""),
             selfConfigRegEx = /\bno-warning-comments\b/u;
 
         /**
@@ -64,6 +74,7 @@ module.exports = {
          */
         function convertToRegExp(term) {
             const escaped = escapeRegExp(term);
+            const escapedDecoration = escapeRegExp(decoration);
 
             /*
              * When matching at the start, ignore leading whitespace, and
@@ -74,18 +85,23 @@ module.exports = {
              *     e.g. terms ["TODO"] matches `//TODO something`
              * $   handles any terms at the end of a comment
              *     e.g. terms ["TODO"] matches `// something TODO`
-             * \s* handles optional leading spaces (for "start" location only)
-             *     e.g. terms ["TODO"] matches `//    TODO something`
              * \b  handles terms preceded/followed by word boundary
              *     e.g. terms: ["!FIX", "FIX!"] matches `// FIX!something` or `// something!FIX`
              *          terms: ["FIX"] matches `// FIX!` or `// !FIX`, but not `// fixed or affix`
+             *
+             * For location start:
+             * [\s]* handles optional leading spaces
+             *     e.g. terms ["TODO"] matches `//    TODO something`
+             * [\s\*]* (where "\*" is the escaped string of decoration)
+             *     handles optional leading spaces or decoration characters (for "start" location only)
+             *     e.g. terms ["TODO"] matches `/**** TODO something ... `
              */
             const wordBoundary = "\\b";
 
             let prefix = "";
 
             if (location === "start") {
-                prefix = "^\\s*";
+                prefix = `^[\\s${escapedDecoration}]*`;
             } else if (/^\w/u.test(term)) {
                 prefix = wordBoundary;
             }
@@ -95,12 +111,15 @@ module.exports = {
 
             /*
              * For location "start", the typical regex is:
-             *   /^\s*ESCAPED_TERM\b/iu.
+             *   /^[\s]*ESCAPED_TERM\b/iu.
+             * Or if decoration characters are specified (e.g. "*"), then any of
+             * those characters may appear in any order at the start:
+             *   /^[\s\*]*ESCAPED_TERM\b/iu.
              *
              * For location "anywhere" the typical regex is
              *   /\bESCAPED_TERM\b/iu
              *
-             * If it starts or ends with non-word character, the prefix and suffix empty, respectively.
+             * If it starts or ends with non-word character, the prefix and suffix are empty, respectively.
              */
             return new RegExp(`${prefix}${escaped}${suffix}`, flags);
         }
