@@ -4,7 +4,7 @@
  */
 "use strict";
 
-/* eslint-env mocha -- Mocha wrapper */
+/* globals describe, it -- Mocha globals */
 
 /*
  * This is a wrapper around mocha to allow for DRY unittests for eslint
