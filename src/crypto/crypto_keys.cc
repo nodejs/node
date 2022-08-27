@@ -892,30 +892,44 @@ size_t KeyObjectData::GetSymmetricKeySize() const {
   return symmetric_key_.size();
 }
 
+bool KeyObjectHandle::HasInstance(Environment* env,
+                                  v8::Local<v8::Value> value) {
+  return !value.IsEmpty() && value->IsObject() &&
+         GetConstructorTemplate(env)->HasInstance(value);
+}
+
+v8::Local<v8::FunctionTemplate> KeyObjectHandle::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->keyobjecthandle_ctor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        KeyObjectHandle::kInternalFieldCount);
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    SetProtoMethod(isolate, tmpl, "init", Init);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "getSymmetricKeySize", GetSymmetricKeySize);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "getAsymmetricKeyType", GetAsymmetricKeyType);
+    SetProtoMethod(isolate, tmpl, "export", Export);
+    SetProtoMethod(isolate, tmpl, "exportJwk", ExportJWK);
+    SetProtoMethod(isolate, tmpl, "initECRaw", InitECRaw);
+    SetProtoMethod(isolate, tmpl, "initEDRaw", InitEDRaw);
+    SetProtoMethod(isolate, tmpl, "initJwk", InitJWK);
+    SetProtoMethod(isolate, tmpl, "keyDetail", GetKeyDetail);
+    SetProtoMethod(isolate, tmpl, "equals", Equals);
+    env->set_keyobjecthandle_ctor_template(tmpl);
+  }
+  return tmpl;
+}
+
 v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   Local<Function> templ = env->crypto_key_object_handle_constructor();
   if (!templ.IsEmpty()) {
     return templ;
   }
-  Isolate* isolate = env->isolate();
-  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()->SetInternalFieldCount(
-      KeyObjectHandle::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
-
-  SetProtoMethod(isolate, t, "init", Init);
-  SetProtoMethodNoSideEffect(
-      isolate, t, "getSymmetricKeySize", GetSymmetricKeySize);
-  SetProtoMethodNoSideEffect(
-      isolate, t, "getAsymmetricKeyType", GetAsymmetricKeyType);
-  SetProtoMethod(isolate, t, "export", Export);
-  SetProtoMethod(isolate, t, "exportJwk", ExportJWK);
-  SetProtoMethod(isolate, t, "initECRaw", InitECRaw);
-  SetProtoMethod(isolate, t, "initEDRaw", InitEDRaw);
-  SetProtoMethod(isolate, t, "initJwk", InitJWK);
-  SetProtoMethod(isolate, t, "keyDetail", GetKeyDetail);
-  SetProtoMethod(isolate, t, "equals", Equals);
-
+  Local<FunctionTemplate> t = GetConstructorTemplate(env);
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   env->set_crypto_key_object_handle_constructor(function);
   return function;

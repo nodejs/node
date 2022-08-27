@@ -1,13 +1,14 @@
 #include "crypto/crypto_context.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_options.h"
+#include "openssl/ssl.h"
 #include "util.h"
 #include "v8.h"
 
@@ -570,6 +571,12 @@ void SecureContext::SetKeylogCallback(KeylogCb cb) {
   SSL_CTX_set_keylog_callback(ctx_.get(), cb);
 }
 
+bool SecureContext::UseKey(std::shared_ptr<KeyObjectData> key) {
+  if (key->GetKeyType() != KeyType::kKeyTypePrivate) return false;
+
+  return SSL_CTX_use_PrivateKey(ctx_.get(), key->GetAsymmetricKey().get());
+}
+
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -658,30 +665,50 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
+bool SecureContext::AddCert(BIOPointer&& bio) {
+  if (!bio) return false;
+  cert_.reset();
+  issuer_.reset();
+
+  if (!SSL_CTX_use_certificate_chain(
+          ctx_.get(), std::forward<BIOPointer>(bio), &cert_, &issuer_)) {
+    return false;
+  }
+
+  return true;
+}
+
 void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
-  CHECK_GE(args.Length(), 1);  // Certificate argument is mandator
+  CHECK_GE(args.Length(), 1);  // Certificate argument is mandatory
 
   BIOPointer bio(LoadBIO(env, args[0]));
   if (!bio)
     return;
 
-  sc->cert_.reset();
-  sc->issuer_.reset();
-
-  if (!SSL_CTX_use_certificate_chain(
-          sc->ctx_.get(),
-          std::move(bio),
-          &sc->cert_,
-          &sc->issuer_)) {
+  if (!sc->AddCert(std::move(bio))) {
     return ThrowCryptoError(
         env,
         ERR_get_error(),
         "SSL_CTX_use_certificate_chain");
+  }
+}
+
+void SecureContext::SetCACert(const BIOPointer& bio) {
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  while (X509* x509 = PEM_read_bio_X509_AUX(
+             bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+    if (cert_store == root_cert_store) {
+      cert_store = NewRootCertStore();
+      SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+    }
+    X509_STORE_add_cert(cert_store, x509);
+    SSL_CTX_add_client_CA(ctx_.get(), x509);
+    X509_free(x509);
   }
 }
 
@@ -710,6 +737,24 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+bool SecureContext::SetCRL(const BIOPointer& bio) {
+  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
+      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
+
+  if (!crl) return false;
+
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
+  if (cert_store == root_cert_store) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(ctx_.get(), cert_store);
+  }
+
+  X509_STORE_add_crl(cert_store, crl.get());
+  X509_STORE_set_flags(cert_store,
+                       X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+  return true;
+}
+
 void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -724,21 +769,18 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  DeleteFnPtr<X509_CRL, X509_CRL_free> crl(
-      PEM_read_bio_X509_CRL(bio.get(), nullptr, NoPasswordCallback, nullptr));
+  if (!sc->SetCRL(bio))
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
+}
 
-  if (!crl)
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to parse CRL");
-
-  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  if (cert_store == root_cert_store) {
-    cert_store = NewRootCertStore();
-    SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
+void SecureContext::SetRootCerts() {
+  if (root_cert_store == nullptr) {
+    root_cert_store = NewRootCertStore();
   }
 
-  X509_STORE_add_crl(cert_store, crl.get());
-  X509_STORE_set_flags(cert_store,
-                       X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+  // Increment reference count so global store is not deleted along with CTX.
+  X509_STORE_up_ref(root_cert_store);
+  SSL_CTX_set_cert_store(ctx_.get(), root_cert_store);
 }
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
@@ -746,13 +788,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   ClearErrorOnReturn clear_error_on_return;
 
-  if (root_cert_store == nullptr) {
-    root_cert_store = NewRootCertStore();
-  }
-
-  // Increment reference count so global store is not deleted along with CTX.
-  X509_STORE_up_ref(root_cert_store);
-  SSL_CTX_set_cert_store(sc->ctx_.get(), root_cert_store);
+  sc->SetRootCerts();
 }
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {

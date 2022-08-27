@@ -3,8 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_util.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -43,12 +44,26 @@ class SecureContext final : public BaseObject {
 
   const SSLCtxPointer& ctx() const { return ctx_; }
 
+  template <typename Func = void(SSLCtxPointer&)>
+  inline void Initialize(Func fn) {
+    fn(ctx_);
+  }
+
+  inline X509Pointer& issuer() { return issuer_; }
+  inline X509Pointer& cert() { return cert_; }
+
   SSLPointer CreateSSL();
 
   void SetGetSessionCallback(GetSessionCb cb);
   void SetKeylogCallback(KeylogCb cb);
   void SetNewSessionCallback(NewSessionCb cb);
   void SetSelectSNIContextCallback(SelectSNIContextCb cb);
+
+  bool AddCert(BIOPointer&& bio);
+  void SetCACert(const BIOPointer& bio);
+  void SetRootCerts();
+  bool SetCRL(const BIOPointer& bio);
+  bool UseKey(std::shared_ptr<KeyObjectData> key);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
