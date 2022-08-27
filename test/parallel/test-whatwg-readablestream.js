@@ -328,17 +328,8 @@ assert.throws(() => {
   const read1 = reader.read();
   const read2 = reader.read();
 
-  // The stream is empty so the read will never settle.
-  read1.then(
-    common.mustNotCall(),
-    common.mustNotCall()
-  );
-
-  // The stream is empty so the read will never settle.
-  read2.then(
-    common.mustNotCall(),
-    common.mustNotCall()
-  );
+  read1.then(common.mustNotCall(), common.mustCall());
+  read2.then(common.mustNotCall(), common.mustCall());
 
   assert.notStrictEqual(read1, read2);
 
@@ -346,10 +337,9 @@ assert.throws(() => {
 
   delay().then(common.mustCall());
 
-  assert.throws(() => reader.releaseLock(), {
-    code: 'ERR_INVALID_STATE',
-  });
   assert(stream.locked);
+  reader.releaseLock();
+  assert(!stream.locked);
 }
 
 {
