@@ -361,7 +361,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     ctx_.SetBuffers(in, in_len, out, out_len);
     ctx_.SetFlush(flush);
 
-    if (!async) {
+    if constexpr (!async) {
       // sync version
       AsyncWrap::env()->PrintSyncTrace();
       DoThreadPoolWork();
