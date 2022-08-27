@@ -131,8 +131,7 @@ module.exports = class ConfigCommentParser {
 
         const items = {};
 
-        // Collapse whitespace around commas
-        string.replace(/\s*,\s*/gu, ",").split(/,+/u).forEach(name => {
+        string.split(",").forEach(name => {
             const trimmedName = name.trim();
 
             if (trimmedName) {

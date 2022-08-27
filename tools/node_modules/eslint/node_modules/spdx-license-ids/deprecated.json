@@ -21,6 +21,7 @@
 	"LGPL-3.0",
 	"Nunit",
 	"StandardML-NJ",
+	"bzip2-1.0.5",
 	"eCos-2.0",
 	"wxWindows"
 ]
