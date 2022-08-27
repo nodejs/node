@@ -31,9 +31,6 @@
   "readable-byte-streams/general.any.js": {
     "fail": {
       "expected": [
-        "ReadableStream with byte source: releaseLock() on ReadableStreamDefaultReader must reject pending read()",
-        "ReadableStream with byte source: releaseLock() on ReadableStreamBYOBReader must reject pending read()",
-        "pull() resolving should not resolve read()",
         "ReadableStream with byte source: enqueue() discards auto-allocated BYOB request",
         "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, respond()",
         "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader with 1 element Uint16Array, respond(1)",
@@ -86,20 +83,6 @@
   },
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
-  },
-  "readable-streams/default-reader.any.js": {
-    "fail": {
-      "expected": [
-        "Second reader can read chunks after first reader was released with pending read requests"
-      ]
-    }
-  },
-  "readable-streams/templated.any.js": {
-    "fail": {
-      "expected": [
-        "ReadableStream (empty) reader: releasing the lock should reject all pending read requests"
-      ]
-    }
   },
   "transferable/deserialize-error.window.js": {
     "skip": "Browser-specific test"
