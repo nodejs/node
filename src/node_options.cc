@@ -908,6 +908,13 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::trace_sigint,
             kAllowedInEnvironment);
 
+  AddOption("--set-mainthread-cpu-affinity",
+            "enable setting mainthread's cpu affinity to the currently "
+            "running cpu before entering event loop, implemented on "
+            "Linux OS only",
+            &PerProcessOptions::set_mainthread_cpu_affinity,
+            kAllowedInEnvironment);
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 
   AddOption("--node-memory-debug",

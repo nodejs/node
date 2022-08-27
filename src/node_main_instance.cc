@@ -19,6 +19,10 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#if defined(__linux__)
+#include <sched.h>
+#include <unistd.h>
+#endif
 
 namespace node {
 
@@ -134,6 +138,18 @@ int NodeMainInstance::Run() {
 
 void NodeMainInstance::Run(int* exit_code, Environment* env) {
   if (*exit_code == 0) {
+    if (per_process::cli_options->set_mainthread_cpu_affinity) {
+#if defined(__linux__)
+      cpu_set_t mask;
+      int c = sched_getcpu();
+      if (c >= 0) {
+        CPU_ZERO(&mask);
+        CPU_SET(c, &mask);
+        sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+      }
+#endif
+    }
+
     LoadEnvironment(env, StartExecutionCallback{});
 
     *exit_code = SpinEventLoop(env).FromMaybe(1);

@@ -283,6 +283,7 @@ class PerProcessOptions : public Options {
   // TODO(addaleax): Some of these could probably be per-Environment.
   std::string use_largepages = "off";
   bool trace_sigint = false;
+  bool set_mainthread_cpu_affinity = false;
   std::vector<std::string> cmdline;
 
   inline PerIsolateOptions* get_per_isolate_options();
