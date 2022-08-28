@@ -556,6 +556,19 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
+  // When `IsCodeGenerationFromStringsAllowed` is true, V8 takes the fast path
+  // and ignores the ModifyCodeGenerationFromStrings callback. Set it to false
+  // to delegate the code generation validation to
+  // node::ModifyCodeGenerationFromStrings.
+  // The `IsCodeGenerationFromStringsAllowed` can be refreshed by V8 according
+  // to the runtime flags, propagate the value to the embedder data.
+  bool is_code_generation_from_strings_allowed =
+      context->IsCodeGenerationFromStringsAllowed();
+  context->AllowCodeGenerationFromStrings(false);
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
+      is_code_generation_from_strings_allowed ? True(isolate) : False(isolate));
+
   if (per_process::cli_options->disable_proto == "") {
     return Just(true);
   }
@@ -648,11 +661,11 @@ Maybe<bool> InitializeMainContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
-  context->AllowCodeGenerationFromStrings(false);
-  context->SetEmbedderData(
-      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
+  // Initialize the default values.
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
 
   if (InitializeBaseContextForSnapshot(context).IsNothing()) {
     return Nothing<bool>();
