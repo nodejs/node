@@ -35,21 +35,16 @@ Metadata metadata;
 }
 
 #if HAVE_OPENSSL
-constexpr int search(const char* s, int n, int c) {
-  return *s == c ? n : search(s + 1, n + 1, c);
+static constexpr size_t search(const char* s, char c, size_t n = 0) {
+  return *s == c ? n : search(s + 1, c, n + 1);
 }
 
-std::string GetOpenSSLVersion() {
+static inline std::string GetOpenSSLVersion() {
   // sample openssl version string format
   // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
-  char buf[128];
-  const char* etext = OPENSSL_VERSION_TEXT;
-  const int start = search(etext, 0, ' ') + 1;
-  etext += start;
-  const int end = search(etext, start, ' ');
-  const int len = end - start;
-  snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
-  return std::string(buf);
+  constexpr size_t start = search(OPENSSL_VERSION_TEXT, ' ') + 1;
+  constexpr size_t len = search(&OPENSSL_VERSION_TEXT[start], ' ');
+  return std::string(OPENSSL_VERSION_TEXT, start, len);
 }
 #endif  // HAVE_OPENSSL
 
