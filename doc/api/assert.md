@@ -2097,23 +2097,39 @@ added: v18.8.0
 
 > Stability: 1 - Experimental
 
-* `value` {any} the value to snapshot
-* `name` {string} the name of snapshot.
+* `value` {any} the value to snapshot.
+* `name` {string} the name of the snapshot.
 * Returns: {Promise}
 
-reads a snapshot from a file, and compares `value` to the snapshot.
-`value` is serialized with [`util.inspect()`][]
-If the value is not strictly equal to the snapshot,
-`assert.snapshot()` will return a rejected `Promise`
-with an [`AssertionError`][].
+Reads the `name` snapshot from a file and compares `value` to the snapshot.
+`value` is serialized with [`util.inspect()`][]. If the value is not strictly
+equal to the snapshot, `assert.snapshot()` returns a rejected `Promise` with an
+[`AssertionError`][].
 
-If the snapshot file does not exist, the snapshot is written.
+The snapshot filename uses the same basename as the application's main
+entrypoint with a `.snapshot` extension. If the snapshot file does not exist,
+it is created. The [`--update-assert-snapshot`][] command line flag can be used
+to force the update of an existing snapshot.
 
-In case it is needed to force a snapshot update,
-use [`--update-assert-snapshot`][];
+```mjs
+import assert from 'node:assert/strict';
 
-By default, a snapshot is read and written to a file,
-using the same name as the main entrypoint with `.snapshot` as the extension.
+// Assuming that the application's main entrypoint is app.mjs, this reads the
+// 'snapshotName' snapshot from app.snapshot and strictly compares its value
+// to `util.inspect('value')`.
+await assert.snapshot('value', 'snapshotName');
+```
+
+```cjs
+const assert = require('node:assert/strict');
+
+(async () => {
+  // Assuming that the application's main entrypoint is app.js, this reads the
+  // 'snapshotName' snapshot from app.snapshot and strictly compares its value
+  // to `util.inspect('value')`.
+  await assert.snapshot('value', 'snapshotName');
+})();
+```
 
 ## `assert.strictEqual(actual, expected[, message])`
 
