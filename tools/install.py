@@ -169,14 +169,14 @@ def files(action):
 
       # install libnode.version.so
       so_name = 'libnode.' + re.sub(r'\.x$', '.so', variables.get('shlib_suffix'))
-      action([output_prefix + so_name], 'lib/' + so_name)
+      action([output_prefix + so_name], variables.get('libdir') + '/' + so_name)
 
       # create symlink of libnode.so -> libnode.version.so (C++ addons compat)
       link_path = abspath(install_path, 'lib/libnode.so')
       try_symlink(so_name, link_path)
     else:
       output_lib = 'libnode.' + variables.get('shlib_suffix')
-      action([output_prefix + output_lib], 'lib/' + output_lib)
+      action([output_prefix + output_lib], variables.get('libdir') + '/' + output_lib)
 
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
   action(['deps/v8/tools/lldb_commands.py'], 'share/doc/node/')

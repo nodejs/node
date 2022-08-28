@@ -706,6 +706,14 @@ parser.add_argument('--shared',
     help='compile shared library for embedding node in another project. ' +
          '(This mode is not officially supported for regular applications)')
 
+parser.add_argument('--libdir',
+    action='store',
+    dest='libdir',
+    default='lib',
+    help='a directory to install the shared library into relative to the '
+         'prefix. This is a no-op if --shared is not specified. ' +
+         '(This mode is not officially supported for regular applications)')
+
 parser.add_argument('--without-v8-platform',
     action='store_true',
     dest='without_v8_platform',
@@ -1323,6 +1331,7 @@ def configure_node(o):
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
   o['variables']['node_shared'] = b(options.shared)
+  o['variables']['libdir'] = options.libdir
   node_module_version = getmoduleversion.get_version()
 
   if options.dest_os == 'android':
