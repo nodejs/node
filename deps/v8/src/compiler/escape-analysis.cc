@@ -78,6 +78,8 @@ class ReduceScope {
   explicit ReduceScope(Node* node, Reduction* reduction)
       : current_node_(node), reduction_(reduction) {}
 
+  void SetValueChanged() { reduction()->set_value_changed(); }
+
  protected:
   Node* current_node() const { return current_node_; }
   Reduction* reduction() { return reduction_; }
@@ -806,7 +808,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       break;
     }
     case IrOpcode::kStateValues:
-      // These uses are always safe.
+      // We visit StateValue nodes through their correpsonding FrameState node,
+      // so we need to make sure we revisit the FrameState.
+      current->SetValueChanged();
       break;
     case IrOpcode::kFrameState: {
       // We mark the receiver as escaping due to the non-standard `.getThis`
