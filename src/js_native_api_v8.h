@@ -55,9 +55,6 @@ struct napi_env__ {
     CHECK_EQ(isolate, context->GetIsolate());
     napi_clear_last_error(this);
   }
-  virtual ~napi_env__() { FinalizeAll(); }
-  v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
-  v8impl::Persistent<v8::Context> context_persistent;
 
   inline v8::Local<v8::Context> context() const {
     return v8impl::PersistentToLocal::Strong(context_persistent);
@@ -65,7 +62,7 @@ struct napi_env__ {
 
   inline void Ref() { refs++; }
   inline void Unref() {
-    if (--refs == 0) delete this;
+    if (--refs == 0) DeleteMe();
   }
 
   virtual bool can_call_into_js() const { return true; }
@@ -99,7 +96,7 @@ struct napi_env__ {
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
   }
 
-  void FinalizeAll() {
+  virtual void DeleteMe() {
     // First we must finalize those references that have `napi_finalizer`
     // callbacks. The reason is that addons might store other references which
     // they delete during their `napi_finalizer` callbacks. If we deleted such
@@ -107,7 +104,11 @@ struct napi_env__ {
     // `napi_finalizer` deleted them subsequently.
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
+    delete this;
   }
+
+  v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
+  v8impl::Persistent<v8::Context> context_persistent;
 
   v8impl::Persistent<v8::Value> last_exception;
 
@@ -121,6 +122,11 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+
+ protected:
+  // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
+  // instead.
+  virtual ~napi_env__() = default;
 };
 
 // This class is used to keep a napi_env live in a way that
