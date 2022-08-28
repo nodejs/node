@@ -26,6 +26,11 @@ The available categories are:
 * `node.net.native`: Enables capture of trace data for network.
 * `node.environment`: Enables capture of Node.js Environment milestones.
 * `node.fs.sync`: Enables capture of trace data for file system sync methods.
+* `node.fs_dir.sync`: Enables capture of trace data for file system sync
+  directory methods.
+* `node.fs.async`: Enables capture of trace data for file system async methods.
+* `node.fs_dir.async`: Enables capture of trace data for file system async
+  directory methods.
 * `node.perf`: Enables capture of [Performance API][] measurements.
   * `node.perf.usertiming`: Enables capture of only Performance API User Timing
     measures and marks.
