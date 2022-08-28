@@ -227,7 +227,7 @@ class ProgressIndicator(object):
           if self.measure_flakiness:
             outputs = [case.Run() for _ in range(self.measure_flakiness)]
             # +1s are there because the test already failed once at this point.
-            print(f" failed {len([i for i in outputs if i.UnexpectedOutput()]) + 1} out of {self.measure_flakiness + 1}")
+            print(" failed %d out of %d" % (len([i for i in outputs if i.UnexpectedOutput()]) + 1, self.measure_flakiness + 1))
       else:
         self.succeeded += 1
       self.remaining -= 1
