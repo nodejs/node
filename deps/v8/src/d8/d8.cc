@@ -2218,6 +2218,16 @@ void Shell::AsyncHooksTriggerAsyncId(
       PerIsolateData::Get(isolate)->GetAsyncHooks()->GetTriggerAsyncId()));
 }
 
+static v8::debug::DebugDelegate dummy_delegate;
+
+void Shell::EnableDebugger(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::debug::SetDebugDelegate(args.GetIsolate(), &dummy_delegate);
+}
+
+void Shell::DisableDebugger(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::debug::SetDebugDelegate(args.GetIsolate(), nullptr);
+}
+
 void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   if (i::FLAG_correctness_fuzzer_suppressions) {
@@ -3161,6 +3171,18 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         FunctionTemplate::New(isolate, SetPromiseHooks, Local<Value>(),
                               Local<Signature>(), 4));
     d8_template->Set(isolate, "promise", promise_template);
+  }
+  {
+    Local<ObjectTemplate> debugger_template = ObjectTemplate::New(isolate);
+    debugger_template->Set(
+        isolate, "enable",
+        FunctionTemplate::New(isolate, EnableDebugger, Local<Value>(),
+                              Local<Signature>(), 0));
+    debugger_template->Set(
+        isolate, "disable",
+        FunctionTemplate::New(isolate, DisableDebugger, Local<Value>(),
+                              Local<Signature>(), 0));
+    d8_template->Set(isolate, "debugger", debugger_template);
   }
   return d8_template;
 }
