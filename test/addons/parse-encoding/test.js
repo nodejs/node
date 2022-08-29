@@ -13,6 +13,7 @@ assert.strictEqual(parseEncoding('binary'), 'LATIN1');
 assert.strictEqual(parseEncoding('buffer'), 'BUFFER');
 assert.strictEqual(parseEncoding('hex'), 'HEX');
 assert.strictEqual(parseEncoding('latin1'), 'LATIN1');
+assert.strictEqual(parseEncoding('LATIN1'), 'LATIN1');
 
 // ucs2 variations
 assert.strictEqual(parseEncoding('ucs2'), 'UCS2');
