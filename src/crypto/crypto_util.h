@@ -3,22 +3,22 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/kdf.h>
+#include <openssl/rsa.h>
+#include <openssl/ssl.h>
 #include "async_wrap.h"
 #include "env.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "string_bytes.h"
+#include "tracing/trace_event.h"
 #include "util.h"
 #include "v8.h"
-
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/ec.h>
-#include <openssl/kdf.h>
-#include <openssl/rsa.h>
-#include <openssl/dsa.h>
-#include <openssl/ssl.h>
 #ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -431,7 +431,11 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
 
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();
+    TRACE_EVENT_BEGIN(TRACING_CATEGORY_NODE2(crypto, sync),
+                      CryptoJobTraits::JobName);
     job->DoThreadPoolWork();
+    TRACE_EVENT_END(TRACING_CATEGORY_NODE2(crypto, sync),
+                    CryptoJobTraits::JobName);
     v8::Maybe<bool> result = job->ToResult(&ret[0], &ret[1]);
     if (result.IsJust() && result.FromJust()) {
       args.GetReturnValue().Set(

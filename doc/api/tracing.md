@@ -37,6 +37,7 @@ The available categories are:
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
 * `v8`: The [V8][] events are GC, compiling, and execution related.
 * `node.http`: Enables capture of trace data for http request / response.
+* `node.crypto.sync`: Enables capture of trace data for crypto sync API.
 
 By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
