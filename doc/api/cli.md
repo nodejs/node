@@ -1512,6 +1512,8 @@ loading phase, it will always raise it as an uncaught exception.
 added: v18.8.0
 -->
 
+> Stability: 1 - Experimental
+
 Force updating snapshot files for [`assert.snapshot()`][]
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
