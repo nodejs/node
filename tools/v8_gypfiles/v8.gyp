@@ -847,7 +847,8 @@
           'conditions': [
             ['v8_enable_webassembly==1', {
               'conditions': [
-                ['OS=="mac" or OS=="ios" or (_toolset=="host" and host_arch=="x64" and (host_os=="linux" or host_os=="mac"))', {
+                ['OS=="mac" or OS=="ios" or '
+                 '(_toolset=="host" and host_arch=="x64" and (host_os=="linux" or host_os=="mac"))', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
@@ -861,7 +862,8 @@
                   ],
                 }],
                 # TODO(targos): Replace False with OS=="win" if handler-outside-simulator.cc becomes compatible with MSVC.
-                ['_toolset=="host" and host_arch=="x64" and (host_os=="linux" or host_os=="mac" or False)', {
+                ['_toolset=="host" and host_arch=="x64" and '
+                 '(host_os=="linux" or host_os=="mac" or False)', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
                   ],
