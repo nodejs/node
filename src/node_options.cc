@@ -770,7 +770,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits."
-            "Currently only supported in the node_mksnapshot binary.",
+            " Currently only supported in the node_mksnapshot binary.",
             &PerProcessOptions::build_snapshot,
             kDisallowedInEnvironment);
   AddOption("--node-snapshot",
