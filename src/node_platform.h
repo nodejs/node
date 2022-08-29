@@ -158,6 +158,9 @@ class NodePlatform : public MultiIsolatePlatform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override;
+    std::unique_ptr<v8::JobHandle> CreateJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override;
 
   void RegisterIsolate(v8::Isolate* isolate, uv_loop_t* loop) override;
   void RegisterIsolate(v8::Isolate* isolate,

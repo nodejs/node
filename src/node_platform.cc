@@ -524,6 +524,12 @@ std::unique_ptr<v8::JobHandle> NodePlatform::PostJob(v8::TaskPriority priority,
       this, priority, std::move(job_task), NumberOfWorkerThreads());
 }
 
+std::unique_ptr<v8::JobHandle> NodePlatform::CreateJob(v8::TaskPriority priority,
+                                       std::unique_ptr<v8::JobTask> job_task) {
+  return v8::platform::NewDefaultJobHandle(
+      this, priority, std::move(job_task), NumberOfWorkerThreads());
+}
+
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) {
   return ForIsolate(isolate)->IdleTasksEnabled();
 }
