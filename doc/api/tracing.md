@@ -35,6 +35,10 @@ The available categories are:
   of unhandled Promise rejections and handled-after-rejections.
 * `node.vm.script`: Enables capture of trace data for the `node:vm` module's
   `runInNewContext()`, `runInContext()`, and `runInThisContext()` methods.
+* `node.process.sync`: Enables capture of trace data for the sync APIs of
+  process module.
+* `node.zlib.sync`: Enables capture of trace data for the sync APIs of
+  zlib module.
 * `v8`: The [V8][] events are GC, compiling, and execution related.
 * `node.http`: Enables capture of trace data for http request / response.
 
