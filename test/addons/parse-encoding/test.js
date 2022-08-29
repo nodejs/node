@@ -4,14 +4,18 @@ const common = require('../../common');
 const assert = require('assert');
 const { parseEncoding } = require(`./build/${common.buildType}/binding`);
 
-assert.strictEqual(parseEncoding(''), 'UNKNOWN');
-
 assert.strictEqual(parseEncoding('ascii'), 'ASCII');
+assert.strictEqual(parseEncoding('ASCII'), 'ASCII');
 assert.strictEqual(parseEncoding('base64'), 'BASE64');
+assert.strictEqual(parseEncoding('BASE64'), 'BASE64');
 assert.strictEqual(parseEncoding('base64url'), 'BASE64URL');
+assert.strictEqual(parseEncoding('BASE64URL'), 'BASE64URL');
 assert.strictEqual(parseEncoding('binary'), 'LATIN1');
+assert.strictEqual(parseEncoding('BINARY'), 'LATIN1');
 assert.strictEqual(parseEncoding('buffer'), 'BUFFER');
+assert.strictEqual(parseEncoding('BUFFER'), 'BUFFER');
 assert.strictEqual(parseEncoding('hex'), 'HEX');
+assert.strictEqual(parseEncoding('HEX'), 'HEX');
 assert.strictEqual(parseEncoding('latin1'), 'LATIN1');
 assert.strictEqual(parseEncoding('LATIN1'), 'LATIN1');
 
@@ -34,6 +38,7 @@ assert.strictEqual(parseEncoding('UTF16LE'), 'UCS2');
 assert.strictEqual(parseEncoding('UTF-16LE'), 'UCS2');
 
 // unknown cases
+assert.strictEqual(parseEncoding(''), 'UNKNOWN');
 assert.strictEqual(parseEncoding('utf-buffer'), 'UNKNOWN');
 assert.strictEqual(parseEncoding('utf-16leNOT'), 'UNKNOWN');
 assert.strictEqual(parseEncoding('linary'), 'UNKNOWN');
