@@ -86,12 +86,12 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  // [sysname, version, release]
+  // [sysname, version, release, machine]
   Local<Value> osInformation[] = {
-    String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked()
-  };
+      String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.machine).ToLocalChecked()};
 
   args.GetReturnValue().Set(Array::New(env->isolate(),
                                        osInformation,
