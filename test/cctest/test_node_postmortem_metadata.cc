@@ -5,7 +5,8 @@
 #include "req_wrap-inl.h"
 #include "tracing/agent.h"
 #include "v8.h"
-#include "v8abbr.h"
+
+#define NODE_OFF_EXTSTR_DATA sizeof(void*)
 
 extern "C" {
 extern uintptr_t
