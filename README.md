@@ -168,14 +168,10 @@ For information about the governance of the Node.js project, see
   **Colin Ihrig** <<cjihrig@gmail.com>> (he/him)
 * [danielleadams](https://github.com/danielleadams) -
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
-* [fhinkel](https://github.com/fhinkel) -
-  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [GeoffreyBooth](https://github.com/geoffreybooth) -
   **Geoffrey Booth** <<webadmin@geoffreybooth.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
-* [jasnell](https://github.com/jasnell) -
-  **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [mcollina](https://github.com/mcollina) -
@@ -215,6 +211,8 @@ For information about the governance of the Node.js project, see
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
 * [Fishrock123](https://github.com/Fishrock123) -
   **Jeremiah Senkpiel** <<fishrock123@rocketmail.com>> (he/they)
+* [fhinkel](https://github.com/fhinkel) -
+  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
   **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
 * [gibfahn](https://github.com/gibfahn) -
@@ -223,6 +221,8 @@ For information about the governance of the Node.js project, see
   **Fedor Indutny** <<fedor@indutny.com>>
 * [isaacs](https://github.com/isaacs) -
   **Isaac Z. Schlueter** <<i@izs.me>>
+* [jasnell](https://github.com/jasnell) -
+  **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [joshgav](https://github.com/joshgav) -
   **Josh Gavant** <<josh.gavant@outlook.com>>
 * [mmarchini](https://github.com/mmarchini) -
