@@ -1301,7 +1301,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
 namespace {
 unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    std::vector<X509Pointer>& certs,
+    std::vector<X509Pointer>* certs,
     const char* file) {
   ERR_clear_error();
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -1332,7 +1332,7 @@ void UseExtraCaCerts(const std::string& file) {
 
   if (!file.empty()) {
     unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                        root_certs_vector,
+                                        &root_certs_vector,
                                         file.c_str());
     if (err) {
       fprintf(stderr,
