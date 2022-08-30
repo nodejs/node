@@ -73,7 +73,8 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   int err;
   if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);
-  const char* name = uv_err_name(err);
+  char name[50];
+  uv_err_name_r(err, name, sizeof(name));
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
