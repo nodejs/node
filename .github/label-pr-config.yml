@@ -21,7 +21,7 @@ subSystemLabels:
   /^src\/tty_/: c++, tty
   /^src\/node_url/: c++, whatwg-url
   /^src\/node_util/: c++, util
-  /^src\/(?:node_v8|v8abbr)/: c++, v8 engine
+  /^src\/node_v8/: c++, v8 engine
   /^src\/node_contextify/: c++, vm
   /^src\/.*win32.*/: c++, windows
   /^src\/node_zlib/: c++, zlib
