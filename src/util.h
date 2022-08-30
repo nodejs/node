@@ -751,26 +751,23 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
         .Check();                                                              \
   } while (0)
 
-enum Endianness {
-  kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
-  kBigEndian
-};
+enum class Endianness { LITTLE, BIG };
 
-inline enum Endianness GetEndianness() {
+inline Endianness GetEndianness() {
   // Constant-folded by the compiler.
   const union {
     uint8_t u8[2];
     uint16_t u16;
   } u = {{1, 0}};
-  return u.u16 == 1 ? kLittleEndian : kBigEndian;
+  return u.u16 == 1 ? Endianness::LITTLE : Endianness::BIG;
 }
 
 inline bool IsLittleEndian() {
-  return GetEndianness() == kLittleEndian;
+  return GetEndianness() == Endianness::LITTLE;
 }
 
 inline bool IsBigEndian() {
-  return GetEndianness() == kBigEndian;
+  return GetEndianness() == Endianness::BIG;
 }
 
 // Round up a to the next highest multiple of b.
