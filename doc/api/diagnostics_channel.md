@@ -452,6 +452,51 @@ Emitted when a new TCP or pipe connection is received.
 
 Emitted when a new UDP socket is created.
 
+#### Crypto
+
+`crypto.cipher.new`
+Emmited when a new Cypher object is created
+
+* `algorithm` {string}
+
+`crypto.decipher.new`
+Emmited when a new Decypher object is created
+
+* `algorithm` {string}
+
+`crypto.cipheriv.new`
+Emmited when a new Cypheriv object is created
+
+* `algorithm` {string}
+
+`crypto.decipheriv.new`
+Emmited when a new Decypheriv object is created
+
+* `algorithm` {string}
+
+`crypto.hash.new`
+Emmited when a new Hash object is created
+
+* `algorithm` {string}
+
+`crypto.hash.copy`
+Emmited when a Hash object is copied
+
+`crypto.hmac.new`
+Emmited when a new Hmac object is created
+
+* `algorithm` {string}
+
+`crypto.sign.new`
+Emmited when a new Sign object is created
+
+* `algorithm` {string}
+
+`crypto.verify.new`
+Emmited when a new Verify object is created
+
+* `algorithm` {string}
+
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
