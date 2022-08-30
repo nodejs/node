@@ -168,7 +168,7 @@ module.exports = {
       [CallExpression('PromisePrototypeCatch')](node) {
         context.report({
           node,
-          message: '%Promise.prototype.catch% look up the `then` property of ' +
+          message: '%Promise.prototype.catch% looks up the `then` property of ' +
                    'the `this` argument, use PromisePrototypeThen instead',
         });
       },
@@ -176,7 +176,7 @@ module.exports = {
       [CallExpression('PromisePrototypeFinally')](node) {
         context.report({
           node,
-          message: '%Promise.prototype.finally% look up the `then` property of ' +
+          message: '%Promise.prototype.finally% looks up the `then` property of ' +
                    'the `this` argument, use SafePromisePrototypeFinally or ' +
                    'try/finally instead',
         });
