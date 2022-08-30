@@ -434,6 +434,8 @@ Emitted when server receives a request.
 
 Emitted when server sends a response.
 
+#### NET
+
 `net.client.socket`
 
 * `socket` {net.Socket}
@@ -446,13 +448,40 @@ Emitted when a new TCP or pipe client socket is created.
 
 Emitted when a new TCP or pipe connection is received.
 
+#### UDP
+
 `udp.socket`
 
 * `socket` {dgram.Socket}
 
 Emitted when a new UDP socket is created.
 
+#### Process
+
+<!-- YAML
+added: REPLACEME
+-->
+
+`child_process`
+
+* `process` {ChildProcess}
+
+Emitted when a new process is created.
+
+#### Worker Thread
+
+<!-- YAML
+added: REPLACEME
+-->
+
+`worker_threads`
+
+* `worker` [`Worker`][]
+
+Emitted when a new thread is created.
+
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`Worker`]: worker_threads.md#class-worker
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
