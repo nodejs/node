@@ -141,7 +141,7 @@ function onSession(session, next) {
 
     function testNoTls() {
       // HTTP/1.1 client
-      get(Object.assign(parse(origin), clientOptions), common.mustNotCall)
+      get(Object.assign(parse(origin), clientOptions), common.mustNotCall())
         .on('error', common.mustCall(cleanup))
         .on('error', common.mustCall(testWrongALPN))
         .end();
