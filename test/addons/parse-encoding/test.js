@@ -4,6 +4,7 @@ const common = require('../../common');
 const assert = require('assert');
 const { parseEncoding } = require(`./build/${common.buildType}/binding`);
 
+
 assert.strictEqual(parseEncoding('ascii'), 'ASCII');
 assert.strictEqual(parseEncoding('ASCII'), 'ASCII');
 assert.strictEqual(parseEncoding('base64'), 'BASE64');
@@ -39,6 +40,8 @@ assert.strictEqual(parseEncoding('UTF-16LE'), 'UCS2');
 
 // unknown cases
 assert.strictEqual(parseEncoding(''), 'UNKNOWN');
+assert.strictEqual(parseEncoding('asCOO'), 'UNKNOWN');
+assert.strictEqual(parseEncoding('hux'), 'UNKNOWN');
 assert.strictEqual(parseEncoding('utf-buffer'), 'UNKNOWN');
 assert.strictEqual(parseEncoding('utf-16leNOT'), 'UNKNOWN');
 assert.strictEqual(parseEncoding('linary'), 'UNKNOWN');
