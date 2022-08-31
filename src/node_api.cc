@@ -25,9 +25,9 @@ node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(node_env());
 }
 
-node_napi_env__::~node_napi_env__() {
+void node_napi_env__::DeleteMe() {
   destructing = true;
-  FinalizeAll();
+  napi_env__::DeleteMe();
 }
 
 bool node_napi_env__::can_call_into_js() const {
