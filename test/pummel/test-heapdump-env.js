@@ -38,4 +38,10 @@ validateSnapshotNodes('Node / Realm', [{
   ]
 }]);
 
+validateSnapshotNodes('Node / Realm', [{
+  children: [
+    { node_name: 'process', edge_name: 'process_object' },
+  ]
+}]);
+
 console.log(context);  // Make sure it's not GC'ed
