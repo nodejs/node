@@ -66,6 +66,7 @@ class Link extends Node {
       // can set to a promise during an async tree build operation
       // wait until then to assign it.
       this[_target] = target
+      // eslint-disable-next-line promise/always-return, promise/catch-or-return
       target.then(node => {
         this[_target] = null
         this.target = node
