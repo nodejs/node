@@ -1063,7 +1063,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferOrViewContents<unsigned char> oaep_label(
       !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
   if (UNLIKELY(!oaep_label.CheckSizeInt32()))
-    return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
+    return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
 
   std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
