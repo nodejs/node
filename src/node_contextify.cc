@@ -278,7 +278,7 @@ bool ContextifyContext::InitializeContext(Local<Context> ctx,
     }
   }
 
-  env->AssignToContext(ctx, info);
+  env->AssignToContext(ctx, nullptr, info);
 
   // This should only be done after the initial initializations of the context
   // global object is finished.

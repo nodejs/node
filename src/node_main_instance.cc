@@ -8,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
+#include "node_realm.h"
 #include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
@@ -181,7 +182,6 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
 #if HAVE_INSPECTOR
     env->InitializeInspector({});
 #endif
-    env->DoneBootstrapping();
 
 #if HAVE_OPENSSL
     crypto::InitCryptoOnce(isolate_);
@@ -200,7 +200,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
 #if HAVE_INSPECTOR
     env->InitializeInspector({});
 #endif
-    if (env->RunBootstrapping().IsEmpty()) {
+    if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
       return nullptr;
     }
   }
