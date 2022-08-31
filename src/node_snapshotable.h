@@ -14,6 +14,14 @@ struct EnvSerializeInfo;
 struct SnapshotData;
 class ExternalReferenceRegistry;
 
+using SnapshotIndex = size_t;
+
+struct PropInfo {
+  std::string name;     // name for debugging
+  uint32_t id;          // In the list - in case there are any empty entries
+  SnapshotIndex index;  // In the snapshot
+};
+
 #define SERIALIZABLE_OBJECT_TYPES(V)                                           \
   V(fs_binding_data, fs::BindingData)                                          \
   V(v8_binding_data, v8_utils::BindingData)                                    \

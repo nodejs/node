@@ -32,6 +32,12 @@
 
 namespace node {
 
+// static
+v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
+    Environment* env) {
+  return BaseObject::GetConstructorTemplate(env->isolate_data());
+}
+
 void BaseObject::Detach() {
   CHECK_GT(pointer_data()->strong_ptr_count, 0);
   pointer_data()->is_detached = true;
