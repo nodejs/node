@@ -307,10 +307,6 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          StartExecutionCallback cb = nullptr);
 v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
-v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
-    Environment* env,
-    const char* id,
-    std::vector<v8::Local<v8::Value>>* arguments);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {

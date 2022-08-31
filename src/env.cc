@@ -445,6 +445,12 @@ void IsolateData::CreateProperties() {
 #undef V
 
   // TODO(legendecas): eagerly create per isolate templates.
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
+  templ->InstanceTemplate()->SetInternalFieldCount(
+      BaseObject::kInternalFieldCount);
+  templ->Inherit(BaseObject::GetConstructorTemplate(this));
+  set_binding_data_ctor_template(templ);
+
   set_contextify_global_template(
       contextify::ContextifyContext::CreateGlobalTemplate(isolate_));
 }
@@ -499,6 +505,10 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   }
 
+  if (env_->principal_realm() == nullptr) {
+    return;
+  }
+
   bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
                                  TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
 
@@ -514,9 +524,11 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 }
 
 void Environment::AssignToContext(Local<v8::Context> context,
+                                  Realm* realm,
                                   const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
@@ -589,56 +601,6 @@ std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
     released_allocated_buffers_.erase(it);
   }
   return bs;
-}
-
-void Environment::CreateProperties() {
-  HandleScope handle_scope(isolate_);
-  Local<Context> ctx = context();
-
-  {
-    Context::Scope context_scope(ctx);
-    Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-    templ->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
-    templ->Inherit(BaseObject::GetConstructorTemplate(this));
-
-    set_binding_data_ctor_template(templ);
-  }
-
-  // Store primordials setup by the per-context script in the environment.
-  Local<Object> per_context_bindings =
-      GetPerContextExports(ctx).ToLocalChecked();
-  Local<Value> primordials =
-      per_context_bindings->Get(ctx, primordials_string()).ToLocalChecked();
-  CHECK(primordials->IsObject());
-  set_primordials(primordials.As<Object>());
-
-  Local<String> prototype_string =
-      FIXED_ONE_BYTE_STRING(isolate(), "prototype");
-
-#define V(EnvPropertyName, PrimordialsPropertyName)                            \
-  {                                                                            \
-    Local<Value> ctor =                                                        \
-        primordials.As<Object>()                                               \
-            ->Get(ctx,                                                         \
-                  FIXED_ONE_BYTE_STRING(isolate(), PrimordialsPropertyName))   \
-            .ToLocalChecked();                                                 \
-    CHECK(ctor->IsObject());                                                   \
-    Local<Value> prototype =                                                   \
-        ctor.As<Object>()->Get(ctx, prototype_string).ToLocalChecked();        \
-    CHECK(prototype->IsObject());                                              \
-    set_##EnvPropertyName(prototype.As<Object>());                             \
-  }
-
-  V(primordials_safe_map_prototype_object, "SafeMap");
-  V(primordials_safe_set_prototype_object, "SafeSet");
-  V(primordials_safe_weak_map_prototype_object, "SafeWeakMap");
-  V(primordials_safe_weak_set_prototype_object, "SafeWeakSet");
-#undef V
-
-  Local<Object> process_object =
-      node::CreateProcessObject(this).FromMaybe(Local<Object>());
-  set_process_object(process_object);
 }
 
 std::string GetExecPath(const std::vector<std::string>& argv) {
@@ -776,12 +738,11 @@ Environment::Environment(IsolateData* isolate_data,
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  context_.Reset(context->GetIsolate(), context);
-  AssignToContext(context, ContextInfo(""));
+  principal_realm_ = std::make_unique<Realm>(
+      this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
+  AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
-  } else {
-    CreateProperties();
   }
 
   if (!options_->force_async_hooks_checks) {
@@ -806,6 +767,9 @@ void Environment::InitializeMainContext(Local<Context> context,
 }
 
 Environment::~Environment() {
+  HandleScope handle_scope(isolate());
+  Local<Context> ctx = context();
+
   if (Environment** interrupt_data = interrupt_data_.load()) {
     // There are pending RequestInterrupt() callbacks. Tell them not to run,
     // then force V8 to run interrupts by compiling and running an empty script
@@ -813,9 +777,8 @@ Environment::~Environment() {
     *interrupt_data = nullptr;
 
     Isolate::AllowJavascriptExecutionScope allow_js_here(isolate());
-    HandleScope handle_scope(isolate());
     TryCatch try_catch(isolate());
-    Context::Scope context_scope(context());
+    Context::Scope context_scope(ctx);
 
 #ifdef DEBUG
     bool consistency_check = false;
@@ -825,8 +788,8 @@ Environment::~Environment() {
 #endif
 
     Local<Script> script;
-    if (Script::Compile(context(), String::Empty(isolate())).ToLocal(&script))
-      USE(script->Run(context()));
+    if (Script::Compile(ctx, String::Empty(isolate())).ToLocal(&script))
+      USE(script->Run(ctx));
 
     DCHECK(consistency_check);
   }
@@ -842,16 +805,15 @@ Environment::~Environment() {
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
 
-  HandleScope handle_scope(isolate());
-
 #if HAVE_INSPECTOR
   // Destroy inspector agent before erasing the context. The inspector
   // destructor depends on the context still being accessible.
   inspector_agent_.reset();
 #endif
 
-  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                             nullptr);
+  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                       nullptr);
+  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, nullptr);
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -1690,79 +1652,12 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
 
-  uint32_t id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(ctx, field);                             \
-      info.persistent_values.push_back({#PropertyName, id, index});            \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
-
   // Do this after other creator->AddData() calls so that Snapshotable objects
   // can use 0 to indicate that a SnapshotIndex is invalid.
   SerializeSnapshotableObjects(this, creator, &info);
 
-  info.context = creator->AddData(ctx, context());
+  info.principal_realm = principal_realm_->Serialize(creator);
   return info;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<PropInfo>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  " << info << ",\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output, const PropInfo& info) {
-  output << "{ \"" << info.name << "\", " << std::to_string(info.id) << ", "
-         << std::to_string(info.index) << " }";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<std::string>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  \"" << info << "\",\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
-  output << "{\n"
-         << "// -- native_objects begins --\n"
-         << i.native_objects << ",\n"
-         << "// -- native_objects ends --\n"
-         << "// -- builtins begins --\n"
-         << i.builtins << ",\n"
-         << "// -- builtins ends --\n"
-         << "// -- async_hooks begins --\n"
-         << i.async_hooks << ",\n"
-         << "// -- async_hooks ends --\n"
-         << i.tick_info << ",  // tick_info\n"
-         << i.immediate_info << ",  // immediate_info\n"
-         << "// -- performance_state begins --\n"
-         << i.performance_state << ",\n"
-         << "// -- performance_state ends --\n"
-         << i.exiting << ",  // exiting\n"
-         << i.stream_base_state << ",  // stream_base_state\n"
-         << i.should_abort_on_uncaught_toggle
-         << ",  // should_abort_on_uncaught_toggle\n"
-         << "// -- persistent_values begins --\n"
-         << i.persistent_values << ",\n"
-         << "// -- persistent_values ends --\n"
-         << i.context << ",  // context\n"
-         << "}";
-  return output;
 }
 
 void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
@@ -1802,44 +1697,12 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 
+  principal_realm_->DeserializeProperties(&info->principal_realm);
+
   if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "deserializing...\n");
     std::cerr << *info << "\n";
   }
-
-  const std::vector<PropInfo>& values = info->persistent_values;
-  size_t i = 0;  // index to the array
-  uint32_t id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    if (values.size() > i && id == values[i].id) {                             \
-      const PropInfo& d = values[i];                                           \
-      DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> maybe_field =                                       \
-          ctx->GetDataFromSnapshotOnce<TypeName>(d.index);                     \
-      Local<TypeName> field;                                                   \
-      if (!maybe_field.ToLocal(&field)) {                                      \
-        fprintf(stderr,                                                        \
-                "Failed to deserialize environment value " #PropertyName       \
-                "\n");                                                         \
-      }                                                                        \
-      set_##PropertyName(field);                                               \
-      i++;                                                                     \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
-#undef V
-
-  MaybeLocal<Context> maybe_ctx_from_snapshot =
-      ctx->GetDataFromSnapshotOnce<Context>(info->context);
-  Local<Context> ctx_from_snapshot;
-  if (!maybe_ctx_from_snapshot.ToLocal(&ctx_from_snapshot)) {
-    fprintf(stderr,
-            "Failed to deserialize context back reference from the snapshot\n");
-  }
-  CHECK_EQ(ctx_from_snapshot, ctx);
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
@@ -2027,11 +1890,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);
-
-#define V(PropertyName, TypeName)                                              \
-  tracker->TrackField(#PropertyName, PropertyName());
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
+  tracker->TrackField("principal_realm", principal_realm_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these
@@ -2180,12 +2039,14 @@ bool BaseObject::IsRootNode() const {
   return !persistent_handle_.IsWeak();
 }
 
-Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->base_object_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = NewFunctionTemplate(env->isolate(), nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
-    env->set_base_object_ctor_template(tmpl);
+    tmpl = NewFunctionTemplate(isolate_data->isolate(), nullptr);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "BaseObject"));
+    isolate_data->set_base_object_ctor_template(tmpl);
   }
   return tmpl;
 }
