@@ -12,6 +12,7 @@ namespace node {
 class Environment;
 class MemoryTracker;
 class ExternalReferenceRegistry;
+class Realm;
 
 v8::MaybeLocal<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
                                              v8::Isolate* isolate);
@@ -41,7 +42,7 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
+v8::MaybeLocal<v8::Object> CreateProcessObject(Realm* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 namespace process {

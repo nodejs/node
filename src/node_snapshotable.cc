@@ -71,6 +71,69 @@ std::ostream& operator<<(std::ostream& output,
   return output;
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  " << info << ",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const PropInfo& info) {
+  output << "{ \"" << info.name << "\", " << std::to_string(info.id) << ", "
+         << std::to_string(info.index) << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  \"" << info << "\",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
+  output << "{\n"
+         << "// -- persistent_values begins --\n"
+         << i.persistent_values << ",\n"
+         << "// -- persistent_values ends --\n"
+         << i.context << ",  // context\n"
+         << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
+  output << "{\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
+         << "// -- builtins begins --\n"
+         << i.builtins << ",\n"
+         << "// -- builtins ends --\n"
+         << "// -- async_hooks begins --\n"
+         << i.async_hooks << ",\n"
+         << "// -- async_hooks ends --\n"
+         << i.tick_info << ",  // tick_info\n"
+         << i.immediate_info << ",  // immediate_info\n"
+         << "// -- performance_state begins --\n"
+         << i.performance_state << ",\n"
+         << "// -- performance_state ends --\n"
+         << i.exiting << ",  // exiting\n"
+         << i.stream_base_state << ",  // stream_base_state\n"
+         << i.should_abort_on_uncaught_toggle
+         << ",  // should_abort_on_uncaught_toggle\n"
+         << "// -- principal_realm begins --\n"
+         << i.principal_realm << ",\n"
+         << "// -- principal_realm ends --\n"
+         << "}";
+  return output;
+}
+
 class FileIO {
  public:
   explicit FileIO(FILE* file)
@@ -638,6 +701,30 @@ size_t FileWriter::Write(const IsolateDataSerializeInfo& data) {
 }
 
 template <>
+RealmSerializeInfo FileReader::Read() {
+  per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<RealmSerializeInfo>()\n");
+  RealmSerializeInfo result;
+  result.persistent_values = ReadVector<PropInfo>();
+  result.context = Read<SnapshotIndex>();
+  return result;
+}
+
+template <>
+size_t FileWriter::Write(const RealmSerializeInfo& data) {
+  if (is_debug) {
+    std::string str = ToStr(data);
+    Debug("\nWrite<RealmSerializeInfo>() %s\n", str.c_str());
+  }
+
+  // Use += here to ensure order of evaluation.
+  size_t written_total = WriteVector<PropInfo>(data.persistent_values);
+  written_total += Write<SnapshotIndex>(data.context);
+
+  Debug("Write<RealmSerializeInfo>() wrote %d bytes\n", written_total);
+  return written_total;
+}
+
+template <>
 EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
@@ -651,8 +738,7 @@ EnvSerializeInfo FileReader::Read() {
   result.exiting = Read<AliasedBufferIndex>();
   result.stream_base_state = Read<AliasedBufferIndex>();
   result.should_abort_on_uncaught_toggle = Read<AliasedBufferIndex>();
-  result.persistent_values = ReadVector<PropInfo>();
-  result.context = Read<SnapshotIndex>();
+  result.principal_realm = Read<RealmSerializeInfo>();
   return result;
 }
 
@@ -675,8 +761,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   written_total += Write<AliasedBufferIndex>(data.stream_base_state);
   written_total +=
       Write<AliasedBufferIndex>(data.should_abort_on_uncaught_toggle);
-  written_total += WriteVector<PropInfo>(data.persistent_values);
-  written_total += Write<SnapshotIndex>(data.context);
+  written_total += Write<RealmSerializeInfo>(data.principal_realm);
 
   Debug("Write<EnvSerializeInfo>() wrote %d bytes\n", written_total);
   return written_total;
@@ -1083,7 +1168,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
                             {});
 
       // Run scripts in lib/internal/bootstrap/
-      if (env->RunBootstrapping().IsEmpty()) {
+      if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
         return BOOTSTRAP_ERROR;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
