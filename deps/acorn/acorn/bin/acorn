@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-'use strict';
+"use strict"
 
-require('../dist/bin.js');
+require("../dist/bin.js")
