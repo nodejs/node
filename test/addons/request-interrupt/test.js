@@ -45,10 +45,6 @@ for (const type of ['busyloop', 'idle']) {
 
   {
     const child = spawnSync(process.execPath, [ __filename, `child-${type}`, 'ScheduleInterruptWithJS' ]);
-    if (process.platform === 'win32') {
-      assert.notStrictEqual(child.status, 0, `${type} should not exit with code 0`);
-    } else {
-      assert.strictEqual(child.signal, 'SIGTRAP', `${type} should be interrupted with SIGTRAP`);
-    }
+    assert(common.nodeProcessAborted(child.status, child.signal));
   }
 }
