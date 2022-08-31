@@ -45,6 +45,7 @@ const linkedHtmls = [...new Set(links)].map((link) => link.match(re)[1])
 const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
+const renamedDocs = ['policy.json', 'policy.html'];
 
 // Test that all the relative links in the TOC match to the actual documents.
 for (const expectedDoc of expectedDocs) {
@@ -54,6 +55,11 @@ for (const expectedDoc of expectedDocs) {
 // Test that all the actual documents match to the relative links in the TOC
 // and that they are not empty files.
 for (const actualDoc of actualDocs) {
+  // When renaming the documentation, the old url is lost
+  // Unless the old file is still available pointing to the correct location
+  // 301 redirects are not yet automated. So keeping the old URL is a
+  // reasonable workaround.
+  if (renamedDocs.includes(actualDoc)) continue;
   assert.ok(
     expectedDocs.includes(actualDoc), `${actualDoc} does not match TOC`);
 

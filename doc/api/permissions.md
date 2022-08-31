@@ -15,7 +15,7 @@ If you find a potential security vulnerability, please refer to our
 
 ## Module-based permissions
 
-## Policies
+### Policies
 
 <!--introduced_in=v11.8.0-->
 
@@ -39,7 +39,7 @@ by the running Node.js application in any way. A typical setup would be to
 create the policy file as a different user id than the one running Node.js
 and granting read permissions to the user id running Node.js.
 
-### Enabling
+#### Enabling
 
 <!-- type=misc -->
 
@@ -65,9 +65,9 @@ even if the file is changed on disk.
 node --experimental-policy=policy.json --policy-integrity="sha384-SggXRQHwCG8g+DktYYzxkXRIkTiEYWBHqev0xnpCxYlqMBufKZHAHQM3/boDaI/0" app.js
 ```
 
-### Features
+#### Features
 
-#### Error behavior
+##### Error behavior
 
 When a policy check fails, Node.js by default will throw an error.
 It is possible to change the error behavior to one of a few possibilities
@@ -91,7 +91,7 @@ available to change the behavior:
 }
 ```
 
-#### Integrity checks
+##### Integrity checks
 
 Policy files must use integrity checks with Subresource Integrity strings
 compatible with the browser
@@ -133,7 +133,7 @@ body for the resource which can be useful for local development. It is not
 recommended in production since it would allow unexpected alteration of
 resources to be considered valid.
 
-#### Dependency redirection
+##### Dependency redirection
 
 An application may need to ship patched versions of modules or to prevent
 modules from allowing all modules access to all other modules. Redirection
@@ -218,7 +218,7 @@ can be used to ensure some kinds of dynamic access are explicitly prevented.
 Unknown values for the resolved module location cause failures but are
 not guaranteed to be forward compatible.
 
-#### Example: Patched dependency
+##### Example: Patched dependency
 
 Redirected dependencies can provide attenuated or modified functionality as fits
 the application. For example, log data about timing of function durations by
@@ -238,7 +238,7 @@ module.exports = function fn(...args) {
 };
 ```
 
-### Scopes
+#### Scopes
 
 Use the `"scopes"` field of a manifest to set configuration for many resources
 at once. The `"scopes"` field works by matching resources by their segments.
@@ -259,7 +259,7 @@ origin of `blob:https://nodejs.org`; URLs starting with
 thus `https:` for its protocol scope. For opaque origin `blob:` URLs they will
 have `blob:` for their protocol scope since they do not adopt origins.
 
-#### Example
+##### Example
 
 ```json
 {
@@ -314,7 +314,7 @@ in the `"scopes"` of the policy.
 This determines the policy for all resources. It would not be used for
 `file:///C:/app/bin/main.js` unless `"file:"` is set to cascade.
 
-#### Integrity using scopes
+##### Integrity using scopes
 
 Setting an integrity to `true` on a scope will set the integrity for any
 resource not found in the manifest to `true`.
@@ -339,7 +339,7 @@ The following example allows loading any file:
 }
 ```
 
-#### Dependency redirection using scopes
+##### Dependency redirection using scopes
 
 The following example, would allow access to `fs` for all resources within
 `./app/`:
@@ -382,7 +382,7 @@ The following example, would allow access to `fs` for all `data:` resources:
 }
 ```
 
-#### Example: [import maps][] emulation
+##### Example: [import maps][] emulation
 
 Given an import map:
 
