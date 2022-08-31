@@ -9,6 +9,10 @@
 
 namespace node {
 
+static constexpr char base64_table_url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                           "abcdefghijklmnopqrstuvwxyz"
+                                           "0123456789-_";
+
 extern const int8_t unbase64_table[256];
 
 
@@ -144,7 +148,7 @@ inline size_t base64_encode(const char* src,
   unsigned k;
   unsigned n;
 
-  const char* table = base64_select_table(mode);
+  const char* table = base64_table_url;
 
   i = 0;
   k = 0;
