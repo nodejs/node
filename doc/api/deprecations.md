@@ -3194,7 +3194,7 @@ Type: Documentation-only
 
 The [`--trace-atomics-wait`][] flag is deprecated.
 
-### DEP0XXX: Double slashes in imports and exports targets
+### DEP0166: Double slashes in imports and exports targets
 
 <!-- YAML
 changes:
