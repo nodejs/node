@@ -200,8 +200,8 @@ struct KeyPairGenTraits final {
 };
 
 struct SecretKeyGenConfig final : public MemoryRetainer {
-  size_t length;  // Expressed a a number of bits
-  char* out = nullptr;  // Placeholder for the generated key bytes
+  size_t length;        // In bytes.
+  char* out = nullptr;  // Placeholder for the generated key bytes.
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SecretKeyGenConfig)
