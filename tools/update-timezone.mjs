@@ -19,6 +19,7 @@ const currentVersion = process.versions.tz;
 const latestVersion = availableVersions.sort().at(-1);
 
 if (latestVersion === currentVersion) {
+  console.log(`Terminating early, tz version is latest @ ${currentVersion}`)
   exit();
 }
 
