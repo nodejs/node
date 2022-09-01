@@ -450,6 +450,7 @@
       ],
       'dependencies': [
         'deps/base64/base64.gyp:base64',
+        'deps/bufferswap/bufferswap.gyp:bufferswap',
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
