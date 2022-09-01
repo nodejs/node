@@ -152,6 +152,7 @@ class EnvironmentOptions : public Options {
   std::string redirect_warnings;
   std::string diagnostic_dir;
   bool test_runner = false;
+  std::vector<std::string> test_name_pattern;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;

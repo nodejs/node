@@ -1214,6 +1214,16 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the inspector. See the documentation
 on [running tests from the command line][] for more details.
 
+### `--test-name-pattern`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A regular expression that configures the test runner to only execute tests
+whose name matches the provided pattern. See the documentation on
+[filtering tests by name][] for more details.
+
 ### `--test-only`
 
 <!-- YAML
@@ -2298,6 +2308,7 @@ done
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.md#processemitwarningwarning-options
+[filtering tests by name]: test.md#filtering-tests-by-name
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
