@@ -40,9 +40,9 @@ jobs:
             To test, build node off this branch & log the version of tz using
             ```js
             console.log(process.versions.tz)
-            ``` 
+            ```
           branch: actions/timezone-update
           commit-message: 'deps: update timezone'
           labels: dependencies
           title: 'deps: update timezone'
-          reviewers: @nodejs/i18n-api
+          reviewers: \@nodejs/i18n-api
