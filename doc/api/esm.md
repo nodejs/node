@@ -1444,12 +1444,12 @@ _isImports_, _conditions_)
 >    3. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    4. Assert: _resolvedTarget_ is contained in _packageURL_.
->    5. If _patternMatch_ is **null*, then
+>    5. If _patternMatch_ is **null**, then
 >       1. Return _resolvedTarget_.
 >    6. If _patternMatch_ split on _"/"_ or _"\\"_ contains any _""_, _"."_,
 >       _".."_, or _"node\_modules"_ segments, case insensitive and including
 >       percent encoded variants, throw an _Invalid Module Specifier_ error.
->    8. Return the URL resolution of _resolvedTarget_ with every instance of
+>    7. Return the URL resolution of _resolvedTarget_ with every instance of
 >       _"\*"_ replaced with _patternMatch_.
 > 2. Otherwise, if _target_ is a non-null Object, then
 >    1. If _exports_ contains any index property keys, as defined in ECMA-262
