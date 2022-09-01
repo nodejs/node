@@ -3199,7 +3199,7 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/...
+    pr-url: https://github.com/nodejs/node/pull/44477
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
