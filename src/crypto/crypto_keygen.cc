@@ -65,8 +65,7 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
     SecretKeyGenConfig* params) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsUint32());
-  params->length = static_cast<size_t>(
-      std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT));
+  params->length = args[*offset].As<Uint32>()->Value() / CHAR_BIT;
   if (params->length > INT_MAX) {
     THROW_ERR_OUT_OF_RANGE(env,
                            "length must be less than or equal to %u bits",
