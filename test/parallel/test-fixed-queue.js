@@ -13,7 +13,11 @@ const FixedQueue = require('internal/fixed_queue');
   queue.push('a');
   assert(!queue.isEmpty());
   assert.strictEqual(queue.shift(), 'a');
+  assert.strictEqual(queue.head, queue.tail);
+  assert.strictEqual(queue.head.next, null);
   assert.strictEqual(queue.shift(), null);
+  assert.strictEqual(queue.head, queue.tail);
+  assert.strictEqual(queue.head.next, null);
 }
 
 {
@@ -23,11 +27,14 @@ const FixedQueue = require('internal/fixed_queue');
   assert(queue.head.isFull());
   queue.push('a');
   assert(!queue.head.isFull());
-
   assert.notStrictEqual(queue.head, queue.tail);
+  assert.strictEqual(queue.head, queue.tail.next);
+  assert.strictEqual(queue.head.next, null);
+
   for (let i = 0; i < 2047; i++)
     assert.strictEqual(queue.shift(), 'a');
   assert.strictEqual(queue.head, queue.tail);
+  assert.strictEqual(queue.head.next, null);
   assert(!queue.isEmpty());
   assert.strictEqual(queue.shift(), 'a');
   assert(queue.isEmpty());
