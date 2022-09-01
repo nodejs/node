@@ -19,7 +19,7 @@ enum encoding ParseEncoding(const char* encoding,
       // as "utf8"/"utf-8" is a common case.
       // (same for other cases below)
 
-      // utf, utf16le
+      // utf8, utf16le
       if (encoding[1] == 't' && encoding[2] == 'f') {
         // Skip `-`
         const size_t skip = encoding[3] == '-' ? 4 : 3;
