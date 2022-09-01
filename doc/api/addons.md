@@ -9,7 +9,7 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 Addons provide an interface between JavaScript and C/C++ libraries.
 
 There are three options for implementing addons: Node-API, nan, or direct
-use of internal V8, libuv and Node.js libraries. Unless there is a need for
+use of internal V8, libuv, and Node.js libraries. Unless there is a need for
 direct access to functionality which is not exposed by Node-API, use Node-API.
 Refer to [C/C++ addons with Node-API](n-api.md) for more information on
 Node-API.
@@ -40,7 +40,7 @@ involving knowledge of several components and APIs:
 
 * Node.js includes other statically linked libraries including OpenSSL. These
   other libraries are located in the `deps/` directory in the Node.js source
-  tree. Only the libuv, OpenSSL, V8 and zlib symbols are purposefully
+  tree. Only the libuv, OpenSSL, V8, and zlib symbols are purposefully
   re-exported by Node.js and may be used to various extents by addons. See
   [Linking to libraries included with Node.js][] for additional information.
 
@@ -393,7 +393,7 @@ try {
 
 ### Linking to libraries included with Node.js
 
-Node.js uses statically linked libraries such as V8, libuv and OpenSSL. All
+Node.js uses statically linked libraries such as V8, libuv, and OpenSSL. All
 addons are required to link to V8 and may link to any of the other dependencies
 as well. Typically, this is as simple as including the appropriate
 `#include <...>` statements (e.g. `#include <v8.h>`) and `node-gyp` will locate
