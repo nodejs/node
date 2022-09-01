@@ -18,6 +18,7 @@
             'adler32.c',
             'compress.c',
             'contrib/optimizations/insert_string.h',
+            'cpu_features.c',
             'crc32.c',
             'crc32.h',
             'deflate.c',
@@ -37,7 +38,6 @@
             'trees.c',
             'trees.h',
             'uncompr.c',
-            'x86.h',
             'zconf.h',
             'zlib.h',
             'zutil.c',
@@ -85,16 +85,20 @@
                 'CRC32_SIMD_SSE42_PCLMUL',
               ],
               'sources': [
+                'cpu_features.c',
                 'crc32_simd.c',
                 'crc32_simd.h',
                 'crc_folding.c',
-                'fill_window_sse.c',
-                'x86.c',
               ],
               'conditions': [
                 ['target_arch=="x64"', {
                   'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
                 }],
+                ['OS=="win"', {
+                  'defines': [ 'X86_WINDOWS' ],
+                }, {
+                  'defines': [ 'X86_NOT_WINDOWS' ],
+                }]
               ],
             }, {
               'sources': [ 'simd_stub.c', ],
