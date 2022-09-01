@@ -51,7 +51,7 @@ const { requireImport, importImport } = importer;
 
   const invalidImportSpecifiers = new Map([
     // Backtracking below the package base
-    ['#subpath/sub/../../../belowbase', 'request is not a valid subpath'],
+    ['#subpath/sub/../../../belowbase', 'request is not a valid match in pattern'],
     // Percent-encoded slash errors
     ['#external/subpath/x%2Fy', 'must not include encoded "/" or "\\"'],
     ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],

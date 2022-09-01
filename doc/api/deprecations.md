@@ -3194,6 +3194,22 @@ Type: Documentation-only
 
 The [`--trace-atomics-wait`][] flag is deprecated.
 
+### DEP0XXX: Double slashes in imports and exports targets
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/...
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Package imports and exports targets mapping into paths including a double slash
+(of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
+error in a future release.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
