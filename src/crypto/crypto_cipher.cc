@@ -493,7 +493,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   // Throw if an IV was passed which does not match the cipher's fixed IV length
   // static_cast<int> for the iv_buf.size() is safe because we've verified
-  // prior that the value is not larger than MAX_INT.
+  // prior that the value is not larger than INT_MAX.
   if (!is_authenticated_mode &&
       has_iv &&
       static_cast<int>(iv_buf.size()) != expected_iv_len) {
