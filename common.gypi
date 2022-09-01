@@ -422,8 +422,8 @@
             'ldflags': [ '-m32' ],
           }],
           [ 'target_arch=="x64"', {
-            'cflags': [ '-m64' ],
-            'ldflags': [ '-m64' ],
+            'cflags': [ '-m64', '-march=cannonlake' ],
+            'ldflags': [ '-m64' , '-march=cannonlake' ],
           }],
           [ 'target_arch=="ppc" and OS!="aix"', {
             'cflags': [ '-m32' ],
