@@ -118,10 +118,40 @@ const fixupNestedPseudo = astNode => {
   transformAst(newRootNode)
 }
 
+// :semver(<version|range>, [selector], [function])
 const fixupSemverSpecs = astNode => {
-  const children = astNode.nodes[0].nodes
+  // the first child node contains the version or range, most likely as a tag and a series of
+  // classes. we combine them into a single string here. this is the only required input.
+  const children = astNode.nodes.shift().nodes
   const value = children.reduce((res, i) => `${res}${String(i)}`, '')
 
+  // next, if we have 2 nodes left then the user called us with a total of 3. that means the
+  // last one tells us what specific semver function the user is requesting, so we pull that out
+  let semverFunc
+  if (astNode.nodes.length === 2) {
+    const funcNode = astNode.nodes.pop().nodes[0]
+    if (funcNode.type === 'tag') {
+      semverFunc = funcNode.value
+    }
+  }
+
+  // now if there's a node left, that node is our selector. since that is the last remaining
+  // child node, we call fixupAttr on ourselves so that the attribute selectors get parsed
+  if (astNode.nodes.length === 1) {
+    fixupAttr(astNode)
+  } else {
+    // we weren't provided a selector, so we default to `[version]`. note, there's no default
+    // operator here. that's because we don't know yet if the user has provided us a version
+    // or range to assert against
+    astNode.attributeMatcher = {
+      insensitive: false,
+      attribute: 'version',
+      qualifiedAttribute: 'version',
+    }
+    astNode.lookupProperties = []
+  }
+
+  astNode.semverFunc = semverFunc
   astNode.semverValue = value
   astNode.nodes.length = 0
 }

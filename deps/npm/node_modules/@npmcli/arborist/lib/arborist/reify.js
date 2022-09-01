@@ -69,7 +69,6 @@ const _symlink = Symbol('symlink')
 const _warnDeprecated = Symbol('warnDeprecated')
 const _loadBundlesAndUpdateTrees = Symbol.for('loadBundlesAndUpdateTrees')
 const _submitQuickAudit = Symbol('submitQuickAudit')
-const _awaitQuickAudit = Symbol('awaitQuickAudit')
 const _unpackNewModules = Symbol.for('unpackNewModules')
 const _moveContents = Symbol.for('moveContents')
 const _moveBackRetiredUnchanged = Symbol.for('moveBackRetiredUnchanged')
@@ -156,7 +155,8 @@ module.exports = cls => class Reifier extends cls {
     await this[_reifyPackages]()
     await this[_saveIdealTree](options)
     await this[_copyIdealToActual]()
-    await this[_awaitQuickAudit]()
+    // This is a very bad pattern and I can't wait to stop doing it
+    this.auditReport = await this.auditReport
 
     this.finishTracker('reify')
     process.emit('timeEnd', 'reify')
@@ -531,12 +531,12 @@ module.exports = cls => class Reifier extends cls {
     const targets = [...roots, ...Object.keys(this[_retiredPaths])]
     const unlinks = targets
       .map(path => rimraf(path).catch(er => failures.push([path, er])))
-    return promiseAllRejectLate(unlinks)
-      .then(() => {
-        if (failures.length) {
-          log.warn('cleanup', 'Failed to remove some directories', failures)
-        }
-      })
+    return promiseAllRejectLate(unlinks).then(() => {
+      // eslint-disable-next-line promise/always-return
+      if (failures.length) {
+        log.warn('cleanup', 'Failed to remove some directories', failures)
+      }
+    })
       .then(() => process.emit('timeEnd', 'reify:rollback:createSparse'))
       .then(() => this[_rollbackRetireShallowNodes](er))
   }
@@ -592,21 +592,21 @@ module.exports = cls => class Reifier extends cls {
     this.addTracker('reify', node.name, node.location)
 
     const { npmVersion, nodeVersion } = this.options
-    const p = Promise.resolve()
-      .then(async () => {
-        // when we reify an optional node, check the engine and platform
-        // first. be sure to ignore the --force and --engine-strict flags,
-        // since we always want to skip any optional packages we can't install.
-        // these checks throwing will result in a rollback and removal
-        // of the mismatches
-        if (node.optional) {
-          checkEngine(node.package, npmVersion, nodeVersion, false)
-          checkPlatform(node.package, false)
-        }
-        await this[_checkBins](node)
-        await this[_extractOrLink](node)
-        await this[_warnDeprecated](node)
-      })
+    const p = Promise.resolve().then(async () => {
+      // when we reify an optional node, check the engine and platform
+      // first. be sure to ignore the --force and --engine-strict flags,
+      // since we always want to skip any optional packages we can't install.
+      // these checks throwing will result in a rollback and removal
+      // of the mismatches
+      // eslint-disable-next-line promise/always-return
+      if (node.optional) {
+        checkEngine(node.package, npmVersion, nodeVersion, false)
+        checkPlatform(node.package, false)
+      }
+      await this[_checkBins](node)
+      await this[_extractOrLink](node)
+      await this[_warnDeprecated](node)
+    })
 
     return this[_handleOptionalFailure](node, p)
       .then(() => {
@@ -916,9 +916,10 @@ module.exports = cls => class Reifier extends cls {
     }
   }
 
-  [_submitQuickAudit] () {
+  async [_submitQuickAudit] () {
     if (this.options.audit === false) {
-      return this.auditReport = null
+      this.auditReport = null
+      return
     }
 
     // we submit the quick audit at this point in the process, as soon as
@@ -940,16 +941,10 @@ module.exports = cls => class Reifier extends cls {
       )
     }
 
-    this.auditReport = AuditReport.load(tree, options)
-      .then(res => {
-        process.emit('timeEnd', 'reify:audit')
-        this.auditReport = res
-      })
-  }
-
-  // return the promise if we're waiting for it, or the replaced result
-  [_awaitQuickAudit] () {
-    return this.auditReport
+    this.auditReport = AuditReport.load(tree, options).then(res => {
+      process.emit('timeEnd', 'reify:audit')
+      return res
+    })
   }
 
   // ok!  actually unpack stuff into their target locations!
@@ -1126,7 +1121,7 @@ module.exports = cls => class Reifier extends cls {
   // remove the retired folders, and any deleted nodes
   // If this fails, there isn't much we can do but tell the user about it.
   // Thankfully, it's pretty unlikely that it'll fail, since rimraf is a tank.
-  [_removeTrash] () {
+  async [_removeTrash] () {
     process.emit('time', 'reify:trash')
     const promises = []
     const failures = []
@@ -1136,12 +1131,11 @@ module.exports = cls => class Reifier extends cls {
       promises.push(rm(path))
     }
 
-    return promiseAllRejectLate(promises).then(() => {
-      if (failures.length) {
-        log.warn('cleanup', 'Failed to remove some directories', failures)
-      }
-    })
-      .then(() => process.emit('timeEnd', 'reify:trash'))
+    await promiseAllRejectLate(promises)
+    if (failures.length) {
+      log.warn('cleanup', 'Failed to remove some directories', failures)
+    }
+    process.emit('timeEnd', 'reify:trash')
   }
 
   // last but not least, we save the ideal tree metadata to the package-lock
@@ -1302,7 +1296,9 @@ module.exports = cls => class Reifier extends cls {
           if (semver.subset(edge.spec, node.version)) {
             return false
           }
-        } catch {}
+        } catch {
+          // ignore errors
+        }
       }
       return true
     }

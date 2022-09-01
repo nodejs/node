@@ -264,14 +264,14 @@ npm command-line interface
 const arb = new Arborist({})
 </code></pre>
 <pre lang="js"><code>// root-level
-arb.loadActual((tree) =&gt; {
+arb.loadActual().then(async (tree) =&gt; {
   // query all production dependencies
   const results = await tree.querySelectorAll('.prod')
   console.log(results)
 })
 </code></pre>
 <pre lang="js"><code>// iterative
-arb.loadActual((tree) =&gt; {
+arb.loadActual().then(async (tree) =&gt; {
   // query for the deduped version of react
   const results = await tree.querySelectorAll('#react:not(:deduped)')
   // query the deduped react for git deps
