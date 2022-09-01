@@ -107,7 +107,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
       for (uv_timer_t* timer : timers)
         scheduler_->TakeTimerTask(timer);
       uv_close(reinterpret_cast<uv_handle_t*>(&scheduler_->flush_tasks_),
-               [](uv_handle_t* handle) {});
+               nullptr);
     }
 
    private:

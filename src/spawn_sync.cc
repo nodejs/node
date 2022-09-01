@@ -587,7 +587,7 @@ void SyncProcessRunner::CloseKillTimer() {
 
     uv_handle_t* uv_timer_handle = reinterpret_cast<uv_handle_t*>(&uv_timer_);
     uv_ref(uv_timer_handle);
-    uv_close(uv_timer_handle, KillTimerCloseCallback);
+    uv_close(uv_timer_handle, nullptr);
 
     kill_timer_initialized_ = false;
   }
@@ -1095,11 +1095,6 @@ void SyncProcessRunner::ExitCallback(uv_process_t* handle,
 void SyncProcessRunner::KillTimerCallback(uv_timer_t* handle) {
   SyncProcessRunner* self = reinterpret_cast<SyncProcessRunner*>(handle->data);
   self->OnKillTimerTimeout();
-}
-
-
-void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
-  // No-op.
 }
 
 }  // namespace node
