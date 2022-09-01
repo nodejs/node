@@ -349,7 +349,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
                      strlen("internal/per_context/")) == 0) {
     // internal/per_context/*: global, exports, primordials
     parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "global"),
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
     };
