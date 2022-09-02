@@ -3208,7 +3208,8 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 
 Package imports and exports targets mapping into paths including a double slash
 (of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
-error in a future release.
+error in a future release. This same deprecation also applies to pattern matches
+starting or ending in a slash.
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
