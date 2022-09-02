@@ -2871,9 +2871,11 @@ Does not perform any other validation checks on the certificate.
 added: v6.3.0
 -->
 
-* Returns: {Object} An object containing commonly used constants for crypto and
-  security related operations. The specific constants currently defined are
-  described in [Crypto constants][].
+* {Object}
+
+An object containing commonly used constants for crypto and security related
+operations. The specific constants currently defined are described in
+[Crypto constants][].
 
 ### `crypto.DEFAULT_ENCODING`
 
