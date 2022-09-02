@@ -1,4 +1,4 @@
-.TH "DEPENDENCY" "" "August 2022" "" ""
+.TH "DEPENDENCY" "" "September 2022" "" ""
 .SH "NAME"
 \fBDependency\fR
 .SS Description
@@ -215,7 +215,7 @@ const arb = new Arborist({})
 .RS 2
 .nf
 // root\-level
-arb\.loadActual((tree) => {
+arb\.loadActual()\.then(async (tree) => {
   // query all production dependencies
   const results = await tree\.querySelectorAll('\.prod')
   console\.log(results)
@@ -226,7 +226,7 @@ arb\.loadActual((tree) => {
 .RS 2
 .nf
 // iterative
-arb\.loadActual((tree) => {
+arb\.loadActual()\.then(async (tree) => {
   // query for the deduped version of react
   const results = await tree\.querySelectorAll('#react:not(:deduped)')
   // query the deduped react for git deps

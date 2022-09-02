@@ -359,6 +359,9 @@ module.exports = cls => class Builder extends cls {
           pkg,
           path,
           event,
+          // I do not know why this needs to be on THIS line but refactoring
+          // this function would be quite a process
+          // eslint-disable-next-line promise/always-return
           cmd: args && args[args.length - 1],
           env,
           code,

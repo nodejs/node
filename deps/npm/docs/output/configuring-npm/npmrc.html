@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#files">Files</a></li><ul><li><a href="#comments">Comments</a></li><li><a href="#per-project-config-file">Per-project config file</a></li><li><a href="#per-user-config-file">Per-user config file</a></li><li><a href="#global-config-file">Global config file</a></li><li><a href="#built-in-config-file">Built-in config file</a></li></ul><li><a href="#auth-related-configuration">Auth related configuration</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -204,6 +204,29 @@ variables can be replaced as above.</p>
 consistent across updates.  Set fields in here using the <code>./configure</code>
 script that comes with npm.  This is primarily for distribution maintainers
 to override default configs in a standard and consistent manner.</p>
+<h3 id="auth-related-configuration">Auth related configuration</h3>
+<p>The settings <code>_auth</code>, <code>_authToken</code>, <code>username</code> and <code>_password</code> must all be
+scoped to a specific registry. This ensures that <code>npm</code> will never send
+credentials to the wrong host.</p>
+<p>In order to scope these values, they must be prefixed by a URI fragment.
+If the credential is meant for any request to a registry on a single host,
+the scope may look like <code>//registry.npmjs.org/:</code>. If it must be scoped to a
+specific path on the host that path may also be provided, such as
+<code>//my-custom-registry.org/unique/path:</code>.</p>
+<pre><code>; bad config
+_authToken=MYTOKEN
+
+; good config
+@myorg:registry=https://somewhere-else.com/myorg
+@another:registry=https://somewhere-else.com/another
+//registry.npmjs.org/:_authToken=MYTOKEN
+; would apply to both @myorg and @another
+; //somewhere-else.com/:_authToken=MYTOKEN
+; would apply only to @myorg
+//somewhere-else.com/myorg/:_authToken=MYTOKEN1
+; would apply only to @another
+//somewhere-else.com/another/:_authToken=MYTOKEN2
+</code></pre>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>

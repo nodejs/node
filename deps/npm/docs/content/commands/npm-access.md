@@ -35,29 +35,28 @@ For all of the subcommands, `npm access` will perform actions on the packages
 in the current working directory if no package name is passed to the
 subcommand.
 
-* public / restricted:
+* public / restricted (deprecated):
   Set a package to be either publicly accessible or restricted.
 
-* grant / revoke:
+* grant / revoke (deprecated):
   Add or remove the ability of users and teams to have read-only or read-write
   access to a package.
 
-* 2fa-required / 2fa-not-required:
+* 2fa-required / 2fa-not-required (deprecated):
   Configure whether a package requires that anyone publishing it have two-factor
   authentication enabled on their account.
 
-* ls-packages:
+* ls-packages (deprecated):
   Show all of the packages a user or a team is able to access, along with the
   access level, except for read-only public packages (it won't print the whole
   registry listing)
 
-* ls-collaborators:
+* ls-collaborators (deprecated):
   Show all of the access privileges for a package. Will only show permissions
   for packages to which you have at least read access. If `<user>` is passed in,
   the list is filtered only to teams _that_ user happens to belong to.
 
-* edit:
-  Set the access privileges for a package at once using `$EDITOR`.
+* edit (not implemented)
 
 ### Details
 

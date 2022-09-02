@@ -196,6 +196,7 @@ class Outdated extends ArboristWorkspaceCmd {
     try {
       alias = npa(edge.spec).subSpec
     } catch (err) {
+      // ignore errors, no alias
     }
     const spec = npa(alias ? alias.name : edge.name)
     const node = edge.to || edge

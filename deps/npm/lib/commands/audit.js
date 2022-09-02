@@ -178,11 +178,12 @@ class VerifySignatures {
     let name = edge.name
     try {
       name = npa(edge.spec).subSpec.name
-    } catch (_) {
+    } catch {
+      // leave it as edge.name
     }
     try {
       return npa(`${name}@${edge.spec}`)
-    } catch (_) {
+    } catch {
       // Skip packages with invalid spec
     }
   }

@@ -186,7 +186,9 @@ const unsafe = (val, doUnesc) => {
     }
     try {
       val = JSON.parse(val)
-    } catch (_) {}
+    } catch {
+      // ignore errors
+    }
   } else {
     // walk the val to find the first not-escaped ; character
     let esc = false

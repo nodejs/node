@@ -19,7 +19,9 @@ const setup = fn => {
     for (const sig of signals) {
       try {
         process.removeListener(sig, sigListeners[sig])
-      } catch (er) {}
+      } catch {
+        // ignore errors
+      }
     }
     process.removeListener('beforeExit', onBeforeExit)
     sigListeners.loaded = false
@@ -62,7 +64,9 @@ const setup = fn => {
         process.setMaxListeners(length + 1)
       }
       process.on(sig, sigListeners[sig])
-    } catch (er) {}
+    } catch {
+      // ignore errors
+    }
   }
   sigListeners.loaded = true
 

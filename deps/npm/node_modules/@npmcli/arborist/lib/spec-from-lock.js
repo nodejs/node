@@ -21,10 +21,12 @@ const specFromLock = (name, lock, where) => {
     if (lock.resolved) {
       return npa.resolve(name, lock.resolved, where)
     }
-  } catch (_) { }
+  } catch {
+    // ignore errors
+  }
   try {
     return npa.resolve(name, lock.version, where)
-  } catch (_) {
+  } catch {
     return {}
   }
 }

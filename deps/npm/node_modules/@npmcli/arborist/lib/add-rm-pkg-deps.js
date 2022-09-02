@@ -4,8 +4,67 @@ const log = require('proc-log')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const add = ({ pkg, add, saveBundle, saveType }) => {
-  for (const spec of add) {
-    addSingle({ pkg, spec, saveBundle, saveType })
+  for (const { name, rawSpec } of add) {
+    // if the user does not give us a type, we infer which type(s)
+    // to keep based on the same order of priority we do when
+    // building the tree as defined in the _loadDeps method of
+    // the node class.
+    if (!saveType) {
+      saveType = inferSaveType(pkg, name)
+    }
+
+    if (saveType === 'prod') {
+      // a production dependency can only exist as production (rpj ensures it
+      // doesn't coexist w/ optional)
+      deleteSubKey(pkg, 'devDependencies', name, 'dependencies')
+      deleteSubKey(pkg, 'peerDependencies', name, 'dependencies')
+    } else if (saveType === 'dev') {
+      // a dev dependency may co-exist as peer, or optional, but not production
+      deleteSubKey(pkg, 'dependencies', name, 'devDependencies')
+    } else if (saveType === 'optional') {
+      // an optional dependency may co-exist as dev (rpj ensures it doesn't
+      // coexist w/ prod)
+      deleteSubKey(pkg, 'peerDependencies', name, 'optionalDependencies')
+    } else { // peer or peerOptional is all that's left
+      // a peer dependency may coexist as dev
+      deleteSubKey(pkg, 'dependencies', name, 'peerDependencies')
+      deleteSubKey(pkg, 'optionalDependencies', name, 'peerDependencies')
+    }
+
+    const depType = saveTypeMap.get(saveType)
+
+    pkg[depType] = pkg[depType] || {}
+    if (rawSpec !== '' || pkg[depType][name] === undefined) {
+      pkg[depType][name] = rawSpec || '*'
+    }
+    if (saveType === 'optional') {
+      // Affordance for previous npm versions that require this behaviour
+      pkg.dependencies = pkg.dependencies || {}
+      pkg.dependencies[name] = pkg.optionalDependencies[name]
+    }
+
+    if (saveType === 'peer' || saveType === 'peerOptional') {
+      const pdm = pkg.peerDependenciesMeta || {}
+      if (saveType === 'peer' && pdm[name] && pdm[name].optional) {
+        pdm[name].optional = false
+      } else if (saveType === 'peerOptional') {
+        pdm[name] = pdm[name] || {}
+        pdm[name].optional = true
+        pkg.peerDependenciesMeta = pdm
+      }
+      // peerDeps are often also a devDep, so that they can be tested when
+      // using package managers that don't auto-install peer deps
+      if (pkg.devDependencies && pkg.devDependencies[name] !== undefined) {
+        pkg.devDependencies[name] = pkg.peerDependencies[name]
+      }
+    }
+
+    if (saveBundle && saveType !== 'peer' && saveType !== 'peerOptional') {
+      // keep it sorted, keep it unique
+      const bd = new Set(pkg.bundleDependencies || [])
+      bd.add(name)
+      pkg.bundleDependencies = [...bd].sort(localeCompare)
+    }
   }
 
   return pkg
@@ -20,71 +79,6 @@ const saveTypeMap = new Map([
   ['peerOptional', 'peerDependencies'],
   ['peer', 'peerDependencies'],
 ])
-
-const addSingle = ({ pkg, spec, saveBundle, saveType }) => {
-  const { name, rawSpec } = spec
-
-  // if the user does not give us a type, we infer which type(s)
-  // to keep based on the same order of priority we do when
-  // building the tree as defined in the _loadDeps method of
-  // the node class.
-  if (!saveType) {
-    saveType = inferSaveType(pkg, spec.name)
-  }
-
-  if (saveType === 'prod') {
-    // a production dependency can only exist as production (rpj ensures it
-    // doesn't coexist w/ optional)
-    deleteSubKey(pkg, 'devDependencies', name, 'dependencies')
-    deleteSubKey(pkg, 'peerDependencies', name, 'dependencies')
-  } else if (saveType === 'dev') {
-    // a dev dependency may co-exist as peer, or optional, but not production
-    deleteSubKey(pkg, 'dependencies', name, 'devDependencies')
-  } else if (saveType === 'optional') {
-    // an optional dependency may co-exist as dev (rpj ensures it doesn't
-    // coexist w/ prod)
-    deleteSubKey(pkg, 'peerDependencies', name, 'optionalDependencies')
-  } else { // peer or peerOptional is all that's left
-    // a peer dependency may coexist as dev
-    deleteSubKey(pkg, 'dependencies', name, 'peerDependencies')
-    deleteSubKey(pkg, 'optionalDependencies', name, 'peerDependencies')
-  }
-
-  const depType = saveTypeMap.get(saveType)
-
-  pkg[depType] = pkg[depType] || {}
-  if (rawSpec !== '' || pkg[depType][name] === undefined) {
-    pkg[depType][name] = rawSpec || '*'
-  }
-  if (saveType === 'optional') {
-    // Affordance for previous npm versions that require this behaviour
-    pkg.dependencies = pkg.dependencies || {}
-    pkg.dependencies[name] = pkg.optionalDependencies[name]
-  }
-
-  if (saveType === 'peer' || saveType === 'peerOptional') {
-    const pdm = pkg.peerDependenciesMeta || {}
-    if (saveType === 'peer' && pdm[name] && pdm[name].optional) {
-      pdm[name].optional = false
-    } else if (saveType === 'peerOptional') {
-      pdm[name] = pdm[name] || {}
-      pdm[name].optional = true
-      pkg.peerDependenciesMeta = pdm
-    }
-    // peerDeps are often also a devDep, so that they can be tested when
-    // using package managers that don't auto-install peer deps
-    if (pkg.devDependencies && pkg.devDependencies[name] !== undefined) {
-      pkg.devDependencies[name] = pkg.peerDependencies[name]
-    }
-  }
-
-  if (saveBundle && saveType !== 'peer' && saveType !== 'peerOptional') {
-    // keep it sorted, keep it unique
-    const bd = new Set(pkg.bundleDependencies || [])
-    bd.add(spec.name)
-    pkg.bundleDependencies = [...bd].sort(localeCompare)
-  }
-}
 
 // Finds where the package is already in the spec and infers saveType from that
 const inferSaveType = (pkg, name) => {
@@ -103,9 +97,8 @@ const inferSaveType = (pkg, name) => {
   return 'prod'
 }
 
-const { hasOwnProperty } = Object.prototype
 const hasSubKey = (pkg, depType, name) => {
-  return pkg[depType] && hasOwnProperty.call(pkg[depType], name)
+  return pkg[depType] && Object.prototype.hasOwnProperty.call(pkg[depType], name)
 }
 
 // Removes a subkey and warns about it if it's being replaced

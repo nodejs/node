@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "August 2022" "" ""
+.TH "NPMRC" "5" "September 2022" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SS Description
@@ -93,6 +93,35 @@ This is an unchangeable "builtin" configuration file that npm keeps
 consistent across updates\.  Set fields in here using the \fB\|\./configure\fP
 script that comes with npm\.  This is primarily for distribution maintainers
 to override default configs in a standard and consistent manner\.
+.SS Auth related configuration
+.P
+The settings \fB_auth\fP, \fB_authToken\fP, \fBusername\fP and \fB_password\fP must all be
+scoped to a specific registry\. This ensures that \fBnpm\fP will never send
+credentials to the wrong host\.
+.P
+In order to scope these values, they must be prefixed by a URI fragment\.
+If the credential is meant for any request to a registry on a single host,
+the scope may look like \fB//registry\.npmjs\.org/:\fP\|\. If it must be scoped to a
+specific path on the host that path may also be provided, such as
+\fB//my\-custom\-registry\.org/unique/path:\fP\|\.
+.P
+.RS 2
+.nf
+; bad config
+_authToken=MYTOKEN
+
+; good config
+@myorg:registry=https://somewhere\-else\.com/myorg
+@another:registry=https://somewhere\-else\.com/another
+//registry\.npmjs\.org/:_authToken=MYTOKEN
+; would apply to both @myorg and @another
+; //somewhere\-else\.com/:_authToken=MYTOKEN
+; would apply only to @myorg
+//somewhere\-else\.com/myorg/:_authToken=MYTOKEN1
+; would apply only to @another
+//somewhere\-else\.com/another/:_authToken=MYTOKEN2
+.fi
+.RE
 .SS See also
 .RS 0
 .IP \(bu 2
