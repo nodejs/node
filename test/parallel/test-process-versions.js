@@ -36,7 +36,7 @@ const actual_keys = Object.keys(process.versions).sort();
 
 assert.deepStrictEqual(actual_keys, expected_keys);
 
-const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
+const commonTemplate = /^\d+\.\d+\.\d+(?:\.\d+)?(?:-.*)?$/;
 
 assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
