@@ -81,18 +81,11 @@ const _linkNodes = Symbol('linkNodes')
 const _follow = Symbol('follow')
 const _globalStyle = Symbol('globalStyle')
 const _globalRootNode = Symbol('globalRootNode')
-const _isVulnerable = Symbol.for('isVulnerable')
 const _usePackageLock = Symbol.for('usePackageLock')
 const _rpcache = Symbol.for('realpathCache')
 const _stcache = Symbol.for('statCache')
-const _updateFilePath = Symbol('updateFilePath')
-const _followSymlinkPath = Symbol('followSymlinkPath')
-const _getRelpathSpec = Symbol('getRelpathSpec')
-const _retrieveSpecName = Symbol('retrieveSpecName')
 const _strictPeerDeps = Symbol('strictPeerDeps')
 const _checkEngineAndPlatform = Symbol('checkEngineAndPlatform')
-const _checkEngine = Symbol('checkEngine')
-const _checkPlatform = Symbol('checkPlatform')
 const _virtualRoots = Symbol('virtualRoots')
 const _virtualRoot = Symbol('virtualRoot')
 const _includeWorkspaceRoot = Symbol.for('includeWorkspaceRoot')
@@ -228,34 +221,22 @@ module.exports = cls => class IdealTreeBuilder extends cls {
   }
 
   async [_checkEngineAndPlatform] () {
+    const { engineStrict, npmVersion, nodeVersion } = this.options
     for (const node of this.idealTree.inventory.values()) {
       if (!node.optional) {
-        this[_checkEngine](node)
-        this[_checkPlatform](node)
-      }
-    }
-  }
-
-  [_checkPlatform] (node) {
-    checkPlatform(node.package, this[_force])
-  }
-
-  [_checkEngine] (node) {
-    const { engineStrict, npmVersion, nodeVersion } = this.options
-    const c = () =>
-      checkEngine(node.package, npmVersion, nodeVersion, this[_force])
-
-    if (engineStrict) {
-      c()
-    } else {
-      try {
-        c()
-      } catch (er) {
-        log.warn(er.code, er.message, {
-          package: er.pkgid,
-          required: er.required,
-          current: er.current,
-        })
+        try {
+          checkEngine(node.package, npmVersion, nodeVersion, this[_force])
+        } catch (err) {
+          if (engineStrict) {
+            throw err
+          }
+          log.warn(err.code, err.message, {
+            package: err.pkgid,
+            required: err.required,
+            current: err.current,
+          })
+        }
+        checkPlatform(node.package, this[_force])
       }
     }
   }
@@ -378,6 +359,7 @@ Try using the package name instead, e.g:
         this.idealTree = tree
         this.virtualTree = null
         process.emit('timeEnd', 'idealTree:init')
+        return tree
       })
   }
 
@@ -529,84 +511,59 @@ Try using the package name instead, e.g:
     this[_depsQueue].push(tree)
   }
 
-  // This returns a promise because we might not have the name yet,
-  // and need to call pacote.manifest to find the name.
-  [_add] (tree, { add, saveType = null, saveBundle = false }) {
+  // This returns a promise because we might not have the name yet, and need to
+  // call pacote.manifest to find the name.
+  async [_add] (tree, { add, saveType = null, saveBundle = false }) {
+    // If we have a link it will need to be added relative to the target's path
+    const path = tree.target.path
+
     // get the name for each of the specs in the list.
-    // ie, doing `foo@bar` we just return foo
-    // but if it's a url or git, we don't know the name until we
-    // fetch it and look in its manifest.
-    return Promise.all(add.map(async rawSpec => {
-      // We do NOT provide the path to npa here, because user-additions
-      // need to be resolved relative to the CWD the user is in.
-      const spec = await this[_retrieveSpecName](npa(rawSpec))
-        .then(spec => this[_updateFilePath](spec))
-        .then(spec => this[_followSymlinkPath](spec))
-      spec.tree = tree
-      return spec
-    })).then(add => {
-      this[_resolvedAdd].push(...add)
-      // now add is a list of spec objects with names.
-      // find a home for each of them!
-      addRmPkgDeps.add({
-        pkg: tree.package,
-        add,
-        saveBundle,
-        saveType,
-        path: this.path,
-      })
-    })
-  }
+    // ie, doing `foo@bar` we just return foo but if it's a url or git, we
+    // don't know the name until we fetch it and look in its manifest.
+    await Promise.all(add.map(async rawSpec => {
+      // We do NOT provide the path to npa here, because user-additions need to
+      // be resolved relative to the tree being added to.
+      let spec = npa(rawSpec)
 
-  async [_retrieveSpecName] (spec) {
-    // if it's just @'' then we reload whatever's there, or get latest
-    // if it's an explicit tag, we need to install that specific tag version
-    const isTag = spec.rawSpec && spec.type === 'tag'
+      // if it's just @'' then we reload whatever's there, or get latest
+      // if it's an explicit tag, we need to install that specific tag version
+      const isTag = spec.rawSpec && spec.type === 'tag'
 
-    if (spec.name && !isTag) {
-      return spec
-    }
+      // look up the names of file/directory/git specs
+      if (!spec.name || isTag) {
+        const mani = await pacote.manifest(spec, { ...this.options })
+        if (isTag) {
+          // translate tag to a version
+          spec = npa(`${mani.name}@${mani.version}`)
+        }
+        spec.name = mani.name
+      }
 
-    const mani = await pacote.manifest(spec, { ...this.options })
-    // if it's a tag type, then we need to run it down to an actual version
-    if (isTag) {
-      return npa(`${mani.name}@${mani.version}`)
-    }
-
-    spec.name = mani.name
-    return spec
-  }
-
-  async [_updateFilePath] (spec) {
-    if (spec.type === 'file') {
-      return this[_getRelpathSpec](spec, spec.fetchSpec)
-    }
-
-    return spec
-  }
-
-  async [_followSymlinkPath] (spec) {
-    if (spec.type === 'directory') {
-      const real = await (
-        realpath(spec.fetchSpec, this[_rpcache], this[_stcache])
-          // TODO: create synthetic test case to simulate realpath failure
-          .catch(/* istanbul ignore next */() => null)
-      )
-
-      return this[_getRelpathSpec](spec, real)
-    }
-    return spec
-  }
-
-  [_getRelpathSpec] (spec, filepath) {
-    /* istanbul ignore else - should also be covered by realpath failure */
-    if (filepath) {
       const { name } = spec
-      const tree = this.idealTree.target
-      spec = npa(`file:${relpath(tree.path, filepath).replace(/#/g, '%23')}`, tree.path)
-      spec.name = name
-    }
-    return spec
+      if (spec.type === 'file') {
+        spec = npa(`file:${relpath(path, spec.fetchSpec).replace(/#/g, '%23')}`, path)
+        spec.name = name
+      } else if (spec.type === 'directory') {
+        try {
+          const real = await realpath(spec.fetchSpec, this[_rpcache], this[_stcache])
+          spec = npa(`file:${relpath(path, real).replace(/#/g, '%23')}`, path)
+          spec.name = name
+        } catch {
+          // TODO: create synthetic test case to simulate realpath failure
+        }
+      }
+      spec.tree = tree
+      this[_resolvedAdd].push(spec)
+    }))
+
+    // now this._resolvedAdd is a list of spec objects with names.
+    // find a home for each of them!
+    addRmPkgDeps.add({
+      pkg: tree.package,
+      add: this[_resolvedAdd],
+      saveBundle,
+      saveType,
+    })
   }
 
   // TODO: provide a way to fix bundled deps by exposing metadata about
@@ -684,10 +641,6 @@ Try using the package name instead, e.g:
         node.package = node.package
       }
     }
-  }
-
-  [_isVulnerable] (node) {
-    return this.auditReport && this.auditReport.isVulnerable(node)
   }
 
   [_avoidRange] (name) {
@@ -781,17 +734,18 @@ This is a one-time fix-up, please be patient...
         const spec = npa.resolve(name, id, dirname(path))
         const t = `idealTree:inflate:${location}`
         this.addTracker(t)
-        await pacote.manifest(spec, {
-          ...this.options,
-          resolved: resolved,
-          integrity: integrity,
-          fullMetadata: false,
-        }).then(mani => {
+        try {
+          const mani = await pacote.manifest(spec, {
+            ...this.options,
+            resolved: resolved,
+            integrity: integrity,
+            fullMetadata: false,
+          })
           node.package = { ...mani, _id: `${mani.name}@${mani.version}` }
-        }).catch((er) => {
+        } catch (er) {
           const warning = `Could not fetch metadata for ${name}@${id}`
           log.warn(heading, warning, er)
-        })
+        }
         this.finishTracker(t)
       })
     }
@@ -1233,7 +1187,7 @@ This is a one-time fix-up, please be patient...
         }
 
         // fixing a security vulnerability with this package, problem
-        if (this[_isVulnerable](edge.to)) {
+        if (this.auditReport && this.auditReport.isVulnerable(edge.to)) {
           return true
         }
 
