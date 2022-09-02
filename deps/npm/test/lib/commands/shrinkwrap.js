@@ -13,7 +13,9 @@ t.formatSnapshot = obj =>
     (k, v) => {
       try {
         return JSON.parse(v)
-      } catch {}
+      } catch {
+        // leave invalid JSON as a string
+      }
       return v
     },
     2

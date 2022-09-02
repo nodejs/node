@@ -95,6 +95,10 @@ class GitHost {
     return this._fill(this.filetemplate, { ...opts, path })
   }
 
+  edit (path, opts) {
+    return this._fill(this.edittemplate, { ...opts, path })
+  }
+
   getDefaultRepresentation () {
     return this.default
   }

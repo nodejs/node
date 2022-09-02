@@ -90,7 +90,9 @@ module.exports = async (newversion, opts) => {
       }
       await writeJson(lock, sw)
       haveLocks.push(lock)
-    } catch (er) {}
+    } catch {
+      // ignore errors
+    }
   }
 
   if (!ignoreScripts) {

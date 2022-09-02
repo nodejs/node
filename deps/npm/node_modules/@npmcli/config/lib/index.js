@@ -767,6 +767,11 @@ class Config {
     const nerfed = nerfDart(uri)
     const creds = {}
 
+    const deprecatedAuthWarning = [
+      '`_auth`, `_authToken`, `username` and `_password` must be scoped to a registry.',
+      'see `npm help npmrc` for more information.',
+    ].join(' ')
+
     const email = this.get(`${nerfed}:email`) || this.get('email')
     if (email) {
       creds.email = email
@@ -780,10 +785,13 @@ class Config {
       // cert/key may be used in conjunction with other credentials, thus no `return`
     }
 
-    const tokenReg = this.get(`${nerfed}:_authToken`) ||
-      nerfed === nerfDart(this.get('registry')) && this.get('_authToken')
+    const defaultToken = nerfDart(this.get('registry')) && this.get('_authToken')
+    const tokenReg = this.get(`${nerfed}:_authToken`) || defaultToken
 
     if (tokenReg) {
+      if (tokenReg === defaultToken) {
+        log.warn('config', deprecatedAuthWarning)
+      }
       creds.token = tokenReg
       return creds
     }
@@ -818,6 +826,7 @@ class Config {
     const userDef = this.get('username')
     const passDef = this.get('_password')
     if (userDef && passDef) {
+      log.warn('config', deprecatedAuthWarning)
       creds.username = userDef
       creds.password = Buffer.from(passDef, 'base64').toString('utf8')
       const auth = `${creds.username}:${creds.password}`
@@ -832,6 +841,7 @@ class Config {
       return creds
     }
 
+    log.warn('config', deprecatedAuthWarning)
     const authDecode = Buffer.from(auth, 'base64').toString('utf8')
     const authSplit = authDecode.split(':')
     creds.username = authSplit.shift()
