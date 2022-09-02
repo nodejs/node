@@ -134,7 +134,7 @@ class Arborist extends Base {
     return wsDepSet
   }
 
-  // returns a set of root dependencies, excluding depdencies that are
+  // returns a set of root dependencies, excluding dependencies that are
   // exclusively workspace dependencies
   excludeWorkspacesDependencySet (tree) {
     const rootDepSet = new Set()

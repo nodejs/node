@@ -175,7 +175,9 @@ class AuditReport extends Map {
             } else {
             // calculate a metavuln, if necessary
               const calc = this.calculator.calculate(dep.packageName, advisory)
+              // eslint-disable-next-line promise/always-return
               p.push(calc.then(meta => {
+                // eslint-disable-next-line promise/always-return
                 if (meta.testVersion(dep.version, spec)) {
                   advisories.add(meta)
                 }
