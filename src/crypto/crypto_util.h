@@ -134,7 +134,7 @@ struct MarkPopErrorOnReturn {
 void CheckEntropy();
 
 // Generate length bytes of random data. If this returns false, the data
-// may not be truly random but it's still generally good enough.
+// might not be random at all and should not be used.
 bool EntropySource(unsigned char* buffer, size_t length);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
