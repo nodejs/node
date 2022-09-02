@@ -58,7 +58,7 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   Utf8Value hash(env->isolate(), args[offset]);
   params->digest = EVP_get_digestbyname(*hash);
   if (params->digest == nullptr) {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
     return Nothing<bool>();
   }
 
