@@ -204,15 +204,13 @@
             ],
           }],
           ['OS=="solaris"', {
+           'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
           ['OS=="zos"', {
             # increase performance, number from experimentation
             'cflags': [ '-qINLINE=::150:100000' ]
-          }],
-          ['OS!="mac" and OS!="win" and OS!="zos"', {
-            'cflags': [ '-fno-omit-frame-pointer' ],
           }],
           ['OS=="linux"', {
             'conditions': [
