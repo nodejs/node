@@ -72,7 +72,8 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
 
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
-    return THROW_ERR_CRYPTO_INVALID_DIGEST(env());
+    return THROW_ERR_CRYPTO_INVALID_DIGEST(
+        env(), "Invalid digest: %s", hash_type);
   if (key_len == 0) {
     key = "";
   }
@@ -189,7 +190,7 @@ Maybe<bool> HmacTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset + 1]);
   params->digest = EVP_get_digestbyname(*digest);
   if (params->digest == nullptr) {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<bool>();
   }
 

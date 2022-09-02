@@ -647,7 +647,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     Utf8Value digest(env->isolate(), args[offset + 6]);
     params->digest = EVP_get_digestbyname(*digest);
     if (params->digest == nullptr) {
-      THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+      THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
       return Nothing<bool>();
     }
   }
