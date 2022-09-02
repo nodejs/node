@@ -91,6 +91,34 @@ consistent across updates.  Set fields in here using the `./configure`
 script that comes with npm.  This is primarily for distribution maintainers
 to override default configs in a standard and consistent manner.
 
+### Auth related configuration
+
+The settings `_auth`, `_authToken`, `username` and `_password` must all be
+scoped to a specific registry. This ensures that `npm` will never send
+credentials to the wrong host.
+
+In order to scope these values, they must be prefixed by a URI fragment.
+If the credential is meant for any request to a registry on a single host,
+the scope may look like `//registry.npmjs.org/:`. If it must be scoped to a
+specific path on the host that path may also be provided, such as
+`//my-custom-registry.org/unique/path:`.
+
+```
+; bad config
+_authToken=MYTOKEN
+
+; good config
+@myorg:registry=https://somewhere-else.com/myorg
+@another:registry=https://somewhere-else.com/another
+//registry.npmjs.org/:_authToken=MYTOKEN
+; would apply to both @myorg and @another
+; //somewhere-else.com/:_authToken=MYTOKEN
+; would apply only to @myorg
+//somewhere-else.com/myorg/:_authToken=MYTOKEN1
+; would apply only to @another
+//somewhere-else.com/another/:_authToken=MYTOKEN2
+```
+
 ### See also
 
 * [npm folders](/configuring-npm/folders)

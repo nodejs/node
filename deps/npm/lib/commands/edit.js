@@ -58,11 +58,16 @@ class Edit extends BaseCommand {
         }
         const [bin, ...args] = this.npm.config.get('editor').split(/\s+/)
         const editor = cp.spawn(bin, [...args, dir], { stdio: 'inherit' })
-        editor.on('exit', (code) => {
+        editor.on('exit', async (code) => {
           if (code) {
             return reject(new Error(`editor process exited with code: ${code}`))
           }
-          this.npm.exec('rebuild', [dir]).catch(reject).then(resolve)
+          try {
+            await this.npm.exec('rebuild', [dir])
+          } catch (err) {
+            reject(err)
+          }
+          resolve()
         })
       })
     })

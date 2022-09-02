@@ -148,7 +148,9 @@ const setter = ({ data, key, value, force }) => {
     let maybeIndex = Number.NaN
     try {
       maybeIndex = Number(_key)
-    } catch (err) {}
+    } catch {
+      // leave it NaN
+    }
     if (!Number.isNaN(maybeIndex)) {
       _key = maybeIndex
     }

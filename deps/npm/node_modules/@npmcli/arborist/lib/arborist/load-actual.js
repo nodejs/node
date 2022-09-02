@@ -347,6 +347,7 @@ module.exports = cls => class ActualLoader extends cls {
       // node_modules hierarchy, then load that node as well.
       return this[_loadFSTree](link.target).then(() => link)
     } else if (target.then) {
+      // eslint-disable-next-line promise/catch-or-return
       target.then(node => link.target = node)
     }
 

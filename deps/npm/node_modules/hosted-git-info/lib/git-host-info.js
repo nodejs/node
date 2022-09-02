@@ -6,6 +6,7 @@ const maybeEncode = (arg) => arg ? encodeURIComponent(arg) : ''
 const defaults = {
   sshtemplate: ({ domain, user, project, committish }) => `git@${domain}:${user}/${project}.git${maybeJoin('#', committish)}`,
   sshurltemplate: ({ domain, user, project, committish }) => `git+ssh://git@${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
+  edittemplate: ({ domain, user, project, committish, editpath, path }) => `https://${domain}/${user}/${project}${maybeJoin('/', editpath, '/', maybeEncode(committish || 'master'), '/', path)}`,
   browsetemplate: ({ domain, user, project, committish, treepath }) => `https://${domain}/${user}/${project}${maybeJoin('/', treepath, '/', maybeEncode(committish))}`,
   browsefiletemplate: ({ domain, user, project, committish, treepath, path, fragment, hashformat }) => `https://${domain}/${user}/${project}/${treepath}/${maybeEncode(committish || 'master')}/${path}${maybeJoin('#', hashformat(fragment || ''))}`,
   docstemplate: ({ domain, user, project, treepath, committish }) => `https://${domain}/${user}/${project}${maybeJoin('/', treepath, '/', maybeEncode(committish))}#readme`,
@@ -24,6 +25,7 @@ gitHosts.github = Object.assign({}, defaults, {
   protocols: ['git:', 'http:', 'git+ssh:', 'git+https:', 'ssh:', 'https:'],
   domain: 'github.com',
   treepath: 'tree',
+  editpath: 'edit',
   filetemplate: ({ auth, user, project, committish, path }) => `https://${maybeJoin(auth, '@')}raw.githubusercontent.com/${user}/${project}/${maybeEncode(committish) || 'master'}/${path}`,
   gittemplate: ({ auth, domain, user, project, committish }) => `git://${maybeJoin(auth, '@')}${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
   tarballtemplate: ({ domain, user, project, committish }) => `https://codeload.${domain}/${user}/${project}/tar.gz/${maybeEncode(committish) || 'master'}`,
@@ -53,6 +55,8 @@ gitHosts.bitbucket = Object.assign({}, defaults, {
   protocols: ['git+ssh:', 'git+https:', 'ssh:', 'https:'],
   domain: 'bitbucket.org',
   treepath: 'src',
+  editpath: '?mode=edit',
+  edittemplate: ({ domain, user, project, committish, treepath, path, editpath }) => `https://${domain}/${user}/${project}${maybeJoin('/', treepath, '/', maybeEncode(committish || 'master'), '/', path, editpath)}`,
   tarballtemplate: ({ domain, user, project, committish }) => `https://${domain}/${user}/${project}/get/${maybeEncode(committish) || 'master'}.tar.gz`,
   extract: (url) => {
     let [, user, project, aux] = url.pathname.split('/', 4)
@@ -76,6 +80,7 @@ gitHosts.gitlab = Object.assign({}, defaults, {
   protocols: ['git+ssh:', 'git+https:', 'ssh:', 'https:'],
   domain: 'gitlab.com',
   treepath: 'tree',
+  editpath: '-/edit',
   httpstemplate: ({ auth, domain, user, project, committish }) => `git+https://${maybeJoin(auth, '@')}${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
   tarballtemplate: ({ domain, user, project, committish }) => `https://${domain}/${user}/${project}/repository/archive.tar.gz?ref=${maybeEncode(committish) || 'master'}`,
   extract: (url) => {
@@ -102,8 +107,10 @@ gitHosts.gitlab = Object.assign({}, defaults, {
 gitHosts.gist = Object.assign({}, defaults, {
   protocols: ['git:', 'git+ssh:', 'git+https:', 'ssh:', 'https:'],
   domain: 'gist.github.com',
+  editpath: 'edit',
   sshtemplate: ({ domain, project, committish }) => `git@${domain}:${project}.git${maybeJoin('#', committish)}`,
   sshurltemplate: ({ domain, project, committish }) => `git+ssh://git@${domain}/${project}.git${maybeJoin('#', committish)}`,
+  edittemplate: ({ domain, user, project, committish, editpath }) => `https://${domain}/${user}/${project}${maybeJoin('/', maybeEncode(committish))}/${editpath}`,
   browsetemplate: ({ domain, project, committish }) => `https://${domain}/${project}${maybeJoin('/', maybeEncode(committish))}`,
   browsefiletemplate: ({ domain, project, committish, path, hashformat }) => `https://${domain}/${project}${maybeJoin('/', maybeEncode(committish))}${maybeJoin('#', hashformat(path))}`,
   docstemplate: ({ domain, project, committish }) => `https://${domain}/${project}${maybeJoin('/', maybeEncode(committish))}`,
