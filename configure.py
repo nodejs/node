@@ -57,7 +57,7 @@ valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 with open ('tools/icu/icu_versions.json') as f:
   icu_versions = json.load(f)
 
-sharable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
+shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
                      'undici/undici': 'deps/undici/undici.js'
 }
@@ -430,7 +430,7 @@ shared_optgroup.add_argument('--shared-cares-libpath',
 
 parser.add_argument_group(shared_optgroup)
 
-for builtin in sharable_builtins:
+for builtin in shareable_builtins:
   builtin_id = 'shared_builtin_' + builtin + '_path'
   shared_builtin_optgroup.add_argument('--shared-builtin-' + builtin + '-path',
     action='store',
@@ -1969,9 +1969,9 @@ configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
 
-# configure sharable builtins
-output['variables']['node_builtin_sharable_builtins'] = []
-for builtin in sharable_builtins:
+# configure shareable builtins
+output['variables']['node_builtin_shareable_builtins'] = []
+for builtin in shareable_builtins:
   builtin_id = 'node_shared_builtin_' + builtin.replace('/', '_') + '_path'
   if getattr(options, builtin_id):
     if options.with_intl == 'none':
@@ -1980,7 +1980,7 @@ for builtin in sharable_builtins:
     else:
       output['defines'] += [builtin_id.upper() + '=' + getattr(options, builtin_id)]
   else:
-    output['variables']['node_builtin_sharable_builtins'] += [sharable_builtins[builtin]]
+    output['variables']['node_builtin_shareable_builtins'] += [shareable_builtins[builtin]]
 
 # Forward OSS-Fuzz settings
 output['variables']['ossfuzz'] = b(options.ossfuzz)
