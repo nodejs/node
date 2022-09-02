@@ -16,7 +16,7 @@ be managed as a dependency:
   making modifications to it` (see
   [GNU GPL v2, section 3.](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
   when `make node` is run. A good example is
-  WASM code generated from JavaScript(the preferred form).
+  WASM code generated from C (the preferred form).
   Typically generation is only supported on a subset of platforms, needs
   additional tools, and is pre-built outside of the `make node`
   step and then committed as a WASM binary in the directory
