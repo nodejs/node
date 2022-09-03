@@ -2,15 +2,6 @@
   "piping/abort.any.js": {
     "fail": {
       "expected": [
-        "(reason: 'null') all the error objects should be the same object",
-        "(reason: 'undefined') all the error objects should be the same object",
-        "(reason: 'error1: error1') all the error objects should be the same object",
-        "(reason: 'null') abort should prevent further reads",
-        "(reason: 'undefined') abort should prevent further reads",
-        "(reason: 'error1: error1') abort should prevent further reads",
-        "(reason: 'null') all pending writes should complete on abort",
-        "(reason: 'undefined') all pending writes should complete on abort",
-        "(reason: 'error1: error1') all pending writes should complete on abort",
         "pipeTo on a teed readable byte stream should only be aborted when both branches are aborted"
       ]
     }
