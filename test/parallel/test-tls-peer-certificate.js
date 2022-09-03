@@ -53,39 +53,39 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, 'ECC9B856270DA9A8');
+  assert.strictEqual(peerCert.serialNumber, 'ECC9B856270DA9AA');
   assert.strictEqual(peerCert.exponent, '0x10001');
-  assert.strictEqual(peerCert.bits, 1024);
+  assert.strictEqual(peerCert.bits, 2048);
   // The conversion to bits is odd because modulus isn't a buffer, its a hex
   // string. There are two hex chars for every byte of modulus, and 8 bits per
   // byte.
   assert.strictEqual(peerCert.modulus.length / 2 * 8, peerCert.bits);
   assert.strictEqual(
     peerCert.fingerprint,
-    'D7:FD:F6:42:92:A8:83:51:8E:80:48:62:66:DA:85:C2:EE:A6:A1:CD'
+    '39:3C:63:64:25:25:9B:BC:5B:51:6D:05:EE:DA:6F:40:4A:E5:54:06'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    'B0:BE:46:49:B8:29:63:E0:6F:63:C8:8A:57:9C:3F:9B:72:C6:F5:89:E3:0D:84:AC:' +
-    '5B:08:9A:20:89:B6:8F:D6'
-  );
+    '05:C8:51:4C:42:C9:E7:6E:4D:78:BE:9B:48:F6:B6:C8:A0:' +
+    '97:7F:42:87:B5:06:97:E7:DE:A5:3A:4D:BE:BA:CC',
+   );
   assert.strictEqual(
     peerCert.fingerprint512,
-    'D0:05:01:82:2C:D8:09:BE:27:94:E7:83:F1:88:BC:7A:8B:D0:39:97:54:B6:' +
-    'D0:B4:46:5B:DE:13:5B:68:86:B6:F2:A8:95:22:D5:6E:8B:35:DA:89:29:CA:' +
-    'A3:06:C5:CE:43:C1:7F:2D:7E:5F:44:A5:EE:A3:CB:97:05:A3:E3:68'
+    '51:62:18:39:E2:E2:77:F5:86:11:E8:C0:CA:54:43:7C:76:83:19:05:D0:03:' +
+    '24:21:B8:EB:14:61:FB:24:16:EB:BD:51:1A:17:91:04:30:03:EB:68:5F:DC:' +
+    '86:E1:D1:7C:FB:AF:78:ED:63:5F:29:9C:32:AF:A1:8E:22:96:D1:02'
   );
 
   // SHA256 fingerprint of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('hex'),
-    '221fcc8593146e9eee65b2f7f9c1504993ece8de014657a4a1cde55c5e35d06e'
+    '490f8da0889339df5164d500b406de0af3249c174c2b60152528940fa116e9cc'
   );
 
   // HPKP / RFC7469 "pin-sha256" of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('base64'),
-    'Ih/MhZMUbp7uZbL3+cFQSZPs6N4BRlekoc3lXF410G4='
+    'SQ+NoIiTOd9RZNUAtAbeCvMknBdMK2AVJSiUD6EW6cw='
   );
 
   assert.deepStrictEqual(peerCert.infoAccess['OCSP - URI'],

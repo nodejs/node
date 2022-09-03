@@ -22,7 +22,7 @@ server.once('secureConnection', common.mustCall(function(socket) {
   assert(cert instanceof X509Certificate);
   assert.strictEqual(
     cert.serialNumber,
-    'D0082F458B6EFBE8');
+    '5B75D77EDC7FB5B7FA9F1424DA4C64FB815DCBDD');
 }));
 
 server.listen(0, common.mustCall(function() {
@@ -35,7 +35,7 @@ server.listen(0, common.mustCall(function() {
     assert.strictEqual(peerCert.issuerCertificate.issuerCertificate, undefined);
     assert.strictEqual(
       peerCert.issuerCertificate.serialNumber,
-      'ECC9B856270DA9A7'
+      'ECC9B856270DA9A9'
     );
     server.close();
   }));
