@@ -103,7 +103,7 @@ If this flag is passed, the behavior can still be set to not abort through
 ### `--build-snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -344,7 +344,9 @@ of `--enable-source-maps`.
 ### `--experimental-global-customevent`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 Expose the [CustomEvent Web API][] on the global scope.
@@ -512,7 +514,9 @@ To allow polyfills to be added,
 ### `--force-node-api-uncaught-exceptions-policy`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 Enforces `uncaughtException` event on Node-API asynchronous callbacks.
@@ -872,7 +876,9 @@ against FIPS-enabled OpenSSL.
 ### `--openssl-shared-config`
 
 <!-- YAML
-added: v18.5.0
+added:
+  - v18.5.0
+  - v16.17.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
@@ -887,7 +893,9 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 ### `--openssl-legacy-provider`
 
 <!-- YAML
-added: v17.0.0
+added:
+  - v17.0.0
+  - v16.17.0
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
@@ -1064,6 +1072,9 @@ changes:
 
 Name of the file to which the report will be written.
 
+If the filename is set to `'stdout'` or `'stderr'`, the report is written to
+the stdout or stderr of the process respectively.
+
 ### `--report-on-fatalerror`
 
 <!-- YAML
@@ -1131,6 +1142,9 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: v18.8.0
+    pr-url: https://github.com/nodejs/node/pull/44208
+    description: Report is not generated if the uncaught exception is handled.
   - version:
      - v13.12.0
      - v12.17.0
@@ -1142,9 +1156,9 @@ changes:
                  `--report-uncaught-exception`.
 -->
 
-Enables report to be generated on uncaught exceptions. Useful when inspecting
-the JavaScript stack in conjunction with native stack and other runtime
-environment data.
+Enables report to be generated when the process exits due to an uncaught
+exception. Useful when inspecting the JavaScript stack in conjunction with
+native stack and other runtime environment data.
 
 ### `--secure-heap=n`
 
@@ -1185,7 +1199,7 @@ The value given must be a power of two.
 ### `--snapshot-blob=path`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1210,7 +1224,9 @@ If they don't match, Node.js would refuse to load the snapshot and exit with 1.
 ### `--test`
 
 <!-- YAML
-added: v18.1.0
+added:
+  - v18.1.0
+  - v16.17.0
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
@@ -1220,7 +1236,9 @@ on [running tests from the command line][] for more details.
 ### `--test-only`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 Configures the test runner to only execute top level tests that have the `only`
@@ -1330,7 +1348,7 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 
 <!-- YAML
 added: v14.3.0
-deprecated: REPLACEME
+deprecated: v18.8.0
 -->
 
 > Stability: 0 - Deprecated
@@ -1491,10 +1509,10 @@ loading phase, it will always raise it as an uncaught exception.
 ### `--update-assert-snapshot`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
-Force updating snapshot files for [`assert.snapshot()`][]
+Updates snapshot files used by [`assert.snapshot()`][].
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
 

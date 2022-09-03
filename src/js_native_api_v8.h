@@ -1,8 +1,6 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
 #define SRC_JS_NATIVE_API_V8_H_
 
-// This file needs to be compatible with C compilers.
-#include <string.h>  // NOLINT(modernize-deprecated-headers)
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
@@ -57,9 +55,6 @@ struct napi_env__ {
     CHECK_EQ(isolate, context->GetIsolate());
     napi_clear_last_error(this);
   }
-  virtual ~napi_env__() { FinalizeAll(); }
-  v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
-  v8impl::Persistent<v8::Context> context_persistent;
 
   inline v8::Local<v8::Context> context() const {
     return v8impl::PersistentToLocal::Strong(context_persistent);
@@ -67,7 +62,7 @@ struct napi_env__ {
 
   inline void Ref() { refs++; }
   inline void Unref() {
-    if (--refs == 0) delete this;
+    if (--refs == 0) DeleteMe();
   }
 
   virtual bool can_call_into_js() const { return true; }
@@ -101,7 +96,7 @@ struct napi_env__ {
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
   }
 
-  void FinalizeAll() {
+  virtual void DeleteMe() {
     // First we must finalize those references that have `napi_finalizer`
     // callbacks. The reason is that addons might store other references which
     // they delete during their `napi_finalizer` callbacks. If we deleted such
@@ -109,7 +104,11 @@ struct napi_env__ {
     // `napi_finalizer` deleted them subsequently.
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
+    delete this;
   }
+
+  v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
+  v8impl::Persistent<v8::Context> context_persistent;
 
   v8impl::Persistent<v8::Value> last_exception;
 
@@ -123,6 +122,11 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+
+ protected:
+  // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
+  // instead.
+  virtual ~napi_env__() = default;
 };
 
 // This class is used to keep a napi_env live in a way that
@@ -152,7 +156,7 @@ class EnvRefHolder {
   napi_env _env;
 };
 
-static inline napi_status napi_clear_last_error(napi_env env) {
+inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
 
   // TODO(boingoing): Should this be a callback?
@@ -162,10 +166,10 @@ static inline napi_status napi_clear_last_error(napi_env env) {
   return napi_ok;
 }
 
-static inline napi_status napi_set_last_error(napi_env env,
-                                              napi_status error_code,
-                                              uint32_t engine_error_code = 0,
-                                              void* engine_reserved = nullptr) {
+inline napi_status napi_set_last_error(napi_env env,
+                                       napi_status error_code,
+                                       uint32_t engine_error_code = 0,
+                                       void* engine_reserved = nullptr) {
   env->last_error.error_code = error_code;
   env->last_error.engine_error_code = engine_error_code;
   env->last_error.engine_reserved = engine_reserved;
@@ -274,6 +278,12 @@ static inline napi_status napi_set_last_error(napi_env env,
 
 #define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                    \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
+
+#define STATUS_CALL(call)                                                      \
+  do {                                                                         \
+    napi_status status = (call);                                               \
+    if (status != napi_ok) return status;                                      \
+  } while (0)
 
 namespace v8impl {
 
@@ -430,11 +440,5 @@ class Reference : public RefBase {
 };
 
 }  // end of namespace v8impl
-
-#define STATUS_CALL(call)                                                      \
-  do {                                                                         \
-    napi_status status = (call);                                               \
-    if (status != napi_ok) return status;                                      \
-  } while (0)
 
 #endif  // SRC_JS_NATIVE_API_V8_H_

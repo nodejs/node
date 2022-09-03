@@ -166,6 +166,16 @@ void RemoveEnvironmentCleanupHookInternal(
   handle->info->env->RemoveCleanupHook(RunAsyncCleanupHook, handle->info.get());
 }
 
+void RequestInterrupt(Environment* env, void (*fun)(void* arg), void* arg) {
+  env->RequestInterrupt([fun, arg](Environment* env) {
+    // Disallow JavaScript execution during interrupt.
+    Isolate::DisallowJavascriptExecutionScope scope(
+        env->isolate(),
+        Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    fun(arg);
+  });
+}
+
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;

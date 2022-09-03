@@ -54,7 +54,7 @@ The [`npm query`](/commands/npm-query) commmand exposes a new dependency selecto
 - [`:private`](https://docs.npmjs.com/cli/v8/configuring-npm/package-json#private) when a dependency is private
 - `:link` when a dependency is linked (for instance, workspaces or packages manually [`linked`](https://docs.npmjs.com/cli/v8/commands/npm-link)
 - `:deduped` when a dependency has been deduped (note that this does *not* always mean the dependency has been hoisted to the root of node_modules)
-- `:override` when a dependency is an override (not implemented yet)
+- `:overridden` when a dependency has been overridden
 - `:extraneous` when a dependency exists but is not defined as a dependency of any node
 - `:invalid` when a dependency version is out of its ancestors specified range
 - `:missing` when a dependency is not found on disk
@@ -144,7 +144,7 @@ const arb = new Arborist({})
 
 ```js
 // root-level
-arb.loadActual((tree) => {
+arb.loadActual().then(async (tree) => {
   // query all production dependencies
   const results = await tree.querySelectorAll('.prod')
   console.log(results)
@@ -153,7 +153,7 @@ arb.loadActual((tree) => {
 
 ```js
 // iterative
-arb.loadActual((tree) => {
+arb.loadActual().then(async (tree) => {
   // query for the deduped version of react
   const results = await tree.querySelectorAll('#react:not(:deduped)')
   // query the deduped react for git deps

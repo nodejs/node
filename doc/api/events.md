@@ -1487,9 +1487,9 @@ require manual async tracking. Specifically, all events emitted by instances
 of `events.EventEmitterAsyncResource` will run within its [async context][].
 
 ```mjs
-import { EventEmitterAsyncResource } from 'node:events';
+import { EventEmitterAsyncResource, EventEmitter } from 'node:events';
 import { notStrictEqual, strictEqual } from 'node:assert';
-import { executionAsyncId } from 'node:async_hooks';
+import { executionAsyncId, triggerAsyncId } from 'node:async_hooks';
 
 // Async tracking tooling will identify this as 'Q'.
 const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
@@ -1516,9 +1516,9 @@ Promise.resolve().then(() => {
 ```
 
 ```cjs
-const { EventEmitterAsyncResource } = require('node:events');
+const { EventEmitterAsyncResource, EventEmitter } = require('node:events');
 const { notStrictEqual, strictEqual } = require('node:assert');
-const { executionAsyncId } = require('node:async_hooks');
+const { executionAsyncId, triggerAsyncId } = require('node:async_hooks');
 
 // Async tracking tooling will identify this as 'Q'.
 const ee1 = new EventEmitterAsyncResource({ name: 'Q' });
@@ -1990,7 +1990,9 @@ Removes the `listener` from the list of handlers for event `type`.
 ### Class: `CustomEvent`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 > Stability: 1 - Experimental.
@@ -2003,7 +2005,9 @@ Instances are created internally by Node.js.
 #### `event.detail`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 > Stability: 1 - Experimental.

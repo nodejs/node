@@ -63,6 +63,9 @@ const missingFromTree = async ({ spec, tree, flatOptions }) => {
     // non-registry spec, or a specific tag.  Look up manifest and check
     // resolved to see if it's in the tree.
     const manifest = await getManifest(spec, flatOptions)
+    if (spec.type === 'directory') {
+      return { manifest }
+    }
     const nodesByManifest = tree.inventory.query('packageName', manifest.name)
     for (const node of nodesByManifest) {
       if (node.package.resolved === manifest._resolved) {
@@ -89,10 +92,10 @@ const exec = async (opts) => {
     path = '.',
     runPath = '.',
     scriptShell = isWindows ? process.env.ComSpec || 'cmd' : 'sh',
-    yes = undefined,
     ...flatOptions
   } = opts
 
+  let yes = opts.yes
   const run = () => runScript({
     args,
     call,
@@ -129,6 +132,16 @@ const exec = async (opts) => {
     packages.push(args[0])
   }
 
+  // Resolve any directory specs so that the npx directory is unique to the
+  // resolved directory, not the potentially relative one (i.e. "npx .")
+  for (const i in packages) {
+    const pkg = packages[i]
+    const spec = npa(pkg)
+    if (spec.type === 'directory') {
+      packages[i] = spec.fetchSpec
+    }
+  }
+
   const localArb = new Arborist({ ...flatOptions, path })
   const localTree = await localArb.loadActual()
 
@@ -153,6 +166,10 @@ const exec = async (opts) => {
   if (needPackageCommandSwap) {
     const spec = npa(args[0])
 
+    if (spec.type === 'directory') {
+      yes = true
+    }
+
     args[0] = getBinFromManifest(commandManifest)
 
     if (needInstall.length > 0 && globalPath) {
@@ -176,7 +193,15 @@ const exec = async (opts) => {
       throw new Error('Must provide a valid npxCache path')
     }
     const hash = crypto.createHash('sha512')
-      .update(packages.sort((a, b) => a.localeCompare(b, 'en')).join('\n'))
+      .update(packages.map(p => {
+        // Keeps the npx directory unique to the resolved directory, not the
+        // potentially relative one (i.e. "npx .")
+        const spec = npa(p)
+        if (spec.type === 'directory') {
+          return spec.fetchSpec
+        }
+        return p
+      }).sort((a, b) => a.localeCompare(b, 'en')).join('\n'))
       .digest('hex')
       .slice(0, 16)
     const installDir = resolve(npxCache, hash)

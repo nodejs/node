@@ -493,7 +493,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   // Throw if an IV was passed which does not match the cipher's fixed IV length
   // static_cast<int> for the iv_buf.size() is safe because we've verified
-  // prior that the value is not larger than MAX_INT.
+  // prior that the value is not larger than INT_MAX.
   if (!is_authenticated_mode &&
       has_iv &&
       static_cast<int>(iv_buf.size()) != expected_iv_len) {
@@ -1063,7 +1063,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferOrViewContents<unsigned char> oaep_label(
       !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
   if (UNLIKELY(!oaep_label.CheckSizeInt32()))
-    return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
+    return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
 
   std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(

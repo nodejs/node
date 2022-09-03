@@ -61,7 +61,7 @@ namespace v8impl {
 
 namespace {
 
-inline static napi_status V8NameFromPropertyDescriptor(
+inline napi_status V8NameFromPropertyDescriptor(
     napi_env env,
     const napi_property_descriptor* p,
     v8::Local<v8::Name>* result) {
@@ -79,7 +79,7 @@ inline static napi_status V8NameFromPropertyDescriptor(
 }
 
 // convert from n-api property attributes to v8::PropertyAttribute
-inline static v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
+inline v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
     const napi_property_descriptor* descriptor) {
   unsigned int attribute_flags = v8::PropertyAttribute::None;
 
@@ -100,12 +100,12 @@ inline static v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
   return static_cast<v8::PropertyAttribute>(attribute_flags);
 }
 
-inline static napi_deferred JsDeferredFromNodePersistent(
+inline napi_deferred JsDeferredFromNodePersistent(
     v8impl::Persistent<v8::Value>* local) {
   return reinterpret_cast<napi_deferred>(local);
 }
 
-inline static v8impl::Persistent<v8::Value>* NodePersistentFromJsDeferred(
+inline v8impl::Persistent<v8::Value>* NodePersistentFromJsDeferred(
     napi_deferred local) {
   return reinterpret_cast<v8impl::Persistent<v8::Value>*>(local);
 }
@@ -139,32 +139,30 @@ class EscapableHandleScopeWrapper {
   bool escape_called_;
 };
 
-inline static napi_handle_scope JsHandleScopeFromV8HandleScope(
-    HandleScopeWrapper* s) {
+inline napi_handle_scope JsHandleScopeFromV8HandleScope(HandleScopeWrapper* s) {
   return reinterpret_cast<napi_handle_scope>(s);
 }
 
-inline static HandleScopeWrapper* V8HandleScopeFromJsHandleScope(
-    napi_handle_scope s) {
+inline HandleScopeWrapper* V8HandleScopeFromJsHandleScope(napi_handle_scope s) {
   return reinterpret_cast<HandleScopeWrapper*>(s);
 }
 
-inline static napi_escapable_handle_scope
+inline napi_escapable_handle_scope
 JsEscapableHandleScopeFromV8EscapableHandleScope(
     EscapableHandleScopeWrapper* s) {
   return reinterpret_cast<napi_escapable_handle_scope>(s);
 }
 
-inline static EscapableHandleScopeWrapper*
+inline EscapableHandleScopeWrapper*
 V8EscapableHandleScopeFromJsEscapableHandleScope(
     napi_escapable_handle_scope s) {
   return reinterpret_cast<EscapableHandleScopeWrapper*>(s);
 }
 
-inline static napi_status ConcludeDeferred(napi_env env,
-                                           napi_deferred deferred,
-                                           napi_value result,
-                                           bool is_resolved) {
+inline napi_status ConcludeDeferred(napi_env env,
+                                    napi_deferred deferred,
+                                    napi_value result,
+                                    bool is_resolved) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
@@ -191,10 +189,10 @@ inline static napi_status ConcludeDeferred(napi_env env,
 
 enum UnwrapAction { KeepWrap, RemoveWrap };
 
-inline static napi_status Unwrap(napi_env env,
-                                 napi_value js_object,
-                                 void** result,
-                                 UnwrapAction action) {
+inline napi_status Unwrap(napi_env env,
+                          napi_value js_object,
+                          void** result,
+                          UnwrapAction action) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, js_object);
   if (action == KeepWrap) {

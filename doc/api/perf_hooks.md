@@ -70,7 +70,9 @@ Performance Timeline. If `name` is provided, removes only the named measure.
 ### `performance.clearResourceTimings([name])`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * `name` {string}
@@ -213,7 +215,9 @@ Performance Timeline manually with `performance.clearMarks`.
 ### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * `timingInfo` {Object} [Fetch Timing Info][]
@@ -308,6 +312,17 @@ added: v8.5.0
 Returns the current high resolution millisecond timestamp, where 0 represents
 the start of the current `node` process.
 
+### `performance.setResourceTimingBufferSize(maxSize)`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+Sets the global performance resource timing buffer size to the specified number
+of "resource" type performance entry objects.
+
+By default the max buffer size is set to 250.
+
 ### `performance.timeOrigin`
 
 <!-- YAML
@@ -382,6 +397,18 @@ added: v16.1.0
 
 An object which is JSON representation of the `performance` object. It
 is similar to [`window.performance.toJSON`][] in browsers.
+
+#### Event: `'resourcetimingbufferfull'`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+The `'resourcetimingbufferfull'` event is fired when the global performance
+resource timing buffer is full. Adjust resource timing buffer size with
+`performance.setResourceTimingBufferSize()` or clear the buffer with
+`performance.clearResourceTimings()` in the event listener to allow
+more entries to be added to the performance timeline buffer.
 
 ## Class: `PerformanceEntry`
 
@@ -713,7 +740,9 @@ initialized.
 ## Class: `PerformanceResourceTiming`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * Extends: {PerformanceEntry}
@@ -726,7 +755,9 @@ The constructor of this class is not exposed to users directly.
 ### `performanceResourceTiming.workerStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -738,7 +769,9 @@ will always return 0.
 ### `performanceResourceTiming.redirectStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -749,7 +782,9 @@ of the fetch which initiates the redirect.
 ### `performanceResourceTiming.redirectEnd`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -760,7 +795,9 @@ receiving the last byte of the response of the last redirect.
 ### `performanceResourceTiming.fetchStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -771,7 +808,9 @@ to fetch the resource.
 ### `performanceResourceTiming.domainLookupStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -782,7 +821,9 @@ the domain name lookup for the resource.
 ### `performanceResourceTiming.domainLookupEnd`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -793,7 +834,9 @@ after the Node.js finished the domain name lookup for the resource.
 ### `performanceResourceTiming.connectStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -805,7 +848,9 @@ the resource.
 ### `performanceResourceTiming.connectEnd`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -817,7 +862,9 @@ the resource.
 ### `performanceResourceTiming.secureConnectionStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -828,7 +875,9 @@ before Node.js starts the handshake process to secure the current connection.
 ### `performanceResourceTiming.requestStart`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -839,7 +888,9 @@ before Node.js receives the first byte of the response from the server.
 ### `performanceResourceTiming.responseEnd`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -851,7 +902,9 @@ the transport connection is closed, whichever comes first.
 ### `performanceResourceTiming.transferSize`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -862,7 +915,9 @@ includes the response header fields plus the response payload body.
 ### `performanceResourceTiming.encodedBodySize`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -874,7 +929,9 @@ content-codings.
 ### `performanceResourceTiming.decodedBodySize`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 * {number}
@@ -886,7 +943,9 @@ content-codings.
 ### `performanceResourceTiming.toJSON()`
 
 <!-- YAML
-added: v18.2.0
+added:
+  - v18.2.0
+  - v16.17.0
 -->
 
 Returns a `object` that is the JSON representation of the

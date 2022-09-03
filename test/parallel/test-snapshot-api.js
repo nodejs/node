@@ -10,6 +10,12 @@ const fixtures = require('../common/fixtures');
 const path = require('path');
 const fs = require('fs');
 
+const v8 = require('v8');
+
+// By default it should be false. We'll test that it's true in snapshot
+// building mode in the fixture.
+assert(!v8.startupSnapshot.isBuildingSnapshot());
+
 tmpdir.refresh();
 const blobPath = path.join(tmpdir.path, 'snapshot.blob');
 const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');

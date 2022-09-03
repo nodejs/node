@@ -392,6 +392,7 @@ static void ReportFatalException(Environment* env,
   }
 
   node::Utf8Value trace(env->isolate(), stack_trace);
+  std::string report_message = "Exception";
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !stack_trace->IsUndefined()) {
@@ -424,6 +425,8 @@ static void ReportFatalException(Environment* env,
     } else {
       node::Utf8Value name_string(env->isolate(), name.ToLocalChecked());
       node::Utf8Value message_string(env->isolate(), message.ToLocalChecked());
+      // Update the report message if it is an object has message property.
+      report_message = message_string.ToString();
 
       if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         FPrintF(stderr, "%s: %s\n", name_string, message_string);
@@ -443,6 +446,10 @@ static void ReportFatalException(Environment* env,
               "was thrown)\n",
               fs::Basename(argv0, ".exe"));
     }
+  }
+
+  if (env->isolate_data()->options()->report_uncaught_exception) {
+    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -474,10 +481,6 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   Isolate* isolate = Isolate::TryGetCurrent();
-  Environment* env = nullptr;
-  if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
-  }
   bool report_on_fatalerror;
   {
     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
@@ -485,8 +488,37 @@ void OnFatalError(const char* location, const char* message) {
   }
 
   if (report_on_fatalerror) {
-    report::TriggerNodeReport(
-        isolate, env, message, "FatalError", "", Local<Object>());
+    TriggerNodeReport(isolate, message, "FatalError", "", Local<Object>());
+  }
+
+  fflush(stderr);
+  ABORT();
+}
+
+void OOMErrorHandler(const char* location, bool is_heap_oom) {
+  const char* message =
+      is_heap_oom ? "Allocation failed - JavaScript heap out of memory"
+                  : "Allocation failed - process out of memory";
+  if (location) {
+    FPrintF(stderr, "FATAL ERROR: %s %s\n", location, message);
+  } else {
+    FPrintF(stderr, "FATAL ERROR: %s\n", message);
+  }
+
+  Isolate* isolate = Isolate::TryGetCurrent();
+  bool report_on_fatalerror;
+  {
+    Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+    report_on_fatalerror = per_process::cli_options->report_on_fatalerror;
+  }
+
+  if (report_on_fatalerror) {
+    // Trigger report with the isolate. Environment::GetCurrent may return
+    // nullptr here:
+    // - If the OOM is reported by a young generation space allocation,
+    //   Isolate::GetCurrentContext returns an empty handle.
+    // - Otherwise, Isolate::GetCurrentContext returns a non-empty handle.
+    TriggerNodeReport(isolate, message, "OOMError", "", Local<Object>());
   }
 
   fflush(stderr);

@@ -41,6 +41,7 @@ class RemoteFetcher extends Fetcher {
       algorithms: [this.pickIntegrityAlgorithm()],
     }
 
+    // eslint-disable-next-line promise/always-return
     fetch(this.resolved, fetchOpts).then(res => {
       res.body.on('error',
         /* istanbul ignore next - exceedingly rare and hard to simulate */

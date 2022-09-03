@@ -194,7 +194,7 @@ npm command-line interface
 <li><a href="https://docs.npmjs.com/cli/v8/configuring-npm/package-json#private"><code>:private</code></a> when a dependency is private</li>
 <li><code>:link</code> when a dependency is linked (for instance, workspaces or packages manually <a href="https://docs.npmjs.com/cli/v8/commands/npm-link"><code>linked</code></a></li>
 <li><code>:deduped</code> when a dependency has been deduped (note that this does <em>not</em> always mean the dependency has been hoisted to the root of node_modules)</li>
-<li><code>:override</code> when a dependency is an override (not implemented yet)</li>
+<li><code>:overridden</code> when a dependency has been overridden</li>
 <li><code>:extraneous</code> when a dependency exists but is not defined as a dependency of any node</li>
 <li><code>:invalid</code> when a dependency version is out of its ancestors specified range</li>
 <li><code>:missing</code> when a dependency is not found on disk</li>
@@ -264,14 +264,14 @@ npm command-line interface
 const arb = new Arborist({})
 </code></pre>
 <pre lang="js"><code>// root-level
-arb.loadActual((tree) =&gt; {
+arb.loadActual().then(async (tree) =&gt; {
   // query all production dependencies
   const results = await tree.querySelectorAll('.prod')
   console.log(results)
 })
 </code></pre>
 <pre lang="js"><code>// iterative
-arb.loadActual((tree) =&gt; {
+arb.loadActual().then(async (tree) =&gt; {
   // query for the deduped version of react
   const results = await tree.querySelectorAll('#react:not(:deduped)')
   // query the deduped react for git deps

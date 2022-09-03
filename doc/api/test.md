@@ -316,15 +316,48 @@ Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
 
+## `run([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} Configuration options for running tests. The following
+  properties are supported:
+  * `concurrency` {number|boolean} If a number is provided,
+    then that many files would run in parallel.
+    If truthy, it would run (number of cpu cores - 1)
+    files in parallel.
+    If falsy, it would only run one file at a time.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `true`.
+  * `files`: {Array} An array containing the list of files to run.
+    **Default** matching files from [test runner execution model][].
+  * `signal` {AbortSignal} Allows aborting an in-progress test execution.
+  * `timeout` {number} A number of milliseconds the test execution will
+    fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+* Returns: {TapStream}
+
+```js
+run({ files: [path.resolve('./tests/test.js')] })
+  .pipe(process.stdout);
+```
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -449,7 +482,7 @@ same as [`it([name], { todo: true }[, fn])`][it options].
 ### `before([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -477,7 +510,7 @@ describe('tests', async () => {
 ### `after([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -505,7 +538,7 @@ describe('tests', async () => {
 ### `beforeEach([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -524,7 +557,7 @@ before each subtest of the current suite.
 
 ```js
 describe('tests', async () => {
-  beforeEach(() => t.diagnostics('about to run a test'));
+  beforeEach(() => t.diagnostic('about to run a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
@@ -534,7 +567,7 @@ describe('tests', async () => {
 ### `afterEach([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -553,17 +586,60 @@ after each subtest of the current test.
 
 ```js
 describe('tests', async () => {
-  afterEach(() => t.diagnostics('about to run a test'));
+  afterEach(() => t.diagnostic('about to run a test'));
   it('is a subtest', () => {
     assert.ok('some relevant assertion here');
   });
 });
 ```
 
+## Class: `TapStream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends {ReadableStream}
+
+A successful call to [`run()`][] method will return a new {TapStream}
+object, streaming a [TAP][] output
+`TapStream` will emit events, in the order of the tests definition
+
+### Event: `'test:diagnostic'`
+
+* `message` {string} The diagnostic message.
+
+Emitted when [`context.diagnostic`][] is called.
+
+### Event: `'test:fail'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `error` {Error} The failure casing test to fail.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test fails.
+
+### Event: `'test:pass'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test passes.
+
 ## Class: `TestContext`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 An instance of `TestContext` is passed to each test function in order to
@@ -573,7 +649,7 @@ exposed as part of the API.
 ### `context.beforeEach([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
@@ -592,7 +668,7 @@ before each subtest of the current test.
 
 ```js
 test('top level test', async (t) => {
-  t.beforeEach((t) => t.diagnostics(`about to run ${t.name}`));
+  t.beforeEach((t) => t.diagnostic(`about to run ${t.name}`));
   await t.test(
     'This is a subtest',
     (t) => {
@@ -605,7 +681,7 @@ test('top level test', async (t) => {
 ### `context.afterEach([, fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
@@ -624,7 +700,7 @@ after each subtest of the current test.
 
 ```js
 test('top level test', async (t) => {
-  t.afterEach((t) => t.diagnostics(`finished running ${t.name}`));
+  t.afterEach((t) => t.diagnostic(`finished running ${t.name}`));
   await t.test(
     'This is a subtest',
     (t) => {
@@ -637,7 +713,9 @@ test('top level test', async (t) => {
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Message to be displayed as a TAP diagnostic.
@@ -655,7 +733,7 @@ test('top level test', (t) => {
 ### `context.name`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 The name of the test.
@@ -663,7 +741,9 @@ The name of the test.
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
@@ -687,7 +767,9 @@ test('top level test', (t) => {
 ### `context.signal`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
@@ -702,7 +784,9 @@ test('top level test', async (t) => {
 ### `context.skip([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional skip message to be displayed in TAP output.
@@ -722,7 +806,9 @@ test('top level test', (t) => {
 ### `context.todo([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional `TODO` message to be displayed in TAP output.
@@ -741,12 +827,16 @@ test('top level test', (t) => {
 ### `context.test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43505
     description: Add a `timeout` option.
 -->
@@ -796,7 +886,9 @@ test('top level test', async (t) => {
 ## Class: `SuiteContext`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 An instance of `SuiteContext` is passed to each suite function in order to
@@ -806,7 +898,7 @@ exposed as part of the API.
 ### `context.name`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 The name of the suite.
@@ -814,7 +906,9 @@ The name of the suite.
 ### `context.signal`
 
 <!-- YAML
-added: v18.7.0
+added:
+  - v18.7.0
+  - v16.17.0
 -->
 
 * {AbortSignal} Can be used to abort test subtasks when the test has been
@@ -825,6 +919,10 @@ added: v18.7.0
 [`--test`]: cli.md#--test
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`context.diagnostic`]: #contextdiagnosticmessage
+[`context.skip`]: #contextskipmessage
+[`context.todo`]: #contexttodomessage
+[`run()`]: #runoptions
 [`test()`]: #testname-options-fn
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn

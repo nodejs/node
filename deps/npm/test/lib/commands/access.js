@@ -57,7 +57,7 @@ t.test('edit', async t => {
   const { npm } = await loadMockNpm(t)
   await t.rejects(
     npm.exec('access', ['edit', '@scoped/another']),
-    /edit subcommand is not implemented yet/,
+    /edit subcommand is not implemented/,
     'should throw not implemented yet error'
   )
 })
@@ -79,7 +79,7 @@ t.test('access public on unscoped package', async t => {
 
 t.test('access public on scoped package', async t => {
   const name = '@scoped/npm-access-public-pkg'
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -94,6 +94,7 @@ t.test('access public on scoped package', async t => {
   })
   registry.access({ spec: name, access: 'public' })
   await npm.exec('access', ['public'])
+  t.match(logs.warn[0], ['access', 'public subcommand will be removed in the next version of npm'])
   t.equal(joinedOutput(), '')
 })
 
@@ -137,7 +138,7 @@ t.test('access restricted on unscoped package', async t => {
 
 t.test('access restricted on scoped package', async t => {
   const name = '@scoped/npm-access-restricted-pkg'
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -152,6 +153,9 @@ t.test('access restricted on scoped package', async t => {
   })
   registry.access({ spec: name, access: 'restricted' })
   await npm.exec('access', ['restricted'])
+  t.match(logs.warn[0],
+    ['access', 'restricted subcommand will be removed in the next version of npm']
+  )
   t.equal(joinedOutput(), '')
 })
 
@@ -274,7 +278,7 @@ t.test('access grant malformed team arg', async t => {
 })
 
 t.test('access 2fa-required', async t => {
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -286,11 +290,14 @@ t.test('access 2fa-required', async t => {
   })
   registry.access({ spec: '@scope/pkg', publishRequires2fa: true })
   await npm.exec('access', ['2fa-required', '@scope/pkg'])
+  t.match(logs.warn[0],
+    ['access', '2fa-required subcommand will be removed in the next version of npm']
+  )
   t.equal(joinedOutput(), '')
 })
 
 t.test('access 2fa-not-required', async t => {
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -302,6 +309,9 @@ t.test('access 2fa-not-required', async t => {
   })
   registry.access({ spec: '@scope/pkg', publishRequires2fa: false })
   await npm.exec('access', ['2fa-not-required', '@scope/pkg'])
+  t.match(logs.warn[0],
+    ['access', '2fa-not-required subcommand will be removed in the next version of npm']
+  )
   t.equal(joinedOutput(), '')
 })
 
@@ -348,7 +358,7 @@ t.test('access revoke malformed team arg', async t => {
 })
 
 t.test('npm access ls-packages with no team', async t => {
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -363,6 +373,9 @@ t.test('npm access ls-packages with no team', async t => {
   registry.whoami({ username: team })
   registry.lsPackages({ team, packages })
   await npm.exec('access', ['ls-packages'])
+  t.match(logs.warn[0],
+    ['access', 'ls-packages subcommand will be removed in the next version of npm']
+  )
   t.match(JSON.parse(joinedOutput()), packages)
 })
 
@@ -385,7 +398,7 @@ t.test('access ls-packages on team', async t => {
 })
 
 t.test('access ls-collaborators on current', async t => {
-  const { npm, joinedOutput } = await loadMockNpm(t, {
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
     config: {
       ...auth,
     },
@@ -403,6 +416,9 @@ t.test('access ls-collaborators on current', async t => {
   const collaborators = { 'test-user': 'read-write' }
   registry.lsCollaborators({ spec: 'yargs', collaborators })
   await npm.exec('access', ['ls-collaborators'])
+  t.match(logs.warn[0],
+    ['access', 'ls-collaborators subcommand will be removed in the next version of npm']
+  )
   t.match(JSON.parse(joinedOutput()), collaborators)
 })
 

@@ -2871,9 +2871,11 @@ Does not perform any other validation checks on the certificate.
 added: v6.3.0
 -->
 
-* Returns: {Object} An object containing commonly used constants for crypto and
-  security related operations. The specific constants currently defined are
-  described in [Crypto constants][].
+* {Object}
+
+An object containing commonly used constants for crypto and security related
+operations. The specific constants currently defined are described in
+[Crypto constants][].
 
 ### `crypto.DEFAULT_ENCODING`
 
@@ -2910,7 +2912,7 @@ is currently in use. Setting to true requires a FIPS build of Node.js.
 This property is deprecated. Please use `crypto.setFips()` and
 `crypto.getFips()` instead.
 
-### `crypto.checkPrime(candidate[, options[, callback]])`
+### `crypto.checkPrime(candidate[, options], callback)`
 
 <!-- YAML
 added: v15.8.0
@@ -2966,7 +2968,9 @@ Checks the primality of the `candidate`.
 added: v0.1.94
 deprecated: v10.0.0
 changes:
-  - version: v17.9.0
+  - version:
+    - v17.9.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42427
     description: The `authTagLength` option is now optional when using the
                  `chacha20-poly1305` cipher and defaults to 16 bytes.
@@ -3030,7 +3034,9 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: v17.9.0
+  - version:
+    - v17.9.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42427
     description: The `authTagLength` option is now optional when using the
                  `chacha20-poly1305` cipher and defaults to 16 bytes.
@@ -3103,7 +3109,9 @@ given IV will be.
 added: v0.1.94
 deprecated: v10.0.0
 changes:
-  - version: v17.9.0
+  - version:
+    - v17.9.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42427
     description: The `authTagLength` option is now optional when using the
                  `chacha20-poly1305` cipher and defaults to 16 bytes.
@@ -3145,7 +3153,9 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: v17.9.0
+  - version:
+    - v17.9.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42427
     description: The `authTagLength` option is now optional when using the
                  `chacha20-poly1305` cipher and defaults to 16 bytes.
@@ -3539,7 +3549,7 @@ and it will be impossible to extract the private key from the returned object.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The key can now be zero-length.
   - version: v15.0.0
@@ -4209,7 +4219,7 @@ web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The input keying material can now be zero-length.
   - version: v18.0.0
@@ -4272,7 +4282,7 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The input keying material can now be zero-length.
 -->

@@ -71,16 +71,19 @@ void LogSecret(
     const unsigned char* secret,
     size_t secretlen) {
   auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl.get()));
-  unsigned char crandom[32];
+  // All supported versions of TLS/SSL fix the client random to the same size.
+  constexpr size_t kTlsClientRandomSize = SSL3_RANDOM_SIZE;
+  unsigned char crandom[kTlsClientRandomSize];
 
   if (keylog_cb == nullptr ||
-      SSL_get_client_random(ssl.get(), crandom, 32) != 32) {
+      SSL_get_client_random(ssl.get(), crandom, kTlsClientRandomSize) !=
+          kTlsClientRandomSize) {
     return;
   }
 
   std::string line = name;
-  line += " " + StringBytes::hex_encode(
-      reinterpret_cast<const char*>(crandom), 32);
+  line += " " + StringBytes::hex_encode(reinterpret_cast<const char*>(crandom),
+                                        kTlsClientRandomSize);
   line += " " + StringBytes::hex_encode(
       reinterpret_cast<const char*>(secret), secretlen);
   keylog_cb(ssl.get(), line.c_str());
@@ -320,8 +323,9 @@ constexpr auto GetCipherVersion = GetCipherValue<SSL_CIPHER_get_version>;
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,
                           const STACK_OF(X509)* const ssl_certs) {
   StackOfX509 peer_certs(sk_X509_new(nullptr));
-  if (cert)
-    sk_X509_push(peer_certs.get(), cert.release());
+  if (!peer_certs) return StackOfX509();
+  if (cert && !sk_X509_push(peer_certs.get(), cert.release()))
+    return StackOfX509();
   for (int i = 0; i < sk_X509_num(ssl_certs); i++) {
     X509Pointer cert(X509_dup(sk_X509_value(ssl_certs, i)));
     if (!cert || !sk_X509_push(peer_certs.get(), cert.get()))

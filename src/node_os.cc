@@ -86,12 +86,12 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  // [sysname, version, release]
+  // [sysname, version, release, machine]
   Local<Value> osInformation[] = {
-    String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
-    String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked()
-  };
+      String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked(),
+      String::NewFromUtf8(env->isolate(), info.machine).ToLocalChecked()};
 
   args.GetReturnValue().Set(Array::New(env->isolate(),
                                        osInformation,
@@ -149,10 +149,15 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   double uptime;
   int err = uv_uptime(&uptime);
-  if (err == 0)
-    args.GetReturnValue().Set(uptime);
+  if (err != 0) {
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_uptime");
+    return args.GetReturnValue().SetUndefined();
+  }
+
+  args.GetReturnValue().Set(uptime);
 }
 
 

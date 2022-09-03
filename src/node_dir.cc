@@ -42,18 +42,57 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Value;
 
+static const char* get_dir_func_name_by_type(uv_fs_type req_type) {
+  switch (req_type) {
+#define FS_TYPE_TO_NAME(type, name)                                            \
+  case UV_FS_##type:                                                           \
+    return name;
+    FS_TYPE_TO_NAME(OPENDIR, "opendir")
+    FS_TYPE_TO_NAME(READDIR, "readdir")
+    FS_TYPE_TO_NAME(CLOSEDIR, "closedir")
+#undef FS_TYPE_TO_NAME
+    default:
+      return "unknow";
+  }
+}
+
 #define TRACE_NAME(name) "fs_dir.sync." #name
 #define GET_TRACE_ENABLED                                                      \
-  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                                 \
-  (TRACING_CATEGORY_NODE2(fs_dir, sync)) != 0)
+  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                                \
+       TRACING_CATEGORY_NODE2(fs_dir, sync)) != 0)
 #define FS_DIR_SYNC_TRACE_BEGIN(syscall, ...)                                  \
   if (GET_TRACE_ENABLED)                                                       \
-  TRACE_EVENT_BEGIN(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall), \
-  ##__VA_ARGS__);
+    TRACE_EVENT_BEGIN(TRACING_CATEGORY_NODE2(fs_dir, sync),                    \
+                      TRACE_NAME(syscall),                                     \
+                      ##__VA_ARGS__);
 #define FS_DIR_SYNC_TRACE_END(syscall, ...)                                    \
   if (GET_TRACE_ENABLED)                                                       \
-  TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs_dir, sync), TRACE_NAME(syscall),   \
-  ##__VA_ARGS__);
+    TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs_dir, sync),                      \
+                    TRACE_NAME(syscall),                                       \
+                    ##__VA_ARGS__);
+
+#define FS_DIR_ASYNC_TRACE_BEGIN0(fs_type, id)                                 \
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(TRACING_CATEGORY_NODE2(fs_dir, async),     \
+                                    get_dir_func_name_by_type(fs_type),        \
+                                    id);
+#define FS_DIR_ASYNC_TRACE_END0(fs_type, id)                                   \
+  TRACE_EVENT_NESTABLE_ASYNC_END0(TRACING_CATEGORY_NODE2(fs_dir, async),       \
+                                  get_dir_func_name_by_type(fs_type),          \
+                                  id);
+
+#define FS_DIR_ASYNC_TRACE_BEGIN1(fs_type, id, name, value)                    \
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(fs_dir, async),     \
+                                    get_dir_func_name_by_type(fs_type),        \
+                                    id,                                        \
+                                    name,                                      \
+                                    value);
+
+#define FS_DIR_ASYNC_TRACE_END1(fs_type, id, name, value)                      \
+  TRACE_EVENT_NESTABLE_ASYNC_END1(TRACING_CATEGORY_NODE2(fs_dir, async),       \
+                                  get_dir_func_name_by_type(fs_type),          \
+                                  id,                                          \
+                                  name,                                        \
+                                  value);
 
 DirHandle::DirHandle(Environment* env, Local<Object> obj, uv_dir_t* dir)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_DIRHANDLE),
@@ -132,7 +171,8 @@ inline void DirHandle::GCClose() {
 void AfterClose(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
-
+  FS_DIR_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   if (after.Proceed())
     req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
 }
@@ -151,6 +191,7 @@ void DirHandle::Close(const FunctionCallbackInfo<Value>& args) {
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 0);
   if (req_wrap_async != nullptr) {  // close(req)
+    FS_DIR_ASYNC_TRACE_BEGIN0(UV_FS_CLOSEDIR, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "closedir", UTF8, AfterClose,
               uv_fs_closedir, dir->dir());
   } else {  // close(undefined, ctx)
@@ -196,7 +237,8 @@ static MaybeLocal<Array> DirentListToArray(
 static void AfterDirRead(uv_fs_t* req) {
   BaseObjectPtr<FSReqBase> req_wrap { FSReqBase::from_req(req) };
   FSReqAfterScope after(req_wrap.get(), req);
-
+  FS_DIR_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   if (!after.Proceed()) {
     return;
   }
@@ -256,6 +298,7 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 2);
   if (req_wrap_async != nullptr) {  // dir.read(encoding, bufferSize, req)
+    FS_DIR_ASYNC_TRACE_BEGIN0(UV_FS_READDIR, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "readdir", encoding,
               AfterDirRead, uv_fs_readdir, dir->dir());
   } else {  // dir.read(encoding, bufferSize, undefined, ctx)
@@ -298,7 +341,8 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
 void AfterOpenDir(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
-
+  FS_DIR_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   if (!after.Proceed()) {
     return;
   }
@@ -325,6 +369,8 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 2);
   if (req_wrap_async != nullptr) {  // openDir(path, encoding, req)
+    FS_DIR_ASYNC_TRACE_BEGIN1(
+        UV_FS_OPENDIR, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "opendir", encoding, AfterOpenDir,
               uv_fs_opendir, *path);
   } else {  // openDir(path, encoding, undefined, ctx)

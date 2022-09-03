@@ -284,7 +284,9 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 ### Event: `'drop'`
 
 <!-- YAML
-added: v18.6.0
+added:
+  - v18.6.0
+  - v16.17.0
 -->
 
 When the number of connections reaches the threshold of `server.maxConnections`,
@@ -858,7 +860,7 @@ changes:
     - v17.7.0
     - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
-    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
                  options are supported now.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
@@ -1051,7 +1053,7 @@ The numeric representation of the local port. For example, `80` or `21`.
 ### `socket.localFamily`
 
 <!-- YAML
-added: REPLACEME
+added: v18.8.0
 -->
 
 * {string}
@@ -1126,7 +1128,9 @@ The numeric representation of the remote port. For example, `80` or `21`.
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 * Returns: {net.Socket}
@@ -1476,6 +1480,13 @@ then returns the `net.Socket` that starts the connection.
 
 <!-- YAML
 added: v0.5.0
+changes:
+  - version:
+    - v17.7.0
+    - v16.15.0
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
+                 options are supported now.
 -->
 
 * `options` {Object}

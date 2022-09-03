@@ -107,6 +107,7 @@ make
 
 * Python: [pallas/pyllhttp][8]
 * Ruby: [metabahn/llhttp][9]
+* Rust: [JackLiar/rust-llhttp][10]
 
 ### Using with CMake
 
@@ -114,7 +115,7 @@ If you want to use this library in a CMake project you can use the snippet below
 
 ```
 FetchContent_Declare(llhttp
-  URL "https://github.com/nodejs/llhttp/releases/download/v6.0.5/llhttp-release-v6.0.5.tar.gz")  # Using version 6.0.5
+  URL "https://github.com/nodejs/llhttp/archive/refs/tags/v6.0.5.tar.gz")  # Using version 6.0.5
 
 FetchContent_MakeAvailable(llhttp)
 
@@ -178,3 +179,4 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 [7]: https://github.com/nodejs/node
 [8]: https://github.com/pallas/pyllhttp
 [9]: https://github.com/metabahn/llhttp
+[10]: https://github.com/JackLiar/rust-llhttp

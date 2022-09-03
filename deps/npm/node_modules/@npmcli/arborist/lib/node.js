@@ -334,6 +334,10 @@ class Node {
     return `${myname}@${alias}${version}`
   }
 
+  get overridden () {
+    return !!(this.overrides && this.overrides.value && this.overrides.name === this.name)
+  }
+
   get package () {
     return this[_package]
   }
@@ -560,7 +564,8 @@ class Node {
     // this allows us to do new Node({...}) and then set the root later.
     // just make the assignment so we don't lose it, and move on.
     if (!this.path || !root.realpath || !root.path) {
-      return this[_root] = root
+      this[_root] = root
+      return
     }
 
     // temporarily become a root node

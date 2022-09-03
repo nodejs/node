@@ -51,20 +51,21 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(WASI)                                                                      \
   V(MKSNAPSHOT)
 
-enum class DebugCategory {
+enum class DebugCategory : unsigned int {
 #define V(name) name,
   DEBUG_CATEGORY_NAMES(V)
 #undef V
-      CATEGORY_COUNT
 };
+
+#define V(name) +1
+constexpr unsigned int kDebugCategoryCount = DEBUG_CATEGORY_NAMES(V);
+#undef V
 
 class NODE_EXTERN_PRIVATE EnabledDebugList {
  public:
-  bool enabled(DebugCategory category) const {
-    DCHECK_GE(static_cast<int>(category), 0);
-    DCHECK_LT(static_cast<int>(category),
-              static_cast<int>(DebugCategory::CATEGORY_COUNT));
-    return enabled_[static_cast<int>(category)];
+  bool FORCE_INLINE enabled(DebugCategory category) const {
+    DCHECK_LT(static_cast<unsigned int>(category), kDebugCategoryCount);
+    return enabled_[static_cast<unsigned int>(category)];
   }
 
   // Uses NODE_DEBUG_NATIVE to initialize the categories. The env_vars variable
@@ -74,16 +75,14 @@ class NODE_EXTERN_PRIVATE EnabledDebugList {
              v8::Isolate* isolate = nullptr);
 
  private:
-  // Set all categories matching cats to the value of enabled.
-  void Parse(const std::string& cats, bool enabled);
-  void set_enabled(DebugCategory category, bool enabled) {
-    DCHECK_GE(static_cast<int>(category), 0);
-    DCHECK_LT(static_cast<int>(category),
-              static_cast<int>(DebugCategory::CATEGORY_COUNT));
+  // Enable all categories matching cats.
+  void Parse(const std::string& cats);
+  void set_enabled(DebugCategory category) {
+    DCHECK_LT(static_cast<unsigned int>(category), kDebugCategoryCount);
     enabled_[static_cast<int>(category)] = true;
   }
 
-  bool enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {false};
+  bool enabled_[kDebugCategoryCount] = {false};
 };
 
 template <typename... Args>

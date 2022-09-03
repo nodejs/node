@@ -10,7 +10,9 @@ const FetchError = require('./fetch-error.js')
 let convert
 try {
   convert = require('encoding').convert
-} catch (e) {}
+} catch (e) {
+  // defer error until textConverted is called
+}
 
 const INTERNALS = Symbol('Body internals')
 const CONSUME_BODY = Symbol('consumeBody')
@@ -69,16 +71,16 @@ class Body {
     ))
   }
 
-  json () {
-    return this[CONSUME_BODY]().then(buf => {
-      try {
-        return JSON.parse(buf.toString())
-      } catch (er) {
-        return Promise.reject(new FetchError(
-          `invalid json response body at ${
-            this.url} reason: ${er.message}`, 'invalid-json'))
-      }
-    })
+  async json () {
+    try {
+      const buf = await this[CONSUME_BODY]()
+      return JSON.parse(buf.toString())
+    } catch (er) {
+      throw new FetchError(
+        `invalid json response body at ${this.url} reason: ${er.message}`,
+        'invalid-json'
+      )
+    }
   }
 
   text () {

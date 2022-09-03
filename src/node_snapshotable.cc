@@ -7,6 +7,7 @@
 #include "env-inl.h"
 #include "node_blob.h"
 #include "node_builtins.h"
+#include "node_contextify.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
@@ -15,6 +16,7 @@
 #include "node_metadata.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
+#include "node_util.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 
@@ -31,6 +33,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::SnapshotCreator;
@@ -65,6 +68,69 @@ std::ostream& operator<<(std::ostream& output,
     output << i << ",";
   }
   output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  " << info << ",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const PropInfo& info) {
+  output << "{ \"" << info.name << "\", " << std::to_string(info.id) << ", "
+         << std::to_string(info.index) << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  \"" << info << "\",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
+  output << "{\n"
+         << "// -- persistent_values begins --\n"
+         << i.persistent_values << ",\n"
+         << "// -- persistent_values ends --\n"
+         << i.context << ",  // context\n"
+         << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
+  output << "{\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
+         << "// -- builtins begins --\n"
+         << i.builtins << ",\n"
+         << "// -- builtins ends --\n"
+         << "// -- async_hooks begins --\n"
+         << i.async_hooks << ",\n"
+         << "// -- async_hooks ends --\n"
+         << i.tick_info << ",  // tick_info\n"
+         << i.immediate_info << ",  // immediate_info\n"
+         << "// -- performance_state begins --\n"
+         << i.performance_state << ",\n"
+         << "// -- performance_state ends --\n"
+         << i.exiting << ",  // exiting\n"
+         << i.stream_base_state << ",  // stream_base_state\n"
+         << i.should_abort_on_uncaught_toggle
+         << ",  // should_abort_on_uncaught_toggle\n"
+         << "// -- principal_realm begins --\n"
+         << i.principal_realm << ",\n"
+         << "// -- principal_realm ends --\n"
+         << "}";
   return output;
 }
 
@@ -635,6 +701,30 @@ size_t FileWriter::Write(const IsolateDataSerializeInfo& data) {
 }
 
 template <>
+RealmSerializeInfo FileReader::Read() {
+  per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<RealmSerializeInfo>()\n");
+  RealmSerializeInfo result;
+  result.persistent_values = ReadVector<PropInfo>();
+  result.context = Read<SnapshotIndex>();
+  return result;
+}
+
+template <>
+size_t FileWriter::Write(const RealmSerializeInfo& data) {
+  if (is_debug) {
+    std::string str = ToStr(data);
+    Debug("\nWrite<RealmSerializeInfo>() %s\n", str.c_str());
+  }
+
+  // Use += here to ensure order of evaluation.
+  size_t written_total = WriteVector<PropInfo>(data.persistent_values);
+  written_total += Write<SnapshotIndex>(data.context);
+
+  Debug("Write<RealmSerializeInfo>() wrote %d bytes\n", written_total);
+  return written_total;
+}
+
+template <>
 EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
@@ -648,8 +738,7 @@ EnvSerializeInfo FileReader::Read() {
   result.exiting = Read<AliasedBufferIndex>();
   result.stream_base_state = Read<AliasedBufferIndex>();
   result.should_abort_on_uncaught_toggle = Read<AliasedBufferIndex>();
-  result.persistent_values = ReadVector<PropInfo>();
-  result.context = Read<SnapshotIndex>();
+  result.principal_realm = Read<RealmSerializeInfo>();
   return result;
 }
 
@@ -672,8 +761,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   written_total += Write<AliasedBufferIndex>(data.stream_base_state);
   written_total +=
       Write<AliasedBufferIndex>(data.should_abort_on_uncaught_toggle);
-  written_total += WriteVector<PropInfo>(data.persistent_values);
-  written_total += Write<SnapshotIndex>(data.context);
+  written_total += Write<RealmSerializeInfo>(data.principal_realm);
 
   Debug("Write<EnvSerializeInfo>() wrote %d bytes\n", written_total);
   return written_total;
@@ -955,6 +1043,16 @@ const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
 )";
 }
 
+// Reset context settings that need to be initialized again after
+// deserialization.
+static void ResetContextSettingsBeforeSnapshot(Local<Context> context) {
+  // Reset the AllowCodeGenerationFromStrings flag to true (default value) so
+  // that it can be re-initialized with v8 flag
+  // --disallow-code-generation-from-strings and recognized in
+  // node::InitializeContextRuntime.
+  context->AllowCodeGenerationFromStrings(true);
+}
+
 Mutex SnapshotBuilder::snapshot_data_mutex_;
 
 const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
@@ -1030,6 +1128,19 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // The default context with only things created by V8.
     Local<Context> default_context = Context::New(isolate);
 
+    // The context used by the vm module.
+    Local<Context> vm_context;
+    {
+      Local<ObjectTemplate> global_template =
+          main_instance->isolate_data()->contextify_global_template();
+      CHECK(!global_template.IsEmpty());
+      if (!contextify::ContextifyContext::CreateV8Context(
+               isolate, global_template, nullptr, nullptr)
+               .ToLocal(&vm_context)) {
+        return SNAPSHOT_ERROR;
+      }
+    }
+
     // The Node.js-specific context with primodials, can be used by workers
     // TODO(joyeecheung): investigate if this can be used by vm contexts
     // without breaking compatibility.
@@ -1037,6 +1148,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     if (base_context.IsEmpty()) {
       return BOOTSTRAP_ERROR;
     }
+    ResetContextSettingsBeforeSnapshot(base_context);
 
     Local<Context> main_context = NewContext(isolate);
     if (main_context.IsEmpty()) {
@@ -1056,7 +1168,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
                             {});
 
       // Run scripts in lib/internal/bootstrap/
-      if (env->RunBootstrapping().IsEmpty()) {
+      if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
         return BOOTSTRAP_ERROR;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
@@ -1105,13 +1217,17 @@ int SnapshotBuilder::Generate(SnapshotData* out,
                            size_str.c_str());
       }
 #endif
+
+      ResetContextSettingsBeforeSnapshot(main_context);
     }
 
     // Global handles to the contexts can't be disposed before the
     // blob is created. So initialize all the contexts before adding them.
     // TODO(joyeecheung): figure out how to remove this restriction.
     creator.SetDefaultContext(default_context);
-    size_t index = creator.AddContext(base_context);
+    size_t index = creator.AddContext(vm_context);
+    CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
+    index = creator.AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
     index = creator.AddContext(main_context,
                                {SerializeNodeContextInternalFields, env});
@@ -1335,13 +1451,13 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   };
   ScriptCompiler::Source script_source(source, origin);
   Local<Function> fn;
-  if (ScriptCompiler::CompileFunctionInContext(context,
-                                               &script_source,
-                                               parameters.size(),
-                                               parameters.data(),
-                                               0,
-                                               nullptr,
-                                               ScriptCompiler::kEagerCompile)
+  if (ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters.size(),
+                                      parameters.data(),
+                                      0,
+                                      nullptr,
+                                      ScriptCompiler::kEagerCompile)
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }

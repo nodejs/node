@@ -26,6 +26,11 @@ The available categories are:
 * `node.net.native`: Enables capture of trace data for network.
 * `node.environment`: Enables capture of Node.js Environment milestones.
 * `node.fs.sync`: Enables capture of trace data for file system sync methods.
+* `node.fs_dir.sync`: Enables capture of trace data for file system sync
+  directory methods.
+* `node.fs.async`: Enables capture of trace data for file system async methods.
+* `node.fs_dir.async`: Enables capture of trace data for file system async
+  directory methods.
 * `node.perf`: Enables capture of [Performance API][] measurements.
   * `node.perf.usertiming`: Enables capture of only Performance API User Timing
     measures and marks.
@@ -226,6 +231,48 @@ t1.enable();
 t2.enable();
 
 console.log(trace_events.getEnabledCategories());
+```
+
+## Examples
+
+### Collect trace events data by inspector
+
+```js
+'use strict';
+
+const { Session } = require('inspector');
+const session = new Session();
+session.connect();
+
+function post(message, data) {
+  return new Promise((resolve, reject) => {
+    session.post(message, data, (err, result) => {
+      if (err)
+        reject(new Error(JSON.stringify(err)));
+      else
+        resolve(result);
+    });
+  });
+}
+
+async function collect() {
+  const data = [];
+  session.on('NodeTracing.dataCollected', (chunk) => data.push(chunk));
+  session.on('NodeTracing.tracingComplete', () => {
+    // done
+  });
+  const traceConfig = { includedCategories: ['v8'] };
+  await post('NodeTracing.start', { traceConfig });
+  // do something
+  setTimeout(() => {
+    post('NodeTracing.stop').then(() => {
+      session.disconnect();
+      console.log(data);
+    });
+  }, 1000);
+}
+
+collect();
 ```
 
 [Performance API]: perf_hooks.md

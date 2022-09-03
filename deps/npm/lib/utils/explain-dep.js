@@ -8,6 +8,7 @@ const nocolor = {
   magenta: s => s,
   blue: s => s,
   green: s => s,
+  gray: s => s,
 }
 
 const { relative } = require('path')
@@ -18,13 +19,14 @@ const explainNode = (node, depth, color) =>
   explainLinksIn(node, depth, color)
 
 const colorType = (type, color) => {
-  const { red, yellow, cyan, magenta, blue, green } = color ? chalk : nocolor
+  const { red, yellow, cyan, magenta, blue, green, gray } = color ? chalk : nocolor
   const style = type === 'extraneous' ? red
     : type === 'dev' ? yellow
     : type === 'optional' ? cyan
     : type === 'peer' ? magenta
     : type === 'bundled' ? blue
     : type === 'workspace' ? green
+    : type === 'overridden' ? gray
     : /* istanbul ignore next */ s => s
   return style(type)
 }
@@ -40,6 +42,7 @@ const printNode = (node, color) => {
     peer,
     bundled,
     isWorkspace,
+    overridden,
   } = node
   const { bold, dim, green } = color ? chalk : nocolor
   const extra = []
@@ -61,6 +64,10 @@ const printNode = (node, color) => {
 
   if (bundled) {
     extra.push(' ' + bold(colorType('bundled', color)))
+  }
+
+  if (overridden) {
+    extra.push(' ' + bold(colorType('overridden', color)))
   }
 
   const pkgid = isWorkspace
@@ -112,11 +119,15 @@ const explainDependents = ({ name, dependents }, depth, color) => {
   return str.split('\n').join('\n  ')
 }
 
-const explainEdge = ({ name, type, bundled, from, spec }, depth, color) => {
+const explainEdge = ({ name, type, bundled, from, spec, rawSpec, overridden }, depth, color) => {
   const { bold } = color ? chalk : nocolor
-  const dep = type === 'workspace'
+  let dep = type === 'workspace'
     ? bold(relative(from.location, spec.slice('file:'.length)))
     : `${bold(name)}@"${bold(spec)}"`
+  if (overridden) {
+    dep = `${colorType('overridden', color)} ${dep} (was "${rawSpec}")`
+  }
+
   const fromMsg = ` from ${explainFrom(from, depth, color)}`
 
   return (type === 'prod' ? '' : `${colorType(type, color)} `) +

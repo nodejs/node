@@ -285,7 +285,6 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "close", Close);
     SetProtoMethod(isolate, tmpl, "loadPKCS12", LoadPKCS12);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
-    SetProtoMethod(isolate, tmpl, "setFreeListLength", SetFreeListLength);
     SetProtoMethod(
         isolate, tmpl, "enableTicketKeyCallback", EnableTicketKeyCallback);
 
@@ -365,7 +364,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(Close);
   registry->Register(LoadPKCS12);
   registry->Register(SetTicketKeys);
-  registry->Register(SetFreeListLength);
   registry->Register(EnableTicketKeyCallback);
   registry->Register(GetTicketKeys);
   registry->Register(GetCertificate<true>);
@@ -503,8 +501,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       max_version = TLS1_2_VERSION;
       method = TLS_client_method();
     } else {
-      const std::string msg("Unknown method: ");
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, (msg + * sslmethod).c_str());
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(
+          env, "Unknown method: %s", *sslmethod);
       return;
     }
   }
@@ -1119,9 +1117,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
-}
-
-void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Currently, EnableTicketKeyCallback and TicketKeyCallback are only present for

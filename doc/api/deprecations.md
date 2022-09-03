@@ -3149,7 +3149,9 @@ Convert them to primitive strings.
 
 <!-- YAML
 changes:
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42714
     description: Documentation-only deprecation.
 -->
@@ -3167,7 +3169,9 @@ thing instead.
 
 <!-- YAML
 changes:
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43738
     description: Documentation-only deprecation.
 -->
@@ -3181,7 +3185,7 @@ strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/44093
     description: Documentation-only deprecation.
 -->

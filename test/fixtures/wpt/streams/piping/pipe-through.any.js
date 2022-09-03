@@ -1,4 +1,4 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 // META: script=../resources/rs-utils.js
 // META: script=../resources/test-utils.js
 // META: script=../resources/recording-streams.js
@@ -266,3 +266,66 @@ test(() => {
     }
   }), 'pipeThrough should throw');
 }, 'pipeThrough() should throw if an option getter grabs a writer');
+
+test(() => {
+  const rs = new ReadableStream();
+  const readable = new ReadableStream();
+  const writable = new WritableStream();
+  rs.pipeThrough({readable, writable}, null);
+}, 'pipeThrough() should not throw if option is null');
+
+test(() => {
+  const rs = new ReadableStream();
+  const readable = new ReadableStream();
+  const writable = new WritableStream();
+  rs.pipeThrough({readable, writable}, {signal:undefined});
+}, 'pipeThrough() should not throw if signal is undefined');
+
+function tryPipeThrough(pair, options)
+{
+  const rs = new ReadableStream();
+  if (!pair)
+    pair = {readable:new ReadableStream(), writable:new WritableStream()};
+  try {
+    rs.pipeThrough(pair, options)
+  } catch (e) {
+    return e;
+  }
+}
+
+test(() => {
+  let result = tryPipeThrough({
+    get readable() {
+      return new ReadableStream();
+    },
+    get writable() {
+      throw "writable threw";
+    }
+  }, { });
+  assert_equals(result, "writable threw");
+
+  result = tryPipeThrough({
+    get readable() {
+      throw "readable threw";
+    },
+    get writable() {
+      throw "writable threw";
+    }
+  }, { });
+  assert_equals(result, "readable threw");
+
+  result = tryPipeThrough({
+    get readable() {
+      throw "readable threw";
+    },
+    get writable() {
+      throw "writable threw";
+    }
+  }, {
+    get preventAbort() {
+      throw "preventAbort threw";
+    }
+  });
+  assert_equals(result, "readable threw");
+
+}, 'pipeThrough() should throw if readable/writable getters throw');
