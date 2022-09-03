@@ -112,24 +112,24 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, 'C1EA7B03D5956D52');
+  assert.strictEqual(peerCert.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
   assert.strictEqual(peerCert.exponent, undefined);
   assert.strictEqual(peerCert.pubKey, undefined);
   assert.strictEqual(peerCert.modulus, undefined);
   assert.strictEqual(
     peerCert.fingerprint,
-    'DF:F0:D3:6B:C3:E7:74:7C:C7:F3:FB:1E:33:12:AE:6C:8D:53:5F:74'
+    '31:EB:2C:7B:AA:39:E8:E8:F5:43:62:05:CD:64:B3:66:1E:EA:44:A3'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    'AB:08:3C:40:C7:07:D7:D1:79:32:92:3B:96:52:D0:38:4C:22:ED:CD:23:51:D0:A1:' +
-    '67:AA:33:A0:D5:26:5C:41'
+    'B9:27:E4:8F:C0:F5:E3:FD:A6:E5:96:11:DB:69:B8:80:94:8B:0F:6A:4C:D6:80:4F:' +
+    '87:31:3C:A3:77:6C:4C:0A'
   );
   assert.strictEqual(
     peerCert.fingerprint512,
-    '52:F4:86:64:69:0F:94:6F:78:DE:17:7A:5C:92:CA:0F:05:2E:6A:EE:4A:FF:8B:39:' +
-    'D6:5E:7A:B8:08:77:B3:80:FC:40:A1:F4:58:CC:7A:DF:BB:3D:38:F9:02:77:50:2B:' +
-    '9A:0B:FB:79:B4:BD:E9:F5:9C:44:C8:5D:D5:F0:E2:BC'
+    '45:E3:ED:6E:22:1C:3C:DD:D7:E1:65:A9:30:6E:79:0C:9F:98:B8:BC:24:BB:BA:32:' +
+    '54:4D:70:4E:78:4F:1B:97:3C:A7:F5:DB:06:F1:36:E9:53:4C:0A:D2:86:83:79:8A:' +
+    '72:2B:81:55:5D:6F:BC:A6:5B:61:85:26:6B:9D:3E:E8'
   );
 
   assert.strictEqual(
@@ -144,7 +144,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, 'C1EA7B03D5956D52');
+  assert.strictEqual(issuer.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
 
   return cleanup();
 });
