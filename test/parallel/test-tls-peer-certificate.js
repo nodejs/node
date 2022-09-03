@@ -53,7 +53,7 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, 'ECC9B856270DA9AA');
+  assert.strictEqual(peerCert.serialNumber, '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
   assert.strictEqual(peerCert.exponent, '0x10001');
   assert.strictEqual(peerCert.bits, 2048);
   // The conversion to bits is odd because modulus isn't a buffer, its a hex
@@ -62,18 +62,18 @@ connect({
   assert.strictEqual(peerCert.modulus.length / 2 * 8, peerCert.bits);
   assert.strictEqual(
     peerCert.fingerprint,
-    '39:3C:63:64:25:25:9B:BC:5B:51:6D:05:EE:DA:6F:40:4A:E5:54:06'
+    '8B:89:16:C4:99:87:D2:13:1A:64:94:36:38:A5:32:01:F0:95:3B:53'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    '05:C8:51:4C:42:C9:E7:6E:4D:78:BE:9B:48:F6:B6:C8:A0:' +
-    '97:7F:42:87:B5:06:97:E7:DE:A5:3A:4D:BE:BA:CC',
+    '2C:62:59:16:91:89:AB:90:6A:3E:98:88:A6:D3:C5:58:58:6C:AE:FF:9C:33:' +
+    '22:7C:B6:77:D3:34:E7:53:4B:05',
    );
   assert.strictEqual(
     peerCert.fingerprint512,
-    '51:62:18:39:E2:E2:77:F5:86:11:E8:C0:CA:54:43:7C:76:83:19:05:D0:03:' +
-    '24:21:B8:EB:14:61:FB:24:16:EB:BD:51:1A:17:91:04:30:03:EB:68:5F:DC:' +
-    '86:E1:D1:7C:FB:AF:78:ED:63:5F:29:9C:32:AF:A1:8E:22:96:D1:02'
+    '0B:6F:D0:4D:6B:22:53:99:66:62:51:2D:2C:96:F2:58:3F:95:1C:CC:4C:44:' +
+    '9D:B5:59:AA:AD:A8:F6:2A:24:8A:BB:06:A5:26:42:52:30:A3:37:61:30:A9:' +
+    '5A:42:63:E0:21:2F:D6:70:63:07:96:6F:27:A7:78:12:08:02:7A:8B'
   );
 
   // SHA256 fingerprint of the public key
@@ -93,7 +93,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, 'CB153AE212609FC6');
+  assert.strictEqual(issuer.serialNumber, '4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229');
 
   return cleanup();
 });
