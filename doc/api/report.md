@@ -37,7 +37,7 @@ is provided below for reference.
       "/home/nodeuser/project/node/test/report/test-exception.js",
       "child"
     ],
-    "nodejsVersion": "v12.0.0-pre",
+    "nodejsVersion": "v19.0.0-pre",
     "glibcVersionRuntime": "2.17",
     "glibcVersionCompiler": "2.17",
     "wordSize": "64 bit",
@@ -395,6 +395,21 @@ is provided below for reference.
     "/lib64/libpthread.so.0",
     "/lib64/libc.so.6",
     "/lib64/ld-linux-x86-64.so.2"
+  ],
+  "requests": [
+    {
+      "type": "FSReqCallback"
+    },
+    {
+      "type": "GetAddrInfoReqWrap",
+      "family": 0,
+      "hostname": "localhost"
+    },
+    {
+      "type": "ConnectWrap",
+      "address": "127.0.0.1",
+      "port": 9999
+    }
   ]
 }
 ```

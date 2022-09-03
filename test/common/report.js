@@ -59,7 +59,7 @@ function _validateContent(report, fields = []) {
 
   // Verify that all sections are present as own properties of the report.
   const sections = ['header', 'nativeStack', 'libuv', 'environmentVariables',
-                    'sharedObjects', 'resourceUsage', 'workers'];
+                    'sharedObjects', 'resourceUsage', 'workers', 'requests'];
   if (!isWindows)
     sections.push('userLimits');
 
@@ -310,6 +310,11 @@ function _validateContent(report, fields = []) {
   // Verify the format of the workers section.
   assert(Array.isArray(report.workers));
   report.workers.forEach((worker) => _validateContent(worker));
+
+  assert(Array.isArray(report.requests));
+  report.requests.forEach(({ type }) => {
+    assert.strictEqual(typeof type, 'string');
+  });
 }
 
 function checkForUnknownFields(actual, expected) {

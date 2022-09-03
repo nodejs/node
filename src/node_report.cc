@@ -81,6 +81,9 @@ static void PrintComponentVersions(JSONWriter* writer);
 static void PrintRelease(JSONWriter* writer);
 static void PrintCpuInfo(JSONWriter* writer);
 static void PrintNetworkInterfaceInfo(JSONWriter* writer);
+static void PrintRequestInfo(JSONWriter* writer,
+                             Environment* env,
+                             const char* trigger);
 
 // Internal function to coordinate and write the various
 // sections of the report to the supplied stream
@@ -242,6 +245,13 @@ static void WriteNodeReport(Isolate* isolate,
 
   // Report operating system information
   PrintSystemInformation(&writer);
+
+  // Report request info
+  writer.json_arraystart("requests");
+  if (env != nullptr) {
+    PrintRequestInfo(&writer, env, trigger);
+  }
+  writer.json_arrayend();
 
   writer.json_objectend();
 
@@ -780,6 +790,38 @@ static void PrintRelease(JSONWriter* writer) {
 #endif  // NODE_HAS_RELEASE_URLS
 
   writer->json_objectend();
+}
+
+static void PrintRequestInfo(JSONWriter* writer,
+                             Environment* env,
+                             const char* trigger) {
+  bool printOwnerInfo = strcmp(trigger, "OOMError") != 0;
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
+    if (w->persistent().IsEmpty()) continue;
+    writer->json_start();
+    writer->json_keyvalue("type", w->MemoryInfoName().c_str());
+    if (printOwnerInfo) {
+      Local<v8::Object> owner = w->GetOwner();
+      Local<Array> keys =
+          owner->GetOwnPropertyNames(env->context()).ToLocalChecked();
+      uint32_t len = keys->Length();
+      for (uint32_t i = 0; i < len; i++) {
+        Local<Value> key = keys->Get(env->context(), i).ToLocalChecked();
+        Local<Value> value = owner->Get(env->context(), key).ToLocalChecked();
+        node::Utf8Value k(env->isolate(), key);
+        if (value->IsString()) {
+          node::Utf8Value v(env->isolate(), value);
+          writer->json_keyvalue(*k, *v);
+        } else if (value->IsNumber()) {
+          int v = static_cast<int>(value.As<v8::Uint32>()->Value());
+          writer->json_keyvalue(*k, v);
+        }
+      }
+    }
+    // We can add more info here
+    writer->json_end();
+  }
 }
 
 }  // namespace report

@@ -2,7 +2,7 @@
 require('../common');
 const assert = require('assert');
 const helper = require('../common/report');
-
+const fs = require('fs');
 {
   // Test with no arguments.
   helper.validateContent(process.report.getReport());
@@ -28,6 +28,13 @@ const helper = require('../common/report');
   error.foo = 'goo';
   helper.validateContent(process.report.getReport(error),
                          [['javascriptStack.errorProperties.foo', 'goo']]);
+}
+
+{
+  fs.readFile(__filename, () => {});
+  const report = process.report.getReport();
+  helper.validateContent(report, []);
+  assert(report.requests.length > 0);
 }
 
 // Test with an invalid error argument.
