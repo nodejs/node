@@ -756,3 +756,21 @@ assert.throws(
     message: /digest too big for rsa key/
   });
 }
+
+{
+  // This should not cause a crash: https://github.com/nodejs/node/issues/44471
+  for (const key of ['', 'foo', null, undefined, true, Boolean]) {
+    assert.throws(() => {
+      crypto.verify('sha256', 'foo', { key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createVerify('sha256').verify({ key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.sign('sha256', 'foo', { key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createSign('sha256').sign({ key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+  }
+}
