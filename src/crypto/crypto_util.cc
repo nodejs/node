@@ -76,10 +76,16 @@ void CheckEntropy() {
 bool EntropySource(unsigned char* buffer, size_t length) {
   // Ensure that OpenSSL's PRNG is properly seeded.
   CheckEntropy();
-  // RAND_bytes() can return 0 to indicate that the entropy data is not truly
-  // random. That's okay, it's still better than V8's stock source of entropy,
-  // which is /dev/urandom on UNIX platforms and the current time on Windows.
-  return RAND_bytes(buffer, length) != -1;
+  // If RAND_bytes() returns 0 or -1, the data might not be random at all. In
+  // that case, return false, which causes V8 to use its own entropy source. The
+  // quality of V8's entropy source depends on multiple factors and we should
+  // not assume that it is cryptographically secure (even though it often is).
+  // However, even if RAND_bytes() fails and V8 resorts to its potentially weak
+  // entropy source, it really does not matter much: V8 only uses the entropy
+  // source to seed its own PRNG, which itself is not cryptographically secure.
+  // In other words, even a cryptographically secure entropy source would not
+  // guarantee cryptographically secure random numbers in V8.
+  return RAND_bytes(buffer, length) == 1;
 }
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
