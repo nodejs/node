@@ -958,6 +958,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/base64/base64.gyp:base64',
+        'deps/bufferswap/bufferswap.gyp:bufferswap',
         'deps/googletest/googletest.gyp:gtest',
         'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
