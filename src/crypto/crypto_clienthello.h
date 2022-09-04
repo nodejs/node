@@ -66,7 +66,7 @@ class ClientHelloParser {
   void Parse(const uint8_t* data, size_t avail);
 
   inline void Reset();
-  inline void Start(OnHelloCb onhello_cb, OnEndCb onend_cb, void* onend_arg);
+  inline void Start(OnHelloCb onhello_cb, OnEndCb onend_cb, void* cb_arg);
   inline void End();
   inline bool IsPaused() const;
   inline bool IsEnded() const;
