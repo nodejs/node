@@ -21,7 +21,7 @@ exports[`test/lib/commands/init.js TAP workspaces post workspace-init reify > sh
 Array [
   Array [
     String(
-
+      
       added 1 package in 100ms
     ),
   ],

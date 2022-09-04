@@ -77,9 +77,9 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---link
 exports[`test/lib/commands/ls.js TAP ls --long --depth=0 > should output tree containing top-level deps with descriptions 1`] = `
 test-npm-ls@1.0.0
 | {CWD}/tap-testdir-ls-ls---long---depth-0
-|
+| 
 +-- chai@1.0.0
-|
+|   
 +-- dev-dep@1.0.0
 |   A DEV dep kind of dep
 +-- optional-dep@1.0.0
@@ -94,15 +94,15 @@ test-npm-ls@1.0.0
 exports[`test/lib/commands/ls.js TAP ls --long > should output tree info with descriptions 1`] = `
 test-npm-ls@1.0.0
 | {CWD}/tap-testdir-ls-ls---long
-|
+| 
 +-- chai@1.0.0
-|
+|   
 +-- dev-dep@1.0.0
 | | A DEV dep kind of dep
 | \`-- foo@1.0.0
-|   |
+|   | 
 |   \`-- dog@1.0.0
-|
+|       
 +-- optional-dep@1.0.0
 |   Maybe a dep?
 +-- peer-dep@1.0.0

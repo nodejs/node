@@ -29,7 +29,7 @@ Object {
     Array [
       "404",
       String(
-
+        
         Note that you can also install from a
       ),
     ],
@@ -1502,7 +1502,7 @@ Object {
       String(
         This is a problem related to network connectivity.
         In most cases you are behind a proxy or have bad network settings.
-
+        
         If you are behind a proxy, please make sure that the
         'proxy' config is set properly.  See: 'npm help config'
       ),

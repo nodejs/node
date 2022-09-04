@@ -44,7 +44,7 @@ timing npm:load:configload Completed in {TIME}ms
 timing npm:load:mkdirpcache Completed in {TIME}ms
 timing npm:load:mkdirplogs Completed in {TIME}ms
 verbose title npm
-verbose argv
+verbose argv 
 timing npm:load:setTitle Completed in {TIME}ms
 timing npm:load:display Completed in {TIME}ms
 verbose logfile logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs

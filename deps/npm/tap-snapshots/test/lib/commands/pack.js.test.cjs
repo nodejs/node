@@ -13,14 +13,14 @@ Array [
   "41B package.json",
   undefined,
   String(
-    name:          test-package
-    version:       1.0.0
-    filename:      test-package-1.0.0.tgz
-    package size:  136 B
-    unpacked size: 41 B
+    name:          test-package                            
+    version:       1.0.0                                   
+    filename:      test-package-1.0.0.tgz                  
+    package size:  136 B                                   
+    unpacked size: 41 B                                    
     shasum:        a92a0679a70a450f14f98a468756948a679e4107
     integrity:     sha512-Gka9ZV/Bryxky[...]LgMJ+0F+FhXMA==
-    total files:   1
+    total files:   1                                       
   ),
   "",
 ]
@@ -64,14 +64,14 @@ Array [
   "41B package.json",
   undefined,
   String(
-    name:          test-package
-    version:       1.0.0
-    filename:      test-package-1.0.0.tgz
-    package size:  136 B
-    unpacked size: 41 B
+    name:          test-package                            
+    version:       1.0.0                                   
+    filename:      test-package-1.0.0.tgz                  
+    package size:  136 B                                   
+    unpacked size: 41 B                                    
     shasum:        a92a0679a70a450f14f98a468756948a679e4107
     integrity:     sha512-Gka9ZV/Bryxky[...]LgMJ+0F+FhXMA==
-    total files:   1
+    total files:   1                                       
   ),
   "",
 ]

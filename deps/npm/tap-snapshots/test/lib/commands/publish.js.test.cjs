@@ -35,14 +35,14 @@ Array [
   Array [
     "",
     String(
-      name:          test-package
-      version:       1.0.0
-      filename:      test-package-1.0.0.tgz
-      package size:  160 B
-      unpacked size: 87 B
+      name:          test-package                            
+      version:       1.0.0                                   
+      filename:      test-package-1.0.0.tgz                  
+      package size:  160 B                                   
+      unpacked size: 87 B                                    
       shasum:{sha}
       integrity:{sha}
-      total files:   1
+      total files:   1                                       
     ),
   ],
   Array [
@@ -139,7 +139,7 @@ Array [
   Array [
     "",
     String(
-      26B index.js
+      26B index.js    
       98B package.json
     ),
   ],
@@ -149,14 +149,14 @@ Array [
   Array [
     "",
     String(
-      name:          test-tar-package
-      version:       1.0.0
-      filename:      test-tar-package-1.0.0.tgz
-      package size:  218 B
-      unpacked size: 124 B
+      name:          test-tar-package                        
+      version:       1.0.0                                   
+      filename:      test-tar-package-1.0.0.tgz              
+      package size:  218 B                                   
+      unpacked size: 124 B                                   
       shasum:{sha}
       integrity:{sha}
-      total files:   2
+      total files:   2                                       
     ),
   ],
   Array [
