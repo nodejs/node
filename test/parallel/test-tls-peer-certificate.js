@@ -68,7 +68,7 @@ connect({
     peerCert.fingerprint256,
     '2C:62:59:16:91:89:AB:90:6A:3E:98:88:A6:D3:C5:58:58:6C:AE:FF:9C:33:' +
     '22:7C:B6:77:D3:34:E7:53:4B:05',
-   );
+  );
   assert.strictEqual(
     peerCert.fingerprint512,
     '0B:6F:D0:4D:6B:22:53:99:66:62:51:2D:2C:96:F2:58:3F:95:1C:CC:4C:44:' +
