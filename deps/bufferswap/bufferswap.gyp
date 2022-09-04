@@ -6,8 +6,12 @@
     {
       'target_name': 'bufferswap',
       'type': 'static_library',
-      'include_dirs': [ 'include', 'src' ],
-      'sources': [ 'src/lib.c' ],
+      'include_dirs': [ 'include', 'lib' ],
+      'direct_dependent_settings': {
+        'include_dirs': [ 'include' ],
+        'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
+      },
+      'sources': [ 'include/libbufferswap.h', 'lib/lib.c' ],
       'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
       'conditions': [
         [ 'target_arch in "x64" and OS!="win"', {

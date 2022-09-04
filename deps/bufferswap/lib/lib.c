@@ -54,45 +54,43 @@
       return true;
     }
     else {
-      #ifdef BUFFERSWAP_X86_SIMD
-        unsigned int eax, ebx = 0, ecx = 0, edx;
-        unsigned int max_level;
+      unsigned int eax, ebx = 0, ecx = 0, edx;
+      unsigned int max_level;
 
-        #ifdef _MSC_VER
-          int info[4];
-          __cpuidex(info, 0, 0);
-          max_level = info[0];
-        #else
-          max_level = __get_cpuid_max(0, NULL);
-        #endif
+      #ifdef _MSC_VER
+        int info[4];
+        __cpuidex(info, 0, 0);
+        max_level = info[0];
+      #else
+        max_level = __get_cpuid_max(0, NULL);
+      #endif
 
-        // Check for AVX512 support:
-        // 1) CPUID indicates that the OS uses XSAVE and XRSTORE instructions
-        //    (allowing saving YMM registers on context switch)
-        // 2) CPUID indicates support for AVX
-        // 3) XGETBV indicates the AVX registers will be saved and restored on
-        //    context switch
-        //
-        // Note that XGETBV is only available on 686 or later CPUs, so the
-        // instruction needs to be conditionally run.
-        if (max_level >= 1) {
-          __cpuid_count(1, 0, eax, ebx, ecx, edx);
-          if (ecx & bit_XSAVE_XRSTORE) {
-            uint64_t xcr_mask;
-            xcr_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
-            if (xcr_mask & _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS) {
-              if (max_level >= 7) {
-                __cpuid_count(7, 0, eax, ebx, ecx, edx);
-                if (ecx & bit_AVX512VBMI) {
-                  return true;
-                }
+      // Check for AVX512 support:
+      // 1) CPUID indicates that the OS uses XSAVE and XRSTORE instructions
+      //    (allowing saving YMM registers on context switch)
+      // 2) CPUID indicates support for AVX
+      // 3) XGETBV indicates the AVX registers will be saved and restored on
+      //    context switch
+      //
+      // Note that XGETBV is only available on 686 or later CPUs, so the
+      // instruction needs to be conditionally run.
+      if (max_level >= 1) {
+        __cpuid_count(1, 0, eax, ebx, ecx, edx);
+        if (ecx & bit_XSAVE_XRSTORE) {
+          uint64_t xcr_mask;
+          xcr_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+          if (xcr_mask & _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS) {
+            if (max_level >= 7) {
+              __cpuid_count(7, 0, eax, ebx, ecx, edx);
+              if (ecx & bit_AVX512VBMI) {
+                supported = true;
               }
             }
           }
         }
-      #endif
+      }
     }
-    return false;
+    return supported;
   }
   #include <immintrin.h>
   void
@@ -154,21 +152,26 @@
       nbytes -= 64;
     }
   }
-
-  void
-  swap_simd (char* data, size_t nbytes, size_t size) {
-    if(support_simd()) {
-      switch(size) {
-        case 16:
-          swap16(data, nbytes);
-          break;
-        case 32:
-          swap32(data, nbytes);
-          break;
-        case 64:
-          swap64(data, nbytes);
-          break;
-      }
+#else // only support X64
+  bool support_simd() {
+    return false;
     }
+#endif
+
+void
+swap_simd (char* data, size_t nbytes, size_t size) {
+  if(!support_simd()) 
+    return;
+
+  switch(size) {
+    case 16:
+      swap16(data, nbytes);
+      break;
+    case 32:
+      swap32(data, nbytes);
+      break;
+    case 64:
+      swap64(data, nbytes);
+      break;
   }
-#endif //BUFFERSWAP_X86
+}
