@@ -807,7 +807,7 @@ negotiation.
 Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 
 Methods that return TLS connection metadata (e.g.
-[`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
+[`tls.TLSSocket.getPeerCertificate()`][]) will only return data while the
 connection is open.
 
 ### `new tls.TLSSocket(socket[, options])`
