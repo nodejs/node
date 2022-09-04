@@ -11,7 +11,7 @@
         'include_dirs': [ 'include' ],
         'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
       },
-      'sources': [ 'include/libbufferswap.h', 'lib/lib.c' ],
+      'sources': [ 'include/libbufferswap.h', 'lib/arch/avx512/swap.c', 'lib/lib.c' ],
       'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
       'conditions': [
         [ 'target_arch in "x64" and OS!="win"', {

@@ -217,7 +217,7 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
   
-  swap_simd(data, nbytes, 16);
+  ::swap_simd(data, nbytes, 16);
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint16_t)) == data) {
@@ -242,7 +242,7 @@ void SwapBytes16(char* data, size_t nbytes) {
 void SwapBytes32(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
   
-  swap_simd(data, nbytes, 32);
+  ::swap_simd(data, nbytes, 32);
 
 #if defined(_MSC_VER)
   // MSVC has no strict aliasing, and is able to highly optimize this case.
@@ -267,7 +267,7 @@ void SwapBytes32(char* data, size_t nbytes) {
 void SwapBytes64(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
 
-  swap_simd(data, nbytes, 64);
+  //::swap_simd(data, nbytes, 64);
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint64_t)) == data) {
