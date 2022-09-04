@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
-const keylen_list = ['1024', '2048'];
+const keylen_list = ['2048'];
 const RSA_PublicPem = {};
 const RSA_PrivatePem = {};
 
