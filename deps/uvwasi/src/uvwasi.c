@@ -1384,8 +1384,14 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
       }
 
       /* Write dirent to the buffer if it will fit. */
-      if (UVWASI_SERDES_SIZE_dirent_t + *bufused > buf_len)
+      if (UVWASI_SERDES_SIZE_dirent_t + *bufused > buf_len) {
+        /* If there are more entries to be written to the buffer we set
+         * bufused, which is the return value, to the length of the buffer
+         * which indicates that there are more entries to be read.
+         */
+        *bufused = buf_len;
         break;
+      }
 
       uvwasi_serdes_write_dirent_t(buf, *bufused, &dirent);
       *bufused += UVWASI_SERDES_SIZE_dirent_t;
