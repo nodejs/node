@@ -100,8 +100,6 @@
                   'defines': [ 'X86_NOT_WINDOWS' ],
                 }]
               ],
-            }, {
-              'sources': [ 'simd_stub.c', ],
             }],
             ['arm_fpu=="neon"', {
               'defines': [
