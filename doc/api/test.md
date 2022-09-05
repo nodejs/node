@@ -338,6 +338,10 @@ added: REPLACEME
     fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `inspectPort` {number|Function} Sets inspector port of test child process.
+    This can be a number, or a function that takes no arguments and returns a
+    number. By default each process gets its own port, incremented from the
+    primary's `process.debugPort`.
 * Returns: {TapStream}
 
 ```js
