@@ -52,7 +52,7 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static bool extra_root_certs_loaded = false;
+static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
 X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
@@ -197,26 +197,66 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
+unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
+    std::vector<X509*>* certs,
+    const char* file) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  BIOPointer bio(BIO_new_file(file, "r"));
+  if (!bio) return ERR_get_error();
+
+  while (X509* x509 = PEM_read_bio_X509(
+             bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+    certs->push_back(x509);
+  }
+
+  unsigned long err = ERR_peek_last_error();  // NOLINT(runtime/int)
+  // Ignore error if its EOF/no start line found.
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    return 0;
+  } else {
+    return err;
+  }
+}
+
 X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
+  static bool root_certs_vector_loaded = false;
   static Mutex root_certs_vector_mutex;
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
-  if (root_certs_vector.empty() &&
-      per_process::cli_options->ssl_openssl_cert_store == false) {
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      X509* x509 =
-          PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
-                                              strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
-                            NoPasswordCallback,
-                            nullptr);  // no callback data
+  if (!root_certs_vector_loaded) {
+    if (per_process::cli_options->ssl_openssl_cert_store == false) {
+      for (size_t i = 0; i < arraysize(root_certs); i++) {
+        X509* x509 = PEM_read_bio_X509(
+            NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
+            nullptr,  // no re-use of X509 structure
+            NoPasswordCallback,
+            nullptr);  // no callback data
 
-      // Parse errors from the built-in roots are fatal.
-      CHECK_NOT_NULL(x509);
+        // Parse errors from the built-in roots are fatal.
+        CHECK_NOT_NULL(x509);
 
-      root_certs_vector.push_back(x509);
+        root_certs_vector.push_back(x509);
+      }
     }
+
+    if (!extra_root_certs_file.empty()) {
+      unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
+          &root_certs_vector,
+          extra_root_certs_file.c_str());
+      if (err) {
+        char buf[256];
+        ERR_error_string_n(err, buf, sizeof(buf));
+        fprintf(stderr,
+                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+                extra_root_certs_file.c_str(),
+                buf);
+      }
+    }
+
+    root_certs_vector_loaded = true;
   }
 
   X509_STORE* store = X509_STORE_new();
@@ -228,12 +268,11 @@ X509_STORE* NewRootCertStore() {
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
-    X509_STORE_set_default_paths(store);
-  } else {
-    for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
-      X509_STORE_add_cert(store, cert);
-    }
+    CHECK_EQ(1, X509_STORE_set_default_paths(store));
+  }
+
+  for (X509* cert : root_certs_vector) {
+    CHECK_EQ(1, X509_STORE_add_cert(store, cert));
   }
 
   return store;
@@ -339,11 +378,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(
       context, target, "getRootCertificates", GetRootCertificates);
-  // Exposed for testing purposes only.
-  SetMethodNoSideEffect(context,
-                        target,
-                        "isExtraRootCertsFileLoaded",
-                        IsExtraRootCertsFileLoaded);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -383,7 +417,6 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(CtxGetter);
 
   registry->Register(GetRootCertificates);
-  registry->Register(IsExtraRootCertsFileLoaded);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -1383,54 +1416,9 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buff);
 }
 
-namespace {
-unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    X509_STORE* store,
-    const char* file) {
-  ERR_clear_error();
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  BIOPointer bio(BIO_new_file(file, "r"));
-  if (!bio)
-    return ERR_get_error();
-
-  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509(
-             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
-    X509_STORE_add_cert(store, x509.get());
-  }
-
-  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
-  // Ignore error if its EOF/no start line found.
-  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-    return 0;
-  }
-
-  return err;
-}
-}  // namespace
-
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(const std::string& file) {
-  if (file.empty()) return;
-  ClearErrorOnReturn clear_error_on_return;
-  X509_STORE* store = GetOrCreateRootCertStore();
-  if (auto err = AddCertsFromFile(store, file.c_str())) {
-    char buf[256];
-    ERR_error_string_n(err, buf, sizeof(buf));
-    fprintf(stderr,
-            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-            file.c_str(),
-            buf);
-  } else {
-    extra_root_certs_loaded = true;
-  }
-}
-
-// Exposed to JavaScript strictly for testing purposes.
-void IsExtraRootCertsFileLoaded(
-    const FunctionCallbackInfo<Value>& args) {
-  return args.GetReturnValue().Set(extra_root_certs_loaded);
+  extra_root_certs_file = file;
 }
 
 }  // namespace crypto
