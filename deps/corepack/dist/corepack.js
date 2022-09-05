@@ -3,9 +3,9 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.0-8f73631a81-9.zip/node_modules/@zkochan/cmd-shim/index.js":
+/***/ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js":
 /*!***********************************************************************************************************************!*\
-  !*** ../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.0-8f73631a81-9.zip/node_modules/@zkochan/cmd-shim/index.js ***!
+  !*** ../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js ***!
   \***********************************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -40,12 +40,12 @@ function ingestOptions(opts) {
     const opts_ = { ...DEFAULT_OPTIONS, ...opts };
     const fs = opts_.fs;
     opts_.fs_ = {
-        chmod: fs.chmod ? util_1.promisify(fs.chmod) : (async () => { }),
-        mkdir: util_1.promisify(fs.mkdir),
-        readFile: util_1.promisify(fs.readFile),
-        stat: util_1.promisify(fs.stat),
-        unlink: util_1.promisify(fs.unlink),
-        writeFile: util_1.promisify(fs.writeFile)
+        chmod: fs.chmod ? (0, util_1.promisify)(fs.chmod) : (async () => { }),
+        mkdir: (0, util_1.promisify)(fs.mkdir),
+        readFile: (0, util_1.promisify)(fs.readFile),
+        stat: (0, util_1.promisify)(fs.stat),
+        unlink: (0, util_1.promisify)(fs.unlink),
+        writeFile: (0, util_1.promisify)(fs.writeFile)
     };
     return opts_;
 }
@@ -60,7 +60,6 @@ function ingestOptions(opts) {
  */
 async function cmdShim(src, to, opts) {
     const opts_ = ingestOptions(opts);
-    await opts_.fs_.stat(src);
     await cmdShim_(src, to, opts_);
 }
 /**
@@ -158,25 +157,47 @@ function writeShimPost(target, opts) {
  * @return Promise of infomation of runtime of `target`.
  */
 async function searchScriptRuntime(target, opts) {
-    const data = await opts.fs_.readFile(target, 'utf8');
-    // First, check if the bin is a #! of some sort.
-    const firstLine = data.trim().split(/\r*\n/)[0];
-    const shebang = firstLine.match(shebangExpr);
-    if (!shebang) {
-        // If not, infer script type from its extension.
-        // If the inference fails, it's something that'll be compiled, or some other
-        // sort of script, and just call it directly.
-        const targetExtension = path.extname(target).toLowerCase();
+    try {
+        const data = await opts.fs_.readFile(target, 'utf8');
+        // First, check if the bin is a #! of some sort.
+        const firstLine = data.trim().split(/\r*\n/)[0];
+        const shebang = firstLine.match(shebangExpr);
+        if (!shebang) {
+            // If not, infer script type from its extension.
+            // If the inference fails, it's something that'll be compiled, or some other
+            // sort of script, and just call it directly.
+            const targetExtension = path.extname(target).toLowerCase();
+            return {
+                // undefined if extension is unknown but it's converted to null.
+                program: extensionToProgramMap.get(targetExtension) || null,
+                additionalArgs: ''
+            };
+        }
         return {
-            // undefined if extension is unknown but it's converted to null.
-            program: extensionToProgramMap.get(targetExtension) || null,
-            additionalArgs: ''
+            program: shebang[1],
+            additionalArgs: shebang[2]
         };
     }
-    return {
-        program: shebang[1],
-        additionalArgs: shebang[2]
-    };
+    catch (err) {
+        if (!isWindows() || err.code !== 'ENOENT')
+            throw err;
+        if (await opts.fs_.stat(`${target}${getExeExtension()}`)) {
+            return {
+                program: null,
+                additionalArgs: '',
+            };
+        }
+        throw err;
+    }
+}
+function getExeExtension() {
+    let cmdExtension;
+    if (process.env.PATHEXT) {
+        cmdExtension = process.env.PATHEXT
+            .split(path.delimiter)
+            .find(ext => ext.toLowerCase() === '.exe');
+    }
+    return cmdExtension || '.exe';
 }
 /**
  * Write shim to the file system while executing the pre- and post-processes
@@ -741,7 +762,7 @@ module.exports = cmdExtension || '.cmd'
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const EE = (__webpack_require__(/*! events */ "events").EventEmitter)
 const fs = __webpack_require__(/*! fs */ "fs")
 
@@ -1713,9 +1734,9 @@ module.exports = LRUCache
 
 /***/ }),
 
-/***/ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js":
+/***/ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js":
 /*!*****************************************************************************************************!*\
-  !*** ../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js ***!
+  !*** ../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js ***!
   \*****************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -2512,7 +2533,7 @@ const Buffer = (__webpack_require__(/*! buffer */ "buffer").Buffer)
 const realZlib = __webpack_require__(/*! zlib */ "zlib")
 
 const constants = exports.constants = __webpack_require__(/*! ./constants.js */ "../../../.yarn/berry/cache/minizlib-npm-2.1.2-ea89cd0cfb-9.zip/node_modules/minizlib/constants.js")
-const Minipass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js")
+const Minipass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 
 const OriginalBufferConcat = Buffer.concat
 
@@ -6980,7 +7001,7 @@ class PackJob {
   }
 }
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const zlib = __webpack_require__(/*! minizlib */ "../../../.yarn/berry/cache/minizlib-npm-2.1.2-ea89cd0cfb-9.zip/node_modules/minizlib/index.js")
 const ReadEntry = __webpack_require__(/*! ./read-entry.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/read-entry.js")
 const WriteEntry = __webpack_require__(/*! ./write-entry.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/write-entry.js")
@@ -8169,7 +8190,7 @@ module.exports = Pax
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const normPath = __webpack_require__(/*! ./normalize-windows-path.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/normalize-windows-path.js")
 
 const SLURP = Symbol('slurp')
@@ -9627,7 +9648,7 @@ module.exports = {
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.4-6cf48a6c5e-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const Pax = __webpack_require__(/*! ./pax.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/pax.js")
 const Header = __webpack_require__(/*! ./header.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/header.js")
 const fs = __webpack_require__(/*! fs */ "fs")
@@ -15195,7 +15216,7 @@ class Engine {
         if (typeof definition === `undefined`)
             throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${descriptor.name}) isn't supported by this corepack build`);
         let finalDescriptor = descriptor;
-        if (/^[a-z-]+$/.test(descriptor.range)) {
+        if (!semver__WEBPACK_IMPORTED_MODULE_3___default().valid(descriptor.range) && !semver__WEBPACK_IMPORTED_MODULE_3___default().validRange(descriptor.range)) {
             if (!allowTags)
                 throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`Packages managers can't be referended via tags in this context`);
             // We only resolve tags from the latest registry entry
@@ -15361,7 +15382,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "EnableCommand": () => (/* binding */ EnableCommand)
 /* harmony export */ });
-/* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @zkochan/cmd-shim */ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.0-8f73631a81-9.zip/node_modules/@zkochan/cmd-shim/index.js");
+/* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @zkochan/cmd-shim */ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js");
 /* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! fs */ "fs");
@@ -16411,6 +16432,8 @@ function parseSpec(raw, source, { enforceExactVersion = true } = {}) {
 async function findProjectSpec(initialCwd, locator, { transparent = false } = {}) {
     // A locator is a valid descriptor (but not the other way around)
     const fallbackLocator = { name: locator.name, range: locator.reference };
+    if (process.env.COREPACK_ENABLE_STRICT === `0`)
+        return fallbackLocator;
     while (true) {
         const result = await loadSpec(initialCwd);
         switch (result.type) {
@@ -17004,7 +17027,7 @@ const supportsColor = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.18.0+sha1.bd6ca7f637720441f812370363e2ae67426fb42f","fetchLatestFrom":{"type":"npm","package":"npm"},"transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.9.3+sha1.843f76d13dbfa9f6dfb5135d6fbaa8b99facacc9","fetchLatestFrom":{"type":"npm","package":"pnpm"},"transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","fetchLatestFrom":{"type":"npm","package":"yarn"},"transparent":{"default":"3.2.2+sha224.634d0331703700cabfa9d9389835bd8f7426b0207ed6b74d8d34c81e","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
+module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.19.1+sha1.78bfc5fc1b7bc36881a2d9d1f2c93ad0246f31e5","fetchLatestFrom":{"type":"npm","package":"npm"},"transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.9.5+sha1.8d28e3270689e2afd345777fec9d9535f427b532","fetchLatestFrom":{"type":"npm","package":"pnpm"},"transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","fetchLatestFrom":{"type":"npm","package":"yarn"},"transparent":{"default":"3.2.3+sha224.953c8233f7a92884eee2de69a1b92d1f2ec1655e66d08071ba9a02fa","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
 
 /***/ }),
 
@@ -17015,7 +17038,7 @@ module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.18.0+sha1.bd6ca
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"corepack","version":"0.13.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^28.0.0","@types/node":"^18.0.0","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^28.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
+module.exports = JSON.parse('{"name":"corepack","version":"0.14.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.15+sha224.7fa5c1d1875b041cea8fcbf9a364667e398825364bf5c5c8cd5f6601","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^29.0.0","@types/node":"^18.0.0","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^29.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
 
 /***/ })
 
