@@ -455,7 +455,7 @@ available, `GetVersionExW()` will be used. See
 ## `os.machine()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.9.0
 -->
 
 * Returns {string}
