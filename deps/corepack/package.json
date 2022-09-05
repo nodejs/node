@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,13 +10,13 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.0-rc.14+sha224.d3bee29dce07417588d640327d44f1e0b8182c240bc2beb0b81ccf6e",
+  "packageManager": "yarn@4.0.0-rc.15+sha224.7fa5c1d1875b041cea8fcbf9a364667e398825364bf5c5c8cd5f6601",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
     "@babel/preset-typescript": "^7.13.0",
     "@types/debug": "^4.1.5",
-    "@types/jest": "^28.0.0",
+    "@types/jest": "^29.0.0",
     "@types/node": "^18.0.0",
     "@types/semver": "^7.1.0",
     "@types/tar": "^6.0.0",
@@ -31,7 +31,7 @@
     "debug": "^4.1.1",
     "eslint": "^8.0.0",
     "eslint-plugin-arca": "^0.15.0",
-    "jest": "^28.0.0",
+    "jest": "^29.0.0",
     "nock": "^13.0.4",
     "proxy-agent": "^5.0.0",
     "semver": "^7.1.3",

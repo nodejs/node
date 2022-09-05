@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/nodejs/corepack/compare/v0.13.0...v0.14.0) (2022-09-02)
+
+
+### Features
+
+* add `COREPACK_ENABLE_STRICT` env variable ([#167](https://github.com/nodejs/corepack/issues/167)) ([92b52f6](https://github.com/nodejs/corepack/commit/92b52f6b4918aff968c0942b89fc722ebf57bce2))
+* update package manager versions ([#170](https://github.com/nodejs/corepack/issues/170)) ([6f70bfc](https://github.com/nodejs/corepack/commit/6f70bfc4b6a8a57cccb1ff9cbf2f49240648f1ed))
+
+
+### Bug Fixes
+
+* handle tags including numbers in `prepare` command ([#165](https://github.com/nodejs/corepack/issues/165)) ([5a0727b](https://github.com/nodejs/corepack/commit/5a0727b43976e0dc299151876c0dde2c4a85174d))
+
 ## [0.13.0](https://github.com/nodejs/corepack/compare/v0.12.3...v0.13.0) (2022-08-19)
 
 
