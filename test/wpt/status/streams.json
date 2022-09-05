@@ -80,10 +80,5 @@
   },
   "transferable/transfer-with-messageport.window.js": {
     "skip": "Browser-specific test"
-  },
-  "writable-streams/aborting.any.js": {
-    "fail": {
-      "expected": ["WritableStreamDefaultController.signal"]
-    }
   }
 }
