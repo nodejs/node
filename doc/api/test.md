@@ -340,8 +340,9 @@ added: REPLACEME
     **Default:** `Infinity`.
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
-    number. By default each process gets its own port, incremented from the
-    primary's `process.debugPort`.
+    number. If a nullish value is provided, each process gets its own port,
+    incremented from the primary's `process.debugPort`.
+    **Default:** `undefined`.
 * Returns: {TapStream}
 
 ```js
