@@ -361,14 +361,12 @@ T* UncheckedRealloc(T* pointer, size_t n) {
 // As per spec realloc behaves like malloc if passed nullptr.
 template <typename T>
 inline T* UncheckedMalloc(size_t n) {
-  if (n == 0) n = 1;
   return UncheckedRealloc<T>(nullptr, n);
 }
 
 template <typename T>
 inline T* UncheckedCalloc(size_t n) {
-  if (n == 0) n = 1;
-  MultiplyWithOverflowCheck(sizeof(T), n);
+  if (MultiplyWithOverflowCheck(sizeof(T), n) == 0) return nullptr;
   return static_cast<T*>(calloc(n, sizeof(T)));
 }
 
