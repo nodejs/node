@@ -166,8 +166,6 @@ class TLSWrap : public AsyncWrap,
 
   int SetCACerts(SecureContext* sc);
 
-  int GetSSLError(int status) const;
-
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
