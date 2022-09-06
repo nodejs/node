@@ -3013,6 +3013,10 @@ The `password` is used to derive the cipher key and initialization vector (IV).
 The value must be either a `'latin1'` encoded string, a [`Buffer`][], a
 `TypedArray`, or a `DataView`.
 
+<strong class="critical">This function is semantically insecure for all
+supported ciphers and fatally flawed for ciphers in counter mode (such as CTR,
+GCM, or CCM).</strong>
+
 The implementation of `crypto.createCipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
 iteration, and no salt. The lack of salt allows dictionary attacks as the same
@@ -3135,6 +3139,10 @@ cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
 For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
+
+<strong class="critical">This function is semantically insecure for all
+supported ciphers and fatally flawed for ciphers in counter mode (such as CTR,
+GCM, or CCM).</strong>
 
 The implementation of `crypto.createDecipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
