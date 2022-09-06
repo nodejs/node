@@ -728,30 +728,25 @@ void TLSWrap::ClearOut() {
   // change OpenSSL's error queue, modify ssl_, or even destroy ssl_
   // altogether.
   if (read <= 0) {
-    int err = SSL_get_error(ssl_.get(), read);
-    unsigned long ssl_err = ERR_peek_error();  // NOLINT(runtime/int)
-    const std::string error_str = GetBIOError();
-
-    int flags = SSL_get_shutdown(ssl_.get());
-    if (!eof_ && flags & SSL_RECEIVED_SHUTDOWN) {
-      eof_ = true;
-      EmitRead(UV_EOF);
-    }
-
     HandleScope handle_scope(env()->isolate());
     Local<Value> error;
+    int err = SSL_get_error(ssl_.get(), read);
     switch (err) {
       case SSL_ERROR_ZERO_RETURN:
-        // Ignore ZERO_RETURN after EOF, it is basically not an error.
-        if (eof_) return;
-        error = env()->zero_return_string();
-        break;
+        if (!eof_) {
+          eof_ = true;
+          EmitRead(UV_EOF);
+        }
+        return;
 
       case SSL_ERROR_SSL:
       case SSL_ERROR_SYSCALL:
         {
+          unsigned long ssl_err = ERR_peek_error();  // NOLINT(runtime/int)
+
           Local<Context> context = env()->isolate()->GetCurrentContext();
           if (UNLIKELY(context.IsEmpty())) return;
+          const std::string error_str = GetBIOError();
           Local<String> message = OneByteString(
               env()->isolate(), error_str.c_str(), error_str.size());
           if (UNLIKELY(message.IsEmpty())) return;
