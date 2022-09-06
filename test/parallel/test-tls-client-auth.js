@@ -79,7 +79,8 @@ connect({
 }, function(err, pair, cleanup) {
   assert.strictEqual(pair.server.err.code,
                      'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
-  assert.strictEqual(pair.client.err.code, 'ECONNRESET');
+  assert.strictEqual(pair.client.err.code,
+                     'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE');
   return cleanup();
 });
 
