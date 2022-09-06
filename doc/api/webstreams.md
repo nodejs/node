@@ -974,10 +974,6 @@ changes:
 The `WritableStreamDefaultController` manage's the {WritableStream}'s
 internal state.
 
-#### `writableStreamDefaultController.abortReason`
-
-* Type: {any} The `reason` value passed to `writableStream.abort()`.
-
 #### `writableStreamDefaultController.error(error)`
 
 <!-- YAML
