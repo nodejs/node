@@ -11,7 +11,7 @@ def patch_android():
     print("\033[92mInfo: \033[0m" + "Tried to patch.")
 
 if platform.system() == "Windows":
-    print('android-configure is not supported on Windows yet.')
+    print("android-configure is not supported on Windows yet.")
     sys.exit(1)
 
 if len(sys.argv) == 2 and sys.argv[1] == "patch":
