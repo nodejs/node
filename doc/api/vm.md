@@ -114,6 +114,18 @@ Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
 
+### `script.cachedDataRejected`
+
+<!-- YAML
+added: v5.7.0
+-->
+
+* {boolean|undefined}
+
+When `cachedData` is supplied to create the `vm.Script`, this value will be set
+to either `true` or `false` depending on acceptance of the data by V8.
+Otherwise the value is `undefined`.
+
 ### `script.createCachedData()`
 
 <!-- YAML
@@ -1154,16 +1166,7 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-    source. When supplied, the `cachedDataRejected` value will be set to
-    either `true` or `false` depending on acceptance of the data by V8.
-  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
-    will attempt to produce code cache data for `code`. Upon success, a
-    `Buffer` with V8's code cache data will be produced and stored in the
-    `cachedData` property of the returned `vm.Script` instance.
-    The `cachedDataProduced` value will be set to either `true` or `false`
-    depending on whether code cache data is produced successfully.
-    This option is **deprecated** in favor of `script.createCachedData()`.
-    **Default:** `false`.
+    source.
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
@@ -1262,16 +1265,7 @@ changes:
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-    source. When supplied, the `cachedDataRejected` value will be set to
-    either `true` or `false` depending on acceptance of the data by V8.
-  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
-    will attempt to produce code cache data for `code`. Upon success, a
-    `Buffer` with V8's code cache data will be produced and stored in the
-    `cachedData` property of the returned `vm.Script` instance.
-    The `cachedDataProduced` value will be set to either `true` or `false`
-    depending on whether code cache data is produced successfully.
-    This option is **deprecated** in favor of `script.createCachedData()`.
-    **Default:** `false`.
+    source.
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
@@ -1351,16 +1345,7 @@ changes:
     work after that. **Default:** `false`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-    source. When supplied, the `cachedDataRejected` value will be set to
-    either `true` or `false` depending on acceptance of the data by V8.
-  * `produceCachedData` {boolean} When `true` and no `cachedData` is present, V8
-    will attempt to produce code cache data for `code`. Upon success, a
-    `Buffer` with V8's code cache data will be produced and stored in the
-    `cachedData` property of the returned `vm.Script` instance.
-    The `cachedDataProduced` value will be set to either `true` or `false`
-    depending on whether code cache data is produced successfully.
-    This option is **deprecated** in favor of `script.createCachedData()`.
-    **Default:** `false`.
+    source.
   * `importModuleDynamically` {Function} Called during evaluation of this module
     when `import()` is called. If this option is not specified, calls to
     `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
