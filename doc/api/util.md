@@ -1033,7 +1033,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44565
-    description: support `required` field in option
+    description: support `required` field in option.
   - version:
     - v18.7.0
     - v16.17.0

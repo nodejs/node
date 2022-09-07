@@ -825,7 +825,7 @@ test('tokens: strict:false with -- --', () => {
 });
 
 test('strict: required option', () => {
-  const args = ['--foo']
+  const args = ['--foo'];
   parseArgs({
     args,
     options: {
@@ -834,11 +834,11 @@ test('strict: required option', () => {
         required: true
       }
     }
-  })
-})
+  });
+});
 
 test('required option', () => {
-  const args = ['--foo', '--goo']
+  const args = ['--foo', '--goo'];
   parseArgs({
     strict: false,
     args,
@@ -848,11 +848,11 @@ test('required option', () => {
         required: true
       }
     }
-  })
-})
+  });
+});
 
 test('strict: false required option fail', () => {
-  const args = []
+  const args = [];
   assert.throws(() => {
     parseArgs({
       strict: false,
@@ -863,14 +863,14 @@ test('strict: false required option fail', () => {
           required: true
         }
       }
-    }, {
-      code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
-    })
-  })
-})
+    });
+  }, {
+    code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
+  });
+});
 
 test('strict: no input but has required option', () => {
-  const args = []
+  const args = [];
   assert.throws(() => {
     parseArgs({
       args,
@@ -880,14 +880,14 @@ test('strict: no input but has required option', () => {
           required: true
         }
       }
-    }, {
-      code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
-    })
-  })
-})
+    });
+  }, {
+    code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
+  });
+});
 
 test('strict: no input and no required option', () => {
-  const args = []
+  const args = [];
   parseArgs({
     args,
     options: {
@@ -896,5 +896,5 @@ test('strict: no input and no required option', () => {
         required: false
       }
     }
-  })
-})
+  });
+});

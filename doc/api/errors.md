@@ -2468,7 +2468,7 @@ is not configured in `options`.
 
 ### `ERR_PARSE_ARGS_REQUIRED_OPTION`
 
-<!--YAML
+<!-- YAML
 added: REPLACEME
 -->
 
