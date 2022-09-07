@@ -823,3 +823,78 @@ test('tokens: strict:false with -- --', () => {
   const { tokens } = parseArgs({ strict: false, args, tokens: true });
   assert.deepStrictEqual(tokens, expectedTokens);
 });
+
+test('strict: required option', () => {
+  const args = ['--foo']
+  parseArgs({
+    args,
+    options: {
+      foo: {
+        type: 'boolean',
+        required: true
+      }
+    }
+  })
+})
+
+test('required option', () => {
+  const args = ['--foo', '--goo']
+  parseArgs({
+    strict: false,
+    args,
+    options: {
+      foo: {
+        type: 'boolean',
+        required: true
+      }
+    }
+  })
+})
+
+test('strict: false required option fail', () => {
+  const args = []
+  assert.throws(() => {
+    parseArgs({
+      strict: false,
+      args,
+      options: {
+        foo: {
+          type: 'boolean',
+          required: true
+        }
+      }
+    }, {
+      code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
+    })
+  })
+})
+
+test('strict: no input but has required option', () => {
+  const args = []
+  assert.throws(() => {
+    parseArgs({
+      args,
+      options: {
+        foo: {
+          type: 'boolean',
+          required: true
+        }
+      }
+    }, {
+      code: 'ERR_PARSE_ARGS_REQUIRED_OPTION'
+    })
+  })
+})
+
+test('strict: no input and no required option', () => {
+  const args = []
+  parseArgs({
+    args,
+    options: {
+      foo: {
+        type: 'boolean',
+        required: false
+      }
+    }
+  })
+})

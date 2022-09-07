@@ -2464,6 +2464,17 @@ added:
 When `strict` set to `true`, thrown by [`util.parseArgs()`][] if an argument
 is not configured in `options`.
 
+<a id="ERR_PARSE_ARGS_REQUIRED_OPTION"></a>
+
+### `ERR_PARSE_ARGS_REQUIRED_OPTION`
+
+<!--YAML
+added: REPLACEME
+-->
+
+When `required` set to `true`, thrown by [`util.parseArgs()`][] if an option
+is not provided in `args`.
+
 <a id="ERR_PERFORMANCE_INVALID_TIMESTAMP"></a>
 
 ### `ERR_PERFORMANCE_INVALID_TIMESTAMP`

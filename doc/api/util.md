@@ -1031,6 +1031,9 @@ added:
   - v18.3.0
   - v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44565
+    description: support `required` field in option
   - version:
     - v18.7.0
     - v16.17.0
@@ -1053,6 +1056,7 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
+    * `required` {boolean} Whether this option is required. **Default:** `false`.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -1085,7 +1089,8 @@ const options = {
     short: 'f'
   },
   bar: {
-    type: 'string'
+    type: 'string',
+    required: true
   }
 };
 const {
@@ -1105,7 +1110,8 @@ const options = {
     short: 'f'
   },
   bar: {
-    type: 'string'
+    type: 'string',
+    required: true
   }
 };
 const {
