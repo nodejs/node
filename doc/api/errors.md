@@ -3587,7 +3587,7 @@ The native call from `process.cpuUsage` could not be processed.
 [domains]: domain.md
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[policy]: policy.md
+[policy]: permissions.md#policies
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html

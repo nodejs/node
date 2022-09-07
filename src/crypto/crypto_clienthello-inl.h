@@ -51,7 +51,7 @@ inline void ClientHelloParser::Reset() {
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
                                      ClientHelloParser::OnEndCb onend_cb,
-                                     void* onend_arg) {
+                                     void* cb_arg) {
   if (!IsEnded())
     return;
   Reset();
@@ -61,7 +61,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
   state_ = kWaiting;
   onhello_cb_ = onhello_cb;
   onend_cb_ = onend_cb;
-  cb_arg_ = onend_arg;
+  cb_arg_ = cb_arg;
 }
 
 inline void ClientHelloParser::End() {

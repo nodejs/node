@@ -701,7 +701,7 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   for (const char** module = context_files; *module != nullptr; module++) {
     // Arguments must match the parameters specified in
     // BuiltinLoader::LookupAndCompile().
-    Local<Value> arguments[] = {context->Global(), exports, primordials};
+    Local<Value> arguments[] = {exports, primordials};
     MaybeLocal<Function> maybe_fn =
         builtins::BuiltinLoader::LookupAndCompile(context, *module, nullptr);
     Local<Function> fn;

@@ -340,6 +340,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/test_runner");
   }
 
+  if (env->options()->watch_mode && !first_argv.empty()) {
+    return StartExecution(env, "internal/main/watch_mode");
+  }
+
   if (!first_argv.empty() && first_argv != "-") {
     return StartExecution(env, "internal/main/run_main_module");
   }
@@ -980,8 +984,10 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
       return result;
     }
 
-    // V8 on Windows doesn't have a good source of entropy. Seed it from
-    // OpenSSL's pool.
+    // Seed V8's PRNG from OpenSSL's pool. This is recommended by V8 and a
+    // potentially better source of randomness than what V8 uses by default, but
+    // it does not guarantee that pseudo-random values produced by V8 will be
+    // cryptograhically secure.
     V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
