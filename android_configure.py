@@ -37,7 +37,7 @@ arch = sys.argv[3]
 if sys.argv[3] == "arm":
     DEST_CPU = "arm"
     TOOLCHAIN_PREFIX = "armv7a-linux-androideabi"
-elif sys.argv[3] == "arm64" or sys.argv[3] == "aarch64":
+elif sys.argv[3] in ("aarch64", "arm64"):
     DEST_CPU = "arm64"
     TOOLCHAIN_PREFIX = "aarch64-linux-android"
     arch = "arm64"
