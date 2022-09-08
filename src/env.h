@@ -1040,6 +1040,12 @@ class Environment : public MemoryRetainer {
   template <typename T>
   void ForEachBaseObject(T&& iterator);
 
+  inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
+
+  inline void AddHeapSnapshotNearHeapLimitCallback();
+
+  inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1097,7 +1103,9 @@ class Environment : public MemoryRetainer {
   std::string exec_path_;
 
   bool is_processing_heap_limit_callback_ = false;
-  int64_t heap_limit_snapshot_taken_ = 0;
+  uint32_t heap_limit_snapshot_taken_ = 0;
+  uint32_t heap_snapshot_near_heap_limit_ = 0;
+  bool heapsnapshot_near_heap_limit_callback_added_ = false;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

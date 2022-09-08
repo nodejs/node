@@ -241,9 +241,8 @@ static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
 void Environment::InitializeDiagnostics() {
   isolate_->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       Environment::BuildEmbedderGraph, this);
-  if (options_->heap_snapshot_near_heap_limit > 0) {
-    isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                       this);
+  if (heap_snapshot_near_heap_limit_ > 0) {
+    AddHeapSnapshotNearHeapLimitCallback();
   }
   if (options_->trace_uncaught)
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
