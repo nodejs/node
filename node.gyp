@@ -151,7 +151,8 @@
 
       'include_dirs': [
         'src',
-        'deps/v8/include'
+        'deps/v8/include',
+        'deps/bufferswap/include'
       ],
 
       'sources': [
@@ -160,8 +161,7 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-        'deps/bufferswap/bufferswap.gyp:bufferswap'
+        'deps/uvwasi/uvwasi.gyp:uvwasi'
       ],
 
       'msvs_settings': {
@@ -447,6 +447,7 @@
 
       'include_dirs': [
         'src',
+        'deps/bufferswap/include',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
@@ -920,6 +921,7 @@
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/bufferswap/bufferswap.gyp:bufferswap',
       ],
       'includes': [
         'node.gypi'
@@ -932,6 +934,7 @@
         'deps/uv/include',
         'deps/uvwasi/include',
         'test/cctest',
+        'deps/bufferswap/include',
       ],
       'defines': [
         'NODE_ARCH="<(target_arch)"',
@@ -977,6 +980,7 @@
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/bufferswap/include',
         'test/cctest',
       ],
 
@@ -1127,9 +1131,9 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/bufferswap/bufferswap.gyp:bufferswap',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/bufferswap/bufferswap.gyp:bufferswap'
       ],
 
       'includes': [
@@ -1138,12 +1142,12 @@
 
       'include_dirs': [
         'src',
-        'deps/bufferswap/include',
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
         'deps/uvwasi/include',
+        'deps/bufferswap/include',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
