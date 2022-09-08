@@ -395,8 +395,7 @@ Treat commits that introduce new core modules with extra care.
 New modules must be added with the `node:` prefix.
 
 When adding promises to an existing API, add `/promises`
-(`inspector/promises`, etc.).
-Apply the `semver-major` label to the addition.
+(`inspector/promises`, etc.). Apply the `semver-major` label to the addition.
 
 If the new module name without the `node:` prefix is free, register
 a placeholder in the module registry as soon as possible. Link to the pull
