@@ -1,11 +1,4 @@
 {
-  "piping/abort.any.js": {
-    "fail": {
-      "expected": [
-        "pipeTo on a teed readable byte stream should only be aborted when both branches are aborted"
-      ]
-    }
-  },
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
@@ -35,40 +28,6 @@
         "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read(view) on second reader, enqueue()",
         "ReadableStream with byte source: read(view) with 1 element Uint16Array, respond(1), releaseLock(), read(view) on second reader with 1 element Uint16Array, respond(1)",
         "ReadableStream with byte source: read(view) with 1 element Uint16Array, respond(1), releaseLock(), read() on second reader, enqueue()"
-      ]
-    }
-  },
-  "readable-byte-streams/tee.any.js": {
-    "fail": {
-      "expected": [
-        "ReadableStream teeing with byte source: should be able to read one branch to the end without affecting the other",
-        "ReadableStream teeing with byte source: chunks should be cloned for each branch",
-        "ReadableStream teeing with byte source: chunks for BYOB requests from branch 1 should be cloned to branch 2",
-        "ReadableStream teeing with byte source: errors in the source should propagate to both branches",
-        "ReadableStream teeing with byte source: closing the original should close the branches",
-        "ReadableStream teeing with byte source: erroring the original should immediately error the branches",
-        "ReadableStream teeing with byte source: erroring the original should error pending reads from BYOB reader",
-        "ReadableStream teeing with byte source: canceling branch1 should finish when branch2 reads until end of stream",
-        "ReadableStream teeing with byte source: canceling branch1 should finish when original stream errors",
-        "ReadableStream teeing with byte source: should not pull any chunks if no branches are reading",
-        "ReadableStream teeing with byte source: should only pull enough to fill the emptiest queue",
-        "ReadableStream teeing with byte source: should not pull when original is already errored",
-        "ReadableStream teeing with byte source: stops pulling when original stream errors while branch 1 is reading",
-        "ReadableStream teeing with byte source: stops pulling when original stream errors while branch 2 is reading",
-        "ReadableStream teeing with byte source: stops pulling when original stream errors while both branches are reading",
-        "ReadableStream teeing with byte source: canceling both branches in sequence with delay",
-        "ReadableStream teeing with byte source: failing to cancel when canceling both branches in sequence with delay",
-        "ReadableStream teeing with byte source: read from branch1 and branch2, cancel branch1, cancel branch2",
-        "ReadableStream teeing with byte source: read from branch1 and branch2, cancel branch2, cancel branch1",
-        "ReadableStream teeing with byte source: read from branch1 and branch2, cancel branch2, enqueue to branch1",
-        "ReadableStream teeing with byte source: read from branch1 and branch2, cancel branch1, respond to branch2",
-        "ReadableStream teeing with byte source: pull with BYOB reader, then pull with default reader",
-        "ReadableStream teeing with byte source: pull with default reader, then pull with BYOB reader",
-        "ReadableStream teeing with byte source: read from branch2, then read from branch1",
-        "ReadableStream teeing with byte source: read from branch1 with default reader, then close while branch2 has pending BYOB read",
-        "ReadableStream teeing with byte source: read from branch2 with default reader, then close while branch1 has pending BYOB read",
-        "ReadableStream teeing with byte source: close when both branches have pending BYOB reads",
-        "ReadableStream teeing with byte source: respond() and close() while both branches are pulling"
       ]
     }
   },

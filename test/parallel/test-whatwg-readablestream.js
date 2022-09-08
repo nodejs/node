@@ -1561,7 +1561,7 @@ class Source {
   assert(!readableStreamDefaultControllerCanCloseOrEnqueue(controller));
   readableStreamDefaultControllerEnqueue(controller);
   readableByteStreamControllerClose(controller);
-  readableByteStreamControllerEnqueue(controller);
+  readableByteStreamControllerEnqueue(controller, new Uint8Array(1));
 }
 
 {
