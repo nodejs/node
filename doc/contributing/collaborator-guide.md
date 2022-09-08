@@ -395,7 +395,7 @@ Treat commits that introduce new core modules with extra care.
 New modules must be added with the `node:` prefix.
 
 When adding promises APIs it is ok to add `/promises` to an existing module.
-For example: `inspector/promises`. These additionsl should be marked as
+For example: `inspector/promises`. These additions should be marked as
 SemVer major by default.
 
 If the new module name without the `node:` prefix is free, register
