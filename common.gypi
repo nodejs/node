@@ -204,13 +204,18 @@
             ],
           }],
           ['OS=="solaris"', {
-           'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
           ['OS=="zos"', {
             # increase performance, number from experimentation
             'cflags': [ '-qINLINE=::150:100000' ]
+          }],
+          ['OS!="mac" and OS!="win" and OS!="zos"', {
+            # -fno-omit-frame-pointer is necessary for the --perf_basic_prof
+            # flag to work correctly. perf(1) gets confused about JS stack
+            # frames otherwise, even with --call-graph dwarf.
+            'cflags': [ '-fno-omit-frame-pointer' ],
           }],
           ['OS=="linux"', {
             'conditions': [
