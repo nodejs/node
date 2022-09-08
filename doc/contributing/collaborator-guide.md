@@ -392,13 +392,22 @@ metadata. Raise a pull request like any other change.
 
 Treat commits that introduce new core modules with extra care.
 
-Check if the module's name conflicts with an existing ecosystem module. If it
-does, choose a different name unless the module owner has agreed in writing to
-transfer it.
+New modules must be added with the `node:` prefix.
 
-If the new module name is free, register a placeholder in the module registry as
-soon as possible. Link to the pull request that introduces the new core module
-in the placeholder's `README`.
+When adding promises APIs it is ok to add `/promises` to an existing module.
+For example: `inspector/promises`. These additionsl should be marked as
+SemVer major by default.
+
+If the new module name without the `node:` prefix is free, register
+a placeholder in the module registry as soon as possible. Link to the pull
+request that introduces the new core module in the placeholder's `README`.
+
+If the module name without the `node:` prefix is not free and the module is
+not widely used, contact the owner to see if they would be willing to transfer
+it to the project.
+
+We try to register a placeholder without the `node:` prefix whenever
+possible in order to avoid confusion and typosquatting type attacks.
 
 For pull requests introducing new core modules:
 
