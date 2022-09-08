@@ -10,9 +10,9 @@ const debuggerPort = common.getPort();
 async function spawnRunner({ execArgv, expectedPort, expectedHost, expectedInitialPort, inspectPort }) {
   const { code, signal } = await common.spawnPromisified(
     process.execPath,
-    ['--expose-internals', '--no-warnings', ...execArgv, fixtures.path('test-runner/run_inspect.js'), '--top-level'], {
+    ['--expose-internals', '--no-warnings', ...execArgv, fixtures.path('test-runner/run_inspect.js')], {
       env: { ...process.env,
-             expectedPort: JSON.stringify(expectedPort),
+             expectedPort,
              inspectPort,
              expectedHost,
              expectedInitialPort }
