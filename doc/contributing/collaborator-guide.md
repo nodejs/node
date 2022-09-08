@@ -405,7 +405,7 @@ If the module name without the `node:` prefix is not free and the module is
 not widely used, contact the owner to see if they would be willing to transfer
 it to the project.
 
-We try to register a placeholder without the `node:` prefix whenever
+We register a placeholder without the `node:` prefix whenever
 possible to avoid confusion and typosquatting attacks.
 
 For pull requests introducing new core modules:
