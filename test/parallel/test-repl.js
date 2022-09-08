@@ -786,7 +786,8 @@ const errorTests = [
         '  profile: [Function: profile],',
         '  profileEnd: [Function: profileEnd],',
         '  timeStamp: [Function: timeStamp],',
-        '  context: [Function: context]',
+        '  context: [Function: context],',
+        '  createTask: [Function: createTask]',
       ] : [],
       '}',
     ]
