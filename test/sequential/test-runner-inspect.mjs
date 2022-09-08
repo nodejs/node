@@ -1,4 +1,3 @@
-'use strict';
 import * as common from '../common/index.mjs';
 import * as tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
