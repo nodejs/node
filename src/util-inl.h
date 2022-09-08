@@ -216,8 +216,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 
 void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
-  
-  ::swap_simd(data, nbytes, 16);
+
+  ::swap_simd(data, &nbytes, 16);
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint16_t)) == data) {
@@ -241,8 +241,8 @@ void SwapBytes16(char* data, size_t nbytes) {
 
 void SwapBytes32(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
-  
-  ::swap_simd(data, nbytes, 32);
+
+  ::swap_simd(data, &nbytes, 32);
 
 #if defined(_MSC_VER)
   // MSVC has no strict aliasing, and is able to highly optimize this case.
@@ -267,19 +267,20 @@ void SwapBytes32(char* data, size_t nbytes) {
 void SwapBytes64(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
 
-  //::swap_simd(data, nbytes, 64);
+  ::swap_simd(data, &nbytes, 16);
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint64_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
-    size_t len64 = nbytes / sizeof(*data64); 
+    size_t len64 = nbytes / sizeof(*data64);
     for (size_t i = 0; i < len64; i++) {
       data64[i] = BSWAP_8(data64[i]);
     }
     return;
   }
 #endif
+
   uint64_t temp;
   for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
     memcpy(&temp, &data[i], sizeof(temp));

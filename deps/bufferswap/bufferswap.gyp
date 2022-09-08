@@ -6,30 +6,13 @@
     {
       'target_name': 'bufferswap',
       'type': 'static_library',
-      'include_dirs': [ 'include', 'lib' ],
+      'include_dirs': [ 'include'],
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
         'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
       },
-      'sources': [ 'include/libbufferswap.h', 'lib/arch/avx512/swap.c', 'lib/lib.c' ],
+      'sources': [ 'include/libbufferswap.h' ],
       'defines': [ 'BUFFERSWAP_STATIC_DEFINE' ],
-      'conditions': [
-        [ 'target_arch in "x64" and OS!="win"', {
-          'cflags': [ '-mavx512vbmi' ],
-          'xcode_settings': {
-            'OTHER_CFLAGS': [ '-mavx512vbmi' ]
-          },
-        }],
-        ['target_arch in "x64" and OS=="win"', {
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'AdditionalOptions': [
-                '/arch:AVX512'
-              ],
-            },
-          },
-        }],
-      ],
     },
   ]
 }

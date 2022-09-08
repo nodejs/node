@@ -392,5 +392,20 @@
     }, {
       'defines': [ 'HAVE_OPENSSL=0' ]
     }],
+    [ 'target_arch in "x64" and OS!="win"', {
+      'cflags': [ '-mavx512vbmi' ],
+      'xcode_settings': {
+        'OTHER_CFLAGS': [ '-mavx512vbmi' ]
+      },
+    }],
+    ['target_arch in "x64" and OS=="win"', {
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'AdditionalOptions': [
+            '/arch:AVX512'
+          ],
+        },
+      },
+    }],
   ],
 }
