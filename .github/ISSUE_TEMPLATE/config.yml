@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: ⁉️ Need help with Node.js?
-    url: https://github.com/nodejs/help
-    about: Please file an issue in our help repo.
-  - name: 🌐 Found a problem with nodejs.org beyond the API reference docs?
-    url: https://github.com/nodejs/nodejs.org/issues/new/choose
-    about: Please file an issue in the Node.js website repo.
