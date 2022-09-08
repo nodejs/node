@@ -1,3 +1,5 @@
+'use strict';
+
 const assert = require('node:assert');
 
 const { expectedPort, expectedInitialPort, expectedHost } = process.env;
@@ -15,4 +17,3 @@ if ('expectedInitialPort' in process.env) {
 if ('expectedHost' in process.env) {
   assert.strictEqual(debugOptions.host, expectedHost);
 }
-process.exit();

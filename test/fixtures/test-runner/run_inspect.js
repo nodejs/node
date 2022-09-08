@@ -1,3 +1,5 @@
+'use strict';
+
 const common = require('../../common');
 const fixtures = require('../../common/fixtures');
 const { run } = require('node:test');
@@ -30,9 +32,9 @@ if (process.env.inspectPort === 'addTwo') {
 
 const stream = run({ files: [fixtures.path('test-runner/run_inspect_assert.js')], inspectPort });
 if (expectedError) {
-  stream.once('test:fail', common.mustCall(({ error }) => {
+  stream.on('test:fail', common.mustCall(({ error }) => {
     assert.deepStrictEqual({ name: error.cause.name, code: error.cause.code }, expectedError);
   }));
 } else {
-  stream.once('test:fail', ({ error }) => { throw error; });
+  stream.on('test:fail', common.mustNotCall());
 }
