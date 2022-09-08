@@ -406,7 +406,7 @@ not widely used, contact the owner to see if they would be willing to transfer
 it to the project.
 
 We try to register a placeholder without the `node:` prefix whenever
-possible in order to avoid confusion and typosquatting type attacks.
+possible to avoid confusion and typosquatting attacks.
 
 For pull requests introducing new core modules:
 
