@@ -770,6 +770,9 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_host_port_ = std::make_shared<ExclusiveAccess<HostPort>>(
       options_->debug_options().host_port);
 
+  heap_snapshot_near_heap_limit_ =
+      static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
+
   if (!(flags_ & EnvironmentFlags::kOwnsProcessState)) {
     set_abort_on_uncaught_exception(false);
   }
@@ -884,9 +887,8 @@ Environment::~Environment() {
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
 
-  if (options_->heap_snapshot_near_heap_limit > heap_limit_snapshot_taken_) {
-    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                          0);
+  if (heapsnapshot_near_heap_limit_callback_added_) {
+    RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
@@ -2029,8 +2031,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
-    env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                                initial_heap_limit);
+    env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
     // The new limit must be higher than current_heap_limit or V8 might
     // crash.
     return current_heap_limit + 1;
@@ -2050,17 +2051,15 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   // Remove the callback first in case it's triggered when generating
   // the snapshot.
-  env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                              initial_heap_limit);
+  env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
 
   heap::WriteSnapshot(env->isolate(), filename.c_str());
   env->heap_limit_snapshot_taken_ += 1;
 
   // Don't take more snapshots than the number specified by
   // --heapsnapshot-near-heap-limit.
-  if (env->heap_limit_snapshot_taken_ <
-      env->options_->heap_snapshot_near_heap_limit) {
-    env->isolate()->AddNearHeapLimitCallback(NearHeapLimitCallback, env);
+  if (env->heap_limit_snapshot_taken_ < env->heap_snapshot_near_heap_limit_) {
+    env->AddHeapSnapshotNearHeapLimitCallback();
   }
 
   FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
