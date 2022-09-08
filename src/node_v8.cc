@@ -157,6 +157,15 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t limit = args[0].As<v8::Uint32>()->Value();
+  CHECK_GT(limit, 0);
+  env->AddHeapSnapshotNearHeapLimitCallback();
+  env->set_heap_snapshot_near_heap_limit(limit);
+}
+
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapStatistics s;
@@ -212,6 +221,10 @@ void Initialize(Local<Object> target,
 
   SetMethodNoSideEffect(
       context, target, "cachedDataVersionTag", CachedDataVersionTag);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "setHeapSnapshotNearHeapLimit",
+                        SetHeapSnapshotNearHeapLimit);
   SetMethod(context,
             target,
             "updateHeapStatisticsBuffer",
@@ -267,6 +280,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
+  registry->Register(SetHeapSnapshotNearHeapLimit);
 }
 
 }  // namespace v8_utils

@@ -892,6 +892,24 @@ Realm* Environment::principal_realm() const {
   return principal_realm_.get();
 }
 
+inline void Environment::set_heap_snapshot_near_heap_limit(uint32_t limit) {
+  heap_snapshot_near_heap_limit_ = limit;
+}
+
+inline void Environment::AddHeapSnapshotNearHeapLimitCallback() {
+  DCHECK(!heapsnapshot_near_heap_limit_callback_added_);
+  heapsnapshot_near_heap_limit_callback_added_ = true;
+  isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback, this);
+}
+
+inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
+    size_t heap_limit) {
+  DCHECK(heapsnapshot_near_heap_limit_callback_added_);
+  heapsnapshot_near_heap_limit_callback_added_ = false;
+  isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                        heap_limit);
+}
+
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this
