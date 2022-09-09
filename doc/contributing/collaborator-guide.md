@@ -397,7 +397,7 @@ New modules must only be added with the `node:` prefix.
 When adding promises to an existing API, add `/promises`
 (`inspector/promises`, etc.). Apply the `semver-major` label to the addition.
 
-If the new module name without the `node:` prefix is free, register
+If the new module name is free in npm, register
 a placeholder in the module registry as soon as possible. Link to the pull
 request that introduces the new core module in the placeholder's `README`.
 
