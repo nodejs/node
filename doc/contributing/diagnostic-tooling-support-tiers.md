@@ -133,7 +133,6 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | [Command line Debug Client][]             | ?                             | Yes                     | 1           |
 | Tracing   | [trace\_events (API)][trace_events (API)] | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                                 | No                            | Yes                     | 1           |
-| M/T       | eBPF tracing tool                         | No                            | No                      | ?           |
 
 [0x]: https://github.com/davidmarkclements/0x
 [Async Hooks (API)]: https://nodejs.org/api/async_hooks.html
