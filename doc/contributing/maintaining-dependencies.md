@@ -99,7 +99,7 @@ can be added by:
 
 ## Supporting non-externalized dependencies with JavaScript code
 
-If the depenency consists of JavaScript in the
+If the dependency consists of JavaScript in the
 `preferred form of the work for making modifications to it`, it
 can be added as a non-externalizable dependency. In this case
 simply add the path to the JavaScript file in the `deps_files`
