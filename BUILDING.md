@@ -1063,7 +1063,7 @@ A number of `configure` options are provided to support this use case.
 
 * For dependencies with native code, the first set of options allow
   Node.js to be built so that it uses a shared library
-  at runtime instead of building and including the depenency
+  at runtime instead of building and including the dependency
   in the Node.js binary itself. These options are in the
   `Shared libraries` section of the `configure` help
   (run `./configure --help` to get the complete list).
