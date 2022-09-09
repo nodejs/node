@@ -392,7 +392,7 @@ metadata. Raise a pull request like any other change.
 
 Treat commits that introduce new core modules with extra care.
 
-New modules must be added with the `node:` prefix.
+New modules must only be added with the `node:` prefix.
 
 When adding promises to an existing API, add `/promises`
 (`inspector/promises`, etc.). Apply the `semver-major` label to the addition.
