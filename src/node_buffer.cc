@@ -244,7 +244,20 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  return static_cast<char*>(ui->Buffer()->Data()) + ui->ByteOffset();
+  // GetBackingStore() is slow, and this would be faster if we just did
+  // ui->Buffer()->Data().  However these two are not equivalent in the case of
+  // zero-length buffers: the former returns a "valid" address, while the
+  // latter returns `NULL`. At least one library in the ecosystem (see the
+  // referenced issue) abuses zero-length buffers to wrap arbitrary pointers,
+  // which is broken by this difference. It is unfortunate that every library
+  // needs to take a performance hit because of this edge-case, and somebody
+  // should figure out if this is actually a reasonable contract to uphold
+  // long-term.
+  //
+  // See: https://github.com/nodejs/node/issues/44554
+  return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
+
+         ui->ByteOffset();
 }
 
 
