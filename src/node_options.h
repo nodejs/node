@@ -159,6 +159,7 @@ class EnvironmentOptions : public Options {
   bool trace_deprecation = false;
   bool trace_exit = false;
   bool trace_sync_io = false;
+  std::string trace_sync_io_file_name;
   bool trace_tls = false;
   bool trace_uncaught = false;
   bool trace_warnings = false;

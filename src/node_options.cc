@@ -556,6 +556,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "first tick",
             &EnvironmentOptions::trace_sync_io,
             kAllowedInEnvironment);
+  AddOption("--trace-sync-io-file-name",
+            "write the call stack to file when --trace-sync-io is set",
+            &EnvironmentOptions::trace_sync_io_file_name,
+            kAllowedInEnvironment);
   AddOption("--trace-tls",
             "prints TLS packet trace information to stderr",
             &EnvironmentOptions::trace_tls,

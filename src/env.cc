@@ -876,6 +876,10 @@ Environment::~Environment() {
   }
 
   CHECK_EQ(base_object_count_, 0);
+
+  if (sync_io_fp_) {
+    fclose(sync_io_fp_);
+  }
 }
 
 void Environment::InitializeLibuv() {
@@ -1000,11 +1004,61 @@ void Environment::StartProfilerIdleNotifier() {
   });
 }
 
-void Environment::PrintSyncTrace() const {
+void Environment::PrintSyncTrace() {
   if (!trace_sync_io_) return;
 
   HandleScope handle_scope(isolate());
+  if (!options_->trace_sync_io_file_name.empty()) {
+    if (!sync_io_fp_) {
+      sync_io_fp_ = fopen(options_->trace_sync_io_file_name.c_str(), "ab");
+    }
+    if (sync_io_fp_) {
+      Local<StackTrace> stack = StackTrace::CurrentStackTrace(
+          isolate(), stack_trace_limit(), StackTrace::kDetailed);
+      int len = stack->GetFrameCount();
+      for (int i = len - 1; i >= 0; i--) {
+        Local<v8::StackFrame> stack_frame = stack->GetFrame(isolate(), i);
+        node::Utf8Value fn_name_s(isolate(), stack_frame->GetFunctionName());
+        node::Utf8Value script_name(isolate(), stack_frame->GetScriptName());
+        const int line_number = stack_frame->GetLineNumber();
+        const int column = stack_frame->GetColumn();
 
+        if (stack_frame->IsEval()) {
+          if (stack_frame->GetScriptId() == v8::Message::kNoScriptIdInfo) {
+            FPrintF(sync_io_fp_, "[eval]:%i:%i", line_number, column);
+          } else {
+            FPrintF(sync_io_fp_,
+                    "[eval] (%s:%i:%i)",
+                    *script_name,
+                    line_number,
+                    column);
+          }
+          break;
+        }
+        const char* separator = i == 0 ? "" : "->";
+        if (fn_name_s.length() == 0) {
+          FPrintF(sync_io_fp_,
+                  "%s:%i:%i %s ",
+                  script_name,
+                  line_number,
+                  column,
+                  separator);
+        } else {
+          FPrintF(sync_io_fp_,
+                  "%s (%s:%i:%i) %s ",
+                  fn_name_s,
+                  script_name,
+                  line_number,
+                  column,
+                  separator);
+        }
+      }
+      if (len > 0) {
+        FPrintF(sync_io_fp_, "\n");
+      }
+      return;
+    }
+  }
   fprintf(
       stderr, "(node:%d) WARNING: Detected use of sync API\n", uv_os_getpid());
   PrintStackTrace(isolate(),

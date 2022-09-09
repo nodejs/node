@@ -1439,6 +1439,14 @@ added: v2.1.0
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--trace-sync-io-file-name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Write the call stack to file when `--trace-sync-io` is set.
+
 ### `--trace-tls`
 
 <!-- YAML
@@ -1869,6 +1877,7 @@ Node.js options that are allowed are:
 * `--trace-events-enabled`
 * `--trace-exit`
 * `--trace-sigint`
+* `--trace-sync-io-file-name`
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`

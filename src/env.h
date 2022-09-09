@@ -1194,7 +1194,7 @@ class Environment : public MemoryRetainer {
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
 
-  void PrintSyncTrace() const;
+  void PrintSyncTrace();
   inline void set_trace_sync_io(bool value);
 
   inline void set_force_context_aware(bool value);
@@ -1511,6 +1511,7 @@ class Environment : public MemoryRetainer {
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;
   bool trace_sync_io_ = false;
+  FILE* sync_io_fp_ = nullptr;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   bool emit_filehandle_warning_ = true;
