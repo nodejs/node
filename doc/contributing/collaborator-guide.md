@@ -401,7 +401,7 @@ If the new module name without the `node:` prefix is free, register
 a placeholder in the module registry as soon as possible. Link to the pull
 request that introduces the new core module in the placeholder's `README`.
 
-If the module name without the `node:` prefix is not free and the module is
+If the module name is not free and the module is
 not widely used, contact the owner to see if they would be willing to transfer
 it to the project.
 
