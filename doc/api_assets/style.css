@@ -598,7 +598,8 @@ hr {
   padding-left: 5rem;
 }
 
-#toc .stability_0::after {
+#toc .stability_0::after,
+.deprecated-inline::after {
   background-color: var(--red2);
   color: var(--white);
   content: "deprecated";
