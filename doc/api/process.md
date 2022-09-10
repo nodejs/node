@@ -1041,6 +1041,9 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.7.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43627
+    description: The `process.config` object is now frozen.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36902
     description: Modifying process.config has been deprecated.
@@ -1048,10 +1051,10 @@ changes:
 
 * {Object}
 
-The `process.config` property returns an `Object` containing the JavaScript
-representation of the configure options used to compile the current Node.js
-executable. This is the same as the `config.gypi` file that was produced when
-running the `./configure` script.
+The `process.config` property returns a frozen `Object` containing the
+JavaScript representation of the configure options used to compile the current
+Node.js executable. This is the same as the `config.gypi` file that was produced
+when running the `./configure` script.
 
 An example of the possible output looks like:
 
@@ -1083,14 +1086,6 @@ An example of the possible output looks like:
    }
 }
 ```
-
-The `process.config` property is **not** read-only and there are existing
-modules in the ecosystem that are known to extend, modify, or entirely replace
-the value of `process.config`.
-
-Modifying the `process.config` property, or any child-property of the
-`process.config` object has been deprecated. The `process.config` will be made
-read-only in a future release.
 
 ## `process.connected`
 
