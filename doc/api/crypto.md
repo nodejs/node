@@ -1175,12 +1175,12 @@ or `setPrivateKey()` methods.
 
 ```mjs
 const { createDiffieHellmanGroup } = await import('node:crypto');
-const dh = createDiffieHellmanGroup('modp1');
+const dh = createDiffieHellmanGroup('modp16');
 ```
 
 ```cjs
 const { createDiffieHellmanGroup } = require('node:crypto');
-const dh = createDiffieHellmanGroup('modp1');
+const dh = createDiffieHellmanGroup('modp16');
 ```
 
 The following groups are supported:
