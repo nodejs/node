@@ -406,6 +406,7 @@ void FixedSizeBlobCopyJob::Run(const FunctionCallbackInfo<Value>& args) {
   if (job->mode() == FixedSizeBlobCopyJob::Mode::ASYNC)
     return job->ScheduleWork();
 
+  env->PrintSyncTrace();
   job->DoThreadPoolWork();
   args.GetReturnValue().Set(
       ArrayBuffer::New(env->isolate(), job->destination_));
