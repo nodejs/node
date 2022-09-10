@@ -5369,12 +5369,6 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
 
-The flags below are deprecated in OpenSSL-1.1.0.
-
-* `crypto.constants.ENGINE_METHOD_ECDH`
-* `crypto.constants.ENGINE_METHOD_ECDSA`
-* `crypto.constants.ENGINE_METHOD_STORE`
-
 ### `crypto.setFips(bool)`
 
 <!-- YAML
