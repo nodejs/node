@@ -65,14 +65,11 @@ Maybe<int> EmitProcessExit(Environment* env) {
   Context::Scope context_scope(context);
   Local<Object> process_object = env->process_object();
 
-  // TODO(addaleax): It might be nice to share process._exiting and
-  // process.exitCode via getter/setter pairs that pass data directly to the
-  // native side, so that we don't manually have to read and write JS properties
-  // here. These getters could use e.g. a typed array for performance.
-  if (process_object
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "_exiting"),
-            True(isolate)).IsNothing()) return Nothing<int>();
+  // TODO(addaleax): It might be nice to share process.exitCode via
+  // getter/setter pairs that pass data directly to the native side, so that we
+  // don't manually have to read and write JS properties here. These getters
+  // could use e.g. a typed array for performance.
+  env->set_exiting(true);
 
   Local<String> exit_code = env->exit_code_string();
   Local<Value> code_v;
@@ -167,6 +164,16 @@ void RemoveEnvironmentCleanupHookInternal(
   if (handle->info->started) return;
   handle->info->self.reset();
   handle->info->env->RemoveCleanupHook(RunAsyncCleanupHook, handle->info.get());
+}
+
+void RequestInterrupt(Environment* env, void (*fun)(void* arg), void* arg) {
+  env->RequestInterrupt([fun, arg](Environment* env) {
+    // Disallow JavaScript execution during interrupt.
+    Isolate::DisallowJavascriptExecutionScope scope(
+        env->isolate(),
+        Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+    fun(arg);
+  });
 }
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {

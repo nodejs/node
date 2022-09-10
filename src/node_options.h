@@ -71,6 +71,7 @@ class DebugOptions : public Options {
   DebugOptions(DebugOptions&&) = default;
   DebugOptions& operator=(DebugOptions&&) = default;
 
+  bool allow_attaching_debugger = true;
   // --inspect
   bool inspector_enabled = false;
   // --debug
@@ -108,6 +109,7 @@ class EnvironmentOptions : public Options {
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;
+  bool experimental_global_customevent = false;
   bool experimental_global_web_crypto = false;
   bool experimental_https_modules = false;
   std::string experimental_specifier_resolution;
@@ -135,6 +137,7 @@ class EnvironmentOptions : public Options {
   bool preserve_symlinks = false;
   bool preserve_symlinks_main = false;
   bool prof_process = false;
+  bool update_assert_snapshot = false;
 #if HAVE_INSPECTOR
   std::string cpu_prof_dir;
   static const uint64_t kDefaultCpuProfInterval = 1000;
@@ -170,6 +173,10 @@ class EnvironmentOptions : public Options {
       false;
 #endif  // DEBUG
 
+  bool watch_mode = false;
+  bool watch_mode_report_to_parent = false;
+  std::vector<std::string> watch_mode_paths;
+
   bool syntax_check_only = false;
   bool has_eval_string = false;
   bool experimental_wasi = false;
@@ -187,7 +194,9 @@ class EnvironmentOptions : public Options {
   bool tls_max_v1_3 = false;
   std::string tls_keylog;
 
-  std::vector<std::string> preload_modules;
+  std::vector<std::string> preload_cjs_modules;
+
+  std::vector<std::string> preload_esm_modules;
 
   std::vector<std::string> user_argv;
 
@@ -236,6 +245,7 @@ class PerProcessOptions : public Options {
   // snapshot used in different isolates in the same process to be the same.
   // Therefore --node-snapshot is a per-process option.
   bool node_snapshot = true;
+  std::string snapshot_blob;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;

@@ -478,30 +478,38 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
 void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
     PromiseHookType type, TNode<Context> context,
     TNode<HeapObject> promise_or_capability) {
-  Label hook(this, Label::kDeferred), done_hook(this);
   TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  Label hook(this, Label::kDeferred), done_hook(this);
   Branch(NeedsAnyPromiseHooks(promiseHookFlags), &hook, &done_hook);
   BIND(&hook);
   {
+#endif
     switch (type) {
       case PromiseHookType::kBefore:
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
         RunContextPromiseHookBefore(context, promise_or_capability,
                                     promiseHookFlags);
+#endif
         RunPromiseHook(Runtime::kPromiseHookBefore, context,
                        promise_or_capability, promiseHookFlags);
         break;
       case PromiseHookType::kAfter:
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
         RunContextPromiseHookAfter(context, promise_or_capability,
                                    promiseHookFlags);
+#endif
         RunPromiseHook(Runtime::kPromiseHookAfter, context,
                        promise_or_capability, promiseHookFlags);
         break;
       default:
         UNREACHABLE();
     }
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
     Goto(&done_hook);
   }
   BIND(&done_hook);
+#endif
 }
 
 void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(

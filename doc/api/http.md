@@ -874,7 +874,7 @@ request.setHeader('Foo', 'bar');
 request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
 
 const headerNames = request.getHeaderNames();
-// headerNames === ['foo', 'Cookie']
+// headerNames === ['foo', 'cookie']
 ```
 
 ### `request.getHeaders()`
@@ -1405,6 +1405,22 @@ If `socket.setTimeout()` is called here, the timeout will be replaced with
 This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
+
+### Event: `'dropRequest'`
+
+<!-- YAML
+added:
+  - v18.7.0
+  - v16.17.0
+-->
+
+* `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
+  the [`'request'`][] event
+* `socket` {stream.Duplex} Network socket between the server and client
+
+When the number of requests on a socket reaches the threshold of
+`server.maxRequestsPerSocket`, the server will drop new requests
+and emit `'dropRequest'` event instead, then send `503` to client.
 
 ### Event: `'request'`
 
@@ -2113,9 +2129,40 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 added: v0.3.0
 -->
 
-Sends a HTTP/1.1 100 Continue message to the client, indicating that
+Sends an HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on
 `Server`.
+
+### `response.writeEarlyHints(links[, callback])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `links` {string|Array}
+* `callback` {Function}
+
+Sends an HTTP/1.1 103 Early Hints message to the client with a Link header,
+indicating that the user agent can preload/preconnect the linked resources.
+The `links` can be a string or an array of strings containing the values
+of the `Link` header. The optional `callback` argument will be called when
+the response message has been written.
+
+**Example**
+
+```js
+const earlyHintsLink = '</styles.css>; rel=preload; as=style';
+response.writeEarlyHints(earlyHintsLink);
+
+const earlyHintsLinks = [
+  '</styles.css>; rel=preload; as=style',
+  '</scripts.js>; rel=preload; as=script',
+];
+response.writeEarlyHints(earlyHintsLinks);
+
+const earlyHintsCallback = () => console.log('early hints message sent');
+response.writeEarlyHints(earlyHintsLinks, earlyHintsCallback);
+```
 
 ### `response.writeHead(statusCode[, statusMessage][, headers])`
 
@@ -2381,7 +2428,9 @@ header name:
 ### `message.headersDistinct`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 * {Object}
@@ -2533,7 +2582,9 @@ The request/response trailers object. Only populated at the `'end'` event.
 ### `message.trailersDistinct`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 * {Object}
@@ -2656,7 +2707,9 @@ will result in a `TypeError` being thrown.
 ### `outgoingMessage.appendHeader(name, value)`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 * `name` {string} Header name
@@ -3618,6 +3671,16 @@ try {
   err.message; // --> 'Invalid character in header content ["x-my-header"]'
 }
 ```
+
+## `http.setMaxIdleHTTPParsers`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* {number}
+
+Set the maximum number of idle HTTP parsers. **Default:** `1000`.
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'checkContinue'`]: #event-checkcontinue

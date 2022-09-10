@@ -3,9 +3,9 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.2.2-ae7b6d5b86-9.zip/node_modules/@zkochan/cmd-shim/index.js":
+/***/ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js":
 /*!***********************************************************************************************************************!*\
-  !*** ../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.2.2-ae7b6d5b86-9.zip/node_modules/@zkochan/cmd-shim/index.js ***!
+  !*** ../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js ***!
   \***********************************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -40,12 +40,12 @@ function ingestOptions(opts) {
     const opts_ = { ...DEFAULT_OPTIONS, ...opts };
     const fs = opts_.fs;
     opts_.fs_ = {
-        chmod: fs.chmod ? util_1.promisify(fs.chmod) : (async () => { }),
-        mkdir: util_1.promisify(fs.mkdir),
-        readFile: util_1.promisify(fs.readFile),
-        stat: util_1.promisify(fs.stat),
-        unlink: util_1.promisify(fs.unlink),
-        writeFile: util_1.promisify(fs.writeFile)
+        chmod: fs.chmod ? (0, util_1.promisify)(fs.chmod) : (async () => { }),
+        mkdir: (0, util_1.promisify)(fs.mkdir),
+        readFile: (0, util_1.promisify)(fs.readFile),
+        stat: (0, util_1.promisify)(fs.stat),
+        unlink: (0, util_1.promisify)(fs.unlink),
+        writeFile: (0, util_1.promisify)(fs.writeFile)
     };
     return opts_;
 }
@@ -60,7 +60,6 @@ function ingestOptions(opts) {
  */
 async function cmdShim(src, to, opts) {
     const opts_ = ingestOptions(opts);
-    await opts_.fs_.stat(src);
     await cmdShim_(src, to, opts_);
 }
 /**
@@ -158,25 +157,47 @@ function writeShimPost(target, opts) {
  * @return Promise of infomation of runtime of `target`.
  */
 async function searchScriptRuntime(target, opts) {
-    const data = await opts.fs_.readFile(target, 'utf8');
-    // First, check if the bin is a #! of some sort.
-    const firstLine = data.trim().split(/\r*\n/)[0];
-    const shebang = firstLine.match(shebangExpr);
-    if (!shebang) {
-        // If not, infer script type from its extension.
-        // If the inference fails, it's something that'll be compiled, or some other
-        // sort of script, and just call it directly.
-        const targetExtension = path.extname(target).toLowerCase();
+    try {
+        const data = await opts.fs_.readFile(target, 'utf8');
+        // First, check if the bin is a #! of some sort.
+        const firstLine = data.trim().split(/\r*\n/)[0];
+        const shebang = firstLine.match(shebangExpr);
+        if (!shebang) {
+            // If not, infer script type from its extension.
+            // If the inference fails, it's something that'll be compiled, or some other
+            // sort of script, and just call it directly.
+            const targetExtension = path.extname(target).toLowerCase();
+            return {
+                // undefined if extension is unknown but it's converted to null.
+                program: extensionToProgramMap.get(targetExtension) || null,
+                additionalArgs: ''
+            };
+        }
         return {
-            // undefined if extension is unknown but it's converted to null.
-            program: extensionToProgramMap.get(targetExtension) || null,
-            additionalArgs: ''
+            program: shebang[1],
+            additionalArgs: shebang[2]
         };
     }
-    return {
-        program: shebang[1],
-        additionalArgs: shebang[2]
-    };
+    catch (err) {
+        if (!isWindows() || err.code !== 'ENOENT')
+            throw err;
+        if (await opts.fs_.stat(`${target}${getExeExtension()}`)) {
+            return {
+                program: null,
+                additionalArgs: '',
+            };
+        }
+        throw err;
+    }
+}
+function getExeExtension() {
+    let cmdExtension;
+    if (process.env.PATHEXT) {
+        cmdExtension = process.env.PATHEXT
+            .split(path.delimiter)
+            .find(ext => ext.toLowerCase() === '.exe');
+    }
+    return cmdExtension || '.exe';
 }
 /**
  * Write shim to the file system while executing the pre- and post-processes
@@ -219,6 +240,7 @@ function generateCmdShim(src, to, opts) {
     let prog = opts.prog;
     let args = opts.args || '';
     const nodePath = normalizePathEnvVar(opts.nodePath).win32;
+    const prependToPath = normalizePathEnvVar(opts.prependToPath).win32;
     if (!prog) {
         prog = quotedPathToTarget;
         args = '';
@@ -241,6 +263,9 @@ function generateCmdShim(src, to, opts) {
     //   node "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
     // )
     let cmd = '@SETLOCAL\r\n';
+    if (prependToPath) {
+        cmd += `@SET "PATH=${prependToPath}:%PATH%"\r\n`;
+    }
     if (nodePath) {
         cmd += `\
 @IF NOT DEFINED NODE_PATH (\r
@@ -319,6 +344,11 @@ case \`uname\` in
 esac
 
 `;
+    if (opts.prependToPath) {
+        sh += `\
+export PATH="${opts.prependToPath}:$PATH"
+`;
+    }
     if (shNodePath) {
         sh += `\
 if [ -z "$NODE_PATH" ]; then
@@ -362,9 +392,12 @@ function generatePwshShim(src, to, opts) {
     shTarget = shTarget.split('\\').join('/');
     const quotedPathToTarget = path.isAbsolute(shTarget) ? `"${shTarget}"` : `"$basedir/${shTarget}"`;
     let args = opts.args || '';
-    let normalizedPathEnvVar = normalizePathEnvVar(opts.nodePath);
-    const nodePath = normalizedPathEnvVar.win32;
-    const shNodePath = normalizedPathEnvVar.posix;
+    let normalizedNodePathEnvVar = normalizePathEnvVar(opts.nodePath);
+    const nodePath = normalizedNodePathEnvVar.win32;
+    const shNodePath = normalizedNodePathEnvVar.posix;
+    let normalizedPrependPathEnvVar = normalizePathEnvVar(opts.prependToPath);
+    const prependPath = normalizedPrependPathEnvVar.win32;
+    const shPrependPath = normalizedPrependPathEnvVar.posix;
     if (!pwshProg) {
         pwshProg = quotedPathToTarget;
         args = '';
@@ -412,27 +445,41 @@ function generatePwshShim(src, to, opts) {
 $basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent
 
 $exe=""
+${(nodePath || prependPath) ? '$pathsep=":"\n' : ''}\
 ${nodePath ? `\
-$pathsep=":"
 $env_node_path=$env:NODE_PATH
 $new_node_path="${nodePath}"
+` : ''}\
+${prependPath ? `\
+$env_path=$env:PATH
+$prepend_path="${prependPath}"
 ` : ''}\
 if ($PSVersionTable.PSVersion -lt "6.0" -or $IsWindows) {
   # Fix case when both the Windows and Linux builds of Node
   # are installed in the same directory
   $exe=".exe"
-${nodePath ? '  $pathsep=";"\n' : ''}\
+${(nodePath || prependPath) ? '  $pathsep=";"\n' : ''}\
 }`;
-    if (shNodePath) {
+    if (shNodePath || shPrependPath) {
         pwsh += `\
  else {
-  $new_node_path="${shNodePath}"
+${shNodePath ? `  $new_node_path="${shNodePath}"\n` : ''}\
+${shPrependPath ? `  $prepend_path="${shPrependPath}"\n` : ''}\
 }
+`;
+    }
+    if (shNodePath) {
+        pwsh += `\
 if ([string]::IsNullOrEmpty($env_node_path)) {
   $env:NODE_PATH=$new_node_path
 } else {
   $env:NODE_PATH="$env_node_path$pathsep$new_node_path"
 }
+`;
+    }
+    if (opts.prependToPath) {
+        pwsh += `
+$env:PATH="$prepend_path$pathsep$env:PATH"
 `;
     }
     if (pwshLongProg) {
@@ -456,6 +503,7 @@ if (Test-Path ${pwshLongProg}) {
   $ret=$LASTEXITCODE
 }
 ${nodePath ? '$env:NODE_PATH=$env_node_path\n' : ''}\
+${prependPath ? '$env:PATH=$env_path\n' : ''}\
 exit $ret
 `;
     }
@@ -468,6 +516,7 @@ if ($MyInvocation.ExpectingInput) {
   & ${pwshProg} ${args} ${shTarget} ${progArgs}$args
 }
 ${nodePath ? '$env:NODE_PATH=$env_node_path\n' : ''}\
+${prependPath ? '$env:PATH=$env_path\n' : ''}\
 exit $LASTEXITCODE
 `;
     }
@@ -713,7 +762,7 @@ module.exports = cmdExtension || '.cmd'
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const EE = (__webpack_require__(/*! events */ "events").EventEmitter)
 const fs = __webpack_require__(/*! fs */ "fs")
 
@@ -1685,9 +1734,9 @@ module.exports = LRUCache
 
 /***/ }),
 
-/***/ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js":
+/***/ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js":
 /*!*****************************************************************************************************!*\
-  !*** ../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js ***!
+  !*** ../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js ***!
   \*****************************************************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -1699,7 +1748,6 @@ const proc = typeof process === 'object' && process ? process : {
 }
 const EE = __webpack_require__(/*! events */ "events")
 const Stream = __webpack_require__(/*! stream */ "stream")
-const Yallist = __webpack_require__(/*! yallist */ "../../../.yarn/berry/cache/yallist-npm-4.0.0-b493d9e907-9.zip/node_modules/yallist/yallist.js")
 const SD = (__webpack_require__(/*! string_decoder */ "string_decoder").StringDecoder)
 
 const EOF = Symbol('EOF')
@@ -1721,6 +1769,12 @@ const BUFFERPUSH = Symbol('bufferPush')
 const BUFFERSHIFT = Symbol('bufferShift')
 const OBJECTMODE = Symbol('objectMode')
 const DESTROYED = Symbol('destroyed')
+const EMITDATA = Symbol('emitData')
+const EMITEND = Symbol('emitEnd')
+const EMITEND2 = Symbol('emitEnd2')
+const ASYNC = Symbol('async')
+
+const defer = fn => Promise.resolve().then(fn)
 
 // TODO remove when Node v8 support drops
 const doIter = global._MP_NO_ITERATOR_SYMBOLS_  !== '1'
@@ -1745,14 +1799,46 @@ const isArrayBuffer = b => b instanceof ArrayBuffer ||
 
 const isArrayBufferView = b => !Buffer.isBuffer(b) && ArrayBuffer.isView(b)
 
+class Pipe {
+  constructor (src, dest, opts) {
+    this.src = src
+    this.dest = dest
+    this.opts = opts
+    this.ondrain = () => src[RESUME]()
+    dest.on('drain', this.ondrain)
+  }
+  unpipe () {
+    this.dest.removeListener('drain', this.ondrain)
+  }
+  // istanbul ignore next - only here for the prototype
+  proxyErrors () {}
+  end () {
+    this.unpipe()
+    if (this.opts.end)
+      this.dest.end()
+  }
+}
+
+class PipeProxyErrors extends Pipe {
+  unpipe () {
+    this.src.removeListener('error', this.proxyErrors)
+    super.unpipe()
+  }
+  constructor (src, dest, opts) {
+    super(src, dest, opts)
+    this.proxyErrors = er => dest.emit('error', er)
+    src.on('error', this.proxyErrors)
+  }
+}
+
 module.exports = class Minipass extends Stream {
   constructor (options) {
     super()
     this[FLOWING] = false
     // whether we're explicitly paused
     this[PAUSED] = false
-    this.pipes = new Yallist()
-    this.buffer = new Yallist()
+    this.pipes = []
+    this.buffer = []
     this[OBJECTMODE] = options && options.objectMode || false
     if (this[OBJECTMODE])
       this[ENCODING] = null
@@ -1760,6 +1846,7 @@ module.exports = class Minipass extends Stream {
       this[ENCODING] = options && options.encoding || null
     if (this[ENCODING] === 'buffer')
       this[ENCODING] = null
+    this[ASYNC] = options && !!options.async || false
     this[DECODER] = this[ENCODING] ? new SD(this[ENCODING]) : null
     this[EOF] = false
     this[EMITTED_END] = false
@@ -1799,6 +1886,9 @@ module.exports = class Minipass extends Stream {
   get objectMode () { return this[OBJECTMODE] }
   set objectMode (om) { this[OBJECTMODE] = this[OBJECTMODE] || !!om }
 
+  get ['async'] () { return this[ASYNC] }
+  set ['async'] (a) { this[ASYNC] = this[ASYNC] || !!a }
+
   write (chunk, encoding, cb) {
     if (this[EOF])
       throw new Error('write after end')
@@ -1817,6 +1907,8 @@ module.exports = class Minipass extends Stream {
     if (!encoding)
       encoding = 'utf8'
 
+    const fn = this[ASYNC] ? defer : f => f()
+
     // convert array buffers and typed array views into buffers
     // at some point in the future, we may want to do the opposite!
     // leave strings and buffers as-is
@@ -1831,19 +1923,40 @@ module.exports = class Minipass extends Stream {
         this.objectMode = true
     }
 
-    // this ensures at this point that the chunk is a buffer or string
+    // handle object mode up front, since it's simpler
+    // this yields better performance, fewer checks later.
+    if (this[OBJECTMODE]) {
+      /* istanbul ignore if - maybe impossible? */
+      if (this.flowing && this[BUFFERLENGTH] !== 0)
+        this[FLUSH](true)
+
+      if (this.flowing)
+        this.emit('data', chunk)
+      else
+        this[BUFFERPUSH](chunk)
+
+      if (this[BUFFERLENGTH] !== 0)
+        this.emit('readable')
+
+      if (cb)
+        fn(cb)
+
+      return this.flowing
+    }
+
+    // at this point the chunk is a buffer or string
     // don't buffer it up or send it to the decoder
-    if (!this.objectMode && !chunk.length) {
+    if (!chunk.length) {
       if (this[BUFFERLENGTH] !== 0)
         this.emit('readable')
       if (cb)
-        cb()
+        fn(cb)
       return this.flowing
     }
 
     // fast-path writing strings of same encoding to a stream with
     // an empty buffer, skipping the buffer/decoder dance
-    if (typeof chunk === 'string' && !this[OBJECTMODE] &&
+    if (typeof chunk === 'string' &&
         // unless it is a string already ready for us to use
         !(encoding === this[ENCODING] && !this[DECODER].lastNeed)) {
       chunk = Buffer.from(chunk, encoding)
@@ -1852,27 +1965,20 @@ module.exports = class Minipass extends Stream {
     if (Buffer.isBuffer(chunk) && this[ENCODING])
       chunk = this[DECODER].write(chunk)
 
-    if (this.flowing) {
-      // if we somehow have something in the buffer, but we think we're
-      // flowing, then we need to flush all that out first, or we get
-      // chunks coming in out of order.  Can't emit 'drain' here though,
-      // because we're mid-write, so that'd be bad.
-      if (this[BUFFERLENGTH] !== 0)
-        this[FLUSH](true)
+    // Note: flushing CAN potentially switch us into not-flowing mode
+    if (this.flowing && this[BUFFERLENGTH] !== 0)
+      this[FLUSH](true)
 
-      // if we are still flowing after flushing the buffer we can emit the
-      // chunk otherwise we have to buffer it.
-      this.flowing
-        ? this.emit('data', chunk)
-        : this[BUFFERPUSH](chunk)
-    } else
+    if (this.flowing)
+      this.emit('data', chunk)
+    else
       this[BUFFERPUSH](chunk)
 
     if (this[BUFFERLENGTH] !== 0)
       this.emit('readable')
 
     if (cb)
-      cb()
+      fn(cb)
 
     return this.flowing
   }
@@ -1881,35 +1987,31 @@ module.exports = class Minipass extends Stream {
     if (this[DESTROYED])
       return null
 
-    try {
-      if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH])
-        return null
-
-      if (this[OBJECTMODE])
-        n = null
-
-      if (this.buffer.length > 1 && !this[OBJECTMODE]) {
-        if (this.encoding)
-          this.buffer = new Yallist([
-            Array.from(this.buffer).join('')
-          ])
-        else
-          this.buffer = new Yallist([
-            Buffer.concat(Array.from(this.buffer), this[BUFFERLENGTH])
-          ])
-      }
-
-      return this[READ](n || null, this.buffer.head.value)
-    } finally {
+    if (this[BUFFERLENGTH] === 0 || n === 0 || n > this[BUFFERLENGTH]) {
       this[MAYBE_EMIT_END]()
+      return null
     }
+
+    if (this[OBJECTMODE])
+      n = null
+
+    if (this.buffer.length > 1 && !this[OBJECTMODE]) {
+      if (this.encoding)
+        this.buffer = [this.buffer.join('')]
+      else
+        this.buffer = [Buffer.concat(this.buffer, this[BUFFERLENGTH])]
+    }
+
+    const ret = this[READ](n || null, this.buffer[0])
+    this[MAYBE_EMIT_END]()
+    return ret
   }
 
   [READ] (n, chunk) {
     if (n === chunk.length || n === null)
       this[BUFFERSHIFT]()
     else {
-      this.buffer.head.value = chunk.slice(n)
+      this.buffer[0] = chunk.slice(n)
       chunk = chunk.slice(0, n)
       this[BUFFERLENGTH] -= n
     }
@@ -1985,7 +2087,7 @@ module.exports = class Minipass extends Stream {
       this[BUFFERLENGTH] += 1
     else
       this[BUFFERLENGTH] += chunk.length
-    return this.buffer.push(chunk)
+    this.buffer.push(chunk)
   }
 
   [BUFFERSHIFT] () {
@@ -1993,7 +2095,7 @@ module.exports = class Minipass extends Stream {
       if (this[OBJECTMODE])
         this[BUFFERLENGTH] -= 1
       else
-        this[BUFFERLENGTH] -= this.buffer.head.value.length
+        this[BUFFERLENGTH] -= this.buffer[0].length
     }
     return this.buffer.shift()
   }
@@ -2019,16 +2121,30 @@ module.exports = class Minipass extends Stream {
       opts.end = false
     else
       opts.end = opts.end !== false
+    opts.proxyErrors = !!opts.proxyErrors
 
-    const p = { dest: dest, opts: opts, ondrain: _ => this[RESUME]() }
-    this.pipes.push(p)
-
-    dest.on('drain', p.ondrain)
-    this[RESUME]()
     // piping an ended stream ends immediately
-    if (ended && p.opts.end)
-      p.dest.end()
+    if (ended) {
+      if (opts.end)
+        dest.end()
+    } else {
+      this.pipes.push(!opts.proxyErrors ? new Pipe(this, dest, opts)
+        : new PipeProxyErrors(this, dest, opts))
+      if (this[ASYNC])
+        defer(() => this[RESUME]())
+      else
+        this[RESUME]()
+    }
+
     return dest
+  }
+
+  unpipe (dest) {
+    const p = this.pipes.find(p => p.dest === dest)
+    if (p) {
+      this.pipes.splice(this.pipes.indexOf(p), 1)
+      p.unpipe()
+    }
   }
 
   addListener (ev, fn) {
@@ -2036,18 +2152,21 @@ module.exports = class Minipass extends Stream {
   }
 
   on (ev, fn) {
-    try {
-      return super.on(ev, fn)
-    } finally {
-      if (ev === 'data' && !this.pipes.length && !this.flowing)
-        this[RESUME]()
-      else if (isEndish(ev) && this[EMITTED_END]) {
-        super.emit(ev)
-        this.removeAllListeners(ev)
-      } else if (ev === 'error' && this[EMITTED_ERROR]) {
+    const ret = super.on(ev, fn)
+    if (ev === 'data' && !this.pipes.length && !this.flowing)
+      this[RESUME]()
+    else if (ev === 'readable' && this[BUFFERLENGTH] !== 0)
+      super.emit('readable')
+    else if (isEndish(ev) && this[EMITTED_END]) {
+      super.emit(ev)
+      this.removeAllListeners(ev)
+    } else if (ev === 'error' && this[EMITTED_ERROR]) {
+      if (this[ASYNC])
+        defer(() => fn.call(this, this[EMITTED_ERROR]))
+      else
         fn.call(this, this[EMITTED_ERROR])
-      }
     }
+    return ret
   }
 
   get emittedEnd () {
@@ -2070,65 +2189,84 @@ module.exports = class Minipass extends Stream {
     }
   }
 
-  emit (ev, data) {
+  emit (ev, data, ...extra) {
     // error and close are only events allowed after calling destroy()
     if (ev !== 'error' && ev !== 'close' && ev !== DESTROYED && this[DESTROYED])
       return
     else if (ev === 'data') {
-      if (!data)
-        return
-
-      if (this.pipes.length)
-        this.pipes.forEach(p =>
-          p.dest.write(data) === false && this.pause())
+      return !data ? false
+        : this[ASYNC] ? defer(() => this[EMITDATA](data))
+        : this[EMITDATA](data)
     } else if (ev === 'end') {
-      // only actual end gets this treatment
-      if (this[EMITTED_END] === true)
-        return
-
-      this[EMITTED_END] = true
-      this.readable = false
-
-      if (this[DECODER]) {
-        data = this[DECODER].end()
-        if (data) {
-          this.pipes.forEach(p => p.dest.write(data))
-          super.emit('data', data)
-        }
-      }
-
-      this.pipes.forEach(p => {
-        p.dest.removeListener('drain', p.ondrain)
-        if (p.opts.end)
-          p.dest.end()
-      })
+      return this[EMITEND]()
     } else if (ev === 'close') {
       this[CLOSED] = true
       // don't emit close before 'end' and 'finish'
       if (!this[EMITTED_END] && !this[DESTROYED])
         return
+      const ret = super.emit('close')
+      this.removeAllListeners('close')
+      return ret
     } else if (ev === 'error') {
       this[EMITTED_ERROR] = data
+      const ret = super.emit('error', data)
+      this[MAYBE_EMIT_END]()
+      return ret
+    } else if (ev === 'resume') {
+      const ret = super.emit('resume')
+      this[MAYBE_EMIT_END]()
+      return ret
+    } else if (ev === 'finish' || ev === 'prefinish') {
+      const ret = super.emit(ev)
+      this.removeAllListeners(ev)
+      return ret
     }
 
-    // TODO: replace with a spread operator when Node v4 support drops
-    const args = new Array(arguments.length)
-    args[0] = ev
-    args[1] = data
-    if (arguments.length > 2) {
-      for (let i = 2; i < arguments.length; i++) {
-        args[i] = arguments[i]
+    // Some other unknown event
+    const ret = super.emit(ev, data, ...extra)
+    this[MAYBE_EMIT_END]()
+    return ret
+  }
+
+  [EMITDATA] (data) {
+    for (const p of this.pipes) {
+      if (p.dest.write(data) === false)
+        this.pause()
+    }
+    const ret = super.emit('data', data)
+    this[MAYBE_EMIT_END]()
+    return ret
+  }
+
+  [EMITEND] () {
+    if (this[EMITTED_END])
+      return
+
+    this[EMITTED_END] = true
+    this.readable = false
+    if (this[ASYNC])
+      defer(() => this[EMITEND2]())
+    else
+      this[EMITEND2]()
+  }
+
+  [EMITEND2] () {
+    if (this[DECODER]) {
+      const data = this[DECODER].end()
+      if (data) {
+        for (const p of this.pipes) {
+          p.dest.write(data)
+        }
+        super.emit('data', data)
       }
     }
 
-    try {
-      return super.emit.apply(this, args)
-    } finally {
-      if (!isEndish(ev))
-        this[MAYBE_EMIT_END]()
-      else
-        this.removeAllListeners(ev)
+    for (const p of this.pipes) {
+      p.end()
     }
+    const ret = super.emit('end')
+    this.removeAllListeners('end')
+    return ret
   }
 
   // const all = await stream.collect()
@@ -2230,7 +2368,7 @@ module.exports = class Minipass extends Stream {
     this[DESTROYED] = true
 
     // throw away all buffered data, it's never coming out
-    this.buffer = new Yallist()
+    this.buffer.length = 0
     this[BUFFERLENGTH] = 0
 
     if (typeof this.close === 'function' && !this[CLOSED])
@@ -2395,7 +2533,7 @@ const Buffer = (__webpack_require__(/*! buffer */ "buffer").Buffer)
 const realZlib = __webpack_require__(/*! zlib */ "zlib")
 
 const constants = exports.constants = __webpack_require__(/*! ./constants.js */ "../../../.yarn/berry/cache/minizlib-npm-2.1.2-ea89cd0cfb-9.zip/node_modules/minizlib/constants.js")
-const Minipass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js")
+const Minipass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 
 const OriginalBufferConcat = Buffer.concat
 
@@ -6863,7 +7001,7 @@ class PackJob {
   }
 }
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const zlib = __webpack_require__(/*! minizlib */ "../../../.yarn/berry/cache/minizlib-npm-2.1.2-ea89cd0cfb-9.zip/node_modules/minizlib/index.js")
 const ReadEntry = __webpack_require__(/*! ./read-entry.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/read-entry.js")
 const WriteEntry = __webpack_require__(/*! ./write-entry.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/write-entry.js")
@@ -8052,7 +8190,7 @@ module.exports = Pax
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const normPath = __webpack_require__(/*! ./normalize-windows-path.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/normalize-windows-path.js")
 
 const SLURP = Symbol('slurp')
@@ -9510,7 +9648,7 @@ module.exports = {
 
 "use strict";
 
-const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.1.6-f032df1661-9.zip/node_modules/minipass/index.js")
+const MiniPass = __webpack_require__(/*! minipass */ "../../../.yarn/berry/cache/minipass-npm-3.3.5-a555b091e7-9.zip/node_modules/minipass/index.js")
 const Pax = __webpack_require__(/*! ./pax.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/pax.js")
 const Header = __webpack_require__(/*! ./header.js */ "../../../.yarn/berry/cache/tar-npm-6.1.11-e6ac3cba9c-9.zip/node_modules/tar/lib/header.js")
 const fs = __webpack_require__(/*! fs */ "fs")
@@ -14956,18 +15094,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "Engine": () => (/* binding */ Engine)
 /* harmony export */ });
-/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
+/* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! fs */ "fs");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! path */ "path");
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! semver */ "../../../.yarn/berry/cache/semver-npm-7.3.7-3bfe704194-9.zip/node_modules/semver/index.js");
-/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(semver__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var _config_json__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../config.json */ "./config.json");
-/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
-/* harmony import */ var _folderUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./folderUtils */ "./sources/folderUtils.ts");
-/* harmony import */ var _semverUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./semverUtils */ "./sources/semverUtils.ts");
-/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./types */ "./sources/types.ts");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! process */ "process");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(process__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! semver */ "../../../.yarn/berry/cache/semver-npm-7.3.7-3bfe704194-9.zip/node_modules/semver/index.js");
+/* harmony import */ var semver__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(semver__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _config_json__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../config.json */ "./config.json");
+/* harmony import */ var _corepackUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./corepackUtils */ "./sources/corepackUtils.ts");
+/* harmony import */ var _folderUtils__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./folderUtils */ "./sources/folderUtils.ts");
+/* harmony import */ var _semverUtils__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./semverUtils */ "./sources/semverUtils.ts");
+/* harmony import */ var _types__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./types */ "./sources/types.ts");
+
 
 
 
@@ -14978,11 +15119,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class Engine {
-    constructor(config = _config_json__WEBPACK_IMPORTED_MODULE_3__) {
+    constructor(config = _config_json__WEBPACK_IMPORTED_MODULE_4__) {
         this.config = config;
     }
     getPackageManagerFor(binaryName) {
-        for (const packageManager of _types__WEBPACK_IMPORTED_MODULE_7__.SupportedPackageManagerSet) {
+        for (const packageManager of _types__WEBPACK_IMPORTED_MODULE_8__.SupportedPackageManagerSet) {
             for (const rangeDefinition of Object.values(this.config.definitions[packageManager].ranges)) {
                 const bins = Array.isArray(rangeDefinition.bin)
                     ? rangeDefinition.bin
@@ -15008,14 +15149,14 @@ class Engine {
     }
     async getDefaultDescriptors() {
         const locators = [];
-        for (const name of _types__WEBPACK_IMPORTED_MODULE_7__.SupportedPackageManagerSet)
+        for (const name of _types__WEBPACK_IMPORTED_MODULE_8__.SupportedPackageManagerSet)
             locators.push({ name, range: await this.getDefaultVersion(name) });
         return locators;
     }
     async getDefaultVersion(packageManager) {
         const definition = this.config.definitions[packageManager];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${packageManager}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${packageManager}) isn't supported by this corepack build`);
         let lastKnownGood;
         try {
             lastKnownGood = JSON.parse(await fs__WEBPACK_IMPORTED_MODULE_0___default().promises.readFile(this.getLastKnownGoodFile(), `utf8`));
@@ -15023,14 +15164,21 @@ class Engine {
         catch (_a) {
             // Ignore errors; too bad
         }
-        if (typeof lastKnownGood !== `object` || lastKnownGood === null)
+        if (typeof lastKnownGood === `object` && lastKnownGood !== null &&
+            Object.prototype.hasOwnProperty.call(lastKnownGood, packageManager)) {
+            const override = lastKnownGood[packageManager];
+            if (typeof override === `string`) {
+                return override;
+            }
+        }
+        if ((process__WEBPACK_IMPORTED_MODULE_2___default().env.COREPACK_DEFAULT_TO_LATEST) === `0`)
             return definition.default;
-        if (!Object.prototype.hasOwnProperty.call(lastKnownGood, packageManager))
-            return definition.default;
-        const override = lastKnownGood[packageManager];
-        if (typeof override !== `string`)
-            return definition.default;
-        return override;
+        const reference = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchLatestStableVersion(definition.fetchLatestFrom);
+        await this.activatePackageManager({
+            name: packageManager,
+            reference,
+        });
+        return reference;
     }
     async activatePackageManager(locator) {
         const lastKnownGoodFile = this.getLastKnownGoodFile();
@@ -15050,12 +15198,12 @@ class Engine {
     async ensurePackageManager(locator) {
         const definition = this.config.definitions[locator.name];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${locator.name}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${locator.name}) isn't supported by this corepack build`);
         const ranges = Object.keys(definition.ranges).reverse();
-        const range = ranges.find(range => _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(locator.reference, range));
+        const range = ranges.find(range => _semverUtils__WEBPACK_IMPORTED_MODULE_7__.satisfiesWithPrereleases(locator.reference, range));
         if (typeof range === `undefined`)
             throw new Error(`Assertion failed: Specified resolution (${locator.reference}) isn't supported by any of ${ranges.join(`, `)}`);
-        const installedLocation = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), locator, {
+        const installedLocation = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.installVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), locator, {
             spec: definition.ranges[range],
         });
         return {
@@ -15066,17 +15214,17 @@ class Engine {
     async resolveDescriptor(descriptor, { allowTags = false, useCache = true } = {}) {
         const definition = this.config.definitions[descriptor.name];
         if (typeof definition === `undefined`)
-            throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`This package manager (${descriptor.name}) isn't supported by this corepack build`);
+            throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`This package manager (${descriptor.name}) isn't supported by this corepack build`);
         let finalDescriptor = descriptor;
-        if (/^[a-z-]+$/.test(descriptor.range)) {
+        if (!semver__WEBPACK_IMPORTED_MODULE_3___default().valid(descriptor.range) && !semver__WEBPACK_IMPORTED_MODULE_3___default().validRange(descriptor.range)) {
             if (!allowTags)
-                throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Packages managers can't be referended via tags in this context`);
+                throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`Packages managers can't be referended via tags in this context`);
             // We only resolve tags from the latest registry entry
             const ranges = Object.keys(definition.ranges);
             const tagRange = ranges[ranges.length - 1];
-            const tags = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.fetchAvailableTags(definition.ranges[tagRange].registry);
+            const tags = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableTags(definition.ranges[tagRange].registry);
             if (!Object.prototype.hasOwnProperty.call(tags, descriptor.range))
-                throw new clipanion__WEBPACK_IMPORTED_MODULE_8__.UsageError(`Tag not found (${descriptor.range})`);
+                throw new clipanion__WEBPACK_IMPORTED_MODULE_9__.UsageError(`Tag not found (${descriptor.range})`);
             finalDescriptor = {
                 name: descriptor.name,
                 range: tags[descriptor.range],
@@ -15084,18 +15232,18 @@ class Engine {
         }
         // If a compatible version is already installed, no need to query one
         // from the remote listings
-        const cachedVersion = await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), finalDescriptor);
+        const cachedVersion = await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.findInstalledVersion(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), finalDescriptor);
         if (cachedVersion !== null && useCache)
             return { name: finalDescriptor.name, reference: cachedVersion };
         // If the user asked for a specific version, no need to request the list of
         // available versions from the registry.
-        if (semver__WEBPACK_IMPORTED_MODULE_2___default().valid(finalDescriptor.range))
+        if (semver__WEBPACK_IMPORTED_MODULE_3___default().valid(finalDescriptor.range))
             return { name: finalDescriptor.name, reference: finalDescriptor.range };
         const candidateRangeDefinitions = Object.keys(definition.ranges).filter(range => {
-            return _semverUtils__WEBPACK_IMPORTED_MODULE_6__.satisfiesWithPrereleases(finalDescriptor.range, range);
+            return _semverUtils__WEBPACK_IMPORTED_MODULE_7__.satisfiesWithPrereleases(finalDescriptor.range, range);
         });
         const tagResolutions = await Promise.all(candidateRangeDefinitions.map(async (range) => {
-            return [range, await _corepackUtils__WEBPACK_IMPORTED_MODULE_4__.fetchAvailableVersions(definition.ranges[range].registry)];
+            return [range, await _corepackUtils__WEBPACK_IMPORTED_MODULE_5__.fetchAvailableVersions(definition.ranges[range].registry)];
         }));
         // If a version is available under multiple strategies (for example if
         // Yarn is published to both the v1 package and git), we only care
@@ -15105,13 +15253,13 @@ class Engine {
             for (const entry of resolutions)
                 resolutionMap.set(entry, range);
         const candidates = [...resolutionMap.keys()];
-        const maxSatisfying = semver__WEBPACK_IMPORTED_MODULE_2___default().maxSatisfying(candidates, finalDescriptor.range);
+        const maxSatisfying = semver__WEBPACK_IMPORTED_MODULE_3___default().maxSatisfying(candidates, finalDescriptor.range);
         if (maxSatisfying === null)
             return null;
         return { name: finalDescriptor.name, reference: maxSatisfying };
     }
     getLastKnownGoodFile() {
-        return path__WEBPACK_IMPORTED_MODULE_1___default().join(_folderUtils__WEBPACK_IMPORTED_MODULE_5__.getInstallFolder(), `lastKnownGood.json`);
+        return path__WEBPACK_IMPORTED_MODULE_1___default().join(_folderUtils__WEBPACK_IMPORTED_MODULE_6__.getInstallFolder(), `lastKnownGood.json`);
     }
 }
 
@@ -15234,7 +15382,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "EnableCommand": () => (/* binding */ EnableCommand)
 /* harmony export */ });
-/* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @zkochan/cmd-shim */ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.2.2-ae7b6d5b86-9.zip/node_modules/@zkochan/cmd-shim/index.js");
+/* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @zkochan/cmd-shim */ "../../../.yarn/berry/cache/@zkochan-cmd-shim-npm-5.3.1-32f000bcac-9.zip/node_modules/@zkochan/cmd-shim/index.js");
 /* harmony import */ var _zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_zkochan_cmd_shim__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var clipanion__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! clipanion */ "./.yarn/__virtual__/clipanion-virtual-72ec1bc418/4/.yarn/berry/cache/clipanion-npm-3.1.0-ced87dbbea-9.zip/node_modules/clipanion/lib/advanced/index.js");
 /* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! fs */ "fs");
@@ -15560,6 +15708,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "fetchAvailableTags": () => (/* binding */ fetchAvailableTags),
 /* harmony export */   "fetchAvailableVersions": () => (/* binding */ fetchAvailableVersions),
+/* harmony export */   "fetchLatestStableVersion": () => (/* binding */ fetchLatestStableVersion),
 /* harmony export */   "findInstalledVersion": () => (/* binding */ findInstalledVersion),
 /* harmony export */   "installVersion": () => (/* binding */ installVersion),
 /* harmony export */   "runVersion": () => (/* binding */ runVersion)
@@ -15596,6 +15745,21 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
+async function fetchLatestStableVersion(spec) {
+    switch (spec.type) {
+        case `npm`: {
+            const { [`dist-tags`]: { latest }, versions: { [latest]: { dist: { shasum } } } } = await _httpUtils__WEBPACK_IMPORTED_MODULE_8__.fetchAsJson(`https://registry.npmjs.org/${spec.package}`);
+            return `${latest}+sha1.${shasum}`;
+        }
+        case `url`: {
+            const data = await _httpUtils__WEBPACK_IMPORTED_MODULE_8__.fetchAsJson(spec.url);
+            return data[spec.fields.tags].stable;
+        }
+        default: {
+            throw new Error(`Unsupported specification ${JSON.stringify(spec)}`);
+        }
+    }
+}
 async function fetchAvailableTags(spec) {
     switch (spec.type) {
         case `npm`: {
@@ -15801,19 +15965,33 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var os__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(os__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! path */ "path");
 /* harmony import */ var path__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! process */ "process");
+/* harmony import */ var process__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(process__WEBPACK_IMPORTED_MODULE_3__);
+
 
 
 
 function getInstallFolder() {
-    var _a;
-    return (_a = process.env.COREPACK_HOME) !== null && _a !== void 0 ? _a : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node/corepack`);
+    var _a, _b, _c, _d, _e;
+    if ((process__WEBPACK_IMPORTED_MODULE_3___default().env.COREPACK_HOME) == null) {
+        // TODO: remove this block on the next major.
+        const oldCorepackDefaultHome = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), `.node`, `corepack`);
+        const newCorepackDefaultHome = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((_b = (_a = (process__WEBPACK_IMPORTED_MODULE_3___default().env.XDG_CACHE_HOME)) !== null && _a !== void 0 ? _a : (process__WEBPACK_IMPORTED_MODULE_3___default().env.LOCALAPPDATA)) !== null && _b !== void 0 ? _b : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), (process__WEBPACK_IMPORTED_MODULE_3___default().platform) === `win32` ? `AppData/Local` : `.cache`), `node/corepack`);
+        if ((0,fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(oldCorepackDefaultHome) &&
+            !(0,fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(newCorepackDefaultHome)) {
+            (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(newCorepackDefaultHome, { recursive: true });
+            (0,fs__WEBPACK_IMPORTED_MODULE_0__.renameSync)(oldCorepackDefaultHome, newCorepackDefaultHome);
+        }
+        return newCorepackDefaultHome;
+    }
+    return ((_c = (process__WEBPACK_IMPORTED_MODULE_3___default().env.COREPACK_HOME)) !== null && _c !== void 0 ? _c : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((_e = (_d = (process__WEBPACK_IMPORTED_MODULE_3___default().env.XDG_CACHE_HOME)) !== null && _d !== void 0 ? _d : (process__WEBPACK_IMPORTED_MODULE_3___default().env.LOCALAPPDATA)) !== null && _e !== void 0 ? _e : (0,path__WEBPACK_IMPORTED_MODULE_2__.join)((0,os__WEBPACK_IMPORTED_MODULE_1__.homedir)(), (process__WEBPACK_IMPORTED_MODULE_3___default().platform) === `win32` ? `AppData/Local` : `.cache`), `node/corepack`));
 }
 function getTemporaryFolder(target = (0,os__WEBPACK_IMPORTED_MODULE_1__.tmpdir)()) {
     (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(target, { recursive: true });
     while (true) {
         const rnd = Math.random() * 0x100000000;
         const hex = rnd.toString(16).padStart(8, `0`);
-        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${process.pid}-${hex}`);
+        const path = (0,path__WEBPACK_IMPORTED_MODULE_2__.join)(target, `corepack-${(process__WEBPACK_IMPORTED_MODULE_3___default().pid)}-${hex}`);
         try {
             (0,fs__WEBPACK_IMPORTED_MODULE_0__.mkdirSync)(path);
             return path;
@@ -16254,6 +16432,8 @@ function parseSpec(raw, source, { enforceExactVersion = true } = {}) {
 async function findProjectSpec(initialCwd, locator, { transparent = false } = {}) {
     // A locator is a valid descriptor (but not the other way around)
     const fallbackLocator = { name: locator.name, range: locator.reference };
+    if (process.env.COREPACK_ENABLE_STRICT === `0`)
+        return fallbackLocator;
     while (true) {
         const result = await loadSpec(initialCwd);
         switch (result.type) {
@@ -16564,6 +16744,17 @@ module.exports = require("path");
 
 /***/ }),
 
+/***/ "process":
+/*!**************************!*\
+  !*** external "process" ***!
+  \**************************/
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("process");
+
+/***/ }),
+
 /***/ "stream":
 /*!*************************!*\
   !*** external "stream" ***!
@@ -16836,7 +17027,7 @@ const supportsColor = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.13.2+sha1.d79c851c1d9cc6c11efe708379fd5339580f8fec","transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.5.0+sha1.d9fda828c036a7284bb8aa04c545691029dc75ae","transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","transparent":{"default":"3.2.1+sha1.712f0d3e236f0705a55d2b7c9be47a717d68dbef","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
+module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.19.1+sha1.78bfc5fc1b7bc36881a2d9d1f2c93ad0246f31e5","fetchLatestFrom":{"type":"npm","package":"npm"},"transparent":{"commands":[["npm","init"],["npx"]]},"ranges":{"*":{"url":"https://registry.npmjs.org/npm/-/npm-{}.tgz","bin":{"npm":"./bin/npm-cli.js","npx":"./bin/npx-cli.js"},"registry":{"type":"npm","package":"npm"}}}},"pnpm":{"default":"7.9.5+sha1.8d28e3270689e2afd345777fec9d9535f427b532","fetchLatestFrom":{"type":"npm","package":"pnpm"},"transparent":{"commands":[["pnpm","init"],["pnpx"],["pnpm","dlx"]]},"ranges":{"<6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.js","pnpx":"./bin/pnpx.js"},"registry":{"type":"npm","package":"pnpm"}},">=6.0.0":{"url":"https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz","bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"},"registry":{"type":"npm","package":"pnpm"}}}},"yarn":{"default":"1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447","fetchLatestFrom":{"type":"npm","package":"yarn"},"transparent":{"default":"3.2.3+sha224.953c8233f7a92884eee2de69a1b92d1f2ec1655e66d08071ba9a02fa","commands":[["yarn","dlx"]]},"ranges":{"<2.0.0":{"url":"https://registry.yarnpkg.com/yarn/-/yarn-{}.tgz","bin":{"yarn":"./bin/yarn.js","yarnpkg":"./bin/yarn.js"},"registry":{"type":"npm","package":"yarn"}},">=2.0.0":{"name":"yarn","url":"https://repo.yarnpkg.com/{}/packages/yarnpkg-cli/bin/yarn.js","bin":["yarn","yarnpkg"],"registry":{"type":"url","url":"https://repo.yarnpkg.com/tags","fields":{"tags":"latest","versions":"tags"}}}}}}}');
 
 /***/ }),
 
@@ -16847,7 +17038,7 @@ module.exports = JSON.parse('{"definitions":{"npm":{"default":"8.13.2+sha1.d79c8
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"corepack","version":"0.12.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.6","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^27.0.0","@types/node":"^17.0.10","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^28.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
+module.exports = JSON.parse('{"name":"corepack","version":"0.14.0","homepage":"https://github.com/nodejs/corepack#readme","bugs":{"url":"https://github.com/nodejs/corepack/issues"},"repository":{"type":"git","url":"https://github.com/nodejs/corepack.git"},"license":"MIT","packageManager":"yarn@4.0.0-rc.15+sha224.7fa5c1d1875b041cea8fcbf9a364667e398825364bf5c5c8cd5f6601","devDependencies":{"@babel/core":"^7.14.3","@babel/plugin-transform-modules-commonjs":"^7.14.0","@babel/preset-typescript":"^7.13.0","@types/debug":"^4.1.5","@types/jest":"^29.0.0","@types/node":"^18.0.0","@types/semver":"^7.1.0","@types/tar":"^6.0.0","@types/which":"^2.0.0","@typescript-eslint/eslint-plugin":"^5.0.0","@typescript-eslint/parser":"^5.0.0","@yarnpkg/eslint-config":"^1.0.0-rc.5","@yarnpkg/fslib":"^2.1.0","@zkochan/cmd-shim":"^5.0.0","babel-plugin-dynamic-import-node":"^2.3.3","clipanion":"^3.0.1","debug":"^4.1.1","eslint":"^8.0.0","eslint-plugin-arca":"^0.15.0","jest":"^29.0.0","nock":"^13.0.4","proxy-agent":"^5.0.0","semver":"^7.1.3","supports-color":"^9.0.0","tar":"^6.0.1","terser-webpack-plugin":"^5.1.2","ts-loader":"^9.0.0","ts-node":"^10.0.0","typescript":"^4.3.2","v8-compile-cache":"^2.3.0","webpack":"^5.38.1","webpack-cli":"^4.0.0","which":"^2.0.2"},"scripts":{"build":"rm -rf dist shims && webpack && ts-node ./mkshims.ts","corepack":"ts-node ./sources/_entryPoint.ts","lint":"yarn eslint","prepack":"yarn build","postpack":"rm -rf dist shims","typecheck":"tsc --noEmit","test":"yarn jest"},"files":["dist","shims","LICENSE.md"],"publishConfig":{"bin":{"corepack":"./dist/corepack.js","pnpm":"./dist/pnpm.js","pnpx":"./dist/pnpx.js","yarn":"./dist/yarn.js","yarnpkg":"./dist/yarnpkg.js"},"executableFiles":["./dist/npm.js","./dist/npx.js","./dist/pnpm.js","./dist/pnpx.js","./dist/yarn.js","./dist/yarnpkg.js","./dist/corepack.js","./shims/npm","./shims/npm.ps1","./shims/npx","./shims/npx.ps1","./shims/pnpm","./shims/pnpm.ps1","./shims/pnpx","./shims/pnpx.ps1","./shims/yarn","./shims/yarn.ps1","./shims/yarnpkg","./shims/yarnpkg.ps1"]},"resolutions":{"vm2":"patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"}}');
 
 /***/ })
 

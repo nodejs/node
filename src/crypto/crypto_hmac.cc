@@ -16,6 +16,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -37,17 +38,18 @@ void Hmac::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void Hmac::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hmac::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", HmacInit);
-  env->SetProtoMethod(t, "update", HmacUpdate);
-  env->SetProtoMethod(t, "digest", HmacDigest);
+  SetProtoMethod(isolate, t, "init", HmacInit);
+  SetProtoMethod(isolate, t, "update", HmacUpdate);
+  SetProtoMethod(isolate, t, "digest", HmacDigest);
 
-  env->SetConstructorFunction(target, "Hmac", t);
+  SetConstructorFunction(env->context(), target, "Hmac", t);
 
   HmacJob::Initialize(env, target);
 }
@@ -70,7 +72,8 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
 
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
-    return THROW_ERR_CRYPTO_INVALID_DIGEST(env());
+    return THROW_ERR_CRYPTO_INVALID_DIGEST(
+        env(), "Invalid digest: %s", hash_type);
   if (key_len == 0) {
     key = "";
   }
@@ -187,7 +190,7 @@ Maybe<bool> HmacTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset + 1]);
   params->digest = EVP_get_digestbyname(*digest);
   if (params->digest == nullptr) {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<bool>();
   }
 

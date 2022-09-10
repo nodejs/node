@@ -2275,6 +2275,11 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44031
+    description: This event will only be emitted if the client did not transmit
+                 an ALPN extension during the TLS handshake.
 -->
 
 * `socket` {stream.Duplex}
@@ -2284,6 +2289,15 @@ negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
 the connection is terminated. A timeout may be specified using the
 `'unknownProtocolTimeout'` option passed to [`http2.createSecureServer()`][].
+
+In earlier versions of Node.js, this event would be emitted if `allowHTTP1` is
+`false` and, during the TLS handshake, the client either does not send an ALPN
+extension or sends an ALPN extension that does not include HTTP/2 (`h2`). Newer
+versions of Node.js only emit this event if `allowHTTP1` is `false` and the
+client does not send an ALPN extension. If the client sends an ALPN extension
+that does not include HTTP/2 (or HTTP/1.1 if `allowHTTP1` is `true`), the TLS
+handshake will fail and no secure connection will be established.
+
 See the [Compatibility API][].
 
 #### `server.close([callback])`
@@ -3991,6 +4005,32 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
+### `response.writeEarlyHints(links)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `links` {string|Array}
+
+Sends a status `103 Early Hints` to the client with a Link header,
+indicating that the user agent can preload/preconnect the linked resources.
+The `links` can be a string or an array of strings containing the values
+of the `Link` header.
+
+**Example**
+
+```js
+const earlyHintsLink = '</styles.css>; rel=preload; as=style';
+response.writeEarlyHints(earlyHintsLink);
+
+const earlyHintsLinks = [
+  '</styles.css>; rel=preload; as=style',
+  '</scripts.js>; rel=preload; as=script',
+];
+response.writeEarlyHints(earlyHintsLinks);
+```
+
 #### `response.writeHead(statusCode[, statusMessage][, headers])`
 
 <!-- YAML
@@ -4162,7 +4202,7 @@ you need to implement any fall-back behavior yourself.
 [`http2.createServer()`]: #http2createserveroptions-onrequesthandler
 [`http2session.close()`]: #http2sessionclosecallback
 [`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
-[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`net.Server.close()`]: net.md#serverclosecallback
 [`net.Socket.bufferSize`]: net.md#socketbuffersize
 [`net.Socket.prototype.ref()`]: net.md#socketref

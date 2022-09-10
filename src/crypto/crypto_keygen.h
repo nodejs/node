@@ -186,16 +186,12 @@ struct KeyPairGenTraits final {
       AdditionalParameters* params,
       v8::Local<v8::Value>* result) {
     v8::Local<v8::Value> keys[2];
-    if (ManagedEVPPKey::ToEncodedPublicKey(
-            env,
-            std::move(params->key),
-            params->public_key_encoding,
-            &keys[0]).IsNothing() ||
-        ManagedEVPPKey::ToEncodedPrivateKey(
-            env,
-            std::move(params->key),
-            params->private_key_encoding,
-            &keys[1]).IsNothing()) {
+    if (params->key
+            .ToEncodedPublicKey(env, params->public_key_encoding, &keys[0])
+            .IsNothing() ||
+        params->key
+            .ToEncodedPrivateKey(env, params->private_key_encoding, &keys[1])
+            .IsNothing()) {
       return v8::Nothing<bool>();
     }
     *result = v8::Array::New(env->isolate(), keys, arraysize(keys));
@@ -204,8 +200,8 @@ struct KeyPairGenTraits final {
 };
 
 struct SecretKeyGenConfig final : public MemoryRetainer {
-  size_t length;  // Expressed a a number of bits
-  char* out = nullptr;  // Placeholder for the generated key bytes
+  size_t length;        // In bytes.
+  ByteSource out;       // Placeholder for the generated key bytes.
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SecretKeyGenConfig)

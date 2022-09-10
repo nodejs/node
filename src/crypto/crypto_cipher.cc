@@ -13,10 +13,12 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Uint32;
@@ -270,43 +272,54 @@ void CipherBase::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
   t->InstanceTemplate()->SetInternalFieldCount(
       CipherBase::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
-  env->SetProtoMethod(t, "init", Init);
-  env->SetProtoMethod(t, "initiv", InitIv);
-  env->SetProtoMethod(t, "update", Update);
-  env->SetProtoMethod(t, "final", Final);
-  env->SetProtoMethod(t, "setAutoPadding", SetAutoPadding);
-  env->SetProtoMethodNoSideEffect(t, "getAuthTag", GetAuthTag);
-  env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
-  env->SetProtoMethod(t, "setAAD", SetAAD);
-  env->SetConstructorFunction(target, "CipherBase", t);
+  SetProtoMethod(isolate, t, "init", Init);
+  SetProtoMethod(isolate, t, "initiv", InitIv);
+  SetProtoMethod(isolate, t, "update", Update);
+  SetProtoMethod(isolate, t, "final", Final);
+  SetProtoMethod(isolate, t, "setAutoPadding", SetAutoPadding);
+  SetProtoMethodNoSideEffect(isolate, t, "getAuthTag", GetAuthTag);
+  SetProtoMethod(isolate, t, "setAuthTag", SetAuthTag);
+  SetProtoMethod(isolate, t, "setAAD", SetAAD);
+  SetConstructorFunction(context, target, "CipherBase", t);
 
-  env->SetMethodNoSideEffect(target, "getSSLCiphers", GetSSLCiphers);
-  env->SetMethodNoSideEffect(target, "getCiphers", GetCiphers);
+  SetMethodNoSideEffect(context, target, "getSSLCiphers", GetSSLCiphers);
+  SetMethodNoSideEffect(context, target, "getCiphers", GetCiphers);
 
-  env->SetMethod(target, "publicEncrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                         EVP_PKEY_encrypt_init,
-                                         EVP_PKEY_encrypt>);
-  env->SetMethod(target, "privateDecrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                         EVP_PKEY_decrypt_init,
-                                         EVP_PKEY_decrypt>);
-  env->SetMethod(target, "privateEncrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
-                                         EVP_PKEY_sign_init,
-                                         EVP_PKEY_sign>);
-  env->SetMethod(target, "publicDecrypt",
-                 PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
-                                         EVP_PKEY_verify_recover_init,
-                                         EVP_PKEY_verify_recover>);
+  SetMethod(context,
+            target,
+            "publicEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    EVP_PKEY_encrypt_init,
+                                    EVP_PKEY_encrypt>);
+  SetMethod(context,
+            target,
+            "privateDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    EVP_PKEY_decrypt_init,
+                                    EVP_PKEY_decrypt>);
+  SetMethod(context,
+            target,
+            "privateEncrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPrivate,
+                                    EVP_PKEY_sign_init,
+                                    EVP_PKEY_sign>);
+  SetMethod(context,
+            target,
+            "publicDecrypt",
+            PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
+                                    EVP_PKEY_verify_recover_init,
+                                    EVP_PKEY_verify_recover>);
 
-  env->SetMethodNoSideEffect(target, "getCipherInfo", GetCipherInfo);
+  SetMethodNoSideEffect(context, target, "getCipherInfo", GetCipherInfo);
 
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherEncrypt);
   NODE_DEFINE_CONSTANT(target, kWebCryptoCipherDecrypt);
@@ -480,7 +493,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   // Throw if an IV was passed which does not match the cipher's fixed IV length
   // static_cast<int> for the iv_buf.size() is safe because we've verified
-  // prior that the value is not larger than MAX_INT.
+  // prior that the value is not larger than INT_MAX.
   if (!is_authenticated_mode &&
       has_iv &&
       static_cast<int>(iv_buf.size()) != expected_iv_len) {
@@ -523,9 +536,8 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   if (UNLIKELY(key_buf.size() > INT_MAX))
     return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
 
-  ArrayBufferOrViewContents<unsigned char> iv_buf;
-  if (!args[2]->IsNull())
-    iv_buf = ArrayBufferOrViewContents<unsigned char>(args[2]);
+  ArrayBufferOrViewContents<unsigned char> iv_buf(
+      !args[2]->IsNull() ? args[2] : Local<Value>());
 
   if (UNLIKELY(!iv_buf.CheckSizeInt32()))
     return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
@@ -1048,12 +1060,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
 
-  ArrayBufferOrViewContents<unsigned char> oaep_label;
-  if (!args[offset + 3]->IsUndefined()) {
-    oaep_label = ArrayBufferOrViewContents<unsigned char>(args[offset + 3]);
-    if (UNLIKELY(!oaep_label.CheckSizeInt32()))
-      return THROW_ERR_OUT_OF_RANGE(env, "oaep_label is too big");
-  }
+  ArrayBufferOrViewContents<unsigned char> oaep_label(
+      !args[offset + 3]->IsUndefined() ? args[offset + 3] : Local<Value>());
+  if (UNLIKELY(!oaep_label.CheckSizeInt32()))
+    return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
 
   std::unique_ptr<BackingStore> out;
   if (!Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(

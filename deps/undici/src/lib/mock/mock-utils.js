@@ -8,7 +8,7 @@ const {
   kOrigin,
   kGetNetConnect
 } = require('./mock-symbols')
-const { buildURL } = require('../core/util')
+const { buildURL, nop } = require('../core/util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -38,7 +38,7 @@ function lowerCaseEntries (headers) {
 function getHeaderByName (headers, key) {
   if (Array.isArray(headers)) {
     for (let i = 0; i < headers.length; i += 2) {
-      if (headers[i] === key) {
+      if (headers[i].toLocaleLowerCase() === key.toLocaleLowerCase()) {
         return headers[i + 1]
       }
     }
@@ -47,19 +47,24 @@ function getHeaderByName (headers, key) {
   } else if (typeof headers.get === 'function') {
     return headers.get(key)
   } else {
-    return headers[key]
+    return lowerCaseEntries(headers)[key.toLocaleLowerCase()]
   }
+}
+
+/** @param {string[]} headers */
+function buildHeadersFromArray (headers) { // fetch HeadersList
+  const clone = headers.slice()
+  const entries = []
+  for (let index = 0; index < clone.length; index += 2) {
+    entries.push([clone[index], clone[index + 1]])
+  }
+  return Object.fromEntries(entries)
 }
 
 function matchHeaders (mockDispatch, headers) {
   if (typeof mockDispatch.headers === 'function') {
     if (Array.isArray(headers)) { // fetch HeadersList
-      const clone = headers.slice()
-      const entries = []
-      for (let index = 0; index < clone.length; index += 2) {
-        entries.push([clone[index], clone[index + 1]])
-      }
-      headers = Object.fromEntries(entries)
+      headers = buildHeadersFromArray(headers)
     }
     return mockDispatch.headers(headers ? lowerCaseEntries(headers) : {})
   }
@@ -78,6 +83,22 @@ function matchHeaders (mockDispatch, headers) {
     }
   }
   return true
+}
+
+function safeUrl (path) {
+  if (typeof path !== 'string') {
+    return path
+  }
+
+  const pathSegments = path.split('?')
+
+  if (pathSegments.length !== 2) {
+    return path
+  }
+
+  const qp = new URLSearchParams(pathSegments.pop())
+  qp.sort()
+  return [...pathSegments, qp.toString()].join('?')
 }
 
 function matchKey (mockDispatch, { path, method, body, headers }) {
@@ -99,10 +120,11 @@ function getResponseData (data) {
 }
 
 function getMockDispatch (mockDispatches, key) {
-  const resolvedPath = key.query ? buildURL(key.path, key.query) : key.path
+  const basePath = key.query ? buildURL(key.path, key.query) : key.path
+  const resolvedPath = typeof basePath === 'string' ? safeUrl(basePath) : basePath
 
   // Match path
-  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(path, resolvedPath))
+  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath))
   if (matchedMockDispatches.length === 0) {
     throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`)
   }
@@ -284,10 +306,17 @@ function mockDispatch (opts, handler) {
   }
 
   function handleReply (mockDispatches) {
-    const responseData = getResponseData(typeof data === 'function' ? data(opts) : data)
+    // fetch's HeadersList is a 1D string array
+    const optsHeaders = Array.isArray(opts.headers)
+      ? buildHeadersFromArray(opts.headers)
+      : opts.headers
+    const responseData = getResponseData(
+      typeof data === 'function' ? data({ ...opts, headers: optsHeaders }) : data
+    )
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
+    handler.abort = nop
     handler.onHeaders(statusCode, responseHeaders, resume, getStatusText(statusCode))
     handler.onData(Buffer.from(responseData))
     handler.onComplete(responseTrailers)

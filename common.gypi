@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.9',
+    'v8_embedder_string': '-node.12',
 
     ##### V8 defaults for Node.js #####
 
@@ -212,6 +212,9 @@
             'cflags': [ '-qINLINE=::150:100000' ]
           }],
           ['OS!="mac" and OS!="win" and OS!="zos"', {
+            # -fno-omit-frame-pointer is necessary for the --perf_basic_prof
+            # flag to work correctly. perf(1) gets confused about JS stack
+            # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
           ['OS=="linux"', {
@@ -545,9 +548,6 @@
             },
           }],
         ],
-      }],
-      ['OS=="freebsd" and node_use_dtrace=="true"', {
-        'libraries': [ '-lelf' ],
       }],
       ['OS=="freebsd"', {
         'ldflags': [

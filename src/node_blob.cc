@@ -22,6 +22,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
@@ -42,24 +43,25 @@ void Blob::Initialize(
       env->AddBindingData<BlobBindingData>(context, target);
   if (binding_data == nullptr) return;
 
-  env->SetMethod(target, "createBlob", New);
-  env->SetMethod(target, "storeDataObject", StoreDataObject);
-  env->SetMethod(target, "getDataObject", GetDataObject);
-  env->SetMethod(target, "revokeDataObject", RevokeDataObject);
+  SetMethod(context, target, "createBlob", New);
+  SetMethod(context, target, "storeDataObject", StoreDataObject);
+  SetMethod(context, target, "getDataObject", GetDataObject);
+  SetMethod(context, target, "revokeDataObject", RevokeDataObject);
   FixedSizeBlobCopyJob::Initialize(env, target);
 }
 
 Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->blob_constructor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = FunctionTemplate::New(env->isolate());
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "Blob"));
-    env->SetProtoMethod(tmpl, "toArrayBuffer", ToArrayBuffer);
-    env->SetProtoMethod(tmpl, "slice", ToSlice);
+    SetProtoMethod(isolate, tmpl, "toArrayBuffer", ToArrayBuffer);
+    SetProtoMethod(isolate, tmpl, "slice", ToSlice);
     env->set_blob_constructor_template(tmpl);
   }
   return tmpl;
@@ -362,12 +364,13 @@ void FixedSizeBlobCopyJob::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void FixedSizeBlobCopyJob::Initialize(Environment* env, Local<Object> target) {
-  v8::Local<v8::FunctionTemplate> job = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  v8::Local<v8::FunctionTemplate> job = NewFunctionTemplate(isolate, New);
   job->Inherit(AsyncWrap::GetConstructorTemplate(env));
   job->InstanceTemplate()->SetInternalFieldCount(
       AsyncWrap::kInternalFieldCount);
-  env->SetProtoMethod(job, "run", Run);
-  env->SetConstructorFunction(target, "FixedSizeBlobCopyJob", job);
+  SetProtoMethod(isolate, job, "run", Run);
+  SetConstructorFunction(env->context(), target, "FixedSizeBlobCopyJob", job);
 }
 
 void FixedSizeBlobCopyJob::New(const FunctionCallbackInfo<Value>& args) {
@@ -459,12 +462,11 @@ BlobBindingData::StoredDataObject BlobBindingData::get_data_object(
   return entry->second;
 }
 
-void BlobBindingData::Deserialize(
-    Local<Context> context,
-    Local<Object> holder,
-    int index,
-    InternalFieldInfo* info) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+void BlobBindingData::Deserialize(Local<Context> context,
+                                  Local<Object> holder,
+                                  int index,
+                                  InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
   BlobBindingData* binding =
@@ -472,15 +474,18 @@ void BlobBindingData::Deserialize(
   CHECK_NOT_NULL(binding);
 }
 
-void BlobBindingData::PrepareForSerialization(
-    Local<Context> context,
-    v8::SnapshotCreator* creator) {
+bool BlobBindingData::PrepareForSerialization(Local<Context> context,
+                                              v8::SnapshotCreator* creator) {
   // Stored blob objects are not actually persisted.
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
 }
 
-InternalFieldInfo* BlobBindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kSlot);
-  InternalFieldInfo* info = InternalFieldInfo::New(type());
+InternalFieldInfoBase* BlobBindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
 }
 

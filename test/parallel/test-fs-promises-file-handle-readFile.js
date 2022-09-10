@@ -60,7 +60,7 @@ async function doReadAndCancel() {
       const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
       fs.writeFileSync(filePathForHandle, buffer);
       const signal = AbortSignal.abort();
-      await assert.rejects(readFile(fileHandle, { signal }), {
+      await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
         name: 'AbortError'
       });
     } finally {
@@ -77,7 +77,7 @@ async function doReadAndCancel() {
     const controller = new AbortController();
     const { signal } = controller;
     process.nextTick(() => controller.abort());
-    await assert.rejects(readFile(fileHandle, { signal }), {
+    await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
       name: 'AbortError'
     }, 'tick-0');
     await fileHandle.close();
@@ -94,7 +94,7 @@ async function doReadAndCancel() {
     const controller = new AbortController();
     const { signal } = controller;
     tick(1, () => controller.abort());
-    await assert.rejects(fileHandle.readFile({ signal, encoding: 'utf8' }), {
+    await assert.rejects(fileHandle.readFile(common.mustNotMutateObjectDeep({ signal, encoding: 'utf8' })), {
       name: 'AbortError'
     }, 'tick-1');
 

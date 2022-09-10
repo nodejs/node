@@ -149,17 +149,6 @@ describe('level 0a', { concurrency: 4 }, () => {
   return p0a;
 });
 
-describe('top level', { concurrency: 2 }, () => {
-  it('+long running', async () => {
-    return new Promise((resolve, reject) => {
-      setTimeout(resolve, 3000).unref();
-    });
-  });
-
-  describe('+short running', async () => {
-    it('++short running', async () => {});
-  });
-});
 
 describe('invalid subtest - pass but subtest fails', () => {
   setImmediate(() => {
@@ -225,15 +214,15 @@ it('callback fail', (done) => {
 });
 
 it('sync t is this in test', function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
 });
 
 it('async t is this in test', async function() {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
 });
 
 it('callback t is this in test', function(done) {
-  assert.deepStrictEqual(this, {});
+  assert.deepStrictEqual(this, { signal: this.signal, name: this.name });
   done();
 });
 
@@ -315,4 +304,71 @@ describe('describe sync throw fails', () => {
 describe('describe async throw fails', async () => {
   it('should not run', () => {});
   throw new Error('thrown from describe');
+});
+
+describe('timeouts', () => {
+  it('timed out async test', { timeout: 5 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 1000);
+    });
+  });
+
+  it('timed out callback test', { timeout: 5 }, (done) => {
+    setTimeout(done, 1000);
+  });
+
+
+  it('large timeout async test is ok', { timeout: 30_000_000 }, async () => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  });
+
+  it('large timeout callback test is ok', { timeout: 30_000_000 }, (done) => {
+    setTimeout(done, 10);
+  });
+});
+
+describe('successful thenable', () => {
+  it('successful thenable', () => {
+    let thenCalled = false;
+    return {
+      get then() {
+        if (thenCalled) throw new Error();
+        thenCalled = true;
+        return (successHandler) => successHandler();
+      },
+    };
+  });
+
+  it('rejected thenable', () => {
+    let thenCalled = false;
+    return {
+      get then() {
+        if (thenCalled) throw new Error();
+        thenCalled = true;
+        return (_, errorHandler) => errorHandler(new Error('custom error'));
+      },
+    };
+  });
+
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (successHandler) => successHandler();
+    },
+  };
+});
+
+describe('rejected thenable', () => {
+  let thenCalled = false;
+  return {
+    get then() {
+      if (thenCalled) throw new Error();
+      thenCalled = true;
+      return (_, errorHandler) => errorHandler(new Error('custom error'));
+    },
+  };
 });

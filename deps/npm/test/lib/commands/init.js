@@ -136,6 +136,44 @@ t.test('npm init @scope/name', async t => {
   await init.exec(['@npmcli/something'])
 })
 
+t.test('npm init @scope@spec', async t => {
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../../lib/commands/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create@foo'],
+        'should npx with scoped packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
+  await init.exec(['@npmcli@foo'])
+})
+
+t.test('npm init @scope/name@spec', async t => {
+  t.plan(1)
+  npm.localPrefix = t.testdir({})
+
+  const Init = t.mock('../../../lib/commands/init.js', {
+    libnpmexec: ({ args }) => {
+      t.same(
+        args,
+        ['@npmcli/create-something@foo'],
+        'should npx with scoped packages'
+      )
+    },
+  })
+  const init = new Init(npm)
+
+  process.chdir(npm.localPrefix)
+  await init.exec(['@npmcli/something@foo'])
+})
+
 t.test('npm init git spec', async t => {
   t.plan(1)
   npm.localPrefix = t.testdir({})
@@ -333,7 +371,7 @@ t.test('workspaces', t => {
     })
     const init = new Init(npm)
     await init.execWorkspaces([], ['a'])
-    const output = npm._mockOutputs.map(arr => arr.map(i => i.replace(/[0-9]*ms$/, '100ms')))
+    const output = npm._mockOutputs.map(arr => arr.map(i => i.replace(/[0-9]*m?s$/, '100ms')))
     t.matchSnapshot(output, 'should print helper info')
     const lockFilePath = resolve(npm.localPrefix, 'package-lock.json')
     const lockFile = fs.readFileSync(lockFilePath, { encoding: 'utf8' })

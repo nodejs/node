@@ -9,7 +9,7 @@ not ok 2 - never resolving promise
   ---
   duration_ms: *
   failureType: 'cancelledByParent'
-  error: 'test did not finish before its parent and was cancelled'
+  error: 'Promise resolution is still pending but the event loop has already resolved'
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *
@@ -17,9 +17,9 @@ not ok 2 - never resolving promise
 # Subtest: fail
 not ok 3 - fail
   ---
-  duration_ms: *
+  duration_ms: 0
   failureType: 'cancelledByParent'
-  error: 'test did not finish before its parent and was cancelled'
+  error: 'Promise resolution is still pending but the event loop has already resolved'
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *

@@ -57,16 +57,16 @@ function extractBody (object, keepalive = false) {
 
     // Set Content-Type to `application/x-www-form-urlencoded;charset=UTF-8`.
     contentType = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
-    // BufferSource
-
-    if (object instanceof DataView) {
-      // TODO: Blob doesn't seem to work with DataView?
-      object = object.buffer
-    }
+  } else if (isArrayBuffer(object)) {
+    // BufferSource/ArrayBuffer
 
     // Set source to a copy of the bytes held by object.
-    source = new Uint8Array(object)
+    source = new Uint8Array(object.slice())
+  } else if (ArrayBuffer.isView(object)) {
+    // BufferSource/ArrayBufferView
+
+    // Set source to a copy of the bytes held by object.
+    source = new Uint8Array(object.buffer.slice(object.byteOffset, object.byteOffset + object.byteLength))
   } else if (util.isFormDataLike(object)) {
     const boundary = '----formdata-undici-' + Math.random()
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
@@ -291,6 +291,10 @@ function bodyMixinMethods (instance) {
       const chunks = []
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         // Assemble one final large blob with Uint8Array's can exhaust memory.
         // That's why we create create multiple blob's and using references
         chunks.push(new Blob([chunk]))
@@ -314,6 +318,10 @@ function bodyMixinMethods (instance) {
         let offset = 0
 
         for await (const chunk of consumeBody(this[kState].body)) {
+          if (!isUint8Array(chunk)) {
+            throw new TypeError('Expected Uint8Array chunk')
+          }
+
           buffer.set(chunk, offset)
           offset += chunk.length
         }
@@ -331,6 +339,10 @@ function bodyMixinMethods (instance) {
       let size = 0
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         chunks.push(chunk)
         size += chunk.byteLength
       }
@@ -355,6 +367,10 @@ function bodyMixinMethods (instance) {
       const textDecoder = new TextDecoder()
 
       for await (const chunk of consumeBody(this[kState].body)) {
+        if (!isUint8Array(chunk)) {
+          throw new TypeError('Expected Uint8Array chunk')
+        }
+
         result += textDecoder.decode(chunk, { stream: true })
       }
 
@@ -388,7 +404,18 @@ function bodyMixinMethods (instance) {
         // 1. Let entries be the result of parsing bytes.
         let entries
         try {
-          entries = new URLSearchParams(await this.text())
+          let text = ''
+          // application/x-www-form-urlencoded parser will keep the BOM.
+          // https://url.spec.whatwg.org/#concept-urlencoded-parser
+          const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true })
+          for await (const chunk of consumeBody(this[kState].body)) {
+            if (!isUint8Array(chunk)) {
+              throw new TypeError('Expected Uint8Array chunk')
+            }
+            text += textDecoder.decode(chunk, { stream: true })
+          }
+          text += textDecoder.decode()
+          entries = new URLSearchParams(text)
         } catch (err) {
           // istanbul ignore next: Unclear when new URLSearchParams can fail on a string.
           // 2. If entries is failure, then throw a TypeError.

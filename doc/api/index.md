@@ -45,7 +45,7 @@
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)
-* [Policies](policy.md)
+* [Permissions](permissions.md)
 * [Process](process.md)
 * [Punycode](punycode.md)
 * [Query strings](querystring.md)

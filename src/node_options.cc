@@ -140,7 +140,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (heap_snapshot_near_heap_limit < 0) {
-    errors->push_back("--heap-snapshot-near-heap-limit must not be negative");
+    errors->push_back("--heapsnapshot-near-heap-limit must not be negative");
   }
 
   if (test_runner) {
@@ -156,9 +156,36 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
       errors->push_back("either --test or --interactive can be used, not both");
     }
 
+    if (watch_mode) {
+      // TODO(MoLow): Support (incremental?) watch mode within test runner
+      errors->push_back("either --test or --watch can be used, not both");
+    }
+
     if (debug_options_.inspector_enabled) {
       errors->push_back("the inspector cannot be used with --test");
     }
+#ifndef ALLOW_ATTACHING_DEBUGGER_IN_TEST_RUNNER
+    debug_options_.allow_attaching_debugger = false;
+#endif
+  }
+
+  if (watch_mode) {
+    if (syntax_check_only) {
+      errors->push_back("either --watch or --check can be used, not both");
+    }
+
+    if (has_eval_string) {
+      errors->push_back("either --watch or --eval can be used, not both");
+    }
+
+    if (force_repl) {
+      errors->push_back("either --watch or --interactive "
+                        "can be used, not both");
+    }
+
+#ifndef ALLOW_ATTACHING_DEBUGGER_IN_WATCH_MODE
+    debug_options_.allow_attaching_debugger = false;
+#endif
   }
 
 #if HAVE_INSPECTOR
@@ -339,6 +366,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_fetch,
             kAllowedInEnvironment,
             true);
+  AddOption("--experimental-global-customevent",
+            "expose experimental CustomEvent on the global scope",
+            &EnvironmentOptions::experimental_global_customevent,
+            kAllowedInEnvironment);
   AddOption("--experimental-global-webcrypto",
             "expose experimental Web Crypto API on the global scope",
             &EnvironmentOptions::experimental_global_web_crypto,
@@ -536,7 +567,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::throw_deprecation,
             kAllowedInEnvironment);
   AddOption("--trace-atomics-wait",
-            "trace Atomics.wait() operations",
+            "(deprecated) trace Atomics.wait() operations",
             &EnvironmentOptions::trace_atomics_wait,
             kAllowedInEnvironment);
   AddOption("--trace-deprecation",
@@ -582,7 +613,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "", /* undocumented, only for debugging */
             &EnvironmentOptions::verify_base_objects,
             kAllowedInEnvironment);
-
+  AddOption("--watch",
+            "run in watch mode",
+            &EnvironmentOptions::watch_mode,
+            kAllowedInEnvironment);
+  AddOption("--watch-path",
+            "path to watch",
+            &EnvironmentOptions::watch_mode_paths,
+            kAllowedInEnvironment);
+  Implies("--watch-path", "--watch");
   AddOption("--check",
             "syntax check script without executing",
             &EnvironmentOptions::syntax_check_only);
@@ -604,15 +643,24 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("-pe", { "--print", "--eval" });
   AddAlias("-p", "--print");
   AddOption("--require",
-            "module to preload (option can be repeated)",
-            &EnvironmentOptions::preload_modules,
+            "CommonJS module to preload (option can be repeated)",
+            &EnvironmentOptions::preload_cjs_modules,
             kAllowedInEnvironment);
   AddAlias("-r", "--require");
+  AddOption("--import",
+            "ES module to preload (option can be repeated)",
+            &EnvironmentOptions::preload_esm_modules,
+            kAllowedInEnvironment);
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
             "to be a terminal",
             &EnvironmentOptions::force_repl);
   AddAlias("-i", "--interactive");
+
+  AddOption("--update-assert-snapshot",
+            "update assert snapshot files",
+            &EnvironmentOptions::update_assert_snapshot,
+            kAllowedInEnvironment);
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
 
@@ -757,13 +805,20 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
   AddOption("--build-snapshot",
             "Generate a snapshot blob when the process exits."
-            "Currently only supported in the node_mksnapshot binary.",
+            " Currently only supported in the node_mksnapshot binary.",
             &PerProcessOptions::build_snapshot,
             kDisallowedInEnvironment);
   AddOption("--node-snapshot",
             "",  // It's a debug-only option.
             &PerProcessOptions::node_snapshot,
             kAllowedInEnvironment);
+  AddOption("--snapshot-blob",
+            "Path to the snapshot blob that's either the result of snapshot"
+            "building, or the blob that is used to restore the application "
+            "state",
+            &PerProcessOptions::snapshot_blob,
+            kAllowedInEnvironment);
+
   // 12.x renamed this inadvertently, so alias it for consistency within the
   // release line, while using the original name for consistency with older
   // release lines.
@@ -1152,8 +1207,9 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  env->SetMethodNoSideEffect(target, "getCLIOptions", GetCLIOptions);
-  env->SetMethodNoSideEffect(target, "getEmbedderOptions", GetEmbedderOptions);
+  SetMethodNoSideEffect(context, target, "getCLIOptions", GetCLIOptions);
+  SetMethodNoSideEffect(
+      context, target, "getEmbedderOptions", GetEmbedderOptions);
 
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvironment);

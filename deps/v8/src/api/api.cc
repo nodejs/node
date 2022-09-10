@@ -483,7 +483,6 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
 
 SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  DCHECK(data->created_);
   Isolate* isolate = data->isolate_;
   isolate->Exit();
   isolate->Dispose();
@@ -590,8 +589,12 @@ StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
-  DCHECK(!data->created_);
-  DCHECK(!data->default_context_.IsEmpty());
+  Utils::ApiCheck(!data->created_, "v8::SnapshotCreator::CreateBlob",
+                  "CreateBlob() cannot be called more than once on the same "
+                  "SnapshotCreator.");
+  Utils::ApiCheck(
+      !data->default_context_.IsEmpty(), "v8::SnapshotCreator::CreateBlob",
+      "CreateBlob() cannot be called before the default context is set.");
 
   const int num_additional_contexts = static_cast<int>(data->contexts_.Size());
   const int num_contexts = num_additional_contexts + 1;  // The default context.
@@ -4035,6 +4038,11 @@ std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
 }
 
+void* v8::ArrayBuffer::Data() const {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  return self->backing_store();
+}
+
 std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
@@ -4043,6 +4051,11 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   }
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
   return std::static_pointer_cast<v8::BackingStore>(bs_base);
+}
+
+void* v8::SharedArrayBuffer::Data() const {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  return self->backing_store();
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {

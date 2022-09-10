@@ -1996,7 +1996,7 @@ changes:
 
 Type: Compile-time
 
-Certain versions of `node::MakeCallback` APIs available to native modules are
+Certain versions of `node::MakeCallback` APIs available to native addons are
 deprecated. Please use the versions of the API that accept an `async_context`
 parameter.
 
@@ -2114,10 +2114,10 @@ changes:
 
 Type: Runtime
 
-Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] should be
+Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] must be
 avoided as they use a weak key derivation function (MD5 with no salt) and static
 initialization vectors. It is recommended to derive a key using
-[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] and to use
+[`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] with random salts and to use
 [`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
 [`Cipher`][] and [`Decipher`][] objects respectively.
 
@@ -2746,7 +2746,7 @@ changes:
 Type: Documentation-only
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
-with native modules. It was incomplete so far and instead it's better to rely
+of built-in modules. It was incomplete so far and instead it's better to rely
 upon `require('node:module').builtinModules`.
 
 ### DEP0143: `Transform._transformState`
@@ -3145,6 +3145,55 @@ parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
 [`fs.writeFileSync()`][], and [`fs.appendFileSync()`][] is deprecated.
 Convert them to primitive strings.
 
+### DEP0163: `channel.subscribe(onMessage)`, `channel.unsubscribe(onMessage)`
+
+<!-- YAML
+changes:
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/42714
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+These methods were deprecated because they can be used in a way which does not
+hold the channel reference alive long enough to receive the events.
+
+Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
+[`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
+thing instead.
+
+### DEP0164: `process.exit([code])` coercion to integer
+
+<!-- YAML
+changes:
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/43738
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`code` values other than `undefined`, `null`, integer numbers and integer
+strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
+
+### DEP0165: `--trace-atomics-wait`
+
+<!-- YAML
+changes:
+  - version: v18.8.0
+    pr-url: https://github.com/nodejs/node/pull/44093
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`--trace-atomics-wait`][] flag is deprecated.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3152,6 +3201,7 @@ Convert them to primitive strings.
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
+[`--trace-atomics-wait`]: cli.md#--trace-atomics-wait
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
@@ -3185,6 +3235,8 @@ Convert them to primitive strings.
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
+[`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
+[`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
@@ -3221,6 +3273,7 @@ Convert them to primitive strings.
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
+[`process.exit()`]: process.md#processexitcode
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md

@@ -243,7 +243,12 @@ module.exports = {
   loadCountry: function loadCountry(usage, country, data) {
     var code = country.replace(/[^\w-]/g, '')
     if (!usage[code]) {
-      var compressed = require('caniuse-lite/data/regions/' + code + '.js')
+      var compressed
+      try {
+        compressed = require('caniuse-lite/data/regions/' + code + '.js')
+      } catch (e) {
+        throw new BrowserslistError("Unknown region name `" + code + "`.")
+      }
       var usageData = region(compressed)
       normalizeUsageData(usageData, data)
       usage[country] = {}
@@ -258,8 +263,12 @@ module.exports = {
   loadFeature: function loadFeature(features, name) {
     name = name.replace(/[^\w-]/g, '')
     if (features[name]) return
-
-    var compressed = require('caniuse-lite/data/features/' + name + '.js')
+    var compressed
+    try {
+      compressed = require('caniuse-lite/data/features/' + name + '.js')
+    } catch (e) {
+      throw new BrowserslistError("Unknown feature name `" + name + "`.")
+    }
     var stats = feature(compressed).stats
     features[name] = {}
     for (var i in stats) {

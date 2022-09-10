@@ -128,7 +128,7 @@ class JSONWriter {
             typename test_for_number = typename std::
                 enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
   inline void write_value(T number) {
-    if (std::is_same<T, bool>::value)
+    if constexpr (std::is_same<T, bool>::value)
       out_ << (number ? "true" : "false");
     else
       out_ << number;

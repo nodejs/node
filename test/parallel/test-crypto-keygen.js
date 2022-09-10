@@ -1654,6 +1654,24 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     );
   }
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    hashAlgorithm: 'sha2',
+  }, common.mustNotCall()), {
+    name: 'TypeError',
+    code: 'ERR_CRYPTO_INVALID_DIGEST',
+    message: 'Invalid digest: sha2'
+  });
+
+  assert.throws(() => generateKeyPair('rsa-pss', {
+    modulusLength: 512,
+    mgf1HashAlgorithm: 'sha2',
+  }, common.mustNotCall()), {
+    name: 'TypeError',
+    code: 'ERR_CRYPTO_INVALID_DIGEST',
+    message: 'Invalid MGF1 digest: sha2'
+  });
 }
 
 // Passing an empty passphrase string should not cause OpenSSL's default

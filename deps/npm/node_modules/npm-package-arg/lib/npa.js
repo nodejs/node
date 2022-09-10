@@ -9,6 +9,7 @@ const semver = require('semver')
 const path = global.FAKE_WINDOWS ? require('path').win32 : require('path')
 const validatePackageName = require('validate-npm-package-name')
 const { homedir } = require('os')
+const log = require('proc-log')
 
 const isWindows = process.platform === 'win32' || global.FAKE_WINDOWS
 const hasSlashes = isWindows ? /\\|[/]/ : /[/]/
@@ -120,6 +121,7 @@ function Result (opts) {
   }
   this.gitRange = opts.gitRange
   this.gitCommittish = opts.gitCommittish
+  this.gitSubdir = opts.gitSubdir
   this.hosted = opts.hosted
 }
 
@@ -155,11 +157,45 @@ Result.prototype.toJSON = function () {
 }
 
 function setGitCommittish (res, committish) {
-  if (committish != null && committish.length >= 7 && committish.slice(0, 7) === 'semver:') {
-    res.gitRange = decodeURIComponent(committish.slice(7))
+  if (!committish) {
     res.gitCommittish = null
-  } else {
-    res.gitCommittish = committish === '' ? null : committish
+    return res
+  }
+
+  // for each :: separated item:
+  for (const part of committish.split('::')) {
+    // if the item has no : the n it is a commit-ish
+    if (!part.includes(':')) {
+      if (res.gitRange) {
+        throw new Error('cannot override existing semver range with a committish')
+      }
+      if (res.gitCommittish) {
+        throw new Error('cannot override existing committish with a second committish')
+      }
+      res.gitCommittish = part
+      continue
+    }
+    // split on name:value
+    const [name, value] = part.split(':')
+    // if name is semver do semver lookup of ref or tag
+    if (name === 'semver') {
+      if (res.gitCommittish) {
+        throw new Error('cannot override existing committish with a semver range')
+      }
+      if (res.gitRange) {
+        throw new Error('cannot override existing semver range with a second semver range')
+      }
+      res.gitRange = decodeURIComponent(value)
+      continue
+    }
+    if (name === 'path') {
+      if (res.gitSubdir) {
+        throw new Error('cannot override existing path with a second path')
+      }
+      res.gitSubdir = `/${value}`
+      continue
+    }
+    log.warn('npm-package-arg', `ignoring unknown key "${name}"`)
   }
 
   return res

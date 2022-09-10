@@ -15,9 +15,21 @@ const context = require('vm').createScript('const foo = 123');
 
 validateSnapshotNodes('Node / Environment', [{
   children: [
-    { node_name: 'Node / cleanup_hooks', edge_name: 'cleanup_hooks' },
-    { node_name: 'process', edge_name: 'process_object' },
+    { node_name: 'Node / CleanupQueue', edge_name: 'cleanup_queue' },
     { node_name: 'Node / IsolateData', edge_name: 'isolate_data' },
+    { node_name: 'Node / Realm', edge_name: 'principal_realm' },
+  ]
+}]);
+
+validateSnapshotNodes('Node / CleanupQueue', [{
+  children: [
+    { node_name: 'Node / ContextifyScript' },
+  ]
+}]);
+
+validateSnapshotNodes('Node / Realm', [{
+  children: [
+    { node_name: 'process', edge_name: 'process_object' },
   ]
 }]);
 

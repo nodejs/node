@@ -255,6 +255,12 @@ exports[`test/lib/commands/ls.js TAP ls --parseable no args > should output pars
 {CWD}/tap-testdir-ls-ls---parseable-no-args/node_modules/dog
 `
 
+exports[`test/lib/commands/ls.js TAP ls --parseable overridden dep > should contain overridden outout 1`] = `
+{CWD}/tap-testdir-ls-ls---parseable-overridden-dep:test-overridden@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable-overridden-dep/node_modules/foo:foo@1.0.0
+{CWD}/tap-testdir-ls-ls---parseable-overridden-dep/node_modules/bar:bar@1.0.0:OVERRIDDEN
+`
+
 exports[`test/lib/commands/ls.js TAP ls --parseable resolved points to git ref > should output tree containing git refs 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable-resolved-points-to-git-ref
 {CWD}/tap-testdir-ls-ls---parseable-resolved-points-to-git-ref/node_modules/abbrev
@@ -567,6 +573,20 @@ test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls-no-args
 
 `
 
+exports[`test/lib/commands/ls.js TAP ls overridden dep > should contain overridden outout 1`] = `
+test-overridden@1.0.0 {CWD}/tap-testdir-ls-ls-overridden-dep
+\`-- foo@1.0.0
+  \`-- bar@1.0.0 overridden
+
+`
+
+exports[`test/lib/commands/ls.js TAP ls overridden dep w/ color > should contain overridden outout 1`] = `
+[0mtest-overridden@1.0.0 {CWD}/tap-testdir-ls-ls-overridden-dep-w-color[0m
+[0m\`-- foo@1.0.0[0m
+[0m  \`-- bar@1.0.0 [90moverridden[39m[0m
+[0m[0m
+`
+
 exports[`test/lib/commands/ls.js TAP ls print deduped symlinks > should output tree containing linked deps 1`] = `
 print-deduped-symlinks@1.0.0 {CWD}/tap-testdir-ls-ls-print-deduped-symlinks
 +-- a@1.0.0
@@ -675,6 +695,13 @@ dedupe-entries@1.0.0 {CWD}/tap-testdir-ls-ls-with-no-args-dedupe-entries-and-not
 +-- @npmcli/a@1.0.0
 +-- @npmcli/b@1.1.2
 \`-- @npmcli/c@1.0.0
+
+`
+
+exports[`test/lib/commands/ls.js TAP ls workspace and missing optional dep > should omit missing optional dep 1`] = `
+root@ {CWD}/tap-testdir-ls-ls-workspace-and-missing-optional-dep
++-- baz@1.0.0 -> ./baz
+\`-- foo@1.0.0
 
 `
 

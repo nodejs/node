@@ -112,6 +112,7 @@ class Npm extends EventEmitter {
     // this is async but we dont await it, since its ok if it doesnt
     // finish before the command finishes running. it uses command and argv
     // so it must be initiated here, after the command name is set
+    // eslint-disable-next-line promise/catch-or-return
     updateNotifier(this).then((msg) => (this.updateNotification = msg))
 
     // Options are prefixed by a hyphen-minus (-, \u2d).
@@ -173,16 +174,15 @@ class Npm extends EventEmitter {
 
   async load () {
     if (!this.#loadPromise) {
-      this.#loadPromise = this.time('npm:load', () => this[_load]().catch(er => er).then((er) => {
-        this.loadErr = er
-        if (!er) {
-          if (this.config.get('force')) {
-            log.warn('using --force', 'Recommended protections disabled.')
-          }
-        } else {
+      this.#loadPromise = this.time('npm:load', async () => {
+        await this[_load]().catch((er) => {
+          this.loadErr = er
           throw er
+        })
+        if (this.config.get('force')) {
+          log.warn('using --force', 'Recommended protections disabled.')
         }
-      }))
+      })
     }
     return this.#loadPromise
   }
@@ -229,7 +229,9 @@ class Npm extends EventEmitter {
     const node = this.time('npm:load:whichnode', () => {
       try {
         return which.sync(process.argv[0])
-      } catch {} // TODO should we throw here?
+      } catch {
+        // TODO should we throw here?
+      }
     })
 
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
@@ -241,16 +243,18 @@ class Npm extends EventEmitter {
     await this.time('npm:load:configload', () => this.config.load())
 
     // mkdir this separately since the logs dir can be set to
-    // a different location. an error here should be surfaced
-    // right away since it will error in cacache later
+    // a different location. if this fails, then we don't have
+    // a cache dir, but we don't want to fail immediately since
+    // the command might not need a cache dir (like `npm --version`)
     await this.time('npm:load:mkdirpcache', () =>
-      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' }))
+      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' })
+        .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
 
     // its ok if this fails. user might have specified an invalid dir
     // which we will tell them about at the end
     await this.time('npm:load:mkdirplogs', () =>
       fs.mkdir(this.logsDir, { recursive: true, owner: 'inherit' })
-        .catch((e) => log.warn('logfile', `could not create logs-dir: ${e}`)))
+        .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
 
     // note: this MUST be shorter than the actual argv length, because it
     // uses the same memory, so node will truncate it if it's too long.

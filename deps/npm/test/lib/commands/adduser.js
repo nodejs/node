@@ -34,9 +34,7 @@ t.test('simple login', async t => {
         '_authtoken=user',
         '-authtoken=user',
         '_authToken=user',
-        '//registry.npmjs.org/:-authtoken=user',
         '//registry.npmjs.org/:_authToken=user',
-        '//registry.npmjs.org/:_authtoken=user',
         '//registry.npmjs.org/:always-auth=user',
         '//registry.npmjs.org/:email=test-email-old@npmjs.org',
       ].join('\n'),
@@ -73,6 +71,15 @@ t.test('bad auth type', async t => {
   await t.rejects(npm.exec('adduser', []), {
     message: 'no such auth module',
   })
+})
+
+t.test('auth-type sso warning', async t => {
+  const { logs } = await loadMockNpm(t, {
+    config: {
+      'auth-type': 'sso',
+    },
+  })
+  t.matchSnapshot({ warn: logs.warn }, 'warning')
 })
 
 t.test('scoped login', async t => {

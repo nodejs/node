@@ -284,7 +284,9 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 ### Event: `'drop'`
 
 <!-- YAML
-added: v18.6.0
+added:
+  - v18.6.0
+  - v16.17.0
 -->
 
 When the number of connections reaches the threshold of `server.maxConnections`,
@@ -294,6 +296,7 @@ TCP server, the argument is as follows, otherwise the argument is `undefined`.
 * `data` {Object} The argument passed to event listener.
   * `localAddress` {string}  Local address.
   * `localPort` {number} Local port.
+  * `localFamily` {string} Local family.
   * `remoteAddress` {string} Remote address.
   * `remotePort` {number} Remote port.
   * `remoteFamily` {string} Remote IP family. `'IPv4'` or `'IPv6'`.
@@ -857,7 +860,7 @@ changes:
     - v17.7.0
     - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
-    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
                  options are supported now.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
@@ -1047,6 +1050,16 @@ added: v0.9.6
 
 The numeric representation of the local port. For example, `80` or `21`.
 
+### `socket.localFamily`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* {string}
+
+The string representation of the local IP family. `'IPv4'` or `'IPv6'`.
+
 ### `socket.pause()`
 
 * Returns: {net.Socket} The socket itself.
@@ -1115,7 +1128,9 @@ The numeric representation of the remote port. For example, `80` or `21`.
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
-added: v18.3.0
+added:
+  - v18.3.0
+  - v16.17.0
 -->
 
 * Returns: {net.Socket}
@@ -1465,6 +1480,13 @@ then returns the `net.Socket` that starts the connection.
 
 <!-- YAML
 added: v0.5.0
+changes:
+  - version:
+    - v17.7.0
+    - v16.15.0
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive`, and `keepAliveInitialDelay`
+                 options are supported now.
 -->
 
 * `options` {Object}

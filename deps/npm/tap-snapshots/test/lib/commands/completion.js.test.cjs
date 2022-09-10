@@ -87,6 +87,7 @@ Array [
       profile
       prune
       publish
+      query
       rebuild
       repo
       restart

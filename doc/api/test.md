@@ -154,7 +154,7 @@ Running tests can also be done using `describe` to declare a suite
 and `it` to declare a test.
 A suite is used to organize and group related tests together.
 `it` is an alias for `test`, except there is no test context passed,
-since nesting is done using suites, as demonstrated in this example
+since nesting is done using suites.
 
 ```js
 describe('A thing', () => {
@@ -174,7 +174,7 @@ describe('A thing', () => {
 });
 ```
 
-`describe` and `it` are imported from the `node:test` module
+`describe` and `it` are imported from the `node:test` module.
 
 ```mjs
 import { describe, it } from 'node:test';
@@ -316,10 +316,50 @@ Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
 
+## `run([options])`
+
+<!-- YAML
+added: v18.9.0
+-->
+
+* `options` {Object} Configuration options for running tests. The following
+  properties are supported:
+  * `concurrency` {number|boolean} If a number is provided,
+    then that many files would run in parallel.
+    If truthy, it would run (number of cpu cores - 1)
+    files in parallel.
+    If falsy, it would only run one file at a time.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `true`.
+  * `files`: {Array} An array containing the list of files to run.
+    **Default** matching files from [test runner execution model][].
+  * `signal` {AbortSignal} Allows aborting an in-progress test execution.
+  * `timeout` {number} A number of milliseconds the test execution will
+    fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+* Returns: {TapStream}
+
+```js
+run({ files: [path.resolve('./tests/test.js')] })
+  .pipe(process.stdout);
+```
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
+changes:
+  - version: v18.8.0
+    pr-url: https://github.com/nodejs/node/pull/43554
+    description: Add a `signal` option.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -327,18 +367,27 @@ added: v18.0.0
   does not have a name.
 * `options` {Object} Configuration options for the test. The following
   properties are supported:
-  * `concurrency` {number} The number of tests that can be run at the same time.
+  * `concurrency` {number|boolean} If a number is provided,
+    then that many tests would run in parallel.
+    If truthy, it would run (number of cpu cores - 1)
+    tests in parallel.
+    For subtests, it will be `Infinity` tests in parallel.
+    If falsy, it would only run one test at a time.
     If unspecified, subtests inherit this value from their parent.
-    **Default:** `1`.
+    **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
+  * `signal` {AbortSignal} Allows aborting an in-progress test.
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -371,15 +420,21 @@ test('top level test', async (t) => {
 });
 ```
 
+The `timeout` option can be used to fail the test if it takes longer than
+`timeout` milliseconds to complete. However, it is not a reliable mechanism for
+canceling tests because a running test might block the application thread and
+thus prevent the scheduled cancellation.
+
 ## `describe([name][, options][, fn])`
 
 * `name` {string} The name of the suite, which is displayed when reporting test
   results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
   does not have a name.
 * `options` {Object} Configuration options for the suite.
-  supports the same options as `test([name][, options][, fn])`
-* `fn` {Function} The function under suite.
-  a synchronous function declaring all subtests and subsuites.
+  supports the same options as `test([name][, options][, fn])`.
+* `fn` {Function|AsyncFunction} The function under suite
+  declaring all subtests and subsuites.
+  The first argument to this function is a [`SuiteContext`][] object.
   **Default:** A no-op function.
 * Returns: `undefined`.
 
@@ -387,7 +442,7 @@ The `describe()` function imported from the `node:test` module. Each
 invocation of this function results in the creation of a Subtest
 and a test point in the TAP output.
 After invocation of top level `describe` functions,
-all top level tests and suites will execute
+all top level tests and suites will execute.
 
 ## `describe.skip([name][, options][, fn])`
 
@@ -424,20 +479,243 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
 
+### `before([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running before running a suite.
+
+```js
+describe('tests', async () => {
+  before(() => console.log('about to run some test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `after([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running after  running a suite.
+
+```js
+describe('tests', async () => {
+  after(() => console.log('finished running tests'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `beforeEach([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+before each subtest of the current suite.
+
+```js
+describe('tests', async () => {
+  beforeEach(() => t.diagnostic('about to run a test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+### `afterEach([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+after each subtest of the current test.
+
+```js
+describe('tests', async () => {
+  afterEach(() => t.diagnostic('about to run a test'));
+  it('is a subtest', () => {
+    assert.ok('some relevant assertion here');
+  });
+});
+```
+
+## Class: `TapStream`
+
+<!-- YAML
+added: v18.9.0
+-->
+
+* Extends {ReadableStream}
+
+A successful call to [`run()`][] method will return a new {TapStream}
+object, streaming a [TAP][] output
+`TapStream` will emit events, in the order of the tests definition
+
+### Event: `'test:diagnostic'`
+
+* `message` {string} The diagnostic message.
+
+Emitted when [`context.diagnostic`][] is called.
+
+### Event: `'test:fail'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `error` {Error} The failure casing test to fail.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test fails.
+
+### Event: `'test:pass'`
+
+* `data` {Object}
+  * `duration` {number} The test duration.
+  * `name` {string} The test name.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test passes.
+
 ## Class: `TestContext`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 An instance of `TestContext` is passed to each test function in order to
 interact with the test runner. However, the `TestContext` constructor is not
 exposed as part of the API.
 
+### `context.beforeEach([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function. The first argument
+  to this function is a [`TestContext`][] object. If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+before each subtest of the current test.
+
+```js
+test('top level test', async (t) => {
+  t.beforeEach((t) => t.diagnostic(`about to run ${t.name}`));
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    }
+  );
+});
+```
+
+### `context.afterEach([, fn][, options])`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+* `fn` {Function|AsyncFunction} The hook function. The first argument
+  to this function is a [`TestContext`][] object. If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+after each subtest of the current test.
+
+```js
+test('top level test', async (t) => {
+  t.afterEach((t) => t.diagnostic(`finished running ${t.name}`));
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    }
+  );
+});
+```
+
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Message to be displayed as a TAP diagnostic.
@@ -452,10 +730,20 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.name`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+The name of the test.
+
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
@@ -476,10 +764,29 @@ test('top level test', (t) => {
 });
 ```
 
+### `context.signal`
+
+<!-- YAML
+added:
+  - v18.7.0
+  - v16.17.0
+-->
+
+* {AbortSignal} Can be used to abort test subtasks when the test has been
+  aborted.
+
+```js
+test('top level test', async (t) => {
+  await fetch('some/uri', { signal: t.signal });
+});
+```
+
 ### `context.skip([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional skip message to be displayed in TAP output.
@@ -499,7 +806,9 @@ test('top level test', (t) => {
 ### `context.todo([message])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
 -->
 
 * `message` {string} Optional `TODO` message to be displayed in TAP output.
@@ -518,7 +827,18 @@ test('top level test', (t) => {
 ### `context.test([name][, options][, fn])`
 
 <!-- YAML
-added: v18.0.0
+added:
+  - v18.0.0
+  - v16.17.0
+changes:
+  - version: v18.8.0
+    pr-url: https://github.com/nodejs/node/pull/43554
+    description: Add a `signal` option.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/43505
+    description: Add a `timeout` option.
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
@@ -532,12 +852,16 @@ added: v18.0.0
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
+  * `signal` {AbortSignal} Allows aborting an in-progress test.
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
+  * `timeout` {number} A number of milliseconds the test will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
@@ -559,10 +883,46 @@ test('top level test', async (t) => {
 });
 ```
 
+## Class: `SuiteContext`
+
+<!-- YAML
+added:
+  - v18.7.0
+  - v16.17.0
+-->
+
+An instance of `SuiteContext` is passed to each suite function in order to
+interact with the test runner. However, the `SuiteContext` constructor is not
+exposed as part of the API.
+
+### `context.name`
+
+<!-- YAML
+added: v18.8.0
+-->
+
+The name of the suite.
+
+### `context.signal`
+
+<!-- YAML
+added:
+  - v18.7.0
+  - v16.17.0
+-->
+
+* {AbortSignal} Can be used to abort test subtasks when the test has been
+  aborted.
+
 [TAP]: https://testanything.org/
 [`--test-only`]: cli.md#--test-only
 [`--test`]: cli.md#--test
+[`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
+[`context.diagnostic`]: #contextdiagnosticmessage
+[`context.skip`]: #contextskipmessage
+[`context.todo`]: #contexttodomessage
+[`run()`]: #runoptions
 [`test()`]: #testname-options-fn
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn

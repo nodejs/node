@@ -6,6 +6,7 @@
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
+#include "node_contextify.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
@@ -61,9 +62,9 @@ using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 using worker::Worker;
 
-int const Environment::kNodeContextTag = 0x6e6f64;
-void* const Environment::kNodeContextTagPtr = const_cast<void*>(
-    static_cast<const void*>(&Environment::kNodeContextTag));
+int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
+void* const ContextEmbedderTag::kNodeContextTagPtr = const_cast<void*>(
+    static_cast<const void*>(&ContextEmbedderTag::kNodeContextTag));
 
 void AsyncHooks::SetJSPromiseHooks(Local<Function> init,
                                    Local<Function> before,
@@ -238,9 +239,47 @@ AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
     : DefaultTriggerAsyncIdScope(async_wrap->env(),
                                  async_wrap->get_async_id()) {}
 
-std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<SnapshotIndex>& v) {
+  output << "{ ";
+  for (const SnapshotIndex i : v) {
+    output << i << ", ";
+  }
+  output << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const IsolateDataSerializeInfo& i) {
+  output << "{\n"
+         << "// -- primitive begins --\n"
+         << i.primitive_values << ",\n"
+         << "// -- primitive ends --\n"
+         << "// -- template_values begins --\n"
+         << i.template_values << ",\n"
+         << "// -- template_values ends --\n"
+         << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
+  output << "{\n"
+         << "  "
+         << (i.type == SnapshotMetadata::Type::kDefault
+                 ? "SnapshotMetadata::Type::kDefault"
+                 : "SnapshotMetadata::Type::kFullyCustomized")
+         << ", // type\n"
+         << "  \"" << i.node_version << "\", // node_version\n"
+         << "  \"" << i.node_arch << "\", // node_arch\n"
+         << "  \"" << i.node_platform << "\", // node_platform\n"
+         << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
+         << "}";
+  return output;
+}
+
+IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
   Isolate* isolate = creator->GetIsolate();
-  std::vector<size_t> indexes;
+  IsolateDataSerializeInfo info;
   HandleScope handle_scope(isolate);
   // XXX(joyeecheung): technically speaking, the indexes here should be
   // consecutive and we could just return a range instead of an array,
@@ -251,7 +290,8 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
-  indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
+  info.primitive_values.push_back(                                             \
+      creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -259,13 +299,27 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VY
 #undef VS
 #undef VP
-  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
-    indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
-  return indexes;
+  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
+    info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
+
+  uint32_t id = 0;
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    Local<TypeName> field = PropertyName();                                    \
+    if (!field.IsEmpty()) {                                                    \
+      size_t index = creator->AddData(field);                                  \
+      info.template_values.push_back({#PropertyName, id, index});              \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
+  return info;
 }
 
-void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
+void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
@@ -275,7 +329,8 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
-        isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
+        isolate_->GetDataFromSnapshotOnce<TypeName>(                           \
+            info->primitive_values[i++]);                                      \
     Local<TypeName> field;                                                     \
     if (!maybe_field.ToLocal(&field)) {                                        \
       fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
@@ -292,13 +347,38 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
     MaybeLocal<String> maybe_field =
-        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
+        isolate_->GetDataFromSnapshotOnce<String>(info->primitive_values[i++]);
     Local<String> field;
     if (!maybe_field.ToLocal(&field)) {
       fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
     }
     async_wrap_providers_[j].Set(isolate_, field);
   }
+
+  const std::vector<PropInfo>& values = info->template_values;
+  i = 0;  // index to the array
+  uint32_t id = 0;
+#define V(PropertyName, TypeName)                                              \
+  do {                                                                         \
+    if (values.size() > i && id == values[i].id) {                             \
+      const PropInfo& d = values[i];                                           \
+      DCHECK_EQ(d.name, #PropertyName);                                        \
+      MaybeLocal<TypeName> maybe_field =                                       \
+          isolate_->GetDataFromSnapshotOnce<TypeName>(d.index);                \
+      Local<TypeName> field;                                                   \
+      if (!maybe_field.ToLocal(&field)) {                                      \
+        fprintf(stderr,                                                        \
+                "Failed to deserialize isolate data template " #PropertyName   \
+                "\n");                                                         \
+      }                                                                        \
+      set_##PropertyName(field);                                               \
+      i++;                                                                     \
+    }                                                                          \
+    id++;                                                                      \
+  } while (0);
+
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V);
+#undef V
 }
 
 void IsolateData::CreateProperties() {
@@ -363,13 +443,23 @@ void IsolateData::CreateProperties() {
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
+
+  // TODO(legendecas): eagerly create per isolate templates.
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
+  templ->InstanceTemplate()->SetInternalFieldCount(
+      BaseObject::kInternalFieldCount);
+  templ->Inherit(BaseObject::GetConstructorTemplate(this));
+  set_binding_data_ctor_template(templ);
+
+  set_contextify_global_template(
+      contextify::ContextifyContext::CreateGlobalTemplate(isolate_));
 }
 
 IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const std::vector<size_t>* indexes)
+                         const IsolateDataSerializeInfo* isolate_data_info)
     : isolate_(isolate),
       event_loop_(event_loop),
       node_allocator_(node_allocator == nullptr ? nullptr
@@ -378,10 +468,10 @@ IsolateData::IsolateData(Isolate* isolate,
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
-  if (indexes == nullptr) {
+  if (isolate_data_info == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(indexes);
+    DeserializeProperties(isolate_data_info);
   }
 }
 
@@ -415,6 +505,10 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
     return;
   }
 
+  if (env_->principal_realm() == nullptr) {
+    return;
+  }
+
   bool async_hooks_enabled = (*(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
                                  TRACING_CATEGORY_NODE1(async_hooks)))) != 0;
 
@@ -430,15 +524,21 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 }
 
 void Environment::AssignToContext(Local<v8::Context> context,
+                                  Realm* realm,
                                   const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
-  // Used by Environment::GetCurrent to know that we are on a node context.
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kContextTag,
-                                           Environment::kNodeContextTagPtr);
+  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
+
+  // ContextifyContexts will update this to a pointer to the native object.
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kContextifyContext, nullptr);
+
+  // This must not be done before other context fields are initialized.
+  ContextEmbedderTag::TagNodeContext(context);
 
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
@@ -503,197 +603,6 @@ std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
   return bs;
 }
 
-Local<v8::FunctionTemplate> Environment::NewFunctionTemplate(
-    v8::FunctionCallback callback,
-    Local<v8::Signature> signature,
-    v8::ConstructorBehavior behavior,
-    v8::SideEffectType side_effect_type,
-    const v8::CFunction* c_function) {
-  return v8::FunctionTemplate::New(isolate(),
-                                   callback,
-                                   Local<v8::Value>(),
-                                   signature,
-                                   0,
-                                   behavior,
-                                   side_effect_type,
-                                   c_function);
-}
-
-void Environment::SetMethod(Local<v8::Object> that,
-                            const char* name,
-                            v8::FunctionCallback callback) {
-  Local<v8::Context> context = isolate()->GetCurrentContext();
-  Local<v8::Function> function =
-      NewFunctionTemplate(callback,
-                          Local<v8::Signature>(),
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasSideEffect)
-          ->GetFunction(context)
-          .ToLocalChecked();
-  // kInternalized strings are created in the old space.
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(context, name_string, function).Check();
-  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
-}
-
-void Environment::SetFastMethod(Local<v8::Object> that,
-                                const char* name,
-                                v8::FunctionCallback slow_callback,
-                                const v8::CFunction* c_function) {
-  Local<v8::Context> context = isolate()->GetCurrentContext();
-  Local<v8::Function> function =
-      NewFunctionTemplate(slow_callback,
-                          Local<v8::Signature>(),
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasNoSideEffect,
-                          c_function)
-          ->GetFunction(context)
-          .ToLocalChecked();
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(context, name_string, function).Check();
-}
-
-void Environment::SetMethodNoSideEffect(Local<v8::Object> that,
-                                        const char* name,
-                                        v8::FunctionCallback callback) {
-  Local<v8::Context> context = isolate()->GetCurrentContext();
-  Local<v8::Function> function =
-      NewFunctionTemplate(callback,
-                          Local<v8::Signature>(),
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasNoSideEffect)
-          ->GetFunction(context)
-          .ToLocalChecked();
-  // kInternalized strings are created in the old space.
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(context, name_string, function).Check();
-  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
-}
-
-void Environment::SetProtoMethod(Local<v8::FunctionTemplate> that,
-                                 const char* name,
-                                 v8::FunctionCallback callback) {
-  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  Local<v8::FunctionTemplate> t =
-      NewFunctionTemplate(callback,
-                          signature,
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasSideEffect);
-  // kInternalized strings are created in the old space.
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->PrototypeTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
-}
-
-void Environment::SetProtoMethodNoSideEffect(Local<v8::FunctionTemplate> that,
-                                             const char* name,
-                                             v8::FunctionCallback callback) {
-  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  Local<v8::FunctionTemplate> t =
-      NewFunctionTemplate(callback,
-                          signature,
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasNoSideEffect);
-  // kInternalized strings are created in the old space.
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->PrototypeTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
-}
-
-void Environment::SetInstanceMethod(Local<v8::FunctionTemplate> that,
-                                    const char* name,
-                                    v8::FunctionCallback callback) {
-  Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  Local<v8::FunctionTemplate> t =
-      NewFunctionTemplate(callback,
-                          signature,
-                          v8::ConstructorBehavior::kThrow,
-                          v8::SideEffectType::kHasSideEffect);
-  // kInternalized strings are created in the old space.
-  const v8::NewStringType type = v8::NewStringType::kInternalized;
-  Local<v8::String> name_string =
-      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->InstanceTemplate()->Set(name_string, t);
-  t->SetClassName(name_string);
-}
-
-void Environment::SetConstructorFunction(Local<v8::Object> that,
-                                         const char* name,
-                                         Local<v8::FunctionTemplate> tmpl,
-                                         SetConstructorFunctionFlag flag) {
-  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl, flag);
-}
-
-void Environment::SetConstructorFunction(Local<v8::Object> that,
-                                         Local<v8::String> name,
-                                         Local<v8::FunctionTemplate> tmpl,
-                                         SetConstructorFunctionFlag flag) {
-  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
-    tmpl->SetClassName(name);
-  that->Set(context(), name, tmpl->GetFunction(context()).ToLocalChecked())
-      .Check();
-}
-
-void Environment::CreateProperties() {
-  HandleScope handle_scope(isolate_);
-  Local<Context> ctx = context();
-
-  {
-    Context::Scope context_scope(ctx);
-    Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-    templ->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
-    templ->Inherit(BaseObject::GetConstructorTemplate(this));
-
-    set_binding_data_ctor_template(templ);
-  }
-
-  // Store primordials setup by the per-context script in the environment.
-  Local<Object> per_context_bindings =
-      GetPerContextExports(ctx).ToLocalChecked();
-  Local<Value> primordials =
-      per_context_bindings->Get(ctx, primordials_string()).ToLocalChecked();
-  CHECK(primordials->IsObject());
-  set_primordials(primordials.As<Object>());
-
-  Local<String> prototype_string =
-      FIXED_ONE_BYTE_STRING(isolate(), "prototype");
-
-#define V(EnvPropertyName, PrimordialsPropertyName)                            \
-  {                                                                            \
-    Local<Value> ctor =                                                        \
-        primordials.As<Object>()                                               \
-            ->Get(ctx,                                                         \
-                  FIXED_ONE_BYTE_STRING(isolate(), PrimordialsPropertyName))   \
-            .ToLocalChecked();                                                 \
-    CHECK(ctor->IsObject());                                                   \
-    Local<Value> prototype =                                                   \
-        ctor.As<Object>()->Get(ctx, prototype_string).ToLocalChecked();        \
-    CHECK(prototype->IsObject());                                              \
-    set_##EnvPropertyName(prototype.As<Object>());                             \
-  }
-
-  V(primordials_safe_map_prototype_object, "SafeMap");
-  V(primordials_safe_set_prototype_object, "SafeSet");
-  V(primordials_safe_weak_map_prototype_object, "SafeWeakMap");
-  V(primordials_safe_weak_set_prototype_object, "SafeWeakSet");
-#undef V
-
-  Local<Object> process_object =
-      node::CreateProcessObject(this).FromMaybe(Local<Object>());
-  set_process_object(process_object);
-}
-
 std::string GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
@@ -736,6 +645,7 @@ Environment::Environment(IsolateData* isolate_data,
       exec_argv_(exec_args),
       argv_(args),
       exec_path_(GetExecPath(args)),
+      exiting_(isolate_, 1, MAYBE_FIELD_PTR(env_info, exiting)),
       should_abort_on_uncaught_toggle_(
           isolate_,
           1,
@@ -743,7 +653,8 @@ Environment::Environment(IsolateData* isolate_data,
       stream_base_state_(isolate_,
                          StreamBase::kNumStreamBaseStateFields,
                          MAYBE_FIELD_PTR(env_info, stream_base_state)),
-      environment_start_time_(PERFORMANCE_NOW()),
+      time_origin_(PERFORMANCE_NOW()),
+      time_origin_timestamp_(GetCurrentTimeInMicroseconds()),
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
@@ -760,10 +671,7 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
-  // TODO(joyeecheung): pass Isolate* and env_vars to it instead of the entire
-  // env, when the recursive dependency inclusion in "debug-utils.h" is
-  // resolved.
-  enabled_debug_list_.Parse(this);
+  enabled_debug_list_.Parse(env_vars(), isolate);
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
@@ -773,6 +681,9 @@ Environment::Environment(IsolateData* isolate_data,
       *isolate_data->options()->per_env);
   inspector_host_port_ = std::make_shared<ExclusiveAccess<HostPort>>(
       options_->debug_options().host_port);
+
+  heap_snapshot_near_heap_limit_ =
+      static_cast<uint32_t>(options_->heap_snapshot_near_heap_limit);
 
   if (!(flags_ & EnvironmentFlags::kOwnsProcessState)) {
     set_abort_on_uncaught_exception(false);
@@ -830,12 +741,11 @@ Environment::Environment(IsolateData* isolate_data,
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  context_.Reset(context->GetIsolate(), context);
-  AssignToContext(context, ContextInfo(""));
+  principal_realm_ = std::make_unique<Realm>(
+      this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
+  AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
-  } else {
-    CreateProperties();
   }
 
   if (!options_->force_async_hooks_checks) {
@@ -845,8 +755,11 @@ void Environment::InitializeMainContext(Local<Context> context,
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
 
+  // The process is not exiting by default.
+  set_exiting(false);
+
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT,
-                           environment_start_time_);
+                           time_origin_);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
                            per_process::node_start_time);
 
@@ -857,6 +770,9 @@ void Environment::InitializeMainContext(Local<Context> context,
 }
 
 Environment::~Environment() {
+  HandleScope handle_scope(isolate());
+  Local<Context> ctx = context();
+
   if (Environment** interrupt_data = interrupt_data_.load()) {
     // There are pending RequestInterrupt() callbacks. Tell them not to run,
     // then force V8 to run interrupts by compiling and running an empty script
@@ -864,9 +780,8 @@ Environment::~Environment() {
     *interrupt_data = nullptr;
 
     Isolate::AllowJavascriptExecutionScope allow_js_here(isolate());
-    HandleScope handle_scope(isolate());
     TryCatch try_catch(isolate());
-    Context::Scope context_scope(context());
+    Context::Scope context_scope(ctx);
 
 #ifdef DEBUG
     bool consistency_check = false;
@@ -876,8 +791,8 @@ Environment::~Environment() {
 #endif
 
     Local<Script> script;
-    if (Script::Compile(context(), String::Empty(isolate())).ToLocal(&script))
-      USE(script->Run(context()));
+    if (Script::Compile(ctx, String::Empty(isolate())).ToLocal(&script))
+      USE(script->Run(ctx));
 
     DCHECK(consistency_check);
   }
@@ -885,15 +800,12 @@ Environment::~Environment() {
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
 
-  if (options_->heap_snapshot_near_heap_limit > heap_limit_snapshot_taken_) {
-    isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
-                                          0);
+  if (heapsnapshot_near_heap_limit_callback_added_) {
+    RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
-
-  HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
   // Destroy inspector agent before erasing the context. The inspector
@@ -901,8 +813,9 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  context()->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                             nullptr);
+  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                       nullptr);
+  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, nullptr);
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -1089,33 +1002,10 @@ void Environment::RunCleanup() {
   bindings_.clear();
   CleanupHandles();
 
-  while (!cleanup_hooks_.empty() ||
-         native_immediates_.size() > 0 ||
+  while (!cleanup_queue_.empty() || native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
-    // Copy into a vector, since we can't sort an unordered_set in-place.
-    std::vector<CleanupHookCallback> callbacks(
-        cleanup_hooks_.begin(), cleanup_hooks_.end());
-    // We can't erase the copied elements from `cleanup_hooks_` yet, because we
-    // need to be able to check whether they were un-scheduled by another hook.
-
-    std::sort(callbacks.begin(), callbacks.end(),
-              [](const CleanupHookCallback& a, const CleanupHookCallback& b) {
-      // Sort in descending order so that the most recently inserted callbacks
-      // are run first.
-      return a.insertion_order_counter_ > b.insertion_order_counter_;
-    });
-
-    for (const CleanupHookCallback& cb : callbacks) {
-      if (cleanup_hooks_.count(cb) == 0) {
-        // This hook was removed from the `cleanup_hooks_` set during another
-        // hook that was run earlier. Nothing to do here.
-        continue;
-      }
-
-      cb.fn_(cb.arg_);
-      cleanup_hooks_.erase(cb);
-    }
+    cleanup_queue_.Drain();
     CleanupHandles();
   }
 
@@ -1531,16 +1421,6 @@ void AsyncHooks::Deserialize(Local<Context> context) {
 }
 
 std::ostream& operator<<(std::ostream& output,
-                         const std::vector<SnapshotIndex>& v) {
-  output << "{ ";
-  for (const SnapshotIndex i : v) {
-    output << i << ", ";
-  }
-  output << " }";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
                          const AsyncHooks::SerializeInfo& i) {
   output << "{\n"
          << "  " << i.async_ids_stack << ",  // async_ids_stack\n"
@@ -1557,6 +1437,7 @@ std::ostream& operator<<(std::ostream& output,
 AsyncHooks::SerializeInfo AsyncHooks::Serialize(Local<Context> context,
                                                 SnapshotCreator* creator) {
   SerializeInfo info;
+  // TODO(joyeecheung): some of these probably don't need to be serialized.
   info.async_ids_stack = async_ids_stack_.Serialize(context, creator);
   info.fields = fields_.Serialize(context, creator);
   info.async_id_fields = async_id_fields_.Serialize(context, creator);
@@ -1679,11 +1560,11 @@ void Environment::PrintInfoForSnapshotIfDebug() {
     fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
     PrintAllBaseObjects();
     fprintf(stderr, "\nNative modules without cache:\n");
-    for (const auto& s : native_modules_without_cache) {
+    for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nNative modules with cache:\n");
-    for (const auto& s : native_modules_with_cache) {
+    for (const auto& s : builtins_with_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
     fprintf(stderr, "\nStatic bindings (need to be registered):\n");
@@ -1736,105 +1617,33 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
-  SerializeBindingData(this, creator, &info);
   // Currently all modules are compiled without cache in builtin snapshot
   // builder.
-  info.native_modules = std::vector<std::string>(
-      native_modules_without_cache.begin(), native_modules_without_cache.end());
+  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
+                                           builtins_without_cache.end());
 
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
+  info.exiting = exiting_.Serialize(ctx, creator);
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
 
-  size_t id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(field);                                  \
-      info.persistent_templates.push_back({#PropertyName, id, index});         \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#undef V
+  // Do this after other creator->AddData() calls so that Snapshotable objects
+  // can use 0 to indicate that a SnapshotIndex is invalid.
+  SerializeSnapshotableObjects(this, creator, &info);
 
-  id = 0;
-#define V(PropertyName, TypeName)                                              \
-  do {                                                                         \
-    Local<TypeName> field = PropertyName();                                    \
-    if (!field.IsEmpty()) {                                                    \
-      size_t index = creator->AddData(ctx, field);                             \
-      info.persistent_values.push_back({#PropertyName, id, index});            \
-    }                                                                          \
-    id++;                                                                      \
-  } while (0);
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
-
-  info.context = creator->AddData(ctx, context());
+  info.principal_realm = principal_realm_->Serialize(creator);
   return info;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<PropInfo>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  { \"" << info.name << "\", " << std::to_string(info.id) << ", "
-           << std::to_string(info.index) << " },\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output,
-                         const std::vector<std::string>& vec) {
-  output << "{\n";
-  for (const auto& info : vec) {
-    output << "  \"" << info << "\",\n";
-  }
-  output << "}";
-  return output;
-}
-
-std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
-  output << "{\n"
-         << "// -- bindings begins --\n"
-         << i.bindings << ",\n"
-         << "// -- bindings ends --\n"
-         << "// -- native_modules begins --\n"
-         << i.native_modules << ",\n"
-         << "// -- native_modules ends --\n"
-         << "// -- async_hooks begins --\n"
-         << i.async_hooks << ",\n"
-         << "// -- async_hooks ends --\n"
-         << i.tick_info << ",  // tick_info\n"
-         << i.immediate_info << ",  // immediate_info\n"
-         << "// -- performance_state begins --\n"
-         << i.performance_state << ",\n"
-         << "// -- performance_state ends --\n"
-         << i.stream_base_state << ",  // stream_base_state\n"
-         << i.should_abort_on_uncaught_toggle
-         << ",  // should_abort_on_uncaught_toggle\n"
-         << "// -- persistent_templates begins --\n"
-         << i.persistent_templates << ",\n"
-         << "// persistent_templates ends --\n"
-         << "// -- persistent_values begins --\n"
-         << i.persistent_values << ",\n"
-         << "// -- persistent_values ends --\n"
-         << i.context << ",  // context\n"
-         << "}";
-  return output;
 }
 
 void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
-                                            InternalFieldInfo* info) {
+                                            InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
 }
@@ -1858,62 +1667,21 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 
   RunDeserializeRequests();
 
-  native_modules_in_snapshot = info->native_modules;
+  builtins_in_snapshot = info->builtins;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
   performance_state_->Deserialize(ctx);
+  exiting_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
+
+  principal_realm_->DeserializeProperties(&info->principal_realm);
 
   if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "deserializing...\n");
     std::cerr << *info << "\n";
   }
-
-  const std::vector<PropInfo>& templates = info->persistent_templates;
-  size_t i = 0;  // index to the array
-  size_t id = 0;
-#define SetProperty(PropertyName, TypeName, vector, type, from)                \
-  do {                                                                         \
-    if (vector.size() > i && id == vector[i].id) {                             \
-      const PropInfo& d = vector[i];                                           \
-      DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> maybe_field =                                       \
-          from->GetDataFromSnapshotOnce<TypeName>(d.index);                    \
-      Local<TypeName> field;                                                   \
-      if (!maybe_field.ToLocal(&field)) {                                      \
-        fprintf(stderr,                                                        \
-                "Failed to deserialize environment " #type " " #PropertyName   \
-                "\n");                                                         \
-      }                                                                        \
-      set_##PropertyName(field);                                               \
-      i++;                                                                     \
-    }                                                                          \
-  } while (0);                                                                 \
-  id++;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              templates, template, isolate_)
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V);
-#undef V
-
-  i = 0;  // index to the array
-  id = 0;
-  const std::vector<PropInfo>& values = info->persistent_values;
-#define V(PropertyName, TypeName) SetProperty(PropertyName, TypeName,          \
-                                              values, value, ctx)
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
-#undef V
-#undef SetProperty
-
-  MaybeLocal<Context> maybe_ctx_from_snapshot =
-      ctx->GetDataFromSnapshotOnce<Context>(info->context);
-  Local<Context> ctx_from_snapshot;
-  if (!maybe_ctx_from_snapshot.ToLocal(&ctx_from_snapshot)) {
-    fprintf(stderr,
-            "Failed to deserialize context back reference from the snapshot\n");
-  }
-  CHECK_EQ(ctx_from_snapshot, ctx);
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
@@ -1941,10 +1709,6 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
   tracker.Track(env);
-  env->ForEachBaseObject([&](BaseObject* obj) {
-    if (obj->IsDoneInitializing())
-      tracker.Track(obj);
-  });
 }
 
 size_t Environment::NearHeapLimitCallback(void* data,
@@ -2026,8 +1790,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
-    env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                                initial_heap_limit);
+    env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
     // The new limit must be higher than current_heap_limit or V8 might
     // crash.
     return current_heap_limit + 1;
@@ -2047,17 +1810,15 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   // Remove the callback first in case it's triggered when generating
   // the snapshot.
-  env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                              initial_heap_limit);
+  env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
 
   heap::WriteSnapshot(env, filename.c_str());
   env->heap_limit_snapshot_taken_ += 1;
 
   // Don't take more snapshots than the number specified by
   // --heapsnapshot-near-heap-limit.
-  if (env->heap_limit_snapshot_taken_ <
-      env->options_->heap_snapshot_near_heap_limit) {
-    env->isolate()->AddNearHeapLimitCallback(NearHeapLimitCallback, env);
+  if (env->heap_limit_snapshot_taken_ < env->heap_snapshot_near_heap_limit_) {
+    env->AddHeapSnapshotNearHeapLimitCallback();
   }
 
   FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
@@ -2079,6 +1840,7 @@ inline size_t Environment::SelfSize() const {
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
   size -= sizeof(async_hooks_);
+  size -= sizeof(cleanup_queue_);
   size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
   return size;
@@ -2088,24 +1850,19 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // Iteratable STLs have their own sizes subtracted from the parent
   // by default.
   tracker->TrackField("isolate_data", isolate_data_);
-  tracker->TrackField("native_modules_with_cache", native_modules_with_cache);
-  tracker->TrackField("native_modules_without_cache",
-                      native_modules_without_cache);
+  tracker->TrackField("builtins_with_cache", builtins_with_cache);
+  tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
+  tracker->TrackField("exiting", exiting_);
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
-  tracker->TrackFieldWithSize(
-      "cleanup_hooks", cleanup_hooks_.size() * sizeof(CleanupHookCallback));
+  tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);
-
-#define V(PropertyName, TypeName)                                              \
-  tracker->TrackField(#PropertyName, PropertyName());
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
+  tracker->TrackField("principal_realm", principal_realm_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these
@@ -2126,7 +1883,9 @@ void Environment::RunWeakRefCleanup() {
 BaseObject::BaseObject(Environment* env, Local<Object> object)
     : persistent_handle_(env->isolate(), object), env_(env) {
   CHECK_EQ(false, object.IsEmpty());
-  CHECK_GT(object->InternalFieldCount(), 0);
+  CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                           &kNodeEmbedderId);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot,
                                            static_cast<void*>(this));
   env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
@@ -2177,17 +1936,26 @@ void BaseObject::MakeWeak() {
       WeakCallbackType::kParameter);
 }
 
+// This just has to be different from the Chromium ones:
+// https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
+// Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
+// misinterpret the data stored in the embedder fields and try to garbage
+// collect them.
+uint16_t kNodeEmbedderId = 0x90de;
+
 void BaseObject::LazilyInitializedJSTemplateConstructor(
     const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
-  DCHECK_GT(args.This()->InternalFieldCount(), 0);
+  CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  args.This()->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                                &kNodeEmbedderId);
   args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
 }
 
 Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
     Environment* env) {
-  Local<FunctionTemplate> t =
-      env->NewFunctionTemplate(LazilyInitializedJSTemplateConstructor);
+  Local<FunctionTemplate> t = NewFunctionTemplate(
+      env->isolate(), LazilyInitializedJSTemplateConstructor);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
   return t;
@@ -2243,12 +2011,14 @@ bool BaseObject::IsRootNode() const {
   return !persistent_handle_.IsWeak();
 }
 
-Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->base_object_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
-    env->set_base_object_ctor_template(tmpl);
+    tmpl = NewFunctionTemplate(isolate_data->isolate(), nullptr);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "BaseObject"));
+    isolate_data->set_base_object_ctor_template(tmpl);
   }
   return tmpl;
 }

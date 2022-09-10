@@ -327,7 +327,7 @@ t.test('no auth for scope configured registry', async t => {
   )
 })
 
-t.test('has auth for scope configured registry', async t => {
+t.test('has token auth for scope configured registry', async t => {
   const spec = npa('@npm/test-package')
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
@@ -348,6 +348,35 @@ t.test('has auth for scope configured registry', async t => {
     tap: t,
     registry: alternateRegistry,
     authorization: 'test-scope-token',
+  })
+  registry.nock.put(`/${spec.escapedName}`, body => {
+    return t.match(body, { name: '@npm/test-package' })
+  }).reply(200, {})
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+})
+
+t.test('has mTLS auth for scope configured registry', async t => {
+  const spec = npa('@npm/test-package')
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      '@npm:registry': alternateRegistry,
+      [`${alternateRegistry.slice(6)}/:certfile`]: '/some.cert',
+      [`${alternateRegistry.slice(6)}/:keyfile`]: '/some.key',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npm/test-package',
+        version: '1.0.0',
+      }, null, 2),
+    },
+    globals: ({ prefix }) => ({
+      'process.cwd': () => prefix,
+    }),
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
   })
   registry.nock.put(`/${spec.escapedName}`, body => {
     return t.match(body, { name: '@npm/test-package' })

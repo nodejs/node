@@ -31,6 +31,7 @@
 #include "node_context_data.h"
 #include "node_internals.h"
 #include "node_perf_common.h"
+#include "node_realm-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -177,16 +178,7 @@ inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
 }
 
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
-  if (UNLIKELY(context.IsEmpty())) {
-    return nullptr;
-  }
-  if (UNLIKELY(context->GetNumberOfEmbedderDataFields() <=
-               ContextEmbedderIndex::kContextTag)) {
-    return nullptr;
-  }
-  if (UNLIKELY(context->GetAlignedPointerFromEmbedderData(
-                   ContextEmbedderIndex::kContextTag) !=
-               Environment::kNodeContextTagPtr)) {
+  if (UNLIKELY(!ContextEmbedderTag::IsNodeContext(context))) {
     return nullptr;
   }
   return static_cast<Environment*>(
@@ -369,6 +361,14 @@ inline void Environment::set_force_context_aware(bool value) {
 
 inline bool Environment::force_context_aware() const {
   return options_->force_context_aware;
+}
+
+inline void Environment::set_exiting(bool value) {
+  exiting_[0] = value ? 1 : 0;
+}
+
+inline AliasedUint32Array& Environment::exiting() {
+  return exiting_;
 }
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
@@ -615,15 +615,7 @@ inline void Environment::set_can_call_into_js(bool can_call_into_js) {
 }
 
 inline bool Environment::has_run_bootstrapping_code() const {
-  return has_run_bootstrapping_code_;
-}
-
-inline void Environment::DoneBootstrapping() {
-  has_run_bootstrapping_code_ = true;
-  // This adjusts the return value of base_object_created_after_bootstrap() so
-  // that tests that check the count do not have to account for internally
-  // created BaseObjects.
-  base_object_created_by_bootstrap_ = base_object_count_;
+  return principal_realm_->has_run_bootstrapping_code();
 }
 
 inline bool Environment::has_serialized_options() const {
@@ -656,7 +648,8 @@ inline bool Environment::owns_inspector() const {
 }
 
 inline bool Environment::should_create_inspector() const {
-  return (flags_ & EnvironmentFlags::kNoCreateInspector) == 0;
+  return (flags_ & EnvironmentFlags::kNoCreateInspector) == 0 &&
+         !options_->test_runner && !options_->watch_mode;
 }
 
 inline bool Environment::tracks_unmanaged_fds() const {
@@ -788,66 +781,33 @@ inline void Environment::ThrowUVException(int errorno,
       UVException(isolate(), errorno, syscall, message, path, dest));
 }
 
-void Environment::AddCleanupHook(CleanupCallback fn, void* arg) {
-  auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
-    fn, arg, cleanup_hook_counter_++
-  });
-  // Make sure there was no existing element with these values.
-  CHECK_EQ(insertion_info.second, true);
+void Environment::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Add(fn, arg);
 }
 
-void Environment::RemoveCleanupHook(CleanupCallback fn, void* arg) {
-  CleanupHookCallback search { fn, arg, 0 };
-  cleanup_hooks_.erase(search);
-}
-
-size_t CleanupHookCallback::Hash::operator()(
-    const CleanupHookCallback& cb) const {
-  return std::hash<void*>()(cb.arg_);
-}
-
-bool CleanupHookCallback::Equal::operator()(
-    const CleanupHookCallback& a, const CleanupHookCallback& b) const {
-  return a.fn_ == b.fn_ && a.arg_ == b.arg_;
-}
-
-BaseObject* CleanupHookCallback::GetBaseObject() const {
-  if (fn_ == BaseObject::DeleteMe)
-    return static_cast<BaseObject*>(arg_);
-  else
-    return nullptr;
+void Environment::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Remove(fn, arg);
 }
 
 template <typename T>
 void Environment::ForEachBaseObject(T&& iterator) {
-  for (const auto& hook : cleanup_hooks_) {
-    BaseObject* obj = hook.GetBaseObject();
-    if (obj != nullptr)
-      iterator(obj);
-  }
-}
-
-template <typename T>
-void Environment::ForEachBindingData(T&& iterator) {
-  BindingDataStore* map = static_cast<BindingDataStore*>(
-      context()->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(map);
-  for (auto& it : *map) {
-    iterator(it.first, it.second);
-  }
+  cleanup_queue_.ForEachBaseObject(std::forward<T>(iterator));
 }
 
 void Environment::modify_base_object_count(int64_t delta) {
   base_object_count_ += delta;
 }
 
-int64_t Environment::base_object_created_after_bootstrap() const {
-  return base_object_count_ - base_object_created_by_bootstrap_;
-}
-
 int64_t Environment::base_object_count() const {
   return base_object_count_;
+}
+
+inline void Environment::set_base_object_created_by_bootstrap(int64_t count) {
+  base_object_created_by_bootstrap_ = base_object_count_;
+}
+
+int64_t Environment::base_object_created_after_bootstrap() const {
+  return base_object_count_ - base_object_created_by_bootstrap_;
 }
 
 void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
@@ -876,6 +836,16 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> IsolateData::PropertyName() const {               \
+    return PropertyName##_.Get(isolate_);                                      \
+  }                                                                            \
+  inline void IsolateData::set_##PropertyName(v8::Local<TypeName> value) {     \
+    PropertyName##_.Set(isolate_, value);                                      \
+  }
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -891,19 +861,53 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
-#define V(PropertyName, TypeName)                                             \
-  inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return PersistentToLocal::Strong(PropertyName ## _);                      \
-  }                                                                           \
-  inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
-    PropertyName ## _.Reset(isolate(), value);                                \
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> Environment::PropertyName() const {               \
+    return isolate_data()->PropertyName();                                     \
+  }                                                                            \
+  inline void Environment::set_##PropertyName(v8::Local<TypeName> value) {     \
+    DCHECK(isolate_data()->PropertyName().IsEmpty());                          \
+    isolate_data()->set_##PropertyName(value);                                 \
   }
-  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+  PER_ISOLATE_TEMPLATE_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> Environment::PropertyName() const {               \
+    DCHECK_NOT_NULL(principal_realm_);                                         \
+    return principal_realm_->PropertyName();                                   \
+  }                                                                            \
+  inline void Environment::set_##PropertyName(v8::Local<TypeName> value) {     \
+    DCHECK_NOT_NULL(principal_realm_);                                         \
+    principal_realm_->set_##PropertyName(value);                               \
+  }
+  PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
 v8::Local<v8::Context> Environment::context() const {
-  return PersistentToLocal::Strong(context_);
+  return principal_realm()->context();
+}
+
+Realm* Environment::principal_realm() const {
+  return principal_realm_.get();
+}
+
+inline void Environment::set_heap_snapshot_near_heap_limit(uint32_t limit) {
+  heap_snapshot_near_heap_limit_ = limit;
+}
+
+inline void Environment::AddHeapSnapshotNearHeapLimitCallback() {
+  DCHECK(!heapsnapshot_near_heap_limit_callback_added_);
+  heapsnapshot_near_heap_limit_callback_added_ = true;
+  isolate_->AddNearHeapLimitCallback(Environment::NearHeapLimitCallback, this);
+}
+
+inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
+    size_t heap_limit) {
+  DCHECK(heapsnapshot_near_heap_limit_callback_added_);
+  heapsnapshot_near_heap_limit_callback_added_ = false;
+  isolate_->RemoveNearHeapLimitCallback(Environment::NearHeapLimitCallback,
+                                        heap_limit);
 }
 
 }  // namespace node

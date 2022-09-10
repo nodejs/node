@@ -121,7 +121,7 @@ class Token extends BaseCommand {
     })
     await Promise.all(
       toRemove.map(key => {
-        return otplease(conf, conf => {
+        return otplease(this.npm, conf, conf => {
           return profile.removeToken(key, conf)
         })
       })
@@ -140,32 +140,27 @@ class Token extends BaseCommand {
     const cidr = conf.cidr
     const readonly = conf.readOnly
 
-    return readUserInfo
-      .password()
-      .then(password => {
-        const validCIDR = this.validateCIDRList(cidr)
-        log.info('token', 'creating')
-        return pulseTillDone.withPromise(
-          otplease(conf, conf => {
-            return profile.createToken(password, readonly, validCIDR, conf)
-          })
-        )
+    const password = await readUserInfo.password()
+    const validCIDR = this.validateCIDRList(cidr)
+    log.info('token', 'creating')
+    const result = await pulseTillDone.withPromise(
+      otplease(this.npm, conf, conf => {
+        return profile.createToken(password, readonly, validCIDR, conf)
       })
-      .then(result => {
-        delete result.key
-        delete result.updated
-        if (conf.json) {
-          this.npm.output(JSON.stringify(result))
-        } else if (conf.parseable) {
-          Object.keys(result).forEach(k => this.npm.output(k + '\t' + result[k]))
-        } else {
-          const table = new Table()
-          for (const k of Object.keys(result)) {
-            table.push({ [chalk.bold(k)]: String(result[k]) })
-          }
-          this.npm.output(table.toString())
-        }
-      })
+    )
+    delete result.key
+    delete result.updated
+    if (conf.json) {
+      this.npm.output(JSON.stringify(result))
+    } else if (conf.parseable) {
+      Object.keys(result).forEach(k => this.npm.output(k + '\t' + result[k]))
+    } else {
+      const table = new Table()
+      for (const k of Object.keys(result)) {
+        table.push({ [chalk.bold(k)]: String(result[k]) })
+      }
+      this.npm.output(table.toString())
+    }
   }
 
   config () {

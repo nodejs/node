@@ -8,7 +8,10 @@ export default function stringifyValidator(validator, nodePrefix) {
   }
 
   if (validator.chainOf) {
-    return stringifyValidator(validator.chainOf[1], nodePrefix);
+    const ret = stringifyValidator(validator.chainOf[1], nodePrefix);
+    return Array.isArray(ret) && ret.length === 1 && ret[0] === "any"
+      ? stringifyValidator(validator.chainOf[0], nodePrefix)
+      : ret;
   }
 
   if (validator.oneOf) {
@@ -61,6 +64,6 @@ export default function stringifyValidator(validator, nodePrefix) {
  * Heuristic to decide whether or not the given type is a value type (eg. "null")
  * or a Node type (eg. "Expression").
  */
-function isValueType(type) {
+export function isValueType(type) {
   return type.charAt(0).toLowerCase() === type.charAt(0);
 }

@@ -3,6 +3,7 @@ module.exports = definitions
 
 const Definition = require('./definition.js')
 
+const log = require('../log-shim')
 const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
@@ -238,17 +239,24 @@ define('audit-level', {
 
 define('auth-type', {
   default: 'legacy',
-  type: ['legacy', 'webauthn', 'sso', 'saml', 'oauth'],
-  deprecated: `
-    The SSO/SAML/OAuth methods are deprecated and will be removed in
-    a future version of npm in favor of web-based login.
-  `,
+  type: ['legacy', 'web', 'sso', 'saml', 'oauth', 'webauthn'],
+  // deprecation in description rather than field, because not every value
+  // is deprecated
   description: `
-    What authentication strategy to use with \`adduser\`/\`login\`.
+    NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
+    removed in a future version.
 
-    Pass \`webauthn\` to use a web-based login.
+    What authentication strategy to use with \`login\`.
   `,
-  flatten,
+  flatten (key, obj, flatOptions) {
+    flatOptions.authType = obj[key]
+    if (obj[key] === 'sso') {
+      // no need to deprecate saml/oauth here, as sso-type will be set by these in
+      // lib/auth/ and is deprecated already
+      log.warn('config',
+        '--auth-type=sso is will be removed in a future version.')
+    }
+  },
 })
 
 define('before', {
@@ -428,8 +436,8 @@ define('cert', {
     cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
     \`\`\`
 
-    It is _not_ the path to a certificate file (and there is no "certfile"
-    option).
+    It is _not_ the path to a certificate file, though you can set a registry-scoped
+    "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
   `,
   flatten,
 })
@@ -1110,7 +1118,8 @@ define('key', {
     key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
     \`\`\`
 
-    It is _not_ the path to a key file (and there is no "keyfile" option).
+    It is _not_ the path to a key file, though you can set a registry-scoped
+    "keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
   `,
   flatten,
 })
@@ -1461,7 +1470,7 @@ define('package', {
   hint: '<package-spec>',
   type: [String, Array],
   description: `
-    The package to install for [\`npm exec\`](/commands/npm-exec)
+    The package or packages to install for [\`npm exec\`](/commands/npm-exec)
   `,
   flatten,
 })
@@ -1636,6 +1645,24 @@ define('registry', {
   type: url,
   description: `
     The base URL of the npm registry.
+  `,
+  flatten,
+})
+
+define('replace-registry-host', {
+  default: 'npmjs',
+  hint: '<npmjs|never|always> | hostname',
+  type: ['npmjs', 'never', 'always', String],
+  description: `
+    Defines behavior for replacing the registry host in a lockfile with the
+    configured registry.
+
+    The default behavior is to replace package dist URLs from the default
+    registry (https://registry.npmjs.org) to the configured registry. If set to
+    "never", then use the registry value. If set to "always", then replace the
+    registry host with the configured host every time.
+
+    You may also specify a bare hostname (e.g., "registry.npmjs.org").
   `,
   flatten,
 })

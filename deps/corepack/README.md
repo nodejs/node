@@ -46,9 +46,16 @@ Just use your package managers as you usually would. Run `yarn install` in Yarn 
 
 ## Known Good Releases
 
-When running Yarn or pnpm within projects that don't list a supported package manager, Corepack will default to a set of Known Good Releases. In a way, you can compare this to Node.js, where each version ships with a specific version of npm.
+When running Corepack within projects that don't list a supported package
+manager, it will default to a set of Known Good Releases. In a way, you can
+compare this to Node.js, where each version ships with a specific version of npm.
 
-The Known Good Releases can be updated system-wide using the `--activate` flag from the `corepack prepare` and `corepack hydrate` commands.
+If there is no Known Good Release for the requested package manager, Corepack
+looks up the npm registry for the latest available version and cache it for
+future use.
+
+The Known Good Releases can be updated system-wide using the `--activate` flag
+from the `corepack prepare` and `corepack hydrate` commands.
 
 ## Offline Workflow
 
@@ -104,9 +111,21 @@ This command will retrieve the given package manager from the specified archive 
 
 ## Environment Variables
 
-- `COREPACK_ENABLE_NETWORK` can be set to `0` to prevent Corepack from accessing the network (in which case you'll be responsible for hydrating the package manager versions that will be required for the projects you'll run, using `corepack hydrate`).
+- `COREPACK_DEFAULT_TO_LATEST` can be set to `0` in order to instruct Corepack
+  not to lookup on the remote registry for the latest version of the selected
+  package manager.
 
-- `COREPACK_HOME` can be set in order to define where Corepack should install the package managers. By default it is set to `$HOME/.node/corepack`.
+- `COREPACK_ENABLE_NETWORK` can be set to `0` to prevent Corepack from accessing
+  the network (in which case you'll be responsible for hydrating the package
+  manager versions that will be required for the projects you'll run, using
+  `corepack hydrate`).
+
+- `COREPACK_ENABLE_STRICT` can be set to `0` to prevent Corepack from checking
+  if the package manager corresponds to the one defined for the current project.
+
+- `COREPACK_HOME` can be set in order to define where Corepack should install
+  the package managers. By default it is set to `%LOCALAPPDATA%\node\corepack`
+  on Windows, and to `$HOME/.cache/node/corepack` everywhere else.
 
 - `COREPACK_ROOT` has no functional impact on Corepack itself; it's automatically being set in your environment by Corepack when it shells out to the underlying package managers, so that they can feature-detect its presence (useful for commands like `yarn init`).
 

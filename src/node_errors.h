@@ -21,6 +21,7 @@ void AppendExceptionLine(Environment* env,
 
 [[noreturn]] void FatalError(const char* location, const char* message);
 void OnFatalError(const char* location, const char* message);
+void OOMErrorHandler(const char* location, bool is_heap_oom);
 
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
@@ -167,7 +168,7 @@ ERRORS_WITH_CODE(V)
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \
   V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
-    "Loading non context-aware native modules has been disabled")              \
+    "Loading non context-aware native addons has been disabled")               \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \

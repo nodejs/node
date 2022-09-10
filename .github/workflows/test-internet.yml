@@ -22,13 +22,14 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.10'
-  FLAKY_TESTS: dontcare
+  FLAKY_TESTS: keep_retrying
 
 permissions:
   contents: read
 
 jobs:
   test-internet:
+    if: github.repository == 'nodejs/node' || github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

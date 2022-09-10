@@ -117,6 +117,7 @@ const customTypesMap = {
   'EventEmitter': 'events.html#class-eventemitter',
   'EventTarget': 'events.html#class-eventtarget',
   'Event': 'events.html#class-event',
+  'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
 
   'FileHandle': 'fs.html#class-filehandle',
@@ -204,6 +205,8 @@ const customTypesMap = {
   'Immediate': 'timers.html#class-immediate',
   'Timeout': 'timers.html#class-timeout',
   'Timer': 'timers.html#timers',
+
+  'TapStream': 'test.html#class-tapstream',
 
   'tls.SecureContext': 'tls.html#tlscreatesecurecontextoptions',
   'tls.Server': 'tls.html#class-tlsserver',

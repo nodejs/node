@@ -2840,6 +2840,31 @@ TEST(Regress503552) {
   delete cache_data;
 }
 
+UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::TryCatch try_catch(isolate);
+      v8::Local<v8::String> code = v8_str("throw new Error('test');");
+      CHECK(v8::Script::Compile(context, code)
+                .ToLocalChecked()
+                ->Run(context)
+                .IsEmpty());
+      CHECK(try_catch.HasCaught());
+    }
+    // SnapshotCreator should be destroyed just fine even when no
+    // blob is created.
+  }
+
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();

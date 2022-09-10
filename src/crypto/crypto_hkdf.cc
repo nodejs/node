@@ -58,7 +58,7 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   Utf8Value hash(env->isolate(), args[offset]);
   params->digest = EVP_get_digestbyname(*hash);
   if (params->digest == nullptr) {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
     return Nothing<bool>();
   }
 
@@ -103,17 +103,41 @@ bool HKDFTraits::DeriveBits(
   EVPKeyCtxPointer ctx =
       EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
   if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||
-      !EVP_PKEY_CTX_hkdf_mode(ctx.get(),
-                              EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) ||
       !EVP_PKEY_CTX_set_hkdf_md(ctx.get(), params.digest) ||
-      !EVP_PKEY_CTX_set1_hkdf_salt(
-          ctx.get(), params.salt.data<unsigned char>(), params.salt.size()) ||
-      !EVP_PKEY_CTX_set1_hkdf_key(
-          ctx.get(),
-          reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
-          params.key->GetSymmetricKeySize()) ||
       !EVP_PKEY_CTX_add1_hkdf_info(
           ctx.get(), params.info.data<unsigned char>(), params.info.size())) {
+    return false;
+  }
+
+  // TODO(panva): Once support for OpenSSL 1.1.1 is dropped the whole
+  // of HKDFTraits::DeriveBits can be refactored to use
+  // EVP_KDF which does handle zero length key.
+
+  std::string_view salt;
+  if (params.salt.size() != 0) {
+    salt = {params.salt.data<char>(), params.salt.size()};
+  } else {
+    static const char default_salt[EVP_MAX_MD_SIZE] = {0};
+    salt = {default_salt, static_cast<unsigned>(EVP_MD_size(params.digest))};
+  }
+
+  // We do not use EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND and instead implement
+  // the extraction step ourselves because EVP_PKEY_derive does not handle
+  // zero-length keys, which are required for Web Crypto.
+  unsigned char pseudorandom_key[EVP_MAX_MD_SIZE];
+  unsigned int prk_len = sizeof(pseudorandom_key);
+  if (HMAC(
+          params.digest,
+          salt.data(),
+          salt.size(),
+          reinterpret_cast<const unsigned char*>(params.key->GetSymmetricKey()),
+          params.key->GetSymmetricKeySize(),
+          pseudorandom_key,
+          &prk_len) == nullptr) {
+    return false;
+  }
+  if (!EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) ||
+      !EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), pseudorandom_key, prk_len)) {
     return false;
   }
 

@@ -178,6 +178,44 @@ t.test('ls', t => {
     )
   })
 
+  t.test('workspace and missing optional dep', async t => {
+    npm.prefix = npm.localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'root',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        optionalDependencies: {
+          bar: '^1.0.0',
+        },
+        workspaces: ['./baz'],
+      }),
+      baz: {
+        'package.json': JSON.stringify({
+          name: 'baz',
+          version: '1.0.0',
+        }),
+      },
+      node_modules: {
+        baz: t.fixture('symlink', '../baz'),
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    npm.flatOptions.includeWorkspaceRoot = true
+    t.teardown(() => {
+      delete npm.flatOptions.includeWorkspaceRoot
+    })
+
+    await ls.execWorkspaces([], ['baz'])
+    t.matchSnapshot(redactCwd(result), 'should omit missing optional dep')
+  })
+
   t.test('extraneous deps', async t => {
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
@@ -191,6 +229,88 @@ t.test('ls', t => {
     })
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should output containing problems info')
+  })
+
+  t.test('overridden dep', async t => {
+    config.all = true
+    t.teardown(() => {
+      config.all = false
+    })
+
+    npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'test-overridden',
+        version: '1.0.0',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        overrides: {
+          bar: '1.0.0',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+            dependencies: {
+              bar: '^2.0.0',
+            },
+          }),
+        },
+        bar: {
+          'package.json': JSON.stringify({
+            name: 'bar',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    await ls.exec([])
+    t.matchSnapshot(redactCwd(result), 'should contain overridden outout')
+  })
+
+  t.test('overridden dep w/ color', async t => {
+    config.all = true
+    npm.color = true
+    t.teardown(() => {
+      config.all = false
+      npm.color = false
+    })
+
+    npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'test-overridden',
+        version: '1.0.0',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        overrides: {
+          bar: '1.0.0',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+            dependencies: {
+              bar: '^2.0.0',
+            },
+          }),
+        },
+        bar: {
+          'package.json': JSON.stringify({
+            name: 'bar',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    await ls.exec([])
+    t.matchSnapshot(redactCwd(result), 'should contain overridden outout')
   })
 
   t.test('with filter arg', async t => {
@@ -1583,6 +1703,47 @@ t.test('ls --parseable', t => {
     t.matchSnapshot(redactCwd(result), 'should output containing problems info')
   })
 
+  t.test('overridden dep', async t => {
+    config.all = true
+    config.long = true
+    t.teardown(() => {
+      config.all = false
+      config.long = false
+    })
+    npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'test-overridden',
+        version: '1.0.0',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        overrides: {
+          bar: '1.0.0',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+            dependencies: {
+              bar: '^2.0.0',
+            },
+          }),
+        },
+        bar: {
+          'package.json': JSON.stringify({
+            name: 'bar',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    await ls.exec([])
+    t.matchSnapshot(redactCwd(result), 'should contain overridden outout')
+  })
+
   t.test('with filter arg', async t => {
     npm.prefix = t.testdir({
       'package.json': JSON.stringify({
@@ -2375,14 +2536,17 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2410,6 +2574,7 @@ t.test('ls --json', t => {
           dog: {
             version: '1.0.0',
             extraneous: true,
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'extraneous: dog@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/dog',
@@ -2418,6 +2583,7 @@ t.test('ls --json', t => {
           foo: {
             version: '1.0.0',
             extraneous: true,
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'extraneous: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/foo',
@@ -2431,6 +2597,7 @@ t.test('ls --json', t => {
           chai: {
             version: '1.0.0',
             extraneous: true,
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'extraneous: chai@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-package.json/node_modules/chai',
@@ -2465,15 +2632,18 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
           chai: {
             version: '1.0.0',
             extraneous: true,
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'extraneous: chai@1.0.0 {CWD}/tap-testdir-ls-ls---json-extraneous-deps/node_modules/chai',
@@ -2483,6 +2653,58 @@ t.test('ls --json', t => {
       },
       'should output json containing problems info'
     )
+  })
+
+  t.test('overridden dep', async t => {
+    config.all = true
+    t.teardown(() => config.all = false)
+    npm.prefix = t.testdir({
+      'package.json': JSON.stringify({
+        name: 'test-overridden',
+        version: '1.0.0',
+        dependencies: {
+          foo: '^1.0.0',
+        },
+        overrides: {
+          bar: '1.0.0',
+        },
+      }),
+      node_modules: {
+        foo: {
+          'package.json': JSON.stringify({
+            name: 'foo',
+            version: '1.0.0',
+            dependencies: {
+              bar: '^2.0.0',
+            },
+          }),
+        },
+        bar: {
+          'package.json': JSON.stringify({
+            name: 'bar',
+            version: '1.0.0',
+          }),
+        },
+      },
+    })
+
+    await ls.exec([])
+    t.same(JSON.parse(result), {
+      name: 'test-overridden',
+      version: '1.0.0',
+      dependencies: {
+        foo: {
+          version: '1.0.0',
+          overridden: false,
+          dependencies: {
+            bar: {
+              version: '1.0.0',
+              overridden: true,
+            },
+          },
+        },
+      },
+    })
   })
 
   t.test('missing deps --long', async t => {
@@ -2543,6 +2765,7 @@ t.test('ls --json', t => {
         dependencies: {
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2572,9 +2795,11 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
@@ -2615,14 +2840,17 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2679,9 +2907,11 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
           },
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2714,9 +2944,11 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
           },
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2749,14 +2981,17 @@ t.test('ls --json', t => {
         dependencies: {
           foo: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
           chai: {
             version: '1.0.0',
+            overridden: false,
           },
         },
       },
@@ -2795,6 +3030,7 @@ t.test('ls --json', t => {
           foo: {
             version: '1.0.0',
             invalid: '"^2.0.0" from the root project',
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'invalid: foo@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/foo',
@@ -2802,12 +3038,14 @@ t.test('ls --json', t => {
             dependencies: {
               dog: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
           chai: {
             version: '1.0.0',
             extraneous: true,
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'extraneous: chai@1.0.0 {CWD}/tap-testdir-ls-ls---json-missing-invalid-extraneous/node_modules/chai',
@@ -2855,10 +3093,17 @@ t.test('ls --json', t => {
         dependencies: {
           'dev-dep': {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               foo: {
                 version: '1.0.0',
-                dependencies: { dog: { version: '1.0.0' } },
+                overridden: false,
+                dependencies: {
+                  dog: {
+                    version: '1.0.0',
+                    overridden: false,
+                  },
+                },
               },
             },
           },
@@ -2911,6 +3156,7 @@ t.test('ls --json', t => {
           'linked-dep': {
             version: '1.0.0',
             resolved: 'file:../linked-dep',
+            overridden: false,
           },
         },
       },
@@ -2948,9 +3194,24 @@ t.test('ls --json', t => {
         name: 'test-npm-ls',
         version: '1.0.0',
         dependencies: {
-          chai: { version: '1.0.0' },
-          'optional-dep': { version: '1.0.0' },
-          'prod-dep': { version: '1.0.0', dependencies: { dog: { version: '2.0.0' } } },
+          chai: {
+            version: '1.0.0',
+            overridden: false,
+          },
+          'optional-dep': {
+            version: '1.0.0',
+            overridden: false,
+          },
+          'prod-dep': {
+            version: '1.0.0',
+            overridden: false,
+            dependencies: {
+              dog: {
+                version: '2.0.0',
+                overridden: false,
+              },
+            },
+          },
         },
       },
       'should output json containing production deps'
@@ -3073,6 +3334,7 @@ t.test('ls --json', t => {
         dependencies: {
           '@isaacs/dedupe-tests-a': {
             version: '1.0.1',
+            overridden: false,
             resolved:
               'https://registry.npmjs.org/@isaacs/dedupe-tests-a/-/dedupe-tests-a-1.0.1.tgz',
             dependencies: {
@@ -3080,6 +3342,7 @@ t.test('ls --json', t => {
                 resolved:
                   'https://registry.npmjs.org/@isaacs/dedupe-tests-b/-/dedupe-tests-b-1.0.0.tgz',
                 extraneous: true,
+                overridden: false,
                 problems: [
                   /* eslint-disable-next-line max-len */
                   'extraneous: @isaacs/dedupe-tests-b@ {CWD}/tap-testdir-ls-ls---json-from-lockfile/node_modules/@isaacs/dedupe-tests-a/node_modules/@isaacs/dedupe-tests-b',
@@ -3089,6 +3352,7 @@ t.test('ls --json', t => {
           },
           '@isaacs/dedupe-tests-b': {
             version: '2.0.0',
+            overridden: false,
             resolved:
               'https://registry.npmjs.org/@isaacs/dedupe-tests-b/-/dedupe-tests-b-2.0.0.tgz',
           },
@@ -3133,6 +3397,7 @@ t.test('ls --json', t => {
         dependencies: {
           'peer-dep': {
             name: 'peer-dep',
+            overridden: false,
             description: 'Peer-dep description here',
             version: '1.0.0',
             _id: 'peer-dep@1.0.0',
@@ -3144,15 +3409,18 @@ t.test('ls --json', t => {
           },
           'dev-dep': {
             name: 'dev-dep',
+            overridden: false,
             description: 'A DEV dep kind of dep',
             version: '1.0.0',
             dependencies: {
               foo: {
                 name: 'foo',
                 version: '1.0.0',
+                overridden: false,
                 dependencies: {
                   dog: {
                     name: 'dog',
+                    overridden: false,
                     version: '1.0.0',
                     _id: 'dog@1.0.0',
                     devDependencies: {},
@@ -3179,6 +3447,7 @@ t.test('ls --json', t => {
           },
           chai: {
             name: 'chai',
+            overridden: false,
             version: '1.0.0',
             _id: 'chai@1.0.0',
             devDependencies: {},
@@ -3189,6 +3458,7 @@ t.test('ls --json', t => {
           },
           'optional-dep': {
             name: 'optional-dep',
+            overridden: false,
             description: 'Maybe a dep?',
             version: '1.0.0',
             _id: 'optional-dep@1.0.0',
@@ -3200,11 +3470,13 @@ t.test('ls --json', t => {
           },
           'prod-dep': {
             name: 'prod-dep',
+            overridden: false,
             description: 'A PROD dep kind of dep',
             version: '1.0.0',
             dependencies: {
               dog: {
                 name: 'dog',
+                overridden: false,
                 description: 'A dep that bars',
                 version: '2.0.0',
                 _id: 'dog@2.0.0',
@@ -3270,6 +3542,7 @@ t.test('ls --json', t => {
         dependencies: {
           'peer-dep': {
             name: 'peer-dep',
+            overridden: false,
             description: 'Peer-dep description here',
             version: '1.0.0',
             _id: 'peer-dep@1.0.0',
@@ -3281,6 +3554,7 @@ t.test('ls --json', t => {
           },
           'dev-dep': {
             name: 'dev-dep',
+            overridden: false,
             description: 'A DEV dep kind of dep',
             version: '1.0.0',
             _id: 'dev-dep@1.0.0',
@@ -3292,6 +3566,7 @@ t.test('ls --json', t => {
           },
           chai: {
             name: 'chai',
+            overridden: false,
             version: '1.0.0',
             _id: 'chai@1.0.0',
             devDependencies: {},
@@ -3302,6 +3577,7 @@ t.test('ls --json', t => {
           },
           'optional-dep': {
             name: 'optional-dep',
+            overridden: false,
             description: 'Maybe a dep?',
             version: '1.0.0',
             _id: 'optional-dep@1.0.0',
@@ -3313,6 +3589,7 @@ t.test('ls --json', t => {
           },
           'prod-dep': {
             name: 'prod-dep',
+            overridden: false,
             description: 'A PROD dep kind of dep',
             version: '1.0.0',
             _id: 'prod-dep@1.0.0',
@@ -3401,6 +3678,7 @@ t.test('ls --json', t => {
           'peer-dep': {
             version: '1.0.0',
             invalid: '"^2.0.0" from the root project',
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'invalid: peer-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-peer-dep/node_modules/peer-dep',
@@ -3408,16 +3686,38 @@ t.test('ls --json', t => {
           },
           'dev-dep': {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               foo: {
                 version: '1.0.0',
-                dependencies: { dog: { version: '1.0.0' } },
+                overridden: false,
+                dependencies: {
+                  dog: {
+                    version: '1.0.0',
+                    overridden: false,
+                  },
+                },
               },
             },
           },
-          chai: { version: '1.0.0' },
-          'optional-dep': { version: '1.0.0' },
-          'prod-dep': { version: '1.0.0', dependencies: { dog: { version: '2.0.0' } } },
+          chai: {
+            version: '1.0.0',
+            overridden: false,
+          },
+          'optional-dep': {
+            version: '1.0.0',
+            overridden: false,
+          },
+          'prod-dep': {
+            version: '1.0.0',
+            overridden: false,
+            dependencies: {
+              dog: {
+                version: '2.0.0',
+                overridden: false,
+              },
+            },
+          },
         },
       },
       'should output json signaling missing peer dep in problems'
@@ -3464,6 +3764,7 @@ t.test('ls --json', t => {
           'optional-dep': {
             version: '1.0.0',
             invalid: '"^2.0.0" from the root project',
+            overridden: false,
             problems: [
               /* eslint-disable-next-line max-len */
               'invalid: optional-dep@1.0.0 {CWD}/tap-testdir-ls-ls---json-unmet-optional-dep/node_modules/optional-dep',
@@ -3471,18 +3772,38 @@ t.test('ls --json', t => {
           },
           'peer-dep': {
             version: '1.0.0',
+            overridden: false,
           },
           'dev-dep': {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               foo: {
                 version: '1.0.0',
-                dependencies: { dog: { version: '1.0.0' } },
+                overridden: false,
+                dependencies: {
+                  dog: {
+                    version: '1.0.0',
+                    overridden: false,
+                  },
+                },
               },
             },
           },
-          chai: { version: '1.0.0' },
-          'prod-dep': { version: '1.0.0', dependencies: { dog: { version: '2.0.0' } } },
+          chai: {
+            version: '1.0.0',
+            overridden: false,
+          },
+          'prod-dep': {
+            version: '1.0.0',
+            overridden: false,
+            dependencies: {
+              dog: {
+                version: '2.0.0',
+                overridden: false,
+              },
+            },
+          },
           'missing-optional-dep': {}, // missing optional dep has an empty entry in json output
         },
       },
@@ -3529,11 +3850,15 @@ t.test('ls --json', t => {
         dependencies: {
           a: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               b: {
                 version: '1.0.0',
+                overridden: false,
                 dependencies: {
-                  a: { version: '1.0.0' },
+                  a: {
+                    version: '1.0.0',
+                  },
                 },
               },
             },
@@ -3585,6 +3910,7 @@ t.test('ls --json', t => {
         dependencies: {
           a: {
             version: '1.0.0',
+            overridden: false,
             resolved: 'https://localhost:8080/abbrev/-/abbrev-1.1.1.tgz',
           },
         },
@@ -3645,6 +3971,7 @@ t.test('ls --json', t => {
         dependencies: {
           abbrev: {
             version: '1.1.1',
+            overridden: false,
             /* eslint-disable-next-line max-len */
             resolved: 'git+ssh://git@github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
           },
@@ -3722,6 +4049,7 @@ t.test('ls --json', t => {
         dependencies: {
           'simple-output': {
             version: '2.1.1',
+            overridden: false,
             resolved: 'https://registry.npmjs.org/simple-output/-/simple-output-2.1.1.tgz',
           },
         },
@@ -3785,12 +4113,15 @@ t.test('ls --json', t => {
         dependencies: {
           a: {
             version: '1.0.0',
+            overridden: false,
           },
           b: {
             version: '1.0.0',
+            overridden: false,
             dependencies: {
               c: {
                 version: '1.0.0',
+                overridden: false,
               },
             },
           },
@@ -3896,14 +4227,17 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -3946,9 +4280,11 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
@@ -4042,6 +4378,7 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -4089,9 +4426,11 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
@@ -4141,14 +4480,17 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -4235,9 +4577,11 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
             },
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -4285,9 +4629,11 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
             },
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -4335,14 +4681,17 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
             chai: {
               version: '1.0.0',
+              overridden: false,
             },
           },
         },
@@ -4393,6 +4742,7 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             foo: {
               version: '1.0.0',
+              overridden: false,
               invalid: '"^2.0.0" from the root project',
               problems: [
                 /* eslint-disable-next-line max-len */
@@ -4401,6 +4751,7 @@ t.test('ls --package-lock-only', t => {
               dependencies: {
                 dog: {
                   version: '1.0.0',
+                  overridden: false,
                 },
               },
             },
@@ -4506,11 +4857,13 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             '@isaacs/dedupe-tests-a': {
               version: '1.0.1',
+              overridden: false,
               resolved:
                 'https://registry.npmjs.org/@isaacs/dedupe-tests-a/-/dedupe-tests-a-1.0.1.tgz',
               dependencies: {
                 '@isaacs/dedupe-tests-b': {
                   version: '1.0.0',
+                  overridden: false,
                   resolved:
                     'https://registry.npmjs.org/@isaacs/dedupe-tests-b/-/dedupe-tests-b-1.0.0.tgz',
                 },
@@ -4518,6 +4871,7 @@ t.test('ls --package-lock-only', t => {
             },
             '@isaacs/dedupe-tests-b': {
               version: '2.0.0',
+              overridden: false,
               resolved:
                 'https://registry.npmjs.org/@isaacs/dedupe-tests-b/-/dedupe-tests-b-2.0.0.tgz',
             },
@@ -4554,6 +4908,7 @@ t.test('ls --package-lock-only', t => {
           dependencies: {
             a: {
               version: '1.0.0',
+              overridden: false,
               resolved: 'https://localhost:8080/abbrev/-/abbrev-1.0.0.tgz',
             },
           },
@@ -4596,6 +4951,7 @@ t.test('ls --package-lock-only', t => {
             abbrev: {
               /* eslint-disable-next-line max-len */
               resolved: 'git+ssh://git@github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
+              overridden: false,
             },
           },
         },

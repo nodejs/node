@@ -3,7 +3,7 @@ let importedCJS = 0;
 global.getModuleTypeStats = () => { return {importedESM, importedCJS} };
 
 export async function load(url, context, next) {
-  return next(url, context, next);
+  return next(url);
 }
 
 export async function resolve(specifier, context, next) {

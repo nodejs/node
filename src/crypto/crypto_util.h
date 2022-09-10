@@ -134,7 +134,7 @@ struct MarkPopErrorOnReturn {
 void CheckEntropy();
 
 // Generate length bytes of random data. If this returns false, the data
-// may not be truly random but it's still generally good enough.
+// might not be random at all and should not be used.
 bool EntropySource(unsigned char* buffer, size_t length);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
@@ -443,12 +443,15 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       v8::FunctionCallback new_fn,
       Environment* env,
       v8::Local<v8::Object> target) {
-    v8::Local<v8::FunctionTemplate> job = env->NewFunctionTemplate(new_fn);
+    v8::Isolate* isolate = env->isolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = env->context();
+    v8::Local<v8::FunctionTemplate> job = NewFunctionTemplate(isolate, new_fn);
     job->Inherit(AsyncWrap::GetConstructorTemplate(env));
     job->InstanceTemplate()->SetInternalFieldCount(
         AsyncWrap::kInternalFieldCount);
-    env->SetProtoMethod(job, "run", Run);
-    env->SetConstructorFunction(target, CryptoJobTraits::JobName, job);
+    SetProtoMethod(isolate, job, "run", Run);
+    SetConstructorFunction(context, target, CryptoJobTraits::JobName, job);
   }
 
   static void RegisterExternalReferences(v8::FunctionCallback new_fn,
@@ -696,24 +699,30 @@ template <typename T>
 class ArrayBufferOrViewContents {
  public:
   ArrayBufferOrViewContents() = default;
+  ArrayBufferOrViewContents(const ArrayBufferOrViewContents&) = delete;
+  void operator=(const ArrayBufferOrViewContents&) = delete;
 
   inline explicit ArrayBufferOrViewContents(v8::Local<v8::Value> buf) {
+    if (buf.IsEmpty()) {
+      return;
+    }
+
     CHECK(IsAnyByteSource(buf));
     if (buf->IsArrayBufferView()) {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();
       length_ = view->ByteLength();
-      store_ = view->Buffer()->GetBackingStore();
+      data_ = view->Buffer()->Data();
     } else if (buf->IsArrayBuffer()) {
       auto ab = buf.As<v8::ArrayBuffer>();
       offset_ = 0;
       length_ = ab->ByteLength();
-      store_ = ab->GetBackingStore();
+      data_ = ab->Data();
     } else {
       auto sab = buf.As<v8::SharedArrayBuffer>();
       offset_ = 0;
       length_ = sab->ByteLength();
-      store_ = sab->GetBackingStore();
+      data_ = sab->Data();
     }
   }
 
@@ -723,7 +732,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline T* data() {
@@ -732,7 +741,7 @@ class ArrayBufferOrViewContents {
     // length is zero, so we have to return something.
     if (size() == 0)
       return &buf;
-    return reinterpret_cast<T*>(store_->Data()) + offset_;
+    return reinterpret_cast<T*>(data_) + offset_;
   }
 
   inline size_t size() const { return length_; }
@@ -772,7 +781,14 @@ class ArrayBufferOrViewContents {
   T buf = 0;
   size_t offset_ = 0;
   size_t length_ = 0;
-  std::shared_ptr<v8::BackingStore> store_;
+  void* data_ = nullptr;
+
+  // Declaring operator new and delete as deleted is not spec compliant.
+  // Therefore declare them private instead to disable dynamic alloc
+  void* operator new(size_t);
+  void* operator new[](size_t);
+  void operator delete(void*);
+  void operator delete[](void*);
 };
 
 v8::MaybeLocal<v8::Value> EncodeBignum(

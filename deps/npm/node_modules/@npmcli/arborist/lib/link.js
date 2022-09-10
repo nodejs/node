@@ -66,6 +66,7 @@ class Link extends Node {
       // can set to a promise during an async tree build operation
       // wait until then to assign it.
       this[_target] = target
+      // eslint-disable-next-line promise/always-return, promise/catch-or-return
       target.then(node => {
         this[_target] = null
         this.target = node
@@ -118,7 +119,7 @@ class Link extends Node {
     // the path/realpath guard is there for the benefit of setting
     // these things in the "wrong" order
     return this.path && this.realpath
-      ? `file:${relpath(dirname(this.path), this.realpath)}`
+      ? `file:${relpath(dirname(this.path), this.realpath).replace(/#/g, '%23')}`
       : null
   }
 

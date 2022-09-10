@@ -21,12 +21,12 @@ subSystemLabels:
   /^src\/tty_/: c++, tty
   /^src\/node_url/: c++, whatwg-url
   /^src\/node_util/: c++, util
-  /^src\/(?:node_v8|v8abbr)/: c++, v8 engine
+  /^src\/node_v8/: c++, v8 engine
   /^src\/node_contextify/: c++, vm
   /^src\/.*win32.*/: c++, windows
   /^src\/node_zlib/: c++, zlib
   /^src\/tracing/: c++, tracing
-  /^src\/node_api/: c++, node-api
+  /^src\/(?:node_api|js_native_api)/: c++, node-api
   /^src\/node_http2/: c++, http2
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
@@ -101,6 +101,7 @@ subSystemLabels:
   /^lib\/worker_threads.js$/: worker
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
+  /^lib\/internal\/webstreams/: web streams
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -117,11 +118,13 @@ exlusiveLabels:
   /^test\/inspector\//: test, inspector
   /^test\/cctest\/test_inspector/: test, inspector
   /^test\/cctest\/test_url/: test, whatwg-url
-  /^test\/addons-napi\//: test, node-api
+  /^test\/node-api\//: test, node-api
+  /^test\/js-native-api\//: test, node-api
   /^test\/async-hooks\//: test, async_hooks
   /^test\/report\//: test, report
   /^test\/fixtures\/es-module/: test, esm
   /^test\/es-module\//: test, esm
+  /^test\/fixtures\/wpt\/streams//: test, web streams
 
   /^test\//: test
 

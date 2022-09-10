@@ -1978,7 +1978,7 @@ module.exports = {
             if (comments.length) {
                 const lastComment = comments[comments.length - 1];
 
-                if (lastComment.range[0] > leftToken.range[0]) {
+                if (!leftToken || lastComment.range[0] > leftToken.range[0]) {
                     leftToken = lastComment;
                 }
             }
@@ -1986,7 +1986,13 @@ module.exports = {
             leftToken = leftValue;
         }
 
-        if (leftToken.type === "Shebang") {
+        /*
+         * If a hashbang comment was passed as a token object from SourceCode,
+         * its type will be "Shebang" because of the way ESLint itself handles hashbangs.
+         * If a hashbang comment was passed in a string and then tokenized in this function,
+         * its type will be "Hashbang" because of the way Espree tokenizes hashbangs.
+         */
+        if (leftToken.type === "Shebang" || leftToken.type === "Hashbang") {
             return false;
         }
 
@@ -2007,7 +2013,7 @@ module.exports = {
             if (comments.length) {
                 const firstComment = comments[0];
 
-                if (firstComment.range[0] < rightToken.range[0]) {
+                if (!rightToken || firstComment.range[0] < rightToken.range[0]) {
                     rightToken = firstComment;
                 }
             }

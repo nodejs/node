@@ -23,7 +23,7 @@ tmpdir.refresh();
   const urlTestFile = path.join(urlTestDir, path.basename(filename));
   fs.mkdirSync(urlTestDir, { recursive: true });
   fs.copyFileSync(filename, urlTestFile);
-  // Use a child process as indirection so that the native module is not loaded
+  // Use a child process as indirection so that the built-in modules is not loaded
   // into this process and can be removed here.
   const reportedFilename = child_process.spawnSync(
     process.execPath,

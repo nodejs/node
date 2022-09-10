@@ -1,7 +1,8 @@
-// META: global=window,worker,jsshell
+// META: global=window,worker
 // META: script=../resources/rs-utils.js
 // META: script=../resources/test-utils.js
 // META: script=../resources/recording-streams.js
+// META: script=../resources/rs-test-templates.js
 'use strict';
 
 test(() => {
@@ -161,92 +162,9 @@ promise_test(() => {
 
 }, 'ReadableStream teeing: canceling branch2 should not impact branch1');
 
-promise_test(() => {
-
-  const reason1 = new Error('We\'re wanted men.');
-  const reason2 = new Error('I have the death sentence on twelve systems.');
-
-  let resolve;
-  const promise = new Promise(r => resolve = r);
-  const rs = new ReadableStream({
-    cancel(reason) {
-      assert_array_equals(reason, [reason1, reason2],
-                          'the cancel reason should be an array containing those from the branches');
-      resolve();
-    }
-  });
-
-  const branch = rs.tee();
-  const branch1 = branch[0];
-  const branch2 = branch[1];
-  branch1.cancel(reason1);
-  branch2.cancel(reason2);
-
-  return promise;
-
-}, 'ReadableStream teeing: canceling both branches should aggregate the cancel reasons into an array');
-
-promise_test(() => {
-
-  const reason1 = new Error('This little one\'s not worth the effort.');
-  const reason2 = new Error('Come, let me get you something.');
-
-  let resolve;
-  const promise = new Promise(r => resolve = r);
-  const rs = new ReadableStream({
-    cancel(reason) {
-      assert_array_equals(reason, [reason1, reason2],
-                          'the cancel reason should be an array containing those from the branches');
-      resolve();
-    }
-  });
-
-  const branch = rs.tee();
-  const branch1 = branch[0];
-  const branch2 = branch[1];
-  return Promise.all([
-    branch2.cancel(reason2),
-    branch1.cancel(reason1),
-    promise
-  ]);
-
-}, 'ReadableStream teeing: canceling both branches in reverse order should aggregate the cancel reasons into an array');
-
-promise_test(t => {
-
-  const theError = { name: 'I\'ll be careful.' };
-  const rs = new ReadableStream({
-    cancel() {
-      throw theError;
-    }
-  });
-
-  const branch = rs.tee();
-  const branch1 = branch[0];
-  const branch2 = branch[1];
-
-  return Promise.all([
-    promise_rejects_exactly(t, theError, branch1.cancel()),
-    promise_rejects_exactly(t, theError, branch2.cancel())
-  ]);
-
-}, 'ReadableStream teeing: failing to cancel the original stream should cause cancel() to reject on branches');
-
-promise_test(t => {
-
-  const theError = { name: 'You just watch yourself!' };
-  let controller;
-  const stream = new ReadableStream({ start(c) { controller = c; } });
-  const [branch1, branch2] = stream.tee();
-
-  controller.error(theError);
-
-  return Promise.all([
-    promise_rejects_exactly(t, theError, branch1.cancel()),
-    promise_rejects_exactly(t, theError, branch2.cancel())
-  ]);
-
-}, 'ReadableStream teeing: erroring a teed stream should properly handle canceled branches');
+templatedRSTeeCancel('ReadableStream teeing', (extras) => {
+  return new ReadableStream({ ...extras });
+});
 
 promise_test(t => {
 
@@ -539,3 +457,23 @@ promise_test(t => {
   });
 
 }, 'ReadableStreamTee stops pulling when original stream errors while both branches are reading');
+
+promise_test(async () => {
+
+  const rs = recordingReadableStream();
+
+  const [reader1, reader2] = rs.tee().map(branch => branch.getReader());
+  const branch1Reads = [reader1.read(), reader1.read()];
+  const branch2Reads = [reader2.read(), reader2.read()];
+
+  await flushAsyncEvents();
+  rs.controller.enqueue('a');
+  rs.controller.close();
+
+  assert_object_equals(await branch1Reads[0], { value: 'a', done: false }, 'first chunk from branch1 should be correct');
+  assert_object_equals(await branch2Reads[0], { value: 'a', done: false }, 'first chunk from branch2 should be correct');
+
+  assert_object_equals(await branch1Reads[1], { value: undefined, done: true }, 'second read() from branch1 should be done');
+  assert_object_equals(await branch2Reads[1], { value: undefined, done: true }, 'second read() from branch2 should be done');
+
+}, 'ReadableStream teeing: enqueue() and close() while both branches are pulling');

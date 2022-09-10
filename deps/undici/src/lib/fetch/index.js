@@ -13,7 +13,7 @@ const { Headers } = require('./headers')
 const { Request, makeRequest } = require('./request')
 const zlib = require('zlib')
 const {
-  matchRequestIntegrity,
+  bytesMatch,
   makePolicyContainer,
   clonePolicyContainer,
   requestBadPort,
@@ -33,7 +33,9 @@ const {
   isBlobLike,
   sameOrigin,
   isCancelled,
-  isAborted
+  isAborted,
+  isErrorLike,
+  fullyReadBody
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
@@ -723,7 +725,7 @@ async function mainFetch (fetchParams, recursive = false) {
     const processBody = (bytes) => {
       // 1. If bytes do not match request’s integrity metadata,
       // then run processBodyError and abort these steps. [SRI]
-      if (!matchRequestIntegrity(request, bytes)) {
+      if (!bytesMatch(bytes, request.integrity)) {
         processBodyError('integrity mismatch')
         return
       }
@@ -737,11 +739,7 @@ async function mainFetch (fetchParams, recursive = false) {
     }
 
     // 4. Fully read response’s body given processBody and processBodyError.
-    try {
-      processBody(await response.arrayBuffer())
-    } catch (err) {
-      processBodyError(err)
-    }
+    await fullyReadBody(response.body, processBody, processBodyError)
   } else {
     // 21. Otherwise, run fetch finale given fetchParams and response.
     fetchFinale(fetchParams, response)
@@ -973,11 +971,7 @@ async function fetchFinale (fetchParams, response) {
     } else {
       // 4. Otherwise, fully read response’s body given processBody, processBodyError,
       // and fetchParams’s task destination.
-      try {
-        processBody(await response.body.stream.arrayBuffer())
-      } catch (err) {
-        processBodyError(err)
-      }
+      await fullyReadBody(response.body, processBody, processBodyError)
     }
   }
 }
@@ -1854,7 +1848,7 @@ async function httpNetworkFetch (
       timingInfo.decodedBodySize += bytes?.byteLength ?? 0
 
       // 6. If bytes is failure, then terminate fetchParams’s controller.
-      if (bytes instanceof Error) {
+      if (isErrorLike(bytes)) {
         fetchParams.controller.terminate(bytes)
         return
       }
@@ -1894,7 +1888,7 @@ async function httpNetworkFetch (
       // 3. Otherwise, if stream is readable, error stream with a TypeError.
       if (isReadable(stream)) {
         fetchParams.controller.controller.error(new TypeError('terminated', {
-          cause: reason instanceof Error ? reason : undefined
+          cause: isErrorLike(reason) ? reason : undefined
         }))
       }
     }
@@ -1942,14 +1936,17 @@ async function httpNetworkFetch (
           }
 
           let codings = []
+          let location = ''
 
           const headers = new Headers()
           for (let n = 0; n < headersList.length; n += 2) {
-            const key = headersList[n + 0].toString()
-            const val = headersList[n + 1].toString()
+            const key = headersList[n + 0].toString('latin1')
+            const val = headersList[n + 1].toString('latin1')
 
             if (key.toLowerCase() === 'content-encoding') {
               codings = val.split(',').map((x) => x.trim())
+            } else if (key.toLowerCase() === 'location') {
+              location = val
             }
 
             headers.append(key, val)
@@ -1960,7 +1957,7 @@ async function httpNetworkFetch (
           const decoders = []
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status)) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !(request.redirect === 'follow' && location)) {
             for (const coding of codings) {
               if (/(x-)?gzip/.test(coding)) {
                 decoders.push(zlib.createGunzip())
@@ -1980,7 +1977,7 @@ async function httpNetworkFetch (
             statusText,
             headersList: headers[kHeadersList],
             body: decoders.length
-              ? pipeline(this.body, ...decoders, () => {})
+              ? pipeline(this.body, ...decoders, () => { })
               : this.body.on('error', () => {})
           })
 

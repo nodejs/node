@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.14.0](https://github.com/nodejs/corepack/compare/v0.13.0...v0.14.0) (2022-09-02)
+
+
+### Features
+
+* add `COREPACK_ENABLE_STRICT` env variable ([#167](https://github.com/nodejs/corepack/issues/167)) ([92b52f6](https://github.com/nodejs/corepack/commit/92b52f6b4918aff968c0942b89fc722ebf57bce2))
+* update package manager versions ([#170](https://github.com/nodejs/corepack/issues/170)) ([6f70bfc](https://github.com/nodejs/corepack/commit/6f70bfc4b6a8a57cccb1ff9cbf2f49240648f1ed))
+
+
+### Bug Fixes
+
+* handle tags including numbers in `prepare` command ([#165](https://github.com/nodejs/corepack/issues/165)) ([5a0727b](https://github.com/nodejs/corepack/commit/5a0727b43976e0dc299151876c0dde2c4a85174d))
+
+## [0.13.0](https://github.com/nodejs/corepack/compare/v0.12.3...v0.13.0) (2022-08-19)
+
+
+### Features
+
+* do not use `~/.node` as default value for `COREPACK_HOME` ([#152](https://github.com/nodejs/corepack/issues/152)) ([09e24cf](https://github.com/nodejs/corepack/commit/09e24cf497de27fe92668cf0a8e555f2c7e2530d))
+* download the latest version instead of a pinned one ([#134](https://github.com/nodejs/corepack/issues/134)) ([055b928](https://github.com/nodejs/corepack/commit/055b92807f711b5c8c8be6e62b8d3ce83e1ff002))
+* update package manager versions ([#163](https://github.com/nodejs/corepack/issues/163)) ([af38d5a](https://github.com/nodejs/corepack/commit/af38d5afbbc10d61265b2f4687c5cc498b059b41))
+
+## [0.12.3](https://github.com/nodejs/corepack/compare/v0.12.2...v0.12.3) (2022-08-12)
+
+
+### Features
+
+* update package manager versions ([#160](https://github.com/nodejs/corepack/issues/160)) ([ad092a7](https://github.com/nodejs/corepack/commit/ad092a7fb4296143fa5224c04dbd628451b3c158))
+
+## [0.12.2](https://github.com/nodejs/corepack/compare/v0.12.1...v0.12.2) (2022-08-05)
+
+### Features
+
+* update package manager versions ([#154](https://github.com/nodejs/corepack/issues/154)) ([4b95fd3](https://github.com/nodejs/corepack/commit/4b95fd3b926659855970a887c893c10db0b98e5d))
+
+## [0.12.1](https://github.com/nodejs/corepack/compare/v0.12.0...v0.12.1) (2022-07-21)
+
+
+### Bug Fixes
+
+* **doc:** update DESIGN.md s/engines.pm/packageManager/ ([#141](https://github.com/nodejs/corepack/issues/141)) ([d6039c5](https://github.com/nodejs/corepack/commit/d6039c5b16cdddb33069b9aa864854ed16d17e4e))
+* update package manager versions ([#146](https://github.com/nodejs/corepack/issues/146)) ([fdb187a](https://github.com/nodejs/corepack/commit/fdb187a640de77df9b3688623ba510bdafda8702))
+
 ## [0.12.0](https://github.com/nodejs/corepack/compare/v0.11.2...v0.12.0) (2022-07-09)
 
 

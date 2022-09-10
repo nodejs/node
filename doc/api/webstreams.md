@@ -299,6 +299,10 @@ is active.
 
 <!-- YAML
 added: v16.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44505
+    description: Support teeing a readable byte stream.
 -->
 
 * Returns: {ReadableStream\[]}
@@ -973,10 +977,6 @@ changes:
 
 The `WritableStreamDefaultController` manage's the {WritableStream}'s
 internal state.
-
-#### `writableStreamDefaultController.abortReason`
-
-* Type: {any} The `reason` value passed to `writableStream.abort()`.
 
 #### `writableStreamDefaultController.error(error)`
 

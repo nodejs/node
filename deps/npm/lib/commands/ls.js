@@ -92,7 +92,7 @@ class LS extends ArboristWorkspaceCmd {
       }
 
       if (this.npm.flatOptions.includeWorkspaceRoot
-          && !edge.to.isWorkspace) {
+          && edge.to && !edge.to.isWorkspace) {
         return true
       }
 
@@ -329,6 +329,11 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
         ? ' ' + (color ? chalk.green.bgBlack('extraneous') : 'extraneous')
         : ''
     ) +
+    (
+      node.overridden
+        ? ' ' + (color ? chalk.gray('overridden') : 'overridden')
+        : ''
+    ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `${EOL}${node.package.description || ''}` : '')
@@ -345,6 +350,13 @@ const getJsonOutputItem = (node, { global, long }) => {
 
   if (node.resolved) {
     item.resolved = node.resolved
+  }
+
+  // if the node is the project root, do not add the overridden flag. the project root can't be
+  // overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json`
+  // is ran in an empty directory since we end up printing an object with only an overridden prop
+  if (!node.isProjectRoot) {
+    item.overridden = node.overridden
   }
 
   item[_name] = node.name
@@ -555,6 +567,7 @@ const parseableOutput = ({ global, long, seenNodes }) => {
         out += node.path !== node.realpath ? `:${node.realpath}` : ''
         out += isExtraneous(node, { global }) ? ':EXTRANEOUS' : ''
         out += node[_invalid] ? ':INVALID' : ''
+        out += node.overridden ? ':OVERRIDDEN' : ''
       }
       out += EOL
     }

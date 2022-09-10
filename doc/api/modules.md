@@ -707,8 +707,8 @@ This does not apply to [native addons][], for which reloading will result in an
 error.
 
 Adding or replacing entries is also possible. This cache is checked before
-native modules and if a name matching a native module is added to the cache,
-only `node:`-prefixed require calls are going to receive the native module.
+built-in modules and if a name matching a built-in module is added to the cache,
+only `node:`-prefixed require calls are going to receive the built-in module.
 Use with care!
 
 <!-- eslint-disable node-core/no-duplicate-requires -->
@@ -1093,7 +1093,7 @@ This section was moved to
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found
 [`__dirname`]: #__dirname
 [`__filename`]: #__filename
-[`import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`module.builtinModules`]: module.md#modulebuiltinmodules
 [`module.children`]: #modulechildren
 [`module.id`]: #moduleid

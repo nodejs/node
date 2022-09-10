@@ -58,20 +58,6 @@ struct uv__stream_select_s {
   fd_set* swrite;
   size_t swrite_sz;
 };
-
-/* Due to a possible kernel bug at least in OS X 10.10 "Yosemite",
- * EPROTOTYPE can be returned while trying to write to a socket that is
- * shutting down. If we retry the write, we should get the expected EPIPE
- * instead.
- */
-# define RETRY_ON_WRITE_ERROR(errno) (errno == EINTR || errno == EPROTOTYPE)
-# define IS_TRANSIENT_WRITE_ERROR(errno, send_handle) \
-    (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS || \
-     (errno == EMSGSIZE && send_handle != NULL))
-#else
-# define RETRY_ON_WRITE_ERROR(errno) (errno == EINTR)
-# define IS_TRANSIENT_WRITE_ERROR(errno, send_handle) \
-    (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
 #endif /* defined(__APPLE__) */
 
 static void uv__stream_connect(uv_stream_t*);
@@ -866,18 +852,32 @@ static int uv__try_write(uv_stream_t* stream,
 
     do
       n = sendmsg(uv__stream_fd(stream), &msg, 0);
-    while (n == -1 && RETRY_ON_WRITE_ERROR(errno));
+    while (n == -1 && errno == EINTR);
   } else {
     do
       n = uv__writev(uv__stream_fd(stream), iov, iovcnt);
-    while (n == -1 && RETRY_ON_WRITE_ERROR(errno));
+    while (n == -1 && errno == EINTR);
   }
 
   if (n >= 0)
     return n;
 
-  if (IS_TRANSIENT_WRITE_ERROR(errno, send_handle))
+  if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
     return UV_EAGAIN;
+
+#ifdef __APPLE__
+  /* macOS versions 10.10 and 10.15 - and presumbaly 10.11 to 10.14, too -
+   * have a bug where a race condition causes the kernel to return EPROTOTYPE
+   * because the socket isn't fully constructed. It's probably the result of
+   * the peer closing the connection and that is why libuv translates it to
+   * ECONNRESET. Previously, libuv retried until the EPROTOTYPE error went
+   * away but some VPN software causes the same behavior except the error is
+   * permanent, not transient, turning the retry mechanism into an infinite
+   * loop. See https://github.com/libuv/libuv/pull/482.
+   */
+  if (errno == EPROTOTYPE)
+    return UV_ECONNRESET;
+#endif  /* __APPLE__ */
 
   return UV__ERR(errno);
 }

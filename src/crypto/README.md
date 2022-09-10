@@ -20,9 +20,8 @@ The following provide generalized utility declarations that are used throughout
 the various other crypto files and other parts of Node.js:
 
 * `crypto_util.h` / `crypto_util.cc` (Core crypto definitions)
-* `crypto_common.h` / `crypto_common.h` (Shared TLS utility functions)
-* `crypto_bio.c` / `crypto_bio.c` (Custom OpenSSL i/o implementation)
-* `crypto_groups.h` (modp group definitions)
+* `crypto_common.h` / `crypto_common.cc` (Shared TLS utility functions)
+* `crypto_bio.h` / `crypto_bio.cc` (Custom OpenSSL i/o implementation)
 
 Of these, `crypto_util.h` and `crypto_util.cc` are the most important, as
 they provide the core declarations and utility functions used most extensively
@@ -113,11 +112,14 @@ the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
-The `ArrayBufferOfViewContents` class is a helper utility that abstracts
+The `ArrayBufferOrViewContents` class is a helper utility that abstracts
 `ArrayBuffer`, `TypedArray`, or `DataView` inputs and provides access to
 their underlying data pointers. It is used extensively through `src/crypto`
 to make it easier to deal with inputs that allow any `ArrayBuffer`-backed
 object.
+
+The lifetime of `ArrayBufferOrViewContents` should not exceed the
+lifetime of its input.
 
 ### Key objects
 

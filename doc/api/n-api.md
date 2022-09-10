@@ -201,9 +201,9 @@ GitHub projects using CMake.js.
 #### prebuildify
 
 [prebuildify][] is a tool based on node-gyp. The advantage of prebuildify is
-that the built binaries are bundled with the native module when it's
+that the built binaries are bundled with the native addon when it's
 uploaded to npm. The binaries are downloaded from npm and are immediately
-available to the module user when the native module is installed.
+available to the module user when the native addon is installed.
 
 ## Usage
 
@@ -1189,7 +1189,7 @@ added:
 
 > Stability: 1 - Experimental
 
-````c
+```c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
                                                     const char* msg);
@@ -1214,7 +1214,7 @@ napiVersion: 1
 NAPI_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
-````
+```
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: The `napi_value` to be checked.
@@ -1384,7 +1384,7 @@ callback throws an exception with no way to recover.
 
 ### Fatal errors
 
-In the event of an unrecoverable error in a native module, a fatal error can be
+In the event of an unrecoverable error in a native addon, a fatal error can be
 thrown to immediately terminate the process.
 
 #### `napi_fatal_error`
@@ -5724,7 +5724,7 @@ Returns `napi_ok` if the API succeeded.
 
 This function gives V8 an indication of the amount of externally allocated
 memory that is kept alive by JavaScript objects (i.e. a JavaScript object
-that points to its own memory allocated by a native module). Registering
+that points to its own memory allocated by a native addon). Registering
 externally allocated memory will trigger global garbage collections more
 often than it would otherwise.
 

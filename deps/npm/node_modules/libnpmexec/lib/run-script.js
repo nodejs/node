@@ -1,5 +1,3 @@
-const { delimiter } = require('path')
-
 const chalk = require('chalk')
 const ciDetect = require('@npmcli/ci-detect')
 const runScript = require('@npmcli/run-script')
@@ -22,7 +20,7 @@ const run = async ({
   locationMsg,
   output = () => {},
   path,
-  pathArr,
+  binPaths,
   runPath,
   scriptShell,
 }) => {
@@ -71,12 +69,11 @@ const run = async ({
       // we always run in cwd, not --prefix
       path: runPath,
       stdioString: true,
+      binPaths,
       event: 'npx',
       args,
-      env: {
-        PATH: pathArr.join(delimiter),
-      },
       stdio: 'inherit',
+      scriptShell,
     })
   } finally {
     npmlog.enableProgress()

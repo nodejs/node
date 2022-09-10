@@ -93,7 +93,18 @@ Use `make` to regenerate all platform dependent files in
 % make gen-openssl
 
 # On Linux machines
+% make -C deps/openssl/config clean
 % make -C deps/openssl/config
+```
+
+**Note**: If the 32-bit Windows is failing to compile run this workflow instead:
+
+```console
+% make -C deps/openssl/config clean
+# Edit deps/openssl/openssl/crypto/perlasm/x86asm.pl changing
+# #ifdef to %ifdef to make it compatible to nasm on 32-bit Windows.
+# See: https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
+# Reference: https://github.com/openssl/openssl/issues/18459
 ```
 
 ## 3. Check diffs

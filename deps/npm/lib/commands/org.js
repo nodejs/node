@@ -33,7 +33,7 @@ class Org extends BaseCommand {
   }
 
   async exec ([cmd, orgname, username, role], cb) {
-    return otplease({
+    return otplease(this.npm, {
       ...this.npm.flatOptions,
     }, opts => {
       switch (cmd) {
@@ -50,7 +50,7 @@ class Org extends BaseCommand {
     })
   }
 
-  set (org, user, role, opts) {
+  async set (org, user, role, opts) {
     role = role || 'developer'
     if (!org) {
       throw new Error('First argument `orgname` is required.')
@@ -67,27 +67,26 @@ class Org extends BaseCommand {
       )
     }
 
-    return liborg.set(org, user, role, opts).then(memDeets => {
-      if (opts.json) {
-        this.npm.output(JSON.stringify(memDeets, null, 2))
-      } else if (opts.parseable) {
-        this.npm.output(['org', 'orgsize', 'user', 'role'].join('\t'))
-        this.npm.output(
-          [memDeets.org.name, memDeets.org.size, memDeets.user, memDeets.role].join('\t')
-        )
-      } else if (!this.npm.silent) {
-        this.npm.output(
-          `Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${
+    const memDeets = await liborg.set(org, user, role, opts)
+    if (opts.json) {
+      this.npm.output(JSON.stringify(memDeets, null, 2))
+    } else if (opts.parseable) {
+      this.npm.output(['org', 'orgsize', 'user', 'role'].join('\t'))
+      this.npm.output(
+        [memDeets.org.name, memDeets.org.size, memDeets.user, memDeets.role].join('\t')
+      )
+    } else if (!this.npm.silent) {
+      this.npm.output(
+        `Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${
             memDeets.org.size
           } member${memDeets.org.size === 1 ? '' : 's'} in this org.`
-        )
-      }
+      )
+    }
 
-      return memDeets
-    })
+    return memDeets
   }
 
-  rm (org, user, opts) {
+  async rm (org, user, opts) {
     if (!org) {
       throw new Error('First argument `orgname` is required.')
     }
@@ -96,68 +95,62 @@ class Org extends BaseCommand {
       throw new Error('Second argument `username` is required.')
     }
 
-    return liborg
-      .rm(org, user, opts)
-      .then(() => {
-        return liborg.ls(org, opts)
-      })
-      .then(roster => {
-        user = user.replace(/^[~@]?/, '')
-        org = org.replace(/^[~@]?/, '')
-        const userCount = Object.keys(roster).length
-        if (opts.json) {
-          this.npm.output(
-            JSON.stringify({
-              user,
-              org,
-              userCount,
-              deleted: true,
-            })
-          )
-        } else if (opts.parseable) {
-          this.npm.output(['user', 'org', 'userCount', 'deleted'].join('\t'))
-          this.npm.output([user, org, userCount, true].join('\t'))
-        } else if (!this.npm.silent) {
-          this.npm.output(
-            `Successfully removed ${user} from ${org}. You now have ${userCount} member${
-              userCount === 1 ? '' : 's'
-            } in this org.`
-          )
-        }
-      })
+    await liborg.rm(org, user, opts)
+    const roster = await liborg.ls(org, opts)
+    user = user.replace(/^[~@]?/, '')
+    org = org.replace(/^[~@]?/, '')
+    const userCount = Object.keys(roster).length
+    if (opts.json) {
+      this.npm.output(
+        JSON.stringify({
+          user,
+          org,
+          userCount,
+          deleted: true,
+        })
+      )
+    } else if (opts.parseable) {
+      this.npm.output(['user', 'org', 'userCount', 'deleted'].join('\t'))
+      this.npm.output([user, org, userCount, true].join('\t'))
+    } else if (!this.npm.silent) {
+      this.npm.output(
+        `Successfully removed ${user} from ${org}. You now have ${userCount} member${
+          userCount === 1 ? '' : 's'
+        } in this org.`
+      )
+    }
   }
 
-  ls (org, user, opts) {
+  async ls (org, user, opts) {
     if (!org) {
       throw new Error('First argument `orgname` is required.')
     }
 
-    return liborg.ls(org, opts).then(roster => {
-      if (user) {
-        const newRoster = {}
-        if (roster[user]) {
-          newRoster[user] = roster[user]
-        }
+    let roster = await liborg.ls(org, opts)
+    if (user) {
+      const newRoster = {}
+      if (roster[user]) {
+        newRoster[user] = roster[user]
+      }
 
-        roster = newRoster
-      }
-      if (opts.json) {
-        this.npm.output(JSON.stringify(roster, null, 2))
-      } else if (opts.parseable) {
-        this.npm.output(['user', 'role'].join('\t'))
-        Object.keys(roster).forEach(user => {
-          this.npm.output([user, roster[user]].join('\t'))
+      roster = newRoster
+    }
+    if (opts.json) {
+      this.npm.output(JSON.stringify(roster, null, 2))
+    } else if (opts.parseable) {
+      this.npm.output(['user', 'role'].join('\t'))
+      Object.keys(roster).forEach(user => {
+        this.npm.output([user, roster[user]].join('\t'))
+      })
+    } else if (!this.npm.silent) {
+      const table = new Table({ head: ['user', 'role'] })
+      Object.keys(roster)
+        .sort()
+        .forEach(user => {
+          table.push([user, roster[user]])
         })
-      } else if (!this.npm.silent) {
-        const table = new Table({ head: ['user', 'role'] })
-        Object.keys(roster)
-          .sort()
-          .forEach(user => {
-            table.push([user, roster[user]])
-          })
-        this.npm.output(table.toString())
-      }
-    })
+      this.npm.output(table.toString())
+    }
   }
 }
 module.exports = Org

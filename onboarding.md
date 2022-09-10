@@ -19,8 +19,8 @@ onboarding session.
 
 * Prior to the onboarding session, add the new Collaborator to
   [the collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
-* Ask them if they want to join any subsystem teams. See
-  [Who to CC in the issue tracker][who-to-cc].
+* Ask them if they want to join any [subsystem teams](https://github.com/orgs/nodejs/teams/core/teams)
+  and add them accordingly. See [Who to CC in the issue tracker][who-to-cc].
 
 ## Onboarding session
 
@@ -241,8 +241,7 @@ needs to be pointed out separately during the onboarding.
   * <https://github.com/nodejs/TSC>
   * <https://github.com/nodejs/build>
   * <https://github.com/nodejs/nodejs.org>
-  * <https://github.com/nodejs/readable-stream>
-  * <https://github.com/nodejs/LTS>
+  * <https://github.com/nodejs/Release>
   * <https://github.com/nodejs/citgm>
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the

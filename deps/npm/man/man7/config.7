@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "June 2022" "" ""
+.TH "CONFIG" "7" "September 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -247,6 +247,19 @@ Type: null, "info", "low", "moderate", "high", "critical", or "none"
 .P
 The minimum level of vulnerability for \fBnpm audit\fP to exit with a non\-zero
 exit code\.
+.SS \fBauth\-type\fP
+.RS 0
+.IP \(bu 2
+Default: "legacy"
+.IP \(bu 2
+Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
+
+.RE
+.P
+NOTE: auth\-type values "sso", "saml", "oauth", and "webauthn" will be
+removed in a future version\.
+.P
+What authentication strategy to use with \fBlogin\fP\|\.
 .SS \fBbefore\fP
 .RS 0
 .IP \(bu 2
@@ -387,8 +400,9 @@ cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIF
 .fi
 .RE
 .P
-It is \fInot\fR the path to a certificate file (and there is no "certfile"
-option)\.
+It is \fInot\fR the path to a certificate file, though you can set a
+registry\-scoped "certfile" path like
+"//other\-registry\.tld/:certfile=/path/to/cert\.pem"\.
 .SS \fBci\-name\fP
 .RS 0
 .IP \(bu 2
@@ -999,7 +1013,8 @@ key="\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END PRIVATE
 .fi
 .RE
 .P
-It is \fInot\fR the path to a key file (and there is no "keyfile" option)\.
+It is \fInot\fR the path to a key file, though you can set a registry\-scoped
+"keyfile" path like "//other\-registry\.tld/:keyfile=/path/to/key\.pem"\.
 .SS \fBlegacy\-bundling\fP
 .RS 0
 .IP \(bu 2
@@ -1300,7 +1315,7 @@ Type: String (can be set multiple times)
 
 .RE
 .P
-The package to install for npm help \fBexec\fP
+The package or packages to install for npm help \fBexec\fP
 .SS \fBpackage\-lock\fP
 .RS 0
 .IP \(bu 2
@@ -1445,6 +1460,24 @@ Type: URL
 .RE
 .P
 The base URL of the npm registry\.
+.SS \fBreplace\-registry\-host\fP
+.RS 0
+.IP \(bu 2
+Default: "npmjs"
+.IP \(bu 2
+Type: "npmjs", "never", "always", or String
+
+.RE
+.P
+Defines behavior for replacing the registry host in a lockfile with the
+configured registry\.
+.P
+The default behavior is to replace package dist URLs from the default
+registry (https://registry\.npmjs\.org) to the configured registry\. If set to
+"never", then use the registry value\. If set to "always", then replace the
+registry host with the configured host every time\.
+.P
+You may also specify a bare hostname (e\.g\., "registry\.npmjs\.org")\.
 .SS \fBsave\fP
 .RS 0
 .IP \(bu 2
@@ -1992,21 +2025,6 @@ DEPRECATED: Please use \-\-include=dev instead\.
 .RE
 .P
 When set to \fBdev\fP or \fBdevelopment\fP, this is an alias for \fB\-\-include=dev\fP\|\.
-.SS \fBauth\-type\fP
-.RS 0
-.IP \(bu 2
-Default: "legacy"
-.IP \(bu 2
-Type: "legacy", "webauthn", "sso", "saml", or "oauth"
-.IP \(bu 2
-DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
-a future version of npm in favor of web\-based login\.
-
-.RE
-.P
-What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\.
-.P
-Pass \fBwebauthn\fP to use a web\-based login\.
 .SS \fBcache\-max\fP
 .RS 0
 .IP \(bu 2

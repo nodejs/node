@@ -116,7 +116,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
@@ -189,7 +189,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
   // Get the double array pointer from the Float64Array argument.
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   size_t rss;
   int err = uv_resident_set_memory(&rss);
@@ -311,7 +311,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_getrusage");
 
   Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 16);
-  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
+  double* fields = static_cast<double*>(ab->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
@@ -464,8 +464,9 @@ v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
 v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
 
 void BindingData::AddMethods() {
-  env()->SetFastMethod(object(), "hrtime", SlowNumber, &fast_number_);
-  env()->SetFastMethod(object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+  Local<Context> ctx = env()->context();
+  SetFastMethod(ctx, object(), "hrtime", SlowNumber, &fast_number_);
+  SetFastMethod(ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(
@@ -523,24 +524,28 @@ void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
   NumberImpl(FromJSObject<BindingData>(args.Holder()));
 }
 
-void BindingData::PrepareForSerialization(Local<Context> context,
+bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
   // It's not worth keeping.
   // Release it, we will recreate it when the instance is dehydrated.
   array_buffer_.Reset();
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
 }
 
-InternalFieldInfo* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kSlot);
-  InternalFieldInfo* info = InternalFieldInfo::New(type());
+InternalFieldInfoBase* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
 }
 
 void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
-                              InternalFieldInfo* info) {
-  DCHECK_EQ(index, BaseObject::kSlot);
+                              InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
   v8::HandleScope scope(context->GetIsolate());
   Environment* env = Environment::GetCurrent(context);
   // Recreate the buffer in the constructor.
@@ -560,31 +565,31 @@ static void Initialize(Local<Object> target,
 
   // define various internal methods
   if (env->owns_process_state()) {
-    env->SetMethod(target, "_debugProcess", DebugProcess);
-    env->SetMethod(target, "_debugEnd", DebugEnd);
-    env->SetMethod(target, "abort", Abort);
-    env->SetMethod(target, "causeSegfault", CauseSegfault);
-    env->SetMethod(target, "chdir", Chdir);
+    SetMethod(context, target, "_debugProcess", DebugProcess);
+    SetMethod(context, target, "_debugEnd", DebugEnd);
+    SetMethod(context, target, "abort", Abort);
+    SetMethod(context, target, "causeSegfault", CauseSegfault);
+    SetMethod(context, target, "chdir", Chdir);
   }
 
-  env->SetMethod(target, "umask", Umask);
-  env->SetMethod(target, "_rawDebug", RawDebug);
-  env->SetMethod(target, "memoryUsage", MemoryUsage);
-  env->SetMethod(target, "rss", Rss);
-  env->SetMethod(target, "cpuUsage", CPUUsage);
-  env->SetMethod(target, "resourceUsage", ResourceUsage);
+  SetMethod(context, target, "umask", Umask);
+  SetMethod(context, target, "_rawDebug", RawDebug);
+  SetMethod(context, target, "memoryUsage", MemoryUsage);
+  SetMethod(context, target, "rss", Rss);
+  SetMethod(context, target, "cpuUsage", CPUUsage);
+  SetMethod(context, target, "resourceUsage", ResourceUsage);
 
-  env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
-  env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
-  env->SetMethod(target, "_kill", Kill);
+  SetMethod(context, target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
+  SetMethod(context, target, "_getActiveRequests", GetActiveRequests);
+  SetMethod(context, target, "_getActiveHandles", GetActiveHandles);
+  SetMethod(context, target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
+  SetMethod(context, target, "_kill", Kill);
 
-  env->SetMethodNoSideEffect(target, "cwd", Cwd);
-  env->SetMethod(target, "dlopen", binding::DLOpen);
-  env->SetMethod(target, "reallyExit", ReallyExit);
-  env->SetMethodNoSideEffect(target, "uptime", Uptime);
-  env->SetMethod(target, "patchProcessObject", PatchProcessObject);
+  SetMethodNoSideEffect(context, target, "cwd", Cwd);
+  SetMethod(context, target, "dlopen", binding::DLOpen);
+  SetMethod(context, target, "reallyExit", ReallyExit);
+  SetMethodNoSideEffect(context, target, "uptime", Uptime);
+  SetMethod(context, target, "patchProcessObject", PatchProcessObject);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {

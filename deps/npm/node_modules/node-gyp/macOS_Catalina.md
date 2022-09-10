@@ -37,7 +37,7 @@ If `ProductVersion` is less then `10.15` then this document is not for you. Norm
 ### The acid test
 To see if `Xcode Command Line Tools` is installed in a way that will work with `node-gyp`, run:
 ```
-curl -sL https://github.com/nodejs/node-gyp/raw/master/macOS_Catalina_acid_test.sh | bash
+curl -sL https://github.com/nodejs/node-gyp/raw/main/macOS_Catalina_acid_test.sh | bash
 ```
 
 If test succeeded, _you are done_! You should be ready to [install](https://github.com/nodejs/node-gyp#installation) `node-gyp`.

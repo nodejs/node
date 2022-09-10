@@ -116,6 +116,7 @@ Array [
   "read-only",
   "rebuild-bundle",
   "registry",
+  "replace-registry-host",
   "save",
   "save-bundle",
   "save-dev",
@@ -253,13 +254,12 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for auth-
 #### \`auth-type\`
 
 * Default: "legacy"
-* Type: "legacy", "webauthn", "sso", "saml", or "oauth"
-* DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
-  a future version of npm in favor of web-based login.
+* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
 
-What authentication strategy to use with \`adduser\`/\`login\`.
+NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
+removed in a future version.
 
-Pass \`webauthn\` to use a web-based login.
+What authentication strategy to use with \`login\`.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for before 1`] = `
@@ -405,8 +405,9 @@ newlines replaced by the string "\\n". For example:
 cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
 \`\`\`
 
-It is _not_ the path to a certificate file (and there is no "certfile"
-option).
+It is _not_ the path to a certificate file, though you can set a
+registry-scoped "certfile" path like
+"//other-registry.tld/:certfile=/path/to/cert.pem".
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for ci-name 1`] = `
@@ -1017,7 +1018,8 @@ format with newlines replaced by the string "\\n". For example:
 key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
 \`\`\`
 
-It is _not_ the path to a key file (and there is no "keyfile" option).
+It is _not_ the path to a key file, though you can set a registry-scoped
+"keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for legacy-bundling 1`] = `
@@ -1314,7 +1316,7 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for packa
 * Default:
 * Type: String (can be set multiple times)
 
-The package to install for [\`npm exec\`](/commands/npm-exec)
+The package or packages to install for [\`npm exec\`](/commands/npm-exec)
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for package-lock 1`] = `
@@ -1457,6 +1459,23 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for regis
 * Type: URL
 
 The base URL of the npm registry.
+`
+
+exports[`test/lib/utils/config/definitions.js TAP > config description for replace-registry-host 1`] = `
+#### \`replace-registry-host\`
+
+* Default: "npmjs"
+* Type: "npmjs", "never", "always", or String
+
+Defines behavior for replacing the registry host in a lockfile with the
+configured registry.
+
+The default behavior is to replace package dist URLs from the default
+registry (https://registry.npmjs.org) to the configured registry. If set to
+"never", then use the registry value. If set to "always", then replace the
+registry host with the configured host every time.
+
+You may also specify a bare hostname (e.g., "registry.npmjs.org").
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save 1`] = `
