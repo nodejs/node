@@ -52,6 +52,8 @@ const {
   spawnPromisified,
 } = common;
 
+const getPort = () => common.PORT;
+
 export {
   isMainThread,
   isWindows,
@@ -100,4 +102,5 @@ export {
   runWithInvalidFD,
   createRequire,
   spawnPromisified,
+  getPort,
 };

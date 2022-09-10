@@ -161,9 +161,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
       errors->push_back("either --test or --watch can be used, not both");
     }
 
-    if (debug_options_.inspector_enabled) {
-      errors->push_back("the inspector cannot be used with --test");
-    }
 #ifndef ALLOW_ATTACHING_DEBUGGER_IN_TEST_RUNNER
     debug_options_.allow_attaching_debugger = false;
 #endif
