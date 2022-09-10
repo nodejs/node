@@ -63,7 +63,7 @@ assert.throws(
   }
 );
 
-for (const iterations of [-1, 0]) {
+for (const iterations of [-1, 0, 2147483648]) {
   assert.throws(
     () => crypto.pbkdf2Sync('password', 'salt', iterations, 20, 'sha1'),
     {
@@ -98,7 +98,7 @@ for (const iterations of [-1, 0]) {
     });
 });
 
-[-1, 4294967297].forEach((input) => {
+[-1, 2147483648, 4294967296].forEach((input) => {
   assert.throws(
     () => {
       crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
