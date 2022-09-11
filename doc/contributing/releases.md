@@ -617,6 +617,8 @@ Create a tag using the following command:
 $ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-type>) Release"
 ```
 
+<sup>The commit-sha is the release commit. You can get it easily by running `git rev-parse HEAD`</sup>
+
 `release-type` is either "Current" or "LTS". For LTS releases, you should also
 include the release code name.
 
