@@ -957,7 +957,7 @@ class Context(object):
 
   def GetTimeout(self, mode, section=''):
     timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
-    if section == 'pummel' or section == 'benchmark' or section == 'wpt':
+    if section == 'pummel' or section == 'benchmark':
       timeout = timeout * 6
     # We run all WPT from one subset in the same process using workers.
     # As the number of the tests grow, it can take longer to run some of the
