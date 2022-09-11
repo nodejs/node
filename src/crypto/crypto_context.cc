@@ -541,9 +541,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
-  if (RAND_bytes(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)) <= 0 ||
-      RAND_bytes(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)) <= 0 ||
-      RAND_bytes(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)) <= 0) {
+  if (CSPRNG(sc->ticket_key_name_, sizeof(sc->ticket_key_name_)).is_err() ||
+      CSPRNG(sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_)).is_err() ||
+      CSPRNG(sc->ticket_key_aes_, sizeof(sc->ticket_key_aes_)).is_err()) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "Error generating ticket keys");
   }
@@ -1241,11 +1241,14 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 
   if (enc) {
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
-    if (RAND_bytes(iv, 16) <= 0 ||
-        EVP_EncryptInit_ex(ectx, EVP_aes_128_cbc(), nullptr,
-                           sc->ticket_key_aes_, iv) <= 0 ||
-        HMAC_Init_ex(hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_),
-                     EVP_sha256(), nullptr) <= 0) {
+    if (CSPRNG(iv, 16).is_err() ||
+        EVP_EncryptInit_ex(
+            ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+        HMAC_Init_ex(hctx,
+                     sc->ticket_key_hmac_,
+                     sizeof(sc->ticket_key_hmac_),
+                     EVP_sha256(),
+                     nullptr) <= 0) {
       return -1;
     }
     return 1;

@@ -60,32 +60,14 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
-void CheckEntropy() {
-  for (;;) {
-    int status = RAND_status();
-    CHECK_GE(status, 0);  // Cannot fail.
-    if (status != 0)
-      break;
+MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length) {
+  do {
+    if (1 == RAND_status())
+      if (1 == RAND_bytes(static_cast<unsigned char*>(buffer), length))
+        return {true};
+  } while (1 == RAND_poll());
 
-    // Give up, RAND_poll() not supported.
-    if (RAND_poll() == 0)
-      break;
-  }
-}
-
-bool EntropySource(unsigned char* buffer, size_t length) {
-  // Ensure that OpenSSL's PRNG is properly seeded.
-  CheckEntropy();
-  // If RAND_bytes() returns 0 or -1, the data might not be random at all. In
-  // that case, return false, which causes V8 to use its own entropy source. The
-  // quality of V8's entropy source depends on multiple factors and we should
-  // not assume that it is cryptographically secure (even though it often is).
-  // However, even if RAND_bytes() fails and V8 resorts to its potentially weak
-  // entropy source, it really does not matter much: V8 only uses the entropy
-  // source to seed its own PRNG, which itself is not cryptographically secure.
-  // In other words, even a cryptographically secure entropy source would not
-  // guarantee cryptographically secure random numbers in V8.
-  return RAND_bytes(buffer, length) == 1;
+  return {false};
 }
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
