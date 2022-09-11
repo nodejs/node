@@ -75,9 +75,6 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
             std::move(params)) {}
 
   void DoThreadPoolWork() override {
-    // Make sure the CSPRNG is properly seeded so the results are secure.
-    CheckEntropy();
-
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
 
     switch (KeyGenTraits::DoKeyGen(AsyncWrap::env(), params)) {

@@ -111,31 +111,18 @@ struct MarkPopErrorOnReturn {
   ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
 };
 
-// Ensure that OpenSSL has enough entropy (at least 256 bits) for its PRNG.
-// The entropy pool starts out empty and needs to fill up before the PRNG
-// can be used securely.  Once the pool is filled, it never dries up again;
-// its contents is stirred and reused when necessary.
-//
-// OpenSSL normally fills the pool automatically but not when someone starts
-// generating random numbers before the pool is full: in that case OpenSSL
-// keeps lowering the entropy estimate to thwart attackers trying to guess
-// the initial state of the PRNG.
-//
-// When that happens, we will have to wait until enough entropy is available.
-// That should normally never take longer than a few milliseconds.
-//
-// OpenSSL draws from /dev/random and /dev/urandom.  While /dev/random may
-// block pending "true" randomness, /dev/urandom is a CSPRNG that doesn't
-// block under normal circumstances.
-//
-// The only time when /dev/urandom may conceivably block is right after boot,
-// when the whole system is still low on entropy.  That's not something we can
-// do anything about.
-void CheckEntropy();
+struct CSPRNGResult {
+  const bool ok;
+  MUST_USE_RESULT bool is_ok() const { return ok; }
+  MUST_USE_RESULT bool is_err() const { return !ok; }
+};
 
-// Generate length bytes of random data. If this returns false, the data
-// might not be random at all and should not be used.
-bool EntropySource(unsigned char* buffer, size_t length);
+// Either succeeds with exactly |length| bytes of cryptographically
+// strong pseudo-random data, or fails. This function may block.
+// Don't assume anything about the contents of |buffer| on error.
+// As a special case, |length == 0| can be used to check if the CSPRNG
+// is properly seeded without consuming entropy.
+MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length);
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u);
 
