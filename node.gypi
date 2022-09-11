@@ -10,7 +10,8 @@
     'variables': {
       'variables': {
         'force_load%': 'true',
-        'current_type%': '<(_type)',
+   
+         'current_type%': '<(_type)',
       },
       'force_load%': '<(force_load)',
       'conditions': [
