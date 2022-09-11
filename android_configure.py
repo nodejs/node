@@ -34,17 +34,17 @@ android_ndk_path = sys.argv[1]
 android_sdk_version = sys.argv[2]
 arch = sys.argv[3]
 
-if sys.argv[3] == "arm":
+if arch == "arm":
     DEST_CPU = "arm"
     TOOLCHAIN_PREFIX = "armv7a-linux-androideabi"
-elif sys.argv[3] in ("aarch64", "arm64"):
+elif arch in ("aarch64", "arm64"):
     DEST_CPU = "arm64"
     TOOLCHAIN_PREFIX = "aarch64-linux-android"
     arch = "arm64"
-elif sys.argv[3] == "x86":
+elif arch == "x86":
     DEST_CPU = "ia32"
     TOOLCHAIN_PREFIX = "i686-linux-android"
-elif sys.argv[3] == "x86_64":
+elif arch == "x86_64":
     DEST_CPU = "x64"
     TOOLCHAIN_PREFIX = "x86_64-linux-android"
     arch = "x64"
