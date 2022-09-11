@@ -84,7 +84,13 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
     SecretKeyGenConfig* params) {
   CHECK_LE(params->length, INT_MAX);
   params->out = MallocOpenSSL<char>(params->length);
-  EntropySource(reinterpret_cast<unsigned char*>(params->out), params->length);
+  if (CSPRNG(reinterpret_cast<unsigned char*>(params->out),
+             params->length).is_err()) {
+    OPENSSL_clear_free(params->out, params->length);
+    params->out = nullptr;
+    params->length = 0;
+    return KeyGenJobStatus::FAILED;
+  }
   return KeyGenJobStatus::OK;
 }
 

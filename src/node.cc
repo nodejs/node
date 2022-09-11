@@ -1092,11 +1092,10 @@ InitializationResult InitializeOncePerProcess(
     // fipsinstall command. If the path to this file is incorrect no error
     // will be reported.
     //
-    // For Node.js this will mean that EntropySource will be called by V8 as
-    // part of its initialization process, and EntropySource will in turn call
-    // CheckEntropy. CheckEntropy will call RAND_status which will now always
-    // return 0, leading to an endless loop and the node process will appear to
-    // hang/freeze.
+    // For Node.js this will mean that CSPRNG() will be called by V8 as
+    // part of its initialization process, and CSPRNG() will in turn call
+    // call RAND_status which will now always return 0, leading to an endless
+    // loop and the node process will appear to hang/freeze.
 
     // Passing NULL as the config file will allow the default openssl.cnf file
     // to be loaded, but the default section in that file will not be used,
@@ -1156,14 +1155,23 @@ InitializationResult InitializeOncePerProcess(
     }
 #endif
 
-    // V8 on Windows doesn't have a good source of entropy. Seed it from
-    // OpenSSL's pool.
-    V8::SetEntropySource(crypto::EntropySource);
     if (!crypto::ProcessFipsOptions()) {
       return handle_openssl_error(ERR_GET_REASON(ERR_peek_error()),
                                   fips_error_msg,
                                   &result);
     }
+
+    // Ensure CSPRNG is properly seeded.
+    CHECK(crypto::CSPRNG(nullptr, 0).is_ok());
+
+    V8::SetEntropySource([](unsigned char* buffer, size_t length) {
+      // V8 falls back to very weak entropy when this function fails
+      // and /dev/urandom isn't available. That wouldn't be so bad if
+      // the entropy was only used for Math.random() but it's also used for
+      // hash table and address space layout randomization. Better to abort.
+      CHECK(crypto::CSPRNG(buffer, length).is_ok());
+      return true;
+    });
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
   per_process::v8_platform.Initialize(

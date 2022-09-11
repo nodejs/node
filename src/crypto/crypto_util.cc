@@ -60,26 +60,14 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
-void CheckEntropy() {
-  for (;;) {
-    int status = RAND_status();
-    CHECK_GE(status, 0);  // Cannot fail.
-    if (status != 0)
-      break;
+MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length) {
+  do {
+    if (1 == RAND_status())
+      if (1 == RAND_bytes(static_cast<unsigned char*>(buffer), length))
+        return {true};
+  } while (1 == RAND_poll());
 
-    // Give up, RAND_poll() not supported.
-    if (RAND_poll() == 0)
-      break;
-  }
-}
-
-bool EntropySource(unsigned char* buffer, size_t length) {
-  // Ensure that OpenSSL's PRNG is properly seeded.
-  CheckEntropy();
-  // RAND_bytes() can return 0 to indicate that the entropy data is not truly
-  // random. That's okay, it's still better than V8's stock source of entropy,
-  // which is /dev/urandom on UNIX platforms and the current time on Windows.
-  return RAND_bytes(buffer, length) != -1;
+  return {false};
 }
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
