@@ -51,7 +51,7 @@ const { requireImport, importImport } = importer;
 
   const invalidImportSpecifiers = new Map([
     // Backtracking below the package base
-    ['#subpath/sub/../../../belowbase', 'request is not a valid subpath'],
+    ['#subpath/sub/../../../belowbase', 'request is not a valid match in pattern'],
     // Percent-encoded slash errors
     ['#external/subpath/x%2Fy', 'must not include encoded "/" or "\\"'],
     ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],
@@ -79,10 +79,14 @@ const { requireImport, importImport } = importer;
     '#missing',
     // Explicit null import
     '#null',
+    '#subpath/null',
     // No condition match import
     '#nullcondition',
     // Null subpath shadowing
     '#subpath/nullshadow/x',
+    // Null pattern
+    '#subpath/internal/test',
+    '#subpath/internal//test',
   ]);
 
   for (const specifier of undefinedImports) {
@@ -94,10 +98,20 @@ const { requireImport, importImport } = importer;
   }
 
   // Handle not found for the defined imports target not existing
-  loadFixture('#notfound').catch(mustCall((err) => {
-    strictEqual(err.code,
-                isRequire ? 'MODULE_NOT_FOUND' : 'ERR_MODULE_NOT_FOUND');
-  }));
+  const nonDefinedImports = new Set([
+    '#notfound',
+    '#subpath//null',
+    '#subpath/////null',
+    '#subpath//internal/test',
+    '#subpath//internal//test',
+    '#subpath/////internal/////test',
+  ]);
+  for (const specifier of nonDefinedImports) {
+    loadFixture(specifier).catch(mustCall((err) => {
+      strictEqual(err.code,
+                  isRequire ? 'MODULE_NOT_FOUND' : 'ERR_MODULE_NOT_FOUND');
+    }));
+  }
 });
 
 // CJS resolver must still support #package packages in node_modules
