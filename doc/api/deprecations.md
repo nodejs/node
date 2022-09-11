@@ -3202,12 +3202,15 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44495
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44477
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Package imports and exports targets mapping into paths including a double slash
 (of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
