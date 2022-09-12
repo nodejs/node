@@ -371,3 +371,15 @@ test('rejected thenable', () => {
     },
   };
 });
+
+test('uncaughtException', async () => {
+  await new Promise(() => {
+    setTimeout(() => { throw new Error('foo'); });
+  });
+});
+
+test('unhandledRejection', async () => {
+  await new Promise(() => {
+    setTimeout(() => Promise.reject(new Error('bar')));
+  });
+});
