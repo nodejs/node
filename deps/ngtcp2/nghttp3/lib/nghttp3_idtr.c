@@ -27,18 +27,10 @@
 
 #include <assert.h>
 
-int nghttp3_idtr_init(nghttp3_idtr *idtr, int server, const nghttp3_mem *mem) {
-  int rv;
-
-  rv = nghttp3_gaptr_init(&idtr->gap, mem);
-  if (rv != 0) {
-    return rv;
-  }
+void nghttp3_idtr_init(nghttp3_idtr *idtr, int server, const nghttp3_mem *mem) {
+  nghttp3_gaptr_init(&idtr->gap, mem);
 
   idtr->server = server;
-  idtr->mem = mem;
-
-  return 0;
 }
 
 void nghttp3_idtr_free(nghttp3_idtr *idtr) {

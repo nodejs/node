@@ -103,6 +103,40 @@
 /* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
 #define NGTCP2_RETRY_TAGLEN 16
 
+/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP payload size
+   that this library can write. */
+#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE ((1 << 24) - 1)
+
+/* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
+   Length field in Long packet header. */
+#define NGTCP2_PKT_LENGTHLEN 4
+
+/* NGTCP2_PKT_TYPE_INITIAL_V1 is Initial long header packet type for
+   QUIC v1. */
+#define NGTCP2_PKT_TYPE_INITIAL_V1 0x0
+/* NGTCP2_PKT_TYPE_0RTT_V1 is 0RTT long header packet type for QUIC
+   v1. */
+#define NGTCP2_PKT_TYPE_0RTT_V1 0x1
+/* NGTCP2_PKT_TYPE_HANDSHAKE_V1 is Handshake long header packet type
+   for QUIC v1. */
+#define NGTCP2_PKT_TYPE_HANDSHAKE_V1 0x2
+/* NGTCP2_PKT_TYPE_RETRY_V1 is Retry long header packet type for QUIC
+   v1. */
+#define NGTCP2_PKT_TYPE_RETRY_V1 0x3
+
+/* NGTCP2_PKT_TYPE_INITIAL_V2_DRAFT is Initial long header packet type
+   for QUIC v2 draft. */
+#define NGTCP2_PKT_TYPE_INITIAL_V2_DRAFT 0x1
+/* NGTCP2_PKT_TYPE_0RTT_V2_DRAFT is 0RTT long header packet type for
+   QUIC v2 draft. */
+#define NGTCP2_PKT_TYPE_0RTT_V2_DRAFT 0x2
+/* NGTCP2_PKT_TYPE_HANDSHAKE_V2_DRAFT is Handshake long header packet
+   type for QUIC v2 draft. */
+#define NGTCP2_PKT_TYPE_HANDSHAKE_V2_DRAFT 0x3
+/* NGTCP2_PKT_TYPE_RETRY_V2_DRAFT is Retry long header packet type for
+   QUIC v2 draft. */
+#define NGTCP2_PKT_TYPE_RETRY_V2_DRAFT 0x0
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   ngtcp2_vec token;
@@ -258,12 +292,12 @@ typedef struct ngtcp2_stop_sending {
 
 typedef struct ngtcp2_path_challenge {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_crypto {
@@ -293,6 +327,8 @@ typedef struct ngtcp2_handshake_done {
 
 typedef struct ngtcp2_datagram {
   uint8_t type;
+  /* dgram_id is an opaque identifier chosen by an application. */
+  uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
   size_t datacnt;
   /* data is a pointer to ngtcp2_vec array that stores data. */
@@ -1123,7 +1159,7 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
  * small to write STREAM frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
-                                     size_t len, size_t left);
+                                     uint64_t len, size_t left);
 
 /*
  * ngtcp2_pkt_crypto_max_datalen returns the maximum number of bytes
@@ -1184,12 +1220,21 @@ int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
                                 const ngtcp2_crypto_aead *aead,
                                 const ngtcp2_crypto_aead_ctx *aead_ctx);
 
+/*
+ * ngtcp2_pkt_versioned_type returns versioned packet type for a
+ * version |version| that corresponds to the version-independent
+ * |pkt_type|.
+ */
+uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type);
+
 /**
  * @function
  *
- * `ngtcp2_pkt_get_type_long` returns the long packet type.  |c| is
- * the first byte of Long packet header.
+ * `ngtcp2_pkt_get_type_long` returns the version-independent long
+ * packet type.  |version| is the QUIC version.  |c| is the first byte
+ * of Long packet header.  If |version| is not supported by the
+ * library, it returns 0.
  */
-uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
+uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c);
 
 #endif /* NGTCP2_PKT_H */
