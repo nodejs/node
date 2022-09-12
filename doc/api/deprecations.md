@@ -3147,9 +3147,28 @@ Type: Documentation-only
 
 The [`--trace-atomics-wait`][] flag is deprecated.
 
+### DEP0167: Weak `DiffieHellmanGroup` instances (`modp1`, `modp2`, `modp5`)
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44588
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The well-known MODP groups `modp1`, `modp2`, and `modp5` are deprecated because
+they are not secure against practical attacks. See [RFC 8247 Section 2.4][] for
+details.
+
+These groups might be removed in future versions of Node.js. Applications that
+rely on these groups should evaluate using stronger MODP groups instead.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
+[RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`--pending-deprecation`]: cli.md#--pending-deprecation
