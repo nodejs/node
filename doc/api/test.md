@@ -475,7 +475,7 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
 
-### `before([, fn][, options])`
+## `before([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -503,7 +503,7 @@ describe('tests', async () => {
 });
 ```
 
-### `after([, fn][, options])`
+## `after([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -531,7 +531,7 @@ describe('tests', async () => {
 });
 ```
 
-### `beforeEach([, fn][, options])`
+## `beforeEach([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -560,7 +560,7 @@ describe('tests', async () => {
 });
 ```
 
-### `afterEach([, fn][, options])`
+## `afterEach([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
