@@ -33,7 +33,6 @@ const fn = path.join(tmpdir.path, 'write.txt');
 const fn2 = path.join(tmpdir.path, 'write2.txt');
 const fn3 = path.join(tmpdir.path, 'write3.txt');
 const fn4 = path.join(tmpdir.path, 'write4.txt');
-const fn5 = path.join(tmpdir.path, 'write5.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
@@ -127,23 +126,6 @@ fs.open(fn3, 'w', 0o644, common.mustSucceed((fd) => {
 }));
 
 
-// Test write with an object with an own toString function
-// Runtime deprecated by DEP0162
-common.expectWarning('DeprecationWarning',
-                     'Implicit coercion of objects with own toString property is deprecated.',
-                     'DEP0162');
-fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
-  const done = common.mustSucceed((written) => {
-    assert.strictEqual(written, Buffer.byteLength(expected));
-    fs.closeSync(fd);
-  });
-
-  const data = {
-    toString() { return expected; }
-  };
-  fs.write(fd, data, done);
-}));
-
 [false, 'test', {}, [], null, undefined].forEach((i) => {
   assert.throws(
     () => fs.write(i, common.mustNotCall()),
@@ -162,9 +144,12 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
 });
 
 [
-  false, 5, {}, [], null, undefined,
+  false, 5, {}, [], null, undefined, true, 5n, () => {}, Symbol(), new Map(),
   new String('notPrimitive'),
   { [Symbol.toPrimitive]: (hint) => 'amObject' },
+  { toString() { return 'amObject'; } },
+  Promise.resolve('amPromise'),
+  common.mustNotCall(),
 ].forEach((data) => {
   assert.throws(
     () => fs.write(1, data, common.mustNotCall()),
@@ -184,7 +169,7 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
 
 {
   // Regression test for https://github.com/nodejs/node/issues/38168
-  const fd = fs.openSync(fn5, 'w');
+  const fd = fs.openSync(fn4, 'w');
 
   assert.throws(
     () => fs.writeSync(fd, 'abc', 0, 'hex'),
