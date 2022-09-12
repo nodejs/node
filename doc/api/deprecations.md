@@ -3131,6 +3131,9 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: End-of-Life.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42607
     description: Runtime deprecation.
@@ -3141,7 +3144,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Implicit coercion of objects with own `toString` property, passed as second
 parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],

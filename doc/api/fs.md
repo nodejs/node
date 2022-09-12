@@ -4534,6 +4534,10 @@ default with the above values.
 <!-- YAML
 added: v0.11.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: Passing to the `string` parameter an object with an own
+                 `toString` function is no longer supported.
   - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Passing to the `string` parameter an object with an own
@@ -4560,7 +4564,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `string` {string|Object}
+* `string` {string}
 * `position` {integer|null} **Default:** `null`
 * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
@@ -4568,8 +4572,8 @@ changes:
   * `written` {integer}
   * `string` {string}
 
-Write `string` to the file specified by `fd`. If `string` is not a string, or an
-object with an own `toString` function property, then an exception is thrown.
+Write `string` to the file specified by `fd`. If `string` is not a string,
+an exception is thrown.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
@@ -4602,6 +4606,10 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: Passing to the `string` parameter an object with an own
+                 `toString` function is no longer supported.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4650,7 +4658,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView|Object}
+* `data` {string|Buffer|TypedArray|DataView}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -5840,6 +5848,10 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: Passing to the `data` parameter an object with an own
+                 `toString` function is no longer supported.
   - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Passing to the `data` parameter an object with an own
@@ -5865,7 +5877,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView|Object}
+* `data` {string|Buffer|TypedArray|DataView}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
