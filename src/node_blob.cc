@@ -71,11 +71,9 @@ bool Blob::HasInstance(Environment* env, v8::Local<v8::Value> object) {
   return GetConstructorTemplate(env)->HasInstance(object);
 }
 
-BaseObjectPtr<Blob> Blob::Create(
-    Environment* env,
-    const std::vector<BlobEntry> store,
-    size_t length) {
-
+BaseObjectPtr<Blob> Blob::Create(Environment* env,
+                                 const std::vector<BlobEntry>& store,
+                                 size_t length) {
   HandleScope scope(env->isolate());
 
   Local<Function> ctor;
