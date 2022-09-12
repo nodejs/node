@@ -891,7 +891,7 @@ header-related http module methods. The keys of the returned object are the
 header names and the values are the respective header values. All header names
 are lowercase.
 
-The object returned by the `response.getHeaders()` method _does not_
+The object returned by the `request.getHeaders()` method _does not_
 prototypically inherit from the JavaScript `Object`. This means that typical
 `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
 are not defined and _will not work_.
@@ -900,7 +900,7 @@ are not defined and _will not work_.
 request.setHeader('Foo', 'bar');
 request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
 
-const headers = response.getHeaders();
+const headers = request.getHeaders();
 // headers === { foo: 'bar', 'cookie': ['foo=bar', 'bar=baz'] }
 ```
 
@@ -2411,7 +2411,7 @@ Key-value pairs of header names and values. Header names are lower-cased.
 // { 'user-agent': 'curl/7.22.0',
 //   host: '127.0.0.1:8000',
 //   accept: '*/*' }
-console.log(request.getHeaders());
+console.log(request.headers);
 ```
 
 Duplicates in raw headers are handled in the following ways, depending on the
@@ -2614,15 +2614,15 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.getHeaders().host}`);
+new URL(request.url, `http://${request.headers.host}`);
 ```
 
-When `request.url` is `'/status?name=ryan'` and
-`request.getHeaders().host` is `'localhost:3000'`:
+When `request.url` is `'/status?name=ryan'` and `request.headers.host` is
+`'localhost:3000'`:
 
 ```console
 $ node
-> new URL(request.url, `http://${request.getHeaders().host}`)
+> new URL(request.url, `http://${request.headers.host}`)
 URL {
   href: 'http://localhost:3000/status?name=ryan',
   origin: 'http://localhost:3000',
