@@ -372,13 +372,13 @@ test('rejected thenable', () => {
   };
 });
 
-test('uncaughtException', async () => {
+test('unfinished test with uncaughtException', async () => {
   await new Promise(() => {
     setTimeout(() => { throw new Error('foo'); });
   });
 });
 
-test('unhandledRejection', async () => {
+test('unfinished test with unhandledRejection', async () => {
   await new Promise(() => {
     setTimeout(() => Promise.reject(new Error('bar')));
   });

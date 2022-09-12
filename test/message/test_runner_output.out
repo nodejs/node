@@ -602,8 +602,8 @@ not ok 62 - rejected thenable
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
   ...
-# Subtest: uncaughtException
-not ok 63 - uncaughtException
+# Subtest: unfinished test with uncaughtException
+not ok 63 - unfinished test with uncaughtException
   ---
   duration_ms: *
   failureType: 'uncaughtException'
@@ -614,8 +614,8 @@ not ok 63 - uncaughtException
     *
     *
   ...
-# Subtest: unhandledRejection
-not ok 64 - unhandledRejection
+# Subtest: unfinished test with unhandledRejection
+not ok 64 - unfinished test with unhandledRejection
   ---
   duration_ms: *
   failureType: 'unhandledRejection'
