@@ -90,7 +90,7 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
           "Uncaught N-API callback exception detected, please run node "
           "with option --force-node-api-uncaught-exceptions-policy=true"
           "to handle those exceptions properly.",
-          "DEP0XXX");
+          "DEP0168");
       return;
     }
     // If there was an unhandled exception in the complete callback,
