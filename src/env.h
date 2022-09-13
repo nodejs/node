@@ -1433,6 +1433,7 @@ class Environment : public MemoryRetainer {
   void ForEachBindingData(T&& iterator);
 
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
+  inline bool is_in_heapsnapshot_heap_limit_callback() const;
 
   inline void AddHeapSnapshotNearHeapLimitCallback();
 
@@ -1494,7 +1495,7 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> argv_;
   std::string exec_path_;
 
-  bool is_processing_heap_limit_callback_ = false;
+  bool is_in_heapsnapshot_heap_limit_callback_ = false;
   uint32_t heap_limit_snapshot_taken_ = 0;
   uint32_t heap_snapshot_near_heap_limit_ = 0;
   bool heapsnapshot_near_heap_limit_callback_added_ = false;
