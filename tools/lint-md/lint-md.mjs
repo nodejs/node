@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path$1 from 'path';
-import proc from 'process';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
+import proc from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
 import tty from 'node:tty';
@@ -12104,6 +12104,7 @@ const remarkLintFinalNewline = lintRule(
     }
   }
 );
+var remarkLintFinalNewline$1 = remarkLintFinalNewline;
 
 function commonjsRequire(path) {
 	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
@@ -12530,6 +12531,7 @@ const remarkLintListItemBulletIndent = lintRule(
     });
   }
 );
+var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
 
 const pointStart = point('start');
 const pointEnd = point('end');
@@ -12756,6 +12758,7 @@ const remarkLintListItemIndent = lintRule(
     });
   }
 );
+var remarkLintListItemIndent$1 = remarkLintListItemIndent;
 
 /**
  * ## When should I use this?
@@ -12852,6 +12855,7 @@ const remarkLintNoBlockquoteWithoutMarker = lintRule(
     });
   }
 );
+var remarkLintNoBlockquoteWithoutMarker$1 = remarkLintNoBlockquoteWithoutMarker;
 
 /**
  * ## When should I use this?
@@ -12915,6 +12919,7 @@ const remarkLintNoLiteralUrls = lintRule(
     });
   }
 );
+var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
 
 /**
  * ## When should I use this?
@@ -13035,6 +13040,7 @@ const remarkLintOrderedListMarkerStyle = lintRule(
     });
   }
 );
+var remarkLintOrderedListMarkerStyle$1 = remarkLintOrderedListMarkerStyle;
 
 /**
  * ## When should I use this?
@@ -13096,6 +13102,7 @@ const remarkLintHardBreakSpaces = lintRule(
     });
   }
 );
+var remarkLintHardBreakSpaces$1 = remarkLintHardBreakSpaces;
 
 /**
  * ## When should I use this?
@@ -13160,6 +13167,7 @@ const remarkLintNoDuplicateDefinitions = lintRule(
     });
   }
 );
+var remarkLintNoDuplicateDefinitions$1 = remarkLintNoDuplicateDefinitions;
 
 function headingStyle(node, relative) {
   var last = node.children[node.children.length - 1];
@@ -13298,6 +13306,7 @@ const remarkLintNoHeadingContentIndent = lintRule(
     });
   }
 );
+var remarkLintNoHeadingContentIndent$1 = remarkLintNoHeadingContentIndent;
 
 /**
  * ## When should I use this?
@@ -13351,6 +13360,7 @@ const remarkLintNoInlinePadding = lintRule(
     });
   }
 );
+var remarkLintNoInlinePadding$1 = remarkLintNoInlinePadding;
 
 /**
  * ## When should I use this?
@@ -13408,6 +13418,7 @@ const remarkLintNoShortcutReferenceImage = lintRule(
     });
   }
 );
+var remarkLintNoShortcutReferenceImage$1 = remarkLintNoShortcutReferenceImage;
 
 /**
  * ## When should I use this?
@@ -13465,6 +13476,7 @@ const remarkLintNoShortcutReferenceLink = lintRule(
     });
   }
 );
+var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
 
 /**
  * ## When should I use this?
@@ -13476,9 +13488,12 @@ const remarkLintNoShortcutReferenceLink = lintRule(
  * The following options (default: `undefined`) are accepted:
  *
  * *   `Object` with the following fields:
- *     *   `allow` (`Array<string>`, default: `[]`)
- *         — text that you want to allowed between `[` and `]` even though it’s
- *         undefined
+ *     *   `allow` (`Array<string | RegExp | { source: string }>`,
+ *         default: `[]`)
+ *         — text or regex that you want to be allowed between `[` and `]`
+ *         even though it’s undefined; regex is provided via a `RegExp` object
+ *         or via a `{ source: string }` object where `source` is the source
+ *         text of a case-insensitive regex
  *
  * ## Recommendation
  *
@@ -13524,9 +13539,18 @@ const remarkLintNoShortcutReferenceLink = lintRule(
  *   [foo]: https://example.com
  *
  * @example
- *   {"name": "ok-allow.md", "setting": {"allow": ["...", "…"]}}
+ *   {"name": "ok-allow.md", "config": {"allow": ["...", "…"]}}
  *
  *   > Eliding a portion of a quoted passage […] is acceptable.
+ *
+ * @example
+ *   {"name": "ok-allow.md", "config": {"allow": ["a", {"source": "^b\\."}]}}
+ *
+ *   [foo][b.c]
+ *
+ *   [bar][a]
+ *
+ *   Matching is case-insensitive: [bar][B.C]
  *
  * @example
  *   {"name": "not-ok.md", "label": "input"}
@@ -13561,6 +13585,19 @@ const remarkLintNoShortcutReferenceLink = lintRule(
  *   15:13-15:25: Found reference to undefined definition
  *   17:17-17:23: Found reference to undefined definition
  *   17:23-17:26: Found reference to undefined definition
+ *
+ * @example
+ *   {"name": "not-ok.md", "label": "input", "config": {"allow": ["a", {"source": "^b\\."}]}}
+ *
+ *   [foo][a.c]
+ *
+ *   [bar][b]
+ *
+ * @example
+ *   {"name": "not-ok.md", "label": "output", "config": {"allow": ["a", {"source": "^b\\."}]}}
+ *
+ *   1:1-1:11: Found reference to undefined definition
+ *   3:1-3:9: Found reference to undefined definition
  */
 const remarkLintNoUndefinedReferences = lintRule(
   {
@@ -13571,10 +13608,21 @@ const remarkLintNoUndefinedReferences = lintRule(
     const contents = String(file);
     const loc = location(file);
     const lineEnding = /(\r?\n|\r)[\t ]*(>[\t ]*)*/g;
-    const allow = new Set(
-      (option.allow || []).map((d) => normalizeIdentifier(d))
-    );
     const map = Object.create(null);
+    const allow = option.allow || [];
+    const regexes = [];
+    const strings = new Set();
+    let index = -1;
+    while (++index < allow.length) {
+      const value = allow[index];
+      if (typeof value === 'string') {
+        strings.add(normalizeIdentifier(value));
+      } else if (value instanceof RegExp) {
+        regexes.push(value);
+      } else {
+        regexes.push(new RegExp(value.source, 'i'));
+      }
+    }
     visit$1(tree, (node) => {
       if (
         (node.type === 'definition' || node.type === 'footnoteDefinition') &&
@@ -13590,7 +13638,7 @@ const remarkLintNoUndefinedReferences = lintRule(
           node.type === 'footnoteReference') &&
         !generated(node) &&
         !(normalizeIdentifier(node.identifier) in map) &&
-        !allow.has(normalizeIdentifier(node.identifier))
+        !isAllowed(node.identifier)
       ) {
         file.message('Found reference to undefined definition', node);
       }
@@ -13693,14 +13741,22 @@ const remarkLintNoUndefinedReferences = lintRule(
         if (
           !generated({position: pos}) &&
           !(normalizeIdentifier(id) in map) &&
-          !allow.has(normalizeIdentifier(id))
+          !isAllowed(id)
         ) {
           file.message('Found reference to undefined definition', pos);
         }
       }
     }
+    function isAllowed(id) {
+      const normalized = normalizeIdentifier(id);
+      return (
+        strings.has(normalized) ||
+        regexes.some((regex) => regex.test(normalized))
+      )
+    }
   }
 );
+var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
 
 /**
  * ## When should I use this?
@@ -13777,26 +13833,28 @@ const remarkLintNoUnusedDefinitions = lintRule(
     }
   }
 );
+var remarkLintNoUnusedDefinitions$1 = remarkLintNoUnusedDefinitions;
 
 const remarkPresetLintRecommended = {
   plugins: [
     remarkLint,
-    remarkLintFinalNewline,
-    remarkLintListItemBulletIndent,
-    [remarkLintListItemIndent, 'tab-size'],
-    remarkLintNoBlockquoteWithoutMarker,
-    remarkLintNoLiteralUrls,
-    [remarkLintOrderedListMarkerStyle, '.'],
-    remarkLintHardBreakSpaces,
-    remarkLintNoDuplicateDefinitions,
-    remarkLintNoHeadingContentIndent,
-    remarkLintNoInlinePadding,
-    remarkLintNoShortcutReferenceImage,
-    remarkLintNoShortcutReferenceLink,
-    remarkLintNoUndefinedReferences,
-    remarkLintNoUnusedDefinitions
+    remarkLintFinalNewline$1,
+    remarkLintListItemBulletIndent$1,
+    [remarkLintListItemIndent$1, 'tab-size'],
+    remarkLintNoBlockquoteWithoutMarker$1,
+    remarkLintNoLiteralUrls$1,
+    [remarkLintOrderedListMarkerStyle$1, '.'],
+    remarkLintHardBreakSpaces$1,
+    remarkLintNoDuplicateDefinitions$1,
+    remarkLintNoHeadingContentIndent$1,
+    remarkLintNoInlinePadding$1,
+    remarkLintNoShortcutReferenceImage$1,
+    remarkLintNoShortcutReferenceLink$1,
+    remarkLintNoUndefinedReferences$1,
+    remarkLintNoUnusedDefinitions$1
   ]
 };
+var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
 
 /**
  * ## When should I use this?
@@ -13907,6 +13965,7 @@ const remarkLintBlockquoteIndentation = lintRule(
     });
   }
 );
+var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
 function check$1(node) {
   return pointStart(node.children[0]).column - pointStart(node).column
 }
@@ -14061,6 +14120,7 @@ const remarkLintCheckboxCharacterStyle = lintRule(
     });
   }
 );
+var remarkLintCheckboxCharacterStyle$1 = remarkLintCheckboxCharacterStyle;
 
 /**
  * ## When should I use this?
@@ -14158,6 +14218,7 @@ const remarkLintCheckboxContentIndent = lintRule(
     });
   }
 );
+var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
 
 /**
  * @author Titus Wormer
@@ -14297,6 +14358,7 @@ const remarkLintCodeBlockStyle = lintRule(
     });
   }
 );
+var remarkLintCodeBlockStyle$1 = remarkLintCodeBlockStyle;
 
 /**
  * ## When should I use this?
@@ -14363,6 +14425,7 @@ const remarkLintDefinitionSpacing = lintRule(
     });
   }
 );
+var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
 
 /**
  * ## When should I use this?
@@ -14499,6 +14562,7 @@ const remarkLintFencedCodeFlag = lintRule(
     });
   }
 );
+var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
 
 /**
  * ## When should I use this?
@@ -14638,6 +14702,7 @@ const remarkLintFencedCodeMarker = lintRule(
     });
   }
 );
+var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
 
 /**
  * ## When should I use this?
@@ -14693,6 +14758,7 @@ const remarkLintFileExtension = lintRule(
     }
   }
 );
+var remarkLintFileExtension$1 = remarkLintFileExtension;
 
 /**
  * ## When should I use this?
@@ -14784,6 +14850,7 @@ const remarkLintFinalDefinition = lintRule(
     );
   }
 );
+var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
 
 /**
  * ## When should I use this?
@@ -14917,6 +14984,7 @@ const remarkLintFirstHeadingLevel = lintRule(
     });
   }
 );
+var remarkLintFirstHeadingLevel$1 = remarkLintFirstHeadingLevel;
 function infer(node) {
   const results = node.value.match(re$3);
   return results ? Number(results[1]) : undefined
@@ -15064,6 +15132,7 @@ const remarkLintHeadingStyle = lintRule(
     });
   }
 );
+var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
 
 /**
  * ## When should I use this?
@@ -15244,6 +15313,7 @@ const remarkLintMaximumLineLength = lintRule(
     }
   }
 );
+var remarkLintMaximumLineLength$1 = remarkLintMaximumLineLength;
 
 /**
  * ## When should I use this?
@@ -15348,6 +15418,7 @@ const remarkLintNoConsecutiveBlankLines = lintRule(
     }
   }
 );
+var remarkLintNoConsecutiveBlankLines$1 = remarkLintNoConsecutiveBlankLines;
 
 /**
  * ## When should I use this?
@@ -15400,6 +15471,7 @@ const remarkLintNoFileNameArticles = lintRule(
     }
   }
 );
+var remarkLintNoFileNameArticles$1 = remarkLintNoFileNameArticles;
 
 /**
  * ## When should I use this?
@@ -15436,6 +15508,7 @@ const remarkLintNoFileNameConsecutiveDashes = lintRule(
     }
   }
 );
+var remarkLintNoFileNameConsecutiveDashes$1 = remarkLintNoFileNameConsecutiveDashes;
 
 /**
  * ## When should I use this?
@@ -15477,6 +15550,7 @@ const remarkLintNofileNameOuterDashes = lintRule(
     }
   }
 );
+var remarkLintNofileNameOuterDashes$1 = remarkLintNofileNameOuterDashes;
 
 /**
  * ## When should I use this?
@@ -15573,6 +15647,7 @@ const remarkLintNoHeadingIndent = lintRule(
     });
   }
 );
+var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
 
 /**
  * ## When should I use this?
@@ -15638,6 +15713,7 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
     });
   }
 );
+var remarkLintNoMultipleToplevelHeadings$1 = remarkLintNoMultipleToplevelHeadings;
 
 /**
  * ## When should I use this?
@@ -15748,6 +15824,7 @@ const remarkLintNoShellDollars = lintRule(
     });
   }
 );
+var remarkLintNoShellDollars$1 = remarkLintNoShellDollars;
 
 /**
  * ## When should I use this?
@@ -15872,6 +15949,7 @@ const remarkLintNoTableIndentation = lintRule(
     });
   }
 );
+var remarkLintNoTableIndentation$1 = remarkLintNoTableIndentation;
 
 /**
  * ## When should I use this?
@@ -15980,6 +16058,7 @@ const remarkLintNoTabs = lintRule(
     }
   }
 );
+var remarkLintNoTabs$1 = remarkLintNoTabs;
 
 var sliced$1 = function (args, slice, sliceEnd) {
   var ret = [];
@@ -19956,6 +20035,7 @@ const remarkLintRuleStyle = lintRule(
     });
   }
 );
+var remarkLintRuleStyle$1 = remarkLintRuleStyle;
 
 /**
  * ## When should I use this?
@@ -20060,6 +20140,7 @@ const remarkLintStrongMarker = lintRule(
     });
   }
 );
+var remarkLintStrongMarker$1 = remarkLintStrongMarker;
 
 /**
  * ## When should I use this?
@@ -20363,6 +20444,7 @@ const remarkLintTableCellPadding = lintRule(
     }
   }
 );
+var remarkLintTableCellPadding$1 = remarkLintTableCellPadding;
 function size$1(node) {
   const head = pointStart(node.children[0]).offset;
   const tail = pointEnd(node.children[node.children.length - 1]).offset;
@@ -20451,6 +20533,7 @@ const remarkLintTablePipes = lintRule(
     });
   }
 );
+var remarkLintTablePipes$1 = remarkLintTablePipes;
 
 /**
  * ## When should I use this?
@@ -20580,17 +20663,18 @@ const remarkLintUnorderedListMarkerStyle = lintRule(
     });
   }
 );
+var remarkLintUnorderedListMarkerStyle$1 = remarkLintUnorderedListMarkerStyle;
 
 const plugins = [
   remarkGfm,
-  remarkPresetLintRecommended,
-  [remarkLintBlockquoteIndentation, 2],
-  [remarkLintCheckboxCharacterStyle, { checked: "x", unchecked: " " }],
-  remarkLintCheckboxContentIndent,
-  [remarkLintCodeBlockStyle, "fenced"],
-  remarkLintDefinitionSpacing,
+  remarkPresetLintRecommended$1,
+  [remarkLintBlockquoteIndentation$1, 2],
+  [remarkLintCheckboxCharacterStyle$1, { checked: "x", unchecked: " " }],
+  remarkLintCheckboxContentIndent$1,
+  [remarkLintCodeBlockStyle$1, "fenced"],
+  remarkLintDefinitionSpacing$1,
   [
-    remarkLintFencedCodeFlag,
+    remarkLintFencedCodeFlag$1,
     {
       flags: [
         "bash",
@@ -20612,22 +20696,22 @@ const plugins = [
       ],
     },
   ],
-  [remarkLintFencedCodeMarker, "`"],
-  [remarkLintFileExtension, "md"],
-  remarkLintFinalDefinition,
-  [remarkLintFirstHeadingLevel, 1],
-  [remarkLintHeadingStyle, "atx"],
-  [remarkLintListItemIndent, "space"],
-  remarkLintMaximumLineLength,
-  remarkLintNoConsecutiveBlankLines,
-  remarkLintNoFileNameArticles,
-  remarkLintNoFileNameConsecutiveDashes,
-  remarkLintNofileNameOuterDashes,
-  remarkLintNoHeadingIndent,
-  remarkLintNoMultipleToplevelHeadings,
-  remarkLintNoShellDollars,
-  remarkLintNoTableIndentation,
-  remarkLintNoTabs,
+  [remarkLintFencedCodeMarker$1, "`"],
+  [remarkLintFileExtension$1, "md"],
+  remarkLintFinalDefinition$1,
+  [remarkLintFirstHeadingLevel$1, 1],
+  [remarkLintHeadingStyle$1, "atx"],
+  [remarkLintListItemIndent$1, "space"],
+  remarkLintMaximumLineLength$1,
+  remarkLintNoConsecutiveBlankLines$1,
+  remarkLintNoFileNameArticles$1,
+  remarkLintNoFileNameConsecutiveDashes$1,
+  remarkLintNofileNameOuterDashes$1,
+  remarkLintNoHeadingIndent$1,
+  remarkLintNoMultipleToplevelHeadings$1,
+  remarkLintNoShellDollars$1,
+  remarkLintNoTableIndentation$1,
+  remarkLintNoTabs$1,
   remarkLintNoTrailingSpaces,
   remarkLintNodejsLinks,
   remarkLintNodejsYamlComments,
@@ -20651,11 +20735,11 @@ const plugins = [
       { yes: "V8" },
     ],
   ],
-  remarkLintRuleStyle,
-  [remarkLintStrongMarker, "*"],
-  [remarkLintTableCellPadding, "padded"],
-  remarkLintTablePipes,
-  [remarkLintUnorderedListMarkerStyle, "*"],
+  remarkLintRuleStyle$1,
+  [remarkLintStrongMarker$1, "*"],
+  [remarkLintTableCellPadding$1, "padded"],
+  remarkLintTablePipes$1,
+  [remarkLintUnorderedListMarkerStyle$1, "*"],
 ];
 const settings = {
   emphasis: "_",
