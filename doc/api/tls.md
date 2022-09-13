@@ -2012,7 +2012,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: If `ALPNProtocols` is set, incoming connections that send an
                  ALPN extension with no supported protocols are terminated with

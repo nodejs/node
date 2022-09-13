@@ -1533,7 +1533,7 @@ changes:
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42894
     description: If the `type` argument is `null` or omitted, Node.js will
                  autodetect `target` type and automatically
@@ -4612,7 +4612,7 @@ default with the above values.
 <!-- YAML
 added: v0.11.5
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
                  `toString` function is no longer supported.
@@ -4684,7 +4684,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
                  `toString` function is no longer supported.
@@ -5926,7 +5926,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `data` parameter an object with an own
                  `toString` function is no longer supported.

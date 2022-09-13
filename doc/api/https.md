@@ -311,7 +311,7 @@ https.get('https://encrypted.google.com/', (res) => {
 added: v0.5.9
 changes:
   - version:
-      - REPLACEME
+      - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
     description: The agent now uses HTTP Keep-Alive by default.
 -->

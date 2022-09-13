@@ -1472,7 +1472,7 @@ type other than {net.Socket}.
 added: v0.1.90
 changes:
   - version:
-      - REPLACEME
+      - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
     description: The method closes idle connections before returning.
 
@@ -3294,7 +3294,7 @@ server.listen(8000);
 added: v0.5.9
 changes:
   - version:
-      - REPLACEME
+      - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
     description: The agent now uses HTTP Keep-Alive by default.
 -->

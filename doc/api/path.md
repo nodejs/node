@@ -207,7 +207,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 <!-- YAML
 added: v0.11.15
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44349
     description: The dot will be added if it is not specified in `ext`.
 -->

@@ -396,7 +396,7 @@ Disable experimental support for the [Fetch API][].
 ### `--no-experimental-global-webcrypto`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 Disable exposition of [Web Crypto API][] on the global scope.
@@ -404,7 +404,7 @@ Disable exposition of [Web Crypto API][] on the global scope.
 ### `--no-experimental-global-customevent`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 Disable exposition of [CustomEvent Web API][] on the global scope.
@@ -420,7 +420,7 @@ Use this flag to disable top-level await in REPL.
 ### `--experimental-shadow-realm`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 Use this flag to enable [ShadowRealm][] support.
@@ -642,7 +642,7 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 > Stability: 1 - Experimental

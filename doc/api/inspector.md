@@ -34,7 +34,7 @@ const inspector = require('node:inspector');
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 ### Class: `inspector.Session`
@@ -125,7 +125,7 @@ enabled agents or configured breakpoints.
 #### `session.post(method[, params])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 * `method` {string}
