@@ -346,7 +346,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -365,7 +365,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -382,7 +382,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
@@ -401,7 +401,7 @@ added:
   - v18.7.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44860
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
@@ -548,7 +548,7 @@ This variable may appear to be global but is not. See [`module`][].
 ## `PerformanceEntry`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -558,7 +558,7 @@ The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 ## `PerformanceMark`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -568,7 +568,7 @@ The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 ## `PerformanceMeasure`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -578,7 +578,7 @@ The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 ## `PerformanceObserver`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -588,7 +588,7 @@ The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 ## `PerformanceObserverEntryList`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -599,7 +599,7 @@ The `PerformanceObserverEntryList` class. See
 ## `PerformanceResourceTiming`
 
 <!-- YAML
-added: REPLACEME
+added: v19.0.0
 -->
 
 <!-- type=global -->
@@ -804,7 +804,7 @@ added:
   - v17.6.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->

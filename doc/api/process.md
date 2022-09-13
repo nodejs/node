@@ -1041,7 +1041,7 @@ This feature is not available in [`Worker`][] threads.
 <!-- YAML
 added: v0.7.7
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43627
     description: The `process.config` object is now frozen.
   - version: v16.0.0

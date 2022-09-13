@@ -2276,7 +2276,7 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: This event will only be emitted if the client did not transmit
                  an ALPN extension during the TLS handshake.
