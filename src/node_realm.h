@@ -60,8 +60,7 @@ class Realm : public MemoryRetainer {
   RealmSerializeInfo Serialize(v8::SnapshotCreator* creator);
   void DeserializeProperties(const RealmSerializeInfo* info);
 
-  v8::MaybeLocal<v8::Value> ExecuteBootstrapper(
-      const char* id, std::vector<v8::Local<v8::Value>>* arguments);
+  v8::MaybeLocal<v8::Value> ExecuteBootstrapper(const char* id);
   v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
   v8::MaybeLocal<v8::Value> BootstrapNode();
   v8::MaybeLocal<v8::Value> RunBootstrapping();

@@ -261,15 +261,7 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   CHECK_NOT_NULL(main_script_id);
   Realm* realm = env->principal_realm();
 
-  // Arguments must match the parameters specified in
-  // BuiltinLoader::LookupAndCompile().
-  std::vector<Local<Value>> arguments = {env->process_object(),
-                                         env->builtin_module_require(),
-                                         env->internal_binding_loader(),
-                                         env->primordials()};
-
-  return scope.EscapeMaybe(
-      realm->ExecuteBootstrapper(main_script_id, &arguments));
+  return scope.EscapeMaybe(realm->ExecuteBootstrapper(main_script_id));
 }
 
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {

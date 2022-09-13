@@ -26,6 +26,7 @@ using v8::ScriptOrigin;
 using v8::Set;
 using v8::SideEffectType;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 BuiltinLoader BuiltinLoader::instance_;
@@ -352,8 +353,12 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
     };
-  } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0) {
-    // internal/main/*: process, require, internalBinding, primordials
+  } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
+             strncmp(id,
+                     "internal/bootstrap/",
+                     strlen("internal/bootstrap/")) == 0) {
+    // internal/main/*, internal/bootstrap/*: process, require,
+    //                                        internalBinding, primordials
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "process"),
         FIXED_ONE_BYTE_STRING(isolate, "require"),
@@ -365,16 +370,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "process"),
         FIXED_ONE_BYTE_STRING(isolate, "require"),
-    };
-  } else if (strncmp(id,
-                     "internal/bootstrap/",
-                     strlen("internal/bootstrap/")) == 0) {
-    // internal/bootstrap/*: process, require, internalBinding, primordials
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "process"),
-        FIXED_ONE_BYTE_STRING(isolate, "require"),
-        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
     };
   } else {
     // others: exports, require, module, process, internalBinding, primordials
@@ -394,6 +389,76 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     RecordResult(id, result, optional_env);
   }
   return maybe;
+}
+
+MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
+                                                const char* id,
+                                                Realm* realm) {
+  Isolate* isolate = context->GetIsolate();
+  // Arguments must match the parameters specified in
+  // BuiltinLoader::LookupAndCompile().
+  std::vector<Local<Value>> arguments;
+  // Detects parameters of the scripts based on module ids.
+  // internal/bootstrap/loaders: process, getLinkedBinding,
+  //                             getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+    Local<Value> get_linked_binding;
+    Local<Value> get_internal_binding;
+    if (!NewFunctionTemplate(isolate, binding::GetLinkedBinding)
+             ->GetFunction(context)
+             .ToLocal(&get_linked_binding) ||
+        !NewFunctionTemplate(isolate, binding::GetInternalBinding)
+             ->GetFunction(context)
+             .ToLocal(&get_internal_binding)) {
+      return MaybeLocal<Value>();
+    }
+    arguments = {realm->process_object(),
+                 get_linked_binding,
+                 get_internal_binding,
+                 realm->primordials()};
+  } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
+             strncmp(id,
+                     "internal/bootstrap/",
+                     strlen("internal/bootstrap/")) == 0) {
+    // internal/main/*, internal/bootstrap/*: process, require,
+    //                                        internalBinding, primordials
+    arguments = {realm->process_object(),
+                 realm->builtin_module_require(),
+                 realm->internal_binding_loader(),
+                 realm->primordials()};
+  } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+    // Synthetic embedder main scripts from LoadEnvironment(): process, require
+    arguments = {
+        realm->process_object(),
+        realm->builtin_module_require(),
+    };
+  } else {
+    // This should be invoked with the other CompileAndCall() methods, as
+    // we are unable to generate the arguments.
+    // Currently there are two cases:
+    // internal/per_context/*: the arguments are generated in
+    //                         InitializePrimordials()
+    // all the other cases: the arguments are generated in the JS-land loader.
+    UNREACHABLE();
+  }
+  return CompileAndCall(
+      context, id, arguments.size(), arguments.data(), realm->env());
+}
+
+MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
+                                                const char* id,
+                                                int argc,
+                                                Local<Value> argv[],
+                                                Environment* optional_env) {
+  // Arguments must match the parameters specified in
+  // BuiltinLoader::LookupAndCompile().
+  MaybeLocal<Function> maybe_fn = LookupAndCompile(context, id, optional_env);
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
+    return MaybeLocal<Value>();
+  }
+  Local<Value> undefined = Undefined(context->GetIsolate());
+  return fn->Call(context, undefined, argc, argv);
 }
 
 bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {

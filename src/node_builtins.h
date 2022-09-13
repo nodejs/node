@@ -18,6 +18,8 @@ class PerProcessTest;
 namespace node {
 class SnapshotBuilder;
 class ExternalReferenceRegistry;
+class Realm;
+
 namespace builtins {
 
 using BuiltinSourceMap = std::map<std::string, UnionBytes>;
@@ -49,6 +51,16 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       v8::Local<v8::Context> context,
       const char* id,
       Environment* optional_env);
+
+  static v8::MaybeLocal<v8::Value> CompileAndCall(
+      v8::Local<v8::Context> context,
+      const char* id,
+      int argc,
+      v8::Local<v8::Value> argv[],
+      Environment* optional_env);
+
+  static v8::MaybeLocal<v8::Value> CompileAndCall(
+      v8::Local<v8::Context> context, const char* id, Realm* realm);
 
   static v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
   // Returns config.gypi as a JSON string

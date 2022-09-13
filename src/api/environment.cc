@@ -456,11 +456,7 @@ MaybeLocal<Value> LoadEnvironment(
         env->set_main_utf16(std::move(main_utf16));
         Realm* realm = env->principal_realm();
 
-        // Arguments must match the parameters specified in
-        // BuiltinLoader::LookupAndCompile().
-        std::vector<Local<Value>> args = {realm->process_object(),
-                                          realm->builtin_module_require()};
-        return realm->ExecuteBootstrapper(name.c_str(), &args);
+        return realm->ExecuteBootstrapper(name.c_str());
       });
 }
 
@@ -699,19 +695,11 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
                                         nullptr};
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    // Arguments must match the parameters specified in
-    // BuiltinLoader::LookupAndCompile().
     Local<Value> arguments[] = {exports, primordials};
-    MaybeLocal<Function> maybe_fn =
-        builtins::BuiltinLoader::LookupAndCompile(context, *module, nullptr);
-    Local<Function> fn;
-    if (!maybe_fn.ToLocal(&fn)) {
-      return Nothing<bool>();
-    }
-    MaybeLocal<Value> result =
-        fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
-    // Execution failed during context creation.
-    if (result.IsEmpty()) {
+    if (builtins::BuiltinLoader::CompileAndCall(
+            context, *module, arraysize(arguments), arguments, nullptr)
+            .IsEmpty()) {
+      // Execution failed during context creation.
       return Nothing<bool>();
     }
   }
