@@ -621,6 +621,7 @@ Set-ExecutionPolicy Unrestricted -Force
 iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
 get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
+refreshenv
 ```
 
 The entire installation using Boxstarter will take up approximately 10 GB of
