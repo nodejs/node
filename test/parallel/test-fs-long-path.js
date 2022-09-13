@@ -43,4 +43,7 @@ console.log({
 
 fs.writeFile(fullPath, 'ok', common.mustSucceed(() => {
   fs.stat(fullPath, common.mustSucceed());
+
+  // Tests https://github.com/nodejs/node/issues/39721
+  fs.realpath.native(fullPath, common.mustSucceed());
 }));
