@@ -19,8 +19,6 @@ const inspector = require('node:inspector');
 
 Deactivate the inspector. Blocks until there are no active connections.
 
-This function is not available in [worker threads][].
-
 ## `inspector.console`
 
 * {Object} An object to send messages to the remote inspector console.
@@ -262,4 +260,3 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`session.connect()`]: #sessionconnect
 [security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure
-[worker threads]: worker_threads.md
