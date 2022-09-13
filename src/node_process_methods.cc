@@ -563,7 +563,6 @@ static void Initialize(Local<Object> target,
   // define various internal methods
   if (env->owns_process_state()) {
     env->SetMethod(target, "_debugProcess", DebugProcess);
-    env->SetMethod(target, "_debugEnd", DebugEnd);
     env->SetMethod(target, "abort", Abort);
     env->SetMethod(target, "causeSegfault", CauseSegfault);
     env->SetMethod(target, "chdir", Chdir);
@@ -576,6 +575,7 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "cpuUsage", CPUUsage);
   env->SetMethod(target, "resourceUsage", ResourceUsage);
 
+  env->SetMethod(target, "_debugEnd", DebugEnd);
   env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
   env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
