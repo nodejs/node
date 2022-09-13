@@ -566,24 +566,24 @@ static void Initialize(Local<Object> target,
   // define various internal methods
   if (env->owns_process_state()) {
     SetMethod(context, target, "_debugProcess", DebugProcess);
-    SetMethod(context, target, "_debugEnd", DebugEnd);
     SetMethod(context, target, "abort", Abort);
     SetMethod(context, target, "causeSegfault", CauseSegfault);
     SetMethod(context, target, "chdir", Chdir);
   }
 
   SetMethod(context, target, "umask", Umask);
-  SetMethod(context, target, "_rawDebug", RawDebug);
   SetMethod(context, target, "memoryUsage", MemoryUsage);
   SetMethod(context, target, "rss", Rss);
   SetMethod(context, target, "cpuUsage", CPUUsage);
   SetMethod(context, target, "resourceUsage", ResourceUsage);
 
+  SetMethod(context, target, "_debugEnd", DebugEnd);
   SetMethod(context, target, "_getActiveRequestsInfo", GetActiveRequestsInfo);
   SetMethod(context, target, "_getActiveRequests", GetActiveRequests);
   SetMethod(context, target, "_getActiveHandles", GetActiveHandles);
   SetMethod(context, target, "_getActiveHandlesInfo", GetActiveHandlesInfo);
   SetMethod(context, target, "_kill", Kill);
+  SetMethod(context, target, "_rawDebug", RawDebug);
 
   SetMethodNoSideEffect(context, target, "cwd", Cwd);
   SetMethod(context, target, "dlopen", binding::DLOpen);
