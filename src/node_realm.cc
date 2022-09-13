@@ -18,7 +18,6 @@ using v8::MaybeLocal;
 using v8::Object;
 using v8::SnapshotCreator;
 using v8::String;
-using v8::Undefined;
 using v8::Value;
 
 Realm::Realm(Environment* env,
@@ -148,20 +147,10 @@ void Realm::DeserializeProperties(const RealmSerializeInfo* info) {
   DoneBootstrapping();
 }
 
-MaybeLocal<Value> Realm::ExecuteBootstrapper(
-    const char* id, std::vector<Local<Value>>* arguments) {
+MaybeLocal<Value> Realm::ExecuteBootstrapper(const char* id) {
   EscapableHandleScope scope(isolate());
   Local<Context> ctx = context();
-  MaybeLocal<Function> maybe_fn =
-      BuiltinLoader::LookupAndCompile(ctx, id, env());
-
-  Local<Function> fn;
-  if (!maybe_fn.ToLocal(&fn)) {
-    return MaybeLocal<Value>();
-  }
-
-  MaybeLocal<Value> result =
-      fn->Call(ctx, Undefined(isolate()), arguments->size(), arguments->data());
+  MaybeLocal<Value> result = BuiltinLoader::CompileAndCall(ctx, id, this);
 
   // If there was an error during bootstrap, it must be unrecoverable
   // (e.g. max call stack exceeded). Clear the stack so that the
@@ -179,21 +168,9 @@ MaybeLocal<Value> Realm::ExecuteBootstrapper(
 MaybeLocal<Value> Realm::BootstrapInternalLoaders() {
   EscapableHandleScope scope(isolate_);
 
-  // Arguments must match the parameters specified in
-  // BuiltinLoader::LookupAndCompile().
-  std::vector<Local<Value>> loaders_args = {
-      process_object(),
-      NewFunctionTemplate(isolate_, binding::GetLinkedBinding)
-          ->GetFunction(context())
-          .ToLocalChecked(),
-      NewFunctionTemplate(isolate_, binding::GetInternalBinding)
-          ->GetFunction(context())
-          .ToLocalChecked(),
-      primordials()};
-
   // Bootstrap internal loaders
   Local<Value> loader_exports;
-  if (!ExecuteBootstrapper("internal/bootstrap/loaders", &loaders_args)
+  if (!ExecuteBootstrapper("internal/bootstrap/loaders")
            .ToLocal(&loader_exports)) {
     return MaybeLocal<Value>();
   }
@@ -216,23 +193,14 @@ MaybeLocal<Value> Realm::BootstrapInternalLoaders() {
 MaybeLocal<Value> Realm::BootstrapNode() {
   EscapableHandleScope scope(isolate_);
 
-  // Arguments must match the parameters specified in
-  // BuiltinLoader::LookupAndCompile().
-  // process, require, internalBinding, primordials
-  std::vector<Local<Value>> node_args = {process_object(),
-                                         builtin_module_require(),
-                                         internal_binding_loader(),
-                                         primordials()};
-
-  MaybeLocal<Value> result =
-      ExecuteBootstrapper("internal/bootstrap/node", &node_args);
+  MaybeLocal<Value> result = ExecuteBootstrapper("internal/bootstrap/node");
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
   }
 
   if (!env_->no_browser_globals()) {
-    result = ExecuteBootstrapper("internal/bootstrap/browser", &node_args);
+    result = ExecuteBootstrapper("internal/bootstrap/browser");
 
     if (result.IsEmpty()) {
       return MaybeLocal<Value>();
@@ -243,7 +211,7 @@ MaybeLocal<Value> Realm::BootstrapNode() {
   auto thread_switch_id =
       env_->is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
                              : "internal/bootstrap/switches/is_not_main_thread";
-  result = ExecuteBootstrapper(thread_switch_id, &node_args);
+  result = ExecuteBootstrapper(thread_switch_id);
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
@@ -253,7 +221,7 @@ MaybeLocal<Value> Realm::BootstrapNode() {
       env_->owns_process_state()
           ? "internal/bootstrap/switches/does_own_process_state"
           : "internal/bootstrap/switches/does_not_own_process_state";
-  result = ExecuteBootstrapper(process_state_switch_id, &node_args);
+  result = ExecuteBootstrapper(process_state_switch_id);
 
   if (result.IsEmpty()) {
     return MaybeLocal<Value>();
