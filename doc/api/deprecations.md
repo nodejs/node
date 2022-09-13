@@ -2288,7 +2288,7 @@ future release.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: \`url.parse()` is deprecated again in DEP0169.
   - version:
@@ -3178,7 +3178,7 @@ thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44711
     description: Runtime deprecation.
   - version:
@@ -3281,7 +3281,7 @@ Node-API callbacks.
 <!-- YAML
 changes:
   - version:
-      - REPLACEME
+      - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
 -->

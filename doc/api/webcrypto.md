@@ -2,7 +2,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44897
     description: No longer experimental except for the `Ed25519`, `Ed448`,
       `X25519`, and `X448` algorithms.
