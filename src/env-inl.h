@@ -896,6 +896,10 @@ inline void Environment::set_heap_snapshot_near_heap_limit(uint32_t limit) {
   heap_snapshot_near_heap_limit_ = limit;
 }
 
+inline bool Environment::is_in_heapsnapshot_heap_limit_callback() const {
+  return is_in_heapsnapshot_heap_limit_callback_;
+}
+
 inline void Environment::AddHeapSnapshotNearHeapLimitCallback() {
   DCHECK(!heapsnapshot_near_heap_limit_callback_added_);
   heapsnapshot_near_heap_limit_callback_added_ = true;

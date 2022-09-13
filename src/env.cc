@@ -1721,7 +1721,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
         "Invoked NearHeapLimitCallback, processing=%d, "
         "current_limit=%" PRIu64 ", "
         "initial_limit=%" PRIu64 "\n",
-        env->is_processing_heap_limit_callback_,
+        env->is_in_heapsnapshot_heap_limit_callback_,
         static_cast<uint64_t>(current_heap_limit),
         static_cast<uint64_t>(initial_heap_limit));
 
@@ -1773,8 +1773,8 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // new limit, so in a heap with unbounded growth the isolate
   // may eventually crash with this new limit - effectively raising
   // the heap limit to the new one.
-  if (env->is_processing_heap_limit_callback_) {
-    size_t new_limit = current_heap_limit + max_young_gen_size;
+  size_t new_limit = current_heap_limit + max_young_gen_size;
+  if (env->is_in_heapsnapshot_heap_limit_callback_) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots in nested callback. "
@@ -1790,14 +1790,14 @@ size_t Environment::NearHeapLimitCallback(void* data,
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
-    env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
+    env->RemoveHeapSnapshotNearHeapLimitCallback(0);
     // The new limit must be higher than current_heap_limit or V8 might
     // crash.
-    return current_heap_limit + 1;
+    return new_limit;
   }
 
   // Take the snapshot synchronously.
-  env->is_processing_heap_limit_callback_ = true;
+  env->is_in_heapsnapshot_heap_limit_callback_ = true;
 
   std::string dir = env->options()->diagnostic_dir;
   if (dir.empty()) {
@@ -1808,17 +1808,21 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   Debug(env, DebugCategory::DIAGNOSTICS, "Start generating %s...\n", *name);
 
-  // Remove the callback first in case it's triggered when generating
-  // the snapshot.
-  env->RemoveHeapSnapshotNearHeapLimitCallback(initial_heap_limit);
-
   heap::WriteSnapshot(env, filename.c_str());
   env->heap_limit_snapshot_taken_ += 1;
 
-  // Don't take more snapshots than the number specified by
-  // --heapsnapshot-near-heap-limit.
-  if (env->heap_limit_snapshot_taken_ < env->heap_snapshot_near_heap_limit_) {
-    env->AddHeapSnapshotNearHeapLimitCallback();
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "%" PRIu32 "/%" PRIu32 " snapshots taken.\n",
+        env->heap_limit_snapshot_taken_,
+        env->heap_snapshot_near_heap_limit_);
+
+  // Don't take more snapshots than the limit specified.
+  if (env->heap_limit_snapshot_taken_ == env->heap_snapshot_near_heap_limit_) {
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "Removing the near heap limit callback");
+    env->RemoveHeapSnapshotNearHeapLimitCallback(0);
   }
 
   FPrintF(stderr, "Wrote snapshot to %s\n", filename.c_str());
@@ -1826,11 +1830,11 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // 95% of the initial limit.
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
 
-  env->is_processing_heap_limit_callback_ = false;
+  env->is_in_heapsnapshot_heap_limit_callback_ = false;
 
   // The new limit must be higher than current_heap_limit or V8 might
   // crash.
-  return current_heap_limit + 1;
+  return new_limit;
 }
 
 inline size_t Environment::SelfSize() const {
