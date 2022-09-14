@@ -319,7 +319,7 @@ internally.
 ## `run([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.9.0
 -->
 
 * `options` {Object} Configuration options for running tests. The following
@@ -592,7 +592,7 @@ describe('tests', async () => {
 ## Class: `TapStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.9.0
 -->
 
 * Extends {ReadableStream}
