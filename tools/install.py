@@ -177,6 +177,11 @@ def files(action):
     else:
       output_lib = 'libnode.' + variables.get('shlib_suffix')
       action([output_prefix + output_lib], variables.get('libdir') + '/' + output_lib)
+  if 'true' == variables.get('node_use_dtrace'):
+    action(['out/Release/node.d'], 'lib/dtrace/node.d')
+
+  # behave similarly for systemtap
+  action(['src/node.stp'], 'share/systemtap/tapset/')
 
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
   action(['deps/v8/tools/lldb_commands.py'], 'share/doc/node/')
