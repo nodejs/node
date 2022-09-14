@@ -3644,7 +3644,6 @@ changes:
     - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Calling `process.umask()` with no arguments is deprecated.
-
 -->
 
 > Stability: 0 - Deprecated. Calling `process.umask()` with no argument causes
