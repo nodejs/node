@@ -9,8 +9,9 @@
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
-#include "util.h"
 #include "node.h"
+#include "node_internals.h"
+#include "util.h"
 
 #include "ares.h"
 #include "v8.h"
