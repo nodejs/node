@@ -3238,6 +3238,22 @@ details.
 These groups might be removed in future versions of Node.js. Applications that
 rely on these groups should evaluate using stronger MODP groups instead.
 
+### DEP0168: Invalid `type` in `fs.symlink()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/99999
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`type` is an optional parameter for Windows platforms that can be set to
+`'dir'`, `'file'`, `'junction'`, or `undefined`. Passing any other value in
+[`fs.symlink()`][], [`fs.symlinkSync()`][], and [`fsPromises.symlink()`][]
+is deprecated.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3302,9 +3318,12 @@ rely on these groups should evaluate using stronger MODP groups instead.
 [`fs.read()`]: fs.md#fsreadfd-buffer-offset-length-position-callback
 [`fs.readSync()`]: fs.md#fsreadsyncfd-buffer-offset-length-position
 [`fs.stat()`]: fs.md#fsstatpath-options-callback
+[`fs.symlink()`]: fs.md#fssymlinktarget-path-type-callback
+[`fs.symlinkSync()`]: fs.md#fssymlinksynctarget-path-type
 [`fs.write()`]: fs.md#fswritefd-buffer-offset-length-position-callback
 [`fs.writeFile()`]: fs.md#fswritefilefile-data-options-callback
 [`fs.writeFileSync()`]: fs.md#fswritefilesyncfile-data-options
+[`fsPromises.symlink()`]: fs.md#fspromisessymlinktarget-path-type
 [`http.ClientRequest`]: http.md#class-httpclientrequest
 [`http.IncomingMessage`]: http.md#class-httpincomingmessage
 [`http.ServerResponse`]: http.md#class-httpserverresponse

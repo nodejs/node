@@ -1473,9 +1473,10 @@ added: v10.0.0
 Creates a symbolic link.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
-`'file'`, or `'junction'`. Windows junction points require the destination path
-to be absolute. When using `'junction'`, the `target` argument will
-automatically be normalized to absolute path.
+`'file'`, or `'junction'`. If the `type` argument is undefined, Node.js will
+autodetect `target` type and use `'file'` or `'dir'`. Windows junction points
+require the destination path to be absolute. When using `'junction'`, the
+`target` argument will automatically be normalized to absolute path.
 
 ### `fsPromises.truncate(path[, len])`
 
@@ -4045,7 +4046,7 @@ See the POSIX symlink(2) documentation for more details.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
-not a string, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
+undefined, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
 If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
