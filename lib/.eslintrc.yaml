@@ -73,6 +73,18 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: PerformanceEntry
+      message: Use `const { PerformanceEntry } = require('perf_hooks');` instead of the global.
+    - name: PerformanceMark
+      message: Use `const { PerformanceMark } = require('perf_hooks');` instead of the global.
+    - name: PerformanceMeasure
+      message: Use `const { PerformanceMeasure } = require('perf_hooks');` instead of the global.
+    - name: PerformanceObserverEntryList
+      message: Use `const { PerformanceObserverEntryList } = require('perf_hooks');` instead of the global.
+    - name: PerformanceObserver
+      message: Use `const { PerformanceObserver } = require('perf_hooks');` instead of the global.
+    - name: PerformanceResourceTiming
+      message: Use `const { PerformanceResourceTiming } = require('perf_hooks');` instead of the global.
     - name: ReadableStream
       message: Use `const { ReadableStream } = require('internal/webstreams/readablestream')` instead of the global.
     - name: ReadableStreamDefaultReader
