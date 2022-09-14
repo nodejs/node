@@ -250,13 +250,11 @@ char* Data(Local<Value> val) {
   // latter returns `NULL`. At least one library in the ecosystem (see the
   // referenced issue) abuses zero-length buffers to wrap arbitrary pointers,
   // which is broken by this difference. It is unfortunate that every library
-  // needs to take a performance hit because of this edge-case, and somebody
-  // should figure out if this is actually a reasonable contract to uphold
-  // long-term.
+  // needs to take a performance hit because of this edge-case, so this change
+  // is only being backported to older Node.js releases.
   //
   // See: https://github.com/nodejs/node/issues/44554
   return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
-
          ui->ByteOffset();
 }
 
