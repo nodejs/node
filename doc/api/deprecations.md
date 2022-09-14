@@ -3243,7 +3243,7 @@ rely on these groups should evaluate using stronger MODP groups instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/99999
+    pr-url: https://github.com/nodejs/node/pull/44641
     description: Documentation-only deprecation.
 -->
 
