@@ -6,23 +6,6 @@ const runner = new WPTRunner('resource-timing');
 
 runner.pretendGlobalThisAs('Window');
 runner.setInitScript(`
-  const {
-    PerformanceEntry,
-    PerformanceResourceTiming,
-  } = require('perf_hooks');
-  Object.defineProperty(global, 'PerformanceEntry', {
-    value: PerformanceEntry,
-    enumerable: false,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(global, 'PerformanceResourceTiming', {
-    value: PerformanceResourceTiming,
-    enumerable: false,
-    writable: true,
-    configurable: true,
-  });
-
   global.resource = performance.markResourceTiming({
     startTime: 0,
     endTime: 0,
