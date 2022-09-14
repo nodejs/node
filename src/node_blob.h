@@ -45,16 +45,13 @@ class Blob : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
-  static BaseObjectPtr<Blob> Create(
-      Environment* env,
-      const std::vector<BlobEntry> store,
-      size_t length);
+  static BaseObjectPtr<Blob> Create(Environment* env,
+                                    const std::vector<BlobEntry>& store,
+                                    size_t length);
 
   static bool HasInstance(Environment* env, v8::Local<v8::Value> object);
 
-  const std::vector<BlobEntry> entries() const {
-    return store_;
-  }
+  const std::vector<BlobEntry>& entries() const { return store_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Blob)
