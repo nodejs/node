@@ -7,7 +7,8 @@ const bench = common.createBenchmark(main, {
   n: [1e1, 1e2, 1e3, 1e4, 1e5, 1e6],
 });
 
-const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
+do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 Dui accumsan sit amet nulla facilisi morbi tempus iaculis urna.
 Eget dolor morbi non arcu risus quis varius quam quisque.
 Lacus viverra vitae congue eu consequat ac felis donec.

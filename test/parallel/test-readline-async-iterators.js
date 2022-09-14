@@ -75,7 +75,8 @@ async function testMutual() {
 }
 
 async function testPerformance() {
-  const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+  const loremIpsum = `Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 Dui accumsan sit amet nulla facilisi morbi tempus iaculis urna.
 Eget dolor morbi non arcu risus quis varius quam quisque.
 Lacus viverra vitae congue eu consequat ac felis donec.
