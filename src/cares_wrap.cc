@@ -1429,7 +1429,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   auto cleanup = OnScopeLeave([&]() { uv_freeaddrinfo(res); });
-  std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
+  BaseObjectPtr<GetAddrInfoReqWrap> req_wrap{
       static_cast<GetAddrInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
@@ -1502,7 +1502,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
                       int status,
                       const char* hostname,
                       const char* service) {
-  std::unique_ptr<GetNameInfoReqWrap> req_wrap {
+  BaseObjectPtr<GetNameInfoReqWrap> req_wrap{
       static_cast<GetNameInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 

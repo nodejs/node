@@ -344,6 +344,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
     if (err) {
       delete req_wrap;
     } else {
+      CHECK(args[2]->Uint32Value(env->context()).IsJust());
       int port = args[2]->Uint32Value(env->context()).FromJust();
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
                                         "connect",
