@@ -39,7 +39,8 @@ async function main({ n }) {
     input: getLoremIpsumStream(n),
   });
 
-  for await (const {} of iterable) {
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of iterable) {
     lineCount++;
   }
   bench.end(lineCount);

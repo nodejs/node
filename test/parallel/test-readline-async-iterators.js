@@ -5,7 +5,6 @@ const fs = require('fs');
 const { join } = require('path');
 const readline = require('readline');
 const { Readable } = require('stream');
-const { Readable } = require('stream');
 const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
@@ -215,7 +214,8 @@ async function testSlowStreamForLeaks() {
   });
 
   let lines = 0;
-  for await (const {} of iterable) {
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of iterable) {
     lines++;
   }
 
