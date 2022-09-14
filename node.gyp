@@ -779,7 +779,6 @@
             'src/crypto/crypto_bio.h',
             'src/crypto/crypto_clienthello-inl.h',
             'src/crypto/crypto_dh.h',
-            'src/crypto/crypto_groups.h',
             'src/crypto/crypto_hmac.h',
             'src/crypto/crypto_rsa.h',
             'src/crypto/crypto_spkac.h',
