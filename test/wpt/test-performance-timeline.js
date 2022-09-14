@@ -7,30 +7,6 @@ const runner = new WPTRunner('performance-timeline');
 runner.pretendGlobalThisAs('Window');
 runner.brandCheckGlobalScopeAttribute('performance');
 runner.setInitScript(`
-  const {
-    PerformanceEntry,
-    PerformanceObserver,
-    PerformanceObserverEntryList,
-  } = require('perf_hooks');
-  Object.defineProperty(global, 'PerformanceEntry', {
-    value: PerformanceEntry,
-    enumerable: false,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(global, 'PerformanceObserver', {
-    value: PerformanceObserver,
-    enumerable: false,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(global, 'PerformanceObserverEntryList', {
-    value: PerformanceObserverEntryList,
-    enumerable: false,
-    writable: true,
-    configurable: true,
-  });
-
   // Create a dummy resource timing entry to mimic how the browser would
   // record the initial page load.
   performance.markResourceTiming({
