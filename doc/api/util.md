@@ -1056,7 +1056,7 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-    * `default` {string | boolean | string[] | boolean[]} The default option
+    * `default` {string | boolean | string\[] | boolean\[]} The default option
       value when it is not set by args. It must be of the same type as the
       the `type` property. When `multiple` is `true`, it must be an array.
   * `strict` {boolean} Should an error be thrown when unknown arguments
