@@ -460,8 +460,8 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
 
   CloseReq* req = new CloseReq(env(), close_req_obj, promise, object());
   auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
-    std::unique_ptr<CloseReq> close(CloseReq::from_req(req));
-    CHECK_NOT_NULL(close);
+    BaseObjectPtr<CloseReq> close(CloseReq::from_req(req));
+    CHECK(close);
     close->file_handle()->AfterClose();
     if (!close->env()->can_call_into_js()) return;
     Isolate* isolate = close->env()->isolate();

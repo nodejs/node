@@ -669,7 +669,7 @@ int UDPWrap::RecvStop() {
 
 
 void UDPWrap::OnSendDone(ReqWrap<uv_udp_send_t>* req, int status) {
-  std::unique_ptr<SendWrap> req_wrap{static_cast<SendWrap*>(req)};
+  BaseObjectPtr<SendWrap> req_wrap{static_cast<SendWrap*>(req)};
   if (req_wrap->have_callback()) {
     Environment* env = req_wrap->env();
     HandleScope handle_scope(env->isolate());
