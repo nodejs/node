@@ -418,6 +418,7 @@ not ok 49 - callback async throw
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *
+    *
   ...
 # Subtest: callback async throw after done
 ok 50 - callback async throw after done
