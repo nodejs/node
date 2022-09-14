@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
-#include "base64-inl.h"
 #include "cares_wrap.h"
+#include "async_wrap-inl.h"
+#include "base64-inl.h"
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <cerrno>
 #include <cstring>
@@ -1955,7 +1956,36 @@ void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetAddrInfo);
+  registry->Register(GetNameInfo);
+  registry->Register(CanonicalizeIP);
+  registry->Register(StrError);
+  registry->Register(ChannelWrap::New);
+
+  registry->Register(Query<QueryAnyWrap>);
+  registry->Register(Query<QueryAWrap>);
+  registry->Register(Query<QueryAaaaWrap>);
+  registry->Register(Query<QueryCaaWrap>);
+  registry->Register(Query<QueryCnameWrap>);
+  registry->Register(Query<QueryMxWrap>);
+  registry->Register(Query<QueryNsWrap>);
+  registry->Register(Query<QueryTxtWrap>);
+  registry->Register(Query<QuerySrvWrap>);
+  registry->Register(Query<QueryPtrWrap>);
+  registry->Register(Query<QueryNaptrWrap>);
+  registry->Register(Query<QuerySoaWrap>);
+  registry->Register(Query<GetHostByAddrWrap>);
+
+  registry->Register(GetServers);
+  registry->Register(SetServers);
+  registry->Register(SetLocalAddress);
+  registry->Register(Cancel);
+}
+
 }  // namespace cares_wrap
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(cares_wrap,
+                               node::cares_wrap::RegisterExternalReferences)
