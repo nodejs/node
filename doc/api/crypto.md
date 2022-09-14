@@ -4132,10 +4132,9 @@ added: v0.7.5
 * Returns: {DiffieHellmanGroup}
 
 Creates a predefined `DiffieHellmanGroup` key exchange object. The
-supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
-[RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
-`'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]). The
-returned object mimics the interface of objects created by
+supported groups are listed in the documentation for [`DiffieHellmanGroup`][].
+
+The returned object mimics the interface of objects created by
 [`crypto.createDiffieHellman()`][], but will not allow changing
 the keys (with [`diffieHellman.setPublicKey()`][], for example). The
 advantage of using this method is that the parties do not have to
@@ -6131,7 +6130,6 @@ See the [list of SSL OP Flags][] for details.
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
-[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
@@ -6142,6 +6140,7 @@ See the [list of SSL OP Flags][] for details.
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
+[`DiffieHellmanGroup`]: #class-diffiehellmangroup
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #class-keyobject
 [`Sign`]: #class-sign
