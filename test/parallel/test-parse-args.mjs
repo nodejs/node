@@ -829,7 +829,7 @@ test('default must be a boolean when option type is boolean', () => {
   const options = { alpha: { type: 'boolean', default: 'not a boolean' } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default" property must be an instance of Array. Received type string ('not an array')`
+  }, /"options\.alpha\.default" property must be of type boolean/
   );
 });
 
@@ -838,7 +838,7 @@ test('default must be a boolean array when option type is boolean and multiple',
   const options = { alpha: { type: 'boolean', multiple: true, default: 'not an array' } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default" property must be an instance of Array. Received type string ('not an array')`
+  }, /"options\.alpha\.default" property must be an instance of Array/
   );
 });
 
@@ -847,7 +847,7 @@ test('default must be a boolean array when option type is string and multiple is
   const options = { alpha: { type: 'boolean', multiple: true, default: [true, true, 42] } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default[2]" property must be of type boolean. Received type number (42)`
+  }, /"options\.alpha\.default\[2\]" property must be of type boolean/
   );
 });
 
@@ -856,7 +856,7 @@ test('default must be a string when option type is string', () => {
   const options = { alpha: { type: 'string', default: true } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default" property must be of type string. Received type boolean (true)`
+  }, /"options\.alpha\.default" property must be of type string/
   );
 });
 
@@ -865,7 +865,7 @@ test('default must be an array when option type is string and multiple is true',
   const options = { alpha: { type: 'string', multiple: true, default: 'not an array' } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default" property must be an instance of Array. Received type string ('not an array')`
+  }, /"options\.alpha\.default" property must be an instance of Array/
   );
 });
 
@@ -874,7 +874,7 @@ test('default must be a string array when option type is string and multiple is 
   const options = { alpha: { type: 'string', multiple: true, default: ['str', 42] } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default[1]" property must be of type string. Received type number (42)`
+  }, /"options\.alpha\.default\[1\]" property must be of type string/
   );
 });
 
@@ -976,6 +976,6 @@ test('multiple as false should expect a String', () => {
   const options = { alpha: { type: 'string', multiple: false, default: ['array'] } };
   assert.throws(() => {
     parseArgs({ args, options });
-  }, `TypeError [ERR_INVALID_ARG_TYPE]: The "options.alpha.default" property must be of type string. Received an instance of Array`
+  }, /"options\.alpha\.default" property must be of type string/
   );
 });
