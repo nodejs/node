@@ -30,6 +30,7 @@ const response = await fetch(`http://localhost:${port}`);
 assert(response instanceof Response);
 assert.strictEqual(response.status, 200);
 assert.strictEqual(response.statusText, 'OK');
+assert.strictEqual(response.headers.get('user-agent'), `Node.js/${process.version}`);
 const body = await response.text();
 assert.strictEqual(body, 'Hello world');
 
