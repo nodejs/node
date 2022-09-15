@@ -1013,6 +1013,7 @@
             'HAVE_OPENSSL=1',
           ],
           'sources': [
+            'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
           ]
         }],
