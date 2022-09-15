@@ -64,7 +64,7 @@ package manager version you wish to set:
 corepack prepare yarn@x.y.z --activate
 ```
 
-Alternately, a [`dist-tag`][] may be used:
+Alternately, a tag or range may be used:
 
 ```bash
 corepack prepare pnpm@latest --activate
@@ -124,7 +124,6 @@ install. To avoid this problem, consider one of the following options:
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
 [Corepack repository]: https://github.com/nodejs/corepack
-[`dist-tag`]: https://docs.npmjs.com/downloading-and-installing-packages-locally#installing-a-package-with-dist-tags
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`"packageManager"`]: packages.md#packagemanager
 [pnpm]: https://pnpm.js.org
