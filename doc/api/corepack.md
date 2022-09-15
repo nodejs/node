@@ -64,7 +64,7 @@ package manager version you wish to set:
 corepack prepare yarn@x.y.z --activate
 ```
 
-Alternately, a [`dist-tag`](https://docs.npmjs.com/downloading-and-installing-packages-locally#installing-a-package-with-dist-tags) may be used:
+Alternately, a [`dist-tag`][] may be used:
 
 ```bash
 corepack prepare yarn@latest --activate
@@ -118,15 +118,16 @@ install. To avoid this problem, consider one of the following options:
   [`corepack enable`][] to add them back.)
 
 [Corepack]: https://github.com/nodejs/corepack
-[Corepack documentation]: https://github.com/nodejs/corepack#readme
-[Corepack repository]: https://github.com/nodejs/corepack
-[Yarn]: https://yarnpkg.com
-[`"packageManager"`]: packages.md#packagemanager
 [`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
+[Corepack documentation]: https://github.com/nodejs/corepack#readme
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
+[Corepack repository]: https://github.com/nodejs/corepack
+[`dist-tag`]: https://docs.npmjs.com/downloading-and-installing-packages-locally#installing-a-package-with-dist-tags
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`"packageManager"`]: packages.md#packagemanager
 [pnpm]: https://pnpm.js.org
 [supported binaries]: #supported-package-managers
 [supported package manager]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
+[Yarn]: https://yarnpkg.com
