@@ -446,7 +446,19 @@ module.exports = {
 
                         reportCount += nodesToReport.length;
 
-                        shouldFix = shouldFix && (reportCount === varDeclParent.declarations.length);
+                        let totalDeclarationsCount = 0;
+
+                        varDeclParent.declarations.forEach(declaration => {
+                            if (declaration.id.type === "ObjectPattern") {
+                                totalDeclarationsCount += declaration.id.properties.length;
+                            } else if (declaration.id.type === "ArrayPattern") {
+                                totalDeclarationsCount += declaration.id.elements.length;
+                            } else {
+                                totalDeclarationsCount += 1;
+                            }
+                        });
+
+                        shouldFix = shouldFix && (reportCount === totalDeclarationsCount);
                     }
                 }
 

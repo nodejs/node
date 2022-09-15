@@ -98,7 +98,7 @@ module.exports = {
                 info = info.upper;
             }
 
-            /* istanbul ignore next: syntax error */
+            /* c8 ignore next */
             return "other";
         }
 

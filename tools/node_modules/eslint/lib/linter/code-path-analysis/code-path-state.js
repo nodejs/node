@@ -59,7 +59,7 @@ function getContinueContext(state, label) {
         context = context.upper;
     }
 
-    /* istanbul ignore next: foolproof (syntax error) */
+    /* c8 ignore next */
     return null;
 }
 
@@ -79,7 +79,7 @@ function getBreakContext(state, label) {
         context = context.upper;
     }
 
-    /* istanbul ignore next: foolproof (syntax error) */
+    /* c8 ignore next */
     return null;
 }
 
@@ -433,7 +433,7 @@ class CodePathState {
                  */
                 return context;
 
-            /* istanbul ignore next */
+            /* c8 ignore next */
             default:
                 throw new Error("unreachable");
         }
@@ -1030,7 +1030,7 @@ class CodePathState {
                 };
                 break;
 
-            /* istanbul ignore next */
+            /* c8 ignore next */
             default:
                 throw new Error(`unknown type: "${type}"`);
         }
@@ -1095,7 +1095,7 @@ class CodePathState {
                 );
                 break;
 
-            /* istanbul ignore next */
+            /* c8 ignore next */
             default:
                 throw new Error("unreachable");
         }
@@ -1392,11 +1392,12 @@ class CodePathState {
 
         const context = getBreakContext(this, label);
 
-        /* istanbul ignore else: foolproof (syntax error) */
+
         if (context) {
             context.brokenForkContext.add(forkContext.head);
         }
 
+        /* c8 ignore next */
         forkContext.replaceHead(forkContext.makeUnreachable(-1, -1));
     }
 
@@ -1417,7 +1418,6 @@ class CodePathState {
 
         const context = getContinueContext(this, label);
 
-        /* istanbul ignore else: foolproof (syntax error) */
         if (context) {
             if (context.continueDestSegments) {
                 makeLooped(this, forkContext.head, context.continueDestSegments);

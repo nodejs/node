@@ -1350,7 +1350,7 @@ module.exports = {
             }
         }
 
-        /* istanbul ignore next */
+        /* c8 ignore next */
         return true;
     },
 

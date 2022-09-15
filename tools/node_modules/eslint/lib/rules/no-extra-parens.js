@@ -634,10 +634,10 @@ module.exports = {
 
                 currentNode = currentNode.parent;
 
-                /* istanbul ignore if */
+                /* c8 ignore start */
                 if (currentNode === null) {
                     throw new Error("Nodes are not in the ancestor-descendant relationship.");
-                }
+                }/* c8 ignore stop */
 
                 path.push(currentNode);
             }

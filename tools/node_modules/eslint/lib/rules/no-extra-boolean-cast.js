@@ -188,7 +188,7 @@ module.exports = {
                     }
                     return precedence(node) <= precedence(parent);
 
-                /* istanbul ignore next */
+                /* c8 ignore next */
                 default:
                     throw new Error(`Unexpected parent type: ${parent.type}`);
             }
