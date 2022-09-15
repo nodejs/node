@@ -1,6 +1,6 @@
 {
   "name": "fast-glob",
-  "version": "3.2.11",
+  "version": "3.2.12",
   "description": "It's a very fast and efficient glob library for Node.js",
   "license": "MIT",
   "repository": "mrmlnc/fast-glob",

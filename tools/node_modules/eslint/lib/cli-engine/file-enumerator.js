@@ -122,7 +122,8 @@ function statSafeSync(filePath) {
     try {
         return fs.statSync(filePath);
     } catch (error) {
-        /* istanbul ignore next */
+
+        /* c8 ignore next */
         if (error.code !== "ENOENT") {
             throw error;
         }
@@ -141,7 +142,8 @@ function readdirSafeSync(directoryPath) {
     try {
         return fs.readdirSync(directoryPath, { withFileTypes: true });
     } catch (error) {
-        /* istanbul ignore next */
+
+        /* c8 ignore next */
         if (error.code !== "ENOENT") {
             throw error;
         }

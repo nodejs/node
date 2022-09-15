@@ -7,7 +7,7 @@
 
 /* eslint no-console: "off" -- Logging util */
 
-/* istanbul ignore next */
+/* c8 ignore next */
 module.exports = {
 
     /**
