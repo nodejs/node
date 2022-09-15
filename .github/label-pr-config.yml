@@ -102,6 +102,7 @@ subSystemLabels:
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/webstreams/: web streams
+  /^lib\/internal\/test_runner/: dont-land-on-v14.x
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
