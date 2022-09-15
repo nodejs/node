@@ -66,6 +66,7 @@ const { getSystemErrorName } = require('util');
     delete providers.FIXEDSIZEBLOBCOPY;
     delete providers.RANDOMPRIMEREQUEST;
     delete providers.CHECKPRIMEREQUEST;
+    delete providers.RANDOMBYTESREQUEST;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
@@ -130,17 +131,13 @@ function testInitialized(req, ctor_name) {
 if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const crypto = require('crypto');
 
-  // The handle for PBKDF2 and RandomBytes isn't returned by the function call,
+  // The handle for PBKDF2 isn't returned by the function call,
   // so need to check it from the callback.
 
   const mc = common.mustCall(function pb() {
     testInitialized(this, 'PBKDF2Job');
   });
   crypto.pbkdf2('password', 'salt', 1, 20, 'sha256', mc);
-
-  crypto.randomBytes(1, common.mustCall(function rb() {
-    testInitialized(this, 'RandomBytesJob');
-  }));
 
   if (typeof internalBinding('crypto').ScryptJob === 'function') {
     crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
