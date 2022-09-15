@@ -186,7 +186,7 @@ module.exports = {
                 case "ClassBody":
                     return options.classes;
 
-                /* istanbul ignore next */
+                /* c8 ignore next */
                 default:
                     throw new Error("unreachable");
             }
