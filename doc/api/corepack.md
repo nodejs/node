@@ -64,6 +64,12 @@ package manager version you wish to set:
 corepack prepare yarn@x.y.z --activate
 ```
 
+Alternately, a [`dist-tag`](https://docs.npmjs.com/downloading-and-installing-packages-locally#installing-a-package-with-dist-tags) may be used:
+
+```bash
+corepack prepare yarn@latest --activate
+```
+
 ### Offline workflow
 
 Many production environments don't have network access. Since Corepack
