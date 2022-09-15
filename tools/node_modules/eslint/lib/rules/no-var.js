@@ -90,7 +90,7 @@ function getScopeNode(node) {
         }
     }
 
-    /* istanbul ignore next : unreachable */
+    /* c8 ignore next */
     return null;
 }
 

@@ -20,7 +20,7 @@ const debug = require("debug")("eslint:code-path");
  * @param {CodePathSegment} segment A segment to get.
  * @returns {string} Id of the segment.
  */
-/* istanbul ignore next */
+/* c8 ignore next */
 function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc -- Ignoring
     return segment.id + (segment.reachable ? "" : "!");
 }
@@ -67,7 +67,7 @@ module.exports = {
      * @param {boolean} leaving A flag whether or not it's leaving
      * @returns {void}
      */
-    dumpState: !debug.enabled ? debug : /* istanbul ignore next */ function(node, state, leaving) {
+    dumpState: !debug.enabled ? debug : /* c8 ignore next */ function(node, state, leaving) {
         for (let i = 0; i < state.currentSegments.length; ++i) {
             const segInternal = state.currentSegments[i].internal;
 
@@ -98,7 +98,7 @@ module.exports = {
      * @see http://www.graphviz.org
      * @see http://www.webgraphviz.com
      */
-    dumpDot: !debug.enabled ? debug : /* istanbul ignore next */ function(codePath) {
+    dumpDot: !debug.enabled ? debug : /* c8 ignore next */ function(codePath) {
         let text =
             "\n" +
             "digraph {\n" +

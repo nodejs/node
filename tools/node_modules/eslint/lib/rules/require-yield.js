@@ -68,7 +68,6 @@ module.exports = {
             // Increases the count of `yield` keyword.
             YieldExpression() {
 
-                /* istanbul ignore else */
                 if (stack.length > 0) {
                     stack[stack.length - 1] += 1;
                 }

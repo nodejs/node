@@ -12,7 +12,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const createTree = require("functional-red-black-tree");
+const { OrderedMap } = require("js-sdsl");
 
 const astUtils = require("./utils/ast-utils");
 
@@ -135,7 +135,8 @@ class BinarySearchTree {
      * Creates an empty tree
      */
     constructor() {
-        this._rbTree = createTree();
+        this._orderedMap = new OrderedMap();
+        this._orderedMapEnd = this._orderedMap.end();
     }
 
     /**
@@ -145,13 +146,7 @@ class BinarySearchTree {
      * @returns {void}
      */
     insert(key, value) {
-        const iterator = this._rbTree.find(key);
-
-        if (iterator.valid) {
-            this._rbTree = iterator.update(value);
-        } else {
-            this._rbTree = this._rbTree.insert(key, value);
-        }
+        this._orderedMap.setElement(key, value);
     }
 
     /**
@@ -160,9 +155,13 @@ class BinarySearchTree {
      * @returns {{key: number, value: *}|null} The found entry, or null if no such entry exists.
      */
     findLe(key) {
-        const iterator = this._rbTree.le(key);
+        const iterator = this._orderedMap.reverseLowerBound(key);
 
-        return iterator && { key: iterator.key, value: iterator.value };
+        if (iterator.equals(this._orderedMapEnd)) {
+            return {};
+        }
+
+        return { key: iterator.pointer[0], value: iterator.pointer[1] };
     }
 
     /**
@@ -177,11 +176,20 @@ class BinarySearchTree {
         if (start === end) {
             return;
         }
-        const iterator = this._rbTree.ge(start);
+        const iterator = this._orderedMap.lowerBound(start);
 
-        while (iterator.valid && iterator.key < end) {
-            this._rbTree = this._rbTree.remove(iterator.key);
-            iterator.next();
+        if (iterator.equals(this._orderedMapEnd)) {
+            return;
+        }
+
+        if (end > this._orderedMap.back()[0]) {
+            while (!iterator.equals(this._orderedMapEnd)) {
+                this._orderedMap.eraseElementByIterator(iterator);
+            }
+        } else {
+            while (iterator.pointer[0] < end) {
+                this._orderedMap.eraseElementByIterator(iterator);
+            }
         }
     }
 }
