@@ -53,7 +53,7 @@ function getVariableOfArguments(scope) {
         }
     }
 
-    /* istanbul ignore next */
+    /* c8 ignore next */
     return null;
 }
 
@@ -126,7 +126,7 @@ function getCallbackInfo(node) {
         parent = parent.parent;
     }
 
-    /* istanbul ignore next */
+    /* c8 ignore next */
     throw new Error("unreachable");
 }
 
