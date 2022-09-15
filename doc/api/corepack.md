@@ -67,7 +67,8 @@ corepack prepare yarn@x.y.z --activate
 Alternately, a [`dist-tag`][] may be used:
 
 ```bash
-corepack prepare yarn@latest --activate
+corepack prepare pnpm@latest --activate
+corepack prepare yarn@stable --activate
 ```
 
 ### Offline workflow
