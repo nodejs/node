@@ -263,6 +263,19 @@ branch.
 $ git checkout -b v1.2.3-proposal upstream/v1.x-staging
 ```
 
+<details>
+<summary>Security release</summary>
+
+When performing Security Releases, the `vN.x.x-proposal` branch should be
+branched off of `vN.x`.
+
+```console
+$ git checkout -b v1.2.3-proposal upstream/v1.x
+git cherry-pick  ...  # cherry-pick nodejs-private PR commits directly into the proposal
+```
+
+</details>
+
 ### 3. Update `src/node_version.h`
 
 Set the version for the proposed release using the following macros, which are
@@ -457,6 +470,9 @@ Notable changes:
 
 PR-URL: TBD
 ```
+
+**Note**: Ensure to push the proposal branch to the nodejs-private repository.
+Otherwise, you will leak the commits before the security release.
 
 </details>
 
