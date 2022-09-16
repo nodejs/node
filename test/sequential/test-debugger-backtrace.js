@@ -20,17 +20,18 @@ const path = require('path');
     throw error;
   }
 
-  return cli.waitForInitialBreak()
-    .then(() => cli.waitForPrompt())
-    .then(() => cli.stepCommand('c'))
-    .then(() => cli.command('bt'))
-    .then(() => {
+  (async function() {
+    try {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.stepCommand('c');
+      await cli.command('bt');
       assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
-    })
-    .then(() => cli.command('backtrace'))
-    .then(() => {
+      await cli.command('backtrace');
       assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
-    })
-    .then(() => cli.quit())
-    .then(null, onFatal);
+      await cli.quit();
+    } catch (error) {
+      return onFatal(error);
+    }
+  })();
 }
