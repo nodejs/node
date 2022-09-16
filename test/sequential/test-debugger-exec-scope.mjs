@@ -19,5 +19,5 @@ try {
   assert.match(cli.output, /'l1'/, 'displays local scope');
   assert.doesNotMatch(cli.output, /'encodeURIComponent'/, 'omits global scope');
 } finally {
-  await cli.quit()
+  await cli.quit();
 }
