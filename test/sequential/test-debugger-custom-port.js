@@ -26,4 +26,4 @@ const cli = startCLI([`--port=${common.PORT}`, script]);
     const code = await cli.quit();
     assert.strictEqual(code, 0);
   }
-})();
+})().then(common.mustCall());
