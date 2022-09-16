@@ -1,6 +1,6 @@
 #!/bin/sh
-set -euo pipefail
-shopt -s inherit_errexit
+set -e
+
 # Shell script to update llhttp in the source tree to specific version
 
 BASE_DIR="$( pwd )"/
