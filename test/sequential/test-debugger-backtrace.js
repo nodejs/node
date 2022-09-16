@@ -20,7 +20,7 @@ const path = require('path');
     throw error;
   }
 
-  (async function() {
+  async function onWaitForInitialBreak() {
     try {
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
@@ -33,5 +33,7 @@ const path = require('path');
     } catch (error) {
       return onFatal(error);
     }
-  })();
+  }
+
+  onWaitForInitialBreak();
 }
