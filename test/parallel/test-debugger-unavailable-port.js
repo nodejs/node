@@ -10,8 +10,7 @@ const assert = require('assert');
 const { createServer } = require('net');
 
 // Launch w/ unavailable port.
-(async () => {
-  await (common.mustCall(async () => {
+common.mustCall(async () => {
     const blocker = createServer((socket) => socket.end());
     const port = await new Promise((resolve, reject) => {
       blocker.on('error', reject);
@@ -34,5 +33,4 @@ const { createServer } = require('net');
     } finally {
       blocker.close();
     }
-  }))();
 })();
