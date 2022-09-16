@@ -29,15 +29,31 @@
 #endif
 #endif
 
+#if defined(USE_MPROTECT)
+size_t GetPageSize() {
+  int page_size = sysconf(_SC_PAGE_SIZE);
+  EXPECT_GE(page_size, 1);
+  return page_size;
+}
+#elif defined(USE_VIRTUALPROTECT)
+size_t GetPageSize() {
+  SYSTEM_INFO system_info;
+  GetSystemInfo(&system_info);
+  return system_info.dwPageSize;
+}
+#endif
+
 template <size_t N>
 class OverrunGuardedBuffer {
  public:
   OverrunGuardedBuffer() {
+#if defined(USE_MPROTECT) || defined(USE_VIRTUALPROTECT)
+    size_t page = GetPageSize();
+    EXPECT_GE(page, N);
+#endif
 #ifdef USE_MPROTECT
     // Place the packet right before a guard page, which, when accessed, causes
     // a segmentation fault.
-    int page = sysconf(_SC_PAGE_SIZE);
-    EXPECT_GE(page, static_cast<int>(N));
     alloc_base = static_cast<uint8_t*>(aligned_alloc(page, 2 * page));
     EXPECT_NE(alloc_base, nullptr);
     uint8_t* second_page = alloc_base + page;
@@ -45,9 +61,6 @@ class OverrunGuardedBuffer {
     data_base = second_page - N;
 #elif defined(USE_VIRTUALPROTECT)
     // On Windows, it works almost the same way.
-    SYSTEM_INFO system_info;
-    GetSystemInfo(&system_info);
-    DWORD page = system_info.dwPageSize;
     alloc_base = static_cast<uint8_t*>(
         VirtualAlloc(nullptr, 2 * page, MEM_COMMIT, PAGE_READWRITE));
     EXPECT_NE(alloc_base, nullptr);
@@ -70,16 +83,14 @@ class OverrunGuardedBuffer {
   OverrunGuardedBuffer& operator=(const OverrunGuardedBuffer& other) = delete;
 
   ~OverrunGuardedBuffer() {
+#if defined(USE_MPROTECT) || defined(USE_VIRTUALPROTECT)
+    size_t page = GetPageSize();
+#endif
 #ifdef USE_VIRTUALPROTECT
-    SYSTEM_INFO system_info;
-    GetSystemInfo(&system_info);
-    DWORD page = system_info.dwPageSize;
-    VirtualFree(alloc_base, 2 * system_info.dwPageSize, MEM_RELEASE);
+    VirtualFree(alloc_base, 2 * page, MEM_RELEASE);
 #else
 #ifdef USE_MPROTECT
     // Revert page protection such that the memory can be free()'d.
-    int page = sysconf(_SC_PAGE_SIZE);
-    EXPECT_GE(page, static_cast<int>(N));
     uint8_t* second_page = alloc_base + page;
     EXPECT_EQ(mprotect(second_page, page, PROT_READ | PROT_WRITE), 0);
 #endif
