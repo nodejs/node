@@ -119,15 +119,15 @@ install. To avoid this problem, consider one of the following options:
   [`corepack enable`][] to add them back.)
 
 [Corepack]: https://github.com/nodejs/corepack
-[`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
 [Corepack documentation]: https://github.com/nodejs/corepack#readme
+[Corepack repository]: https://github.com/nodejs/corepack
+[Yarn]: https://yarnpkg.com
+[`"packageManager"`]: packages.md#packagemanager
+[`corepack disable`]: https://github.com/nodejs/corepack#corepack-disable--name
 [`corepack enable`]: https://github.com/nodejs/corepack#corepack-enable--name
 [`corepack prepare`]: https://github.com/nodejs/corepack#corepack-prepare--nameversion
-[Corepack repository]: https://github.com/nodejs/corepack
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
-[`"packageManager"`]: packages.md#packagemanager
 [pnpm]: https://pnpm.js.org
 [supported binaries]: #supported-package-managers
 [supported package manager]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands
-[Yarn]: https://yarnpkg.com
