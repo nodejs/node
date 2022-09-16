@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -euo pipefail
 shopt -s inherit_errexit
 # Shell script to update llhttp in the source tree to specific version
