@@ -78,12 +78,12 @@ are maintained in the [llhttp](https://github.com/nodejs/llhttp)
 repository. Updates are pulled into Node.js under
 [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp).
 
-In order to update Node.js with a new version of llhttp you can use the 
+In order to update Node.js with a new version of llhttp you can use the
 `tools/update-llhttp.sh` script.
 
 The contents of the `deps/llhttp` folder should look like the following:
 
-```sh
+```bash
 $ find deps/llhttp
 
 deps/llhttp/
@@ -102,7 +102,7 @@ deps/llhttp/src/llhttp.c
 ```
 
 After updating, make sure the version in `CMakeLists.txt` and `include/llhttp.h`
-are the same and that they match the one you are expecting. 
+are the same and that they match the one you are expecting.
 
 The low-level implementation is made available in the Node.js API through
 JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
