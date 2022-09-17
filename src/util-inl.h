@@ -358,9 +358,9 @@ __attribute__((target("ssse3"))) inline static void swap16_sse(char* data,
   __m128i shuffle_input =
       _mm_set_epi64x(0x0e0f0c0d0a0b0809, 0x0607040502030001);
   while (*nbytes >= 16) {
-    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>data);
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*> data);
     __m128i in = _mm_shuffle_epi8(v, shuffle_input);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>data, in);
+    _mm_storeu_si128(reinterpret_cast<__m128i*> data, in);
     data += 16;
     *nbytes -= 16;
   }
@@ -371,9 +371,9 @@ __attribute__((target("ssse3"))) inline static void swap32_sse(char* data,
   __m128i shuffle_input =
       _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
   while (*nbytes >= 16) {
-    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>data);
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*> data);
     __m128i in = _mm_shuffle_epi8(v, shuffle_input);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>data, in);
+    _mm_storeu_si128(reinterpret_cast<__m128i*> data, in);
     data += 16;
     *nbytes -= 16;
   }
@@ -384,9 +384,9 @@ __attribute__((target("ssse3"))) inline static void swap64_sse(char* data,
   __m128i shuffle_input =
       _mm_set_epi64x(0x08090a0b0c0d0e0f, 0x0001020304050607);
   while (*nbytes >= 16) {
-    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>data);
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*> data);
     __m128i in = _mm_shuffle_epi8(v, shuffle_input);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>data, in);
+    _mm_storeu_si128(reinterpret_cast<__m128i*> data, in);
     data += 16;
     *nbytes -= 16;
   }
