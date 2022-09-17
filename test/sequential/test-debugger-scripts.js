@@ -45,30 +45,29 @@ const assert = require('assert');
   //   .then(() => cli.quit())
   //   .then(null, onFatal);
 
-(async () => {
-  await cli.waitForInitialBreak();
-  await cli.waitForPrompt();
-  await cli.command('scripts');
-  assert.match(
-    cli.output,
-    /^\* \d+: \S+debugger(?:\/|\\)three-lines\.js/m,
-    'lists the user script');
-  assert.doesNotMatch(
-    cli.output,
-    /\d+: node:internal\/buffer/,
-    'omits node-internal scripts');
-  await cli.command('scripts(true)');
-  assert.match(
-    cli.output,
-    /\* \d+: \S+debugger(?:\/|\\)three-lines\.js/,
-    'lists the user script');
-  assert.match(
-    cli.output,
-    /\d+: node:internal\/buffer/,
-    'includes node-internal scripts');
-
-})()
-.then(() => cli.quit())
-.then(null, onFatal);
+  (async () => {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.command('scripts');
+      assert.match(
+        cli.output,
+        /^\* \d+: \S+debugger(?:\/|\\)three-lines\.js/m,
+        'lists the user script');
+      assert.doesNotMatch(
+        cli.output,
+        /\d+: node:internal\/buffer/,
+        'omits node-internal scripts');
+      await cli.command('scripts(true)');
+      assert.match(
+        cli.output,
+        /\* \d+: \S+debugger(?:\/|\\)three-lines\.js/,
+        'lists the user script');
+      assert.match(
+        cli.output,
+        /\d+: node:internal\/buffer/,
+        'includes node-internal scripts');
+  })()
+  .then(() => cli.quit())
+  .then(null, onFatal);
 
 }
