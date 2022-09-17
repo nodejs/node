@@ -12,10 +12,10 @@ const { ESMLoader } = esmLoaderModule;
   const esmLoader = new ESMLoader();
 
   const originalSpecifier = 'foo/bar';
-  const importAssertions = Object.assign(
-    Object.create(null),
-    { type: 'json' },
-  );
+  const importAssertions = {
+    __proto__: null,
+    type: 'json',
+  };
   const parentURL = 'file:///entrypoint.js';
   const resolvedURL = 'file:///foo/bar.js';
   const suggestedFormat = 'test';
