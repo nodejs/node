@@ -151,7 +151,7 @@
 
       'include_dirs': [
         'src',
-        'deps/v8/include',
+        'deps/v8/include'
       ],
 
       'sources': [
@@ -160,7 +160,7 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi'
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'msvs_settings': {
