@@ -232,9 +232,9 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 
 #define bit_XSAVE_XRSTORE (1 << 27)
 #define bit_AVX512VBMI (1 << 1)
-#define bit_SSSE3 (1 << 9)
-#define bit_SSE41 (1 << 19)
-#define bit_SSE42 (1 << 20)
+#define SSSE3_bit (1 << 9)
+#define SSE41_bit (1 << 19)
+#define SSE42_bit (1 << 20)
 #define _XCR_XFEATURE_ENABLED_MASK 0
 #define _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS 0x6
 
@@ -284,7 +284,7 @@ __attribute__((target("avx512vbmi"))) inline static void set_simd_level() {
     // Fall into SSE path, expected supported by almost all systems
     if (max_level >= 1) {
       __cpuid(1, eax, ebx, ecx, edx);
-      if ((ecx & bit_SSSE3) | (ecx & bit_SSE42) | (ecx & bit_SSE42)) {
+      if ((ecx & SSSE3_bit) | (ecx & SSE41_bit) | (ecx & SSE42_bit)) {
         simd_level = 2;
         return;
       }
