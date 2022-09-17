@@ -74,7 +74,7 @@ function hasUselessComputedKey(node) {
 
             return value !== "constructor";
 
-        /* istanbul ignore next */
+        /* c8 ignore next */
         default:
             throw new Error(`Unexpected node type: ${node.type}`);
     }

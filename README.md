@@ -1,6 +1,6 @@
 # Node.js
 
-Node.js is an open-source, cross-platform, JavaScript runtime environment.
+Node.js is an open-source, cross-platform JavaScript runtime environment.
 
 For information on using Node.js, see the [Node.js website][].
 
@@ -178,6 +178,8 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
+* [legendecas](https://github.com/legendecas) -
+  **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
