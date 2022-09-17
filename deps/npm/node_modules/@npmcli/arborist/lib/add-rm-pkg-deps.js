@@ -5,23 +5,24 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const add = ({ pkg, add, saveBundle, saveType }) => {
   for (const { name, rawSpec } of add) {
+    let addSaveType = saveType
     // if the user does not give us a type, we infer which type(s)
     // to keep based on the same order of priority we do when
     // building the tree as defined in the _loadDeps method of
     // the node class.
-    if (!saveType) {
-      saveType = inferSaveType(pkg, name)
+    if (!addSaveType) {
+      addSaveType = inferSaveType(pkg, name)
     }
 
-    if (saveType === 'prod') {
+    if (addSaveType === 'prod') {
       // a production dependency can only exist as production (rpj ensures it
       // doesn't coexist w/ optional)
       deleteSubKey(pkg, 'devDependencies', name, 'dependencies')
       deleteSubKey(pkg, 'peerDependencies', name, 'dependencies')
-    } else if (saveType === 'dev') {
+    } else if (addSaveType === 'dev') {
       // a dev dependency may co-exist as peer, or optional, but not production
       deleteSubKey(pkg, 'dependencies', name, 'devDependencies')
-    } else if (saveType === 'optional') {
+    } else if (addSaveType === 'optional') {
       // an optional dependency may co-exist as dev (rpj ensures it doesn't
       // coexist w/ prod)
       deleteSubKey(pkg, 'peerDependencies', name, 'optionalDependencies')
@@ -31,23 +32,23 @@ const add = ({ pkg, add, saveBundle, saveType }) => {
       deleteSubKey(pkg, 'optionalDependencies', name, 'peerDependencies')
     }
 
-    const depType = saveTypeMap.get(saveType)
+    const depType = saveTypeMap.get(addSaveType)
 
     pkg[depType] = pkg[depType] || {}
     if (rawSpec !== '' || pkg[depType][name] === undefined) {
       pkg[depType][name] = rawSpec || '*'
     }
-    if (saveType === 'optional') {
+    if (addSaveType === 'optional') {
       // Affordance for previous npm versions that require this behaviour
       pkg.dependencies = pkg.dependencies || {}
       pkg.dependencies[name] = pkg.optionalDependencies[name]
     }
 
-    if (saveType === 'peer' || saveType === 'peerOptional') {
+    if (addSaveType === 'peer' || addSaveType === 'peerOptional') {
       const pdm = pkg.peerDependenciesMeta || {}
-      if (saveType === 'peer' && pdm[name] && pdm[name].optional) {
+      if (addSaveType === 'peer' && pdm[name] && pdm[name].optional) {
         pdm[name].optional = false
-      } else if (saveType === 'peerOptional') {
+      } else if (addSaveType === 'peerOptional') {
         pdm[name] = pdm[name] || {}
         pdm[name].optional = true
         pkg.peerDependenciesMeta = pdm
@@ -59,7 +60,7 @@ const add = ({ pkg, add, saveBundle, saveType }) => {
       }
     }
 
-    if (saveBundle && saveType !== 'peer' && saveType !== 'peerOptional') {
+    if (saveBundle && addSaveType !== 'peer' && addSaveType !== 'peerOptional') {
       // keep it sorted, keep it unique
       const bd = new Set(pkg.bundleDependencies || [])
       bd.add(name)
