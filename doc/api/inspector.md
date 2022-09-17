@@ -17,9 +17,15 @@ const inspector = require('node:inspector');
 
 ## `inspector.close()`
 
-Deactivate the inspector. Blocks until there are no active connections.
+<!-- YAML
+added: v9.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44489
+    description: The API is exposed in the worker threads.
+-->
 
-This function is not available in [worker threads][].
+Deactivate the inspector. Blocks until there are no active connections.
 
 ## `inspector.console`
 
@@ -262,4 +268,3 @@ session.post('HeapProfiler.takeHeapSnapshot', null, (err, r) => {
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
 [`session.connect()`]: #sessionconnect
 [security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure
-[worker threads]: worker_threads.md

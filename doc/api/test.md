@@ -338,6 +338,11 @@ added: v18.9.0
     fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
+  * `inspectPort` {number|Function} Sets inspector port of test child process.
+    This can be a number, or a function that takes no arguments and returns a
+    number. If a nullish value is provided, each process gets its own port,
+    incremented from the primary's `process.debugPort`.
+    **Default:** `undefined`.
 * Returns: {TapStream}
 
 ```js
@@ -479,7 +484,7 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
 
-### `before([, fn][, options])`
+## `before([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -507,7 +512,7 @@ describe('tests', async () => {
 });
 ```
 
-### `after([, fn][, options])`
+## `after([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -535,7 +540,7 @@ describe('tests', async () => {
 });
 ```
 
-### `beforeEach([, fn][, options])`
+## `beforeEach([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -564,7 +569,7 @@ describe('tests', async () => {
 });
 ```
 
-### `afterEach([, fn][, options])`
+## `afterEach([, fn][, options])`
 
 <!-- YAML
 added: v18.8.0

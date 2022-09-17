@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-# Shell script to update nghttp2 in the source treee to specific version
+# Shell script to update nghttp2 in the source tree to specific version
 
 BASE_DIR="$( pwd )"/
 DEPS_DIR="$BASE_DIR"deps/

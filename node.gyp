@@ -779,7 +779,6 @@
             'src/crypto/crypto_bio.h',
             'src/crypto/crypto_clienthello-inl.h',
             'src/crypto/crypto_dh.h',
-            'src/crypto/crypto_groups.h',
             'src/crypto/crypto_hmac.h',
             'src/crypto/crypto_rsa.h',
             'src/crypto/crypto_spkac.h',
@@ -1014,6 +1013,7 @@
             'HAVE_OPENSSL=1',
           ],
           'sources': [
+            'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
           ]
         }],

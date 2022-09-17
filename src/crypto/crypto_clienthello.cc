@@ -75,6 +75,11 @@ bool ClientHelloParser::ParseRecordHeader(const uint8_t* data, size_t avail) {
 void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   ClientHello hello;
 
+  // We need at least six bytes (one byte for kClientHello, three bytes for the
+  // length of the handshake message, and two bytes for the protocol version).
+  // If the client sent a frame that suggests a smaller ClientHello, give up.
+  if (frame_len_ < 6) return End();
+
   // >= 5 + frame size bytes for frame parsing
   if (body_offset_ + frame_len_ > avail)
     return;

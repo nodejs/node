@@ -18,8 +18,8 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-
-/* istanbul ignore next: this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway. */
+// this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway.
+/* c8 ignore next */
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
@@ -212,10 +212,10 @@ module.exports = {
             if (context.options[0] === "tab") {
                 indentSize = 1;
                 indentType = "tab";
-            } else /* istanbul ignore else : this will be caught by options validation */ if (typeof context.options[0] === "number") {
+            } else /* c8 ignore start */ if (typeof context.options[0] === "number") {
                 indentSize = context.options[0];
                 indentType = "space";
-            }
+            }/* c8 ignore stop */
 
             if (context.options[1]) {
                 const opts = context.options[1];
