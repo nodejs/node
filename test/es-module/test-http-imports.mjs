@@ -67,6 +67,8 @@ for (const { protocol, createServer } of [
     // ?body sets the body, string
     const server = createServer(function(_req, res) {
       const url = new URL(_req.url, host);
+      assert.strictEqual(_req.headers['user-agent'], `Node.js/${process.version}`);
+
       const redirect = url.searchParams.get('redirect');
       if (url.pathname === '/not-found') {
         res.writeHead(404);
