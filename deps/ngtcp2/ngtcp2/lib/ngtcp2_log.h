@@ -33,9 +33,7 @@
 
 #include "ngtcp2_pkt.h"
 
-typedef struct ngtcp2_log ngtcp2_log;
-
-struct ngtcp2_log {
+typedef struct ngtcp2_log {
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
   ngtcp2_printf log_printf;
@@ -49,7 +47,44 @@ struct ngtcp2_log {
   void *user_data;
   /* scid is SCID encoded as NULL-terminated hex string. */
   uint8_t scid[NGTCP2_MAX_CIDLEN * 2 + 1];
-};
+} ngtcp2_log;
+
+/**
+ * @enum
+ *
+ * :type:`ngtcp2_log_event` defines an event of ngtcp2 library
+ * internal logger.
+ */
+typedef enum ngtcp2_log_event {
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_NONE` represents no event.
+   */
+  NGTCP2_LOG_EVENT_NONE,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_CON` is a connection (catch-all) event
+   */
+  NGTCP2_LOG_EVENT_CON,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_PKT` is a packet event.
+   */
+  NGTCP2_LOG_EVENT_PKT,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_FRM` is a QUIC frame event.
+   */
+  NGTCP2_LOG_EVENT_FRM,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_RCV` is a congestion and recovery event.
+   */
+  NGTCP2_LOG_EVENT_RCV,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_CRY` is a crypto event.
+   */
+  NGTCP2_LOG_EVENT_CRY,
+  /**
+   * :enum:`NGTCP2_LOG_EVENT_PTV` is a path validation event.
+   */
+  NGTCP2_LOG_EVENT_PTV,
+} ngtcp2_log_event;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
@@ -76,5 +111,13 @@ void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
 void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
+
+/**
+ * @function
+ *
+ * `ngtcp2_log_info` writes info level log.
+ */
+void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
+                     ...);
 
 #endif /* NGTCP2_LOG_H */

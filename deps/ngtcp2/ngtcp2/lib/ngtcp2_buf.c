@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ngtcp2_buf.h"
+#include "ngtcp2_mem.h"
 
 void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
   buf->begin = buf->pos = buf->last = begin;
@@ -31,14 +32,25 @@ void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
 
 void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
 
-size_t ngtcp2_buf_left(const ngtcp2_buf *buf) {
-  return (size_t)(buf->end - buf->last);
-}
-
-size_t ngtcp2_buf_len(const ngtcp2_buf *buf) {
-  return (size_t)(buf->last - buf->pos);
-}
-
 size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
   return (size_t)(buf->end - buf->begin);
+}
+
+int ngtcp2_buf_chain_new(ngtcp2_buf_chain **pbufchain, size_t len,
+                         const ngtcp2_mem *mem) {
+  *pbufchain = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_buf_chain) + len);
+  if (*pbufchain == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  (*pbufchain)->next = NULL;
+
+  ngtcp2_buf_init(&(*pbufchain)->buf,
+                  (uint8_t *)(*pbufchain) + sizeof(ngtcp2_buf_chain), len);
+
+  return 0;
+}
+
+void ngtcp2_buf_chain_del(ngtcp2_buf_chain *bufchain, const ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, bufchain);
 }

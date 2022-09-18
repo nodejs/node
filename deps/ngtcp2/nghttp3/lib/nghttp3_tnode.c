@@ -82,7 +82,7 @@ static uint64_t pq_get_first_cycle(nghttp3_pq *pq) {
 }
 
 int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
-                           size_t nwrite) {
+                           uint64_t nwrite) {
   uint64_t penalty = nwrite / NGHTTP3_STREAM_MIN_WRITELEN;
 
   if (tnode->pe.index == NGHTTP3_PQ_BAD_INDEX) {

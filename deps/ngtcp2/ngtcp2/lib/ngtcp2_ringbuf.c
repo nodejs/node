@@ -43,24 +43,30 @@ unsigned int __popcnt(unsigned int x) {
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
+  uint8_t *buf = ngtcp2_mem_malloc(mem, nmemb * size);
+  if (buf == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_ringbuf_buf_init(rb, nmemb, size, buf, mem);
+
+  return 0;
+}
+
+void ngtcp2_ringbuf_buf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
+                             uint8_t *buf, const ngtcp2_mem *mem) {
 #ifdef WIN32
   assert(1 == __popcnt((unsigned int)nmemb));
 #else
   assert(1 == __builtin_popcount((unsigned int)nmemb));
 #endif
 
-  rb->buf = ngtcp2_mem_malloc(mem, nmemb * size);
-  if (rb->buf == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
+  rb->buf = buf;
   rb->mem = mem;
   rb->nmemb = nmemb;
   rb->size = size;
   rb->first = 0;
   rb->len = 0;
-
-  return 0;
 }
 
 void ngtcp2_ringbuf_free(ngtcp2_ringbuf *rb) {
