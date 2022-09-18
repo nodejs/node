@@ -34,6 +34,7 @@
 
 #include "nghttp3_mem.h"
 #include "nghttp3_ksl.h"
+#include "nghttp3_range.h"
 
 /*
  * nghttp3_gaptr maintains the gap in the range [0, UINT64_MAX).
@@ -48,14 +49,8 @@ typedef struct nghttp3_gaptr {
 
 /*
  * nghttp3_gaptr_init initializes |gaptr|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP3_ERR_NOMEM
- *     Out of memory.
  */
-int nghttp3_gaptr_init(nghttp3_gaptr *gaptr, const nghttp3_mem *mem);
+void nghttp3_gaptr_init(nghttp3_gaptr *gaptr, const nghttp3_mem *mem);
 
 /*
  * nghttp3_gaptr_free frees resources allocated for |gaptr|.
@@ -72,7 +67,7 @@ void nghttp3_gaptr_free(nghttp3_gaptr *gaptr);
  * NGHTTP3_ERR_NOMEM
  *     Out of memory
  */
-int nghttp3_gaptr_push(nghttp3_gaptr *gaptr, uint64_t offset, size_t datalen);
+int nghttp3_gaptr_push(nghttp3_gaptr *gaptr, uint64_t offset, uint64_t datalen);
 
 /*
  * nghttp3_gaptr_first_gap_offset returns the offset to the first gap.
@@ -81,18 +76,18 @@ int nghttp3_gaptr_push(nghttp3_gaptr *gaptr, uint64_t offset, size_t datalen);
 uint64_t nghttp3_gaptr_first_gap_offset(nghttp3_gaptr *gaptr);
 
 /*
- * nghttp3_gaptr_get_first_gap_after returns the iterator pointing to
- * the first gap which overlaps or comes after |offset|.
+ * nghttp3_gaptr_get_first_gap_after returns the first gap which
+ * overlaps or comes after |offset|.
  */
-nghttp3_ksl_it nghttp3_gaptr_get_first_gap_after(nghttp3_gaptr *gaptr,
-                                                 uint64_t offset);
+nghttp3_range nghttp3_gaptr_get_first_gap_after(nghttp3_gaptr *gaptr,
+                                                uint64_t offset);
 
 /*
  * nghttp3_gaptr_is_pushed returns nonzero if range [offset, offset +
  * datalen) is completely pushed into this object.
  */
 int nghttp3_gaptr_is_pushed(nghttp3_gaptr *gaptr, uint64_t offset,
-                            size_t datalen);
+                            uint64_t datalen);
 
 /*
  * nghttp3_gaptr_drop_first_gap deletes the first gap entirely as if

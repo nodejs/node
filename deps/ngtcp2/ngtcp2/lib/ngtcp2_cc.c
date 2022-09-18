@@ -43,11 +43,15 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_pktns_id pktns_id,
-                                  ngtcp2_tstamp ts_sent) {
+                                  ngtcp2_tstamp sent_ts, uint64_t lost,
+                                  uint64_t tx_in_flight, int is_app_limited) {
   pkt->pkt_num = pkt_num;
   pkt->pktlen = pktlen;
   pkt->pktns_id = pktns_id;
-  pkt->ts_sent = ts_sent;
+  pkt->sent_ts = sent_ts;
+  pkt->lost = lost;
+  pkt->tx_in_flight = tx_in_flight;
+  pkt->is_app_limited = is_app_limited;
 
   return pkt;
 }
@@ -106,7 +110,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   uint64_t m;
   (void)ts;
 
-  if (in_congestion_recovery(cstat, pkt->ts_sent)) {
+  if (in_congestion_recovery(cstat, pkt->sent_ts)) {
     return;
   }
 
@@ -129,12 +133,12 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 }
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
-                                        ngtcp2_tstamp ts_sent,
+                                        ngtcp2_tstamp sent_ts,
                                         ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
   uint64_t min_cwnd;
 
-  if (in_congestion_recovery(cstat, ts_sent)) {
+  if (in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 
@@ -162,9 +166,10 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 }
 
 void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
-                                   ngtcp2_tstamp ts) {
+                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
   uint64_t target_cwnd, initcwnd;
+  (void)ack;
   (void)ts;
 
   /* TODO Use sliding window for min rtt measurement */
@@ -184,8 +189,12 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 }
 
-void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx) {
+void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                             ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
+  (void)cstat;
+  (void)ts;
+
   reno_cc_reset(cc);
 }
 
@@ -197,6 +206,14 @@ static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
   cc->origin_point = 0;
   cc->epoch_start = UINT64_MAX;
   cc->k = 0;
+
+  cc->prior.cwnd = 0;
+  cc->prior.ssthresh = 0;
+  cc->prior.w_last_max = 0;
+  cc->prior.w_tcp = 0;
+  cc->prior.origin_point = 0;
+  cc->prior.epoch_start = UINT64_MAX;
+  cc->prior.k = 0;
 
   cc->rtt_sample_count = 0;
   cc->current_round_min_rtt = UINT64_MAX;
@@ -225,6 +242,7 @@ int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   cc->ccb = &cubic_cc->ccb;
   cc->on_pkt_acked = ngtcp2_cc_cubic_cc_on_pkt_acked;
   cc->congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
+  cc->on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
   cc->on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion;
   cc->on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
   cc->on_pkt_sent = ngtcp2_cc_cubic_cc_on_pkt_sent;
@@ -300,7 +318,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->window_end = -1;
   }
 
-  if (in_congestion_recovery(cstat, pkt->ts_sent)) {
+  if (in_congestion_recovery(cstat, pkt->sent_ts)) {
     return;
   }
 
@@ -421,13 +439,23 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
                                          ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts_sent,
+                                         ngtcp2_tstamp sent_ts,
                                          ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   uint64_t min_cwnd;
 
-  if (in_congestion_recovery(cstat, ts_sent)) {
+  if (in_congestion_recovery(cstat, sent_ts)) {
     return;
+  }
+
+  if (cc->prior.cwnd < cstat->cwnd) {
+    cc->prior.cwnd = cstat->cwnd;
+    cc->prior.ssthresh = cstat->ssthresh;
+    cc->prior.w_last_max = cc->w_last_max;
+    cc->prior.w_tcp = cc->w_tcp;
+    cc->prior.origin_point = cc->origin_point;
+    cc->prior.epoch_start = cc->epoch_start;
+    cc->prior.k = cc->k;
   }
 
   cstat->congestion_recovery_start_ts = ts;
@@ -449,6 +477,40 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
                   cstat->cwnd);
 }
 
+void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
+                                               ngtcp2_conn_stat *cstat,
+                                               ngtcp2_tstamp ts) {
+  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)ts;
+
+  if (cstat->cwnd >= cc->prior.cwnd) {
+    return;
+  }
+
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
+
+  cstat->cwnd = cc->prior.cwnd;
+  cstat->ssthresh = cc->prior.ssthresh;
+  cc->w_last_max = cc->prior.w_last_max;
+  cc->w_tcp = cc->prior.w_tcp;
+  cc->origin_point = cc->prior.origin_point;
+  cc->epoch_start = cc->prior.epoch_start;
+  cc->k = cc->prior.k;
+
+  cc->prior.cwnd = 0;
+  cc->prior.ssthresh = 0;
+  cc->prior.w_last_max = 0;
+  cc->prior.w_tcp = 0;
+  cc->prior.origin_point = 0;
+  cc->prior.epoch_start = UINT64_MAX;
+  cc->prior.k = 0;
+
+  ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                  "spurious congestion is detected and congestion state is "
+                  "restored cwnd=%" PRIu64,
+                  cstat->cwnd);
+}
+
 void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
                                                  ngtcp2_conn_stat *cstat,
                                                  ngtcp2_tstamp ts) {
@@ -460,9 +522,11 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 }
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   uint64_t target_cwnd, initcwnd;
+  (void)ack;
   (void)ts;
 
   /* TODO Use sliding window for min rtt measurement */
@@ -511,8 +575,12 @@ void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ++cc->rtt_sample_count;
 }
 
-void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx) {
+void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                              ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)cstat;
+  (void)ts;
+
   cubic_cc_reset(cc);
 }
 

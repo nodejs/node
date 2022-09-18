@@ -39,29 +39,20 @@
 void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
 
 /*
- * ngtcp2_addr_copy_byte copies |addr| of length |addrlen| into the
- * buffer pointed by dest->addr.  dest->len is updated to have
- * |addrlen|.  This function assumes that dest->addr points to a
- * buffer which have sufficient size to store the copy.
- */
-void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const struct sockaddr *addr,
-                           size_t addrlen);
-
-/*
  * ngtcp2_addr_eq returns nonzero if |a| equals |b|.
  */
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
 /* NGTCP2_ADDR_COMPARE_FLAG_NONE indicates that no flag set. */
-#define NGTCP2_ADDR_COMPARE_FLAG_NONE 0x0
+#define NGTCP2_ADDR_COMPARE_FLAG_NONE 0x0u
 /* NGTCP2_ADDR_COMPARE_FLAG_ADDR indicates IP addresses do not
    match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_ADDR 0x1
+#define NGTCP2_ADDR_COMPARE_FLAG_ADDR 0x1u
 /* NGTCP2_ADDR_COMPARE_FLAG_PORT indicates ports do not match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_PORT 0x2
+#define NGTCP2_ADDR_COMPARE_FLAG_PORT 0x2u
 /* NGTCP2_ADDR_COMPARE_FLAG_FAMILY indicates address families do not
    match. */
-#define NGTCP2_ADDR_COMPARE_FLAG_FAMILY 0x4
+#define NGTCP2_ADDR_COMPARE_FLAG_FAMILY 0x4u
 
 /*
  * ngtcp2_addr_compare compares address and port between |a| and |b|,

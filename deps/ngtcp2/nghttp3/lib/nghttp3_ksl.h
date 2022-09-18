@@ -34,6 +34,8 @@
 
 #include <nghttp3/nghttp3.h>
 
+#include "nghttp3_objalloc.h"
+
 /*
  * Skip List using single key instead of range.
  */
@@ -80,24 +82,33 @@ struct nghttp3_ksl_node {
  * nghttp3_ksl_blk contains nghttp3_ksl_node objects.
  */
 struct nghttp3_ksl_blk {
-  /* next points to the next block if leaf field is nonzero. */
-  nghttp3_ksl_blk *next;
-  /* prev points to the previous block if leaf field is nonzero. */
-  nghttp3_ksl_blk *prev;
-  /* n is the number of nodes this object contains in nodes. */
-  uint32_t n;
-  /* leaf is nonzero if this block contains leaf nodes. */
-  uint32_t leaf;
   union {
-    uint64_t align;
-    /* nodes is a buffer to contain NGHTTP3_KSL_MAX_NBLK
-       nghttp3_ksl_node objects.  Because nghttp3_ksl_node object is
-       allocated along with the additional variable length key
-       storage, the size of buffer is unknown until nghttp3_ksl_init
-       is called. */
-    uint8_t nodes[1];
+    struct {
+      /* next points to the next block if leaf field is nonzero. */
+      nghttp3_ksl_blk *next;
+      /* prev points to the previous block if leaf field is
+         nonzero. */
+      nghttp3_ksl_blk *prev;
+      /* n is the number of nodes this object contains in nodes. */
+      uint32_t n;
+      /* leaf is nonzero if this block contains leaf nodes. */
+      uint32_t leaf;
+      union {
+        uint64_t align;
+        /* nodes is a buffer to contain NGHTTP3_KSL_MAX_NBLK
+           nghttp3_ksl_node objects.  Because nghttp3_ksl_node object
+           is allocated along with the additional variable length key
+           storage, the size of buffer is unknown until
+           nghttp3_ksl_init is called. */
+        uint8_t nodes[1];
+      };
+    };
+
+    nghttp3_opl_entry oplent;
   };
 };
+
+nghttp3_objalloc_def(ksl_blk, nghttp3_ksl_blk, oplent);
 
 /*
  * nghttp3_ksl_compar is a function type which returns nonzero if key
@@ -123,6 +134,7 @@ struct nghttp3_ksl_it {
  * nghttp3_ksl is a deterministic paged skip list.
  */
 struct nghttp3_ksl {
+  nghttp3_objalloc blkalloc;
   /* head points to the root block. */
   nghttp3_ksl_blk *head;
   /* front points to the first leaf block. */
@@ -136,21 +148,14 @@ struct nghttp3_ksl {
   /* nodelen is the actual size of nghttp3_ksl_node including key
      storage. */
   size_t nodelen;
-  const nghttp3_mem *mem;
 };
 
 /*
  * nghttp3_ksl_init initializes |ksl|.  |compar| specifies compare
  * function.  |keylen| is the length of key.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGHTTP3_ERR_NOMEM
- *   Out of memory.
  */
-int nghttp3_ksl_init(nghttp3_ksl *ksl, nghttp3_ksl_compar compar, size_t keylen,
-                     const nghttp3_mem *mem);
+void nghttp3_ksl_init(nghttp3_ksl *ksl, nghttp3_ksl_compar compar,
+                      size_t keylen, const nghttp3_mem *mem);
 
 /*
  * nghttp3_ksl_free frees resources allocated for |ksl|.  If |ksl| is
@@ -191,6 +196,17 @@ int nghttp3_ksl_insert(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
  */
 int nghttp3_ksl_remove(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
                        const nghttp3_ksl_key *key);
+
+/*
+ * nghttp3_ksl_remove_hint removes the |key| from |ksl|.  |hint| must
+ * point to the same node denoted by |key|.  |hint| is used to remove
+ * a node efficiently in some cases.  Other than that, it behaves
+ * exactly like nghttp3_ksl_remove.  |it| and |hint| can point to the
+ * same object.
+ */
+int nghttp3_ksl_remove_hint(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
+                            const nghttp3_ksl_it *hint,
+                            const nghttp3_ksl_key *key);
 
 /*
  * nghttp3_ksl_lower_bound returns the iterator which points to the
@@ -267,7 +283,8 @@ void nghttp3_ksl_it_init(nghttp3_ksl_it *it, const nghttp3_ksl *ksl,
  * |it| points to.  It is undefined to call this function when
  * nghttp3_ksl_it_end(it) returns nonzero.
  */
-void *nghttp3_ksl_it_get(const nghttp3_ksl_it *it);
+#define nghttp3_ksl_it_get(IT)                                                 \
+  nghttp3_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->data
 
 /*
  * nghttp3_ksl_it_next advances the iterator by one.  It is undefined

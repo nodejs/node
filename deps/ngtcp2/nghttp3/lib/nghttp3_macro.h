@@ -44,4 +44,8 @@
 
 #define lstreq(A, B, N) ((sizeof((A)) - 1) == (N) && memcmp((A), (B), (N)) == 0)
 
+/* NGHTTP3_MAX_VARINT` is the maximum value which can be encoded in
+   variable-length integer encoding. */
+#define NGHTTP3_MAX_VARINT ((1ULL << 62) - 1)
+
 #endif /* NGHTTP3_MACRO_H */

@@ -26,26 +26,28 @@
  */
 #include "nghttp3_mem.h"
 
-static void *default_malloc(size_t size, void *mem_user_data) {
-  (void)mem_user_data;
+#include <stdio.h>
+
+static void *default_malloc(size_t size, void *user_data) {
+  (void)user_data;
 
   return malloc(size);
 }
 
-static void default_free(void *ptr, void *mem_user_data) {
-  (void)mem_user_data;
+static void default_free(void *ptr, void *user_data) {
+  (void)user_data;
 
   free(ptr);
 }
 
-static void *default_calloc(size_t nmemb, size_t size, void *mem_user_data) {
-  (void)mem_user_data;
+static void *default_calloc(size_t nmemb, size_t size, void *user_data) {
+  (void)user_data;
 
   return calloc(nmemb, size);
 }
 
-static void *default_realloc(void *ptr, size_t size, void *mem_user_data) {
-  (void)mem_user_data;
+static void *default_realloc(void *ptr, size_t size, void *user_data) {
+  (void)user_data;
 
   return realloc(ptr, size);
 }
@@ -55,23 +57,68 @@ static nghttp3_mem mem_default = {NULL, default_malloc, default_free,
 
 const nghttp3_mem *nghttp3_mem_default(void) { return &mem_default; }
 
+#ifndef MEMDEBUG
 void *nghttp3_mem_malloc(const nghttp3_mem *mem, size_t size) {
-  return mem->malloc(size, mem->mem_user_data);
+  return mem->malloc(size, mem->user_data);
 }
 
 void nghttp3_mem_free(const nghttp3_mem *mem, void *ptr) {
-  mem->free(ptr, mem->mem_user_data);
-}
-
-void nghttp3_mem_free2(const nghttp3_free free_func, void *ptr,
-                       void *mem_user_data) {
-  free_func(ptr, mem_user_data);
+  mem->free(ptr, mem->user_data);
 }
 
 void *nghttp3_mem_calloc(const nghttp3_mem *mem, size_t nmemb, size_t size) {
-  return mem->calloc(nmemb, size, mem->mem_user_data);
+  return mem->calloc(nmemb, size, mem->user_data);
 }
 
 void *nghttp3_mem_realloc(const nghttp3_mem *mem, void *ptr, size_t size) {
-  return mem->realloc(ptr, size, mem->mem_user_data);
+  return mem->realloc(ptr, size, mem->user_data);
 }
+#else  /* MEMDEBUG */
+void *nghttp3_mem_malloc_debug(const nghttp3_mem *mem, size_t size,
+                               const char *func, const char *file,
+                               size_t line) {
+  void *nptr = mem->malloc(size, mem->user_data);
+
+  fprintf(stderr, "malloc %p size=%zu in %s at %s:%zu\n", nptr, size, func,
+          file, line);
+
+  return nptr;
+}
+
+void nghttp3_mem_free_debug(const nghttp3_mem *mem, void *ptr, const char *func,
+                            const char *file, size_t line) {
+  fprintf(stderr, "free ptr=%p in %s at %s:%zu\n", ptr, func, file, line);
+
+  mem->free(ptr, mem->user_data);
+}
+
+void nghttp3_mem_free2_debug(const nghttp3_free free_func, void *ptr,
+                             void *user_data, const char *func,
+                             const char *file, size_t line) {
+  fprintf(stderr, "free ptr=%p in %s at %s:%zu\n", ptr, func, file, line);
+
+  free_func(ptr, user_data);
+}
+
+void *nghttp3_mem_calloc_debug(const nghttp3_mem *mem, size_t nmemb,
+                               size_t size, const char *func, const char *file,
+                               size_t line) {
+  void *nptr = mem->calloc(nmemb, size, mem->user_data);
+
+  fprintf(stderr, "calloc %p nmemb=%zu size=%zu in %s at %s:%zu\n", nptr, nmemb,
+          size, func, file, line);
+
+  return nptr;
+}
+
+void *nghttp3_mem_realloc_debug(const nghttp3_mem *mem, void *ptr, size_t size,
+                                const char *func, const char *file,
+                                size_t line) {
+  void *nptr = mem->realloc(ptr, size, mem->user_data);
+
+  fprintf(stderr, "realloc %p ptr=%p size=%zu in %s at %s:%zu\n", nptr, ptr,
+          size, func, file, line);
+
+  return nptr;
+}
+#endif /* MEMDEBUG */
