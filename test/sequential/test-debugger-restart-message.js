@@ -28,12 +28,10 @@ const startCLI = require('../common/debugger');
         await cli.stepCommand('restart');
         assert.strictEqual(cli.output.match(listeningRegExp).length, 1);
       }
-    } 
-    finally{
+    } finally {
       await cli.quit();
     }
   }
 
   onWaitForInitialBreak();
 }
-
