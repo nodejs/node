@@ -28,7 +28,6 @@
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <unistd.h>        // gethostname, sysconf
 # include <climits>         // PATH_MAX on Solaris.
 #endif  // __POSIX__
 
