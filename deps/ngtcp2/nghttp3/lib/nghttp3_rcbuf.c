@@ -41,8 +41,7 @@ int nghttp3_rcbuf_new(nghttp3_rcbuf **rcbuf_ptr, size_t size,
 
   *rcbuf_ptr = (void *)p;
 
-  (*rcbuf_ptr)->mem_user_data = mem->mem_user_data;
-  (*rcbuf_ptr)->free = mem->free;
+  (*rcbuf_ptr)->mem = mem;
   (*rcbuf_ptr)->base = p + sizeof(nghttp3_rcbuf);
   (*rcbuf_ptr)->len = size;
   (*rcbuf_ptr)->ref = 1;
@@ -76,7 +75,7 @@ int nghttp3_rcbuf_new2(nghttp3_rcbuf **rcbuf_ptr, const uint8_t *src,
  * Frees |rcbuf| itself, regardless of its reference cout.
  */
 void nghttp3_rcbuf_del(nghttp3_rcbuf *rcbuf) {
-  nghttp3_mem_free2(rcbuf->free, rcbuf, rcbuf->mem_user_data);
+  nghttp3_mem_free(rcbuf->mem, rcbuf);
 }
 
 void nghttp3_rcbuf_incref(nghttp3_rcbuf *rcbuf) {
