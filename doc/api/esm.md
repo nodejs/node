@@ -1034,7 +1034,7 @@ export function resolve(specifier, context, nextResolve) {
   }
 
   // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
+  return nextResolve(specifier, context);
 }
 
 export function load(url, context, nextLoad) {
@@ -1057,7 +1057,7 @@ export function load(url, context, nextLoad) {
   }
 
   // Let Node.js handle all other URLs.
-  return nextLoad(url);
+  return nextLoad(url, context);
 }
 ```
 
@@ -1110,7 +1110,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
 
   // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
+  return nextResolve(specifier, context);
 }
 
 export async function load(url, context, nextLoad) {
@@ -1151,7 +1151,7 @@ export async function load(url, context, nextLoad) {
   }
 
   // Let Node.js handle all other URLs.
-  return nextLoad(url);
+  return nextLoad(url, context);
 }
 
 async function getPackageType(url) {
