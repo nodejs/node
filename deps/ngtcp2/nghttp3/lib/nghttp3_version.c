@@ -31,7 +31,7 @@
 static nghttp3_info version = {NGHTTP3_VERSION_AGE, NGHTTP3_VERSION_NUM,
                                NGHTTP3_VERSION};
 
-nghttp3_info *nghttp3_version(int least_version) {
+const nghttp3_info *nghttp3_version(int least_version) {
   if (least_version > NGHTTP3_VERSION_NUM) {
     return NULL;
   }

@@ -45,24 +45,15 @@ typedef struct nghttp3_idtr {
   /* server is nonzero if this object records server initiated stream
      ID. */
   int server;
-  /* mem is custom memory allocator */
-  const nghttp3_mem *mem;
 } nghttp3_idtr;
 
 /*
- * nghttp3_idtr_init initializes |idtr|.  |chunk| is the size of buffer
- * per chunk.
+ * nghttp3_idtr_init initializes |idtr|.
  *
  * If this object records server initiated ID (even number), set
  * |server| to nonzero.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP3_ERR_NOMEM
- *     Out of memory.
  */
-int nghttp3_idtr_init(nghttp3_idtr *idtr, int server, const nghttp3_mem *mem);
+void nghttp3_idtr_init(nghttp3_idtr *idtr, int server, const nghttp3_mem *mem);
 
 /*
  * nghttp3_idtr_free frees resources allocated for |idtr|.
