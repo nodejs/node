@@ -3238,6 +3238,21 @@ details.
 These groups might be removed in future versions of Node.js. Applications that
 rely on these groups should evaluate using stronger MODP groups instead.
 
+### DEP0168: `process.exitCode` coercion to integer
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44712
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Similarly to the deprecation, DEP0164, setting `exitCode` values other than
+`undefined`, `null`, integer numbers and integer strings (e.g., '1') are
+deprecated.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
