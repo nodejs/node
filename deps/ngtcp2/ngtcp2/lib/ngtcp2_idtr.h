@@ -51,14 +51,8 @@ typedef struct ngtcp2_idtr {
  *
  * If this object records server initiated ID (even number), set
  * |server| to nonzero.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem);
+void ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_idtr_free frees resources allocated for |idtr|.
