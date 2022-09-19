@@ -39,7 +39,8 @@ changes:
 
 Node.js provides an implementation of the standard [Web Crypto API][].
 
-Use `globalThis.crypto` to access this module.
+Use `globalThis.crypto` or `require('node:crypto').webcrypto` to access this
+module.
 
 ```js
 const { subtle } = globalThis.crypto;
