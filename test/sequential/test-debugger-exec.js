@@ -10,7 +10,7 @@ const assert = require('assert');
 
 const cli = startCLI([fixtures.path('debugger/alive.js')]);
 
-var waitInitialBreak = async function () {
+async function waitInitialBreak() {
   try {
     await cli.waitForInitialBreak();
     await cli.waitForPrompt();
@@ -63,6 +63,6 @@ var waitInitialBreak = async function () {
   } finally {
     await cli.quit();
   }
-};
+}
 
-return waitInitialBreak();
+waitInitialBreak();
