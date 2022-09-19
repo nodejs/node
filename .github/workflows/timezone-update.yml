@@ -6,8 +6,15 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   timezone_update:
+    permissions:
+      contents: write  # to push local changes (gr2m/create-or-update-pull-request-action)
+      pull-requests: write  # to create a PR (gr2m/create-or-update-pull-request-action)
+
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
 
