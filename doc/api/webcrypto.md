@@ -371,7 +371,7 @@ implementation and the APIs supported for each:
 added: v15.0.0
 -->
 
-`globalThis.crypto` returns an instance of the `Crypto`
+`globalThis.crypto` is an instance of the `Crypto`
 class. `Crypto` is a singleton that provides access to the remainder of the
 crypto API.
 
