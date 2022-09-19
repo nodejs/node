@@ -36,7 +36,7 @@ const net = require('net');
     // Verify that the server listener is never called
 
     client.on('data', common.mustCall((chunk) => {
-      response += chunk.toString('utf-8');
+      response += chunk;
     }));
 
     client.setEncoding('utf8');
