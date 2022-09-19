@@ -6,7 +6,7 @@ const common = require('../common');
 const Module = require('module');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
-const { deepStrictEqual, match, ok, strictEqual, throws } = require('assert');
+const { deepStrictEqual, ok, strictEqual, throws } = require('assert');
 const { join } = require('path');
 
 const directory = join(tmpdir.path, 'directory');
@@ -32,9 +32,11 @@ ok(Module._stat(vfsFile) < 0);
 deepStrictEqual(require(file), { a: 'b' });
 throws(() => require(vfsFile), { code: 'MODULE_NOT_FOUND' });
 
-process.on('warning', common.mustCall((warning) => {
-  match(warning.message, /is an experimental feature/);
-}, 1));
+common.expectWarning(
+  'ExperimentalWarning',
+  'Module._stat is an experimental feature. This feature could change at any time');
+
+process.on('warning', common.mustCall());
 
 const originalStat = Module._stat;
 Module._stat = function(filename) {
