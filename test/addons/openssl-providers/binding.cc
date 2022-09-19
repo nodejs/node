@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <node.h>
+
+#if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
+#endif
 
 namespace {
 
