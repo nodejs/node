@@ -230,13 +230,16 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 #include <cpuid.h>
 #endif
 
-#define bit_XSAVE_XRSTORE (1 << 27)
-#define bit_AVX512VBMI (1 << 1)
+#define XSAVE_XRSTORE_bit (1 << 27)
+#define AVX512VBMI_bit (1 << 1)
 #define SSSE3_bit (1 << 9)
 #define SSE41_bit (1 << 19)
 #define SSE42_bit (1 << 20)
-#define _XCR_XFEATURE_ENABLED_MASK 0
-#define _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS 0x6
+
+#ifndef __GNUC__
+#define __attribute__()
+#endif
+
 
 // This static variable is initialized once when the library is first
 // used, and not changed in the remaining lifetime of the program.
@@ -267,13 +270,13 @@ __attribute__((target("avx512vbmi"))) inline static void set_simd_level() {
     //    context switch
     if (max_level >= 1) {
       __cpuid_count(1, 0, eax, ebx, ecx, edx);
-      if (ecx & bit_XSAVE_XRSTORE) {
+      if (ecx & XSAVE_XRSTORE_bit) {
         uint64_t xcr_mask;
-        xcr_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
-        if (xcr_mask & _XCR_XMM_AND_YMM_STATE_ENABLED_BY_OS) {
+        xcr_mask = _xgetbv(0);
+        if (xcr_mask & 0x6) {
           if (max_level >= 7) {
             __cpuid_count(7, 0, eax, ebx, ecx, edx);
-            if (ecx & bit_AVX512VBMI) {
+            if (ecx & AVX512VBMI_bit) {
               simd_level = 1;
               return;
             }
