@@ -1,0 +1,1296 @@
+.TH "PACKAGE\.JSON" "5" "September 2022" "" ""
+.SH "NAME"
+\fBpackage.json\fR \- Specifics of npm's package\.json handling
+.SS Description
+.P
+This document is all you need to know about what's required in your
+package\.json file\.  It must be actual JSON, not just a JavaScript object
+literal\.
+.P
+A lot of the behavior described in this document is affected by the config
+settings described in npm help \fBconfig\fP\|\.
+.SS name
+.P
+If you plan to publish your package, the \fImost\fR important things in your
+package\.json are the name and version fields as they will be required\. The
+name and version together form an identifier that is assumed to be
+completely unique\.  Changes to the package should come along with changes
+to the version\. If you don't plan to publish your package, the name and
+version fields are optional\.
+.P
+The name is what your thing is called\.
+.P
+Some rules:
+.RS 0
+.IP \(bu 2
+The name must be less than or equal to 214 characters\. This includes the
+scope for scoped packages\.
+.IP \(bu 2
+The names of scoped packages can begin with a dot or an underscore\. This
+is not permitted without a scope\.
+.IP \(bu 2
+New packages must not have uppercase letters in the name\.
+.IP \(bu 2
+The name ends up being part of a URL, an argument on the command line,
+and a folder name\. Therefore, the name can't contain any non\-URL\-safe
+characters\.
+
+.RE
+.P
+Some tips:
+.RS 0
+.IP \(bu 2
+Don't use the same name as a core Node module\.
+.IP \(bu 2
+Don't put "js" or "node" in the name\.  It's assumed that it's js, since
+you're writing a package\.json file, and you can specify the engine using
+the "engines" field\.  (See below\.)
+.IP \(bu 2
+The name will probably be passed as an argument to require(), so it
+should be something short, but also reasonably descriptive\.
+.IP \(bu 2
+You may want to check the npm registry to see if there's something by
+that name already, before you get too attached to it\.
+https://www\.npmjs\.com/
+
+.RE
+.P
+A name can be optionally prefixed by a scope, e\.g\. \fB@myorg/mypackage\fP\|\. See
+npm help \fBscope\fP for more detail\.
+.SS version
+.P
+If you plan to publish your package, the \fImost\fR important things in your
+package\.json are the name and version fields as they will be required\. The
+name and version together form an identifier that is assumed to be
+completely unique\.  Changes to the package should come along with changes
+to the version\. If you don't plan to publish your package, the name and
+version fields are optional\.
+.P
+Version must be parseable by
+node\-semver \fIhttps://github\.com/npm/node\-semver\fR, which is bundled with
+npm as a dependency\.  (\fBnpm install semver\fP to use it yourself\.)
+.SS description
+.P
+Put a description in it\.  It's a string\.  This helps people discover your
+package, as it's listed in \fBnpm search\fP\|\.
+.SS keywords
+.P
+Put keywords in it\.  It's an array of strings\.  This helps people discover
+your package as it's listed in \fBnpm search\fP\|\.
+.SS homepage
+.P
+The url to the project homepage\.
+.P
+Example:
+.P
+.RS 2
+.nf
+"homepage": "https://github\.com/owner/project#readme"
+.fi
+.RE
+.SS bugs
+.P
+The url to your project's issue tracker and / or the email address to which
+issues should be reported\. These are helpful for people who encounter
+issues with your package\.
+.P
+It should look like this:
+.P
+.RS 2
+.nf
+{
+  "url" : "https://github\.com/owner/project/issues",
+  "email" : "project@hostname\.com"
+}
+.fi
+.RE
+.P
+You can specify either one or both values\. If you want to provide only a
+url, you can specify the value for "bugs" as a simple string instead of an
+object\.
+.P
+If a url is provided, it will be used by the \fBnpm bugs\fP command\.
+.SS license
+.P
+You should specify a license for your package so that people know how they
+are permitted to use it, and any restrictions you're placing on it\.
+.P
+If you're using a common license such as BSD\-2\-Clause or MIT, add a current
+SPDX license identifier for the license you're using, like this:
+.P
+.RS 2
+.nf
+{
+  "license" : "BSD\-3\-Clause"
+}
+.fi
+.RE
+.P
+You can check the full list of SPDX license
+IDs \fIhttps://spdx\.org/licenses/\fR\|\.  Ideally you should pick one that is
+OSI \fIhttps://opensource\.org/licenses/alphabetical\fR approved\.
+.P
+If your package is licensed under multiple common licenses, use an SPDX
+license expression syntax version 2\.0
+string \fIhttps://spdx\.dev/specifications/\fR, like this:
+.P
+.RS 2
+.nf
+{
+  "license" : "(ISC OR GPL\-3\.0)"
+}
+.fi
+.RE
+.P
+If you are using a license that hasn't been assigned an SPDX identifier, or if
+you are using a custom license, use a string value like this one:
+.P
+.RS 2
+.nf
+{
+  "license" : "SEE LICENSE IN <filename>"
+}
+.fi
+.RE
+.P
+Then include a file named \fB<filename>\fP at the top level of the package\.
+.P
+Some old packages used license objects or a "licenses" property containing
+an array of license objects:
+.P
+.RS 2
+.nf
+// Not valid metadata
+{
+  "license" : {
+    "type" : "ISC",
+    "url" : "https://opensource\.org/licenses/ISC"
+  }
+}
+
+// Not valid metadata
+{
+  "licenses" : [
+    {
+      "type": "MIT",
+      "url": "https://www\.opensource\.org/licenses/mit\-license\.php"
+    },
+    {
+      "type": "Apache\-2\.0",
+      "url": "https://opensource\.org/licenses/apache2\.0\.php"
+    }
+  ]
+}
+.fi
+.RE
+.P
+Those styles are now deprecated\. Instead, use SPDX expressions, like this:
+.P
+.RS 2
+.nf
+{
+  "license": "ISC"
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+{
+  "license": "(MIT OR Apache\-2\.0)"
+}
+.fi
+.RE
+.P
+Finally, if you do not wish to grant others the right to use a private or
+unpublished package under any terms:
+.P
+.RS 2
+.nf
+{
+  "license": "UNLICENSED"
+}
+.fi
+.RE
+.P
+Consider also setting \fB"private": true\fP to prevent accidental publication\.
+.SS people fields: author, contributors
+.P
+The "author" is one person\.  "contributors" is an array of people\.  A
+"person" is an object with a "name" field and optionally "url" and "email",
+like this:
+.P
+.RS 2
+.nf
+{
+  "name" : "Barney Rubble",
+  "email" : "b@rubble\.com",
+  "url" : "http://barnyrubble\.tumblr\.com/"
+}
+.fi
+.RE
+.P
+Or you can shorten that all into a single string, and npm will parse it for
+you:
+.P
+.RS 2
+.nf
+{
+  "author": "Barney Rubble <b@rubble\.com> (http://barnyrubble\.tumblr\.com/)"
+}
+.fi
+.RE
+.P
+Both email and url are optional either way\.
+.P
+npm also sets a top\-level "maintainers" field with your npm user info\.
+.SS funding
+.P
+You can specify an object containing a URL that provides up\-to\-date
+information about ways to help fund development of your package, or a
+string URL, or an array of these:
+.P
+.RS 2
+.nf
+{
+  "funding": {
+    "type" : "individual",
+    "url" : "http://example\.com/donate"
+  },
+
+  "funding": {
+    "type" : "patreon",
+    "url" : "https://www\.patreon\.com/my\-account"
+  },
+
+  "funding": "http://example\.com/donate",
+
+  "funding": [
+    {
+      "type" : "individual",
+      "url" : "http://example\.com/donate"
+    },
+    "http://example\.com/donateAlso",
+    {
+      "type" : "patreon",
+      "url" : "https://www\.patreon\.com/my\-account"
+    }
+  ]
+}
+.fi
+.RE
+.P
+Users can use the \fBnpm fund\fP subcommand to list the \fBfunding\fP URLs of all
+dependencies of their project, direct and indirect\. A shortcut to visit
+each funding url is also available when providing the project name such as:
+\fBnpm fund <projectname>\fP (when there are multiple URLs, the first one will
+be visited)
+.SS files
+.P
+The optional \fBfiles\fP field is an array of file patterns that describes the
+entries to be included when your package is installed as a dependency\. File
+patterns follow a similar syntax to \fB\|\.gitignore\fP, but reversed: including a
+file, directory, or glob pattern (\fB*\fP, \fB**/*\fP, and such) will make it so
+that file is included in the tarball when it's packed\. Omitting the field
+will make it default to \fB["*"]\fP, which means it will include all files\.
+.P
+Some special files and directories are also included or excluded regardless
+of whether they exist in the \fBfiles\fP array (see below)\.
+.P
+You can also provide a \fB\|\.npmignore\fP file in the root of your package or in
+subdirectories, which will keep files from being included\. At the root of
+your package it will not override the "files" field, but in subdirectories
+it will\. The \fB\|\.npmignore\fP file works just like a \fB\|\.gitignore\fP\|\. If there is
+a \fB\|\.gitignore\fP file, and \fB\|\.npmignore\fP is missing, \fB\|\.gitignore\fP\|'s contents
+will be used instead\.
+.P
+Files included with the "package\.json#files" field \fIcannot\fR be excluded
+through \fB\|\.npmignore\fP or \fB\|\.gitignore\fP\|\.
+.P
+Certain files are always included, regardless of settings:
+.RS 0
+.IP \(bu 2
+\fBpackage\.json\fP
+.IP \(bu 2
+\fBREADME\fP
+.IP \(bu 2
+\fBLICENSE\fP / \fBLICENCE\fP
+.IP \(bu 2
+The file in the "main" field
+
+.RE
+.P
+\fBREADME\fP & \fBLICENSE\fP can have any case and extension\.
+.P
+Conversely, some files are always ignored:
+.RS 0
+.IP \(bu 2
+\fB\|\.git\fP
+.IP \(bu 2
+\fBCVS\fP
+.IP \(bu 2
+\fB\|\.svn\fP
+.IP \(bu 2
+\fB\|\.hg\fP
+.IP \(bu 2
+\fB\|\.lock\-wscript\fP
+.IP \(bu 2
+\fB\|\.wafpickle\-N\fP
+.IP \(bu 2
+\fB\|\.*\.swp\fP
+.IP \(bu 2
+\fB\|\.DS_Store\fP
+.IP \(bu 2
+\fB\|\._*\fP
+.IP \(bu 2
+\fBnpm\-debug\.log\fP
+.IP \(bu 2
+\fB\|\.npmrc\fP
+.IP \(bu 2
+\fBnode_modules\fP
+.IP \(bu 2
+\fBconfig\.gypi\fP
+.IP \(bu 2
+\fB*\.orig\fP
+.IP \(bu 2
+\fBpackage\-lock\.json\fP (use
+npm help \fBnpm\-shrinkwrap\.json\fP if you wish
+it to be published)
+
+.RE
+.SS main
+.P
+The main field is a module ID that is the primary entry point to your
+program\.  That is, if your package is named \fBfoo\fP, and a user installs it,
+and then does \fBrequire("foo")\fP, then your main module's exports object will
+be returned\.
+.P
+This should be a module relative to the root of your package folder\.
+.P
+For most modules, it makes the most sense to have a main script and often
+not much else\.
+.P
+If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the package's root folder\.
+.SS browser
+.P
+If your module is meant to be used client\-side the browser field should be
+used instead of the main field\. This is helpful to hint users that it might
+rely on primitives that aren't available in Node\.js modules\. (e\.g\.
+\fBwindow\fP)
+.SS bin
+.P
+A lot of packages have one or more executable files that they'd like to
+install into the PATH\. npm makes this pretty easy (in fact, it uses this
+feature to install the "npm" executable\.)
+.P
+To use this, supply a \fBbin\fP field in your package\.json which is a map of
+command name to local file name\. When this package is installed
+globally, that file will be linked where global bins go so it is
+available to run by name\.  When this package is installed as a
+dependency in another package, the file will be linked where it will be
+available to that package either directly by \fBnpm exec\fP or by name in other
+scripts when invoking them via \fBnpm run\-script\fP\|\.
+.P
+For example, myapp could have this:
+.P
+.RS 2
+.nf
+{
+  "bin": {
+    "myapp": "\./cli\.js"
+  }
+}
+.fi
+.RE
+.P
+So, when you install myapp, it'll create a symlink from the \fBcli\.js\fP script
+to \fB/usr/local/bin/myapp\fP\|\.
+.P
+If you have a single executable, and its name should be the name of the
+package, then you can just supply it as a string\.  For example:
+.P
+.RS 2
+.nf
+{
+  "name": "my\-program",
+  "version": "1\.2\.5",
+  "bin": "\./path/to/program"
+}
+.fi
+.RE
+.P
+would be the same as this:
+.P
+.RS 2
+.nf
+{
+  "name": "my\-program",
+  "version": "1\.2\.5",
+  "bin": {
+    "my\-program": "\./path/to/program"
+  }
+}
+.fi
+.RE
+.P
+Please make sure that your file(s) referenced in \fBbin\fP starts with
+\fB#!/usr/bin/env node\fP, otherwise the scripts are started without the node
+executable!
+.P
+Note that you can also set the executable files using directories\.bin \fI#directoriesbin\fR\|\.
+.P
+See npm help folders for more info on
+executables\.
+.SS man
+.P
+Specify either a single file or an array of filenames to put in place for
+the \fBman\fP program to find\.
+.P
+If only a single file is provided, then it's installed such that it is the
+result from \fBman <pkgname>\fP, regardless of its actual filename\.  For
+example:
+.P
+.RS 2
+.nf
+{
+  "name": "foo",
+  "version": "1\.2\.3",
+  "description": "A packaged foo fooer for fooing foos",
+  "main": "foo\.js",
+  "man": "\./man/doc\.1"
+}
+.fi
+.RE
+.P
+would link the \fB\|\./man/doc\.1\fP file in such that it is the target for \fBman
+foo\fP
+.P
+If the filename doesn't start with the package name, then it's prefixed\.
+So, this:
+.P
+.RS 2
+.nf
+{
+  "name": "foo",
+  "version": "1\.2\.3",
+  "description": "A packaged foo fooer for fooing foos",
+  "main": "foo\.js",
+  "man": [
+    "\./man/foo\.1",
+    "\./man/bar\.1"
+  ]
+}
+.fi
+.RE
+.P
+will create files to do \fBman foo\fP and \fBman foo\-bar\fP\|\.
+.P
+Man files must end with a number, and optionally a \fB\|\.gz\fP suffix if they are
+compressed\.  The number dictates which man section the file is installed
+into\.
+.P
+.RS 2
+.nf
+{
+  "name": "foo",
+  "version": "1\.2\.3",
+  "description": "A packaged foo fooer for fooing foos",
+  "main": "foo\.js",
+  "man": [
+    "\./man/foo\.1",
+    "\./man/foo\.2"
+  ]
+}
+.fi
+.RE
+.P
+will create entries for \fBman foo\fP and \fBman 2 foo\fP
+.SS directories
+.P
+The CommonJS Packages \fIhttp://wiki\.commonjs\.org/wiki/Packages/1\.0\fR spec
+details a few ways that you can indicate the structure of your package
+using a \fBdirectories\fP object\. If you look at npm's
+package\.json \fIhttps://registry\.npmjs\.org/npm/latest\fR, you'll see that it
+has directories for doc, lib, and man\.
+.P
+In the future, this information may be used in other creative ways\.
+.SS directories\.bin
+.P
+If you specify a \fBbin\fP directory in \fBdirectories\.bin\fP, all the files in
+that folder will be added\.
+.P
+Because of the way the \fBbin\fP directive works, specifying both a \fBbin\fP path
+and setting \fBdirectories\.bin\fP is an error\. If you want to specify
+individual files, use \fBbin\fP, and for all the files in an existing \fBbin\fP
+directory, use \fBdirectories\.bin\fP\|\.
+.SS directories\.man
+.P
+A folder that is full of man pages\.  Sugar to generate a "man" array by
+walking the folder\.
+.SS repository
+.P
+Specify the place where your code lives\. This is helpful for people who
+want to contribute\.  If the git repo is on GitHub, then the \fBnpm docs\fP
+command will be able to find you\.
+.P
+Do it like this:
+.P
+.RS 2
+.nf
+{
+  "repository": {
+    "type": "git",
+    "url": "https://github\.com/npm/cli\.git"
+  }
+}
+.fi
+.RE
+.P
+The URL should be a publicly available (perhaps read\-only) url that can be
+handed directly to a VCS program without any modification\.  It should not
+be a url to an html project page that you put in your browser\.  It's for
+computers\.
+.P
+For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the
+same shortcut syntax you use for \fBnpm install\fP:
+.P
+.RS 2
+.nf
+{
+  "repository": "npm/npm",
+
+  "repository": "github:user/repo",
+
+  "repository": "gist:11081aaa281",
+
+  "repository": "bitbucket:user/repo",
+
+  "repository": "gitlab:user/repo"
+}
+.fi
+.RE
+.P
+If the \fBpackage\.json\fP for your package is not in the root directory (for
+example if it is part of a monorepo), you can specify the directory in
+which it lives:
+.P
+.RS 2
+.nf
+{
+  "repository": {
+    "type": "git",
+    "url": "https://github\.com/facebook/react\.git",
+    "directory": "packages/react\-dom"
+  }
+}
+.fi
+.RE
+.SS scripts
+.P
+The "scripts" property is a dictionary containing script commands that are
+run at various times in the lifecycle of your package\.  The key is the
+lifecycle event, and the value is the command to run at that point\.
+.P
+See npm help \fBscripts\fP to find out more about writing package
+scripts\.
+.SS config
+.P
+A "config" object can be used to set configuration parameters used in
+package scripts that persist across upgrades\.  For instance, if a package
+had the following:
+.P
+.RS 2
+.nf
+{
+  "name": "foo",
+  "config": {
+    "port": "8080"
+  }
+}
+.fi
+.RE
+.P
+It could also have a "start" command that referenced the
+\fBnpm_package_config_port\fP environment variable\.
+.SS dependencies
+.P
+Dependencies are specified in a simple object that maps a package name to a
+version range\. The version range is a string which has one or more
+space\-separated descriptors\.  Dependencies can also be identified with a
+tarball or git URL\.
+.P
+\fBPlease do not put test harnesses or transpilers or other "development"
+time tools in your \fBdependencies\fP object\.\fR  See \fBdevDependencies\fP, below\.
+.P
+See semver \fIhttps://github\.com/npm/node\-semver#versions\fR for more details about specifying version ranges\.
+.RS 0
+.IP \(bu 2
+\fBversion\fP Must match \fBversion\fP exactly
+.IP \(bu 2
+\fB>version\fP Must be greater than \fBversion\fP
+.IP \(bu 2
+\fB>=version\fP etc
+.IP \(bu 2
+\fB<version\fP
+.IP \(bu 2
+\fB<=version\fP
+.IP \(bu 2
+\fB~version\fP "Approximately equivalent to version"  See
+semver \fIhttps://github\.com/npm/node\-semver#versions\fR
+.IP \(bu 2
+\fB^version\fP "Compatible with version"  See semver \fIhttps://github\.com/npm/node\-semver#versions\fR
+.IP \(bu 2
+\fB1\.2\.x\fP 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
+.IP \(bu 2
+\fBhttp://\.\.\.\fP See 'URLs as Dependencies' below
+.IP \(bu 2
+\fB*\fP Matches any version
+.IP \(bu 2
+\fB""\fP (just an empty string) Same as \fB*\fP
+.IP \(bu 2
+\fBversion1 \- version2\fP Same as \fB>=version1 <=version2\fP\|\.
+.IP \(bu 2
+\fBrange1 || range2\fP Passes if either range1 or range2 are satisfied\.
+.IP \(bu 2
+\fBgit\.\.\.\fP See 'Git URLs as Dependencies' below
+.IP \(bu 2
+\fBuser/repo\fP See 'GitHub URLs' below
+.IP \(bu 2
+\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm
+dist\-tag\fP
+.IP \(bu 2
+\fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
+
+.RE
+.P
+For example, these are all valid:
+.P
+.RS 2
+.nf
+{
+  "dependencies": {
+    "foo": "1\.0\.0 \- 2\.9999\.9999",
+    "bar": ">=1\.0\.2 <2\.1\.2",
+    "baz": ">1\.0\.2 <=2\.3\.4",
+    "boo": "2\.0\.1",
+    "qux": "<1\.0\.0 || >=2\.3\.1 <2\.4\.5 || >=2\.5\.2 <3\.0\.0",
+    "asd": "http://asdf\.com/asdf\.tar\.gz",
+    "til": "~1\.2",
+    "elf": "~1\.2\.3",
+    "two": "2\.x",
+    "thr": "3\.3\.x",
+    "lat": "latest",
+    "dyl": "file:\.\./dyl"
+  }
+}
+.fi
+.RE
+.SS URLs as Dependencies
+.P
+You may specify a tarball URL in place of a version range\.
+.P
+This tarball will be downloaded and installed locally to your package at
+install time\.
+.SS Git URLs as Dependencies
+.P
+Git urls are of the form:
+.P
+.RS 2
+.nf
+<protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish> | #semver:<semver>]
+.fi
+.RE
+.P
+\fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP, or
+\fBgit+file\fP\|\.
+.P
+If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+be any valid semver range or exact version, and npm will look for any tags
+or refs matching that range in the remote repository, much as it would for
+a registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+specified, then the default branch is used\.
+.P
+Examples:
+.P
+.RS 2
+.nf
+git+ssh://git@github\.com:npm/cli\.git#v1\.0\.27
+git+ssh://git@github\.com:npm/cli#semver:^5\.0
+git+https://isaacs@github\.com/npm/cli\.git
+git://github\.com/npm/cli\.git#v1\.0\.27
+.fi
+.RE
+.P
+When installing from a \fBgit\fP repository, the presence of certain fields in the
+\fBpackage\.json\fP will cause npm to believe it needs to perform a build\. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed\.
+.P
+This flow will occur if your git dependency uses \fBworkspaces\fP, or if any of the
+following scripts are present:
+.RS 0
+.IP \(bu 2
+\fBbuild\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+
+.RE
+.P
+If your git repository includes pre\-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation\.
+.SS GitHub URLs
+.P
+As of version 1\.1\.65, you can refer to GitHub urls as just "foo":
+"user/foo\-project"\.  Just as with git URLs, a \fBcommit\-ish\fP suffix can be
+included\.  For example:
+.P
+.RS 2
+.nf
+{
+  "name": "foo",
+  "version": "0\.0\.0",
+  "dependencies": {
+    "express": "expressjs/express",
+    "mocha": "mochajs/mocha#4727d357ea",
+    "module": "user/repo#feature\\/branch"
+  }
+}
+.fi
+.RE
+.SS Local Paths
+.P
+As of version 2\.0\.0 you can provide a path to a local directory that
+contains a package\. Local paths can be saved using \fBnpm install \-S\fP or \fBnpm
+install \-\-save\fP, using any of these forms:
+.P
+.RS 2
+.nf
+\|\.\./foo/bar
+~/foo/bar
+\|\./foo/bar
+/foo/bar
+.fi
+.RE
+.P
+in which case they will be normalized to a relative path and added to your
+\fBpackage\.json\fP\|\. For example:
+.P
+.RS 2
+.nf
+{
+  "name": "baz",
+  "dependencies": {
+    "bar": "file:\.\./foo/bar"
+  }
+}
+.fi
+.RE
+.P
+This feature is helpful for local offline development and creating tests
+that require npm installing where you don't want to hit an external server,
+but should not be used when publishing packages to the public registry\.
+.P
+\fInote\fR: Packages linked by local path will not have their own
+dependencies installed when \fBnpm install\fP is ran in this case\.  You must
+run \fBnpm install\fP from inside the local path itself\.
+.SS devDependencies
+.P
+If someone is planning on downloading and using your module in their
+program, then they probably don't want or need to download and build the
+external test or documentation framework that you use\.
+.P
+In this case, it's best to map these additional items in a
+\fBdevDependencies\fP object\.
+.P
+These things will be installed when doing \fBnpm link\fP or \fBnpm install\fP from
+the root of a package, and can be managed like any other npm configuration
+param\.  See npm help \fBconfig\fP for more on the topic\.
+.P
+For build steps that are not platform\-specific, such as compiling
+CoffeeScript or other languages to JavaScript, use the \fBprepare\fP script to
+do this, and make the required package a devDependency\.
+.P
+For example:
+.P
+.RS 2
+.nf
+{
+  "name": "ethopia\-waza",
+  "description": "a delightfully fruity coffee varietal",
+  "version": "1\.2\.3",
+  "devDependencies": {
+    "coffee\-script": "~1\.6\.3"
+  },
+  "scripts": {
+    "prepare": "coffee \-o lib/ \-c src/waza\.coffee"
+  },
+  "main": "lib/waza\.js"
+}
+.fi
+.RE
+.P
+The \fBprepare\fP script will be run before publishing, so that users can
+consume the functionality without requiring them to compile it themselves\.
+In dev mode (ie, locally running \fBnpm install\fP), it'll run this script as
+well, so that you can test it easily\.
+.SS peerDependencies
+.P
+In some cases, you want to express the compatibility of your package with a
+host tool or library, while not necessarily doing a \fBrequire\fP of this host\.
+This is usually referred to as a \fIplugin\fR\|\. Notably, your module may be
+exposing a specific interface, expected and specified by the host
+documentation\.
+.P
+For example:
+.P
+.RS 2
+.nf
+{
+  "name": "tea\-latte",
+  "version": "1\.3\.5",
+  "peerDependencies": {
+    "tea": "2\.x"
+  }
+}
+.fi
+.RE
+.P
+This ensures your package \fBtea\-latte\fP can be installed \fIalong\fR with the
+second major version of the host package \fBtea\fP only\. \fBnpm install
+tea\-latte\fP could possibly yield the following dependency graph:
+.P
+.RS 2
+.nf
+├── tea\-latte@1\.3\.5
+└── tea@2\.2\.0
+.fi
+.RE
+.P
+In npm versions 3 through 6, \fBpeerDependencies\fP were not automatically
+installed, and would raise a warning if an invalid version of the peer
+dependency was found in the tree\.  As of npm v7, peerDependencies \fIare\fR
+installed by default\.
+.P
+Trying to install another plugin with a conflicting requirement may cause
+an error if the tree cannot be resolved correctly\. For this reason, make
+sure your plugin requirement is as broad as possible, and not to lock it
+down to specific patch versions\.
+.P
+Assuming the host complies with semver \fIhttps://semver\.org/\fR, only changes
+in the host package's major version will break your plugin\. Thus, if you've
+worked with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP
+to express this\. If you depend on features introduced in 1\.5\.2, use
+\fB"^1\.5\.2"\fP\|\.
+.SS peerDependenciesMeta
+.P
+When a user installs your package, npm will emit warnings if packages
+specified in \fBpeerDependencies\fP are not already installed\. The
+\fBpeerDependenciesMeta\fP field serves to provide npm more information on how
+your peer dependencies are to be used\. Specifically, it allows peer
+dependencies to be marked as optional\.
+.P
+For example:
+.P
+.RS 2
+.nf
+{
+  "name": "tea\-latte",
+  "version": "1\.3\.5",
+  "peerDependencies": {
+    "tea": "2\.x",
+    "soy\-milk": "1\.2"
+  },
+  "peerDependenciesMeta": {
+    "soy\-milk": {
+      "optional": true
+    }
+  }
+}
+.fi
+.RE
+.P
+Marking a peer dependency as optional ensures npm will not emit a warning
+if the \fBsoy\-milk\fP package is not installed on the host\. This allows you to
+integrate and interact with a variety of host packages without requiring
+all of them to be installed\.
+.SS bundleDependencies
+.P
+This defines an array of package names that will be bundled when publishing
+the package\.
+.P
+In cases where you need to preserve npm packages locally or have them
+available through a single file download, you can bundle the packages in a
+tarball file by specifying the package names in the \fBbundleDependencies\fP
+array and executing \fBnpm pack\fP\|\.
+.P
+For example:
+.P
+If we define a package\.json like this:
+.P
+.RS 2
+.nf
+{
+  "name": "awesome\-web\-framework",
+  "version": "1\.0\.0",
+  "bundleDependencies": [
+    "renderized",
+    "super\-streams"
+  ]
+}
+.fi
+.RE
+.P
+we can obtain \fBawesome\-web\-framework\-1\.0\.0\.tgz\fP file by running \fBnpm pack\fP\|\.
+This file contains the dependencies \fBrenderized\fP and \fBsuper\-streams\fP which
+can be installed in a new project by executing \fBnpm install
+awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.  Note that the package names do not
+include any versions, as that information is specified in \fBdependencies\fP\|\.
+.P
+If this is spelled \fB"bundledDependencies"\fP, then that is also honored\.
+.P
+Alternatively, \fB"bundleDependencies"\fP can be defined as a boolean value\. A
+value of \fBtrue\fP will bundle all dependencies, a value of \fBfalse\fP will bundle
+none\.
+.SS optionalDependencies
+.P
+If a dependency can be used, but you would like npm to proceed if it cannot
+be found or fails to install, then you may put it in the
+\fBoptionalDependencies\fP object\.  This is a map of package name to version or
+url, just like the \fBdependencies\fP object\.  The difference is that build
+failures do not cause installation to fail\.  Running \fBnpm install
+\-\-omit=optional\fP will prevent these dependencies from being installed\.
+.P
+It is still your program's responsibility to handle the lack of the
+dependency\.  For example, something like this:
+.P
+.RS 2
+.nf
+try {
+  var foo = require('foo')
+  var fooVersion = require('foo/package\.json')\.version
+} catch (er) {
+  foo = null
+}
+if ( notGoodFooVersion(fooVersion) ) {
+  foo = null
+}
+
+// \.\. then later in your program \.\.
+
+if (foo) {
+  foo\.doFooThings()
+}
+.fi
+.RE
+.P
+Entries in \fBoptionalDependencies\fP will override entries of the same name in
+\fBdependencies\fP, so it's usually best to only put in one place\.
+.SS overrides
+.P
+If you need to make specific changes to dependencies of your dependencies, for
+example replacing the version of a dependency with a known security issue,
+replacing an existing dependency with a fork, or making sure that the same
+version of a package is used everywhere, then you may add an override\.
+.P
+Overrides provide a way to replace a package in your dependency tree with
+another version, or another package entirely\. These changes can be scoped as
+specific or as vague as desired\.
+.P
+To make sure the package \fBfoo\fP is always installed as version \fB1\.0\.0\fP no matter
+what version your dependencies rely on:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "foo": "1\.0\.0"
+  }
+}
+.fi
+.RE
+.P
+The above is a short hand notation, the full object form can be used to allow
+overriding a package itself as well as a child of the package\. This will cause
+\fBfoo\fP to always be \fB1\.0\.0\fP while also making \fBbar\fP at any depth beyond \fBfoo\fP
+also \fB1\.0\.0\fP:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "foo": {
+      "\.": "1\.0\.0",
+      "bar": "1\.0\.0"
+    }
+  }
+}
+.fi
+.RE
+.P
+To only override \fBfoo\fP to be \fB1\.0\.0\fP when it's a child (or grandchild, or great
+grandchild, etc) of the package \fBbar\fP:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "bar": {
+      "foo": "1\.0\.0"
+    }
+  }
+}
+.fi
+.RE
+.P
+Keys can be nested to any arbitrary length\. To override \fBfoo\fP only when it's a
+child of \fBbar\fP and only when \fBbar\fP is a child of \fBbaz\fP:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "baz": {
+      "bar": {
+        "foo": "1\.0\.0"
+      }
+    }
+  }
+}
+.fi
+.RE
+.P
+The key of an override can also include a version, or range of versions\.
+To override \fBfoo\fP to \fB1\.0\.0\fP, but only when it's a child of \fBbar@2\.0\.0\fP:
+.P
+.RS 2
+.nf
+{
+  "overrides": {
+    "bar@2\.0\.0": {
+      "foo": "1\.0\.0"
+    }
+  }
+}
+.fi
+.RE
+.P
+You may not set an override for a package that you directly depend on unless
+both the dependency and the override itself share the exact same spec\. To make
+this limitation easier to deal with, overrides may also be defined as a
+reference to a spec for a direct dependency by prefixing the name of the
+package you wish the version to match with a \fB$\fP\|\.
+.P
+.RS 2
+.nf
+{
+  "dependencies": {
+    "foo": "^1\.0\.0"
+  },
+  "overrides": {
+    // BAD, will throw an EOVERRIDE error
+    // "foo": "^2\.0\.0"
+    // GOOD, specs match so override is allowed
+    // "foo": "^1\.0\.0"
+    // BEST, the override is defined as a reference to the dependency
+    "foo": "$foo",
+    // the referenced package does not need to match the overridden one
+    "bar": "$foo"
+  }
+}
+.fi
+.RE
+.SS engines
+.P
+You can specify the version of node that your stuff works on:
+.P
+.RS 2
+.nf
+{
+  "engines": {
+    "node": ">=0\.10\.3 <15"
+  }
+}
+.fi
+.RE
+.P
+And, like with dependencies, if you don't specify the version (or if you
+specify "*" as the version), then any version of node will do\.
+.P
+You can also use the "engines" field to specify which versions of npm are
+capable of properly installing your program\.  For example:
+.P
+.RS 2
+.nf
+{
+  "engines": {
+    "npm": "~1\.0\.20"
+  }
+}
+.fi
+.RE
+.P
+Unless the user has set the \fBengine\-strict\fP config flag, this field is
+advisory only and will only produce warnings when your package is installed
+as a dependency\.
+.SS os
+.P
+You can specify which operating systems your
+module will run on:
+.P
+.RS 2
+.nf
+{
+  "os": [
+    "darwin",
+    "linux"
+  ]
+}
+.fi
+.RE
+.P
+You can also block instead of allowing operating systems, just prepend the
+blocked os with a '!':
+.P
+.RS 2
+.nf
+{
+  "os": [
+    "!win32"
+  ]
+}
+.fi
+.RE
+.P
+The host operating system is determined by \fBprocess\.platform\fP
+.P
+It is allowed to both block and allow an item, although there isn't any
+good reason to do this\.
+.SS cpu
+.P
+If your code only runs on certain cpu architectures,
+you can specify which ones\.
+.P
+.RS 2
+.nf
+{
+  "cpu": [
+    "x64",
+    "ia32"
+  ]
+}
+.fi
+.RE
+.P
+Like the \fBos\fP option, you can also block architectures:
+.P
+.RS 2
+.nf
+{
+  "cpu": [
+    "!arm",
+    "!mips"
+  ]
+}
+.fi
+.RE
+.P
+The host architecture is determined by \fBprocess\.arch\fP
+.SS private
+.P
+If you set \fB"private": true\fP in your package\.json, then npm will refuse to
+publish it\.
+.P
+This is a way to prevent accidental publication of private repositories\.
+If you would like to ensure that a given package is only ever published to
+a specific registry (for example, an internal registry), then use the
+\fBpublishConfig\fP dictionary described below to override the \fBregistry\fP
+config param at publish\-time\.
+.SS publishConfig
+.P
+This is a set of config values that will be used at publish\-time\. It's
+especially handy if you want to set the tag, registry or access, so that
+you can ensure that a given package is not tagged with "latest", published
+to the global public registry or that a scoped module is private by
+default\.
+.P
+See npm help \fBconfig\fP to see the list of config options that
+can be overridden\.
+.SS workspaces
+.P
+The optional \fBworkspaces\fP field is an array of file patterns that describes
+locations within the local file system that the install client should look
+up to find each npm help workspace that needs to be
+symlinked to the top level \fBnode_modules\fP folder\.
+.P
+It can describe either the direct paths of the folders to be used as
+workspaces or it can define globs that will resolve to these same folders\.
+.P
+In the following example, all folders located inside the folder
+\fB\|\./packages\fP will be treated as workspaces as long as they have valid
+\fBpackage\.json\fP files inside them:
+.P
+.RS 2
+.nf
+{
+  "name": "workspace\-example",
+  "workspaces": [
+    "\./packages/*"
+  ]
+}
+.fi
+.RE
+.P
+See npm help \fBworkspaces\fP for more examples\.
+.SS DEFAULT VALUES
+.P
+npm will default some values based on package contents\.
+.RS 0
+.IP \(bu 2
+\fB"scripts": {"start": "node server\.js"}\fP
+If there is a \fBserver\.js\fP file in the root of your package, then npm will
+default the \fBstart\fP command to \fBnode server\.js\fP\|\.
+.IP \(bu 2
+\fB"scripts":{"install": "node\-gyp rebuild"}\fP
+If there is a \fBbinding\.gyp\fP file in the root of your package and you have
+not defined an \fBinstall\fP or \fBpreinstall\fP script, npm will default the
+\fBinstall\fP command to compile using node\-gyp\.
+.IP \(bu 2
+\fB"contributors": [\.\.\.]\fP
+If there is an \fBAUTHORS\fP file in the root of your package, npm will treat
+each line as a \fBName <email> (url)\fP format, where email and url are
+optional\.  Lines which start with a \fB#\fP or are blank, will be ignored\.
+
+.RE
+.SS SEE ALSO
+.RS 0
+.IP \(bu 2
+semver \fIhttps://github\.com/npm/node\-semver#versions\fR
+.IP \(bu 2
+npm help workspaces
+.IP \(bu 2
+npm help init
+.IP \(bu 2
+npm help version
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help help
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help uninstall
+
+.RE

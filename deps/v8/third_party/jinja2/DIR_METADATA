@@ -1,0 +1,4 @@
+monorail: {
+  component: "Blink>Bindings"
+}
+team_email: "platform-architecture-dev@chromium.org"

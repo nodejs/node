@@ -1,0 +1,799 @@
+.TH "NPM\-INSTALL" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-install\fR \- Install a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm install [<package\-spec> \.\.\.]
+
+aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
+.fi
+.RE
+.SS Description
+.P
+This command installs a package and any packages that it depends on\. If the
+package has a package\-lock, or an npm shrinkwrap file, or a yarn lock file,
+the installation of dependencies will be driven by that, respecting the
+following order of precedence:
+.RS 0
+.IP \(bu 2
+\fBnpm\-shrinkwrap\.json\fP
+.IP \(bu 2
+\fBpackage\-lock\.json\fP
+.IP \(bu 2
+\fByarn\.lock\fP
+
+.RE
+.P
+See npm help package\-lock\.json and
+npm help \fBshrinkwrap\fP\|\.
+.P
+A \fBpackage\fP is:
+.RS 0
+.IP \(bu 2
+a) a folder containing a program described by a
+npm help \fBpackage\.json\fP file
+.IP \(bu 2
+b) a gzipped tarball containing (a)
+.IP \(bu 2
+c) a url that resolves to (b)
+.IP \(bu 2
+d) a \fB<name>@<version>\fP that is published on the registry (see
+npm help \fBregistry\fP) with (c)
+.IP \(bu 2
+e) a \fB<name>@<tag>\fP (see npm help \fBdist\-tag\fP) that
+points to (d)
+.IP \(bu 2
+f) a \fB<name>\fP that has a "latest" tag satisfying (e)
+.IP \(bu 2
+g) a \fB<git remote url>\fP that resolves to (a)
+
+.RE
+.P
+Even if you never publish your package, you can still get a lot of benefits
+of using npm if you just want to write a node program (a), and perhaps if
+you also want to be able to easily install it elsewhere after packing it up
+into a tarball (b)\.
+.RS 0
+.IP \(bu 2
+\fBnpm install\fP (in a package directory, no arguments):
+  Install the dependencies to the local \fBnode_modules\fP folder\.
+  In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
+  it installs the current package context (ie, the current working
+  directory) as a global package\.
+  By default, \fBnpm install\fP will install all modules listed as
+  dependencies in npm help \fBpackage\.json\fP\|\.
+  With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment
+  variable is set to \fBproduction\fP), npm will not install modules listed
+  in \fBdevDependencies\fP\|\. To install all modules listed in both
+  \fBdependencies\fP and \fBdevDependencies\fP when \fBNODE_ENV\fP environment
+  variable is set to \fBproduction\fP, you can use \fB\-\-production=false\fP\|\.
+.QP
+NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
+  dependency to a project\.
+
+.
+.IP \(bu 2
+\fBnpm install <folder>\fP:
+  If \fB<folder>\fP sits inside the root of your project, its dependencies will be installed and may
+  be hoisted to the top\-level \fBnode_modules\fP as they would for other
+  types of dependencies\. If \fB<folder>\fP sits outside the root of your project,
+  \fInpm will not install the package dependencies\fR in the directory \fB<folder>\fP,
+  but it will create a symlink to \fB<folder>\fP\|\.
+.QP
+NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use the \fB\-\-install\-links\fP option\.
+
+.
+  Example:
+.P
+.RS 2
+.nf
+  npm install \.\./\.\./other\-package \-\-install\-links
+  npm install \./sub\-package
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install <tarball file>\fP:
+  Install a package that is sitting on the filesystem\.  Note: if you just
+  want to link a dev directory into your npm root, you can do this more
+  easily by using npm help \fBlink\fP\|\.
+  Tarball requirements:
+.RS
+.IP \(bu 2
+The filename \fImust\fR use \fB\|\.tar\fP, \fB\|\.tar\.gz\fP, or \fB\|\.tgz\fP as the
+extension\.
+.IP \(bu 2
+The package contents should reside in a subfolder inside the tarball
+(usually it is called \fBpackage/\fP)\. npm strips one directory layer
+when installing the package (an equivalent of \fBtar x
+\-\-strip\-components=1\fP is run)\.
+.IP \(bu 2
+The package must contain a \fBpackage\.json\fP file with \fBname\fP and
+\fBversion\fP properties\.
+Example:
+.P
+.RS 2
+.nf
+npm install \./package\.tgz
+.fi
+.RE
+
+.RE
+.IP \(bu 2
+\fBnpm install <tarball url>\fP:
+  Fetch the tarball url, and then install it\.  In order to distinguish between
+  this and other options, the argument must start with "http://" or "https://"
+  Example:
+.P
+.RS 2
+.nf
+  npm install https://github\.com/indexzero/forever/tarball/v0\.5\.6
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>\fP:
+  Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
+  npm help \fBconfig\fP\|\. The config's default value is \fBlatest\fP\|\.)
+  In most cases, this will install the version of the modules tagged as
+  \fBlatest\fP on the npm registry\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install sax
+.fi
+.RE
+  \fBnpm install\fP saves any specified packages into \fBdependencies\fP by default\.
+  Additionally, you can control where and how they get saved with some
+  additional flags:
+.RS
+.IP \(bu 2
+\fB\-P, \-\-save\-prod\fP: Package will appear in your \fBdependencies\fP\|\. This
+is the default unless \fB\-D\fP or \fB\-O\fP are present\.
+.IP \(bu 2
+\fB\-D, \-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
+.IP \(bu 2
+\fB\-O, \-\-save\-optional\fP: Package will appear in your
+\fBoptionalDependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-no\-save\fP: Prevents saving to \fBdependencies\fP\|\.
+When using any of the above options to save dependencies to your
+package\.json, there are two additional, optional flags:
+.IP \(bu 2
+\fB\-E, \-\-save\-exact\fP: Saved dependencies will be configured with an
+exact version rather than using npm's default semver range operator\.
+.IP \(bu 2
+\fB\-B, \-\-save\-bundle\fP: Saved dependencies will also be added to your
+\fBbundleDependencies\fP list\.
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP or \fBpackage\-lock\.json\fP
+then it will be updated as well\.
+\fB<scope>\fP is optional\. The package will be downloaded from the registry
+associated with the specified scope\. If no registry is associated with
+the given scope the default registry is assumed\. See
+npm help \fBscope\fP\|\.
+Note: if you do not include the @\-symbol on your scope name, npm will
+interpret this as a GitHub repository instead, see below\. Scopes names
+must also be followed by a slash\.
+Examples:
+.P
+.RS 2
+.nf
+npm install sax
+npm install githubname/reponame
+npm install @myorg/privatepackage
+npm install node\-tap \-\-save\-dev
+npm install dtrace\-provider \-\-save\-optional
+npm install readable\-stream \-\-save\-exact
+npm install ansi\-regex \-\-save\-bundle
+.fi
+.RE
+.IP \(bu 2
+\fINote*\fR: If there is a file or folder named \fB<name>\fP in the current
+working directory, then it will try to install that, and only try to
+fetch the package by name if it is not valid\.
+
+.RE
+.IP \(bu 2
+\fBnpm install <alias>@npm:<name>\fP:
+  Install a package under a custom alias\. Allows multiple versions of
+  a same\-name package side\-by\-side, more convenient import names for
+  packages with otherwise long ones, and using git forks replacements
+  or forked npm packages as replacements\. Aliasing works only on your
+  project and does not rename packages in transitive dependencies\.
+  Aliases should follow the naming conventions stated in
+  \fBvalidate\-npm\-package\-name\fP \fIhttps://www\.npmjs\.com/package/validate\-npm\-package\-name#naming\-rules\fR\|\.
+  Examples:
+.P
+.RS 2
+.nf
+  npm install my\-react@npm:react
+  npm install jquery2@npm:jquery@2
+  npm install jquery3@npm:jquery@3
+  npm install npa@npm:npm\-package\-arg
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<tag>\fP:
+  Install the version of the package that is referenced by the specified tag\.
+  If the tag does not exist in the registry data for that package, then this
+  will fail\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install sax@latest
+  npm install @myorg/mypackage@latest
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<version>\fP:
+  Install the specified version of the package\.  This will fail if the
+  version has not been published to the registry\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install sax@0\.1\.1
+  npm install @myorg/privatepackage@1\.5\.0
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install [<@scope>/]<name>@<version range>\fP:
+  Install a version of the package matching the specified version range\.
+  This will follow the same rules for resolving dependencies described in
+  npm help \fBpackage\.json\fP\|\.
+  Note that most version ranges must be put in quotes so that your shell
+  will treat it as a single argument\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install sax@">=0\.1\.0 <0\.2\.0"
+  npm install @myorg/privatepackage@"16 \- 17"
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install <git remote url>\fP:
+  Installs the package from the hosted git provider, cloning it with
+  \fBgit\fP\|\.  For a full git remote url, only that URL will be attempted\.
+.P
+.RS 2
+.nf
+  <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish> | #semver:<semver>]
+.fi
+.RE
+  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP, or
+  \fBgit+file\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP
+  can be any valid semver range or exact version, and npm will look for
+  any tags or refs matching that range in the remote repository, much as
+  it would for a registry dependency\. If neither \fB#<commit\-ish>\fP or
+  \fB#semver:<semver>\fP is specified, then the default branch of the
+  repository is used\.
+  If the repository makes use of submodules, those submodules will be
+  cloned as well\.
+  If the package being installed contains a \fBprepare\fP script, its
+  \fBdependencies\fP and \fBdevDependencies\fP will be installed, and the prepare
+  script will be run, before the package is packaged and installed\.
+  The following git environment variables are recognized by npm and will
+  be added to the environment when running git:
+.RS
+.IP \(bu 2
+\fBGIT_ASKPASS\fP
+.IP \(bu 2
+\fBGIT_EXEC_PATH\fP
+.IP \(bu 2
+\fBGIT_PROXY_COMMAND\fP
+.IP \(bu 2
+\fBGIT_SSH\fP
+.IP \(bu 2
+\fBGIT_SSH_COMMAND\fP
+.IP \(bu 2
+\fBGIT_SSL_CAINFO\fP
+.IP \(bu 2
+\fBGIT_SSL_NO_VERIFY\fP
+See the git man page for details\.
+Examples:
+.P
+.RS 2
+.nf
+npm install git+ssh://git@github\.com:npm/cli\.git#v1\.0\.27
+npm install git+ssh://git@github\.com:npm/cli#pull/273
+npm install git+ssh://git@github\.com:npm/cli#semver:^5\.0
+npm install git+https://isaacs@github\.com/npm/cli\.git
+npm install git://github\.com/npm/cli\.git#v1\.0\.27
+GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\.com:npm/cli\.git
+.fi
+.RE
+
+.RE
+.IP \(bu 2
+\fBnpm install <githubname>/<githubrepo>[#<commit\-ish>]\fP:
+.IP \(bu 2
+\fBnpm install github:<githubname>/<githubrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://github\.com/githubname/githubrepo\fP by
+  attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP
+  can be any valid semver range or exact version, and npm will look for
+  any tags or refs matching that range in the remote repository, much as
+  it would for a registry dependency\. If neither \fB#<commit\-ish>\fP or
+  \fB#semver:<semver>\fP is specified, then the default branch is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP
+  will be installed if the package has a \fBprepare\fP script before the
+  package is done installing\.
+  Examples:
+.P
+.RS 2
+.nf
+  npm install mygithubuser/myproject
+  npm install github:mygithubuser/myproject
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gist:[<githubname>/]<gistID>[#<commit\-ish>|#semver:<semver>]\fP:
+  Install the package at \fBhttps://gist\.github\.com/gistID\fP by attempting to
+  clone it using \fBgit\fP\|\. The GitHub username associated with the gist is
+  optional and will not be saved in \fBpackage\.json\fP\|\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install gist:101a11beef
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install bitbucket:<bitbucketname>/<bitbucketrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://bitbucket\.org/bitbucketname/bitbucketrepo\fP
+  by attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then \fBmaster\fP is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install bitbucket:mybitbucketuser/myproject
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gitlab:<gitlabname>/<gitlabrepo>[#<commit\-ish>]\fP:
+  Install the package at \fBhttps://gitlab\.com/gitlabname/gitlabrepo\fP
+  by attempting to clone it using \fBgit\fP\|\.
+  If \fB#<commit\-ish>\fP is provided, it will be used to clone exactly that
+  commit\. If the commit\-ish has the format \fB#semver:<semver>\fP, \fB<semver>\fP can
+  be any valid semver range or exact version, and npm will look for any tags
+  or refs matching that range in the remote repository, much as it would for a
+  registry dependency\. If neither \fB#<commit\-ish>\fP or \fB#semver:<semver>\fP is
+  specified, then \fBmaster\fP is used\.
+  As with regular git dependencies, \fBdependencies\fP and \fBdevDependencies\fP will
+  be installed if the package has a \fBprepare\fP script before the package is
+  done installing\.
+  Example:
+.P
+.RS 2
+.nf
+  npm install gitlab:mygitlabuser/myproject
+  npm install gitlab:myusr/myproj#semver:^5\.0
+.fi
+.RE
+
+.RE
+.P
+You may combine multiple arguments and even multiple types of arguments\.
+For example:
+.P
+.RS 2
+.nf
+npm install sax@">=0\.1\.0 <0\.2\.0" bench supervisor
+.fi
+.RE
+.P
+The \fB\-\-tag\fP argument will apply to all of the specified install targets\. If
+a tag with the given name exists, the tagged version is preferred over
+newer versions\.
+.P
+The \fB\-\-dry\-run\fP argument will report in the usual way what the install
+would have done without actually installing anything\.
+.P
+The \fB\-\-package\-lock\-only\fP argument will only update the
+\fBpackage\-lock\.json\fP, instead of checking \fBnode_modules\fP and downloading
+dependencies\.
+.P
+The \fB\-f\fP or \fB\-\-force\fP argument will force npm to fetch remote resources
+even if a local copy exists on disk\.
+.P
+.RS 2
+.nf
+npm install sax \-\-force
+.fi
+.RE
+.SS Configuration
+.P
+See the npm help \fBconfig\fP help doc\.  Many of the configuration
+params have some effect on installation, since that's most of what npm
+does\.
+.P
+These are some of the most common options related to installation\.
+.SS \fBsave\fP
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP unless when using \fBnpm update\fP where it defaults to \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a \fBpackage\.json\fP file as dependencies\.
+.P
+When used with the \fBnpm rm\fP command, removes the dependency from
+\fBpackage\.json\fP\|\.
+.P
+Will also prevent writing to \fBpackage\-lock\.json\fP if set to \fBfalse\fP\|\.
+.SS \fBsave\-exact\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Dependencies saved to package\.json will be configured with an exact version
+rather than using npm's default semver range operator\.
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBglobal\-style\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Causes npm to install the package into your local \fBnode_modules\fP folder with
+the same layout it uses with the global \fBnode_modules\fP folder\. Only your
+direct dependencies will show in \fBnode_modules\fP and everything they depend
+on will be flattened in their \fBnode_modules\fP folders\. This obviously will
+eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP
+will be preferred\.
+.SS \fBlegacy\-bundling\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Causes npm to install the package such that versions of npm prior to 1\.4,
+such as the one included with node 0\.8, can install the package\. This
+eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
+will be preferred\.
+.SS \fBomit\fP
+.RS 0
+.IP \(bu 2
+Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
+\|'production', otherwise empty\.
+.IP \(bu 2
+Type: "dev", "optional", or "peer" (can be set multiple times)
+
+.RE
+.P
+Dependency types to omit from the installation tree on disk\.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the
+\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
+physically installed on disk\.
+.P
+If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
+it will be included\.
+.P
+If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
+variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+.SS \fBstrict\-peer\-deps\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to \fBtrue\fP, and \fB\-\-legacy\-peer\-deps\fP is not set, then \fIany\fR
+conflicting \fBpeerDependencies\fP will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non\-peer
+dependency relationships\.
+.P
+By default, conflicting \fBpeerDependencies\fP deep in the dependency graph will
+be resolved using the nearest non\-peer dependency specification, even if
+doing so will result in some packages receiving a peer dependency outside
+the range set in their package's \fBpeerDependencies\fP object\.
+.P
+When such and override is performed, a warning is printed, explaining the
+conflict and the packages involved\. If \fB\-\-strict\-peer\-deps\fP is set, then
+this warning is treated as a failure\.
+.SS \fBpackage\-lock\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
+will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
+.P
+This configuration does not affect \fBnpm ci\fP\|\.
+.SS \fBforeground\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBaudit\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes\. See the
+documentation for npm help \fBaudit\fP for details on what is
+submitted\.
+.SS \fBbin\-links\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Tells npm to create symlinks (or \fB\|\.cmd\fP shims on Windows) for package
+executables\.
+.P
+Set to false to have it not do this\. This can be used to work around the
+fact that some file systems don't support symlinks, even on ostensibly Unix
+systems\.
+.SS \fBfund\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" displays the message at the end of each \fBnpm install\fP
+acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
+fund\fP for details\.
+.SS \fBdry\-run\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done\. This can be passed into any of the
+commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
+\fBdedupe\fP, \fBuninstall\fP, as well as \fBpack\fP and \fBpublish\fP\|\.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist\-tags\fP,
+\fBowner\fP, etc\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinstall\-links\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink\. This option has no effect on workspaces\.
+.SS Algorithm
+.P
+Given a \fBpackage{dep}\fP structure: \fBA{B,C}, B{C}, C{D}\fP,
+the npm install algorithm produces:
+.P
+.RS 2
+.nf
+A
++\-\- B
++\-\- C
++\-\- D
+.fi
+.RE
+.P
+That is, the dependency from B to C is satisfied by the fact that A already
+caused C to be installed at a higher level\. D is still installed at the top
+level because nothing conflicts with it\.
+.P
+For \fBA{B,C}, B{C,D@1}, C{D@2}\fP, this algorithm produces:
+.P
+.RS 2
+.nf
+A
++\-\- B
++\-\- C
+   `\-\- D@2
++\-\- D@1
+.fi
+.RE
+.P
+Because B's D@1 will be installed in the top\-level, C now has to install
+D@2 privately for itself\. This algorithm is deterministic, but different
+trees may be produced if two dependencies are requested for installation in
+a different order\.
+.P
+See npm help folders for a more detailed description of
+the specific folder structures that npm creates\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help update
+.IP \(bu 2
+npm help audit
+.IP \(bu 2
+npm help fund
+.IP \(bu 2
+npm help link
+.IP \(bu 2
+npm help rebuild
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help dist\-tag
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help shrinkwrap
+.IP \(bu 2
+npm help package\.json
+.IP \(bu 2
+npm help workspaces
+
+.RE

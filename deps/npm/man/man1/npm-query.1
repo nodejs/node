@@ -1,0 +1,240 @@
+.TH "NPM\-QUERY" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-query\fR \- Dependency selector query
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm query <selector>
+.fi
+.RE
+.SS Description
+.P
+The \fBnpm query\fP command allows for usage of css selectors in order to retrieve
+an array of dependency objects\.
+.SS Piping npm query to other commands
+.P
+.RS 2
+.nf
+# find all dependencies with postinstall scripts & uninstall them
+npm query ":attr(scripts, [postinstall])" | jq 'map(\.name)|join("\\n")' \-r | xargs \-I {} npm uninstall {}
+
+# find all git dependencies & explain who requires them
+npm query ":type(git)" | jq 'map(\.name)' | xargs \-I {} npm why {}
+.fi
+.RE
+.SS Extended Use Cases & Queries
+.P
+.RS 2
+.nf
+// all deps
+*
+
+// all direct deps
+:root > *
+
+// direct production deps
+:root > \.prod
+
+// direct development deps
+:root > \.dev
+
+// any peer dep of a direct deps
+:root > * > \.peer
+
+// any workspace dep
+\|\.workspace
+
+// all workspaces that depend on another workspace
+\|\.workspace > \.workspace
+
+// all workspaces that have peer deps
+\|\.workspace:has(\.peer)
+
+// any dep named "lodash"
+// equivalent to [name="lodash"]
+#lodash
+
+// any deps named "lodash" & within semver range ^"1\.2\.3"
+#lodash@^1\.2\.3
+// equivalent to\.\.\.
+[name="lodash"]:semver(^1\.2\.3)
+
+// get the hoisted node for a given semver range
+#lodash@^1\.2\.3:not(:deduped)
+
+// querying deps with a specific version
+#lodash@2\.1\.5
+// equivalent to\.\.\.
+[name="lodash"][version="2\.1\.5"]
+
+// has any deps
+:has(*)
+
+// deps with no other deps (ie\. "leaf" nodes)
+:empty
+
+// manually querying git dependencies
+[repository^=github:],
+[repository^=git:],
+[repository^=https://github\.com],
+[repository^=http://github\.com],
+[repository^=https://github\.com],
+[repository^=+git:\.\.\.]
+
+// querying for all git dependencies
+:type(git)
+
+// get production dependencies that aren't also dev deps
+\|\.prod:not(\.dev)
+
+// get dependencies with specific licenses
+[license=MIT], [license=ISC]
+
+// find all packages that have @ruyadorno as a contributor
+:attr(contributors, [email=ruyadorno@github\.com])
+.fi
+.RE
+.SS Example Response Output
+.RS 0
+.IP \(bu 2
+an array of dependency objects is returned which can contain multiple copies of the same package which may or may not have been linked or deduped
+
+.RE
+.P
+.RS 2
+.nf
+[
+  {
+    "name": "",
+    "version": "",
+    "description": "",
+    "homepage": "",
+    "bugs": {},
+    "author": {},
+    "license": {},
+    "funding": {},
+    "files": [],
+    "main": "",
+    "browser": "",
+    "bin": {},
+    "man": [],
+    "directories": {},
+    "repository": {},
+    "scripts": {},
+    "config": {},
+    "dependencies": {},
+    "devDependencies": {},
+    "optionalDependencies": {},
+    "bundledDependencies": {},
+    "peerDependencies": {},
+    "peerDependenciesMeta": {},
+    "engines": {},
+    "os": [],
+    "cpu": [],
+    "workspaces": {},
+    "keywords": [],
+    \.\.\.
+  },
+  \.\.\.
+.fi
+.RE
+.SS Configuration
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SH See Also
+.RS 0
+.IP \(bu 2
+npm help dependency selectors
+
+.RE

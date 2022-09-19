@@ -1,0 +1,73 @@
+.TH "REMOVAL" "7" "September 2022" "" ""
+.SH "NAME"
+\fBremoval\fR \- Cleaning the Slate
+.SS Synopsis
+.P
+So sad to see you go\.
+.P
+.RS 2
+.nf
+sudo npm uninstall npm \-g
+.fi
+.RE
+.P
+Or, if that fails, get the npm source code, and do:
+.P
+.RS 2
+.nf
+sudo make uninstall
+.fi
+.RE
+.SS More Severe Uninstalling
+.P
+Usually, the above instructions are sufficient\.  That will remove
+npm, but leave behind anything you've installed\.
+.P
+If that doesn't work, or if you require more drastic measures,
+continue reading\.
+.P
+Note that this is only necessary for globally\-installed packages\.  Local
+installs are completely contained within a project's \fBnode_modules\fP
+folder\.  Delete that folder, and everything is gone less a package's
+install script is particularly ill\-behaved)\.
+.P
+This assumes that you installed node and npm in the default place\.  If
+you configured node with a different \fB\-\-prefix\fP, or installed npm with a
+different prefix setting, then adjust the paths accordingly, replacing
+\fB/usr/local\fP with your install prefix\.
+.P
+To remove everything npm\-related manually:
+.P
+.RS 2
+.nf
+rm \-rf /usr/local/{lib/node{,/\.npm,_modules},bin,share/man}/npm*
+.fi
+.RE
+.P
+If you installed things \fIwith\fR npm, then your best bet is to uninstall
+them with npm first, and then install them again once you have a
+proper install\.  This can help find any symlinks that are lying
+around:
+.P
+.RS 2
+.nf
+ls \-laF /usr/local/{lib/node{,/\.npm},bin,share/man} | grep npm
+.fi
+.RE
+.P
+Prior to version 0\.3, npm used shim files for executables and node
+modules\.  To track those down, you can do the following:
+.P
+.RS 2
+.nf
+find /usr/local/{lib/node,bin} \-exec grep \-l npm \\{\\} \\; ;
+.fi
+.RE
+.SS See also
+.RS 0
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help prune
+
+.RE

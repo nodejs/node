@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<style>
+
+body { margin: 0; padding: 10px; }
+.space { height: 2000px; }
+
+#scroller {
+  border: 3px solid green;
+  position: absolute;
+  z-index: 0;
+  overflow: auto;
+  padding: 10px;
+  width: 250px;
+  height: 150px;
+}
+
+.ifr {
+  border: 3px solid blue;
+  width: 200px;
+  height: 100px;
+}
+
+</style>
+</head>
+<body>
+<div id=scroller>
+  <iframe srcdoc="SCROLL ME" class=ifr></iframe>
+  <div class=space></div>
+</div>
+<div class=space></div>
+<script>
+
+promise_test(async t => {
+  await new test_driver.Actions().scroll(50, 50, 0, 50).send();
+  assert_equals(scroller.scrollTop, 50);
+}, "Wheel scroll in iframe chains to containing element.");
+
+</script>
+</body>
+</html>

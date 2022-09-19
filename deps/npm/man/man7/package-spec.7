@@ -1,0 +1,145 @@
+.TH "PACKAGE\-SPEC" "7" "September 2022" "" ""
+.SH "NAME"
+\fBpackage-spec\fR \- Package name specifier
+.SS Description
+.P
+Commands like \fBnpm install\fP and the dependency sections in the
+\fBpackage\.json\fP use a package name specifier\.  This can be many different
+things that all refer to a "package"\.  Examples include a package name,
+git url, tarball, or local directory\.  These will generally be referred
+to as \fB<package\-spec>\fP in the help output for the npm commands that use
+this package name specifier\.
+.SS Package name
+.RS 0
+.IP \(bu 2
+\fB[<@scope>/]<pkg>\fP
+.IP \(bu 2
+\fB[<@scope>/]<pkg>@<tag>\fP
+.IP \(bu 2
+\fB[<@scope>/]<pkg>@<version>\fP
+.IP \(bu 2
+\fB[<@scope>/]<pkg>@<version range>\fP
+
+.RE
+.P
+Refers to a package by name, with or without a scope, and optionally
+tag, version, or version range\.  This is typically used in combination
+with the npm help registry config to refer to a
+package in a registry\.
+.P
+Examples:
+.RS 0
+.IP \(bu 2
+\fBnpm\fP
+.IP \(bu 2
+\fB@npmcli/arborist\fP
+.IP \(bu 2
+\fB@npmcli/arborist@latest\fP
+.IP \(bu 2
+\fBnpm@6\.13\.1\fP
+.IP \(bu 2
+\fBnpm@^4\.0\.0\fP
+
+.RE
+.SS Aliases
+.RS 0
+.IP \(bu 2
+\fB<alias>@npm:<name>\fP
+
+.RE
+.P
+Primarily used by commands like \fBnpm install\fP and in the dependency
+sections in the \fBpackage\.json\fP, this refers to a package by an alias\.
+The \fB<alias>\fP is the name of the package as it is reified in the
+\fBnode_modules\fP folder, and the \fB<name>\fP refers to a package name as
+found in the configured registry\.
+.P
+See \fBPackage name\fP above for more info on referring to a package by
+name, and npm help registry for configuring which
+registry is used when referring to a package by name\.
+.P
+Examples:
+.RS 0
+.IP \(bu 2
+\fBsemver:@npm:@npmcli/semver\-with\-patch\fP
+.IP \(bu 2
+\fBsemver:@npm:semver@7\.2\.2\fP
+.IP \(bu 2
+\fBsemver:@npm:semver@legacy\fP
+
+.RE
+.SS Folders
+.RS 0
+.IP \(bu 2
+\fB<folder>\fP
+
+.RE
+.P
+This refers to a package on the local filesystem\.  Specifically this is
+a folder with a \fBpackage\.json\fP file in it\.  This \fIshould\fR always be
+prefixed with a \fB/\fP or \fB\|\./\fP (or your OS equivalent) to reduce confusion\.
+npm currently will parse a string with more than one \fB/\fP in it as a
+folder, but this is legacy behavior that may be removed in a future
+version\.
+.P
+Examples:
+.RS 0
+.IP \(bu 2
+\fB\|\./my\-package\fP
+.IP \(bu 2
+\fB/opt/npm/my\-package\fP
+
+.RE
+.SS Tarballs
+.RS 0
+.IP \(bu 2
+\fB<tarball file>\fP
+.IP \(bu 2
+\fB<tarball url>\fP
+
+.RE
+.P
+Examples:
+.RS 0
+.IP \(bu 2
+\fB\|\./my\-package\.tgz\fP
+.IP \(bu 2
+\fBhttps://registry\.npmjs\.org/semver/\-/semver\-1\.0\.0\.tgz\fP
+
+.RE
+.P
+Refers to a package in a tarball format, either on the local filesystem
+or remotely via url\.  This is the format that packages exist in when
+uploaded to a registry\.
+.SS git urls
+.RS 0
+.IP \(bu 2
+\fB<git:// url>\fP
+.IP \(bu 2
+\fB<github username>/<github project>\fP
+
+.RE
+.P
+Refers to a package in a git repo\.  This can be a full git url, git
+shorthand, or a username/package on GitHub\.  You can specify a
+git tag, branch, or other git ref by appending \fB#ref\fP\|\.
+.P
+Examples:
+.RS 0
+.IP \(bu 2
+\fBhttps://github\.com/npm/cli\.git\fP
+.IP \(bu 2
+\fBgit@github\.com:npm/cli\.git\fP
+.IP \(bu 2
+\fBgit+ssh://git@github\.com/npm/cli#v6\.0\.0\fP
+.IP \(bu 2
+\fBgithub:npm/cli#HEAD\fP
+.IP \(bu 2
+\fBnpm/cli#c12ea07\fP
+
+.RE
+.SS See also
+.P
+npm\-package\-arg \fIhttps://npm\.im/npm\-package\-arg\fR
+npm help scope
+npm help config

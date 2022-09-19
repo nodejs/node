@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>File API Test: Progress Event - bubbles, cancelable</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="http://www.w3.org/TR/FileAPI/#events">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+  async_test(function(){
+    var blob = new Blob(["TEST"]);
+    var reader = new FileReader();
+
+    reader.onloadstart = this.step_func(function(evt) {
+      assert_false(evt.bubbles, "The bubbles must be false when the event is dispatched");
+      assert_false(evt.cancelable, "The cancelable must be false when the event is dispatched");
+    });
+
+    reader.onload = this.step_func(function(evt) {
+      assert_false(evt.bubbles, "The bubbles must be false when the event is dispatched");
+      assert_false(evt.cancelable, "The cancelable must be false when the event is dispatched");
+    });
+
+    reader.onloadend = this.step_func(function(evt) {
+      assert_false(evt.bubbles, "The bubbles must be false when the event is dispatched");
+      assert_false(evt.cancelable, "The cancelable must be false when the event is dispatched");
+      this.done();
+    });
+
+    reader.readAsText(blob);
+  }, "Check the values of bubbles and cancelable are false when the progress event is dispatched");
+</script>
+

@@ -1,0 +1,58 @@
+{
+  "name": "hosted-git-info",
+  "version": "5.1.0",
+  "description": "Provides metadata and conversions from repository urls for GitHub, Bitbucket and GitLab",
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/hosted-git-info.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "bitbucket",
+    "gitlab"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/hosted-git-info/issues"
+  },
+  "homepage": "https://github.com/npm/hosted-git-info",
+  "scripts": {
+    "posttest": "npm run lint",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "preversion": "npm test",
+    "snap": "tap",
+    "test": "tap",
+    "test:coverage": "tap --coverage-report=html",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "dependencies": {
+    "lru-cache": "^7.5.1"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "tap": "^16.0.1"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "tap": {
+    "color": 1,
+    "coverage": true
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}

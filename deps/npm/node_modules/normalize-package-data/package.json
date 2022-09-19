@@ -1,0 +1,54 @@
+{
+  "name": "normalize-package-data",
+  "version": "4.0.1",
+  "author": "GitHub Inc.",
+  "description": "Normalizes data that can be found in package.json files.",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/normalize-package-data.git"
+  },
+  "main": "lib/normalize.js",
+  "scripts": {
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "preversion": "npm test",
+    "test": "tap",
+    "npmclilint": "npmcli-lint",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "postsnap": "npm run lintfix --",
+    "postlint": "template-oss-check",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "dependencies": {
+    "hosted-git-info": "^5.0.0",
+    "is-core-module": "^2.8.1",
+    "semver": "^7.3.5",
+    "validate-npm-package-license": "^3.0.4"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "tap": "^16.0.1"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  },
+  "tap": {
+    "branches": 86,
+    "functions": 92,
+    "lines": 86,
+    "statements": 86
+  }
+}

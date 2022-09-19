@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>FileAPI Test: filereader_file_img</title>
+    <link rel="author" title="Intel" href="http://www.intel.com">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#FileReader-interface">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#file">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div>
+      <p>Test step:</p>
+      <ol>
+        <li>Download <a href="support/blue-100x100.png">blue-100x100.png</a> to local.</li>
+        <li>Select the local file (blue-100x100.png) to run the test.</li>
+      </ol>
+    </div>
+
+    <form name="uploadData">
+      <input type="file" id="fileChooser">
+    </form>
+
+    <div id="log"></div>
+    <script>
+      var fileInput = document.querySelector('#fileChooser');
+      var reader = new FileReader();
+
+      setup({
+        explicit_done: true,
+        explicit_timeout: true,
+      });
+
+      fileInput.addEventListener("change", function(evt) {
+        reader.readAsDataURL(fileInput.files[0]);
+      }, false);
+
+      reader.addEventListener("loadend", function(evt) {
+        test(function () {
+          assert_true(reader.result.indexOf("iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAqklEQVR42u3RsREAMAgDMe+/M4E7ZkhBoeI9gJWkWpfaeToTECACAkRAgAgIEAEB4gQgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgAgJEQIAICBABASIgQJwARECACAgQ/W4AQauujc8IdAoAAAAASUVORK5CYII=") != -1, "Encoded image")
+        }, "Check if readAsDataURL returns correct image");
+        done();
+      }, false);
+    </script>
+  </body>
+</html>

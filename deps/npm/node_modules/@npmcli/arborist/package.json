@@ -1,0 +1,105 @@
+{
+  "name": "@npmcli/arborist",
+  "version": "5.6.2",
+  "description": "Manage node_modules trees",
+  "dependencies": {
+    "@isaacs/string-locale-compare": "^1.1.0",
+    "@npmcli/installed-package-contents": "^1.0.7",
+    "@npmcli/map-workspaces": "^2.0.3",
+    "@npmcli/metavuln-calculator": "^3.0.1",
+    "@npmcli/move-file": "^2.0.0",
+    "@npmcli/name-from-folder": "^1.0.1",
+    "@npmcli/node-gyp": "^2.0.0",
+    "@npmcli/package-json": "^2.0.0",
+    "@npmcli/query": "^1.2.0",
+    "@npmcli/run-script": "^4.1.3",
+    "bin-links": "^3.0.3",
+    "cacache": "^16.1.3",
+    "common-ancestor-path": "^1.0.1",
+    "json-parse-even-better-errors": "^2.3.1",
+    "json-stringify-nice": "^1.1.4",
+    "minimatch": "^5.1.0",
+    "mkdirp": "^1.0.4",
+    "mkdirp-infer-owner": "^2.0.0",
+    "nopt": "^6.0.0",
+    "npm-install-checks": "^5.0.0",
+    "npm-package-arg": "^9.0.0",
+    "npm-pick-manifest": "^7.0.2",
+    "npm-registry-fetch": "^13.0.0",
+    "npmlog": "^6.0.2",
+    "pacote": "^13.6.1",
+    "parse-conflict-json": "^2.0.1",
+    "proc-log": "^2.0.0",
+    "promise-all-reject-late": "^1.0.0",
+    "promise-call-limit": "^1.0.1",
+    "read-package-json-fast": "^2.0.2",
+    "readdir-scoped-modules": "^1.1.0",
+    "rimraf": "^3.0.2",
+    "semver": "^7.3.7",
+    "ssri": "^9.0.0",
+    "treeverse": "^2.0.0",
+    "walk-up-path": "^1.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.1.0",
+    "@npmcli/template-oss": "4.1.1",
+    "benchmark": "^2.1.4",
+    "chalk": "^4.1.0",
+    "minify-registry-metadata": "^2.1.0",
+    "nock": "^13.2.0",
+    "tap": "^16.0.1",
+    "tcompare": "^5.0.6"
+  },
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "postsnap": "npm run lintfix",
+    "test-proxy": "ARBORIST_TEST_PROXY=1 tap --snapshot",
+    "eslint": "eslint",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "benchmark": "node scripts/benchmark.js",
+    "benchclean": "rm -rf scripts/benchmark/*/",
+    "npmclilint": "npmcli-lint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/arborist"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "bin": {
+    "arborist": "bin/index.js"
+  },
+  "//": "sk test-env locale to catch locale-specific sorting",
+  "tap": {
+    "color": true,
+    "after": "test/fixtures/cleanup.js",
+    "coverage-map": "map.js",
+    "test-env": [
+      "NODE_OPTIONS=--no-warnings",
+      "LC_ALL=sk"
+    ],
+    "node-arg": [
+      "--no-warnings",
+      "--no-deprecation"
+    ],
+    "timeout": "360"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.1.1"
+  }
+}

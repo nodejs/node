@@ -1,0 +1,5 @@
+#if defined(OPENSSL_NO_ASM)
+# include "./%%-$name-%%_no-asm.h"
+#else
+# include "./%%-$name-%%_asm.h"
+#endif

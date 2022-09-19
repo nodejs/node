@@ -1,0 +1,61 @@
+{
+  "name": "@humanwhocodes/gitignore-to-minimatch",
+  "version": "1.0.2",
+  "description": "Utility to convert gitignore patterns to minimatch patterns",
+  "type": "module",
+  "main": "dist/gitignore-to-minimatch.cjs",
+  "module": "dist/gitignore-to-minimatch.js",
+  "types": "dist/gitignore-to-minimatch.d.ts",
+  "exports": {
+    "require": "./dist/gitignore-to-minimatch.cjs",
+    "import": "./dist/gitignore-to-minimatch.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix"
+    ]
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/nzakas"
+  },
+  "scripts": {
+    "build": "rollup -c && tsc",
+    "prepare": "npm run build",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/",
+    "pretest": "npm run build",
+    "test:unit": "mocha tests/gitignore-to-minimatch.test.js",
+    "test:build": "node tests/pkg.test.cjs && node tests/pkg.test.mjs",
+    "test": "npm run test:unit && npm run test:build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/humanwhocodes/gitignore-to-minimatch.git"
+  },
+  "keywords": [
+    "gitignore",
+    "minimatch",
+    "glob"
+  ],
+  "author": "Nicholas C. Zaks",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "eslint": "^7.32.0",
+    "lint-staged": "^10.4.0",
+    "mocha": "^9.0.3",
+    "rollup": "^1.20.3",
+    "typescript": "^4.0.3",
+    "yorkie": "^2.0.0"
+  }
+}

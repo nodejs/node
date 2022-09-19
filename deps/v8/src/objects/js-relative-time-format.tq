@@ -1,0 +1,18 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-relative-time-format.h'
+
+type JSRelativeTimeFormatNumeric extends int32
+constexpr 'JSRelativeTimeFormat::Numeric';
+bitfield struct JSRelativeTimeFormatFlags extends uint31 {
+  numeric: JSRelativeTimeFormatNumeric: 1 bit;
+}
+
+extern class JSRelativeTimeFormat extends JSObject {
+  locale: String;
+  numberingSystem: String;
+  icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
+  flags: SmiTagged<JSRelativeTimeFormatFlags>;
+}

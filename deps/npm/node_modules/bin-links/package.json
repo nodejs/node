@@ -1,0 +1,60 @@
+{
+  "name": "bin-links",
+  "version": "3.0.3",
+  "description": "JavaScript package binary linker",
+  "main": "./lib/index.js",
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "snap": "tap",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/bin-links.git"
+  },
+  "keywords": [
+    "npm",
+    "link",
+    "bins"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "cmd-shim": "^5.0.0",
+    "mkdirp-infer-owner": "^2.0.0",
+    "npm-normalize-package-bin": "^2.0.0",
+    "read-cmd-shim": "^3.0.0",
+    "rimraf": "^3.0.0",
+    "write-file-atomic": "^4.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "mkdirp": "^1.0.3",
+    "require-inject": "^1.4.4",
+    "tap": "^16.0.1"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "windowsCI": false,
+    "version": "3.5.0"
+  }
+}

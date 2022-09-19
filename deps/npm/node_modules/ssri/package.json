@@ -1,0 +1,63 @@
+{
+  "name": "ssri",
+  "version": "9.0.1",
+  "description": "Standard Subresource Integrity library -- parses, serializes, generates, and verifies integrity metadata according to the SRI spec.",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "prerelease": "npm t",
+    "postrelease": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "posttest": "npm run lint",
+    "test": "tap",
+    "coverage": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "snap": "tap"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/ssri.git"
+  },
+  "keywords": [
+    "w3c",
+    "web",
+    "security",
+    "integrity",
+    "checksum",
+    "hashing",
+    "subresource integrity",
+    "sri",
+    "sri hash",
+    "sri string",
+    "sri generator",
+    "html"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "minipass": "^3.1.1"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "tap": "^16.0.1"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}

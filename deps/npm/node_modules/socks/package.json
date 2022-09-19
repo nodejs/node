@@ -1,0 +1,58 @@
+{
+  "name": "socks",
+  "private": false,
+  "version": "2.7.0",
+  "description": "Fully featured SOCKS proxy client supporting SOCKSv4, SOCKSv4a, and SOCKSv5. Includes Bind and Associate functionality.",
+  "main": "build/index.js",
+  "typings": "typings/index.d.ts",
+  "homepage": "https://github.com/JoshGlazebrook/socks/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoshGlazebrook/socks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoshGlazebrook/socks/issues"
+  },
+  "keywords": [
+    "socks",
+    "proxy",
+    "tor",
+    "socks 4",
+    "socks 5",
+    "socks4",
+    "socks5"
+  ],
+  "engines": {
+    "node": ">= 10.13.0",
+    "npm": ">= 3.0.0"
+  },
+  "author": "Josh Glazebrook",
+  "contributors": [
+    "castorw"
+  ],
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "devDependencies": {
+    "@types/ip": "1.1.0",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^18.0.6",
+    "@typescript-eslint/eslint-plugin": "^5.30.6",
+    "@typescript-eslint/parser": "^5.30.6",
+    "eslint": "^8.20.0",
+    "mocha": "^10.0.0",
+    "prettier": "^2.7.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "ip": "^2.0.0",
+    "smart-buffer": "^4.2.0"
+  },
+  "scripts": {
+    "prepublish": "npm install -g typescript && npm run build",
+    "test": "NODE_ENV=test mocha --recursive --require ts-node/register test/**/*.ts",
+    "prettier": "prettier --write ./src/**/*.ts --config .prettierrc.yaml",
+    "lint": "eslint 'src/**/*.ts'",
+    "build": "rm -rf build typings && prettier --write ./src/**/*.ts --config .prettierrc.yaml && tsc -p ."
+  }
+}

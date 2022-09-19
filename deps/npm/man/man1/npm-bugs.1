@@ -1,0 +1,132 @@
+.TH "NPM\-BUGS" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-bugs\fR \- Report bugs for a package in a web browser
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm bugs [<pkgname> [<pkgname> \.\.\.]]
+
+alias: issues
+.fi
+.RE
+.SS Description
+.P
+This command tries to guess at the likely location of a package's bug
+tracker URL or the \fBmailto\fP URL of the support email, and then tries to
+open it using the \fB\-\-browser\fP config param\. If no package name is provided, it
+will search for a \fBpackage\.json\fP in the current folder and use the \fBname\fP property\.
+.SS Configuration
+.SS \fBbrowser\fP
+.RS 0
+.IP \(bu 2
+Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
+.IP \(bu 2
+Type: null, Boolean, or String
+
+.RE
+.P
+The browser that is called by npm commands to open websites\.
+.P
+Set to \fBfalse\fP to suppress browser behavior and instead print urls to
+terminal\.
+.P
+Set to \fBtrue\fP to use default system URL opener\.
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help docs
+.IP \(bu 2
+npm help view
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help package\.json
+
+.RE

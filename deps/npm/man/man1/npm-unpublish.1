@@ -1,0 +1,166 @@
+.TH "NPM\-UNPUBLISH" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-unpublish\fR \- Remove a package from the registry
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm unpublish [<package\-spec>]
+.fi
+.RE
+.P
+To learn more about how the npm registry treats unpublish, see our <a
+href="https://docs\.npmjs\.com/policies/unpublish" target="_blank"
+rel="noopener noreferrer"> unpublish policies</a>
+.SS Warning
+.P
+Consider using the npm help \fBdeprecate\fP command instead,
+if your intent is to encourage users to upgrade, or if you no longer
+want to maintain a package\.
+.SS Description
+.P
+This removes a package version from the registry, deleting its entry and
+removing the tarball\.
+.P
+The npm registry will return an error if you are not npm help logged
+in\.
+.P
+If you do not specify a version or if you remove all of a package's
+versions then the registry will remove the root package entry entirely\.
+.P
+Even if you unpublish a package version, that specific name and version
+combination can never be reused\. In order to publish the package again,
+you must use a new version number\. If you unpublish the entire package,
+you may not publish any new versions of that package until 24 hours have
+passed\.
+.SS Configuration
+.SS \fBdry\-run\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done\. This can be passed into any of the
+commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
+\fBdedupe\fP, \fBuninstall\fP, as well as \fBpack\fP and \fBpublish\fP\|\.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist\-tags\fP,
+\fBowner\fP, etc\.
+.SS \fBforce\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input\.
+.RS 0
+.IP \(bu 2
+Allow clobbering non\-npm files in global installs\.
+.IP \(bu 2
+Allow the \fBnpm version\fP command to work on an unclean git repository\.
+.IP \(bu 2
+Allow deleting the cache folder with \fBnpm cache clean\fP\|\.
+.IP \(bu 2
+Allow installing packages that have an \fBengines\fP declaration requiring a
+different version of npm\.
+.IP \(bu 2
+Allow installing packages that have an \fBengines\fP declaration requiring a
+different version of \fBnode\fP, even if \fB\-\-engine\-strict\fP is enabled\.
+.IP \(bu 2
+Allow \fBnpm audit fix\fP to install modules outside your stated dependency
+range (including SemVer\-major changes)\.
+.IP \(bu 2
+Allow unpublishing all versions of a published package\.
+.IP \(bu 2
+Allow conflicting peerDependencies to be installed in the root project\.
+.IP \(bu 2
+Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
+.IP \(bu 2
+Allow clobbering existing values in \fBnpm pkg\fP
+.IP \(bu 2
+Allow unpublishing of entire packages (not just a single version)\.
+
+.RE
+.P
+If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help package spec
+.IP \(bu 2
+npm help deprecate
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help adduser
+.IP \(bu 2
+npm help owner
+.IP \(bu 2
+npm help login
+
+.RE

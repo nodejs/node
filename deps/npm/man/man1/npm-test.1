@@ -1,0 +1,78 @@
+.TH "NPM\-TEST" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-test\fR \- Test a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm test [\-\- <args>]
+
+aliases: tst, t
+.fi
+.RE
+.SS Description
+.P
+This runs a predefined command specified in the \fB"test"\fP property of
+a package's \fB"scripts"\fP object\.
+.SS Example
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "test": "node test\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm test
+> npm@x\.x\.x test
+> node test\.js
+
+(test\.js output would be here)
+.fi
+.RE
+.SS Configuration
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBscript\-shell\fP
+.RS 0
+.IP \(bu 2
+Default: '/bin/sh' on POSIX systems, 'cmd\.exe' on Windows
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <package\-spec>\fP commands\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+
+.RE

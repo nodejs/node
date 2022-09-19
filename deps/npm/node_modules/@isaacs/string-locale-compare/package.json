@@ -1,0 +1,28 @@
+{
+  "name": "@isaacs/string-locale-compare",
+  "version": "1.1.0",
+  "files": [
+    "index.js"
+  ],
+  "main": "index.js",
+  "description": "Compare strings with Intl.Collator if available, falling back to String.localeCompare otherwise",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/string-locale-compare"
+  },
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "tap": "^15.0.9"
+  }
+}

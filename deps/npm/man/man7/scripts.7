@@ -1,0 +1,487 @@
+.TH "SCRIPTS" "7" "September 2022" "" ""
+.SH "NAME"
+\fBscripts\fR \- How npm handles the "scripts" field
+.SS Description
+.P
+The \fB"scripts"\fP property of your \fBpackage\.json\fP file supports a number
+of built\-in scripts and their preset life cycle events as well as
+arbitrary scripts\. These all can be executed by running
+\fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR
+commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP,
+\fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
+.SS Pre & Post Scripts
+.P
+To create "pre" or "post" scripts for any scripts defined in the
+\fB"scripts"\fP section of the \fBpackage\.json\fP, simply create another script
+\fIwith a matching name\fR and add "pre" or "post" to the beginning of them\.
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "precompress": "{{ executes BEFORE the `compress` script }}",
+    "compress": "{{ run command to compress files }}",
+    "postcompress": "{{ executes AFTER `compress` script }}"
+  }
+}
+.fi
+.RE
+.P
+In this example \fBnpm run compress\fP would execute these scripts as
+described\.
+.SS Life Cycle Scripts
+.P
+There are some special life cycle scripts that happen only in certain
+situations\. These scripts happen in addition to the \fBpre<event>\fP, \fBpost<event>\fP, and
+\fB<event>\fP scripts\.
+.RS 0
+.IP \(bu 2
+\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP, \fBdependencies\fP
+
+.RE
+.P
+\fBprepare\fR (since \fBnpm@4\.0\.0\fP)
+.RS 0
+.IP \(bu 2
+Runs any time before the package is packed, i\.e\. during \fBnpm publish\fP
+  and \fBnpm pack\fP
+.IP \(bu 2
+Runs BEFORE the package is packed
+.IP \(bu 2
+Runs BEFORE the package is published
+.IP \(bu 2
+Runs on local \fBnpm install\fP without any arguments
+.IP \(bu 2
+Run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP
+.IP \(bu 2
+NOTE: If a package being installed through git contains a \fBprepare\fP
+script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and
+the prepare script will be run, before the package is packaged and
+installed\.
+.IP \(bu 2
+As of \fBnpm@7\fP these scripts run in the background\.
+To see the output, run with: \fB\-\-foreground\-scripts\fP\|\.
+
+.RE
+.P
+\fBprepublish\fR (DEPRECATED)
+.RS 0
+.IP \(bu 2
+Does not run during \fBnpm publish\fP, but does run during \fBnpm ci\fP
+and \fBnpm install\fP\|\. See below for more info\.
+
+.RE
+.P
+\fBprepublishOnly\fR
+.RS 0
+.IP \(bu 2
+Runs BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\.
+
+.RE
+.P
+\fBprepack\fR
+.RS 0
+.IP \(bu 2
+Runs BEFORE a tarball is packed (on "\fBnpm pack\fP", "\fBnpm publish\fP", and when installing a git dependencies)\.
+.IP \(bu 2
+NOTE: "\fBnpm run pack\fP" is NOT the same as "\fBnpm pack\fP"\. "\fBnpm run pack\fP" is an arbitrary user defined script name, where as, "\fBnpm pack\fP" is a CLI defined command\.
+
+.RE
+.P
+\fBpostpack\fR
+.RS 0
+.IP \(bu 2
+Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
+
+.RE
+.P
+\fBdependencies\fR
+.RS 0
+.IP \(bu 2
+Runs AFTER any operations that modify the \fBnode_modules\fP directory IF changes occurred\.
+.IP \(bu 2
+Does NOT run in global mode
+
+.RE
+.SS Prepare and Prepublish
+.P
+\fBDeprecation Note: prepublish\fR
+.P
+Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package for use (some common use cases are described in the section below)\.  It has also turned out to be, in practice, very confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A \fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on \fBnpm publish\fP (for instance, running the tests one last time to ensure they're in good shape)\.
+.P
+See https://github\.com/npm/npm/issues/10074 for a much lengthier justification, with further reading, for this change\.
+.P
+\fBUse Cases\fR
+.P
+If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a \fBprepublish\fP script\. This includes tasks such as:
+.RS 0
+.IP \(bu 2
+Compiling CoffeeScript source code into JavaScript\.
+.IP \(bu 2
+Creating minified versions of JavaScript source code\.
+.IP \(bu 2
+Fetching remote resources that your package will use\.
+
+.RE
+.P
+The advantage of doing these things at \fBprepublish\fP time is that they can be done once, in a single place, thus reducing complexity and variability\. Additionally, this means that:
+.RS 0
+.IP \(bu 2
+You can depend on \fBcoffee\-script\fP as a \fBdevDependency\fP, and thus
+your users don't need to have it installed\.
+.IP \(bu 2
+You don't need to include minifiers in your package, reducing
+the size for your users\.
+.IP \(bu 2
+You don't need to rely on your users having \fBcurl\fP or \fBwget\fP or
+other system tools on the target machines\.
+
+.RE
+.SS Dependencies
+.P
+The \fBdependencies\fP script is run any time an \fBnpm\fP command causes changes to the \fBnode_modules\fP directory\. It is run AFTER the changes have been applied and the \fBpackage\.json\fP and \fBpackage\-lock\.json\fP files have been updated\.
+.SS Life Cycle Operation Order
+.SS npm help \fBcache add\fP
+.RS 0
+.IP \(bu 2
+\fBprepare\fP
+
+.RE
+.SS npm help \fBci\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+.IP \(bu 2
+\fBprepublish\fP
+.IP \(bu 2
+\fBpreprepare\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostprepare\fP
+These all run after the actual installation of modules into
+\fBnode_modules\fP, in order, with no internal actions happening in between
+
+.RE
+.SS npm help \fBdiff\fP
+.RS 0
+.IP \(bu 2
+\fBprepare\fP
+
+.RE
+.SS npm help \fBinstall\fP
+.P
+These also run when you run \fBnpm install \-g <pkg\-name>\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+.IP \(bu 2
+\fBprepublish\fP
+.IP \(bu 2
+\fBpreprepare\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostprepare\fP
+
+.RE
+.P
+If there is a \fBbinding\.gyp\fP file in the root of your package and you
+haven't defined your own \fBinstall\fP or \fBpreinstall\fP scripts, npm will
+default the \fBinstall\fP command to compile using node\-gyp via \fBnode\-gyp
+rebuild\fP
+.P
+These are run from the scripts of \fB<pkg\-name>\fP
+.SS npm help \fBpack\fP
+.RS 0
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostpack\fP
+
+.RE
+.SS npm help \fBpublish\fP
+.RS 0
+.IP \(bu 2
+\fBprepublishOnly\fP
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostpack\fP
+.IP \(bu 2
+\fBpublish\fP
+.IP \(bu 2
+\fBpostpublish\fP
+
+.RE
+.P
+\fBprepare\fP will not run during \fB\-\-dry\-run\fP
+.SS npm help \fBrebuild\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+.IP \(bu 2
+\fBprepare\fP
+
+.RE
+.P
+\fBprepare\fP is only run if the current directory is a symlink (e\.g\. with
+linked packages)
+.SS npm help \fBrestart\fP
+.P
+If there is a \fBrestart\fP script defined, these events are run, otherwise
+\fBstop\fP and \fBstart\fP are both run if present, including their \fBpre\fP and
+\fBpost\fP iterations)
+.RS 0
+.IP \(bu 2
+\fBprerestart\fP
+.IP \(bu 2
+\fBrestart\fP
+.IP \(bu 2
+\fBpostrestart\fP
+
+.RE
+.SS npm help \fBrun <user defined>\fP
+.RS 0
+.IP \(bu 2
+\fBpre<user\-defined>\fP
+.IP \(bu 2
+\fB<user\-defined>\fP
+.IP \(bu 2
+\fBpost<user\-defined>\fP
+
+.RE
+.SS npm help \fBstart\fP
+.RS 0
+.IP \(bu 2
+\fBprestart\fP
+.IP \(bu 2
+\fBstart\fP
+.IP \(bu 2
+\fBpoststart\fP
+
+.RE
+.P
+If there is a \fBserver\.js\fP file in the root of your package, then npm
+will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\fP and
+\fBpoststart\fP will still run in this case\.
+.SS npm help \fBstop\fP
+.RS 0
+.IP \(bu 2
+\fBprestop\fP
+.IP \(bu 2
+\fBstop\fP
+.IP \(bu 2
+\fBpoststop\fP
+
+.RE
+.SS npm help \fBtest\fP
+.RS 0
+.IP \(bu 2
+\fBpretest\fP
+.IP \(bu 2
+\fBtest\fP
+.IP \(bu 2
+\fBposttest\fP
+
+.RE
+.SS npm help \fBversion\fP
+.RS 0
+.IP \(bu 2
+\fBpreversion\fP
+.IP \(bu 2
+\fBversion\fP
+.IP \(bu 2
+\fBpostversion\fP
+
+.RE
+.SS A Note on a lack of npm help \fBuninstall\fP scripts
+.P
+While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
+.P
+Reasons for a package removal include:
+.RS 0
+.IP \(bu 2
+a user directly uninstalled this package
+.IP \(bu 2
+a user uninstalled a dependant package and so this dependency is being uninstalled
+.IP \(bu 2
+a user uninstalled a dependant package but another package also depends on this version
+.IP \(bu 2
+this version has been merged as a duplicate with another version
+.IP \(bu 2
+etc\.
+
+.RE
+.P
+Due to the lack of necessary context, \fBuninstall\fP lifecycle scripts are not implemented and will not function\.
+.SS User
+.P
+When npm is run as root, scripts are always run with the effective uid
+and gid of the working directory owner\.
+.SS Environment
+.P
+Package scripts run in an environment where many pieces of information
+are made available regarding the setup of npm and the current state of
+the process\.
+.SS path
+.P
+If you depend on modules that define executable scripts, like test
+suites, then those executables will be added to the \fBPATH\fP for
+executing the scripts\.  So, if your package\.json has this:
+.P
+.RS 2
+.nf
+{
+  "name" : "foo",
+  "dependencies" : {
+    "bar" : "0\.1\.x"
+  },
+  "scripts": {
+    "start" : "bar \./test"
+  }
+}
+.fi
+.RE
+.P
+then you could run \fBnpm start\fP to execute the \fBbar\fP script, which is
+exported into the \fBnode_modules/\.bin\fP directory on \fBnpm install\fP\|\.
+.SS package\.json vars
+.P
+The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
+for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
+package\.json file, then your package scripts would have the
+\fBnpm_package_name\fP environment variable set to "foo", and the
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
+in your code with \fBprocess\.env\.npm_package_name\fP and
+\fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
+.P
+See npm help \fBpackage\.json\fP for more on package configs\.
+.SS current lifecycle event
+.P
+Lastly, the \fBnpm_lifecycle_event\fP environment variable is set to
+whichever stage of the cycle is being executed\. So, you could have a
+single script used for different parts of the process which switches
+based on what's currently happening\.
+.P
+Objects are flattened following this format, so if you had
+\fB{"scripts":{"install":"foo\.js"}}\fP in your package\.json, then you'd
+see this in the script:
+.P
+.RS 2
+.nf
+process\.env\.npm_package_scripts_install === "foo\.js"
+.fi
+.RE
+.SS Examples
+.P
+For example, if your package\.json contains this:
+.P
+.RS 2
+.nf
+{
+  "scripts" : {
+    "install" : "scripts/install\.js",
+    "postinstall" : "scripts/install\.js",
+    "uninstall" : "scripts/uninstall\.js"
+  }
+}
+.fi
+.RE
+.P
+then \fBscripts/install\.js\fP will be called for the install
+and post\-install stages of the lifecycle, and \fBscripts/uninstall\.js\fP
+will be called when the package is uninstalled\.  Since
+\fBscripts/install\.js\fP is running for two different phases, it would
+be wise in this case to look at the \fBnpm_lifecycle_event\fP environment
+variable\.
+.P
+If you want to run a make command, you can do so\.  This works just
+fine:
+.P
+.RS 2
+.nf
+{
+  "scripts" : {
+    "preinstall" : "\./configure",
+    "install" : "make && make install",
+    "test" : "make test"
+  }
+}
+.fi
+.RE
+.SS Exiting
+.P
+Scripts are run by passing the line as a script argument to \fBsh\fP\|\.
+.P
+If the script exits with a code other than 0, then this will abort the
+process\.
+.P
+Note that these script files don't have to be Node\.js or even
+JavaScript programs\. They just have to be some kind of executable
+file\.
+.SS Best Practices
+.RS 0
+.IP \(bu 2
+Don't exit with a non\-zero error code unless you \fIreally\fR mean it\.
+Except for uninstall scripts, this will cause the npm action to
+fail, and potentially be rolled back\.  If the failure is minor or
+only will prevent some optional features, then it's better to just
+print a warning and exit successfully\.
+.IP \(bu 2
+Try not to use scripts to do what npm can do for you\.  Read through
+npm help \fBpackage\.json\fP to see all the things that you can specify and enable
+by simply describing your package appropriately\.  In general, this
+will lead to a more robust and consistent state\.
+.IP \(bu 2
+Inspect the env to determine where to put things\.  For instance, if
+the \fBnpm_config_binroot\fP environment variable is set to \fB/home/user/bin\fP, then
+don't try to install executables into \fB/usr/local/bin\fP\|\.  The user
+probably set it up that way for a reason\.
+.IP \(bu 2
+Don't prefix your script commands with "sudo"\.  If root permissions
+are required for some reason, then it'll fail with that error, and
+the user will sudo the npm command in question\.
+.IP \(bu 2
+Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepare\fP
+for anything else\. You should almost never have to explicitly set a
+preinstall or install script\. If you are doing this, please consider if
+there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP
+scripts is for compilation which must be done on the target architecture\.
+.IP \(bu 2
+Scripts are run from the root of the package folder, regardless of what the
+current working directory is when \fBnpm\fP is invoked\. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the \fBINIT_CWD\fP environment variable, which holds the full path you
+were in when you ran \fBnpm run\fP\|\.
+
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help package\.json
+.IP \(bu 2
+npm help developers
+.IP \(bu 2
+npm help install
+
+.RE

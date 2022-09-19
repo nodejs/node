@@ -1,0 +1,61 @@
+.TH "NPM\-ROOT" "1" "September 2022" "" ""
+.SH "NAME"
+\fBnpm-root\fR \- Display npm root
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm root
+.fi
+.RE
+.SS Description
+.P
+Print the effective \fBnode_modules\fP folder to standard out\.
+.P
+Useful for using npm in shell scripts that do things with the
+\fBnode_modules\fP folder\.  For example:
+.P
+.RS 2
+.nf
+#!/bin/bash
+global_node_modules="$(npm root \-\-global)"
+echo "Global packages installed in: ${global_node_modules}"
+.fi
+.RE
+.SS Configuration
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help prefix
+.IP \(bu 2
+npm help bin
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

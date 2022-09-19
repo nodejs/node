@@ -1,0 +1,21 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("v8_fuzzilli_test") {
+  testonly = true
+
+  sources = [
+    "libreprl.c",
+    "libreprl.h",
+    "main.cc",
+  ]
+
+  configs = []
+
+  deps = []
+
+  data = []
+}

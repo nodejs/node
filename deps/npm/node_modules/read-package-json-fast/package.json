@@ -1,0 +1,34 @@
+{
+  "name": "read-package-json-fast",
+  "version": "2.0.3",
+  "description": "Like read-package-json, but faster",
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "tap": "^15.0.9"
+  },
+  "dependencies": {
+    "json-parse-even-better-errors": "^2.3.0",
+    "npm-normalize-package-bin": "^1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-package-json-fast.git"
+  },
+  "files": [
+    "index.js"
+  ]
+}

@@ -1,0 +1,26 @@
+[ req ]
+default_bits           = 1024
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+x509_extensions        = v3_ca
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = SF
+O                      = Joyent
+OU                     = Node.js
+CN                     = agent1
+emailAddress           = ry@tinyclouds.org
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ v3_ca ]
+authorityInfoAccess = @issuer_info
+
+[ issuer_info ]
+OCSP;URI.0 = http://ocsp.nodejs.org/
+caIssuers;URI.0 = http://ca.nodejs.org/ca.cert
