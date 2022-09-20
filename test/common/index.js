@@ -357,7 +357,9 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
     const leaked = [];
 
     for (const val in global) {
-      if (!knownGlobals.includes(global[val])) {
+      // globalThis.crypto is a getter that throws if Node.js was compiled
+      // without OpenSSL.
+      if (val !== 'crypto' && !knownGlobals.includes(global[val])) {
         leaked.push(val);
       }
     }

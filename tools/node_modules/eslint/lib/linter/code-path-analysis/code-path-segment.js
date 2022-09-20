@@ -88,10 +88,10 @@ class CodePathSegment {
             }
         });
 
-        /* istanbul ignore if */
+        /* c8 ignore start */
         if (debug.enabled) {
             this.internal.nodes = [];
-        }
+        }/* c8 ignore stop */
     }
 
     /**

@@ -1,6 +1,6 @@
 # Node.js
 
-Node.js is an open-source, cross-platform, JavaScript runtime environment.
+Node.js is an open-source, cross-platform JavaScript runtime environment.
 
 For information on using Node.js, see the [Node.js website][].
 
@@ -178,6 +178,8 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
+* [legendecas](https://github.com/legendecas) -
+  **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
@@ -310,8 +312,6 @@ For information about the governance of the Node.js project, see
   **Gus Caplan** <<me@gus.host>> (they/them)
 * [dmabupt](https://github.com/dmabupt) -
   **Xu Meng** <<dmabupt@gmail.com>> (he/him)
-* [dnlup](https://github.com/dnlup)
-  **Daniele Belardi** <<dwon.dnl@gmail.com>> (he/him)
 * [edsadr](https://github.com/edsadr) -
   **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
 * [erickwendel](https://github.com/erickwendel) -
@@ -494,6 +494,8 @@ For information about the governance of the Node.js project, see
   **Jamie Davis** <<davisjam@vt.edu>> (he/him)
 * [digitalinfinity](https://github.com/digitalinfinity) -
   **Hitesh Kanwathirtha** <<digitalinfinity@gmail.com>> (he/him)
+* [dnlup](https://github.com/dnlup)
+  **dnlup** <<dnlup.dev@gmail.com>>
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
   **Robert Jefe Lindstaedt** <<robert.lindstaedt@gmail.com>>
 * [estliberitas](https://github.com/estliberitas) -

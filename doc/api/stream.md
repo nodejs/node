@@ -594,7 +594,7 @@ added: v11.4.0
 * {boolean}
 
 Is `true` if it is safe to call [`writable.write()`][stream-write], which means
-the stream has not been destroyed, errored or ended.
+the stream has not been destroyed, errored, or ended.
 
 ##### `writable.writableAborted`
 
@@ -1547,7 +1547,7 @@ changes:
 
 * `chunk` {Buffer|Uint8Array|string|null|any} Chunk of data to unshift onto the
   read queue. For streams not operating in object mode, `chunk` must be a
-  string, `Buffer`, `Uint8Array` or `null`. For object mode streams, `chunk`
+  string, `Buffer`, `Uint8Array`, or `null`. For object mode streams, `chunk`
   may be any JavaScript value.
 * `encoding` {string} Encoding of string chunks. Must be a valid
   `Buffer` encoding, such as `'utf8'` or `'ascii'`.
@@ -3135,7 +3135,7 @@ added: v1.2.0
 
 For many simple cases, it is possible to create a stream without relying on
 inheritance. This can be accomplished by directly creating instances of the
-`stream.Writable`, `stream.Readable`, `stream.Duplex` or `stream.Transform`
+`stream.Writable`, `stream.Readable`, `stream.Duplex`, or `stream.Transform`
 objects and passing appropriate methods as constructor options.
 
 ```js
@@ -3763,7 +3763,7 @@ changes:
 * Returns: {boolean} `true` if additional chunks of data may continue to be
   pushed; `false` otherwise.
 
-When `chunk` is a `Buffer`, `Uint8Array` or `string`, the `chunk` of data will
+When `chunk` is a `Buffer`, `Uint8Array`, or `string`, the `chunk` of data will
 be added to the internal queue for users of the stream to consume.
 Passing `chunk` as `null` signals the end of the stream (EOF), after which no
 more data can be written.
@@ -4438,7 +4438,7 @@ situations within Node.js where this is done, particularly in the
 
 Use of `readable.push('')` is not recommended.
 
-Pushing a zero-byte string, `Buffer` or `Uint8Array` to a stream that is not in
+Pushing a zero-byte string, `Buffer`, or `Uint8Array` to a stream that is not in
 object mode has an interesting side effect. Because it _is_ a call to
 [`readable.push()`][stream-push], the call will end the reading process.
 However, because the argument is an empty string, no data is added to the

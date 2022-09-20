@@ -1175,24 +1175,29 @@ or `setPrivateKey()` methods.
 
 ```mjs
 const { createDiffieHellmanGroup } = await import('node:crypto');
-const dh = createDiffieHellmanGroup('modp1');
+const dh = createDiffieHellmanGroup('modp16');
 ```
 
 ```cjs
 const { createDiffieHellmanGroup } = require('node:crypto');
-const dh = createDiffieHellmanGroup('modp1');
+const dh = createDiffieHellmanGroup('modp16');
 ```
 
 The following groups are supported:
 
-* `'modp1'` (768 bits, [RFC 2409][] Section 6.1)
-* `'modp2'` (1024 bits, [RFC 2409][] Section 6.2)
-* `'modp5'` (1536 bits, [RFC 3526][] Section 2)
 * `'modp14'` (2048 bits, [RFC 3526][] Section 3)
 * `'modp15'` (3072 bits, [RFC 3526][] Section 4)
 * `'modp16'` (4096 bits, [RFC 3526][] Section 5)
 * `'modp17'` (6144 bits, [RFC 3526][] Section 6)
 * `'modp18'` (8192 bits, [RFC 3526][] Section 7)
+
+The following groups are still supported but deprecated (see [Caveats][]):
+
+* `'modp1'` (768 bits, [RFC 2409][] Section 6.1) <span class="deprecated-inline"></span>
+* `'modp2'` (1024 bits, [RFC 2409][] Section 6.2) <span class="deprecated-inline"></span>
+* `'modp5'` (1536 bits, [RFC 3526][] Section 2) <span class="deprecated-inline"></span>
+
+These deprecated groups might be removed in future versions of Node.js.
 
 ## Class: `ECDH`
 
@@ -4127,10 +4132,9 @@ added: v0.7.5
 * Returns: {DiffieHellmanGroup}
 
 Creates a predefined `DiffieHellmanGroup` key exchange object. The
-supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
-[RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
-`'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]). The
-returned object mimics the interface of objects created by
+supported groups are listed in the documentation for [`DiffieHellmanGroup`][].
+
+The returned object mimics the interface of objects created by
 [`crypto.createDiffieHellman()`][], but will not allow changing
 the keys (with [`diffieHellman.setPublicKey()`][], for example). The
 advantage of using this method is that the parties do not have to
@@ -5369,12 +5373,6 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
 
-The flags below are deprecated in OpenSSL-1.1.0.
-
-* `crypto.constants.ENGINE_METHOD_ECDH`
-* `crypto.constants.ENGINE_METHOD_ECDSA`
-* `crypto.constants.ENGINE_METHOD_STORE`
-
 ### `crypto.setFips(bool)`
 
 <!-- YAML
@@ -6132,7 +6130,6 @@ See the [list of SSL OP Flags][] for details.
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
-[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
@@ -6143,6 +6140,7 @@ See the [list of SSL OP Flags][] for details.
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
+[`DiffieHellmanGroup`]: #class-diffiehellmangroup
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #class-keyobject
 [`Sign`]: #class-sign

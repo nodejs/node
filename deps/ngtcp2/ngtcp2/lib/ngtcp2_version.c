@@ -31,7 +31,7 @@
 static ngtcp2_info version = {NGTCP2_VERSION_AGE, NGTCP2_VERSION_NUM,
                               NGTCP2_VERSION};
 
-ngtcp2_info *ngtcp2_version(int least_version) {
+const ngtcp2_info *ngtcp2_version(int least_version) {
   if (least_version > NGTCP2_VERSION_NUM) {
     return NULL;
   }

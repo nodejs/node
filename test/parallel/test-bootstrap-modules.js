@@ -57,6 +57,7 @@ const expectedModules = new Set([
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
   'NativeModule internal/constants',
+  'NativeModule internal/dns/utils',
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/event_target',
@@ -203,6 +204,17 @@ if (common.hasIntl) {
   expectedModules.add('Internal Binding icu');
 } else {
   expectedModules.add('NativeModule url');
+}
+
+if (common.hasCrypto) {
+  expectedModules.add('Internal Binding crypto')
+    .add('NativeModule internal/crypto/hash')
+    .add('NativeModule internal/crypto/hashnames')
+    .add('NativeModule internal/crypto/keys')
+    .add('NativeModule internal/crypto/random')
+    .add('NativeModule internal/crypto/util')
+    .add('NativeModule internal/crypto/webcrypto')
+    .add('NativeModule internal/streams/lazy_transform');
 }
 
 if (process.features.inspector) {
