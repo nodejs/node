@@ -1685,22 +1685,10 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
+  uint64_t free_memory = uv_get_free_memory();
+  uint64_t constrained_memory = uv_get_constrained_memory();
+  if (constrained_memory == 0) return free_memory;
+  return std::min(free_memory, constrained_memory);
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,
