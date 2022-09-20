@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.9.1">18.9.1</a><br/>
 <a href="#18.9.0">18.9.0</a><br/>
 <a href="#18.8.0">18.8.0</a><br/>
 <a href="#18.7.0">18.7.0</a><br/>
@@ -41,6 +42,43 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.9.1"></a>
+
+## 2022-09-23, Version 18.9.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-32212](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32212)**: DNS rebinding in --inspect on macOS (High)
+  * Insufficient fix for macOS devices on v18.5.0
+* **[CVE-2022-32222](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32222)**: Node 18 reads openssl.cnf from /home/iojs/build/ upon startup on MacOS (Medium)
+* **[CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213)**: HTTP Request Smuggling - Flawed Parsing of Transfer-Encoding (Medium)
+  * Insufficient fix on v18.5.0
+* **[CVE-2022-32215](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32215)**: HTTP Request Smuggling - Incorrect Parsing of Multi-line Transfer-Encoding (Medium)
+  * Insufficient fix on v18.5.0
+* **[CVE-2022-35256](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35256)**: HTTP Request Smuggling - Incorrect Parsing of Header Fields (Medium)
+* **[CVE-2022-35255](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35255)**: Weak randomness in WebCrypto keygen
+
+More detailed information on each of the vulnerabilities can be found in [September 22nd 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/) blog post.
+
+#### llhttp updated to 6.0.10
+
+`llhttp` is updated to 6.0.10 which includes fixes for the following vulnerabilities.
+
+* **HTTP Request Smuggling - CVE-2022-32213 bypass via obs-fold mechanic (Medium)([CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213) )**: The `llhttp` parser in the `http` module does not correctly parse and validate Transfer-Encoding headers. This can lead to HTTP Request Smuggling (HRS).
+* **HTTP Request Smuggling - Incorrect Parsing of Multi-line Transfer-Encoding (Medium)([CVE-2022-32215](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32215))**: The `llhttp` parser in the `http` module does not correctly handle multi-line Transfer-Encoding headers. This can lead to HTTP Request Smuggling (HRS).
+* **HTTP Request Smuggling - Incorrect Parsing of Header Fields (Medium)([CVE-35256](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35256))**: The llhttp parser in the `http` does not correctly handle header fields that are not terminated with CLRF. This can lead to HTTP Request Smuggling (HRS).
+
+### Commits
+
+* \[[`0c2a5723be`](https://github.com/nodejs/node/commit/0c2a5723be)] - **crypto**: fix weak randomness in WebCrypto keygen (Ben Noordhuis) [nodejs-private/node-private#](https://github.com/nodejs-private/node-private/pull/346)
+* \[[`ffb6f4d51d`](https://github.com/nodejs/node/commit/ffb6f4d51d)] - **deps**: MacOS - fix location of OpenSSL config file (Michael Dawson) [nodejs-private/node-private#345](https://github.com/nodejs-private/node-private/pull/345)
+* \[[`01bffcdd93`](https://github.com/nodejs/node/commit/01bffcdd93)] - **http**: disable chunked encoding when OBS fold is used (Paolo Insogna) [nodejs-private/node-private#341](https://github.com/nodejs-private/node-private/pull/341)
+* \[[`2c379d341d`](https://github.com/nodejs/node/commit/2c379d341d)] - **src**: fix IPv4 non routable validation (RafaelGSS) [nodejs-private/node-private#337](https://github.com/nodejs-private/node-private/pull/337)
 
 <a id="18.9.0"></a>
 
