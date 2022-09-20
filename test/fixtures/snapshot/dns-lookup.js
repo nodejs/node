@@ -5,7 +5,7 @@ const assert = require('assert');
 assert(process.env.NODE_TEST_HOST);
 
 const {
-  setDeserializeMainFunction
+  setDeserializeMainFunction,
 } = require('v8').startupSnapshot;
 
 function onError(err) {

@@ -8,13 +8,13 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const { buildSnapshot, runWithSnapshot } = require('../common/snapshot');
 const {
-  addresses: { INET4_HOST }
+  addresses: { INET4_HOST },
 } = require('../common/internet');
 
 const entry = fixtures.path('snapshot', 'dns-lookup.js');
 const env = {
   NODE_TEST_HOST: INET4_HOST,
-  NODE_TEST_PROMISE: 'false'
+  NODE_TEST_PROMISE: 'false',
 };
 
 tmpdir.refresh();

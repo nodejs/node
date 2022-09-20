@@ -11,7 +11,7 @@ const { buildSnapshot, runWithSnapshot } = require('../common/snapshot');
 const entry = fixtures.path('snapshot', 'dns-resolve.js');
 const env = {
   NODE_TEST_HOST: 'localhost',
-  NODE_TEST_PROMISE: 'false'
+  NODE_TEST_PROMISE: 'false',
 };
 
 tmpdir.refresh();

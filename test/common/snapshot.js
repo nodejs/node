@@ -16,8 +16,8 @@ function buildSnapshot(entry, env) {
     cwd: tmpdir.path,
     env: {
       ...process.env,
-      ...env
-    }
+      ...env,
+    },
   });
 
   const stderr = child.stderr.toString();
@@ -44,7 +44,7 @@ function runWithSnapshot(entry, env) {
     cwd: tmpdir.path,
     env: {
       ...process.env,
-      ...env
+      ...env,
     }
   });
 
@@ -62,5 +62,5 @@ function runWithSnapshot(entry, env) {
 
 module.exports = {
   buildSnapshot,
-  runWithSnapshot
+  runWithSnapshot,
 };
