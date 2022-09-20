@@ -745,6 +745,12 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
+template <typename T>
+inline void Environment::ForEachRealm(T&& iterator) const {
+  // TODO(legendecas): iterate over more realms bound to the environment.
+  iterator(principal_realm());
+}
+
 inline void Environment::ThrowError(const char* errmsg) {
   ThrowError(v8::Exception::Error, errmsg);
 }

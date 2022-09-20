@@ -1021,6 +1021,9 @@ class Environment : public MemoryRetainer {
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
 
+  template <typename T>
+  void ForEachRealm(T&& iterator) const;
+
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
 
   inline void AddHeapSnapshotNearHeapLimitCallback();

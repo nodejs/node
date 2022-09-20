@@ -1558,7 +1558,7 @@ void Environment::RemoveUnmanagedFd(int fd) {
 void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "At the exit of the Environment:\n");
-    principal_realm()->PrintInfoForSnapshotIfDebug();
+    principal_realm()->PrintInfoForSnapshot();
     fprintf(stderr, "\nNative modules without cache:\n");
     for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());

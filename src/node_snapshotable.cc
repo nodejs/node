@@ -1194,7 +1194,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
-        env->principal_realm()->PrintAllBaseObjects();
+        env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
         printf("Environment = %p\n", env);
       }
 

@@ -296,22 +296,15 @@ void Realm::RunCleanup() {
   cleanup_queue_.Drain();
 }
 
-void Realm::PrintInfoForSnapshotIfDebug() {
-  fprintf(stderr, "Realm:\n");
-  if (env()->enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "BaseObjects of the Realm:\n");
-    PrintAllBaseObjects();
-  }
-  fprintf(stderr, "End of the Realm.\n");
-}
-
-void Realm::PrintAllBaseObjects() {
+void Realm::PrintInfoForSnapshot() {
+  fprintf(stderr, "Realm = %p\n", this);
+  fprintf(stderr, "BaseObjects of the Realm:\n");
   size_t i = 0;
-  std::cout << "BaseObjects\n";
   ForEachBaseObject([&](BaseObject* obj) {
     std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
               << "\n";
   });
+  fprintf(stderr, "End of the Realm.\n");
 }
 
 void Realm::VerifyNoStrongBaseObjects() {
@@ -333,6 +326,7 @@ void Realm::VerifyNoStrongBaseObjects() {
   // for these criteria. Currently, we only do so when explicitly instructed to
   // or when in debug mode (where --verify-base-objects is always-on).
 
+  // TODO(legendecas): introduce per-realm options.
   if (!env()->options()->verify_base_objects) return;
 
   ForEachBaseObject([](BaseObject* obj) {

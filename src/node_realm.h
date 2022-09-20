@@ -75,8 +75,7 @@ class Realm : public MemoryRetainer {
   template <typename T>
   void ForEachBaseObject(T&& iterator) const;
 
-  void PrintInfoForSnapshotIfDebug();
-  void PrintAllBaseObjects();
+  void PrintInfoForSnapshot();
   void VerifyNoStrongBaseObjects();
 
   inline IsolateData* isolate_data() const;

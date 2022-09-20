@@ -42,7 +42,7 @@ BaseObject::~BaseObject() {
   }
 
   {
-    HandleScope handle_scope(env()->isolate());
+    HandleScope handle_scope(realm()->isolate());
     object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
   }
 }
