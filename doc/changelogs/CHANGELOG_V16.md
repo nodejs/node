@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.17.1">16.17.1</a><br/>
 <a href="#16.17.0">16.17.0</a><br/>
 <a href="#16.16.0">16.16.0</a><br/>
 <a href="#16.15.1">16.15.1</a><br/>
@@ -63,6 +64,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.17.1"></a>
+
+## 2022-09-23, Version 16.17.1 'Gallium' (LTS), @ruyadorno
+
+### Notable changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-32212](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32212)**: DNS rebinding in --inspect on macOS (High)
+* **[CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213)**: bypass via obs-fold mechanic (Medium)
+* **[CVE-2022-35255](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35255)**: Weak randomness in WebCrypto keygen
+* **[CVE-2022-35256](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35256)**: HTTP Request Smuggling - Incorrect Parsing of Header Fields (Medium)
+
+More detailed information on each of the vulnerabilities can be found in [September 22nd 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/) blog post.
+
+### Commits
+
+* \[[`a54283a638`](https://github.com/nodejs/node/commit/a54283a638)] - **crypto**: fix weak randomness in WebCrypto keygen (Ben Noordhuis) [nodejs-private/node-private#346](https://github.com/nodejs-private/node-private/pull/346)
+* \[[`0713e21240`](https://github.com/nodejs/node/commit/0713e21240)] - **http**: disable chunked encoding when using OBS fold is used (Paolo Insogna) [nodejs-private/node-private#341](https://github.com/nodejs-private/node-private/pull/341)
+* \[[`77fe2f32e4`](https://github.com/nodejs/node/commit/77fe2f32e4)] - **src**: fix IPv4 non routable validation (RafaelGSS) [nodejs-private/node-private#337](https://github.com/nodejs-private/node-private/pull/337)
 
 <a id="16.17.0"></a>
 
