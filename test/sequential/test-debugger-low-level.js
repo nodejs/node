@@ -12,9 +12,8 @@ const assert = require('assert');
   const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
   const scriptPattern = /^\* (\d+): \S+debugger(?:\/|\\)three-lines\.js/m;
 
-  async function testDebuggerLowLevel()
-  {
-    try{
+  async function testDebuggerLowLevel() {
+    try {
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
       await cli.command('scripts');
@@ -23,12 +22,12 @@ const assert = require('assert');
         `Debugger.getScriptSource({ scriptId: '${scriptId}' })`
       );
       assert.match(
-              cli.output,
-              /scriptSource:[ \n]*'(?:\(function \(|let x = 1)/);
+        cli.output,
+        /scriptSource:[ \n]*'(?:\(function \(|let x = 1)/);
       assert.match(
-              cli.output,
-              /let x = 1;/);
-    } finally{
+        cli.output,
+        /let x = 1;/);
+    } finally {
       await cli.quit();
     }
   }
