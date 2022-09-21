@@ -1120,13 +1120,14 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // It is possible for the stream close to occur before the stream is
   // ever passed on to the javascript side. If that happens, the callback
   // will return false.
-  Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
-  MaybeLocal<Value> answer =
-    stream->MakeCallback(env->http2session_on_stream_close_function(),
-                          1, &arg);
-  if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
-    // Skip to destroy
-    stream->Destroy();
+  if (env->can_call_into_js()) {
+    Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
+    MaybeLocal<Value> answer = stream->MakeCallback(
+        env->http2session_on_stream_close_function(), 1, &arg);
+    if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
+      // Skip to destroy
+      stream->Destroy();
+    }
   }
   return 0;
 }
@@ -1629,9 +1630,11 @@ void Http2Session::MaybeScheduleWrite() {
 
       // Sending data may call arbitrary JS code, so keep track of
       // async context.
-      HandleScope handle_scope(env->isolate());
-      InternalCallbackScope callback_scope(this);
-      SendPendingData();
+      if (env->can_call_into_js()) {
+        HandleScope handle_scope(env->isolate());
+        InternalCallbackScope callback_scope(this);
+        SendPendingData();
+      }
     });
   }
 }

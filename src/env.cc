@@ -163,14 +163,17 @@ bool AsyncHooks::pop_async_context(double async_id) {
 }
 
 void AsyncHooks::clear_async_id_stack() {
-  Isolate* isolate = env()->isolate();
-  HandleScope handle_scope(isolate);
-  if (!js_execution_async_resources_.IsEmpty()) {
-    USE(PersistentToLocal::Strong(js_execution_async_resources_)
-            ->Set(env()->context(),
-                  env()->length_string(),
-                  Integer::NewFromUnsigned(isolate, 0)));
+  if (env()->can_call_into_js()) {
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+    if (!js_execution_async_resources_.IsEmpty()) {
+      USE(PersistentToLocal::Strong(js_execution_async_resources_)
+              ->Set(env()->context(),
+                    env()->length_string(),
+                    Integer::NewFromUnsigned(isolate, 0)));
+    }
   }
+
   native_execution_async_resources_.clear();
   native_execution_async_resources_.shrink_to_fit();
 
@@ -1046,7 +1049,13 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
                "RunAndClearNativeImmediates");
   HandleScope handle_scope(isolate_);
-  InternalCallbackScope cb_scope(this, Object::New(isolate_), { 0, 0 });
+  // In case the Isolate is no longer accessible just use an empty Local. This
+  // is not an issue for InternalCallbackScope as this case is already handled
+  // in its constructor but we avoid calls into v8 which can crash the process
+  // in debug builds.
+  Local<Object> obj =
+      can_call_into_js() ? Object::New(isolate_) : Local<Object>();
+  InternalCallbackScope cb_scope(this, obj, {0, 0});
 
   size_t ref_count = 0;
 
