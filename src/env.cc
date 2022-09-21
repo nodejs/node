@@ -1053,10 +1053,9 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   // is not an issue for InternalCallbackScope as this case is already handled
   // in its constructor but we avoid calls into v8 which can crash the process
   // in debug builds.
-  Local<Object> obj = can_call_into_js() ?
-                      Object::New(isolate_) :
-                      Local<Object>();
-  InternalCallbackScope cb_scope(this, obj, { 0, 0 });
+  Local<Object> obj =
+      can_call_into_js() ? Object::New(isolate_) : Local<Object>();
+  InternalCallbackScope cb_scope(this, obj, {0, 0});
 
   size_t ref_count = 0;
 

@@ -1122,9 +1122,8 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // will return false.
   if (env->can_call_into_js()) {
     Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
-    MaybeLocal<Value> answer =
-      stream->MakeCallback(env->http2session_on_stream_close_function(),
-                            1, &arg);
+    MaybeLocal<Value> answer = stream->MakeCallback(
+        env->http2session_on_stream_close_function(), 1, &arg);
     if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
       // Skip to destroy
       stream->Destroy();
