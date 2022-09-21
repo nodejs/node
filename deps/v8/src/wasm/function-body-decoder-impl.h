@@ -2136,7 +2136,7 @@ class WasmDecoder : public Decoder {
   }
 
   // TODO(clemensb): This is only used by the interpreter; move there.
-  V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
+  std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // Handle "simple" opcodes with a fixed signature first.
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
