@@ -206,7 +206,7 @@ Address HeapObjectHeader::ObjectStart() const {
 
 template <AccessMode mode>
 Address HeapObjectHeader::ObjectEnd() const {
-  DCHECK(!IsLargeObject());
+  DCHECK(!IsLargeObject<mode>());
   return reinterpret_cast<Address>(const_cast<HeapObjectHeader*>(this)) +
          AllocatedSize<mode>();
 }

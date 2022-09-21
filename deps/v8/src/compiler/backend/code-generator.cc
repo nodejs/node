@@ -8,7 +8,6 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/codegen/string-constants.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
@@ -19,6 +18,10 @@
 #include "src/logging/log.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/assembler-buffer-cache.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -41,16 +44,14 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                             InstructionSequence* instructions,
-                             OptimizedCompilationInfo* info, Isolate* isolate,
-                             base::Optional<OsrHelper> osr_helper,
-                             int start_source_position,
-                             JumpOptimizationInfo* jump_opt,
-                             const AssemblerOptions& options, Builtin builtin,
-                             size_t max_unoptimized_frame_height,
-                             size_t max_pushed_argument_count,
-                             const char* debug_name)
+CodeGenerator::CodeGenerator(
+    Zone* codegen_zone, Frame* frame, Linkage* linkage,
+    InstructionSequence* instructions, OptimizedCompilationInfo* info,
+    Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+    int start_source_position, JumpOptimizationInfo* jump_opt,
+    const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
+    Builtin builtin, size_t max_unoptimized_frame_height,
+    size_t max_pushed_argument_count, const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -63,7 +64,13 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(isolate, options, CodeObjectRequired::kNo),
+      tasm_(isolate, options, CodeObjectRequired::kNo,
+#if V8_ENABLE_WEBASSEMBLY
+            buffer_cache ? buffer_cache->GetAssemblerBuffer(
+                               AssemblerBase::kDefaultBufferSize)
+                         :
+#endif  // V8_ENABLE_WEBASSEMBLY
+                         std::unique_ptr<AssemblerBuffer>{}),
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
@@ -77,10 +84,11 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       ools_(nullptr),
       osr_helper_(std::move(osr_helper)),
       osr_pc_offset_(-1),
-      optimized_out_literal_id_(-1),
       source_position_table_builder_(
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
+#if V8_ENABLE_WEBASSEMBLY
       protected_instructions_(codegen_zone),
+#endif  // V8_ENABLE_WEBASSEMBLY
       result_(kSuccess),
       block_starts_(codegen_zone),
       instr_starts_(codegen_zone),
@@ -108,7 +116,9 @@ bool CodeGenerator::wasm_runtime_exception_support() const {
 
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
+#if V8_ENABLE_WEBASSEMBLY
   protected_instructions_.push_back({instr_offset, landing_offset});
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
@@ -388,7 +398,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
-  // The PerfJitLogger logs code up until here, excluding the safepoint
+  // The LinuxPerfJitLogger logs code up until here, excluding the safepoint
   // table. Resolve the unwinding info now so it is aware of the same code
   // size as reported by perf.
   unwinding_info_writer_.Finish(tasm()->pc_offset());
@@ -442,8 +452,12 @@ base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
 }
 
 base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+#if V8_ENABLE_WEBASSEMBLY
   return base::OwnedVector<byte>::Of(
       base::Vector<byte>::cast(base::VectorOf(protected_instructions_)));
+#else
+  return {};
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {
@@ -482,6 +496,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
           .set_is_turbofanned()
           .set_stack_slots(frame()->GetTotalFrameSlotCount())
           .set_profiler_data(info()->profiler_data())
+          .set_osr_offset(info()->osr_offset())
           .TryBuild();
 
   Handle<Code> code;
@@ -489,10 +504,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     tasm()->AbortedCodeGeneration();
     return MaybeHandle<Code>();
   }
-
-  // Counts both compiled code and metadata.
-  isolate()->counters()->total_compiled_code_size()->Increment(
-      code->raw_body_size());
 
   LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
                                 code->raw_instruction_start(),
@@ -1016,11 +1027,7 @@ void CodeGenerator::TranslateStateValueDescriptor(
     AddTranslationForOperand(iter->instruction(), op, desc->type());
   } else {
     DCHECK(desc->IsOptimizedOut());
-      if (optimized_out_literal_id_ == -1) {
-        optimized_out_literal_id_ = DefineDeoptimizationLiteral(
-            DeoptimizationLiteral(isolate()->factory()->optimized_out()));
-      }
-      translations_.StoreLiteral(optimized_out_literal_id_);
+    translations_.StoreOptimizedOut();
   }
 }
 
@@ -1070,8 +1077,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
                                           return_offset, return_count);
       break;
     }
-    case FrameStateType::kArgumentsAdaptor:
-      translations_.BeginArgumentsAdaptorFrame(shared_info_id, height);
+    case FrameStateType::kInlinedExtraArguments:
+      translations_.BeginInlinedExtraArguments(shared_info_id, height);
       break;
     case FrameStateType::kConstructStub:
       DCHECK(bailout_id.IsValidForConstructStub());
@@ -1278,10 +1285,6 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
         DCHECK_EQ(MachineType::AnyTagged(), type);
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
-      case Constant::kDelayedStringConstant:
-        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
-        literal = DeoptimizationLiteral(constant.ToDelayedStringConstant());
-        break;
       default:
         UNREACHABLE();
     }
@@ -1321,9 +1324,6 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kNumber: {
       return isolate->factory()->NewNumber(number_);
-    }
-    case DeoptimizationLiteralKind::kString: {
-      return string_->AllocateStringConstant(isolate);
     }
     case DeoptimizationLiteralKind::kInvalid: {
       UNREACHABLE();

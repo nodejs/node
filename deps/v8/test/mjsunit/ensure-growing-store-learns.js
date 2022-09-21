@@ -8,7 +8,7 @@
 // --allow-overwriting-for-next-flag to avoid an error.
 // Flags: --allow-overwriting-for-next-flag --noverify-heap
 // Flags: --allow-overwriting-for-next-flag --noenable-slow-asserts
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.
@@ -53,8 +53,6 @@
   assertOptimized(foo);
   assertTrue(%HasDictionaryElements(b));
 
-  // Clearing feedback for the StoreIC in foo is important for runs with
-  // flag --stress-opt.
   %ClearFunctionFeedback(foo);
 })();
 

@@ -156,7 +156,6 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   intptr_t base_count = finished_microtask_count_;
 
   HandleScope handle_scope(isolate);
-  MaybeHandle<Object> maybe_exception;
 
   MaybeHandle<Object> maybe_result;
 
@@ -170,8 +169,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");
     {
       TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
-      maybe_result = Execution::TryRunMicrotasks(isolate, this,
-                                                 &maybe_exception);
+      maybe_result = Execution::TryRunMicrotasks(isolate, this);
       processed_microtask_count =
           static_cast<int>(finished_microtask_count_ - base_count);
     }
@@ -179,14 +177,14 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
                      processed_microtask_count);
   }
 
-  // If execution is terminating, clean up and propagate that to TryCatch scope.
-  if (maybe_result.is_null() && maybe_exception.is_null()) {
+  if (isolate->is_execution_terminating()) {
+    DCHECK(isolate->has_scheduled_exception());
+    DCHECK(maybe_result.is_null());
     delete[] ring_buffer_;
     ring_buffer_ = nullptr;
     capacity_ = 0;
     size_ = 0;
     start_ = 0;
-    DCHECK(isolate->has_scheduled_exception());
     isolate->OnTerminationDuringRunMicrotasks();
     OnCompleted(isolate);
     return -1;

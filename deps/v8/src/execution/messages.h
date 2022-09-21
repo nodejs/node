@@ -18,10 +18,9 @@
 #include "src/handles/handles.h"
 
 namespace v8 {
+class Value;
+
 namespace internal {
-namespace wasm {
-class WasmCode;
-}  // namespace wasm
 
 // Forward declarations.
 class AbstractCode;

@@ -47,7 +47,6 @@ class DynamicallySized final : public GarbageCollected<DynamicallySized> {
 }  // namespace
 
 TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
-#if !defined(CPPGC_YOUNG_GENERATION)
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
@@ -65,11 +64,9 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
   // LAB is included in allocated object size, so no change is expected.
   EXPECT_EQ(allocated_size_before, AllocatedObjectSize());
   EXPECT_FALSE(space.free_list().ContainsForTesting({needle, size}));
-#endif  //! defined(CPPGC_YOUNG_GENERATION)
 }
 
 TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
-#if !defined(CPPGC_YOUNG_GENERATION)
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
   const auto& space = NormalPageSpace::From(BasePage::FromPayload(o)->space());
@@ -85,11 +82,9 @@ TEST_F(ExplicitManagementTest, FreeRegularObjectToFreeList) {
   EXPECT_EQ(lab.start(), nullptr);
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
   EXPECT_TRUE(space.free_list().ContainsForTesting({needle, size}));
-#endif  //! defined(CPPGC_YOUNG_GENERATION)
 }
 
 TEST_F(ExplicitManagementTest, FreeLargeObject) {
-#if !defined(CPPGC_YOUNG_GENERATION)
   auto* o = MakeGarbageCollected<DynamicallySized>(
       GetHeap()->GetAllocationHandle(),
       AdditionalBytes(kLargeObjectSizeThreshold));
@@ -103,11 +98,9 @@ TEST_F(ExplicitManagementTest, FreeLargeObject) {
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_FALSE(heap.page_backend()->Lookup(needle));
   EXPECT_EQ(allocated_size_before - size, AllocatedObjectSize());
-#endif  //! defined(CPPGC_YOUNG_GENERATION)
 }
 
 TEST_F(ExplicitManagementTest, FreeBailsOutDuringGC) {
-#if !defined(CPPGC_YOUNG_GENERATION)
   const size_t snapshot_before = AllocatedObjectSize();
   auto* o =
       MakeGarbageCollected<DynamicallySized>(GetHeap()->GetAllocationHandle());
@@ -120,7 +113,6 @@ TEST_F(ExplicitManagementTest, FreeBailsOutDuringGC) {
   ResetLinearAllocationBuffers();
   subtle::FreeUnreferencedObject(GetHeapHandle(), *o);
   EXPECT_EQ(snapshot_before, AllocatedObjectSize());
-#endif  //! defined(CPPGC_YOUNG_GENERATION)
 }
 
 TEST_F(ExplicitManagementTest, GrowAtLAB) {

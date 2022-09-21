@@ -158,7 +158,7 @@ function getMemoryFill(mem) {
 (function TestElemDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
-  builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0, 0, 0]);
+  builder.addActiveElementSegment(0, wasmI32Const(0), [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
         kNumericPrefix, kExprElemDrop,
@@ -204,7 +204,7 @@ function getMemoryFill(mem) {
   const tableIndex = 0;
   builder.addActiveElementSegment(
       tableIndex,
-      WasmInitExpr.I32Const(0),
+      wasmI32Const(0),
       [f.index, f.index]);
   builder.addDataSegment(0, [42]);
 

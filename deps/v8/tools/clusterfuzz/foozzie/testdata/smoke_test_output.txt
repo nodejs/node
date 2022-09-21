@@ -9,9 +9,9 @@
 # Compared x64,ignition with x64,ignition_turbo
 #
 # Flags of x64,ignition:
---correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --no-opt --no-sparkplug --liftoff --no-wasm-tier-up
+--correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --wasm-staging --no-wasm-async-compilation --wasm-max-mem-pages=32767 --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --no-turbofan --no-sparkplug --liftoff --no-wasm-tier-up
 # Flags of x64,ignition_turbo:
---correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345
+--correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --harmony --wasm-staging --no-wasm-async-compilation --wasm-max-mem-pages=32767 --suppress-asm-messages --random-seed 12345
 #
 # Difference:
 - unknown

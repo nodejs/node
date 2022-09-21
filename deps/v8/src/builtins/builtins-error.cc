@@ -18,9 +18,7 @@ namespace internal {
 // ES6 section 19.5.1.1 Error ( message )
 BUILTIN(ErrorConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> options = FLAG_harmony_error_cause
-                               ? args.atOrUndefined(isolate, 2)
-                               : isolate->factory()->undefined_value();
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
   RETURN_RESULT_OR_FAILURE(
       isolate, ErrorUtils::Construct(isolate, args.target(), args.new_target(),
                                      args.atOrUndefined(isolate, 1), options));

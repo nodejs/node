@@ -5,14 +5,12 @@
 #ifndef V8_COMPILER_MAP_INFERENCE_H_
 #define V8_COMPILER_MAP_INFERENCE_H_
 
-#include "include/v8config.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
-
 
 namespace compiler {
 

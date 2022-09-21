@@ -98,10 +98,10 @@
 // do not support adding noexcept to default members.
 // Disabled on MSVC because constructors of standard containers are not noexcept
 // there.
-#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                      \
-      !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
-      !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64) &&   \
-      !defined(V8_TARGET_ARCH_RISCV64)) ||                                \
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                        \
+      !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC) &&    \
+      !defined(V8_TARGET_ARCH_PPC64) && !defined(V8_TARGET_ARCH_RISCV64) && \
+      !defined(V8_TARGET_ARCH_RISCV32)) ||                                  \
      (defined(__clang__) && __cplusplus > 201300L))
 #define V8_NOEXCEPT noexcept
 #else

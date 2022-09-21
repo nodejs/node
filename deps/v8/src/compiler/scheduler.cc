@@ -468,21 +468,9 @@ class CFGBuilder : public ZoneObject {
 
     BranchHint hint_from_profile = BranchHint::kNone;
     if (const ProfileDataFromFile* profile_data = scheduler_->profile_data()) {
-      double block_zero_count =
-          profile_data->GetCounter(successor_blocks[0]->id().ToSize());
-      double block_one_count =
-          profile_data->GetCounter(successor_blocks[1]->id().ToSize());
-      // If a branch is visited a non-trivial number of times and substantially
-      // more often than its alternative, then mark it as likely.
-      constexpr double kMinimumCount = 100000;
-      constexpr double kThresholdRatio = 4000;
-      if (block_zero_count > kMinimumCount &&
-          block_zero_count / kThresholdRatio > block_one_count) {
-        hint_from_profile = BranchHint::kTrue;
-      } else if (block_one_count > kMinimumCount &&
-                 block_one_count / kThresholdRatio > block_zero_count) {
-        hint_from_profile = BranchHint::kFalse;
-      }
+      hint_from_profile =
+          profile_data->GetHint(successor_blocks[0]->id().ToSize(),
+                                successor_blocks[1]->id().ToSize());
     }
 
     // Consider branch hints.
@@ -507,7 +495,8 @@ class CFGBuilder : public ZoneObject {
         break;
     }
 
-    if (hint_from_profile != BranchHint::kNone &&
+    if (FLAG_warn_about_builtin_profile_data &&
+        hint_from_profile != BranchHint::kNone &&
         BranchHintOf(branch->op()) != BranchHint::kNone &&
         hint_from_profile != BranchHintOf(branch->op())) {
       PrintF("Warning: profiling data overrode manual branch hint.\n");
@@ -1185,7 +1174,7 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   // Try to find the common dominator by walking, if there is a chance of
   // finding it quickly.
   constexpr int kCacheGranularity = 63;
-  STATIC_ASSERT((kCacheGranularity & (kCacheGranularity + 1)) == 0);
+  static_assert((kCacheGranularity & (kCacheGranularity + 1)) == 0);
   int depth_difference = b1->dominator_depth() - b2->dominator_depth();
   if (depth_difference > -kCacheGranularity &&
       depth_difference < kCacheGranularity) {

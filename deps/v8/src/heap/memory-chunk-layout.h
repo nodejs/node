@@ -11,9 +11,9 @@
 #include "src/heap/progress-bar.h"
 #include "src/heap/slot-set.h"
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 #include "src/heap/object-start-bitmap.h"
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
 namespace v8 {
 namespace internal {
@@ -66,14 +66,12 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),
-    FIELD(std::atomic<intptr_t>, YoungGenerationLiveByteCount),
-    FIELD(Bitmap*, YoungGenerationBitmap),
     FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
     FIELD(ActiveSystemPages, ActiveSystemPages),
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     FIELD(ObjectStartBitmap, ObjectStartBitmap),
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     kMarkingBitmapOffset,
     kMemoryChunkHeaderSize = kMarkingBitmapOffset,
     kMemoryChunkHeaderStart = kSlotSetOffset,

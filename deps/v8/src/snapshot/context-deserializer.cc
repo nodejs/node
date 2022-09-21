@@ -6,10 +6,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/common/assert-scope.h"
-#include "src/heap/heap-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/slots.h"
-#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -52,23 +48,8 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
   }
 
   if (should_rehash()) Rehash();
-  SetupOffHeapArrayBufferBackingStores();
 
   return result;
-}
-
-void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
-  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
-    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
-    auto bs = backing_store(store_index);
-    SharedFlag shared =
-        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-    DCHECK_IMPLIES(bs, buffer->is_resizable() == bs->is_resizable());
-    ResizableFlag resizable = bs && bs->is_resizable()
-                                  ? ResizableFlag::kResizable
-                                  : ResizableFlag::kNotResizable;
-    buffer->Setup(shared, resizable, bs);
-  }
 }
 
 void ContextDeserializer::DeserializeEmbedderFields(

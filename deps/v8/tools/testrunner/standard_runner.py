@@ -11,11 +11,17 @@ import json
 import os
 import sys
 import tempfile
+from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.timeout import TimeoutProc
+from testrunner.testproc.progress import ResultsTracker, ProgressProc
+from testrunner.testproc.shard import ShardProc
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
+TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(TOOLS_PATH)
+
 import testrunner.base_runner as base_runner
 
-from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
@@ -36,15 +42,20 @@ MORE_VARIANTS = [
 ]
 
 VARIANT_ALIASES = {
-  # The default for developer workstations.
-  'dev': VARIANTS,
-  # Additional variants, run on all bots.
-  'more': MORE_VARIANTS,
-  # Shortcut for the two above ('more' first - it has the longer running tests)
-  'exhaustive': MORE_VARIANTS + VARIANTS,
-  # Additional variants, run on a subset of bots.
-  'extra': ['nooptimization', 'future', 'no_wasm_traps',
-            'instruction_scheduling', 'always_sparkplug'],
+    # The default for developer workstations.
+    'dev':
+        VARIANTS,
+    # Additional variants, run on all bots.
+    'more':
+        MORE_VARIANTS,
+    # Shortcut for the two above ('more' first - it has the longer running tests)
+    'exhaustive':
+        MORE_VARIANTS + VARIANTS,
+    # Additional variants, run on a subset of bots.
+    'extra': [
+        'nooptimization', 'future', 'no_wasm_traps', 'instruction_scheduling',
+        'always_sparkplug', 'turboshaft'
+    ],
 }
 
 # Extra flags passed to all tests using the standard test runner.
@@ -59,11 +70,6 @@ GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
 
 RANDOM_GC_STRESS_FLAGS = ['--random-gc-interval=5000',
                           '--stress-compaction-random']
-
-
-PREDICTABLE_WRAPPER = os.path.join(
-    base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
-
 
 class StandardTestRunner(base_runner.BaseTestRunner):
   def __init__(self, *args, **kwargs):
@@ -90,9 +96,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Deprecated. '
                            'Equivalent to passing --variants=default',
                       default=False, dest='no_variants', action='store_true')
-    parser.add_option('--variants',
-                      help='Comma-separated list of testing variants;'
-                      ' default: "%s"' % ','.join(VARIANTS))
+    parser.add_option(
+        '--variants',
+        help='Comma-separated list of testing variants;'
+        ' default: "%s"' % ','.join(ALL_VARIANTS))
     parser.add_option('--exhaustive-variants',
                       default=False, action='store_true',
                       help='Deprecated. '
@@ -140,94 +147,91 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     # Unimplemented for test processors
     parser.add_option('--sancov-dir',
                       help='Directory where to collect coverage data')
-    parser.add_option('--cat', help='Print the source of the tests',
-                      default=False, action='store_true')
     parser.add_option('--flakiness-results',
                       help='Path to a file for storing flakiness json.')
-    parser.add_option('--warn-unused', help='Report unused rules',
-                      default=False, action='store_true')
-    parser.add_option('--report', default=False, action='store_true',
-                      help='Print a summary of the tests to be run')
 
-  def _process_options(self, options):
-    if options.sancov_dir:
-      self.sancov_dir = options.sancov_dir
+  def _predictable_wrapper(self):
+    return os.path.join(self.v8_root, 'tools', 'predictable_wrapper.py')
+
+  def _process_options(self):
+    if self.options.sancov_dir:
+      self.sancov_dir = self.options.sancov_dir
       if not os.path.exists(self.sancov_dir):
         print('sancov-dir %s doesn\'t exist' % self.sancov_dir)
         raise base_runner.TestRunnerError()
 
-    if options.gc_stress:
-      options.extra_flags += GC_STRESS_FLAGS
+    if self.options.gc_stress:
+      self.options.extra_flags += GC_STRESS_FLAGS
 
-    if options.random_gc_stress:
-      options.extra_flags += RANDOM_GC_STRESS_FLAGS
+    if self.options.random_gc_stress:
+      self.options.extra_flags += RANDOM_GC_STRESS_FLAGS
 
     if self.build_config.asan:
-      options.extra_flags.append('--invoke-weak-callbacks')
+      self.options.extra_flags.append('--invoke-weak-callbacks')
 
-    if options.novfp3:
-      options.extra_flags.append('--noenable-vfp3')
+    if self.options.novfp3:
+      self.options.extra_flags.append('--noenable-vfp3')
 
-    if options.no_variants:  # pragma: no cover
+    if self.options.no_variants:  # pragma: no cover
       print ('Option --no-variants is deprecated. '
              'Pass --variants=default instead.')
-      assert not options.variants
-      options.variants = 'default'
+      assert not self.options.variants
+      self.options.variants = 'default'
 
-    if options.exhaustive_variants:  # pragma: no cover
+    if self.options.exhaustive_variants:  # pragma: no cover
       # TODO(machenbach): Switch infra to --variants=exhaustive after M65.
       print ('Option --exhaustive-variants is deprecated. '
              'Pass --variants=exhaustive instead.')
       # This is used on many bots. It includes a larger set of default
       # variants.
       # Other options for manipulating variants still apply afterwards.
-      assert not options.variants
-      options.variants = 'exhaustive'
+      assert not self.options.variants
+      self.options.variants = 'exhaustive'
 
-    if options.quickcheck:
-      assert not options.variants
-      options.variants = 'stress,default'
-      options.slow_tests = 'skip'
-      options.pass_fail_tests = 'skip'
+    if self.options.quickcheck:
+      assert not self.options.variants
+      self.options.variants = 'stress,default'
+      self.options.slow_tests = 'skip'
+      self.options.pass_fail_tests = 'skip'
 
     if self.build_config.predictable:
-      options.variants = 'default'
-      options.extra_flags.append('--predictable')
-      options.extra_flags.append('--verify-predictable')
-      options.extra_flags.append('--no-inline-new')
+      self.options.variants = 'default'
+      self.options.extra_flags.append('--predictable')
+      self.options.extra_flags.append('--verify-predictable')
+      self.options.extra_flags.append('--no-inline-new')
       # Add predictable wrapper to command prefix.
-      options.command_prefix = (
-          [sys.executable, PREDICTABLE_WRAPPER] + options.command_prefix)
+      self.options.command_prefix = (
+          [sys.executable, self._predictable_wrapper()] + self.options.command_prefix)
 
     # TODO(machenbach): Figure out how to test a bigger subset of variants on
     # msan.
     if self.build_config.msan:
-      options.variants = 'default'
+      self.options.variants = 'default'
 
-    if options.variants == 'infra_staging':
-      options.variants = 'exhaustive'
+    if self.options.variants == 'infra_staging':
+      self.options.variants = 'exhaustive'
 
-    self._variants = self._parse_variants(options.variants)
+    self._variants = self._parse_variants(self.options.variants)
 
     def CheckTestMode(name, option):  # pragma: no cover
       if option not in ['run', 'skip', 'dontcare']:
         print('Unknown %s mode %s' % (name, option))
         raise base_runner.TestRunnerError()
-    CheckTestMode('slow test', options.slow_tests)
-    CheckTestMode('pass|fail test', options.pass_fail_tests)
+    CheckTestMode('slow test', self.options.slow_tests)
+    CheckTestMode('pass|fail test', self.options.pass_fail_tests)
     if self.build_config.no_i18n:
       base_runner.TEST_MAP['bot_default'].remove('intl')
       base_runner.TEST_MAP['default'].remove('intl')
       # TODO(machenbach): uncomment after infra side lands.
       # base_runner.TEST_MAP['d8_default'].remove('intl')
 
-    if options.time and not options.json_test_results:
+    if self.options.time and not self.options.json_test_results:
       # We retrieve the slowest tests from the JSON output file, so create
       # a temporary output file (which will automatically get deleted on exit)
       # if the user didn't specify one.
       self._temporary_json_output_file = tempfile.NamedTemporaryFile(
           prefix="v8-test-runner-")
-      options.json_test_results = self._temporary_json_output_file.name
+      self.options.json_test_results = self._temporary_json_output_file.name
 
   def _runner_flags(self):
     return EXTRA_DEFAULT_FLAGS
@@ -249,7 +253,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         print('    Available variants: %s' % ALL_VARIANTS)
         print('    Available variant aliases: %s' % VARIANT_ALIASES.keys());
         raise base_runner.TestRunnerError()
-    assert False, 'Unreachable'
+    assert False, 'Unreachable' # pragma: no cover
 
   def _setup_env(self):
     super(StandardTestRunner, self)._setup_env()
@@ -264,89 +268,72 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         'allow_user_segv_handler=1',
       ])
 
-  def _get_statusfile_variables(self, options):
+  def _get_statusfile_variables(self):
     variables = (
-        super(StandardTestRunner, self)._get_statusfile_variables(options))
+        super(StandardTestRunner, self)._get_statusfile_variables())
 
     variables.update({
-      'gc_stress': options.gc_stress or options.random_gc_stress,
-      'gc_fuzzer': options.random_gc_stress,
-      'novfp3': options.novfp3,
+      'gc_stress': self.options.gc_stress or self.options.random_gc_stress,
+      'gc_fuzzer': self.options.random_gc_stress,
+      'novfp3': self.options.novfp3,
     })
     return variables
 
-  def _create_sequence_proc(self, options):
+  def _create_sequence_proc(self):
     """Create processor for sequencing heavy tests on swarming."""
-    return SequenceProc(options.max_heavy_tests) if options.swarming else None
+    return SequenceProc(self.options.max_heavy_tests) if self.options.swarming else None
 
-  def _do_execute(self, tests, args, options):
-    jobs = options.j
+  def _do_execute(self, tests, args, ctx):
+    jobs = self.options.j
 
     print('>>> Running with test processors')
-    loader = LoadProc(tests)
-    results = self._create_result_tracker(options)
-    indicators = self._create_progress_indicators(
-        tests.test_count_estimate, options)
-
+    loader = LoadProc(tests, initial_batch_size=self.options.j * 2)
+    results = ResultsTracker.create(self.options)
     outproc_factory = None
     if self.build_config.predictable:
       outproc_factory = predictable.get_outproc
-    execproc = ExecutionProc(jobs, outproc_factory)
+    execproc = ExecutionProc(ctx, jobs, outproc_factory)
     sigproc = self._create_signal_proc()
-
+    progress = ProgressProc(ctx, self.options, self.framework_name,
+                            tests.test_count_estimate)
     procs = [
-      loader,
-      NameFilterProc(args) if args else None,
-      StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
-      VariantProc(self._variants),
-      StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
-      self._create_predictable_filter(),
-      self._create_shard_proc(options),
-      self._create_seed_proc(options),
-      self._create_sequence_proc(options),
-      sigproc,
-    ] + indicators + [
-      results,
-      self._create_timeout_proc(options),
-      self._create_rerun_proc(options),
-      execproc,
+        loader,
+        NameFilterProc(args) if args else None,
+        VariantProc(self._variants),
+        StatusFileFilterProc(self.options.slow_tests,
+                             self.options.pass_fail_tests),
+        self._create_predictable_filter(),
+        ShardProc.create(self.options),
+        self._create_seed_proc(),
+        self._create_sequence_proc(),
+        sigproc,
+        progress,
+        results,
+        TimeoutProc.create(self.options),
+        RerunProc.create(self.options),
+        execproc,
     ]
+    procs = [p for p in procs if p]
 
     self._prepare_procs(procs)
-
-    loader.load_initial_tests(initial_batch_size=options.j * 2)
+    loader.load_initial_tests()
 
     # This starts up worker processes and blocks until all tests are
     # processed.
-    execproc.run()
+    requirement = max(p._requirement for p in procs)
+    execproc.run(requirement)
 
-    for indicator in indicators:
-      indicator.finished()
+    progress.finished()
 
-    if tests.test_count_estimate:
-      percentage = float(results.total) / tests.test_count_estimate * 100
-    else:
-      percentage = 0
+    results.standard_show(tests)
 
-    print (('>>> %d base tests produced %d (%d%s)'
-           ' non-filtered tests') % (
-        tests.test_count_estimate, results.total, percentage, '%'))
 
-    print('>>> %d tests ran' % (results.total - results.remaining))
+    if self.options.time:
+      self._print_durations()
 
-    exit_code = utils.EXIT_CODE_PASS
-    if results.failed:
-      exit_code = utils.EXIT_CODE_FAILURES
-    if not results.total:
-      exit_code = utils.EXIT_CODE_NO_TESTS
+    return sigproc.worst_exit_code(results)
 
-    if options.time:
-      self._print_durations(options)
-
-    # Indicate if a SIGINT or SIGTERM happened.
-    return max(exit_code, sigproc.exit_code)
-
-  def _print_durations(self, options):
+  def _print_durations(self):
 
     def format_duration(duration_in_seconds):
       duration = datetime.timedelta(seconds=duration_in_seconds)
@@ -361,8 +348,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         'Duration: %s' % format_duration(test['duration']),
       ]
 
-    assert os.path.exists(options.json_test_results)
-    with open(options.json_test_results, "r") as f:
+    assert os.path.exists(self.options.json_test_results)
+    with open(self.options.json_test_results, "r") as f:
       output = json.load(f)
     lines = []
     for test in output['slowest_tests']:
@@ -384,12 +371,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       return None
     return predictable.PredictableFilterProc()
 
-  def _create_seed_proc(self, options):
-    if options.random_seed_stress_count == 1:
+  def _create_seed_proc(self):
+    if self.options.random_seed_stress_count == 1:
       return None
-    return SeedProc(options.random_seed_stress_count, options.random_seed,
-                    options.j * 4)
+    return SeedProc(self.options.random_seed_stress_count, self.options.random_seed,
+                    self.options.j * 4)
 
 
 if __name__ == '__main__':
-  sys.exit(StandardTestRunner().execute())
+  sys.exit(StandardTestRunner().execute()) # pragma: no cover

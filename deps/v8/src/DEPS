@@ -12,6 +12,7 @@ include_rules = [
   "-src/compiler",
   "+src/compiler/pipeline.h",
   "+src/compiler/code-assembler.h",
+  "+src/compiler/wasm-compiler-definitions.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",
@@ -23,6 +24,7 @@ include_rules = [
   # TODO(v8:10496): Don't expose so much (through transitive includes) outside
   # of heap/.
   "+src/heap/heap.h",
+  "+src/heap/heap-verifier.h",
   "+src/heap/heap-inl.h",
   "+src/heap/heap-write-barrier-inl.h",
   "+src/heap/heap-write-barrier.h",
@@ -33,6 +35,7 @@ include_rules = [
   # TODO(v8:10496): Don't expose memory chunk outside of heap/.
   "+src/heap/memory-chunk.h",
   "+src/heap/memory-chunk-inl.h",
+  "+src/heap/paged-spaces-inl.h",
   "+src/heap/parked-scope.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
@@ -88,7 +91,10 @@ specific_include_rules = {
   "builtins-trace\.cc": [
     "+protos/perfetto",
   ],
-  "system-jit-win\.cc": [
+  "etw-jit-win\.cc": [
     "+src/libplatform/tracing/recorder.h",
   ],
+  "etw-jit-metadata-win\.h": [
+    "+src/libplatform/etw/etw-provider-win.h",
+  ]
 }

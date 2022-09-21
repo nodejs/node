@@ -45,45 +45,48 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   return HeapObject();
 }
 
-bool PagedSpace::Contains(Address addr) const {
+bool PagedSpaceBase::Contains(Address addr) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return true;
   }
   return Page::FromAddress(addr)->owner() == this;
 }
 
-bool PagedSpace::Contains(Object o) const {
+bool PagedSpaceBase::Contains(Object o) const {
   if (!o.IsHeapObject()) return false;
   return Page::FromAddress(o.ptr())->owner() == this;
 }
 
-void PagedSpace::UnlinkFreeListCategories(Page* page) {
-  DCHECK_EQ(this, page->owner());
-  page->ForAllFreeListCategories([this](FreeListCategory* category) {
-    free_list()->RemoveCategory(category);
-  });
-}
-
-size_t PagedSpace::RelinkFreeListCategories(Page* page) {
-  DCHECK_EQ(this, page->owner());
-  size_t added = 0;
-  page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
-    added += category->available();
-    category->Relink(free_list());
-  });
-
-  DCHECK_IMPLIES(!page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
-                 page->AvailableInFreeList() ==
-                     page->AvailableInFreeListFromAllocatedBytes());
-  return added;
-}
-
-bool PagedSpace::TryFreeLast(Address object_address, int object_size) {
-  if (allocation_info_->top() != kNullAddress) {
-    return allocation_info_->DecrementTopIfAdjacent(object_address,
-                                                    object_size);
+bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
+  if (allocation_info_.top() != kNullAddress) {
+    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
   }
   return false;
+}
+
+V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
+                                                AllocationAlignment alignment,
+                                                AllocationOrigin origin,
+                                                int* out_max_aligned_size) {
+  if ((identity() != NEW_SPACE) && !is_compaction_space()) {
+    // Start incremental marking before the actual allocation, this allows the
+    // allocation function to mark the object black when incremental marking is
+    // running.
+    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+  }
+
+  // We don't know exactly how much filler we need to align until space is
+  // allocated, so assume the worst case.
+  size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = size_in_bytes;
+  }
+  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
+    return true;
+  }
+  return RefillLabMain(size_in_bytes, origin);
 }
 
 }  // namespace internal

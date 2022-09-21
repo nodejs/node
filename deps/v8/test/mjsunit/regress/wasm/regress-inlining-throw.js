@@ -8,20 +8,19 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
-builder.setNominal();
 let supertype = builder.addStruct([makeField(kWasmI32, true)]);
 let subtype = builder.addStruct(
     [makeField(kWasmI32, true), makeField(kWasmI32, true)], supertype);
 let unused_type = builder.addStruct(
     [makeField(kWasmI32, true), makeField(kWasmF64, true)], supertype);
 
-let sig = makeSig([wasmOptRefType(supertype)], [kWasmI32]);
+let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 
 let callee1 = builder.addFunction('callee1', sig).addBody([
     kExprBlock, kWasmRef, subtype,
         kExprLocalGet, 0,
-        kGCPrefix, kExprBrOnCastStatic, 0, subtype,
-        kGCPrefix, kExprRefCastStatic, unused_type,
+        kGCPrefix, kExprBrOnCast, 0, subtype,
+        kGCPrefix, kExprRefCast, unused_type,
         kGCPrefix, kExprStructGet, unused_type, 0,
         kExprReturn,
     kExprEnd,
@@ -31,7 +30,7 @@ let callee1 = builder.addFunction('callee1', sig).addBody([
 let callee2 = builder.addFunction('callee2', sig).addBody([
     kExprBlock, kWasmRef, subtype,
         kExprLocalGet, 0,
-        kGCPrefix, kExprBrOnCastStatic, 0, subtype,
+        kGCPrefix, kExprBrOnCast, 0, subtype,
         kExprUnreachable,
         kExprReturn,
     kExprEnd,
@@ -45,7 +44,7 @@ let callee3 = builder.addFunction('callee3', sig).addBody([
         kExprUnreachable,
         kExprReturn,
     kExprEnd,
-    kGCPrefix, kExprRefCastStatic, subtype,
+    kGCPrefix, kExprRefCast, subtype,
     kGCPrefix, kExprStructGet, subtype, 1
 ]);
 

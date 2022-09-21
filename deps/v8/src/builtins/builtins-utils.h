@@ -50,6 +50,7 @@ class BuiltinArguments : public JavaScriptArguments {
   static constexpr int kTargetOffset = 1;
   static constexpr int kArgcOffset = 2;
   static constexpr int kPaddingOffset = 3;
+  static constexpr int kReceiverOffset = 4;
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
@@ -89,7 +90,7 @@ class BuiltinArguments : public JavaScriptArguments {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kBuiltin_##name);              \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
                  "V8.Builtin_" #name);                                      \
-    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
@@ -99,7 +100,7 @@ class BuiltinArguments : public JavaScriptArguments {
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);  \
     }                                                                       \
     BuiltinArguments args(args_length, args_object);                        \
-    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
@@ -113,7 +114,7 @@ class BuiltinArguments : public JavaScriptArguments {
       int args_length, Address* args_object, Isolate* isolate) {            \
     DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
     BuiltinArguments args(args_length, args_object);                        \
-    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \

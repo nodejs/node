@@ -57,6 +57,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS:
       return kTaggedSizeLog2;
     case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
@@ -70,9 +71,9 @@ int ElementsKindToByteSize(ElementsKind elements_kind) {
 }
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
-  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
 
-  if (IsTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind)) {
     return 0;
   } else {
     return FixedArray::kHeaderSize - kHeapObjectTag;
@@ -125,6 +126,8 @@ const char* ElementsKindToString(ElementsKind kind) {
 #undef PRINT_NAME
     case WASM_ARRAY_ELEMENTS:
       return "WASM_ARRAY_ELEMENTS";
+    case SHARED_ARRAY_ELEMENTS:
+      return "SHARED_ARRAY_ELEMENTS";
     case NO_ELEMENTS:
       return "NO_ELEMENTS";
   }
@@ -138,13 +141,13 @@ const ElementsKind kFastElementsKindSequence[kFastElementsKindCount] = {
     PACKED_ELEMENTS,         // 4
     HOLEY_ELEMENTS           // 5
 };
-STATIC_ASSERT(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
+static_assert(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
 // Verify that kFastElementsKindPackedToHoley is correct.
-STATIC_ASSERT(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
+static_assert(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
               HOLEY_SMI_ELEMENTS);
-STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
+static_assert(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
               HOLEY_DOUBLE_ELEMENTS);
-STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
+static_assert(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
               HOLEY_ELEMENTS);
 
 ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number) {
@@ -175,8 +178,8 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
   if (!IsFastElementsKind(from_kind)) return false;
   if (!IsFastTransitionTarget(to_kind)) return false;
-  DCHECK(!IsTypedArrayElementsKind(from_kind));
-  DCHECK(!IsTypedArrayElementsKind(to_kind));
+  DCHECK(!IsTypedArrayOrRabGsabTypedArrayElementsKind(from_kind));
+  DCHECK(!IsTypedArrayOrRabGsabTypedArrayElementsKind(to_kind));
   switch (from_kind) {
     case PACKED_SMI_ELEMENTS:
       return to_kind != PACKED_SMI_ELEMENTS;

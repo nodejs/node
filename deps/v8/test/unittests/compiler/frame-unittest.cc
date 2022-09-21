@@ -5,7 +5,7 @@
 #include "src/compiler/frame.h"
 
 #include "src/codegen/aligned-slot-allocator.h"
-#include "testing/gtest-support.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
 namespace internal {

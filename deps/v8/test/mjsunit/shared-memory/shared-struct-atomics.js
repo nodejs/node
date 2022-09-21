@@ -33,7 +33,11 @@ let S = new SharedStructType(['field']);
   assertThrows(() => { Atomics.store(s, 'field', []); });
   assertThrows(() => { Atomics.store(s, 'field', {}); });
   // Shared objects can point to other shared objects.
-  let shared_rhs = new S();
+  let shared_rhs = new SharedArray(10);
+  Atomics.store(s, 'field', shared_rhs);
+  assertEquals(Atomics.load(s, 'field'), shared_rhs);
+
+  shared_rhs = new S();
   Atomics.store(s, 'field', shared_rhs);
   assertEquals(Atomics.load(s, 'field'), shared_rhs);
 

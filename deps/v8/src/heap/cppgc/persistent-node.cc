@@ -76,20 +76,20 @@ void PersistentRegionBase::RefillFreeList() {
 }
 
 PersistentNode* PersistentRegionBase::RefillFreeListAndAllocateNode(
-    void* owner, TraceCallback trace) {
+    void* owner, TraceRootCallback trace) {
   RefillFreeList();
   auto* node = TryAllocateNodeFromFreeList(owner, trace);
   CPPGC_DCHECK(node);
   return node;
 }
 
-void PersistentRegionBase::Trace(Visitor* visitor) {
+void PersistentRegionBase::Iterate(RootVisitor& root_visitor) {
   free_list_head_ = nullptr;
   for (auto& slots : nodes_) {
     bool is_empty = true;
     for (auto& node : *slots) {
       if (node.IsUsed()) {
-        node.Trace(visitor);
+        node.Trace(root_visitor);
         is_empty = false;
       } else {
         node.InitializeAsFreeNode(free_list_head_);
@@ -145,9 +145,9 @@ CrossThreadPersistentRegion::~CrossThreadPersistentRegion() {
   // PersistentRegionBase destructor will be a noop.
 }
 
-void CrossThreadPersistentRegion::Trace(Visitor* visitor) {
+void CrossThreadPersistentRegion::Iterate(RootVisitor& root_visitor) {
   PersistentRegionLock::AssertLocked();
-  PersistentRegionBase::Trace(visitor);
+  PersistentRegionBase::Iterate(root_visitor);
 }
 
 size_t CrossThreadPersistentRegion::NodesInUse() const {

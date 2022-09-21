@@ -19,8 +19,8 @@ assertThrows(() => dtf.formatRangeToParts(undefined, date2), TypeError);
 assertThrows(() => dtf.formatRangeToParts(date1, undefined), TypeError);
 assertThrows(() => dtf.formatRangeToParts("2019-1-3", date2), RangeError);
 assertThrows(() => dtf.formatRangeToParts(date1, "2019-5-4"), RangeError);
-assertThrows(() => dtf.formatRangeToParts(date2, date1), RangeError);
 
+assertDoesNotThrow(() =>dtf.formatRangeToParts(date2, date1));
 assertDoesNotThrow(() =>dtf.formatRangeToParts(date1, date2));
 
 function partsToString(parts) {

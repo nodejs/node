@@ -12,10 +12,9 @@
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
-
 namespace internal {
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 /**
  * The V8 Sandbox.
@@ -50,51 +49,114 @@ class V8_EXPORT_PRIVATE Sandbox {
   // | (front) |     Region     :  any other sandboxed objects. | (back)  |
   // +-  ~~~  -+----------------+-----------------------  ~~~  -+-  ~~~  -+
   //           ^                                                ^
-  //           base                                             base + size
+  //           base                                             end
+  //           < - - - - - - - - - - - size - - - - - - - - - - >
+  // < - - - - - - - - - - - - - reservation_size - - - - - - - - - - - - >
 
   Sandbox() = default;
 
   Sandbox(const Sandbox&) = delete;
   Sandbox& operator=(Sandbox&) = delete;
 
-  bool Initialize(v8::VirtualAddressSpace* vas);
-  void Disable() {
-    CHECK(!initialized_);
-    disabled_ = true;
-  }
+  /**
+   * Initializes this sandbox.
+   *
+   * This will allocate the virtual address subspace for the sandbox inside the
+   * provided virtual address space. If a subspace of the required size cannot
+   * be allocated, this method will insted initialize this sandbox as a
+   * partially-reserved sandbox. In that case, a smaller virtual address space
+   * reservation will be used and an EmulatedVirtualAddressSubspace instance
+   * will be created on top of it to back the sandbox. If not enough virtual
+   * address space can be allocated for even a partially-reserved sandbox, then
+   * this method will fail with an OOM crash.
+   */
+  void Initialize(v8::VirtualAddressSpace* vas);
 
+  /**
+   * Tear down this sandbox.
+   *
+   * This will free the virtual address subspace backing this sandbox.
+   */
   void TearDown();
 
+  /**
+   * Returns true if this sandbox has been initialized successfully.
+   */
   bool is_initialized() const { return initialized_; }
-  bool is_disabled() const { return disabled_; }
-  bool is_enabled() const { return !disabled_; }
-  bool is_partially_reserved() const { return is_partially_reserved_; }
 
+  /**
+   * Returns true if this sandbox is a partially-reserved sandbox.
+   *
+   * A partially-reserved sandbox is backed by a virtual address space
+   * reservation that is smaller than its size. It also does not have guard
+   * regions surrounding it. A partially-reserved sandbox is usually created if
+   * not enough virtual address space could be reserved for the sandbox during
+   * initialization. In such a configuration, unrelated memory mappings may end
+   * up inside the sandbox, which affects its security properties.
+   */
+  bool is_partially_reserved() const { return reservation_size_ < size_; }
+
+  /**
+   * The base address of the sandbox.
+   *
+   * This is the start of the address space region that is directly addressable
+   * by V8. In practice, this means the start of the part of the sandbox
+   * address space between the surrounding guard regions.
+   */
   Address base() const { return base_; }
+
+  /**
+   * The address right after the end of the sandbox.
+   *
+   * This is equal to |base| + |size|.
+   */
   Address end() const { return end_; }
+
+  /**
+   * The size of the sandbox in bytes.
+   */
   size_t size() const { return size_; }
 
-  Address base_address() const { return reinterpret_cast<Address>(&base_); }
-  Address end_address() const { return reinterpret_cast<Address>(&end_); }
-  Address size_address() const { return reinterpret_cast<Address>(&size_); }
+  /**
+   * The size of the virtual address space reservation backing the sandbox.
+   *
+   * This can be larger than |size| as it contains the surrounding guard
+   * regions as well, or can be smaller than |size| in the case of a
+   * partially-reserved sandbox.
+   */
+  size_t reservation_size() const { return reservation_size_; }
 
-  v8::PageAllocator* page_allocator() const {
-    return sandbox_page_allocator_.get();
-  }
-
+  /**
+   * The virtual address subspace backing this sandbox.
+   *
+   * This can be used to allocate and manage memory pages inside the sandbox.
+   */
   v8::VirtualAddressSpace* address_space() const {
     return address_space_.get();
   }
 
+  /**
+   * Returns a PageAllocator instance that allocates pages inside the sandbox.
+   */
+  v8::PageAllocator* page_allocator() const {
+    return sandbox_page_allocator_.get();
+  }
+
+  /**
+   * Returns true if the given address lies within the sandbox address space.
+   */
   bool Contains(Address addr) const {
     return addr >= base_ && addr < base_ + size_;
   }
 
+  /**
+   * Returns true if the given pointer points into the sandbox address space.
+   */
   bool Contains(void* ptr) const {
     return Contains(reinterpret_cast<Address>(ptr));
   }
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   class SandboxedPointerConstants final {
    public:
     Address empty_backing_store_buffer() const {
@@ -114,6 +176,10 @@ class V8_EXPORT_PRIVATE Sandbox {
   };
   const SandboxedPointerConstants& constants() const { return constants_; }
 #endif
+
+  Address base_address() const { return reinterpret_cast<Address>(&base_); }
+  Address end_address() const { return reinterpret_cast<Address>(&end_); }
+  Address size_address() const { return reinterpret_cast<Address>(&size_); }
 
  private:
   // The SequentialUnmapperTest calls the private Initialize method to create a
@@ -153,13 +219,11 @@ class V8_EXPORT_PRIVATE Sandbox {
 
   // Base and size of the virtual memory reservation backing this sandbox.
   // These can be different from the sandbox base and size due to guard regions
-  // or when a fake sandbox is used.
+  // or when a partially-reserved sandbox is used.
   Address reservation_base_ = kNullAddress;
   size_t reservation_size_ = 0;
 
   bool initialized_ = false;
-  bool disabled_ = false;
-  bool is_partially_reserved_ = false;
 
   // The virtual address subspace backing the sandbox.
   std::unique_ptr<v8::VirtualAddressSpace> address_space_;
@@ -167,21 +231,21 @@ class V8_EXPORT_PRIVATE Sandbox {
   // The page allocator instance for this sandbox.
   std::unique_ptr<v8::PageAllocator> sandbox_page_allocator_;
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   // Constant objects inside this sandbox.
   SandboxedPointerConstants constants_;
 #endif
 };
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 // This function is only available when the sandbox is actually used.
 V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 #endif
 
 V8_INLINE void* EmptyBackingStoreBuffer() {
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   return reinterpret_cast<void*>(
       GetProcessWideSandbox()->constants().empty_backing_store_buffer());
 #else

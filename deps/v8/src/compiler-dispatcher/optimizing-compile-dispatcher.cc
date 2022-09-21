@@ -11,7 +11,6 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -59,6 +58,10 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
             dispatcher_->recompilation_delay_));
       }
 
+      // This task doesn't modify code objects but it needs a read access to the
+      // code space in order to be able to get a bytecode array from a baseline
+      // code. See SharedFunctionInfo::GetActiveBytecodeArray() for details.
+      RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
       dispatcher_->CompileNext(dispatcher_->NextInput(&local_isolate),
                                &local_isolate);
     }
@@ -140,8 +143,12 @@ void OptimizingCompileDispatcher::FlushInputQueue() {
 
 void OptimizingCompileDispatcher::AwaitCompileTasks() {
   {
+    AllowGarbageCollection allow_before_parking;
+    ParkedScope parked_scope(isolate_->main_thread_local_isolate());
     base::MutexGuard lock_guard(&ref_count_mutex_);
-    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
+    while (ref_count_ > 0) {
+      ref_count_zero_.ParkedWait(parked_scope, &ref_count_mutex_);
+    }
   }
 
 #ifdef DEBUG
@@ -153,10 +160,7 @@ void OptimizingCompileDispatcher::AwaitCompileTasks() {
 void OptimizingCompileDispatcher::FlushQueues(
     BlockingBehavior blocking_behavior, bool restore_function_code) {
   FlushInputQueue();
-  if (blocking_behavior == BlockingBehavior::kBlock) {
-    base::MutexGuard lock_guard(&ref_count_mutex_);
-    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-  }
+  if (blocking_behavior == BlockingBehavior::kBlock) AwaitCompileTasks();
   FlushOutputQueue(restore_function_code);
 }
 

@@ -4,25 +4,29 @@
 // Flags: --harmony-temporal
 
 let bigint_nano = 567890123456789000000n;
-let bigint_milli = 567890123456789n;
+let milli = 567890123456789;
+let bigint_milli = BigInt(milli);
 let inst1 = new Temporal.Instant(bigint_nano);
-let inst2 = Temporal.Instant.fromEpochMilliseconds(bigint_milli);
+assertThrows(() =>
+    Temporal.Instant.fromEpochMilliseconds(bigint_milli),
+    TypeError);
+let inst2 = Temporal.Instant.fromEpochMilliseconds(milli);
 assertEquals(inst1, inst2);
 
-let just_fit_neg_bigint = -8640000000000000n;
-let just_fit_pos_bigint = 8640000000000000n;
-let too_big_bigint = 8640000000000001n;
-let too_small_bigint = -8640000000000001n;
+let just_fit_neg = -8640000000000000;
+let just_fit_pos = 8640000000000000;
+let too_big = 8640000000000001;
+let too_small = -8640000000000001;
 
 assertThrows(() =>
-    {let inst = Temporal.Instant.fromEpochMilliseconds(too_small_bigint)},
+    Temporal.Instant.fromEpochMilliseconds(too_small),
     RangeError);
 assertThrows(() =>
-    {let inst = Temporal.Instant.fromEpochMilliseconds(too_big_bigint)},
+    Temporal.Instant.fromEpochMilliseconds(too_big),
     RangeError);
-assertEquals(just_fit_neg_bigint,
+assertEquals(just_fit_neg,
     (Temporal.Instant.fromEpochMilliseconds(
-        just_fit_neg_bigint)).epochMilliseconds);
-assertEquals(just_fit_pos_bigint,
+        just_fit_neg)).epochMilliseconds);
+assertEquals(just_fit_pos,
     (Temporal.Instant.fromEpochMilliseconds(
-        just_fit_pos_bigint)).epochMilliseconds);
+        just_fit_pos)).epochMilliseconds);

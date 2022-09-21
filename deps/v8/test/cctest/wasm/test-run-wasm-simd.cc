@@ -32,10 +32,10 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/cctest/wasm/wasm-simd-utils.h"
 #include "test/common/flag-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -358,7 +358,7 @@ void RunF128CompareOpConstImmTest(
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
       WriteLittleEndianValue<FloatType>(
-          bit_cast<FloatType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<FloatType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -665,7 +665,7 @@ void RunICompareOpConstImmTest(TestExecutionTier execution_tier,
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -1545,6 +1545,75 @@ WASM_SIMD_TEST(S128And) {
                     [](int32_t x, int32_t y) { return x & y; });
 }
 
+enum ConstSide { kConstLeft, kConstRight };
+
+template <typename ScalarType>
+using BinOp = ScalarType (*)(ScalarType, ScalarType);
+template <typename ScalarType>
+void RunS128ConstBinOpTest(TestExecutionTier execution_tier,
+                           ConstSide const_side, WasmOpcode binop_opcode,
+                           WasmOpcode splat_opcode,
+                           BinOp<ScalarType> expected_op) {
+  for (ScalarType x : compiler::ValueHelper::GetVector<ScalarType>()) {
+    WasmRunner<int32_t, ScalarType> r(execution_tier);
+    // Global to hold output.
+    ScalarType* g = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    // Build a function to splat one argument into a local,
+    // and execute the op with a const as the second argument
+    byte value = 0;
+    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t const_buffer[16];
+    for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+      WriteLittleEndianValue<ScalarType>(
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+    }
+    switch (const_side) {
+      case kConstLeft:
+        BUILD(
+            r,
+            WASM_LOCAL_SET(temp,
+                           WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value))),
+            WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(binop_opcode,
+                                               WASM_SIMD_CONSTANT(const_buffer),
+                                               WASM_LOCAL_GET(temp))),
+            WASM_ONE);
+        break;
+      case kConstRight:
+        BUILD(r,
+              WASM_LOCAL_SET(
+                  temp, WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value))),
+              WASM_GLOBAL_SET(
+                  0, WASM_SIMD_BINOP(binop_opcode, WASM_LOCAL_GET(temp),
+                                     WASM_SIMD_CONSTANT(const_buffer))),
+              WASM_ONE);
+        break;
+    }
+    for (ScalarType y : compiler::ValueHelper::GetVector<ScalarType>()) {
+      r.Call(y);
+      ScalarType expected =
+          (const_side == kConstLeft) ? expected_op(x, y) : expected_op(y, x);
+      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST(S128AndImm) {
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kConstLeft, kExprS128And,
+                                 kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & y; });
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kConstRight, kExprS128And,
+                                 kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & y; });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kConstLeft, kExprS128And, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & y); });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kConstRight, kExprS128And, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & y); });
+}
+
 WASM_SIMD_TEST(S128Or) {
   RunI32x4BinOpTest(execution_tier, kExprS128Or,
                     [](int32_t x, int32_t y) { return x | y; });
@@ -1559,6 +1628,21 @@ WASM_SIMD_TEST(S128Xor) {
 WASM_SIMD_TEST(S128AndNot) {
   RunI32x4BinOpTest(execution_tier, kExprS128AndNot,
                     [](int32_t x, int32_t y) { return x & ~y; });
+}
+
+WASM_SIMD_TEST(S128AndNotImm) {
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kConstLeft, kExprS128AndNot,
+                                 kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & ~y; });
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kConstRight, kExprS128AndNot,
+                                 kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & ~y; });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kConstLeft, kExprS128AndNot, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & ~y); });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kConstRight, kExprS128AndNot, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & ~y); });
 }
 
 WASM_SIMD_TEST(I32x4Eq) {
@@ -2569,6 +2653,35 @@ WASM_SIMD_TEST(ShuffleShufps) {
       expected[12 + i] = index3 + i;
     }
     RunShuffleOpTest(execution_tier, kExprI8x16Shuffle, expected);
+  }
+}
+
+WASM_SIMD_TEST(I8x16ShuffleWithZeroInput) {
+  WasmRunner<int32_t> r(execution_tier);
+  static const int kElems = kSimd128Size / sizeof(uint8_t);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+
+  // src0 is zero, it's used to zero extend src1
+  for (int i = 0; i < kElems; i++) {
+    LANE(src1, i) = i;
+  }
+
+  // Zero extend first 4 elments of src1 to 32 bit
+  constexpr std::array<int8_t, 16> shuffle = {16, 1, 2,  3,  17, 5,  6,  7,
+                                              18, 9, 10, 11, 19, 13, 14, 15};
+  constexpr std::array<int8_t, 16> expected = {0, 0, 0, 0, 1, 0, 0, 0,
+                                               2, 0, 0, 0, 3, 0, 0, 0};
+  constexpr std::array<int8_t, 16> zeros = {0};
+
+  BUILD(r,
+        WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SHUFFLE_OP(
+                               kExprI8x16Shuffle, shuffle,
+                               WASM_SIMD_CONSTANT(zeros), WASM_GLOBAL_GET(1))),
+        WASM_ONE);
+  CHECK_EQ(1, r.Call());
+  for (int i = 0; i < kElems; i++) {
+    CHECK_EQ(LANE(dst, i), expected[i]);
   }
 }
 

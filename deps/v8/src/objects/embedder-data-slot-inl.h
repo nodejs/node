@@ -88,11 +88,11 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
   // are accessed this way only from the main thread via API during "mutator"
   // phase which is propely synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   // The raw part must always contain a valid external pointer table index.
   *out_pointer = reinterpret_cast<void*>(
-      ReadExternalPointerField(address() + kExternalPointerOffset, isolate,
-                               kEmbedderDataSlotPayloadTag));
+      ReadExternalPointerField<kEmbedderDataSlotPayloadTag>(
+          address() + kExternalPointerOffset, isolate));
   return true;
 #else
   Address raw_value;
@@ -107,23 +107,26 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
   }
   *out_pointer = reinterpret_cast<void*>(raw_value);
   return HAS_SMI_TAG(raw_value);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 }
 
 bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   DCHECK_EQ(0, value & kExternalPointerTagMask);
-  // This also mark the entry as alive until the next GC.
-  InitExternalPointerField(address() + kExternalPointerOffset, isolate, value,
-                           kEmbedderDataSlotPayloadTag);
+  // When the sandbox is enabled, the external pointer handles in
+  // EmbedderDataSlots are lazily initialized: initially they contain the null
+  // external pointer handle (see EmbedderDataSlot::Initialize), and only once
+  // an external pointer is stored in them are they properly initialized.
+  WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
+      address() + kExternalPointerOffset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else
   gc_safe_store(isolate, value);
   return true;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 }
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
@@ -151,9 +154,9 @@ void EmbedderDataSlot::store_raw(Isolate* isolate,
 
 void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  STATIC_ASSERT(SmiValuesAre31Bits());
-  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  static_assert(kSmiShiftSize == 0);
+  static_assert(SmiValuesAre31Bits());
+  static_assert(kTaggedSize == kInt32Size);
 
   // We have to do two 32-bit stores here because
   // 1) tagged part modifications must be atomic to be properly synchronized
@@ -177,11 +180,11 @@ void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
     Map map, JSObject js_object, int entry_index,
     EmbedderDataSlotSnapshot& snapshot) {
 #ifdef V8_COMPRESS_POINTERS
-  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t) * 2);
+  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t) * 2);
 #else   // !V8_COMPRESS_POINTERS
-  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t));
+  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t));
 #endif  // !V8_COMPRESS_POINTERS
-  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
+  static_assert(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
 
   const Address field_base =
       FIELD_ADDR(js_object, js_object.GetEmbedderFieldOffset(entry_index));

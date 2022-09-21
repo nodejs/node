@@ -135,16 +135,9 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
 // static
 Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
                                          JSRegExp::Flags flags) {
-  static constexpr int kStringTerminator = 1;
-  int cursor = 0;
-  char buffer[kFlagCount + kStringTerminator];
-#define V(Lower, Camel, LowerCamel, Char, Bit) \
-  if (flags & JSRegExp::k##Camel) buffer[cursor++] = Char;
-  REGEXP_FLAG_LIST(V)
-#undef V
-  buffer[cursor++] = '\0';
-  DCHECK_LE(cursor, kFlagCount + kStringTerminator);
-  return isolate->factory()->NewStringFromAsciiChecked(buffer);
+  FlagsBuffer buffer;
+  return isolate->factory()->NewStringFromAsciiChecked(
+      FlagsToString(flags, &buffer));
 }
 
 // static
@@ -186,13 +179,13 @@ void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
 }
 
 bool JSRegExp::ShouldProduceBytecode() {
-  return FLAG_regexp_interpret_all ||
-         (FLAG_regexp_tier_up && !MarkedForTierUp());
+  return v8_flags.regexp_interpret_all ||
+         (v8_flags.regexp_tier_up && !MarkedForTierUp());
 }
 
 // Only irregexps are subject to tier-up.
 bool JSRegExp::CanTierUp() {
-  return FLAG_regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
+  return v8_flags.regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
 }
 
 // An irregexp is considered to be marked for tier up if the tier-up ticks
@@ -208,7 +201,7 @@ bool JSRegExp::MarkedForTierUp() {
 }
 
 void JSRegExp::ResetLastTierUpTick() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
@@ -216,7 +209,7 @@ void JSRegExp::ResetLastTierUpTick() {
 }
 
 void JSRegExp::TierUpTick() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
   if (tier_up_ticks == 0) {
@@ -227,7 +220,7 @@ void JSRegExp::TierUpTick() {
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
-  DCHECK(FLAG_regexp_tier_up);
+  DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
                                Smi::zero());
@@ -240,7 +233,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   Isolate* isolate = regexp->GetIsolate();
   base::Optional<Flags> flags =
       JSRegExp::FlagsFromString(isolate, flags_string);
-  if (!flags.has_value()) {
+  if (!flags.has_value() ||
+      !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),

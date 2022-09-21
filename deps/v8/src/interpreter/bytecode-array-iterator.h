@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/base/optional.h"
+#include "include/v8-callbacks.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   void SetOffset(int offset);
   void Reset() { SetOffset(0); }
 
+  // Whether the given offset is reachable in this bytecode array.
+  static bool IsValidOffset(Handle<BytecodeArray> bytecode_array, int offset);
+
   void ApplyDebugBreak();
 
   inline Bytecode current_bytecode() const {
@@ -101,11 +104,22 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   int current_offset() const {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }
+  uint8_t* current_address() const { return cursor_ - prefix_size_; }
   int next_offset() const { return current_offset() + current_bytecode_size(); }
+  Bytecode next_bytecode() const {
+    uint8_t* next_cursor = cursor_ + current_bytecode_size_without_prefix();
+    if (next_cursor == end_) return Bytecode::kIllegal;
+    Bytecode next_bytecode = Bytecodes::FromByte(*next_cursor);
+    if (Bytecodes::IsPrefixScalingBytecode(next_bytecode)) {
+      next_bytecode = Bytecodes::FromByte(*(next_cursor + 1));
+    }
+    return next_bytecode;
+  }
   OperandScale current_operand_scale() const { return operand_scale_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
-  uint32_t GetFlagOperand(int operand_index) const;
+  uint32_t GetFlag8Operand(int operand_index) const;
+  uint32_t GetFlag16Operand(int operand_index) const;
   uint32_t GetUnsignedImmediateOperand(int operand_index) const;
   int32_t GetImmediateOperand(int operand_index) const;
   uint32_t GetIndexOperand(int operand_index) const;
@@ -147,7 +161,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
 
   std::ostream& PrintTo(std::ostream& os) const;
 
-  static void UpdatePointersCallback(void* iterator) {
+  static void UpdatePointersCallback(LocalIsolate*, GCType, GCCallbackFlags,
+                                     void* iterator) {
     reinterpret_cast<BytecodeArrayIterator*>(iterator)->UpdatePointers();
   }
 

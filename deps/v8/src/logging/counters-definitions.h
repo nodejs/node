@@ -71,9 +71,6 @@ namespace internal {
   /* code size per module after baseline compilation */                        \
   HR(wasm_module_code_size_mb_after_baseline,                                  \
      V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
-  /* code size per module after top-tier compilation */                        \
-  HR(wasm_module_code_size_mb_after_top_tier, V8.WasmModuleCodeSizeTopTierMiB, \
-     0, 1024, 64)                                                              \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \
@@ -102,25 +99,33 @@ namespace internal {
   /* Backtracks observed in a single regexp interpreter execution */           \
   /* The maximum of 100M backtracks takes roughly 2 seconds on my machine. */  \
   HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
-  /* See the CagedMemoryAllocationOutcome enum in backing-store.cc */          \
-  HR(caged_memory_allocation_outcome, V8.CagedMemoryAllocationOutcome, 0, 2,   \
-     3)                                                                        \
   /* number of times a cache event is triggered for a wasm module */           \
   HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
-  SANDBOXED_HISTOGRAM_LIST(HR)
-
-#ifdef V8_SANDBOX_IS_AVAILABLE
-#define SANDBOXED_HISTOGRAM_LIST(HR)                                          \
-  /* Number of in-use external pointers in the external pointer table */      \
-  /* Counted after sweeping the table at the end of mark-compact GC */        \
-  HR(sandboxed_external_pointers_count, V8.SandboxedExternalPointersCount, 0, \
-     kMaxSandboxedExternalPointers, 101)
-#else
-#define SANDBOXED_HISTOGRAM_LIST(HR)
-#endif  // V8_SANDBOX_IS_AVAILABLE
+  HR(wasm_streaming_until_compilation_finished,                                \
+     V8.WasmStreamingUntilCompilationFinishedMilliSeconds, 0, 10000, 50)       \
+  HR(wasm_compilation_until_streaming_finished,                                \
+     V8.WasmCompilationUntilStreamFinishedMilliSeconds, 0, 10000, 50)          \
+  /* Number of in-use external pointers in the external pointer table */       \
+  /* Counted after sweeping the table at the end of mark-compact GC */         \
+  HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
+     kMaxExternalPointers, 101)                                                \
+  HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_60sec, V8.WasmNumLazyCompilations60Sec, 0,     \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_120sec, V8.WasmNumLazyCompilations120Sec, 0,   \
+     200000, 50)                                                               \
+  /* Outcome of external pointer table compaction: kSuccess, */                \
+  /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
+  /* ExternalPointerTable::TableCompactionOutcome enum for more details */     \
+  HR(external_pointer_table_compaction_outcome,                                \
+     V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
-  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \
+  /* Nested timer histograms allow distributions of nested timed results. */  \
+  /* HT(name, caption, max, unit) */                                          \
   /* Garbage collection timers. */                                            \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
@@ -140,12 +145,7 @@ namespace internal {
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
   /* Total compilation time incl. caching/parsing */                          \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
-  /* Time for lazily compiling Wasm functions. */                             \
-  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
-     MICROSECOND)                                                             \
-  HT(wasm_compile_after_deserialize,                                          \
-     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
@@ -231,6 +231,10 @@ namespace internal {
      MILLISECOND)                                                              \
   HT(wasm_time_between_catch, V8.WasmTimeBetweenCatchMilliseconds, 1000,       \
      MILLISECOND)                                                              \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
+     MICROSECOND)                                                              \
+  HT(wasm_compile_after_deserialize,                                           \
+     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)         \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
@@ -254,7 +258,23 @@ namespace internal {
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \
-     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
+  HT(wasm_max_lazy_compilation_time_5sec,                                      \
+     V8.WasmMaxLazyCompilationTime5SecMilliSeconds, 5000, MILLISECOND)         \
+  HT(wasm_max_lazy_compilation_time_20sec,                                     \
+     V8.WasmMaxLazyCompilationTime20SecMilliSeconds, 5000, MILLISECOND)        \
+  HT(wasm_max_lazy_compilation_time_60sec,                                     \
+     V8.WasmMaxLazyCompilationTime60SecMilliSeconds, 5000, MILLISECOND)        \
+  HT(wasm_max_lazy_compilation_time_120sec,                                    \
+     V8.WasmMaxLazyCompilationTime120SecMilliSeconds, 5000, MILLISECOND)       \
+  HT(wasm_sum_lazy_compilation_time_5sec,                                      \
+     V8.WasmSumLazyCompilationTime5SecMilliSeconds, 20000, MILLISECOND)        \
+  HT(wasm_sum_lazy_compilation_time_20sec,                                     \
+     V8.WasmSumLazyCompilationTime20SecMilliSeconds, 20000, MILLISECOND)       \
+  HT(wasm_sum_lazy_compilation_time_60sec,                                     \
+     V8.WasmSumLazyCompilationTime60SecMilliSeconds, 20000, MILLISECOND)       \
+  HT(wasm_sum_lazy_compilation_time_120sec,                                    \
+     V8.WasmSumLazyCompilationTime120SecMilliSeconds, 20000, MILLISECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -281,56 +301,26 @@ namespace internal {
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                   \
-  /* Global Handle Count*/                                         \
-  SC(global_handles, V8.GlobalHandles)                             \
-  SC(maps_normalized, V8.MapsNormalized)                           \
-  SC(maps_created, V8.MapsCreated)                                 \
-  SC(elements_transitions, V8.ObjectElementsTransitions)           \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)         \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)        \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                     \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                 \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                   \
-  SC(string_table_capacity, V8.StringTableCapacity)                \
-  SC(number_of_symbols, V8.NumberOfSymbols)                        \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)            \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)              \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)          \
-  /* Amount of evaled source code. */                              \
-  SC(total_eval_size, V8.TotalEvalSize)                            \
-  /* Amount of loaded source code. */                              \
-  SC(total_load_size, V8.TotalLoadSize)                            \
-  /* Amount of parsed source code. */                              \
-  SC(total_parse_size, V8.TotalParseSize)                          \
-  /* Amount of source code skipped over using preparsing. */       \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)              \
-  /* Amount of compiled source code. */                            \
-  SC(total_compile_size, V8.TotalCompileSize)                      \
-  /* Number of contexts created from scratch. */                   \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch) \
-  /* Number of contexts created by context snapshot. */            \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
-  /* Number of code objects found from pc. */                      \
-  SC(pc_to_code, V8.PcToCode)                                      \
-  SC(pc_to_code_cached, V8.PcToCodeCached)
+#define STATS_COUNTER_LIST_1(SC)                                     \
+  /* Global Handle Count*/                                           \
+  SC(global_handles, V8.GlobalHandles)                               \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                       \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)                \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)            \
+  /* Number of times the cache contained a reusable Script but not   \
+     the root SharedFunctionInfo */                                  \
+  SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits) \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                   \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
-  /* Amount of (JS) compiled code. */                                          \
-  SC(total_compiled_code_size, V8.TotalCompiledCodeSize)                       \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \
   SC(gc_compactor_caused_by_promoted_data, V8.GCCompactorCausedByPromotedData) \
   SC(gc_compactor_caused_by_oldspace_exhaustion,                               \
      V8.GCCompactorCausedByOldspaceExhaustion)                                 \
-  SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
-  SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
-  SC(cow_arrays_converted, V8.COWArraysConverted)                              \
-  SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
-  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
-  SC(string_add_runtime, V8.StringAddRuntime)                                  \
-  SC(sub_string_runtime, V8.SubStringRuntime)                                  \
+  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
@@ -348,10 +338,6 @@ namespace internal {
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
-  /* Total code size (including metadata) of baseline code or bytecode. */     \
-  SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
-  /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
   SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
   SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
   SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
@@ -361,14 +347,7 @@ namespace internal {
 #define STATS_COUNTER_NATIVE_CODE_LIST(SC)                         \
   /* Number of write barriers executed at runtime. */              \
   SC(write_barriers, V8.WriteBarriers)                             \
-  SC(constructed_objects, V8.ConstructedObjects)                   \
-  SC(fast_new_closure_total, V8.FastNewClosureTotal)               \
   SC(regexp_entry_native, V8.RegExpEntryNative)                    \
-  SC(string_add_native, V8.StringAddNative)                        \
-  SC(sub_string_native, V8.SubStringNative)                        \
-  SC(ic_keyed_load_generic_smi, V8.ICKeyedLoadGenericSmi)          \
-  SC(ic_keyed_load_generic_symbol, V8.ICKeyedLoadGenericSymbol)    \
-  SC(ic_keyed_load_generic_slow, V8.ICKeyedLoadGenericSlow)        \
   SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes) \
   SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)
 

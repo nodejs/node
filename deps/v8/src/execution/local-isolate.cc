@@ -22,7 +22,7 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       thread_id_(ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
-                       : GetCurrentStackPosition() - FLAG_stack_size * KB)
+                       : GetCurrentStackPosition() - v8_flags.stack_size * KB)
 #ifdef V8_INTL_SUPPORT
       ,
       default_locale_(isolate->DefaultLocale())
@@ -47,6 +47,9 @@ void LocalIsolate::RegisterDeserializerStarted() {
 }
 void LocalIsolate::RegisterDeserializerFinished() {
   return isolate_->RegisterDeserializerFinished();
+}
+bool LocalIsolate::has_active_deserializer() const {
+  return isolate_->has_active_deserializer();
 }
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }

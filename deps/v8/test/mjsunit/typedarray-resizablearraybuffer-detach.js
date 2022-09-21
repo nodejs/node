@@ -133,8 +133,22 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     // The length is read after converting the first parameter ('value'), so the
     // detaching parameter has to be the 2nd ('start') or 3rd ('end').
     assertThrows(function() {
-      FillHelper(fixedLength, 1, 0, evil);
+      TypedArrayFillHelper(fixedLength, 1, 0, evil);
     }, TypeError);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 1;}};
+    // The length is read after converting the first parameter ('value'), so the
+    // detaching parameter has to be the 2nd ('start') or 3rd ('end').
+    // Assert that this doesn't throw (since the buffer is detached, we cannot
+    // assert anything about the contents):
+    ArrayFillHelper(fixedLength, 1, 0, evil);
+    assertEquals(0, fixedLength.length);
   }
 })();
 
@@ -151,7 +165,77 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function EveryDetachMidIteration() {
+function EntriesKeysValues(entriesHelper, keysHelper, valuesHelper, oobThrows) {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    %ArrayBufferDetach(rab);
+
+    // TypedArray.prototype.{entries, keys, values} throw right away when
+    // called. Array.prototype.{entries, keys, values} don't throw, but when
+    // we try to iterate the returned ArrayIterator, that throws.
+    if (oobThrows) {
+      assertThrows(() => { entriesHelper(fixedLength); });
+      assertThrows(() => { valuesHelper(fixedLength); });
+      assertThrows(() => { keysHelper(fixedLength); });
+
+      assertThrows(() => { entriesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { valuesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { keysHelper(fixedLengthWithOffset); });
+
+      assertThrows(() => { entriesHelper(lengthTracking); });
+      assertThrows(() => { valuesHelper(lengthTracking); });
+      assertThrows(() => { keysHelper(lengthTracking); });
+
+      assertThrows(() => { entriesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { valuesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { keysHelper(lengthTrackingWithOffset); });
+    } else {
+      entriesHelper(fixedLength);
+      valuesHelper(fixedLength);
+      keysHelper(fixedLength);
+
+      entriesHelper(fixedLengthWithOffset);
+      valuesHelper(fixedLengthWithOffset);
+      keysHelper(fixedLengthWithOffset);
+
+      entriesHelper(lengthTracking);
+      valuesHelper(lengthTracking);
+      keysHelper(lengthTracking);
+
+      entriesHelper(lengthTrackingWithOffset);
+      valuesHelper(lengthTrackingWithOffset);
+      keysHelper(lengthTrackingWithOffset);
+    }
+    assertThrows(() => { Array.from(entriesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLength)); });
+
+    assertThrows(() => { Array.from(entriesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLengthWithOffset)); });
+
+    assertThrows(() => { Array.from(entriesHelper(lengthTracking)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTracking)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTracking)); });
+
+    assertThrows(() => {
+      Array.from(entriesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTrackingWithOffset)); });
+  }
+}
+EntriesKeysValues(
+  TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper, true);
+EntriesKeysValues(
+  ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper, false);
+
+function EveryDetachMidIteration(everyHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -188,8 +272,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertTrue(fixedLength.every(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertTrue(everyHelper(fixedLength, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -197,8 +285,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertTrue(fixedLengthWithOffset.every(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertTrue(everyHelper(fixedLengthWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -206,8 +298,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertTrue(lengthTracking.every(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertTrue(everyHelper(lengthTracking, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -215,12 +311,18 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertTrue(lengthTrackingWithOffset.every(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertTrue(everyHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
-})();
+}
+EveryDetachMidIteration(TypedArrayEveryHelper, true);
+EveryDetachMidIteration(ArrayEveryHelper, false);
 
-(function SomeDetachMidIteration() {
+function SomeDetachMidIteration(someHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -257,8 +359,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertFalse(fixedLength.some(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertFalse(someHelper(fixedLength, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -266,8 +372,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertFalse(fixedLengthWithOffset.some(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertFalse(someHelper(fixedLengthWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -275,8 +385,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertFalse(lengthTracking.some(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertFalse(someHelper(lengthTracking, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -284,12 +398,18 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertFalse(lengthTrackingWithOffset.some(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertFalse(someHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
-})();
+}
+SomeDetachMidIteration(TypedArraySomeHelper, true);
+SomeDetachMidIteration(ArraySomeHelper, false);
 
-(function FindDetachMidIteration() {
+function FindDetachMidIteration(findHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -326,7 +446,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, fixedLength.find(CollectValuesAndDetach));
+    assertEquals(undefined, findHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -335,7 +455,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, fixedLengthWithOffset.find(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
 
@@ -344,7 +465,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, lengthTracking.find(CollectValuesAndDetach));
+    assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -353,12 +474,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, lengthTrackingWithOffset.find(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindDetachMidIteration(TypedArrayFindHelper);
+FindDetachMidIteration(ArrayFindHelper);
 
-(function FindIndexDetachMidIteration() {
+function FindIndexDetachMidIteration(findIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -395,7 +519,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, fixedLength.findIndex(CollectValuesAndDetach));
+    assertEquals(-1, findIndexHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -404,7 +528,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, fixedLengthWithOffset.findIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+                 findIndexHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
 
@@ -413,7 +538,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, lengthTracking.findIndex(CollectValuesAndDetach));
+    assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -422,12 +547,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, lengthTrackingWithOffset.findIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findIndexHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindIndexDetachMidIteration(TypedArrayFindIndexHelper);
+FindIndexDetachMidIteration(ArrayFindIndexHelper);
 
-(function FindLastDetachMidIteration() {
+function FindLastDetachMidIteration(findLastHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -464,7 +592,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, fixedLength.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findLastHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -473,7 +602,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, fixedLengthWithOffset.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+      findLastHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
 
@@ -482,7 +612,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, lengthTracking.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findLastHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -491,12 +622,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, lengthTrackingWithOffset.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+        findLastHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
-})();
+}
+FindLastDetachMidIteration(TypedArrayFindLastHelper);
+FindLastDetachMidIteration(ArrayFindLastHelper);
 
-(function FindLastIndexDetachMidIteration() {
+function FindLastIndexDetachMidIteration(findLastIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -533,7 +667,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, fixedLength.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1, findLastIndexHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -542,7 +676,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, fixedLengthWithOffset.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
 
@@ -551,7 +686,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, lengthTracking.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -560,12 +696,17 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, lengthTrackingWithOffset.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
-})();
+}
+FindLastIndexDetachMidIteration(TypedArrayFindLastIndexHelper);
+FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
 
-(function FilterShrinkMidIteration() {
+// The corresponding tests for Array.prototype.filter are in
+// typedarray-resizablearraybuffer-array-methods.js.
+(function FilterDetachMidIteration() {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -776,7 +917,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function IncludesParameterConversionDetaches() {
+function IncludesParameterConversionDetaches(includesHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -786,9 +927,9 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertFalse(IncludesHelper(fixedLength, undefined));
+    assertFalse(includesHelper(fixedLength, undefined));
     // The TA is detached so it includes only "undefined".
-    assertTrue(IncludesHelper(fixedLength, undefined, evil));
+    assertTrue(includesHelper(fixedLength, undefined, evil));
   }
 
   for (let ctor of ctors) {
@@ -800,13 +941,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertTrue(IncludesHelper(fixedLength, 0));
+    assertTrue(includesHelper(fixedLength, 0));
     // The TA is detached so it includes only "undefined".
-    assertFalse(IncludesHelper(fixedLength, 0, evil));
+    assertFalse(includesHelper(fixedLength, 0, evil));
   }
-})();
+}
+IncludesParameterConversionDetaches(TypedArrayIncludesHelper);
+IncludesParameterConversionDetaches(ArrayIncludesHelper);
 
-(function IndexOfParameterConversionDetaches() {
+function IndexOfParameterConversionDetaches(indexOfHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -816,9 +959,9 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
     // The buffer is detached so indexOf returns -1.
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -830,13 +973,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
     // The buffer is detached so indexOf returns -1, also for undefined).
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined, evil));
   }
-})();
+}
+IndexOfParameterConversionDetaches(TypedArrayIndexOfHelper);
+IndexOfParameterConversionDetaches(ArrayIndexOfHelper);
 
-(function LastIndexOfParameterConversionDetaches() {
+function LastIndexOfParameterConversionDetaches(lastIndexOfHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -846,9 +991,9 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(3, lastIndexOfHelper(lengthTracking, 0));
     // The buffer is detached so lastIndexOf returns -1.
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -860,11 +1005,13 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       %ArrayBufferDetach(rab);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(3, lastIndexOfHelper(lengthTracking, 0));
     // The buffer is detached so lastIndexOf returns -1, also for undefined).
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined, evil));
   }
-})();
+}
+LastIndexOfParameterConversionDetaches(TypedArrayLastIndexOfHelper);
+LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
 
 (function JoinToLocaleString() {
   for (let ctor of ctors) {
@@ -888,7 +1035,29 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
  }
 })();
 
-(function JoinParameterConversionDetaches() {
+(function ArrayJoinToLocaleString() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    %ArrayBufferDetach(rab);
+
+    assertEquals('', ArrayJoinHelper(fixedLength));
+    assertEquals('', ArrayToLocaleStringHelper(fixedLength));
+    assertEquals('', ArrayJoinHelper(fixedLengthWithOffset));
+    assertEquals('', ArrayToLocaleStringHelper(fixedLengthWithOffset));
+    assertEquals('', ArrayJoinHelper(lengthTracking));
+    assertEquals('', ArrayToLocaleStringHelper(lengthTracking));
+    assertEquals('', ArrayJoinHelper(lengthTrackingWithOffset));
+    assertEquals('', ArrayToLocaleStringHelper(lengthTrackingWithOffset));
+ }
+})();
+
+function JoinParameterConversionDetaches(joinHelper) {
   // Detaching + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -902,7 +1071,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     // We iterate 4 elements, since it was the starting length, but the TA is
     // OOB right after parameter conversion, so all elements are converted to
     // the empty string.
-    assertEquals('...', fixedLength.join(evil));
+    assertEquals('...', joinHelper(fixedLength, evil));
   }
 
   // Detaching + length-tracking TA.
@@ -918,11 +1087,14 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     // We iterate 4 elements, since it was the starting length, but the TA is
     // OOB right after parameter conversion, so all elements are converted to
     // the empty string.
-    assertEquals('...', lengthTracking.join(evil));
+    assertEquals('...', joinHelper(lengthTracking, evil));
   }
-})();
+}
+JoinParameterConversionDetaches(TypedArrayJoinHelper);
+JoinParameterConversionDetaches(ArrayJoinHelper);
 
-(function ToLocaleStringNumberPrototypeToLocaleStringDetaches() {
+function ToLocaleStringNumberPrototypeToLocaleStringDetaches(
+    toLocaleStringHelper) {
   const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
   const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
 
@@ -950,7 +1122,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
     // We iterate 4 elements, since it was the starting length. The TA goes
     // OOB after 2 elements.
-    assertEquals('0,0,,', fixedLength.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(fixedLength));
   }
 
   // Detaching + length-tracking TA.
@@ -977,14 +1149,17 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
     // We iterate 4 elements, since it was the starting length. The TA goes
     // OOB after 2 elements.
-    assertEquals('0,0,,', lengthTracking.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(lengthTracking));
   }
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
-})();
+}
+ToLocaleStringNumberPrototypeToLocaleStringDetaches(
+    TypedArrayToLocaleStringHelper);
+ToLocaleStringNumberPrototypeToLocaleStringDetaches(ArrayToLocaleStringHelper);
 
-(function MapDetachMidIteration() {
+function MapDetachMidIteration(mapHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1024,7 +1199,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
   function Helper(array) {
     values = [];
-    array.map(CollectValuesAndDetach);
+    mapHelper(array, CollectValuesAndDetach);
     return values;
   }
 
@@ -1032,30 +1207,48 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
     detachAfter = 2;
-    assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    } else {
+      assertEquals([0, 2], Helper(fixedLength));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     detachAfter = 1;
-    assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    } else {
+      assertEquals([4], Helper(fixedLengthWithOffset));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     detachAfter = 2;
-    assertEquals([0, 2, undefined, undefined], Helper(lengthTracking));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], Helper(lengthTracking));
+    } else {
+      assertEquals([0, 2], Helper(lengthTracking));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     detachAfter = 1;
-    assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    } else {
+      assertEquals([4], Helper(lengthTrackingWithOffset));
+    }
   }
-})();
+}
+MapDetachMidIteration(TypedArrayMapHelper, true);
+MapDetachMidIteration(ArrayMapHelper, false);
 
 (function MapSpeciesCreateDetaches() {
   let values;
@@ -1388,7 +1581,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function SortCallbackDetaches() {
+function SortCallbackDetaches(sortHelper) {
   function WriteUnsortedData(taFull) {
     for (let i = 0; i < taFull.length; ++i) {
       WriteToTypedArray(taFull, i, 10 - i);
@@ -1415,7 +1608,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    fixedLength.sort(CustomComparison);
+    sortHelper(fixedLength, CustomComparison);
     AssertIsDetached(fixedLength);
   }
 
@@ -1427,10 +1620,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    lengthTracking.sort(CustomComparison);
+    sortHelper(lengthTracking, CustomComparison);
     AssertIsDetached(lengthTracking);
   }
-})();
+}
+SortCallbackDetaches(TypedArraySortHelper);
+SortCallbackDetaches(ArraySortHelper);
 
 (function ObjectDefineProperty() {
   for (let helper of
@@ -1487,3 +1682,84 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
   }
 })();
+
+(function FunctionApply() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    function func(...args) {
+      return [...args];
+    }
+
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+
+    %ArrayBufferDetach(rab);
+
+    assertEquals([], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([], ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+  }
+})();
+
+// The corresponding tests for Array.prototype.slice are in
+// typedarray-resizablearraybuffer-array-methods.js.
+(function SliceParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertThrows(() => { fixedLength.slice(evil); }, TypeError);
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertEquals([1, 2, 0, 0], ToNumbers(lengthTracking.slice(evil)));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();
+
+function AtParameterConversionDetaches(atHelper) {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 0;}};
+    assertEquals(undefined, atHelper(fixedLength, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return -1;}};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(undefined, atHelper(lengthTracking, evil));
+  }
+}
+AtParameterConversionDetaches(TypedArrayAtHelper);
+AtParameterConversionDetaches(ArrayAtHelper);

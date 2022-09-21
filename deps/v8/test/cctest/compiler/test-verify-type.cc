@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-operator.h"
-#include "test/cctest/compiler/node-observer-tester.h"
+#include "test/cctest/cctest.h"
 #include "test/common/flag-utils.h"
+#include "test/common/node-observer-tester.h"
 
 namespace v8 {
 namespace internal {

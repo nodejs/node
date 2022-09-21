@@ -6,6 +6,7 @@
 #define V8_COMPILER_ACCESS_BUILDER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/objects/elements-kind.h"
@@ -319,6 +320,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
+
+  // Provides access to the for-in cache array.
+  static ElementAccess ForJSForInCacheArrayElement(ForInMode mode);
 
   // Provides access to HashTable fields.
   static FieldAccess ForHashTableBaseNumberOfElements();

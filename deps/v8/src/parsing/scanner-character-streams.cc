@@ -347,7 +347,8 @@ class RelocatingCharacterStream final
         UpdateBufferPointersCallback, this);
   }
 
-  static void UpdateBufferPointersCallback(void* stream) {
+  static void UpdateBufferPointersCallback(LocalIsolate*, GCType,
+                                           GCCallbackFlags, void* stream) {
     reinterpret_cast<RelocatingCharacterStream*>(stream)
         ->UpdateBufferPointers();
   }

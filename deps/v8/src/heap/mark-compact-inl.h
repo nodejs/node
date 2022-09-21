@@ -25,7 +25,7 @@ namespace internal {
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainer(host, obj);
     }
   }
@@ -34,7 +34,7 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainingRoot(root, obj);
     }
   }
@@ -43,14 +43,14 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
       non_atomic_marking_state_.WhiteToGrey(obj)) {
-    main_thread_worklist_local_.Push(obj);
+    local_marking_worklists_->Push(obj);
   }
 }
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists()->Push(obj);
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
     }
   }
@@ -197,7 +197,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         HeapObject black_object = HeapObject::FromAddress(addr);
         map = black_object.map(cage_base, kAcquireLoad);
         // Map might be forwarded during GC.
-        DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map));
+        DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
         size = black_object.SizeFromMap(map);
         CHECK_LE(addr + size, chunk_->area_end());
         Address end = addr + size - kTaggedSize;
@@ -279,7 +279,7 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
   return iterator(chunk_, bitmap_, end_);
 }
 
-Isolate* MarkCompactCollectorBase::isolate() { return heap()->isolate(); }
+Isolate* CollectorBase::isolate() { return heap()->isolate(); }
 
 }  // namespace internal
 }  // namespace v8

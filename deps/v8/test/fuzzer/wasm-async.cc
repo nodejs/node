@@ -10,13 +10,9 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
-#include "src/api/api.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/factory.h"
-#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
-#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
@@ -52,9 +48,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Isolate* isolate = support->GetIsolate();
 
   // Set some more flags.
-  FLAG_wasm_async_compilation = true;
-  FLAG_wasm_max_mem_pages = 32;
-  FLAG_wasm_max_table_size = 100;
+  v8_flags.wasm_async_compilation = true;
+  v8_flags.wasm_max_mem_pages = 32;
+  v8_flags.wasm_max_table_size = 100;
 
   i::Isolate* i_isolate = reinterpret_cast<v8::internal::Isolate*>(isolate);
 

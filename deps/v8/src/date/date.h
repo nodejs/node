@@ -255,6 +255,7 @@ enum class ToDateStringMode {
   kLocalTime,
   kLocalDateAndTime,
   kUTCDateAndTime,
+  kISODateAndTime
 };
 
 // ES6 section 20.3.4.41.1 ToDateString(tv)

@@ -612,7 +612,8 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
   for (size_t v = 0; v < arraysize(kVals); v++) {
     // foreach length 1...64
     for (int i = 1; i <= 64; i++) {
-      const int64_t val = bit_cast<int64_t>(kVals[v] << (64 - i)) >> (64 - i);
+      const int64_t val =
+          base::bit_cast<int64_t>(kVals[v] << (64 - i)) >> (64 - i);
 
       unsigned length = 1 + i / 7;
       for (unsigned j = 0; j < kMaxSize; j++) {

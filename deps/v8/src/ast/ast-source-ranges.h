@@ -27,7 +27,7 @@ struct SourceRange {
   }
 
   static constexpr int kFunctionLiteralSourcePosition = -2;
-  STATIC_ASSERT(kFunctionLiteralSourcePosition == kNoSourcePosition - 1);
+  static_assert(kFunctionLiteralSourcePosition == kNoSourcePosition - 1);
 
   // Source ranges associated with a function literal do not contain real
   // source positions; instead, they are created with special marker values.

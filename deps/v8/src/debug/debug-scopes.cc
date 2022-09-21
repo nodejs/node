@@ -11,13 +11,11 @@
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/string-set-inl.h"
+#include "src/objects/string-set.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/rewriter.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -28,7 +26,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
-      script_(frame_inspector_->GetScript()) {
+      script_(frame_inspector_->GetScript()),
+      locals_(StringSet::New(isolate)) {
   if (!frame_inspector->GetContext()->IsContext()) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
@@ -58,7 +57,9 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 }
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
-    : isolate_(isolate), context_(function->context(), isolate) {
+    : isolate_(isolate),
+      context_(function->context(), isolate),
+      locals_(StringSet::New(isolate)) {
   if (!function->shared().IsSubjectToDebugging()) {
     context_ = Handle<Context>();
     return;
@@ -73,7 +74,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       generator_(generator),
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
-      script_(Script::cast(function_->shared().script()), isolate) {
+      script_(Script::cast(function_->shared().script()), isolate),
+      locals_(StringSet::New(isolate)) {
   CHECK(function_->shared().IsSubjectToDebugging());
   TryParseAndRetrieveScopes(ReparseStrategy::kFunctionLiteral);
 }
@@ -103,8 +105,6 @@ class ScopeChainRetriever {
       : scope_(scope),
         break_scope_start_(function->shared().StartPosition()),
         break_scope_end_(function->shared().EndPosition()),
-        is_default_constructor_(
-            IsDefaultConstructor(function->shared().kind())),
         position_(position) {
     DCHECK_NOT_NULL(scope);
     RetrieveScopes();
@@ -117,71 +117,60 @@ class ScopeChainRetriever {
   DeclarationScope* scope_;
   const int break_scope_start_;
   const int break_scope_end_;
-  const bool is_default_constructor_;
   const int position_;
 
   DeclarationScope* closure_scope_ = nullptr;
   Scope* start_scope_ = nullptr;
 
   void RetrieveScopes() {
-    if (is_default_constructor_) {
-      // Even though the DefaultBaseConstructor is a child of a Class scope, the
-      // source positions are *not* nested. This means the actual scope for the
-      // DefaultBaseConstructor needs to be found by doing a DFS.
-      RetrieveScopeChainDefaultConstructor(scope_);
-    } else {
-      RetrieveScopeChain();
-    }
+    // 1. Find the closure scope with a DFS.
+    RetrieveClosureScope(scope_);
     DCHECK_NOT_NULL(closure_scope_);
+
+    // 2. Starting from the closure scope search inwards. Given that V8's scope
+    //    tree doesn't guarantee that siblings don't overlap, we look at all
+    //    scopes and pick the one with the tightest bounds around `position_`.
+    start_scope_ = closure_scope_;
+    RetrieveStartScope(closure_scope_);
     DCHECK_NOT_NULL(start_scope_);
   }
 
-  bool RetrieveScopeChainDefaultConstructor(Scope* scope) {
-    const int beg_pos = scope->start_position();
-    const int end_pos = scope->end_position();
-    if (beg_pos == position_ && end_pos == position_) {
-      DCHECK(scope->is_function_scope());
-      DCHECK(
-          IsDefaultConstructor(scope->AsDeclarationScope()->function_kind()));
-      start_scope_ = scope;
+  bool RetrieveClosureScope(Scope* scope) {
+    // The closure scope is the scope that matches exactly the function we
+    // paused in. There is one quirk though, member initializder functions have
+    // the same source position as their class scope, so when looking for the
+    // declaration scope of the member initializer, we need to skip the
+    // corresponding class scope and keep looking.
+    if (!scope->is_class_scope() &&
+        break_scope_start_ == scope->start_position() &&
+        break_scope_end_ == scope->end_position()) {
       closure_scope_ = scope->AsDeclarationScope();
       return true;
     }
 
     for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
          inner_scope = inner_scope->sibling()) {
-      if (RetrieveScopeChainDefaultConstructor(inner_scope)) return true;
+      if (RetrieveClosureScope(inner_scope)) return true;
     }
     return false;
   }
 
-  void RetrieveScopeChain() {
-    Scope* parent = nullptr;
-    Scope* current = scope_;
-    SetClosureScopeIfFound(current);
-
-    while (parent != current) {
-      parent = current;
-      for (Scope* inner_scope = current->inner_scope(); inner_scope != nullptr;
-           inner_scope = inner_scope->sibling()) {
-        if (SetClosureScopeIfFound(inner_scope) ||
-            ContainsPosition(inner_scope)) {
-          current = inner_scope;
-          break;
-        }
-      }
-    }
-    start_scope_ = current;
-  }
-
-  bool SetClosureScopeIfFound(Scope* scope) {
+  void RetrieveStartScope(Scope* scope) {
     const int start = scope->start_position();
     const int end = scope->end_position();
-    if (start == break_scope_start_ && end == break_scope_end_) {
-      closure_scope_ = scope->AsDeclarationScope();
-      return true;
+
+    // Update start_scope_ if scope contains `position_` and scope is a tighter
+    // fit than the currently set start_scope_.
+    // Generators have the same source position so we also check for equality.
+    if (ContainsPosition(scope) && start >= start_scope_->start_position() &&
+        end <= start_scope_->end_position()) {
+      start_scope_ = scope;
     }
-    return false;
+
+    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
+         inner_scope = inner_scope->sibling()) {
+      RetrieveStartScope(inner_scope);
+    }
   }
 
   bool ContainsPosition(Scope* scope) {
@@ -215,16 +204,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     return;
   }
 
-  // Class fields initializer functions don't have any scope
-  // information. We short circuit the parsing of the class literal
-  // and return an empty context here.
-  if (IsClassMembersInitializerFunction(shared_info->kind())) {
-    current_scope_ = closure_scope_ = nullptr;
-    context_ = Handle<Context>();
-    function_ = Handle<JSFunction>();
-    return;
-  }
-
   bool ignore_nested_scopes = false;
   if (shared_info->HasBreakInfo() && frame_inspector_ != nullptr) {
     // The source position at return is always the end of the function,
@@ -254,6 +233,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
           ? UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info)
           : UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script)
                 .set_is_eager(true);
+  flags.set_is_reparse(true);
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
@@ -396,53 +376,70 @@ bool ScopeIterator::DeclaresLocals(Mode mode) const {
 }
 
 bool ScopeIterator::HasContext() const {
-  return !InInnerScope() || NeedsAndHasContext();
+  return !InInnerScope() || NeedsContext();
 }
 
-bool ScopeIterator::NeedsAndHasContext() const {
-  if (!current_scope_->NeedsContext()) return false;
-  // Generally, if a scope needs a context, then we can assume that it has a
-  // context. However, the stack check during function entry happens before the
-  // function has a chance to create and push its own context, so we must check
-  // for the case where the function is executing in its parent context. This
-  // case is only possible in function scopes; top-level code (modules and
-  // non-module scripts) begin execution in the context they need and don't have
-  // a separate step to push the correct context.
-  return !(current_scope_ == closure_scope_ &&
-           current_scope_->is_function_scope() && !function_.is_null() &&
-           function_->context() == *context_);
+bool ScopeIterator::NeedsContext() const {
+  const bool needs_context = current_scope_->NeedsContext();
+
+  // We try very hard to ensure that a function's context is already
+  // available when we pause right at the beginning of that function.
+  // This can be tricky when we pause via stack check or via
+  // `BreakOnNextFunctionCall`, which happens normally in the middle of frame
+  // construction and we have to "step into" the function first.
+  //
+  // We check this by ensuring that the current context is not the closure
+  // context should the function need one. In that case the function has already
+  // pushed the context and we are good.
+  CHECK_IMPLIES(needs_context && current_scope_ == closure_scope_ &&
+                    current_scope_->is_function_scope() &&
+                    !function_->is_null(),
+                function_->context() != *context_);
+
+  return needs_context;
 }
 
-void ScopeIterator::AdvanceOneScope() {
-  if (NeedsAndHasContext()) {
-    DCHECK(!context_->previous().is_null());
-    context_ = handle(context_->previous(), isolate_);
-  }
-  DCHECK(current_scope_->outer_scope() != nullptr);
+bool ScopeIterator::AdvanceOneScope() {
+  if (!current_scope_ || !current_scope_->outer_scope()) return false;
+
   current_scope_ = current_scope_->outer_scope();
+  CollectLocalsFromCurrentScope();
+  return true;
 }
 
-void ScopeIterator::AdvanceToNonHiddenScope() {
+void ScopeIterator::AdvanceOneContext() {
+  DCHECK(!context_->IsNativeContext());
+  DCHECK(!context_->previous().is_null());
+  context_ = handle(context_->previous(), isolate_);
+
+  // The locals blocklist is always associated with a context. So when we
+  // move one context up, we also reset the locals_ blocklist.
+  locals_ = StringSet::New(isolate_);
+}
+
+void ScopeIterator::AdvanceScope() {
+  DCHECK(InInnerScope());
+
   do {
-    AdvanceOneScope();
+    if (NeedsContext()) {
+      // current_scope_ needs a context so moving one scope up requires us to
+      // also move up one context.
+      AdvanceOneContext();
+    }
+
+    CHECK(AdvanceOneScope());
   } while (current_scope_->is_hidden());
 }
 
 void ScopeIterator::AdvanceContext() {
-  DCHECK(!context_->IsNativeContext());
-  context_ = handle(context_->previous(), isolate_);
+  AdvanceOneContext();
 
   // While advancing one context, we need to advance at least one
   // scope, but until we hit the next scope that actually requires
   // a context. All the locals collected along the way build the
   // blocklist for debug-evaluate for this context.
-  locals_ = StringSet::New(isolate_);
-  do {
-    if (!current_scope_ || !current_scope_->outer_scope()) break;
-
-    current_scope_ = current_scope_->outer_scope();
-    CollectLocalsFromCurrentScope();
-  } while (!NeedsAndHasContext());
+  while (AdvanceOneScope() && !NeedsContext()) {
+  }
 }
 
 void ScopeIterator::Next() {
@@ -471,14 +468,16 @@ void ScopeIterator::Next() {
     AdvanceContext();
   } else {
     DCHECK_NOT_NULL(current_scope_);
-    AdvanceToNonHiddenScope();
+    AdvanceScope();
 
     if (leaving_closure) {
       DCHECK(current_scope_ != closure_scope_);
-      // Edge case when we just go past {closure_scope_}. This case
-      // already needs to start collecting locals for the blocklist.
-      locals_ = StringSet::New(isolate_);
-      CollectLocalsFromCurrentScope();
+      // If the current_scope_ doesn't need a context, we advance the scopes
+      // and collect the blocklist along the way until we find the scope
+      // that should match `context_`.
+      // But only do this if we have complete scope information.
+      while (!NeedsContext() && AdvanceOneScope()) {
+      }
     }
   }
 
@@ -493,29 +492,28 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
   if (InInnerScope()) {
     switch (current_scope_->scope_type()) {
       case FUNCTION_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(),
-                       context_->IsFunctionContext() ||
-                           context_->IsDebugEvaluateContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsFunctionContext() ||
+                                           context_->IsDebugEvaluateContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsModuleContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsModuleContext());
         return ScopeTypeModule;
       case SCRIPT_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsScriptContext() ||
-                                                 context_->IsNativeContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsScriptContext() ||
+                                           context_->IsNativeContext());
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsWithContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
       case CLASS_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsBlockContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:
-        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsEvalContext());
+        DCHECK_IMPLIES(NeedsContext(), context_->IsEvalContext());
         return ScopeTypeEval;
     }
     UNREACHABLE();
@@ -562,14 +560,31 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
-    if (value->IsTheHole(isolate_)) {
-      // Reflect variables under TDZ as undefined in scope object.
+    if (value->IsOptimizedOut(isolate_)) {
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect optimized out variables as undefined in scope object.
+      value = isolate_->factory()->undefined_value();
+    } else if (value->IsTheHole(isolate_)) {
       if (scope_type == ScopeTypeScript &&
           JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
         // We also use the hole to represent overridden let-declarations via
         // REPL mode in a script context. Catch this case.
         return false;
       }
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect variables under TDZ as undefined in scope object.
       value = isolate_->factory()->undefined_value();
     }
     // Overwrite properties. Sometimes names in the same scope can collide, e.g.
@@ -632,7 +647,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
         DCHECK_EQ(ScopeTypeLocal, Type());
         if (SetLocalVariableValue(name, value)) return true;
         // There may not be an associated context since we're InInnerScope().
-        if (!NeedsAndHasContext()) return false;
+        if (!NeedsContext()) return false;
       } else {
         DCHECK_EQ(ScopeTypeClosure, Type());
         if (SetContextVariableValue(name, value)) return true;
@@ -649,7 +664,9 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 }
 
 bool ScopeIterator::ClosureScopeHasThisReference() const {
-  return !closure_scope_->has_this_declaration() &&
+  // closure_scope_ can be nullptr if parsing failed. See the TODO in
+  // TryParseAndRetrieveScopes.
+  return closure_scope_ && !closure_scope_->has_this_declaration() &&
          closure_scope_->HasThisReference();
 }
 
@@ -676,7 +693,7 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeLocal: {
       os << "Local:\n";
-      if (NeedsAndHasContext()) {
+      if (NeedsContext()) {
         context_->Print(os);
         if (context_->has_extension()) {
           Handle<HeapObject> extension(context_->extension(), isolate_);
@@ -721,7 +738,7 @@ void ScopeIterator::DebugPrint() {
 }
 #endif
 
-int ScopeIterator::GetSourcePosition() {
+int ScopeIterator::GetSourcePosition() const {
   if (frame_inspector_) {
     return frame_inspector_->GetSourcePosition();
   } else {
@@ -801,12 +818,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     Handle<Object> receiver =
         this_var->location() == VariableLocation::CONTEXT
             ? handle(context_->get(this_var->index()), isolate_)
-            : frame_inspector_ == nullptr
-                  ? handle(generator_->receiver(), isolate_)
-                  : frame_inspector_->GetReceiver();
-    if (receiver->IsOptimizedOut(isolate_)) {
-      receiver = isolate_->factory()->undefined_value();
-    }
+        : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
+                                      : frame_inspector_->GetReceiver();
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
       return true;
   }
@@ -847,10 +860,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = handle(parameters_and_registers.get(index), isolate_);
         } else {
           value = frame_inspector_->GetParameter(index);
-
-          if (value->IsOptimizedOut(isolate_)) {
-            value = isolate_->factory()->undefined_value();
-          }
         }
         break;
       }
@@ -874,7 +883,15 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
-            value = isolate_->factory()->undefined_value();
+          } else if (IsLexicalVariableMode(var->mode()) &&
+                     value->IsUndefined(isolate_) &&
+                     GetSourcePosition() != kNoSourcePosition &&
+                     GetSourcePosition() <= var->initializer_position()) {
+            // Variables that are `undefined` could also mean an elided hole
+            // write. We explicitly check the static scope information if we
+            // are currently stopped before the variable is actually initialized
+            // which means we are in the middle of that var's TDZ.
+            value = isolate_->factory()->the_hole_value();
           }
         }
         break;
@@ -956,8 +973,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
     if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
-        KeyAccumulator::GetKeys(extension, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS)
+        KeyAccumulator::GetKeys(isolate_, extension,
+                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS)
             .ToHandleChecked();
 
     for (int i = 0; i < keys->length(); i++) {
@@ -1001,7 +1018,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
             parameters_and_registers->set(index, *new_value);
           } else {
             JavaScriptFrame* frame = GetFrame();
-            if (frame->is_optimized()) return false;
+            if (!frame->is_unoptimized()) return false;
 
             frame->SetParameterValue(index, *new_value);
           }
@@ -1022,7 +1039,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
           } else {
             // Set the variable on the stack.
             JavaScriptFrame* frame = GetFrame();
-            if (frame->is_optimized()) return false;
+            if (!frame->is_unoptimized()) return false;
 
             frame->SetExpression(index, *new_value);
           }

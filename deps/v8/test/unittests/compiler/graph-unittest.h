@@ -36,14 +36,17 @@ class GraphTest : public TestWithNativeContextAndZone {
 
   Node* Parameter(int32_t index = 0);
   Node* Parameter(Type type, int32_t index = 0);
-  Node* Float32Constant(volatile float value);
-  Node* Float64Constant(volatile double value);
+  Node* Float32Constant(float value);
+  Node* Float64Constant(double value);
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
   Node* Int64Constant(int64_t value);
-  Node* NumberConstant(volatile double value);
+  Node* Uint64Constant(uint64_t value) {
+    return Int64Constant(base::bit_cast<int64_t>(value));
+  }
+  Node* NumberConstant(double value);
   Node* HeapConstant(const Handle<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();

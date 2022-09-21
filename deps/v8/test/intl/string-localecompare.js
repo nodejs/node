@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --allow-natives-syntax --interrupt-budget=1024
+// Flags: --turbofan --allow-natives-syntax --interrupt-budget=1024
 
 function check() {
     // Equal prefix.

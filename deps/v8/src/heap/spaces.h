@@ -41,7 +41,7 @@ class Isolate;
 class LargeObjectSpace;
 class LargePage;
 class Page;
-class PagedSpace;
+class PagedSpaceBase;
 class SemiSpace;
 
 // -----------------------------------------------------------------------------
@@ -63,10 +63,10 @@ class SemiSpace;
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
-// A remembered set is used to keep track of intergenerational references.
+// A remembered set is used to keep track of inter-generational references.
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
-// buffer overflow) iterate intergenerational pointers without decoding heap
+// buffer overflow) iterate inter-generational pointers without decoding heap
 // object maps so if the page belongs to old space or large object space
 // it is essential to guarantee that the page does not contain any
 // garbage pointers to new space: every pointer aligned word which satisfies
@@ -81,7 +81,7 @@ class SemiSpace;
 // sections are skipped when scanning the page, even if we are otherwise
 // scanning without regard for object boundaries.  Garbage sections are chained
 // together to form a free list after a GC.  Garbage sections created outside
-// of GCs by object trunctation etc. may not be in the free list chain.  Very
+// of GCs by object truncation etc. may not be in the free list chain.  Very
 // small free spaces are ignored, they need only be cleaned of bogus pointers
 // into new space.
 //
@@ -112,9 +112,11 @@ class SemiSpace;
 // sealed after startup (i.e. not ReadOnlySpace).
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
-  Space(Heap* heap, AllocationSpace id, FreeList* free_list)
+  Space(Heap* heap, AllocationSpace id, FreeList* free_list,
+        AllocationCounter& allocation_counter)
       : BaseSpace(heap, id),
-        free_list_(std::unique_ptr<FreeList>(free_list)) {
+        free_list_(std::unique_ptr<FreeList>(free_list)),
+        allocation_counter_(allocation_counter) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
@@ -140,8 +142,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   virtual void PauseAllocationObservers();
 
   virtual void ResumeAllocationObservers();
-
-  virtual void StartNextInlineAllocationStep() {}
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
@@ -184,22 +184,20 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
-  virtual Page* InitializePage(MemoryChunk* chunk) {
-    UNREACHABLE();
-    return nullptr;
-  }
+  virtual Page* InitializePage(MemoryChunk* chunk) { UNREACHABLE(); }
 
   FreeList* free_list() { return free_list_.get(); }
 
-  Address FirstPageAddress() const { return first_page()->address(); }
+  Address FirstPageAddress() const {
+    DCHECK_NOT_NULL(first_page());
+    return first_page()->address();
+  }
 
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
 
  protected:
-  AllocationCounter allocation_counter_;
-
   // The List manages the pages that belong to the given space.
   heap::List<MemoryChunk> memory_chunk_list_;
 
@@ -207,9 +205,11 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
+
+  AllocationCounter& allocation_counter_;
 };
 
-STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
+static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 256K. Large object pages may be larger.
@@ -229,7 +229,7 @@ class Page : public MemoryChunk {
        Address area_end, VirtualMemory reservation, Executability executable);
 
   // Returns the page containing a given address. The address ranges
-  // from [page_addr .. page_addr + kPageSize[. This only works if the object
+  // from [page_addr .. page_addr + kPageSize]. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
@@ -288,7 +288,7 @@ class Page : public MemoryChunk {
     }
   }
 
-  size_t AvailableInFreeList();
+  V8_EXPORT_PRIVATE size_t AvailableInFreeList();
 
   size_t AvailableInFreeListFromAllocatedBytes() {
     DCHECK_GE(area_size(), wasted_memory() + allocated_bytes());
@@ -313,7 +313,7 @@ class Page : public MemoryChunk {
   ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
 
   template <RememberedSetType remembered_set>
-  void ClearInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+  void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {
     TypedSlotSet* typed_slot_set = this->typed_slot_set<remembered_set>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->ClearInvalidSlots(ranges);
@@ -321,12 +321,14 @@ class Page : public MemoryChunk {
   }
 
   template <RememberedSetType remembered_set>
-  void AssertNoInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
-    // TODO(dinfuehr): Make this a DCHECK eventually.
+  void AssertNoTypedSlotsInFreeMemory(
+      const TypedSlotSet::FreeRangesMap& ranges) {
+#if DEBUG
     TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->AssertNoInvalidSlots(ranges);
     }
+#endif  // DEBUG
   }
 
  private:
@@ -334,9 +336,9 @@ class Page : public MemoryChunk {
 };
 
 // Validate our estimates on the header size.
-STATIC_ASSERT(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
-STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
-STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
+static_assert(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
+static_assert(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+static_assert(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 // -----------------------------------------------------------------------------
 // Interface for heap object iterator to be implemented by all object space
@@ -355,10 +357,10 @@ class PageIteratorImpl
   explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
   PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
   PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ == p_;
   }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ != p_;
   }
   inline PageIteratorImpl<PAGE_TYPE>& operator++();
@@ -386,6 +388,23 @@ class PageRange {
  private:
   Page* begin_;
   Page* end_;
+};
+
+class ConstPageRange {
+ public:
+  using iterator = ConstPageIterator;
+  ConstPageRange(const Page* begin, const Page* end)
+      : begin_(begin), end_(end) {}
+  explicit ConstPageRange(const Page* page)
+      : ConstPageRange(page, page->next_page()) {}
+  inline ConstPageRange(Address start, Address limit);
+
+  iterator begin() { return iterator(begin_); }
+  iterator end() { return iterator(end_); }
+
+ private:
+  const Page* begin_;
+  const Page* end_;
 };
 
 // -----------------------------------------------------------------------------
@@ -436,6 +455,8 @@ class LocalAllocationBuffer {
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
+      int size_in_bytes);
 
   inline bool IsValid() { return allocation_info_.top() != kNullAddress; }
 
@@ -460,26 +481,59 @@ class LocalAllocationBuffer {
   LinearAllocationArea allocation_info_;
 };
 
+class LinearAreaOriginalData {
+ public:
+  Address get_original_top_acquire() const {
+    return original_top_.load(std::memory_order_acquire);
+  }
+  Address get_original_limit_relaxed() const {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
+
+  void set_original_top_release(Address top) {
+    original_top_.store(top, std::memory_order_release);
+  }
+  void set_original_limit_relaxed(Address limit) {
+    original_limit_.store(limit, std::memory_order_relaxed);
+  }
+
+  base::SharedMutex* linear_area_lock() { return &linear_area_lock_; }
+
+ private:
+  // The top and the limit at the time of setting the linear allocation area.
+  // These values can be accessed by background tasks. Protected by
+  // pending_allocation_mutex_.
+  std::atomic<Address> original_top_ = 0;
+  std::atomic<Address> original_limit_ = 0;
+
+  // Protects original_top_ and original_limit_.
+  base::SharedMutex linear_area_lock_;
+};
+
 class SpaceWithLinearArea : public Space {
  public:
   SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
-                      LinearAllocationArea* allocation_info)
-      : Space(heap, id, free_list), allocation_info_(allocation_info) {}
+                      AllocationCounter& allocation_counter,
+                      LinearAllocationArea& allocation_info,
+                      LinearAreaOriginalData& linear_area_original_data)
+      : Space(heap, id, free_list, allocation_counter),
+        allocation_info_(allocation_info),
+        linear_area_original_data_(linear_area_original_data) {}
 
   virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
-  Address top() const { return allocation_info_->top(); }
-  Address limit() const { return allocation_info_->limit(); }
+  Address top() const { return allocation_info_.top(); }
+  Address limit() const { return allocation_info_.limit(); }
 
   // The allocation top address.
   Address* allocation_top_address() const {
-    return allocation_info_->top_address();
+    return allocation_info_.top_address();
   }
 
   // The allocation limit address.
   Address* allocation_limit_address() const {
-    return allocation_info_->limit_address();
+    return allocation_info_.limit_address();
   }
 
   // Methods needed for allocation observers.
@@ -510,7 +564,7 @@ class SpaceWithLinearArea : public Space {
 
   void DisableInlineAllocation();
   void EnableInlineAllocation();
-  bool IsInlineAllocationEnabled() const { return use_lab_; }
+  bool IsInlineAllocationEnabled() const { return allocation_info_.enabled(); }
 
   void PrintAllocationsOrigins() const;
 
@@ -529,11 +583,29 @@ class SpaceWithLinearArea : public Space {
   AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
                      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
+  base::SharedMutex* linear_area_lock() {
+    return linear_area_original_data_.linear_area_lock();
+  }
+
+  Address original_top_acquire() const {
+    return linear_area_original_data_.get_original_top_acquire();
+  }
+  Address original_limit_relaxed() const {
+    return linear_area_original_data_.get_original_limit_relaxed();
+  }
+
+  void MoveOriginalTopForward() {
+    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
+    DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
+    DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
+    linear_area_original_data_.set_original_top_release(top());
+  }
+
  protected:
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
 
   // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enought to fit the object.
+  // linear allocation area is large enough to fit the object.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
   // Tries to allocate an aligned object from the linear allocation area.
@@ -560,11 +632,11 @@ class SpaceWithLinearArea : public Space {
                                 int* out_max_aligned_size) = 0;
 
 #if DEBUG
-  V8_EXPORT_PRIVATE void VerifyTop() const;
+  V8_EXPORT_PRIVATE virtual void VerifyTop() const;
 #endif  // DEBUG
 
-  LinearAllocationArea* const allocation_info_;
-  bool use_lab_ = true;
+  LinearAllocationArea& allocation_info_;
+  LinearAreaOriginalData& linear_area_original_data_;
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};

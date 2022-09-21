@@ -155,7 +155,7 @@ void ArrayBufferSweeper::RequestSweep(SweepingType type) {
 
   Prepare(type);
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
-      FLAG_concurrent_array_buffer_sweeping) {
+      v8_flags.concurrent_array_buffer_sweeping) {
     auto task = MakeCancelableTask(heap_->isolate(), [this, type] {
       GCTracer::Scope::ScopeId scope_id =
           type == SweepingType::kYoung

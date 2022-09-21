@@ -83,6 +83,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // shuffle should be canonicalized.
   static bool TryMatchBlend(const uint8_t* shuffle);
 
+  // Tries to match a byte shuffle to a packed byte to dword zero extend
+  // operation. E.g. [8 x x x 9 x x x 10 x x x 11 x x x ] (x is arbitrary value
+  // large than 15). The shuffle should be canonicalized. Its second input
+  // should be zero.
+  static bool TryMatchByteToDwordZeroExtend(const uint8_t* shuffle);
+
   // Packs a 4 lane shuffle into a single imm8 suitable for use by pshufd,
   // pshuflw, and pshufhw.
   static uint8_t PackShuffle4(uint8_t* shuffle);

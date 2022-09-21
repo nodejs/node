@@ -10,82 +10,72 @@
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
 
-void ExternalPointerTable::Init(Isolate* isolate) {
-  DCHECK(!is_initialized());
-
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  DCHECK(IsAligned(kExternalPointerTableReservationSize,
-                   root_space->allocation_granularity()));
-  buffer_ = root_space->AllocatePages(
-      VirtualAddressSpace::kNoHint, kExternalPointerTableReservationSize,
-      root_space->allocation_granularity(), PagePermissions::kNoAccess);
-  if (!buffer_) {
-    V8::FatalProcessOutOfMemory(
-        isolate,
-        "Failed to reserve memory for ExternalPointerTable backing buffer");
-  }
-
-  mutex_ = new base::Mutex;
-  if (!mutex_) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Failed to allocate mutex for ExternalPointerTable");
-  }
-
-  // Allocate the initial block. Mutex must be held for that.
-  base::MutexGuard guard(mutex_);
-  Grow();
-
-  // Set up the special null entry. This entry must contain nullptr so that
-  // empty EmbedderDataSlots represent nullptr.
-  STATIC_ASSERT(kNullExternalPointer == 0);
-  store(kNullExternalPointer, kNullAddress);
-}
-
-void ExternalPointerTable::TearDown() {
-  DCHECK(is_initialized());
-
-  GetPlatformVirtualAddressSpace()->FreePages(
-      buffer_, kExternalPointerTableReservationSize);
-  delete mutex_;
-
-  buffer_ = kNullAddress;
-  capacity_ = 0;
-  freelist_head_ = 0;
-  mutex_ = nullptr;
-}
-
-Address ExternalPointerTable::Get(uint32_t index,
+Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTag tag) const {
-  DCHECK_LT(index, capacity_);
-
-  Address entry = load_atomic(index);
-  DCHECK(!is_free(entry));
-
-  return entry & ~tag;
+  uint32_t index = HandleToIndex(handle);
+  Entry entry = RelaxedLoad(index);
+  DCHECK(entry.IsRegularEntry());
+  return entry.Untag(tag);
 }
 
-void ExternalPointerTable::Set(uint32_t index, Address value,
+void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
-  DCHECK_LT(index, capacity_);
-  DCHECK_NE(kNullExternalPointer, index);
+  DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
-  DCHECK(is_marked(tag));
+  DCHECK(tag & kExternalPointerMarkBit);
 
-  store_atomic(index, value | tag);
+  uint32_t index = HandleToIndex(handle);
+  Entry entry = Entry::MakeRegularEntry(value, tag);
+  RelaxedStore(index, entry);
 }
 
-uint32_t ExternalPointerTable::Allocate() {
+Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
+                                       Address value, ExternalPointerTag tag) {
+  DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK_EQ(0, value & kExternalPointerTagMask);
+  DCHECK(tag & kExternalPointerMarkBit);
+
+  uint32_t index = HandleToIndex(handle);
+  Entry new_entry = Entry::MakeRegularEntry(value, tag);
+  Entry old_entry = RelaxedExchange(index, new_entry);
+  DCHECK(old_entry.IsRegularEntry());
+  return old_entry.Untag(tag);
+}
+
+bool ExternalPointerTable::TryAllocateEntryFromFreelist(Freelist freelist) {
+  DCHECK(!freelist.IsEmpty());
+  DCHECK_LT(freelist.Head(), capacity());
+  DCHECK_LT(freelist.Size(), capacity());
+
+  Entry entry = RelaxedLoad(freelist.Head());
+  uint32_t new_freelist_head = entry.ExtractNextFreelistEntry();
+
+  Freelist new_freelist(new_freelist_head, freelist.Size() - 1);
+  bool success = Relaxed_CompareAndSwapFreelist(freelist, new_freelist);
+
+  // When the CAS succeeded, the entry must've been a freelist entry.
+  // Otherwise, this is not guaranteed as another thread may have allocated
+  // the same entry in the meantime.
+  if (success) {
+    DCHECK(entry.IsFreelistEntry());
+    DCHECK_LT(new_freelist.Head(), capacity());
+    DCHECK_LT(new_freelist.Size(), capacity());
+    DCHECK_IMPLIES(freelist.Size() > 1, !new_freelist.IsEmpty());
+    DCHECK_IMPLIES(freelist.Size() == 1, new_freelist.IsEmpty());
+  }
+  return success;
+}
+
+ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
+    Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
 
-  base::Atomic32* freelist_head_ptr =
-      reinterpret_cast<base::Atomic32*>(&freelist_head_);
-
-  uint32_t index;
+  Freelist freelist;
   bool success = false;
   while (!success) {
     // This is essentially DCLP (see
@@ -93,57 +83,137 @@ uint32_t ExternalPointerTable::Allocate() {
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
-    uint32_t freelist_head = base::Acquire_Load(freelist_head_ptr);
-    if (!freelist_head) {
+    freelist = Acquire_GetFreelist();
+    if (freelist.IsEmpty()) {
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
       base::MutexGuard guard(mutex_);
 
       // Reload freelist head in case another thread already grew the table.
-      freelist_head = base::Relaxed_Load(freelist_head_ptr);
+      freelist = Relaxed_GetFreelist();
 
-      if (!freelist_head) {
+      if (freelist.IsEmpty()) {
         // Freelist is (still) empty so grow the table.
-        freelist_head = Grow();
+        freelist = Grow(isolate);
+        // Grow() adds one block to the table and so to the freelist.
+        DCHECK_EQ(freelist.Size(), kEntriesPerBlock);
       }
     }
 
-    DCHECK(freelist_head);
-    DCHECK_LT(freelist_head, capacity_);
-    index = freelist_head;
-
-    // The next free element is stored in the lower 32 bits of the entry.
-    uint32_t new_freelist_head = static_cast<uint32_t>(load_atomic(index));
-
-    uint32_t old_val = base::Relaxed_CompareAndSwap(
-        freelist_head_ptr, freelist_head, new_freelist_head);
-    success = old_val == freelist_head;
+    success = TryAllocateEntryFromFreelist(freelist);
   }
 
-  return index;
+  DCHECK_NE(freelist.Head(), 0);
+  DCHECK_LT(freelist.Head(), capacity());
+
+  uint32_t entry_index = freelist.Head();
+  Entry entry = Entry::MakeRegularEntry(initial_value, tag);
+  RelaxedStore(entry_index, entry);
+
+  return IndexToHandle(entry_index);
 }
 
-void ExternalPointerTable::Mark(uint32_t index) {
-  DCHECK_LT(index, capacity_);
-  STATIC_ASSERT(sizeof(base::Atomic64) == sizeof(Address));
+ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry(
+    uint32_t start_of_evacuation_area) {
+  DCHECK(is_initialized());
+  DCHECK_LT(start_of_evacuation_area, capacity());
 
-  base::Atomic64 old_val = load_atomic(index);
-  DCHECK(!is_free(old_val));
-  base::Atomic64 new_val = set_mark_bit(old_val);
+  Freelist freelist;
+  bool success = false;
+  while (!success) {
+    freelist = Acquire_GetFreelist();
+    // Check that the next free entry is below the start of the evacuation area.
+    if (freelist.IsEmpty() || freelist.Head() >= start_of_evacuation_area)
+      return kNullExternalPointerHandle;
+
+    success = TryAllocateEntryFromFreelist(freelist);
+  }
+
+  DCHECK_NE(freelist.Head(), 0);
+  DCHECK_LT(freelist.Head(), start_of_evacuation_area);
+
+  return IndexToHandle(freelist.Head());
+}
+
+uint32_t ExternalPointerTable::FreelistSize() {
+  Freelist freelist = Relaxed_GetFreelist();
+  DCHECK_LE(freelist.Size(), capacity());
+  return freelist.Size();
+}
+
+void ExternalPointerTable::Mark(ExternalPointerHandle handle,
+                                Address handle_location) {
+  static_assert(sizeof(base::Atomic64) == sizeof(Address));
+  DCHECK_EQ(handle, *reinterpret_cast<ExternalPointerHandle*>(handle_location));
+
+  uint32_t index = HandleToIndex(handle);
+
+  // Check if the entry should be evacuated for table compaction.
+  // The current value of the start of the evacuation area is cached in a local
+  // variable here as it otherwise may be changed by another marking thread
+  // while this method runs, causing non-optimal behaviour (for example, the
+  // allocation of an evacuation entry _after_ the entry that is evacuated).
+  uint32_t current_start_of_evacuation_area = start_of_evacuation_area();
+  if (index >= current_start_of_evacuation_area) {
+    DCHECK(IsCompacting());
+    ExternalPointerHandle new_handle =
+        AllocateEvacuationEntry(current_start_of_evacuation_area);
+    if (new_handle) {
+      DCHECK_LT(HandleToIndex(new_handle), current_start_of_evacuation_area);
+      uint32_t index = HandleToIndex(new_handle);
+      // No need for an atomic store as the entry will only be accessed during
+      // sweeping.
+      Store(index, Entry::MakeEvacuationEntry(handle_location));
+#ifdef DEBUG
+      // Mark the handle as visited in debug builds to detect double
+      // initialization of external pointer fields.
+      auto handle_ptr = reinterpret_cast<base::Atomic32*>(handle_location);
+      base::Relaxed_Store(handle_ptr, handle | kVisitedHandleMarker);
+#endif  // DEBUG
+    } else {
+      // In this case, the application has allocated a sufficiently large
+      // number of entries from the freelist so that new entries would now be
+      // allocated inside the area that is being compacted. While it would be
+      // possible to shrink that area and continue compacting, we probably do
+      // not want to put more pressure on the freelist and so instead simply
+      // abort compaction here. Entries that have already been visited will
+      // still be compacted during Sweep, but there is no guarantee that any
+      // blocks at the end of the table will now be completely free.
+      uint32_t compaction_aborted_marker =
+          current_start_of_evacuation_area | kCompactionAbortedMarker;
+      set_start_of_evacuation_area(compaction_aborted_marker);
+    }
+  }
+  // Even if the entry is marked for evacuation, it still needs to be marked as
+  // alive as it may be visited during sweeping before being evacuation.
+
+  Entry old_entry = RelaxedLoad(index);
+  DCHECK(old_entry.IsRegularEntry());
+
+  Entry new_entry = old_entry;
+  new_entry.SetMarkBit();
 
   // We don't need to perform the CAS in a loop: if the new value is not equal
   // to the old value, then the mutator must've just written a new value into
   // the entry. This in turn must've set the marking bit already (see
   // ExternalPointerTable::Set), so we don't need to do it again.
-  base::Atomic64* ptr = reinterpret_cast<base::Atomic64*>(entry_address(index));
-  base::Atomic64 val = base::Relaxed_CompareAndSwap(ptr, old_val, new_val);
-  DCHECK((val == old_val) || is_marked(val));
-  USE(val);
+  Entry entry = RelaxedCompareAndSwap(index, old_entry, new_entry);
+  DCHECK((entry == old_entry) || entry.IsMarked());
+  USE(entry);
+}
+
+bool ExternalPointerTable::IsCompacting() {
+  return start_of_evacuation_area() != kNotCompactingMarker;
+}
+
+bool ExternalPointerTable::CompactingWasAbortedDuringMarking() {
+  return (start_of_evacuation_area() & kCompactionAbortedMarker) ==
+         kCompactionAbortedMarker;
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_

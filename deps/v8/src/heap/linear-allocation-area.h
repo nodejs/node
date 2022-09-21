@@ -34,7 +34,7 @@ class LinearAllocationArea final {
 
   void ResetStart() { start_ = top_; }
 
-  V8_INLINE bool CanIncrementTop(size_t bytes) {
+  V8_INLINE bool CanIncrementTop(size_t bytes) const {
     Verify();
     return (top_ + bytes) <= limit_;
   }
@@ -102,7 +102,10 @@ class LinearAllocationArea final {
 #endif  // DEBUG
   }
 
-  static constexpr int kSize = 3 * kSystemPointerSize;
+  static constexpr int kSize = 4 * kSystemPointerSize;
+
+  bool enabled() const { return enabled_; }
+  void SetEnabled(bool enabled) { enabled_ = enabled; }
 
  private:
   // The start of the LAB. Initially coincides with `top_`. As top is moved
@@ -113,9 +116,11 @@ class LinearAllocationArea final {
   Address top_ = kNullAddress;
   // Limit of the LAB the denotes the end of the valid range for allocation.
   Address limit_ = kNullAddress;
+
+  bool enabled_ = true;
 };
 
-static_assert(sizeof(LinearAllocationArea) == LinearAllocationArea::kSize,
+static_assert(sizeof(LinearAllocationArea) <= LinearAllocationArea::kSize,
               "LinearAllocationArea's size must be small because it "
               "is included in IsolateData.");
 

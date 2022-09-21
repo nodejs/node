@@ -175,7 +175,7 @@ template <typename Key>
 template <typename Dictionary>
 PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Dictionary dict,
                                                     InternalIndex entry) {
-  STATIC_ASSERT(Dictionary::kEntrySize == 3);
+  static_assert(Dictionary::kEntrySize == 3);
   DCHECK(entry.is_found());
   return PropertyDetails(Smi::cast(dict.get(Dictionary::EntryToIndex(entry) +
                                             Dictionary::kEntryDetailsIndex)));
@@ -186,7 +186,7 @@ template <typename Dictionary>
 void BaseDictionaryShape<Key>::DetailsAtPut(Dictionary dict,
                                             InternalIndex entry,
                                             PropertyDetails value) {
-  STATIC_ASSERT(Dictionary::kEntrySize == 3);
+  static_assert(Dictionary::kEntrySize == 3);
   dict.set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
            value.AsSmi());
 }

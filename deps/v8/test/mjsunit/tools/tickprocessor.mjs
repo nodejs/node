@@ -39,7 +39,7 @@
 // Resources: test/mjsunit/tools/tickprocessor-test.log
 // Resources: test/mjsunit/tools/tickprocessor-test.log.symbols.json
 // Resources: test/mjsunit/tools/tickprocessor-test.only-summary
-// Resources: test/mjsunit/tools/tickprocessor-test.separate-baseline-handlers
+// Resources: test/mjsunit/tools/tickprocessor-test.separate-sparkplug-handlers
 // Resources: test/mjsunit/tools/tickprocessor-test.separate-bytecodes
 // Resources: test/mjsunit/tools/tickprocessor-test.separate-ic
 
@@ -417,9 +417,9 @@ await (async function testProcessing() {
     'SeparateBytecodes': [
       'tickprocessor-test.log', 'tickprocessor-test.separate-bytecodes',
       ['--separate-ic=false', '--separate-bytecodes']],
-    'SeparateBaselineHandlers': [
-      'tickprocessor-test.log', 'tickprocessor-test.separate-baseline-handlers',
-      ['--separate-ic=false', '--separate-baseline-handlers']],
+    'SeparateSparkplugHandlers': [
+      'tickprocessor-test.log', 'tickprocessor-test.separate-sparkplug-handlers',
+      ['--separate-ic=false', '--separate-sparkplug-handlers']],
     'SeparateIc': [
       'tickprocessor-test.log', 'tickprocessor-test.separate-ic',
       ['--separate-ic=true']],

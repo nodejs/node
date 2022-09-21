@@ -17,7 +17,7 @@ namespace test_run_wasm_wrappers {
 
 using testing::CompileAndInstantiateForTesting;
 
-#ifdef V8_TARGET_ARCH_X64
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
 namespace {
 Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
                                          WasmModuleBuilder* builder) {
@@ -67,7 +67,11 @@ void Cleanup() {
 TEST(WrapperBudget) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -113,7 +117,11 @@ TEST(WrapperBudget) {
 TEST(WrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -181,7 +189,11 @@ TEST(WrapperReplacement) {
 TEST(EagerWrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -285,7 +297,11 @@ TEST(EagerWrapperReplacement) {
 TEST(WrapperReplacement_IndirectExport) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
+    FlagScope<bool> use_enable_wasm_arm64_generic_wrapper(
+      &v8_flags.enable_wasm_arm64_generic_wrapper,
+      true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;

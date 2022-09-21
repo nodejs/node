@@ -134,12 +134,12 @@ Local<Object> AsyncHooks::CreateHook(
 
   Local<Object> fn_obj = args[0].As<Object>();
 
-#define SET_HOOK_FN(name)                                                     \
-  Local<Value> name##_v =                                                     \
-      fn_obj->Get(currentContext, String::NewFromUtf8Literal(isolate, #name)) \
-          .ToLocalChecked();                                                  \
-  if (name##_v->IsFunction()) {                                               \
-    wrap->set_##name##_function(name##_v.As<Function>());                     \
+#define SET_HOOK_FN(name)                                                      \
+  MaybeLocal<Value> name##_maybe_func =                                        \
+      fn_obj->Get(currentContext, String::NewFromUtf8Literal(isolate, #name)); \
+  Local<Value> name##_func;                                                    \
+  if (name##_maybe_func.ToLocal(&name##_func) && name##_func->IsFunction()) {  \
+    wrap->set_##name##_function(name##_func.As<Function>());                   \
   }
 
   SET_HOOK_FN(init);

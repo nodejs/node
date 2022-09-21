@@ -25,12 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
-
-#include "src/base/utils/random-number-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -89,14 +87,14 @@ void RandomBitCorrelation(int random_bit) {
 
       // Enter the new random value into the history
       for (int i = ago; i >= 0; i--) {
-        history[i] = bit_cast<uint32_t>(rng->NextInt());
+        history[i] = base::bit_cast<uint32_t>(rng->NextInt());
       }
 
       // Find out how many of the bits are the same as the prediction bit.
       int m = 0;
       for (int i = 0; i < kRepeats; i++) {
         v8::HandleScope scope(isolate);
-        uint32_t random = bit_cast<uint32_t>(rng->NextInt());
+        uint32_t random = base::bit_cast<uint32_t>(rng->NextInt());
         for (int j = ago - 1; j >= 0; j--) history[j + 1] = history[j];
         history[0] = random;
 

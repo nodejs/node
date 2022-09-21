@@ -724,29 +724,25 @@ class MinidumpReader(object):
     disasm.OBJDUMP_BIN = objdump_bin
 
   def _FindThirdPartyObjdump(self):
-    # Try to find the platform specific objdump
-    third_party_dir = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), 'third_party')
-    objdumps = []
-    for root, dirs, files in os.walk(third_party_dir):
-      for file in files:
-        if file.endswith("objdump"):
-          objdumps.append(os.path.join(root, file))
+    # Try to find the platform specific objdump.
     if self.arch == MD_CPU_ARCHITECTURE_ARM:
       platform_filter = 'arm-linux'
     elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
       platform_filter = 'aarch64'
     else:
-      # use default otherwise
+      # Use default otherwise.
       return None
     print(("# Looking for platform specific (%s) objdump in "
            "third_party directory.") % platform_filter)
-    objdumps = list(filter(lambda file: platform_filter in file >= 0, objdumps))
-    if len(objdumps) == 0:
-      print("# Could not find platform specific objdump in third_party.")
-      print("# Make sure you installed the correct SDK.")
-      return None
-    return objdumps[0]
+    third_party_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), 'third_party')
+    for root, dirs, files in os.walk(third_party_dir):
+      for file in files:
+        if file.endswith("objdump") and platform_filter in file:
+          return os.path.join(root, file)
+    print("# Could not find platform specific objdump in third_party.")
+    print("# Make sure you installed the correct SDK.")
+    return None
 
   def ContextDescriptor(self):
     if self.arch == MD_CPU_ARCHITECTURE_X86:

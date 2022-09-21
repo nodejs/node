@@ -31,16 +31,16 @@ namespace internal {
   V(ArrayNoArgumentConstructor)                      \
   V(ArraySingleArgumentConstructor)                  \
   V(AsyncFunctionStackParameter)                     \
+  V(BaselineLeaveFrame)                              \
+  V(BaselineOutOfLinePrologue)                       \
   V(BigIntToI32Pair)                                 \
   V(BigIntToI64)                                     \
   V(BinaryOp)                                        \
   V(BinaryOp_Baseline)                               \
-  V(BinarySmiOp_Baseline)                            \
   V(BinaryOp_WithFeedback)                           \
+  V(BinarySmiOp_Baseline)                            \
   V(CallForwardVarargs)                              \
   V(CallFunctionTemplate)                            \
-  V(CopyDataPropertiesWithExcludedProperties)        \
-  V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CallTrampoline)                                  \
   V(CallTrampoline_Baseline)                         \
   V(CallTrampoline_Baseline_Compact)                 \
@@ -57,19 +57,22 @@ namespace internal {
   V(Compare)                                         \
   V(Compare_Baseline)                                \
   V(Compare_WithFeedback)                            \
+  V(Construct_Baseline)                              \
   V(ConstructForwardVarargs)                         \
   V(ConstructStub)                                   \
   V(ConstructVarargs)                                \
   V(ConstructWithArrayLike)                          \
   V(ConstructWithArrayLike_WithFeedback)             \
   V(Construct_WithFeedback)                          \
-  V(Construct_Baseline)                              \
   V(ConstructWithSpread)                             \
   V(ConstructWithSpread_Baseline)                    \
   V(ConstructWithSpread_WithFeedback)                \
   V(ContextOnly)                                     \
+  V(CopyDataPropertiesWithExcludedProperties)        \
+  V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
   V(FastNewObject)                                   \
+  V(FindNonDefaultConstructor)                       \
   V(ForInPrepare)                                    \
   V(GetIteratorStackParameter)                       \
   V(GetProperty)                                     \
@@ -82,8 +85,11 @@ namespace internal {
   V(InterpreterPushArgsThenCall)                     \
   V(InterpreterPushArgsThenConstruct)                \
   V(JSTrampoline)                                    \
-  V(BaselineOutOfLinePrologue)                       \
-  V(BaselineLeaveFrame)                              \
+  V(KeyedHasICBaseline)                              \
+  V(KeyedHasICWithVector)                            \
+  V(KeyedLoad)                                       \
+  V(KeyedLoadBaseline)                               \
+  V(KeyedLoadWithVector)                             \
   V(Load)                                            \
   V(LoadBaseline)                                    \
   V(LoadGlobal)                                      \
@@ -91,18 +97,16 @@ namespace internal {
   V(LoadGlobalNoFeedback)                            \
   V(LoadGlobalWithVector)                            \
   V(LoadNoFeedback)                                  \
-  V(LoadWithVector)                                  \
-  V(KeyedLoad)                                       \
-  V(KeyedLoadBaseline)                               \
-  V(KeyedLoadWithVector)                             \
-  V(KeyedHasICBaseline)                              \
-  V(KeyedHasICWithVector)                            \
   V(LoadWithReceiverAndVector)                       \
   V(LoadWithReceiverBaseline)                        \
+  V(LoadWithVector)                                  \
+  V(LookupTrampoline)                                \
   V(LookupBaseline)                                  \
+  V(NewHeapNumber)                                   \
   V(NoContext)                                       \
+  V(OnStackReplacement)                              \
+  V(RestartFrameTrampoline)                          \
   V(ResumeGenerator)                                 \
-  V(SuspendGeneratorBaseline)                        \
   V(ResumeGeneratorBaseline)                         \
   V(RunMicrotasks)                                   \
   V(RunMicrotasksEntry)                              \
@@ -116,11 +120,10 @@ namespace internal {
   V(StoreWithVector)                                 \
   V(StringAtAsString)                                \
   V(StringSubstring)                                 \
-  IF_TSAN(V, TSANStore)                              \
-  IF_TSAN(V, TSANLoad)                               \
+  V(SuspendGeneratorBaseline)                        \
   V(TypeConversion)                                  \
-  V(TypeConversionNoContext)                         \
   V(TypeConversion_Baseline)                         \
+  V(TypeConversionNoContext)                         \
   V(Typeof)                                          \
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
@@ -131,6 +134,8 @@ namespace internal {
   V(WasmI64AtomicWait32)                             \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
+  IF_TSAN(V, TSANLoad)                               \
+  IF_TSAN(V, TSANStore)                              \
   BUILTIN_LIST_TFS(V)                                \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -304,7 +309,7 @@ constexpr int kMaxTFSBuiltinRegisterParams = 3;
 constexpr int kMaxBuiltinRegisterParams = 5;
 constexpr int kMaxTFSBuiltinRegisterParams = kMaxBuiltinRegisterParams;
 #endif
-STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
+static_assert(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
 constexpr int kJSBuiltinRegisterParams = 4;
 
 // Polymorphic base class for call interface descriptors, which defines getters
@@ -477,6 +482,10 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline int GetStackParameterCount();
   static constexpr inline Register* GetRegisterData();
   static constexpr inline Register GetRegisterParameter(int i);
+
+  // Interface descriptors don't really support double registers.
+  // This reinterprets the i-th register as a double with the same code.
+  static constexpr inline DoubleRegister GetDoubleRegisterParameter(int i);
 
   explicit StaticCallInterfaceDescriptor(CallDescriptors::Key key)
       : CallInterfaceDescriptor(key) {}
@@ -675,11 +684,8 @@ class V8_EXPORT_PRIVATE VoidDescriptor
   static constexpr auto registers();
 };
 
-// Dummy descriptor used to mark builtins that don't yet have their proper
-// descriptor associated.
-using DummyDescriptor = VoidDescriptor;
-
 // Dummy descriptor that marks builtins with C calling convention.
+// TODO(jgruber): Define real descriptors for C calling conventions.
 using CCallDescriptor = VoidDescriptor;
 
 // Marks deoptimization entry builtins. Precise calling conventions currently
@@ -687,6 +693,22 @@ using CCallDescriptor = VoidDescriptor;
 // TODO(jgruber): Once this is unified, we could create a better description
 // here.
 using DeoptimizationEntryDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using JSEntryDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using CEntryDummyDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using ContinueToBuiltinDescriptor = VoidDescriptor;
+
+// TODO(wasm): Consider filling in details / defining real descriptors for all
+// builtins still using this placeholder descriptor.
+using WasmDummyDescriptor = VoidDescriptor;
 
 class AllocateDescriptor
     : public StaticCallInterfaceDescriptor<AllocateDescriptor> {
@@ -697,6 +719,20 @@ class AllocateDescriptor
   DECLARE_DESCRIPTOR(AllocateDescriptor)
 
   static constexpr auto registers();
+};
+
+class NewHeapNumberDescriptor
+    : public StaticCallInterfaceDescriptor<NewHeapNumberDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // Result
+                                    MachineType::Float64())        // kValue
+  DECLARE_DESCRIPTOR(NewHeapNumberDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
 };
 
 // This descriptor defines the JavaScript calling convention that can be used
@@ -808,6 +844,16 @@ class LoadGlobalBaselineDescriptor
   DECLARE_DESCRIPTOR(LoadGlobalBaselineDescriptor)
 
   static constexpr auto registers();
+};
+
+class LookupTrampolineDescriptor
+    : public StaticCallInterfaceDescriptor<LookupTrampolineDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kName, kDepth, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kDepth
+                         MachineType::AnyTagged())  // kSlot
+  DECLARE_DESCRIPTOR(LookupTrampolineDescriptor)
 };
 
 class LookupBaselineDescriptor
@@ -1427,9 +1473,8 @@ class ConstructWithArrayLike_WithFeedbackDescriptor
 class ConstructStubDescriptor
     : public StaticCallInterfaceDescriptor<ConstructStubDescriptor> {
  public:
-  // TODO(jgruber): Remove the unused allocation site parameter.
-  DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
+  DEFINE_JS_PARAMETERS()
+  DEFINE_JS_PARAMETER_TYPES()
 
   // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
   DECLARE_DESCRIPTOR(ConstructStubDescriptor)
@@ -1688,6 +1733,18 @@ class BaselineLeaveFrameDescriptor
   static constexpr inline auto registers();
 };
 
+class OnStackReplacementDescriptor
+    : public StaticCallInterfaceDescriptor<OnStackReplacementDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kMaybeTargetCode)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
+  DECLARE_DESCRIPTOR(OnStackReplacementDescriptor)
+
+  static constexpr inline Register MaybeTargetCodeRegister();
+
+  static constexpr inline auto registers();
+};
+
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor
     : public StaticCallInterfaceDescriptor<InterpreterDispatchDescriptor> {
  public:
@@ -1760,6 +1817,19 @@ class InterpreterCEntry2Descriptor
   static constexpr auto registers();
 };
 
+class FindNonDefaultConstructorDescriptor
+    : public StaticCallInterfaceDescriptor<
+          FindNonDefaultConstructorDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(2, kThisFunction, kNewTarget)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::AnyTagged(),  // result 1 (true / false)
+      MachineType::AnyTagged(),  // result 2 (constructor_or_instance)
+      MachineType::AnyTagged(),  // kThisFunction
+      MachineType::AnyTagged())  // kNewTarget
+  DECLARE_DESCRIPTOR(FindNonDefaultConstructorDescriptor)
+};
+
 class ForInPrepareDescriptor
     : public StaticCallInterfaceDescriptor<ForInPrepareDescriptor> {
  public:
@@ -1807,6 +1877,13 @@ class SuspendGeneratorBaselineDescriptor final
                          MachineType::IntPtr(),     // kRegisterCount
   )
   DECLARE_DESCRIPTOR(SuspendGeneratorBaselineDescriptor)
+};
+
+class RestartFrameTrampolineDescriptor final
+    : public StaticCallInterfaceDescriptor<RestartFrameTrampolineDescriptor> {
+ public:
+  DEFINE_PARAMETERS()
+  DECLARE_DESCRIPTOR(RestartFrameTrampolineDescriptor)
 };
 
 class RunMicrotasksEntryDescriptor final

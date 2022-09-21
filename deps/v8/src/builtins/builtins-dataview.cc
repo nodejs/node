@@ -102,32 +102,25 @@ BUILTIN(DataViewConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSDataView> data_view = Handle<JSDataView>::cast(result);
-  for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
-    // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
-    data_view->SetEmbedderField(i, Smi::zero());
+
+  {
+    // Must fully initialize the JSDAtaView here so that it passes ObjectVerify,
+    // which may for example be triggered when allocating error objects below.
+    DisallowGarbageCollection no_gc;
+    JSDataView raw = *data_view;
+    for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+      // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
+      raw.SetEmbedderField(i, Smi::zero());
+    }
+    raw.set_bit_field(0);
+    raw.set_is_backed_by_rab(array_buffer->is_resizable() &&
+                             !array_buffer->is_shared());
+    raw.set_is_length_tracking(length_tracking);
+    raw.set_byte_length(0);
+    raw.set_byte_offset(0);
+    raw.set_data_pointer(isolate, array_buffer->backing_store());
+    raw.set_buffer(*array_buffer);
   }
-  data_view->set_bit_field(0);
-  data_view->set_is_backed_by_rab(array_buffer->is_resizable() &&
-                                  !array_buffer->is_shared());
-  data_view->set_is_length_tracking(length_tracking);
-
-  // We have to set the internal slots before the checks on steps 13 - 17 or
-  // the TorqueGeneratedClassVerifier ended up complaining that the slot is
-  // empty or invalid on heap teardown.
-  // The result object is not observable from JavaScript when steps 13 - 17
-  // early abort so it is fine to set internal slots here.
-
-  // 18. Set O.[[ViewedArrayBuffer]] to buffer.
-  data_view->set_buffer(*array_buffer);
-
-  // 19. Set O.[[ByteLength]] to viewByteLength.
-  data_view->set_byte_length(length_tracking ? 0 : view_byte_length);
-
-  // 20. Set O.[[ByteOffset]] to offset.
-  data_view->set_byte_offset(view_byte_offset);
-  data_view->set_data_pointer(
-      isolate,
-      static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);
 
   // 13. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   if (array_buffer->was_detached()) {
@@ -156,6 +149,18 @@ BUILTIN(DataViewConstructor) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
   }
+
+  // 18. Set O.[[ViewedArrayBuffer]] to buffer.
+  // Already done during initialization of the JSDataView above.
+
+  // 19. Set O.[[ByteLength]] to viewByteLength.
+  data_view->set_byte_length(length_tracking ? 0 : view_byte_length);
+
+  // 20. Set O.[[ByteOffset]] to offset.
+  data_view->set_byte_offset(view_byte_offset);
+  data_view->set_data_pointer(
+      isolate,
+      static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);
 
   // 21. Return O.
   return *result;

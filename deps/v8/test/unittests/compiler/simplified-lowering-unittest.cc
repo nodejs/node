@@ -83,7 +83,7 @@ const int kSmiValues[] = {Smi::kMinValue,
 TEST_F(SimplifiedLoweringTest, SmiConstantToIntPtrConstant) {
   TRACED_FOREACH(int, x, kSmiValues) {
     LowerGraph(jsgraph()->Constant(x));
-    intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(x));
+    intptr_t smi = base::bit_cast<intptr_t>(Smi::FromInt(x));
     EXPECT_THAT(graph()->end()->InputAt(1),
                 IsReturn(IsIntPtrConstant(smi), start(), start()));
   }

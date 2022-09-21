@@ -300,7 +300,7 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   // Enforce asm.js spec minimum size.
   if (size < (1u << 12u)) return false;
   // Enforce engine-limited and flag-limited maximum allocation size.
-  if (size > wasm::max_mem_bytes()) return false;
+  if (size > wasm::max_mem32_bytes()) return false;
   // Enforce power-of-2 sizes for 2^12 - 2^24.
   if (size < (1u << 24u)) {
     uint32_t size32 = static_cast<uint32_t>(size);

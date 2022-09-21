@@ -31,11 +31,13 @@ struct CompactableGCed : public GarbageCollected<CompactableGCed> {
  public:
   ~CompactableGCed() { ++g_destructor_callcount; }
   void Trace(Visitor* visitor) const {
-    visitor->Trace(other);
-    visitor->RegisterMovableReference(other.GetSlotForTesting());
+    VisitorBase::TraceRawForTesting(visitor,
+                                    const_cast<const CompactableGCed*>(other));
+    visitor->RegisterMovableReference(
+        const_cast<const CompactableGCed**>(&other));
   }
   static size_t g_destructor_callcount;
-  Member<CompactableGCed> other;
+  CompactableGCed* other = nullptr;
   size_t id = 0;
 };
 // static
@@ -52,11 +54,13 @@ struct CompactableHolder
 
   void Trace(Visitor* visitor) const {
     for (int i = 0; i < kNumObjects; ++i) {
-      visitor->Trace(objects[i]);
-      visitor->RegisterMovableReference(objects[i].GetSlotForTesting());
+      VisitorBase::TraceRawForTesting(
+          visitor, const_cast<const CompactableGCed*>(objects[i]));
+      visitor->RegisterMovableReference(
+          const_cast<const CompactableGCed**>(&objects[i]));
     }
   }
-  Member<CompactableGCed> objects[kNumObjects];
+  CompactableGCed* objects[kNumObjects]{};
 };
 
 class CompactorTest : public testing::TestWithPlatform {
@@ -122,10 +126,12 @@ TEST_F(CompactorTest, NothingToCompact) {
   StartCompaction();
   heap()->stats_collector()->NotifyMarkingStarted(
       GarbageCollector::Config::CollectionType::kMajor,
+      GarbageCollector::Config::MarkingType::kAtomic,
       GarbageCollector::Config::IsForcedGC::kNotForced);
   heap()->stats_collector()->NotifyMarkingCompleted(0);
   FinishCompaction();
-  heap()->stats_collector()->NotifySweepingCompleted();
+  heap()->stats_collector()->NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
 }
 
 TEST_F(CompactorTest, NonEmptySpaceAllLive) {
@@ -195,7 +201,7 @@ TEST_F(CompactorTest, CompactAcrossPages) {
   // Last allocated object should be on a new page.
   EXPECT_NE(reference, holder->objects[0]);
   EXPECT_NE(BasePage::FromInnerAddress(heap(), reference),
-            BasePage::FromInnerAddress(heap(), holder->objects[0].Get()));
+            BasePage::FromInnerAddress(heap(), holder->objects[0]));
   StartGC();
   EndGC();
   // Half of object were destroyed.

@@ -12,8 +12,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -628,7 +628,8 @@ WASM_EXEC_TEST(F32UConvertI64) {
   WasmRunner<float, uint64_t> r(execution_tier);
   BUILD(r, WASM_F32_UCONVERT_I64(WASM_LOCAL_GET(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(bit_cast<float>(values[i].expected), r.Call(values[i].input));
+    CHECK_EQ(base::bit_cast<float>(values[i].expected),
+             r.Call(values[i].input));
   }
 }
 
@@ -720,7 +721,8 @@ WASM_EXEC_TEST(F64UConvertI64) {
   WasmRunner<double, uint64_t> r(execution_tier);
   BUILD(r, WASM_F64_UCONVERT_I64(WASM_LOCAL_GET(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(bit_cast<double>(values[i].expected), r.Call(values[i].input));
+    CHECK_EQ(base::bit_cast<double>(values[i].expected),
+             r.Call(values[i].input));
   }
 }
 
@@ -1219,7 +1221,6 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
     }
   }
 }
-
 
 WASM_EXEC_TEST(I64ReinterpretF64) {
   WasmRunner<int64_t> r(execution_tier);

@@ -21,27 +21,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
-// static
-bool Foreign::IsNormalized(Object value) {
-  if (value == Smi::zero()) return true;
-  return Foreign::cast(value).foreign_address() != kNullAddress;
-}
-
-DEF_GETTER(Foreign, foreign_address, Address) {
-  Isolate* isolate = GetIsolateForSandbox(*this);
-  return ReadExternalPointerField(kForeignAddressOffset, isolate,
-                                  kForeignForeignAddressTag);
-}
-
-void Foreign::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kForeignAddressOffset, isolate,
-                           kForeignForeignAddressTag);
-}
-
-void Foreign::set_foreign_address(Isolate* isolate, Address value) {
-  WriteExternalPointerField(kForeignAddressOffset, isolate, value,
-                            kForeignForeignAddressTag);
-}
+EXTERNAL_POINTER_ACCESSORS(Foreign, foreign_address, Address,
+                           kForeignAddressOffset, kForeignForeignAddressTag)
 
 }  // namespace internal
 }  // namespace v8

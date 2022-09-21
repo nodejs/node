@@ -16,16 +16,16 @@ namespace internal {
 
 bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, RegExpFlags flags,
                                       int capture_count) {
-  DCHECK(FLAG_enable_experimental_regexp_engine ||
-         FLAG_enable_experimental_regexp_engine_on_excessive_backtracks);
+  DCHECK(v8_flags.enable_experimental_regexp_engine ||
+         v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
   return ExperimentalRegExpCompiler::CanBeHandled(tree, flags, capture_count);
 }
 
 void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,
                                     Handle<String> source, RegExpFlags flags,
                                     int capture_count) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
-  if (FLAG_trace_experimental_regexp_engine) {
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
+  if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Initializing experimental regexp " << *source
                    << std::endl;
   }
@@ -35,7 +35,7 @@ void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,
 }
 
 bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   re->JSRegExpVerify(isolate);
@@ -47,7 +47,7 @@ bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
 
 template <class T>
 Handle<ByteArray> VectorToByteArray(Isolate* isolate, base::Vector<T> data) {
-  STATIC_ASSERT(std::is_trivial<T>::value);
+  static_assert(std::is_trivial<T>::value);
 
   int byte_length = sizeof(T) * data.length();
   Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(byte_length);
@@ -99,14 +99,14 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 }  // namespace
 
 bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   re->JSRegExpVerify(isolate);
 #endif
 
   Handle<String> source(re->source(), isolate);
-  if (FLAG_trace_experimental_regexp_engine) {
+  if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Compiling experimental regexp " << *source << std::endl;
   }
 
@@ -165,10 +165,10 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
                                     int32_t* output_registers,
                                     int32_t output_register_count,
                                     int32_t subject_index) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
   DisallowGarbageCollection no_gc;
 
-  if (FLAG_trace_experimental_regexp_engine) {
+  if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Executing experimental regexp " << regexp.source()
                    << std::endl;
   }
@@ -185,7 +185,7 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
     Address subject, int32_t start_position, Address input_start,
     Address input_end, int* output_registers, int32_t output_register_count,
     RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);
   DCHECK(call_origin == RegExp::CallOrigin::kFromJs);
@@ -207,7 +207,7 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
     int subject_index, Handle<RegExpMatchInfo> last_match_info,
     RegExp::ExecQuirks exec_quirks) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(regexp->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   regexp->JSRegExpVerify(isolate);
@@ -262,9 +262,9 @@ int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
                                            int32_t* output_registers,
                                            int32_t output_register_count,
                                            int32_t subject_index) {
-  DCHECK(FLAG_enable_experimental_regexp_engine_on_excessive_backtracks);
+  DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
 
-  if (FLAG_trace_experimental_regexp_engine) {
+  if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Experimental execution (oneshot) of regexp "
                    << regexp->source() << std::endl;
   }
@@ -284,7 +284,7 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
     int subject_index, Handle<RegExpMatchInfo> last_match_info,
     RegExp::ExecQuirks exec_quirks) {
-  DCHECK(FLAG_enable_experimental_regexp_engine_on_excessive_backtracks);
+  DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
   DCHECK_NE(regexp->type_tag(), JSRegExp::NOT_COMPILED);
 
   int capture_count = regexp->capture_count();

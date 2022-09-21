@@ -7,7 +7,6 @@
 #include "src/base/small-vector.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
 #include "src/heap/factory-inl.h"
 

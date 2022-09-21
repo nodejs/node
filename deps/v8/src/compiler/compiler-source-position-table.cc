@@ -32,11 +32,16 @@ SourcePositionTable::SourcePositionTable(Graph* graph)
 
 void SourcePositionTable::AddDecorator() {
   DCHECK_NULL(decorator_);
+  if (!enabled_) return;
   decorator_ = graph_->zone()->New<Decorator>(this);
   graph_->AddDecorator(decorator_);
 }
 
 void SourcePositionTable::RemoveDecorator() {
+  if (!enabled_) {
+    DCHECK_NULL(decorator_);
+    return;
+  }
   DCHECK_NOT_NULL(decorator_);
   graph_->RemoveDecorator(decorator_);
   decorator_ = nullptr;
@@ -45,9 +50,13 @@ void SourcePositionTable::RemoveDecorator() {
 SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
 }
+SourcePosition SourcePositionTable::GetSourcePosition(NodeId id) const {
+  return table_.Get(id);
+}
 
 void SourcePositionTable::SetSourcePosition(Node* node,
                                             SourcePosition position) {
+  DCHECK(IsEnabled());
   table_.Set(node, position);
 }
 

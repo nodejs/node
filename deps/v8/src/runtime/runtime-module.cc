@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/execution/arguments-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/js-promise.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/source-text-module.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -57,6 +54,18 @@ RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   Handle<SourceTextModule> module(isolate->context().module(), isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            SourceTextModule::GetImportMeta(isolate, module));
+}
+
+RUNTIME_FUNCTION(Runtime_GetModuleNamespaceExport) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<JSModuleNamespace> module_namespace = args.at<JSModuleNamespace>(0);
+  Handle<String> name = args.at<String>(1);
+  if (!module_namespace->HasExport(isolate, name)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, module_namespace->GetExport(isolate, name));
 }
 
 }  // namespace internal

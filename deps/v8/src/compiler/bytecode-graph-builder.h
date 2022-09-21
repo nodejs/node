@@ -6,9 +6,7 @@
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
 #include "src/compiler/js-operator.h"
-#include "src/compiler/js-type-hint-lowering.h"
 #include "src/compiler/node-observer.h"
-#include "src/handles/handles.h"
 #include "src/objects/code-kind.h"
 #include "src/utils/utils.h"
 
@@ -28,6 +26,7 @@ namespace compiler {
 class JSGraph;
 class NodeObserver;
 class SourcePositionTable;
+class NodeOriginTable;
 
 enum class BytecodeGraphBuilderFlag : uint8_t {
   kSkipFirstStackAndTierupCheck = 1 << 0,
@@ -47,8 +46,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BytecodeOffset osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            int inlining_id, CodeKind code_kind,
-                            BytecodeGraphBuilderFlags flags,
+                            NodeOriginTable* node_origins, int inlining_id,
+                            CodeKind code_kind, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter,
                             ObserveNodeInfo const& observe_node_info = {});
 

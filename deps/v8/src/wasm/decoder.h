@@ -17,23 +17,22 @@
 #include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/codegen/signature.h"
 #include "src/flags/flags.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
-#define TRACE_IF(cond, ...)                                     \
-  do {                                                          \
-    if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
+#define TRACE_IF(cond, ...)                                         \
+  do {                                                              \
+    if (v8_flags.trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
   } while (false)
 
 // A {DecodeResult} only stores the failure / success status, but no data.
@@ -154,44 +153,65 @@ class Decoder {
     // Prefixed opcodes all use LEB128 encoding.
     index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
     *length += 1;  // Prefix byte.
-    // Only support opcodes that go up to 0xFF (when decoded). Anything
-    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-    if (validate && V8_UNLIKELY(index > 0xff)) {
+    // Only support opcodes that go up to 0xFFF (when decoded). Anything
+    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xfff)) {
       errorf(pc, "Invalid prefixed opcode %d", index);
       // If size validation fails.
       index = 0;
       *length = 0;
     }
 
+    if (index > 0xff) return static_cast<WasmOpcode>((*pc) << 12 | index);
+
     return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
   uint8_t consume_u8(const char* name = "uint8_t") {
-    return consume_little_endian<uint8_t>(name);
+    return consume_little_endian<uint8_t, kTrace>(name);
+  }
+  template <class Tracer>
+  uint8_t consume_u8(const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, sizeof(uint8_t));
+    tracer.Description(name);
+    return consume_little_endian<uint8_t, kNoTrace>(name);
   }
 
   // Reads a 16-bit unsigned integer (little endian) and advances {pc_}.
   uint16_t consume_u16(const char* name = "uint16_t") {
-    return consume_little_endian<uint16_t>(name);
+    return consume_little_endian<uint16_t, kTrace>(name);
   }
 
   // Reads a single 32-bit unsigned integer (little endian) and advances {pc_}.
-  uint32_t consume_u32(const char* name = "uint32_t") {
-    return consume_little_endian<uint32_t>(name);
+  template <class Tracer>
+  uint32_t consume_u32(const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, sizeof(uint32_t));
+    tracer.Description(name);
+    return consume_little_endian<uint32_t, kNoTrace>(name);
   }
 
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(const char* name = nullptr) {
+  uint32_t consume_u32v(const char* name = "var_uint32") {
     uint32_t length = 0;
     uint32_t result =
         read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
     pc_ += length;
     return result;
   }
+  template <class Tracer>
+  uint32_t consume_u32v(const char* name, Tracer& tracer) {
+    uint32_t length = 0;
+    uint32_t result =
+        read_leb<uint32_t, kFullValidation, kNoTrace>(pc_, &length, name);
+    tracer.Bytes(pc_, length);
+    tracer.Description(name);
+    pc_ += length;
+    return result;
+  }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
-  int32_t consume_i32v(const char* name = nullptr) {
+  int32_t consume_i32v(const char* name = "var_int32") {
     uint32_t length = 0;
     int32_t result =
         read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -200,16 +220,19 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
-  uint64_t consume_u64v(const char* name = nullptr) {
+  template <class Tracer>
+  uint64_t consume_u64v(const char* name, Tracer& tracer) {
     uint32_t length = 0;
     uint64_t result =
-        read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
+        read_leb<uint64_t, kFullValidation, kNoTrace>(pc_, &length, name);
+    tracer.Bytes(pc_, length);
+    tracer.Description(name);
     pc_ += length;
     return result;
   }
 
   // Reads a LEB128 variable-length signed 64-bit integer and advances {pc_}.
-  int64_t consume_i64v(const char* name = nullptr) {
+  int64_t consume_i64v(const char* name = "var_int64") {
     uint32_t length = 0;
     int64_t result =
         read_leb<int64_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -226,6 +249,12 @@ class Decoder {
     } else {
       pc_ = end_;
     }
+  }
+  template <class Tracer>
+  void consume_bytes(uint32_t size, const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, size);
+    tracer.Description(name);
+    consume_bytes(size, nullptr);
   }
 
   // Check that at least {size} bytes exist between {pc_} and {end_}.
@@ -295,13 +324,13 @@ class Decoder {
   }
 
   // Converts the given value to a {Result}, copying the error if necessary.
-  template <typename T, typename U = typename std::remove_reference<T>::type>
-  Result<U> toResult(T&& val) {
+  template <typename T, typename R = std::decay_t<T>>
+  Result<R> toResult(T&& val) {
     if (failed()) {
       TRACE("Result error: %s\n", error_.message().c_str());
-      return Result<U>{error_};
+      return Result<R>{error_};
     }
-    return Result<U>{std::forward<T>(val)};
+    return Result<R>{std::forward<T>(val)};
   }
 
   // Resets the boundaries of this decoder.
@@ -382,9 +411,9 @@ class Decoder {
     return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
-  template <typename IntType>
+  template <typename IntType, TraceFlag trace>
   IntType consume_little_endian(const char* name) {
-    TRACE("  +%u  %-20s: ", pc_offset(), name);
+    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
     if (!checkAvailable(sizeof(IntType))) {
       traceOffEnd();
       pc_ = end_;
@@ -392,7 +421,7 @@ class Decoder {
     }
     IntType val = read_little_endian<IntType, kNoValidation>(pc_, name);
     traceByteRange(pc_, pc_ + sizeof(IntType));
-    TRACE("= %d\n", val);
+    TRACE_IF(trace, "= %d\n", val);
     pc_ += sizeof(IntType);
     return val;
   }

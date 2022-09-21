@@ -47,7 +47,7 @@ Address ObjectView<access_mode>::Start() const {
 template <AccessMode access_mode>
 ConstAddress ObjectView<access_mode>::End() const {
   return is_large_object_ ? LargePage::From(base_page_)->PayloadEnd()
-                          : header_.ObjectEnd();
+                          : header_.ObjectEnd<access_mode>();
 }
 
 template <AccessMode access_mode>

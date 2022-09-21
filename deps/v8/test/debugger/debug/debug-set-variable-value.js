@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noalways-opt
+// Flags: --noalways-turbofan
 
-// Flags: --no-always-opt
+// Flags: --no-always-turbofan
 
 var Debug = debug.Debug;
 

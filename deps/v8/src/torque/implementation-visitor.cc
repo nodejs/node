@@ -3884,7 +3884,7 @@ void ImplementationVisitor::GenerateBitFields(
 
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
       bool all_single_bits = true;  // Track whether every field is one bit.
-
+      header << "// " << type->GetPosition() << "\n";
       header << "#define DEFINE_TORQUE_GENERATED_"
              << CapifyStringWithUnderscores(type->name()) << "() \\\n";
       std::string type_name = type->GetConstexprGeneratedTypeName();
@@ -4286,7 +4286,7 @@ void CppClassGenerator::GenerateClassCasts() {
   // V8_INLINE static D unchecked_cast(Object)
   f.SetName("unchecked_cast");
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "    return bit_cast<D>(object);\n";
+    stream << "    return base::bit_cast<D>(object);\n";
   });
 }
 

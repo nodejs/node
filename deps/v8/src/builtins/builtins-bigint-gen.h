@@ -29,7 +29,7 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
 
   void WriteBigIntSignAndLength(TNode<BigInt> bigint, TNode<Uint32T> sign,
                                 TNode<IntPtrT> length) {
-    STATIC_ASSERT(BigIntBase::SignBits::kShift == 0);
+    static_assert(BigIntBase::SignBits::kShift == 0);
     TNode<Uint32T> bitfield = Unsigned(
         Word32Or(Word32Shl(TruncateIntPtrToInt32(length),
                            Int32Constant(BigIntBase::LengthBits::kShift)),
@@ -57,6 +57,73 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
             ExternalReference::
                 mutable_big_int_absolute_sub_and_canonicalize_function());
     CallCFunction(mutable_big_int_absolute_sub_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  TNode<BoolT> CppAbsoluteMulAndCanonicalize(TNode<BigInt> result,
+                                             TNode<BigInt> x, TNode<BigInt> y) {
+    TNode<ExternalReference> mutable_big_int_absolute_mul_and_canonicalize =
+        ExternalConstant(
+            ExternalReference::
+                mutable_big_int_absolute_mul_and_canonicalize_function());
+    TNode<BoolT> success = UncheckedCast<BoolT>(CallCFunction(
+        mutable_big_int_absolute_mul_and_canonicalize, MachineType::Bool(),
+        std::make_pair(MachineType::AnyTagged(), result),
+        std::make_pair(MachineType::AnyTagged(), x),
+        std::make_pair(MachineType::AnyTagged(), y)));
+    return success;
+  }
+
+  TNode<BoolT> CppAbsoluteDivAndCanonicalize(TNode<BigInt> result,
+                                             TNode<BigInt> x, TNode<BigInt> y) {
+    TNode<ExternalReference> mutable_big_int_absolute_div_and_canonicalize =
+        ExternalConstant(
+            ExternalReference::
+                mutable_big_int_absolute_div_and_canonicalize_function());
+    TNode<BoolT> success = UncheckedCast<BoolT>(CallCFunction(
+        mutable_big_int_absolute_div_and_canonicalize, MachineType::Bool(),
+        std::make_pair(MachineType::AnyTagged(), result),
+        std::make_pair(MachineType::AnyTagged(), x),
+        std::make_pair(MachineType::AnyTagged(), y)));
+    return success;
+  }
+
+  void CppBitwiseAndPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_pos_pos_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_pp_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_pos_pos_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseAndNegNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_neg_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_nn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_neg_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseAndPosNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_pos_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_pn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_pos_neg_and_canonicalize,
                   MachineType::AnyTagged(),
                   std::make_pair(MachineType::AnyTagged(), result),
                   std::make_pair(MachineType::AnyTagged(), x),

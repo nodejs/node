@@ -25,9 +25,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat)
 ACCESSORS(JSNumberFormat, icu_number_formatter,
           Managed<icu::number::LocalizedNumberFormatter>,
           kIcuNumberFormatterOffset)
-ACCESSORS(JSNumberFormat, icu_number_range_formatter,
-          Managed<icu::number::LocalizedNumberRangeFormatter>,
-          kIcuNumberRangeFormatterOffset)
 
 }  // namespace internal
 }  // namespace v8

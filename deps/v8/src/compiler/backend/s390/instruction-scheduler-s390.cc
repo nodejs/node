@@ -174,8 +174,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4Le:
     case kS390_F32x4Abs:
     case kS390_F32x4Neg:
-    case kS390_F32x4RecipApprox:
-    case kS390_F32x4RecipSqrtApprox:
     case kS390_F32x4SConvertI32x4:
     case kS390_F32x4UConvertI32x4:
     case kS390_F32x4Sqrt:

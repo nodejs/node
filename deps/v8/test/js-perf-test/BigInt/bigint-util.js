@@ -7,6 +7,9 @@
 // Test configuration.
 const TEST_ITERATIONS = 1000;
 const SLOW_TEST_ITERATIONS = 50;
+const SMALL_BITS_CASES = [32, 64, 128, 256];
+const MEDIUM_BITS_CASES = [512, 1024];
+const BIG_BITS_CASES = [2048, 4096, 8192];
 const BITS_CASES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
 const RANDOM_BIGINTS_MAX_BITS = 64 * 100;
 const BIGINT_MAX_BITS = %BigIntMaxLengthBits();

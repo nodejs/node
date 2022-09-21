@@ -96,7 +96,7 @@ TEST(Run_WasmModule_Return114) {
 }
 
 TEST(Run_WasmModule_CompilationHintsLazy) {
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -155,7 +155,8 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
 }
 
 TEST(Run_WasmModule_CompilationHintsNoTiering) {
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -195,14 +196,15 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
     CHECK_EQ(expected_tier, actual_tier);
     auto* compilation_state = native_module->compilation_state();
     CHECK(compilation_state->baseline_compilation_finished());
-    CHECK(compilation_state->top_tier_compilation_finished());
   }
   Cleanup();
 }
 
 TEST(Run_WasmModule_CompilationHintsTierUp) {
-  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -247,27 +249,24 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
       CHECK(compilation_state->baseline_compilation_finished());
     }
 
-    // Busy wait for top tier compilation to finish.
-    while (!compilation_state->top_tier_compilation_finished()) {
-    }
-
-    // Expect top tier code.
+    // Tier-up is happening in the background. Eventually we should have top
+    // tier code.
     ExecutionTier top_tier = ExecutionTier::kTurbofan;
-    {
+    ExecutionTier actual_tier = ExecutionTier::kNone;
+    while (actual_tier != top_tier) {
       CHECK(native_module->HasCode(kFuncIndex));
       WasmCodeRefScope code_ref_scope;
-      ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
-      CHECK_EQ(top_tier, actual_tier);
-      CHECK(compilation_state->baseline_compilation_finished());
-      CHECK(compilation_state->top_tier_compilation_finished());
+      actual_tier = native_module->GetCode(kFuncIndex)->tier();
     }
   }
   Cleanup();
 }
 
 TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
-  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -301,23 +300,19 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     NativeModule* native_module = module.ToHandleChecked()->native_module();
     auto* compilation_state = native_module->compilation_state();
 
-    // Busy wait for top tier compilation to finish.
-    while (!compilation_state->top_tier_compilation_finished()) {
-    }
-
-    // Expect top tier code.
+    // We have no code initially (because of lazy baseline), but eventually we
+    // should have TurboFan ready (because of eager top tier).
     static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
-    static const int kFuncIndex = 0;
-    ExecutionTier top_tier = ExecutionTier::kTurbofan;
-    {
-      CHECK(native_module->HasCode(kFuncIndex));
-      WasmCodeRefScope code_ref_scope;
-      ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
-      CHECK_EQ(top_tier, actual_tier);
-      CHECK(compilation_state->baseline_compilation_finished());
-      CHECK(compilation_state->top_tier_compilation_finished());
+    constexpr int kFuncIndex = 0;
+    WasmCodeRefScope code_ref_scope;
+    while (true) {
+      auto* code = native_module->GetCode(kFuncIndex);
+      if (!code) continue;
+      CHECK_EQ(ExecutionTier::kTurbofan, code->tier());
+      break;
     }
+    CHECK(compilation_state->baseline_compilation_finished());
   }
   Cleanup();
 }
@@ -533,7 +528,7 @@ class InterruptThread : public v8::base::Thread {
 TEST(TestInterruptLoop) {
   {
     // Do not dump the module of this test because it contains an infinite loop.
-    if (FLAG_dump_wasm_module) return;
+    if (v8_flags.dump_wasm_module) return;
 
     // This test tests that WebAssembly loops can be interrupted, i.e. that if
     // an

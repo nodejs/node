@@ -60,7 +60,8 @@ namespace internal {
 
 #define CPPGC_FOR_ALL_HISTOGRAM_CONCURRENT_SCOPES(V) \
   V(ConcurrentMark)                                  \
-  V(ConcurrentSweep)
+  V(ConcurrentSweep)                                 \
+  V(ConcurrentWeakCallback)
 
 #define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V) V(ConcurrentMarkProcessEphemerons)
 
@@ -70,6 +71,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
  public:
   using CollectionType = GarbageCollector::Config::CollectionType;
+  using MarkingType = GarbageCollector::Config::MarkingType;
+  using SweepingType = GarbageCollector::Config::SweepingType;
 
 #if defined(CPPGC_DECLARE_ENUM)
   static_assert(false, "CPPGC_DECLARE_ENUM macro is already defined");
@@ -106,6 +109,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
 
     size_t epoch = -1;
     CollectionType collection_type = CollectionType::kMajor;
+    MarkingType marking_type = MarkingType::kAtomic;
+    SweepingType sweeping_type = SweepingType::kAtomic;
     IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
     // Marked bytes collected during marking.
     size_t marked_bytes = 0;
@@ -269,13 +274,13 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   void NotifySafePointForTesting();
 
   // Indicates a new garbage collection cycle.
-  void NotifyMarkingStarted(CollectionType, IsForcedGC);
+  void NotifyMarkingStarted(CollectionType, MarkingType, IsForcedGC);
   // Indicates that marking of the current garbage collection cycle is
   // completed.
   void NotifyMarkingCompleted(size_t marked_bytes);
   // Indicates the end of a garbage collection cycle. This means that sweeping
   // is finished at this point.
-  void NotifySweepingCompleted();
+  void NotifySweepingCompleted(SweepingType);
 
   size_t allocated_memory_size() const;
   // Size of live objects in bytes  on the heap. Based on the most recent marked

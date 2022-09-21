@@ -12,7 +12,6 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -25,7 +24,7 @@
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
-#include "test/common/wasm/flag-utils.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
@@ -67,10 +66,13 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
-    auto result = ExecuteLiftoffCompilation(
-        &env, func_body, func.func_index, kForDebugging,
-        LiftoffOptions{}.set_max_steps(max_steps).set_nondeterminism(
-            nondeterminism));
+    auto result =
+        ExecuteLiftoffCompilation(&env, func_body,
+                                  LiftoffOptions{}
+                                      .set_func_index(func.func_index)
+                                      .set_for_debugging(kForDebugging)
+                                      .set_max_steps(max_steps)
+                                      .set_nondeterminism(nondeterminism));
     native_module->PublishCode(
         native_module->AddCompiledCode(std::move(result)));
   }
@@ -94,15 +96,19 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   if (module_object->module()->start_function_index >= 0) return;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
-  Handle<WasmInstanceObject> instance;
+  Handle<WasmInstanceObject> instance_ref;
 
-  // Try to instantiate, return if it fails.
+  // Try to instantiate the reference instance, return if it fails. Use
+  // {module_ref} if provided (for "Liftoff as reference"), {module_object}
+  // otherwise (for "interpreter as reference").
   {
-    ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+    ErrorThrower thrower(isolate, "InterpretAndExecuteModule");
     if (!GetWasmEngine()
-             ->SyncInstantiate(isolate, &thrower, module_object, {},
-                               {})  // no imports & memory
-             .ToHandle(&instance)) {
+             ->SyncInstantiate(
+                 isolate, &thrower,
+                 module_ref.is_null() ? module_object : module_ref, {},
+                 {})  // no imports & memory
+             .ToHandle(&instance_ref)) {
       isolate->clear_pending_exception();
       thrower.Reset();  // Ignore errors.
       return;
@@ -111,7 +117,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
 
   // Get the "main" exported function. Do nothing if it does not exist.
   Handle<WasmExportedFunction> main_function;
-  if (!testing::GetExportedFunction(isolate, instance, "main")
+  if (!testing::GetExportedFunction(isolate, instance_ref, "main")
            .ToHandle(&main_function)) {
     return;
   }
@@ -119,17 +125,15 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
   bool exception_ref = false;
-  bool exception = false;
   int32_t result_ref = 0;
-  int32_t result = 0;
 
   if (module_ref.is_null()) {
+    // Use the interpreter as reference.
     base::OwnedVector<WasmValue> arguments =
         testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
 
-    // Now interpret.
     testing::WasmInterpretationResult interpreter_result =
-        testing::InterpretWasmModule(isolate, instance,
+        testing::InterpretWasmModule(isolate, instance_ref,
                                      main_function->function_index(),
                                      arguments.begin());
     if (interpreter_result.failed()) return;
@@ -147,25 +151,8 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
       DCHECK(interpreter_result.trapped());
       exception_ref = true;
     }
-    // Reset the instance before the test run.
-    {
-      ErrorThrower thrower(isolate, "Second Instantiation");
-      // We instantiated before, so the second instantiation must also succeed:
-      CHECK(GetWasmEngine()
-                ->SyncInstantiate(isolate, &thrower, module_object, {},
-                                  {})  // no imports & memory
-                .ToHandle(&instance));
-    }
   } else {
-    Handle<WasmInstanceObject> instance_ref;
-    {
-      ErrorThrower thrower(isolate, "WebAssembly Instantiation");
-      // We instantiated before, so the second instantiation must also succeed:
-      CHECK(GetWasmEngine()
-                ->SyncInstantiate(isolate, &thrower, module_ref, {},
-                                  {})  // no imports & memory
-                .ToHandle(&instance_ref));
-    }
+    // Use Liftoff code as reference.
     result_ref = testing::CallWasmFunctionForTesting(
         isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
         compiled_args.begin(), &exception_ref);
@@ -177,7 +164,30 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     if (*nondeterminism != 0) return;
   }
 
-  result = testing::CallWasmFunctionForTesting(
+  // Instantiate a fresh instance for the actual (non-ref) execution.
+  Handle<WasmInstanceObject> instance;
+  {
+    ErrorThrower thrower(isolate, "InterpretAndExecuteModule (second)");
+    // We instantiated before, so the second instantiation must also succeed.
+    if (!GetWasmEngine()
+             ->SyncInstantiate(isolate, &thrower, module_object, {},
+                               {})  // no imports & memory
+             .ToHandle(&instance)) {
+      DCHECK(thrower.error());
+      // The only reason to fail the second instantiation should be OOM. Make
+      // this a proper OOM crash so that ClusterFuzz categorizes it as such.
+      if (strstr(thrower.error_msg(), "Out of memory")) {
+        V8::FatalProcessOutOfMemory(isolate, "Wasm fuzzer second instantiation",
+                                    thrower.error_msg());
+      }
+      FATAL("Second instantiation failed unexpectedly: %s",
+            thrower.error_msg());
+    }
+    DCHECK(!thrower.error());
+  }
+
+  bool exception = false;
+  int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", static_cast<int>(compiled_args.size()),
       compiled_args.begin(), &exception);
 
@@ -207,6 +217,42 @@ PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
 
+std::string index_raw(uint32_t arg) {
+  return arg < 128 ? std::to_string(arg)
+                   : "wasmUnsignedLeb(" + std::to_string(arg) + ")";
+}
+
+std::string index(uint32_t arg) { return index_raw(arg) + ", "; }
+
+std::string HeapTypeToJSByteEncoding(HeapType heap_type) {
+  switch (heap_type.representation()) {
+    case HeapType::kFunc:
+      return "kFuncRefCode";
+    case HeapType::kEq:
+      return "kEqRefCode";
+    case HeapType::kI31:
+      return "kI31RefCode";
+    case HeapType::kData:
+      return "kDataRefCode";
+    case HeapType::kArray:
+      return "kArrayRefCode";
+    case HeapType::kAny:
+      return "kAnyRefCode";
+    case HeapType::kExtern:
+      return "kExternRefCode";
+    case HeapType::kNone:
+      return "kNullRefCode";
+    case HeapType::kNoFunc:
+      return "kNullFuncRefCode";
+    case HeapType::kNoExtern:
+      return "kNullExternRefCode";
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      return index_raw(heap_type.ref_index());
+  }
+}
+
 std::string HeapTypeToConstantName(HeapType heap_type) {
   switch (heap_type.representation()) {
     case HeapType::kFunc:
@@ -219,8 +265,16 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmDataRef";
     case HeapType::kArray:
       return "kWasmArrayRef";
+    case HeapType::kExtern:
+      return "kWasmExternRef";
     case HeapType::kAny:
       return "kWasmAnyRef";
+    case HeapType::kNone:
+      return "kWasmNullRef";
+    case HeapType::kNoFunc:
+      return "kWasmNullFuncRef";
+    case HeapType::kNoExtern:
+      return "kWasmNullExternRef";
     case HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -244,12 +298,14 @@ std::string ValueTypeToConstantName(ValueType type) {
       return "kWasmF64";
     case kS128:
       return "kWasmS128";
-    case kOptRef:
+    case kRefNull:
       switch (type.heap_representation()) {
         case HeapType::kFunc:
           return "kWasmFuncRef";
         case HeapType::kEq:
           return "kWasmEqRef";
+        case HeapType::kExtern:
+          return "kWasmExternRef";
         case HeapType::kAny:
           return "kWasmAnyRef";
         case HeapType::kBottom:
@@ -258,7 +314,7 @@ std::string ValueTypeToConstantName(ValueType type) {
         case HeapType::kArray:
         case HeapType::kI31:
         default:
-          return "wasmOptRefType(" + HeapTypeToConstantName(type.heap_type()) +
+          return "wasmRefNullType(" + HeapTypeToConstantName(type.heap_type()) +
                  ")";
       }
     case kRef:
@@ -287,17 +343,14 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
   return os.put('\'').write(name.name.begin(), name.name.size()).put('\'');
 }
 
-// An interface for WasmFullDecoder used to decode initializer expressions. As
-// opposed to the one in src/wasm/, this emits {WasmInitExpr} as opposed to a
-// {WasmValue}.
+// An interface for WasmFullDecoder which appends to a stream a textual
+// representation of the expression, compatible with wasm-module-builder.js.
 class InitExprInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
-  static constexpr DecodingMode decoding_mode = kInitExpression;
+  static constexpr DecodingMode decoding_mode = kConstantExpression;
 
   struct Value : public ValueBase<validate> {
-    WasmInitExpr init_expr;
-
     template <typename... Args>
     explicit Value(Args&&... args) V8_NOEXCEPT
         : ValueBase(std::forward<Args>(args)...) {}
@@ -307,7 +360,7 @@ class InitExprInterface {
   using FullDecoder =
       WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
 
-  explicit InitExprInterface(Zone* zone) : zone_(zone) {}
+  explicit InitExprInterface(StdoutStream& os) : os_(os) { os_ << "["; }
 
 #define EMPTY_INTERFACE_FUNCTION(name, ...) \
   V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) {}
@@ -319,24 +372,28 @@ class InitExprInterface {
 #undef UNREACHABLE_INTERFACE_FUNCTION
 
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
-    result->init_expr = WasmInitExpr(value);
+    os_ << "...wasmI32Const(" << value << "), ";
   }
 
   void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
-    result->init_expr = WasmInitExpr(value);
+    os_ << "...wasmI64Const(" << value << "), ";
   }
 
   void F32Const(FullDecoder* decoder, Value* result, float value) {
-    result->init_expr = WasmInitExpr(value);
+    os_ << "...wasmF32Const(" << value << "), ";
   }
 
   void F64Const(FullDecoder* decoder, Value* result, double value) {
-    result->init_expr = WasmInitExpr(value);
+    os_ << "...wasmF64Const(" << value << "), ";
   }
 
   void S128Const(FullDecoder* decoder, Simd128Immediate<validate>& imm,
                  Value* result) {
-    result->init_expr = WasmInitExpr(imm.value);
+    os_ << "kSimdPrefix, kExprS128Const, " << std::hex;
+    for (int i = 0; i < kSimd128Size; i++) {
+      os_ << "0x" << static_cast<int>(imm.value[i]) << ", ";
+    }
+    os_ << std::dec;
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
@@ -346,160 +403,78 @@ class InitExprInterface {
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    result->init_expr = WasmInitExpr::RefNullConst(type.heap_representation());
+    os_ << "kExprRefNull, " << HeapTypeToJSByteEncoding(type.heap_type())
+        << ", ";
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    result->init_expr = WasmInitExpr::RefFuncConst(function_index);
+    os_ << "kExprRefFunc, " << index(function_index);
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
-    result->init_expr = WasmInitExpr::GlobalGet(imm.index);
+    os_ << "kWasmGlobalGet, " << index(imm.index);
   }
 
-  void StructNewWithRtt(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
-                        const Value& rtt, const Value args[], Value* result) {
-    ZoneVector<WasmInitExpr>* elements =
-        zone_->New<ZoneVector<WasmInitExpr>>(zone_);
-    for (size_t i = 0; i < imm.struct_type->field_count(); i++) {
-      elements->push_back(args[i].init_expr);
-    }
-    bool nominal = decoder->module_->has_supertype(imm.index);
-
-    if (!nominal) elements->push_back(rtt.init_expr);
-
-    result->init_expr =
-        nominal ? WasmInitExpr::StructNew(imm.index, elements)
-                : WasmInitExpr::StructNewWithRtt(imm.index, elements);
+  // The following operations assume non-rtt versions of the instructions.
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value& rtt,
+                 const Value args[], Value* result) {
+    os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
   }
 
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, Value* result) {
-    bool nominal = decoder->module_->has_supertype(imm.index);
-    result->init_expr = nominal ? WasmInitExpr::StructNewDefault(imm.index)
-                                : WasmInitExpr::StructNewDefaultWithRtt(
-                                      zone_, imm.index, rtt.init_expr);
+    os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
   }
 
-  void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                 const base::Vector<Value>& elements, const Value& rtt,
-                 Value* result) {
-    ZoneVector<WasmInitExpr>* args =
-        zone_->New<ZoneVector<WasmInitExpr>>(zone_);
-    for (Value expr : elements) args->push_back(expr.init_expr);
-    bool nominal = decoder->module_->has_supertype(imm.index);
-
-    if (!nominal) args->push_back(rtt.init_expr);
-    result->init_expr = nominal ? WasmInitExpr::ArrayInitStatic(imm.index, args)
-                                : WasmInitExpr::ArrayInit(imm.index, args);
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
   }
 
-  void ArrayInitFromData(FullDecoder* decoder,
-                         const ArrayIndexImmediate<validate>& array_imm,
-                         const IndexImmediate<validate>& data_segment_imm,
-                         const Value& offset_value, const Value& length_value,
-                         const Value& rtt, Value* result) {
+  void ArrayNewDefault(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
+  }
+
+  void ArrayNewFixed(FullDecoder* decoder,
+                     const ArrayIndexImmediate<validate>& imm,
+                     const base::Vector<Value>& elements, const Value& rtt,
+                     Value* result) {
+    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
+        << index(static_cast<uint32_t>(elements.size()));
+  }
+
+  void ArrayNewSegment(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& array_imm,
+                       const IndexImmediate<validate>& data_segment_imm,
+                       const Value& offset_value, const Value& length_value,
+                       const Value& rtt, Value* result) {
     // TODO(7748): Implement.
     UNIMPLEMENTED();
   }
 
-  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
-    result->init_expr = WasmInitExpr::RttCanon(type_index);
+  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+    os_ << "kGCPrefix, kExprI31New, ";
   }
 
-  void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) {
-    // End decoding on "end".
-    decoder->set_end(decoder->pc() + 1);
-    result_ = decoder->stack_value(1)->init_expr;
+  // Since we treat all instructions as rtt-less, we should not print rtts.
+  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {}
+
+  void StringConst(FullDecoder* decoder,
+                   const StringConstImmediate<validate>& imm, Value* result) {
+    os_ << "...GCInstr(kExprStringConst), " << index(imm.index);
   }
 
-  WasmInitExpr result() { return result_; }
+  void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) { os_ << "]"; }
 
  private:
-  WasmInitExpr result_;
-  Zone* zone_;
+  StdoutStream& os_;
 };
-
-// Appends an initializer expression encoded in {wire_bytes}, in the offset
-// contained in {expr}.
-void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
-  os << "WasmInitExpr.";
-  bool append_operands = false;
-  switch (expr.kind()) {
-    case WasmInitExpr::kNone:
-      UNREACHABLE();
-    case WasmInitExpr::kGlobalGet:
-      os << "GlobalGet(" << expr.immediate().index;
-      break;
-    case WasmInitExpr::kI32Const:
-      os << "I32Const(" << expr.immediate().i32_const;
-      break;
-    case WasmInitExpr::kI64Const:
-      os << "I64Const(" << expr.immediate().i64_const;
-      break;
-    case WasmInitExpr::kF32Const:
-      os << "F32Const(" << expr.immediate().f32_const;
-      break;
-    case WasmInitExpr::kF64Const:
-      os << "F64Const(" << expr.immediate().f64_const;
-      break;
-    case WasmInitExpr::kS128Const:
-      os << "S128Const([";
-      for (int i = 0; i < kSimd128Size; i++) {
-        os << static_cast<int>(expr.immediate().s128_const[i]);
-        if (i < kSimd128Size - 1) os << ", ";
-      }
-      os << "]";
-      break;
-    case WasmInitExpr::kRefNullConst:
-      os << "RefNull("
-         << HeapTypeToConstantName(HeapType(expr.immediate().heap_type));
-      break;
-    case WasmInitExpr::kRefFuncConst:
-      os << "RefFunc(" << expr.immediate().index;
-      break;
-    case WasmInitExpr::kStructNewWithRtt:
-      os << "StructNewWithRtt(" << expr.immediate().index;
-      append_operands = true;
-      break;
-    case WasmInitExpr::kStructNew:
-      os << "StructNew(" << expr.immediate().index;
-      append_operands = true;
-      break;
-    case WasmInitExpr::kStructNewDefaultWithRtt:
-      os << "StructNewDefaultWithRtt(" << expr.immediate().index << ", ";
-      AppendInitExpr(os, (*expr.operands())[0]);
-      break;
-    case WasmInitExpr::kStructNewDefault:
-      os << "StructNewDefault(" << expr.immediate().index;
-      break;
-    case WasmInitExpr::kArrayInit:
-      os << "ArrayInit(" << expr.immediate().index;
-      append_operands = true;
-      break;
-    case WasmInitExpr::kArrayInitStatic:
-      os << "ArrayInitStatic(" << expr.immediate().index;
-      append_operands = true;
-      break;
-    case WasmInitExpr::kRttCanon:
-      os << "RttCanon(" << expr.immediate().index;
-      break;
-  }
-
-  if (append_operands) {
-    os << ", [";
-    for (size_t i = 0; i < expr.operands()->size(); i++) {
-      AppendInitExpr(os, (*expr.operands())[i]);
-      if (i < expr.operands()->size() - 1) os << ", ";
-    }
-    os << "]";
-  }
-
-  os << ")";
-}
 
 void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
                              const WasmModule* module,
@@ -509,13 +484,14 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
     case ConstantExpression::kEmpty:
       UNREACHABLE();
     case ConstantExpression::kI32Const:
-      AppendInitExpr(os, WasmInitExpr(init.i32_value()));
+      os << "wasmI32Const(" << init.i32_value() << ")";
       break;
     case ConstantExpression::kRefNull:
-      AppendInitExpr(os, WasmInitExpr::RefNullConst(init.repr()));
+      os << "[kExprRefNull, " << HeapTypeToJSByteEncoding(HeapType(init.repr()))
+         << "]";
       break;
     case ConstantExpression::kRefFunc:
-      AppendInitExpr(os, WasmInitExpr::RefFuncConst(init.index()));
+      os << "[kExprRefFunc, " << index(init.index()) << "]";
       break;
     case ConstantExpression::kWireBytesRef: {
       WireBytesRef ref = init.wire_bytes_ref();
@@ -524,12 +500,9 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
                         module_bytes.start() + ref.end_offset());
       WasmFeatures detected;
       WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
-                      kInitExpression>
-          decoder(zone, module, WasmFeatures::All(), &detected, body, zone);
-
+                      kConstantExpression>
+          decoder(zone, module, WasmFeatures::All(), &detected, body, os);
       decoder.DecodeFunctionBody();
-
-      AppendInitExpr(os, decoder.interface().result());
       break;
     }
   }
@@ -550,7 +523,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   CHECK_NOT_NULL(module);
 
   AccountingAllocator allocator;
-  Zone zone(&allocator, "init. expression zone");
+  Zone zone(&allocator, "constant expression zone");
 
   StdoutStream os;
 
@@ -754,7 +727,7 @@ void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
   struct EnableStagedWasmFeatures {
     explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
 #define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  FLAG_experimental_wasm_##feat = true;
+  v8_flags.experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
@@ -824,8 +797,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 #else
   bool liftoff_as_reference = false;
 #endif
-  FlagScope<bool> turbo_mid_tier_regalloc(&FLAG_turbo_force_mid_tier_regalloc,
-                                          configuration_byte == 0);
+  FlagScope<bool> turbo_mid_tier_regalloc(
+      &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
@@ -836,7 +809,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
-  if (require_valid && FLAG_wasm_fuzzer_gen_test) {
+  if (require_valid && v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, true);
   }
 
@@ -845,16 +818,17 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
     // way, we deterministically test a combination of Liftoff and Turbofan.
-    FlagScope<bool> liftoff(&FLAG_liftoff, true);
-    FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
-    FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
-    FlagScope<int> debug_mask_scope(&FLAG_wasm_debug_mask_for_testing,
+    FlagScope<bool> liftoff(&v8_flags.liftoff, true);
+    FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+    FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                   tier_mask);
+    FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
                                     debug_mask);
     compiled_module = GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
-  if (!require_valid && FLAG_wasm_fuzzer_gen_test) {
+  if (!require_valid && v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 

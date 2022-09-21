@@ -54,9 +54,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
     : zone_(isolate->allocator(), kMaglevZoneName),
       isolate_(isolate),
       broker_(new compiler::JSHeapBroker(
-          isolate, zone(), FLAG_trace_heap_broker, CodeKind::MAGLEV)),
-      shared_(function->shared(), isolate),
-      function_(function)
+          isolate, zone(), FLAG_trace_heap_broker, CodeKind::MAGLEV))
 #define V(Name) , Name##_(FLAG_##Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
@@ -91,12 +89,15 @@ void MaglevCompilationInfo::set_graph_labeller(
   graph_labeller_.reset(graph_labeller);
 }
 
-void MaglevCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
-  DCHECK(!shared_.is_null());
-  shared_ = handle(*shared_, isolate);
-  DCHECK(!function_.is_null());
-  function_ = handle(*function_, isolate);
+void MaglevCompilationInfo::set_translation_array_builder(
+    std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
+    std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+        deopt_literals) {
+  translation_array_builder_ = std::move(translation_array_builder);
+  deopt_literals_ = std::move(deopt_literals);
 }
+
+void MaglevCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {}
 
 void MaglevCompilationInfo::set_persistent_handles(
     std::unique_ptr<PersistentHandles>&& persistent_handles) {

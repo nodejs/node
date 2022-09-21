@@ -4,21 +4,19 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/objects/js-struct-inl.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
 
 constexpr int kMaxJSStructFields = 999;
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-limits.h"
-static_assert(wasm::kV8MaxWasmStructFields == kMaxJSStructFields,
-              "Max number of fields should be the same for both JS and "
-              "WebAssembly structs");
-#endif  // V8_ENABLE_WEBASSEMBLY
+// Note: For Wasm structs, we currently allow 2000 fields, because there was
+// specific demand for that. Ideally we'd have the same limit, but JS structs
+// rely on DescriptorArrays and are hence limited to 1020 fields at most.
+static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
 
 BUILTIN(SharedStructTypeConstructor) {
-  DCHECK(FLAG_shared_string_table);
+  DCHECK(v8_flags.shared_string_table);
 
   HandleScope scope(isolate);
   static const char method_name[] = "SharedStructType";
@@ -101,22 +99,7 @@ BUILTIN(SharedStructTypeConstructor) {
 
 BUILTIN(SharedStructConstructor) {
   HandleScope scope(isolate);
-  auto* factory = isolate->factory();
-
-  Handle<JSObject> instance =
-      factory->NewJSObject(args.target(), AllocationType::kSharedOld);
-
-  Handle<Map> instance_map(instance->map(), isolate);
-  if (instance_map->HasOutOfObjectProperties()) {
-    int num_oob_fields =
-        instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
-        instance_map->GetInObjectProperties();
-    Handle<PropertyArray> property_array =
-        factory->NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
-    instance->SetProperties(*property_array);
-  }
-
-  return *instance;
+  return *isolate->factory()->NewJSSharedStruct(args.target());
 }
 
 }  // namespace internal

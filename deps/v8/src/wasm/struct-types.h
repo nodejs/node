@@ -60,6 +60,9 @@ class StructType : public ZoneObject {
   }
   bool operator!=(const StructType& other) const { return !(*this == other); }
 
+  // Returns the offset of this field in the runtime representation of the
+  // object, from the start of the object fields (disregarding the object
+  // header).
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
     if (index == 0) return 0;
@@ -124,6 +127,15 @@ class StructType : public ZoneObject {
   const bool* const mutabilities_;
 };
 
+inline std::ostream& operator<<(std::ostream& out, StructType type) {
+  out << "[";
+  for (ValueType field : type.fields()) {
+    out << field.name() << ", ";
+  }
+  out << "]";
+  return out;
+}
+
 class ArrayType : public ZoneObject {
  public:
   constexpr explicit ArrayType(ValueType rep, bool mutability)
@@ -139,10 +151,14 @@ class ArrayType : public ZoneObject {
     return rep_ != other.rep_ || mutability_ != other.mutability_;
   }
 
+  static const intptr_t kRepOffset;
+
  private:
   const ValueType rep_;
   const bool mutability_;
 };
+
+inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);
 
 }  // namespace wasm
 }  // namespace internal

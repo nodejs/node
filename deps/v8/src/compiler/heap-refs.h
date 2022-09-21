@@ -237,6 +237,14 @@ class V8_EXPORT_PRIVATE ObjectRef {
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
+  // CodeT is defined as an alias to either CodeDataContainer or Code, depending
+  // on the architecture. We can't put it in HEAP_BROKER_OBJECT_LIST, because
+  // this list already contains CodeDataContainer and Code. Still, defining
+  // IsCodeT and AsCodeT is useful to write code that is independent of
+  // V8_EXTERNAL_CODE_SPACE.
+  bool IsCodeT() const;
+  CodeTRef AsCodeT() const;
+
   bool IsNull() const;
   bool IsNullOrUndefined() const;
   bool IsTheHole() const;
@@ -256,6 +264,11 @@ class V8_EXPORT_PRIVATE ObjectRef {
   struct Equal {
     bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
       return lhs.equals(rhs);
+    }
+  };
+  struct Less {
+    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
+      return lhs.data_ < rhs.data_;
     }
   };
 
@@ -284,6 +297,9 @@ class V8_EXPORT_PRIVATE ObjectRef {
 template <class T>
 using ZoneRefUnorderedSet =
     ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;
+
+template <class K, class V>
+using ZoneRefMap = ZoneMap<K, V, ObjectRef::Less>;
 
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the
@@ -456,7 +472,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeRef code() const;
+  CodeTRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -745,6 +761,9 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
+  int16_t allowed_receiver_instance_type_range_start() const;
+  int16_t allowed_receiver_instance_type_range_end() const;
+
   base::Optional<CallHandlerInfoRef> call_code() const;
   ZoneVector<Address> c_functions() const;
   ZoneVector<const CFunctionInfo*> c_signatures() const;
@@ -919,13 +938,15 @@ class StringRef : public NameRef {
   // When concurrently accessing non-read-only non-supported strings, we return
   // base::nullopt for these methods.
   base::Optional<Handle<String>> ObjectIfContentAccessible();
-  base::Optional<int> length() const;
+  int length() const;
   base::Optional<uint16_t> GetFirstChar() const;
   base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
 
   bool IsSeqString() const;
   bool IsExternalString() const;
+
+  bool IsContentAccessible() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
@@ -1012,6 +1033,8 @@ class CodeDataContainerRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
 
   Handle<CodeDataContainer> object() const;
+
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {

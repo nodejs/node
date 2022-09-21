@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
+
 #include <cstdint>
 
-#include "src/base/logging.h"
-#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 

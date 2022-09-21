@@ -177,7 +177,7 @@ class TranslatedFrame {
  public:
   enum Kind {
     kUnoptimizedFunction,
-    kArgumentsAdaptor,
+    kInlinedExtraArguments,
     kConstructStub,
     kBuiltinContinuation,
 #if V8_ENABLE_WEBASSEMBLY
@@ -276,7 +276,7 @@ class TranslatedFrame {
                                           int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        SharedFunctionInfo shared_info);
-  static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo shared_info,
+  static TranslatedFrame InlinedExtraArguments(SharedFunctionInfo shared_info,
                                                int height);
   static TranslatedFrame ConstructStubFrame(BytecodeOffset bailout_id,
                                             SharedFunctionInfo shared_info,

@@ -54,7 +54,7 @@ function TestStringIteratorPrototype() {
   var iterator = ""[Symbol.iterator]();
   var StringIteratorPrototype = iterator.__proto__;
   assertFalse(StringIteratorPrototype.hasOwnProperty('constructor'));
-  assertEquals(StringIteratorPrototype.__proto__, Object.prototype);
+  assertSame(StringIteratorPrototype.__proto__.__proto__, Object.prototype);
   assertArrayEquals(['next'],
       Object.getOwnPropertyNames(StringIteratorPrototype));
   assertEquals('[object String Iterator]', "" + iterator);

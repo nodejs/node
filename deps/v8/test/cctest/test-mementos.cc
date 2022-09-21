@@ -73,6 +73,13 @@ TEST(Regress340063) {
 
 
 TEST(Regress470390) {
+#ifdef VERIFY_HEAP
+  // With MinorMC, we may have object allocated after `new_space->top()`. If the
+  // next object after `new_space->top()` is an invalid memento, heap
+  // verification should fail.
+  if (FLAG_minor_mc) return;
+#endif  // VERIFY_HEAP
+
   CcTest::InitializeVM();
   if (!i::FLAG_allocation_site_pretenuring || FLAG_single_generation) return;
   v8::HandleScope scope(CcTest::isolate());

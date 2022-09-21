@@ -6,7 +6,6 @@
 
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/common-operator.h"
-#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {

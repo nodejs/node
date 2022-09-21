@@ -98,8 +98,9 @@ class TestLoader(testsuite.TestLoader):
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
     self.testroot = os.path.join(self.root, "data")
 
   def _test_loader_class(self):
@@ -135,7 +136,3 @@ class TestCase(testcase.D8TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.testroot, self.path + self._get_suffix())
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

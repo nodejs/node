@@ -620,6 +620,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmStackGuard,
             // Fast table operations.
             WasmCode::kWasmTableGet, WasmCode::kWasmTableSet,
+            WasmCode::kWasmTableGetFuncRef, WasmCode::kWasmTableSetFuncRef,
             WasmCode::kWasmTableGrow,
             // Atomics.
             WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait32,

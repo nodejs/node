@@ -16,18 +16,12 @@
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
-
-// -----------------------------------------------------------------------------
-// Stack checks.
-
-void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kStackGuard);
-}
 
 // -----------------------------------------------------------------------------
 // TurboFan support builtins.
@@ -123,6 +117,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     TNode<ExternalReference> is_marking_addr = ExternalConstant(
         ExternalReference::heap_is_marking_flag_address(this->isolate()));
     return Word32NotEqual(Load<Uint8T>(is_marking_addr), Int32Constant(0));
+  }
+
+  TNode<BoolT> IsMinorMarking() {
+    TNode<ExternalReference> is_minor_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_minor_marking_flag_address(this->isolate()));
+    return Word32NotEqual(Load<Uint8T>(is_minor_marking_addr),
+                          Int32Constant(0));
   }
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
@@ -245,76 +246,150 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                         TruncateIntPtrToInt32(new_cell_value));
   }
 
-  void GenerationalWriteBarrier(SaveFPRegsMode fp_mode) {
-    Label incremental_wb(this), test_old_to_young_flags(this),
-        remembered_set_only(this), remembered_set_and_incremental_wb(this),
-        next(this);
+  void WriteBarrier(SaveFPRegsMode fp_mode) {
+    Label marking_is_on(this), marking_is_off(this), next(this);
 
-    // When incremental marking is not on, we skip cross generation pointer
-    // checking here, because there are checks for
-    // `kPointersFromHereAreInterestingMask` and
-    // `kPointersToHereAreInterestingMask` in
-    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this
-    // stub, which serves as the cross generation checking.
     auto slot =
         UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
-    Branch(IsMarking(), &test_old_to_young_flags, &remembered_set_only);
+    Branch(IsMarking(), &marking_is_on, &marking_is_off);
 
-    BIND(&test_old_to_young_flags);
-    {
-      // TODO(ishell): do a new-space range check instead.
-      TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+    BIND(&marking_is_off);
+    GenerationalOrSharedBarrierSlow(slot, &next, fp_mode);
 
-      // TODO(albertnetymk): Try to cache the page flag for value and
-      // object, instead of calling IsPageFlagSet each time.
-      TNode<BoolT> value_is_young =
-          IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask);
-      GotoIfNot(value_is_young, &incremental_wb);
-
-      TNode<IntPtrT> object = BitcastTaggedToWord(
-          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-      TNode<BoolT> object_is_young =
-          IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
-      Branch(object_is_young, &incremental_wb,
-             &remembered_set_and_incremental_wb);
-    }
-
-    BIND(&remembered_set_only);
-    {
-      TNode<IntPtrT> object = BitcastTaggedToWord(
-          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-      InsertIntoRememberedSet(object, slot, fp_mode);
-      Goto(&next);
-    }
-
-    BIND(&remembered_set_and_incremental_wb);
-    {
-      TNode<IntPtrT> object = BitcastTaggedToWord(
-          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-      InsertIntoRememberedSet(object, slot, fp_mode);
-      Goto(&incremental_wb);
-    }
-
-    BIND(&incremental_wb);
-    {
-      TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
-      IncrementalWriteBarrier(slot, value, fp_mode);
-      Goto(&next);
-    }
+    BIND(&marking_is_on);
+    WriteBarrierDuringMarking(slot, &next, fp_mode);
 
     BIND(&next);
   }
 
-  void IncrementalWriteBarrier(SaveFPRegsMode fp_mode) {
-    auto slot =
-        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
+  void GenerationalOrSharedBarrierSlow(TNode<IntPtrT> slot, Label* next,
+                                       SaveFPRegsMode fp_mode) {
+    // When incremental marking is not on, the fast and out-of-line fast path of
+    // the write barrier already checked whether we need to run the generational
+    // or shared barrier slow path.
+    Label generational_barrier(this), shared_barrier(this);
+
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
-    IncrementalWriteBarrier(slot, value, fp_mode);
+
+    InYoungGeneration(value, &generational_barrier, &shared_barrier);
+
+    BIND(&generational_barrier);
+    CSA_DCHECK(this,
+               IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
+    GenerationalBarrierSlow(slot, next, fp_mode);
+
+    BIND(&shared_barrier);
+    CSA_DCHECK(this, IsPageFlagSet(value, MemoryChunk::kInSharedHeap));
+    SharedBarrierSlow(slot, next, fp_mode);
   }
 
-  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+  void GenerationalBarrierSlow(TNode<IntPtrT> slot, Label* next,
                                SaveFPRegsMode fp_mode) {
-    Label call_incremental_wb(this), next(this);
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+    InsertIntoRememberedSet(object, slot, fp_mode);
+    Goto(next);
+  }
+
+  void SharedBarrierSlow(TNode<IntPtrT> slot, Label* next,
+                         SaveFPRegsMode fp_mode) {
+    TNode<ExternalReference> function = ExternalConstant(
+        ExternalReference::shared_barrier_from_code_function());
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+        std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+    Goto(next);
+  }
+
+  void WriteBarrierDuringMarking(TNode<IntPtrT> slot, Label* next,
+                                 SaveFPRegsMode fp_mode) {
+    // When incremental marking is on, we need to perform generational, shared
+    // and incremental marking write barrier.
+    Label incremental_barrier(this);
+
+    GenerationalOrSharedBarrierDuringMarking(slot, &incremental_barrier,
+                                             fp_mode);
+
+    BIND(&incremental_barrier);
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+    IncrementalWriteBarrier(slot, value, fp_mode);
+    Goto(next);
+  }
+
+  void GenerationalOrSharedBarrierDuringMarking(TNode<IntPtrT> slot,
+                                                Label* next,
+                                                SaveFPRegsMode fp_mode) {
+    Label generational_barrier_check(this), shared_barrier_check(this),
+        shared_barrier_slow(this), generational_barrier_slow(this);
+
+    // During incremental marking we always reach this slow path, so we need to
+    // check whether this is a old-to-new or old-to-shared reference.
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+
+    InYoungGeneration(object, next, &generational_barrier_check);
+
+    BIND(&generational_barrier_check);
+
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+    InYoungGeneration(value, &generational_barrier_slow, &shared_barrier_check);
+
+    BIND(&generational_barrier_slow);
+    GenerationalBarrierSlow(slot, next, fp_mode);
+
+    BIND(&shared_barrier_check);
+
+    InSharedHeap(value, &shared_barrier_slow, next);
+
+    BIND(&shared_barrier_slow);
+
+    SharedBarrierSlow(slot, next, fp_mode);
+  }
+
+  void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
+                         Label* false_label) {
+    TNode<BoolT> object_is_young =
+        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
+
+    Branch(object_is_young, true_label, false_label);
+  }
+
+  void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
+                    Label* false_label) {
+    TNode<BoolT> object_is_young =
+        IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
+
+    Branch(object_is_young, true_label, false_label);
+  }
+
+  void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                                    SaveFPRegsMode fp_mode, Label* next) {
+    Label check_is_white(this);
+
+    InYoungGeneration(value, &check_is_white, next);
+
+    BIND(&check_is_white);
+    GotoIfNot(IsWhite(value), next);
+
+    {
+      TNode<ExternalReference> function = ExternalConstant(
+          ExternalReference::write_barrier_marking_from_code_function());
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      CallCFunctionWithCallerSavedRegisters(
+          function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+      Goto(next);
+    }
+  }
+
+  void IncrementalWriteBarrierMajor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                                    SaveFPRegsMode fp_mode, Label* next) {
+    Label call_incremental_wb(this);
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -323,14 +398,14 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // 2) is_compacting && value_in_EC && obj_isnt_skip
     // is_compacting = true when is_marking = true
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
-              &next);
+              next);
 
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       Branch(
           IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-          &next, &call_incremental_wb);
+          next, &call_incremental_wb);
     }
     BIND(&call_incremental_wb);
     {
@@ -342,25 +417,32 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           function, MachineTypeOf<Int32T>::value, fp_mode,
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
-      Goto(&next);
+      Goto(next);
     }
+  }
+
+  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                               SaveFPRegsMode fp_mode) {
+    Label call_incremental_wb(this), is_minor(this), is_major(this), next(this);
+
+    Branch(IsMinorMarking(), &is_minor, &is_major);
+
+    BIND(&is_minor);
+    IncrementalWriteBarrierMinor(slot, value, fp_mode, &next);
+
+    BIND(&is_major);
+    IncrementalWriteBarrierMajor(slot, value, fp_mode, &next);
+
     BIND(&next);
   }
 
-  void GenerateRecordWrite(RememberedSetAction rs_mode,
-                           SaveFPRegsMode fp_mode) {
+  void GenerateRecordWrite(SaveFPRegsMode fp_mode) {
     if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
       Return(TrueConstant());
       return;
     }
-    switch (rs_mode) {
-      case RememberedSetAction::kEmit:
-        GenerationalWriteBarrier(fp_mode);
-        break;
-      case RememberedSetAction::kOmit:
-        IncrementalWriteBarrier(fp_mode);
-        break;
-    }
+
+    WriteBarrier(fp_mode);
     IncrementCounter(isolate()->counters()->write_barriers(), 1);
     Return(TrueConstant());
   }
@@ -390,22 +472,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 };
 
-TF_BUILTIN(RecordWriteEmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kSave);
+TF_BUILTIN(RecordWriteSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(SaveFPRegsMode::kSave);
 }
 
-TF_BUILTIN(RecordWriteOmitRememberedSetSaveFP, WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kSave);
-}
-
-TF_BUILTIN(RecordWriteEmitRememberedSetIgnoreFP,
-           WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kEmit, SaveFPRegsMode::kIgnore);
-}
-
-TF_BUILTIN(RecordWriteOmitRememberedSetIgnoreFP,
-           WriteBarrierCodeStubAssembler) {
-  GenerateRecordWrite(RememberedSetAction::kOmit, SaveFPRegsMode::kIgnore);
+TF_BUILTIN(RecordWriteIgnoreFP, WriteBarrierCodeStubAssembler) {
+  GenerateRecordWrite(SaveFPRegsMode::kIgnore);
 }
 
 TF_BUILTIN(EphemeronKeyBarrierSaveFP, WriteBarrierCodeStubAssembler) {
@@ -724,7 +796,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
     BIND(&dont_delete);
     {
-      STATIC_ASSERT(LanguageModeSize == 2);
+      static_assert(LanguageModeSize == 2);
       GotoIf(SmiNotEqual(language_mode, SmiConstant(LanguageMode::kSloppy)),
              &slow);
       Return(FalseConstant());
@@ -1087,6 +1159,11 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
                new_target);         // additional stack argument 4
 }
 
+TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
+  auto val = UncheckedParameter<Float64T>(Descriptor::kValue);
+  Return(ChangeFloat64ToTagged(val));
+}
+
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
@@ -1193,11 +1270,11 @@ void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
   Generate_CEntry(masm, 2, SaveFPRegsMode::kSave, ArgvMode::kStack, true);
 }
 
-#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
+#if !defined(V8_TARGET_ARCH_ARM)
 void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
   masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
 }
-#endif  // !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
+#endif  // !defined(V8_TARGET_ARCH_ARM)
 
 #ifndef V8_TARGET_ARCH_IA32
 void Builtins::Generate_MemMove(MacroAssembler* masm) {
@@ -1223,6 +1300,16 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   masm->Trap();
 }
 #endif
+
+// TODO(v8:11421): Remove #if once the Maglev compiler is ported to other
+// architectures.
+#ifndef V8_TARGET_ARCH_X64
+void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
+  using D = OnStackReplacementDescriptor;
+  static_assert(D::kParameterCount == 1);
+  masm->Trap();
+}
+#endif  // V8_TARGET_ARCH_X64
 
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
@@ -1413,6 +1500,33 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
 
   TNode<CodeT> code = LoadJSFunctionCode(function);
   TailCallJSCode(code, context, function, new_target, arg_count);
+}
+
+TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
+  auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  TVARIABLE(Object, constructor);
+  Label found_default_base_ctor(this, &constructor),
+      found_something_else(this, &constructor);
+
+  FindNonDefaultConstructor(context, this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
+
+  BIND(&found_default_base_ctor);
+  {
+    // Create an object directly, without calling the default base ctor.
+    TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
+                                         constructor.value(), new_target);
+    Return(TrueConstant(), instance);
+  }
+
+  BIND(&found_something_else);
+  {
+    // Not a base ctor (or bailed out).
+    Return(FalseConstant(), constructor.value());
+  }
 }
 
 }  // namespace internal

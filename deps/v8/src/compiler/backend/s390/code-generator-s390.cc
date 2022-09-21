@@ -72,9 +72,6 @@ class S390OperandConverter final : public InstructionOperandConverter {
 #endif
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
-      case Constant::kDelayedStringConstant:
-        return Operand::EmbeddedStringConstant(
-            constant.ToDelayedStringConstant());
       case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
@@ -214,20 +211,16 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTaggedPointer(value_, value_);
     }
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    __ CheckPageFlag(
+        value_, scratch0_,
+        MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, eq,
+        exit());
     if (offset_ == no_reg) {
       __ AddS64(scratch1_, object_, Operand(offset_immediate_));
     } else {
       DCHECK_EQ(0, offset_immediate_);
       __ AddS64(scratch1_, object_, offset_);
     }
-    RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ||
-                FLAG_use_full_record_write_builtin
-            ? RememberedSetAction::kEmit
-            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -240,13 +233,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
     }
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
@@ -736,9 +727,9 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
-static inline bool is_wasm_on_be(bool IsWasm) {
-#if V8_TARGET_BIG_ENDIAN
-  return IsWasm;
+static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
+#if defined(V8_ENABLE_WEBASSEMBLY) && defined(V8_TARGET_BIG_ENDIAN)
+  return info->IsWasm();
 #else
   return false;
 #endif
@@ -772,7 +763,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                                     \
     MemOperand op = i.MemoryOperand(&mode, &index);                       \
     __ lay(addr, op);                                                     \
-    if (is_wasm_on_be(info()->IsWasm())) {                                \
+    if (is_wasm_on_be(info())) {                                          \
       Register temp2 =                                                    \
           GetRegisterThatIsNotOneOf(output, old_value, new_value);        \
       Register temp3 =                                                    \
@@ -802,7 +793,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                   \
     MemOperand op = i.MemoryOperand(&mode, &index);     \
     __ lay(addr, op);                                   \
-    if (is_wasm_on_be(info()->IsWasm())) {              \
+    if (is_wasm_on_be(info())) {                        \
       __ lrvr(r0, output);                              \
       __ lrvr(r1, new_val);                             \
       __ CmpAndSwap(r0, r1, MemOperand(addr));          \
@@ -821,7 +812,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                  \
     MemOperand op = i.MemoryOperand(&mode);            \
     __ lay(addr, op);                                  \
-    if (is_wasm_on_be(info()->IsWasm())) {             \
+    if (is_wasm_on_be(info())) {                       \
       Label do_cs;                                     \
       __ bind(&do_cs);                                 \
       __ LoadU32(r0, MemOperand(addr));                \
@@ -845,7 +836,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                 \
     MemOperand op = i.MemoryOperand(&mode);           \
     __ lay(addr, op);                                 \
-    if (is_wasm_on_be(info()->IsWasm())) {            \
+    if (is_wasm_on_be(info())) {                      \
       Label do_cs;                                    \
       __ bind(&do_cs);                                \
       __ LoadU64(r0, MemOperand(addr));               \
@@ -864,8 +855,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
                       maybe_reverse_bytes)                                    \
   do {                                                                        \
     /* At the moment this is only true when dealing with 2-byte values.*/     \
-    bool reverse_bytes =                                                      \
-        maybe_reverse_bytes && is_wasm_on_be(info()->IsWasm());               \
+    bool reverse_bytes = maybe_reverse_bytes && is_wasm_on_be(info());        \
     USE(reverse_bytes);                                                       \
     Label do_cs;                                                              \
     __ LoadU32(prev, MemOperand(addr, offset));                               \
@@ -1005,7 +995,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                     \
     MemOperand op = i.MemoryOperand(&mode, &index);       \
     __ lay(addr, op);                                     \
-    if (is_wasm_on_be(info()->IsWasm())) {                \
+    if (is_wasm_on_be(info())) {                          \
       __ lrvgr(r0, output);                               \
       __ lrvgr(r1, new_val);                              \
       __ CmpAndSwap64(r0, r1, MemOperand(addr));          \
@@ -2404,7 +2394,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       __ la(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2430,7 +2420,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       Label do_cs;
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       __ lay(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2482,7 +2472,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+      if (is_wasm_on_be(info())) {                                           \
         __ lrvr(result, result);                                             \
         __ ShiftRightS32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2495,7 +2485,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
                                 Operand(static_cast<intptr_t>(rotate_left)), \
                                 true);                                       \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+      if (is_wasm_on_be(info())) {                                           \
         __ lrvr(result, result);                                             \
         __ ShiftRightU32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2542,7 +2532,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       Label do_cs;
       Register value_ = value;
       __ la(r1, MemOperand(base, index));
@@ -2871,27 +2861,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_I8x16GeU: {
       __ I8x16GeU(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), kScratchDoubleReg);
-      break;
-    }
-      // vector unary ops
-    case kS390_F32x4RecipApprox: {
-      __ mov(kScratchReg, Operand(1));
-      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
-      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
-      __ vfd(i.OutputSimd128Register(), kScratchDoubleReg,
-             i.InputSimd128Register(0), Condition(0), Condition(0),
-             Condition(2));
-      break;
-    }
-    case kS390_F32x4RecipSqrtApprox: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfsq(dst, i.InputSimd128Register(0), Condition(0), Condition(0),
-              Condition(2));
-      __ mov(kScratchReg, Operand(1));
-      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
-      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
-      __ vfd(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
-             Condition(2));
       break;
     }
     // vector boolean unops
@@ -3605,11 +3574,88 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  auto rep = LocationOperand::cast(source)->representation();
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    // The scratch register for this rep is available.
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, r1));
+    AssembleMove(source, &scratch);
+  } else {
+    DCHECK(!source->IsRegister() && !source->IsStackSlot());
+    // The scratch register is blocked by pending moves. Use the stack instead.
+    int new_slots = ElementSizeInPointers(rep);
+    S390OperandConverter g(this, nullptr);
+    if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
+      __ LoadU64(r1, g.ToMemOperand(source));
+      __ Push(r1);
+    } else {
+      // Bump the stack pointer and assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ lay(sp, MemOperand(sp, -(new_slots * kSystemPointerSize)));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, r1));
+    AssembleMove(&scratch, dest);
+  } else {
+    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
+    S390OperandConverter g(this, nullptr);
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+      __ Pop(r1);
+      __ StoreU64(r1, g.ToMemOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ lay(sp, MemOperand(sp, new_slots * kSystemPointerSize));
+    }
+  }
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  } else if (move->source().IsConstant() &&
+             (move->destination().IsDoubleStackSlot() ||
+              move->destination().IsFloatStackSlot())) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   S390OperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
+  // If a move type needs the scratch register, this also needs to be recorded
+  // in {SetPendingMove} to avoid conflicts with the gap resolver.
   if (source->IsRegister()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
@@ -3624,15 +3670,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ LoadU64(g.ToRegister(destination), src);
     } else {
-      Register temp = kScratchReg;
+      Register temp = r1;
       __ LoadU64(temp, src, r0);
       __ StoreU64(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      Register dst =
-          destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
+      Register dst = destination->IsRegister() ? g.ToRegister(destination) : r1;
       switch (src.type()) {
         case Constant::kInt32:
             __ mov(dst, Operand(src.ToInt32()));
@@ -3654,10 +3699,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kExternalReference:
           __ Move(dst, src.ToExternalReference());
-          break;
-        case Constant::kDelayedStringConstant:
-          __ mov(dst, Operand::EmbeddedStringConstant(
-                          src.ToDelayedStringConstant()));
           break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
@@ -3693,9 +3734,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                          ? src.ToFloat32()
                          : src.ToFloat64().value();
       if (src.type() == Constant::kFloat32) {
-        __ LoadF32<float>(dst, src.ToFloat32(), kScratchReg);
+        __ LoadF32<float>(dst, src.ToFloat32(), r1);
       } else {
-        __ LoadF64<double>(dst, value, kScratchReg);
+        __ LoadF64<double>(dst, value, r1);
       }
 
       if (destination->IsFloatStackSlot()) {
@@ -3713,7 +3754,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         __ StoreV128(g.ToSimd128Register(source), g.ToMemOperand(destination),
-                     kScratchReg);
+                     r1);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -3742,7 +3783,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         __ LoadV128(g.ToSimd128Register(destination), g.ToMemOperand(source),
-                    kScratchReg);
+                    r1);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -3755,9 +3796,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreF32(temp, g.ToMemOperand(destination));
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-        __ LoadV128(kScratchDoubleReg, g.ToMemOperand(source), kScratchReg);
-        __ StoreV128(kScratchDoubleReg, g.ToMemOperand(destination),
-                     kScratchReg);
+        __ LoadV128(kScratchDoubleReg, g.ToMemOperand(source), r1);
+        __ StoreV128(kScratchDoubleReg, g.ToMemOperand(destination), r1);
       }
     }
   } else {

@@ -5,13 +5,14 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
+#include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/execution/simulator.h"
+#include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/call-tester.h"
+#include "test/common/call-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -153,7 +154,7 @@ class BufferedRawMachineAssemblerTester
   ReturnType Call(Params... p) {
     uintptr_t zap_data[] = {kZapValue, kZapValue};
     ReturnType return_value;
-    STATIC_ASSERT(sizeof(return_value) <= sizeof(zap_data));
+    static_assert(sizeof(return_value) <= sizeof(zap_data));
     MemCopy(&return_value, &zap_data, sizeof(return_value));
     CSignature::VerifyParams<Params...>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p)...,
@@ -211,7 +212,6 @@ class BufferedRawMachineAssemblerTester<void>
 static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
 static const int32_t CHECK_VALUE = 0x99BEEDCE;
-
 
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
@@ -271,7 +271,6 @@ class BinopTester {
   CType result;
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
@@ -281,7 +280,6 @@ class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
                                                   MachineType::Int32()) {}
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
@@ -290,7 +288,6 @@ class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
       : BinopTester<int64_t, USE_RETURN_REGISTER>(tester,
                                                   MachineType::Int64()) {}
 };
-
 
 // A helper class for testing code sequences that take two uint parameters and
 // return an uint value.
@@ -307,7 +304,6 @@ class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
   }
 };
 
-
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
 class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
@@ -315,7 +311,6 @@ class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
       : BinopTester<float, USE_RESULT_BUFFER>(tester, MachineType::Float32()) {}
 };
-
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
@@ -325,7 +320,6 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
       : BinopTester<double, USE_RESULT_BUFFER>(tester, MachineType::Float64()) {
   }
 };
-
 
 // A helper class for testing code sequences that take two pointer parameters
 // and return a pointer value.
@@ -337,7 +331,6 @@ class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
       : BinopTester<Type, USE_RETURN_REGISTER>(tester, MachineType::Pointer()) {
   }
 };
-
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
@@ -380,7 +373,6 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return nullptr;
   }
 
   bool Int32Compare(int32_t a, int32_t b) {
@@ -398,7 +390,6 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
   bool Float64Compare(double a, double b) {
@@ -412,12 +403,10 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
   IrOpcode::Value opcode;
 };
-
 
 // A small closure class to generate code for a function of two inputs that
 // produces a single output so that it can be used in many different contexts.

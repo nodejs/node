@@ -31,7 +31,6 @@ using {{config.crdtp.namespace}}::cbor::EncodeStop;
 using {{config.crdtp.namespace}}::cbor::EncodeString8;
 using {{config.crdtp.namespace}}::cbor::EncodeTrue;
 using {{config.crdtp.namespace}}::cbor::EnvelopeEncoder;
-using {{config.crdtp.namespace}}::cbor::InitialByteForEnvelope;
 }  // namespace cbor
 
 // Uses the parsing events received from driver of |ParserHandler|

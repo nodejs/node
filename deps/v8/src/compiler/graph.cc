@@ -6,9 +6,7 @@
 
 #include <algorithm>
 
-#include "src/base/bits.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/verifier.h"
 

@@ -78,7 +78,7 @@ void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
                            int stack_depth, int current_position,
                            uint32_t current_char, int bytecode_length,
                            const char* bytecode_name) {
-  if (FLAG_trace_regexp_bytecodes) {
+  if (v8_flags.trace_regexp_bytecodes) {
     const bool printable = std::isprint(current_char);
     const char* format =
         printable
@@ -180,7 +180,7 @@ class InterpreterRegisters {
         output_register_count_(output_register_count) {
     // TODO(jgruber): Use int32_t consistently for registers. Currently, CSA
     // uses int32_t while runtime uses int.
-    STATIC_ASSERT(sizeof(int) == sizeof(int32_t));
+    static_assert(sizeof(int) == sizeof(int32_t));
     DCHECK_GE(output_register_count, 2);  // At least 2 for the match itself.
     DCHECK_GE(total_register_count, output_register_count);
     DCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
@@ -424,8 +424,8 @@ IrregexpInterpreter::Result RawMatch(
             base::bits::RoundUpToPowerOfTwo32(kRegExpBytecodeCount));
 
   // Make sure every bytecode we get by using BYTECODE_MASK is well defined.
-  STATIC_ASSERT(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
-  STATIC_ASSERT(kRegExpBytecodeCount + kRegExpBytecodeFillerCount ==
+  static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
+  static_assert(kRegExpBytecodeCount + kRegExpBytecodeFillerCount ==
                 kRegExpPaddedBytecodeCount);
 
 #define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_##name,
@@ -447,7 +447,7 @@ IrregexpInterpreter::Result RawMatch(
   uint32_t backtrack_count = 0;
 
 #ifdef DEBUG
-  if (FLAG_trace_regexp_bytecodes) {
+  if (v8_flags.trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
   }
 #endif
@@ -522,7 +522,7 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(POP_BT) {
-      STATIC_ASSERT(JSRegExp::kNoBacktrackLimit == 0);
+      static_assert(JSRegExp::kNoBacktrackLimit == 0);
       if (++backtrack_count == backtrack_limit) {
         int return_code = LoadPacked24Signed(insn);
         return static_cast<IrregexpInterpreter::Result>(return_code);
@@ -1057,7 +1057,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
     Isolate* isolate, JSRegExp regexp, String subject_string,
     int* output_registers, int output_register_count, int start_position,
     RegExp::CallOrigin call_origin) {
-  if (FLAG_regexp_tier_up) regexp.TierUpTick();
+  if (v8_flags.regexp_tier_up) regexp.TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
   ByteArray code_array = ByteArray::cast(regexp.bytecode(is_one_byte));

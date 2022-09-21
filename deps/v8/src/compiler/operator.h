@@ -12,7 +12,6 @@
 #include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/objects/feedback-cell.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

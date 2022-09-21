@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-opt --assert-types --no-analyze-environment-liveness
+// Flags: --always-turbofan --assert-types --no-analyze-environment-liveness
 
 class C {
     get #a() { }

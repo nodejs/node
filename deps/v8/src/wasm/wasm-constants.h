@@ -37,28 +37,30 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   // Current reference types
   kFuncRefCode = 0x70,
-  kAnyRefCode = 0x6f,  // aka externref
+  // TODO(7784): Switch to official opcodes once they are aligned with the
+  // stringref proposal for nofunc and noextern.
+  kNoExternCode = 0x69,
+  kNoFuncCode = 0x68,
+  kExternRefCode = 0x6f,
   // typed-funcref and GC proposal types
-  // TODO(7748): For backwards compatibility only, remove when able.
-  kAnyRefCodeAlias = 0x6e,
+  kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
-  kOptRefCode = 0x6c,
+  kRefNullCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
-  // TODO(7748): Only here for backwards compatibility, remove when able.
-  kRttWithDepthCode = 0x69,
-  kRttCode = 0x68,
   kDataRefCode = 0x67,
-  kArrayRefCode = 0x66
+  kArrayRefCode = 0x66,
+  kNoneCode = 0x65,
+  kStringRefCode = 0x64,
+  kStringViewWtf8Code = 0x63,
+  kStringViewWtf16Code = 0x62,
+  kStringViewIterCode = 0x61,
 };
 
 // Binary encoding of type definitions.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
-constexpr uint8_t kWasmFunctionNominalCode = 0x5d;
-constexpr uint8_t kWasmStructNominalCode = 0x5c;
-constexpr uint8_t kWasmArrayNominalCode = 0x5b;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
 
@@ -103,6 +105,7 @@ enum SectionCode : int8_t {
   kDataSectionCode = 11,       // Data segments
   kDataCountSectionCode = 12,  // Number of data segments
   kTagSectionCode = 13,        // Tag section
+  kStringRefSectionCode = 14,  // Stringref literal section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
@@ -111,12 +114,13 @@ enum SectionCode : int8_t {
   kSourceMappingURLSectionCode,   // Source Map URL section
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kInstTraceSectionCode,          // Instruction trace section
   kCompilationHintsSectionCode,   // Compilation hints section
   kBranchHintsSectionCode,        // Branch hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kBranchHintsSectionCode,
+  kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
@@ -138,7 +142,9 @@ enum NameSectionKindCode : uint8_t {
   kElementSegmentCode = 8,
   kDataSegmentCode = 9,
   // https://github.com/WebAssembly/gc/issues/193
-  kFieldCode = 10
+  kFieldCode = 10,
+  // https://github.com/WebAssembly/exception-handling/pull/213
+  kTagCode = 11,
 };
 
 constexpr size_t kWasmPageSize = 0x10000;
@@ -172,12 +178,12 @@ constexpr uint32_t kGenericWrapperBudget = 1000;
 // gives up some module size for faster access to the supertypes.
 constexpr uint32_t kMinimumSupertypeArraySize = 3;
 
-#if V8_TARGET_ARCH_X64
-constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
-#endif
+// Maximum number of call targets tracked per call.
+constexpr int kMaxPolymorphism = 4;
 
-constexpr Tagged_t kArrayInitFromDataArrayTooLargeErrorCode = 0;
-constexpr Tagged_t kArrayInitFromDataSegmentOutOfBoundsErrorCode = 1;
+#if V8_TARGET_ARCH_X64
+constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
+#endif
 
 }  // namespace wasm
 }  // namespace internal

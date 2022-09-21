@@ -101,7 +101,7 @@ class ScopeIterator {
 
   bool InInnerScope() const { return !function_.is_null(); }
   bool HasContext() const;
-  bool NeedsAndHasContext() const;
+  bool NeedsContext() const;
   Handle<Context> CurrentContext() const {
     DCHECK(HasContext());
     return context_;
@@ -130,12 +130,13 @@ class ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
-  void AdvanceOneScope();
-  void AdvanceToNonHiddenScope();
+  bool AdvanceOneScope();
+  void AdvanceOneContext();
+  void AdvanceScope();
   void AdvanceContext();
   void CollectLocalsFromCurrentScope();
 
-  int GetSourcePosition();
+  int GetSourcePosition() const;
 
   void TryParseAndRetrieveScopes(ReparseStrategy strategy);
 

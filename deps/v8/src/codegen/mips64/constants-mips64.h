@@ -297,7 +297,7 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxWatchpointCode = 31;
 const uint32_t kMaxStopCode = 127;
-STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+static_assert(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
 const int kOpcodeShift = 26;
@@ -1055,8 +1055,6 @@ enum MSAMinorOpcode : uint32_t {
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
 enum Condition {
-  // Any value < 0 is considered no_condition.
-  kNoCondition = -1,
   overflow = 0,
   no_overflow = 1,
   Uless = 2,
@@ -1102,13 +1100,9 @@ enum Condition {
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
-  cc_default = kNoCondition
 };
 
 // Returns the equivalent of !cc.
-// Negation of the default kNoCondition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
   DCHECK(cc != cc_always);
   return static_cast<Condition>(cc ^ 1);

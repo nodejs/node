@@ -4,7 +4,6 @@
 
 #include <set>
 
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"

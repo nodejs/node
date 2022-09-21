@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-opt
+// Flags: --always-turbofan
 
 for (let i = 0; i < 5; i++) {
   try { typeof x } catch (e) {};

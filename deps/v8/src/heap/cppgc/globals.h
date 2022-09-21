@@ -73,7 +73,11 @@ constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 constexpr GCInfoIndex kFreeListGCInfoIndex = 0;
 constexpr size_t kFreeListEntrySize = 2 * sizeof(uintptr_t);
 
+#if defined(CPPGC_2GB_CAGE)
+constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(2) * kGB;
+#else   // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
+#endif  // !defined(CPPGC_2GB_CAGE)
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 
 }  // namespace internal

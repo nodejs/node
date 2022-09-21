@@ -83,7 +83,7 @@ namespace {
 
 class GCEpilogue {
  public:
-  static void Callback(void* data) {
+  static void Callback(LocalIsolate*, GCType, GCCallbackFlags, void* data) {
     reinterpret_cast<GCEpilogue*>(data)->was_invoked_ = true;
   }
 

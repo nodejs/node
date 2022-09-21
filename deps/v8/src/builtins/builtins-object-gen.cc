@@ -880,6 +880,13 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_proxy);
   {
+    // Check if the proxy has been revoked.
+    Label throw_proxy_handler_revoked(this, Label::kDeferred);
+    TNode<HeapObject> handler = CAST(LoadObjectField(
+        TNode<JSProxy>::UncheckedCast(receiver), JSProxy::kHandlerOffset));
+    CSA_DCHECK(this, IsNullOrJSReceiver(handler));
+    GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+
     // If {receiver} is a proxy for a JSArray, we default to "[object Array]",
     // otherwise we default to "[object Object]" or "[object Function]" here,
     // depending on whether the {receiver} is callable. The order matters here,
@@ -911,6 +918,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     }
     BIND(&if_tagisstring);
     ReturnToStringFormat(context, CAST(var_tag.value()));
+
+    BIND(&throw_proxy_handler_revoked);
+    {
+      ThrowTypeError(context, MessageTemplate::kProxyRevoked,
+                     "Object.prototype.toString");
+    }
   }
 
   BIND(&if_regexp);

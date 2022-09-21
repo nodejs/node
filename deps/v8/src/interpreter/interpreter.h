@@ -13,11 +13,11 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 
+class AccountingAllocator;
 class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;
@@ -68,9 +68,6 @@ class Interpreter {
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           CodeT handler);
-
-  // Disassembler support.
-  V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 
   V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
 

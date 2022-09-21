@@ -704,6 +704,21 @@ void SharedTurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
   Pxor(dst, scratch);
 }
 
+void SharedTurboAssembler::I16x8DotI8x16I7x16S(XMMRegister dst,
+                                               XMMRegister src1,
+                                               XMMRegister src2) {
+  ASM_CODE_COMMENT(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmaddubsw(dst, src2, src1);
+  } else {
+    if (dst != src2) {
+      movdqa(dst, src2);
+    }
+    pmaddubsw(dst, src1);
+  }
+}
+
 void SharedTurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
                                                      XMMRegister src,
                                                      XMMRegister tmp) {

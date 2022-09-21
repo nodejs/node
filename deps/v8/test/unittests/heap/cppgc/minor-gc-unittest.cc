@@ -60,14 +60,47 @@ struct OtherType<Large> {
   using Type = Small;
 };
 
+void ExpectPageYoung(BasePage& page) {
+  EXPECT_TRUE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kYoung,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
+void ExpectPageMixed(BasePage& page) {
+  EXPECT_TRUE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kMixed,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
+void ExpectPageOld(BasePage& page) {
+  EXPECT_FALSE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kOld,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
 }  // namespace
 
 class MinorGCTest : public testing::TestWithHeap {
  public:
-  MinorGCTest() {
+  MinorGCTest() : testing::TestWithHeap() {
+    // Enable young generation flag and run GC. After the first run the heap
+    // will enable minor GC.
+    Heap::From(GetHeap())->EnableGenerationalGC();
     CollectMajor();
+
     SimpleGCedBase::destructed_objects = 0;
   }
+
+  ~MinorGCTest() override { Heap::From(GetHeap())->Terminate(); }
 
   static size_t DestructedObjects() {
     return SimpleGCedBase::destructed_objects;
@@ -103,9 +136,9 @@ TYPED_TEST_SUITE(MinorGCTestForType, ObjectTypes);
 namespace {
 template <typename... Args>
 void RunMinorGCAndExpectObjectsPromoted(MinorGCTest& test, Args*... args) {
-  ([args] { EXPECT_TRUE(IsHeapObjectYoung(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectYoung(args) && ...));
   test.CollectMinor();
-  ([args] { EXPECT_TRUE(IsHeapObjectOld(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectOld(args) && ...));
 }
 
 struct ExpectRememberedSlotsAdded final {
@@ -242,7 +275,6 @@ TYPED_TEST(MinorGCTestForType, OldObjectIsNotVisited) {
 
 template <typename Type1, typename Type2>
 void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
-  auto* internal_heap = Heap::From(heap);
   Persistent<Type1> old =
       MakeGarbageCollected<Type1>(heap->GetAllocationHandle());
   test->CollectMinor();
@@ -259,12 +291,10 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
       ptr->next = young;
       young = ptr;
       EXPECT_TRUE(HeapObjectHeader::FromObject(young).IsYoung());
-      const uintptr_t offset =
-          internal_heap->caged_heap().OffsetFromAddress(young);
+      const uintptr_t offset = CagedHeap::OffsetFromAddress(young);
       // Age may be young or unknown.
-      EXPECT_NE(
-          AgeTable::Age::kOld,
-          Heap::From(heap)->caged_heap().local_data().age_table.GetAge(offset));
+      EXPECT_NE(AgeTable::Age::kOld,
+                CagedHeapLocalData::Get().age_table.GetAge(offset));
     }
   }
 
@@ -340,7 +370,7 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
   {
     ExpectNoRememberedSlotsAdded _(*this);
     // Try issuing generational barrier for sentinel.
-    old->next = static_cast<Type*>(kSentinelPointer);
+    old->next = kSentinelPointer;
   }
 }
 
@@ -566,6 +596,59 @@ TEST_F(MinorGCTest, ReexecuteCustomCallback) {
   // The callback must be called only once.
   EXPECT_EQ(4u, GCedWithCustomWeakCallback::custom_callback_called);
 }
+
+TEST_F(MinorGCTest, AgeTableIsReset) {
+  using Type1 = SimpleGCed<16>;
+  using Type2 = SimpleGCed<64>;
+  using Type3 = SimpleGCed<kLargeObjectSizeThreshold * 2>;
+
+  Persistent<Type1> p1 = MakeGarbageCollected<Type1>(GetAllocationHandle());
+  Persistent<Type2> p2 = MakeGarbageCollected<Type2>(GetAllocationHandle());
+  Persistent<Type3> p3 = MakeGarbageCollected<Type3>(GetAllocationHandle());
+
+  auto* page1 = BasePage::FromPayload(p1.Get());
+  auto* page2 = BasePage::FromPayload(p2.Get());
+  auto* page3 = BasePage::FromPayload(p3.Get());
+
+  ASSERT_FALSE(page1->is_large());
+  ASSERT_FALSE(page2->is_large());
+  ASSERT_TRUE(page3->is_large());
+
+  ASSERT_NE(page1, page2);
+  ASSERT_NE(page1, page3);
+  ASSERT_NE(page2, page3);
+
+  // First, expect all the pages to be young.
+  ExpectPageYoung(*page1);
+  ExpectPageYoung(*page2);
+  ExpectPageYoung(*page3);
+
+  CollectMinor();
+
+  // Expect pages to be promoted after the minor GC.
+  ExpectPageOld(*page1);
+  ExpectPageOld(*page2);
+  ExpectPageOld(*page3);
+
+  // Allocate another objects on the normal pages and a new large page.
+  p1 = MakeGarbageCollected<Type1>(GetAllocationHandle());
+  p2 = MakeGarbageCollected<Type2>(GetAllocationHandle());
+  p3 = MakeGarbageCollected<Type3>(GetAllocationHandle());
+
+  // Expect now the normal pages to be mixed.
+  ExpectPageMixed(*page1);
+  ExpectPageMixed(*page2);
+  // The large page must remain old.
+  ExpectPageOld(*page3);
+
+  CollectMajor();
+
+  // After major GC all the pages must also become old.
+  ExpectPageOld(*page1);
+  ExpectPageOld(*page2);
+  ExpectPageOld(*BasePage::FromPayload(p3.Get()));
+}
+
 }  // namespace internal
 }  // namespace cppgc
 

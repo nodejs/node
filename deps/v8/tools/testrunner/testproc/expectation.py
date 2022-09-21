@@ -4,9 +4,6 @@
 
 from . import base
 
-from testrunner.local import statusfile
-from testrunner.outproc import base as outproc
-
 class ExpectationProc(base.TestProcProducer):
   """Test processor passing tests and results through and forgiving timeouts."""
   def __init__(self):

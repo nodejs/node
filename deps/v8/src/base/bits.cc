@@ -48,13 +48,15 @@ uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
 
 int32_t SignedMulHigh32(int32_t lhs, int32_t rhs) {
   int64_t const value = static_cast<int64_t>(lhs) * static_cast<int64_t>(rhs);
-  return bit_cast<int32_t, uint32_t>(bit_cast<uint64_t>(value) >> 32u);
+  return base::bit_cast<int32_t, uint32_t>(base::bit_cast<uint64_t>(value) >>
+                                           32u);
 }
 
 
 int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc) {
-  return bit_cast<int32_t>(bit_cast<uint32_t>(acc) +
-                           bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
+  return base::bit_cast<int32_t>(
+      base::bit_cast<uint32_t>(acc) +
+      base::bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
 }
 
 
@@ -86,14 +88,6 @@ int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs) {
   // Overflow if {lhs - rhs > max}. In that case, return {max}.
   if (rhs <= 0 && lhs > limits::max() + rhs) return limits::max();
   return lhs - rhs;
-}
-
-bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
-  // Compute the result as {int64_t}, then check for overflow.
-  int64_t result = int64_t{lhs} * int64_t{rhs};
-  *val = static_cast<int32_t>(result);
-  using limits = std::numeric_limits<int32_t>;
-  return result < limits::min() || result > limits::max();
 }
 
 }  // namespace bits

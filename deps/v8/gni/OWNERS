@@ -1,5 +1,5 @@
 file:../INFRA_OWNERS
 
-per-file v8.cmx=victorgomes@chromium.org
+per-file v8.cml=victorgomes@chromium.org
 per-file release_branch_toggle.gni=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com
 per-file release_branch_toggle.gni=vahl@chromium.org

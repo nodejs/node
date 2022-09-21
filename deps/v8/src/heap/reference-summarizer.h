@@ -26,17 +26,16 @@ class ReferenceSummary {
   // behavior. Intended only for verification.
   static ReferenceSummary SummarizeReferencesFrom(Heap* heap, HeapObject obj);
 
+  using UnorderedHeapObjectSet =
+      std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>;
+
   // All objects which the chosen object has strong pointers to.
-  std::unordered_set<HeapObject, Object::Hasher>& strong_references() {
-    return strong_references_;
-  }
+  UnorderedHeapObjectSet& strong_references() { return strong_references_; }
 
   // All objects which the chosen object has weak pointers to. The values in
   // ephemeron hash tables are also included here, even though they aren't
   // normal weak pointers.
-  std::unordered_set<HeapObject, Object::Hasher>& weak_references() {
-    return weak_references_;
-  }
+  UnorderedHeapObjectSet& weak_references() { return weak_references_; }
 
   void Clear() {
     strong_references_.clear();
@@ -44,8 +43,8 @@ class ReferenceSummary {
   }
 
  private:
-  std::unordered_set<HeapObject, Object::Hasher> strong_references_;
-  std::unordered_set<HeapObject, Object::Hasher> weak_references_;
+  UnorderedHeapObjectSet strong_references_;
+  UnorderedHeapObjectSet weak_references_;
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 

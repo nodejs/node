@@ -13,6 +13,16 @@ extern macro BigIntBuiltinsAssembler::CppAbsoluteAddAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): void;
 extern macro BigIntBuiltinsAssembler::CppAbsoluteSubAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): void;
+extern macro BigIntBuiltinsAssembler::CppAbsoluteMulAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): bool;
+extern macro BigIntBuiltinsAssembler::CppAbsoluteDivAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): bool;
+extern macro BigIntBuiltinsAssembler::CppBitwiseAndPosPosAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): void;
+extern macro BigIntBuiltinsAssembler::CppBitwiseAndNegNegAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): void;
+extern macro BigIntBuiltinsAssembler::CppBitwiseAndPosNegAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): void;
 extern macro BigIntBuiltinsAssembler::CppAbsoluteCompare(
     BigIntBase, BigIntBase): int32;
 
@@ -197,6 +207,200 @@ builtin BigIntSubtract(implicit context: Context)(
     const y = Cast<BigInt>(yNum) otherwise MixedTypes;
 
     return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
+  } label MixedTypes {
+    ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+  } label BigIntTooBig {
+    ThrowRangeError(MessageTemplate::kBigIntTooBig);
+  }
+}
+
+macro BigIntMultiplyImpl(implicit context: Context)(x: BigInt, y: BigInt):
+    BigInt labels BigIntTooBig, TerminationRequested {
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+
+  // case: 0n * y
+  if (xlength == 0) {
+    return x;
+  }
+
+  // case: x * 0n
+  if (ylength == 0) {
+    return y;
+  }
+
+  // case: x * y
+  const xsign = ReadBigIntSign(x);
+  const ysign = ReadBigIntSign(y);
+  const resultSign = (xsign != ysign) ? kNegativeSign : kPositiveSign;
+  const result = AllocateEmptyBigIntNoThrow(resultSign, xlength + ylength)
+      otherwise BigIntTooBig;
+
+  if (!CppAbsoluteMulAndCanonicalize(result, x, y)) {
+    goto TerminationRequested;
+  }
+
+  return Convert<BigInt>(result);
+}
+
+builtin BigIntMultiplyNoThrow(implicit context: Context)(
+    x: BigInt, y: BigInt): Numeric {
+  try {
+    return BigIntMultiplyImpl(x, y) otherwise BigIntTooBig,
+           TerminationRequested;
+  } label BigIntTooBig {
+    // Smi sentinel 0 is used to signal BigIntTooBig exception.
+    return Convert<Smi>(0);
+  } label TerminationRequested {
+    // Smi sentinel 1 is used to signal TerminateExecution exception.
+    return Convert<Smi>(1);
+  }
+}
+
+builtin BigIntMultiply(implicit context: Context)(
+    xNum: Numeric, yNum: Numeric): BigInt {
+  try {
+    const x = Cast<BigInt>(xNum) otherwise MixedTypes;
+    const y = Cast<BigInt>(yNum) otherwise MixedTypes;
+
+    return BigIntMultiplyImpl(x, y) otherwise BigIntTooBig,
+           TerminationRequested;
+  } label MixedTypes {
+    ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+  } label BigIntTooBig {
+    ThrowRangeError(MessageTemplate::kBigIntTooBig);
+  } label TerminationRequested {
+    TerminateExecution();
+  }
+}
+
+macro BigIntDivideImpl(implicit context: Context)(x: BigInt, y: BigInt):
+    BigInt labels BigIntDivZero, TerminationRequested {
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+
+  // case: x / 0n
+  if (ylength == 0) {
+    goto BigIntDivZero;
+  }
+
+  // case: x / y, where x < y
+  if (MutableBigIntAbsoluteCompare(x, y) < 0) {
+    const zero = AllocateEmptyBigInt(kPositiveSign, 0);
+    return Convert<BigInt>(zero);
+  }
+
+  // case: x / 1n
+  const xsign = ReadBigIntSign(x);
+  const ysign = ReadBigIntSign(y);
+  const resultSign = (xsign != ysign) ? kNegativeSign : kPositiveSign;
+  if (ylength == 1 && LoadBigIntDigit(y, 0) == 1) {
+    return resultSign == xsign ? x : BigIntUnaryMinus(x);
+  }
+
+  // case: x / y
+  let resultLength = xlength - ylength + 1;
+  // This implies a *very* conservative estimate that kBarrettThreshold > 10.
+  if (ylength > 10) resultLength++;
+  const result = AllocateEmptyBigIntNoThrow(resultSign, resultLength)
+      otherwise unreachable;
+
+  if (!CppAbsoluteDivAndCanonicalize(result, x, y)) {
+    goto TerminationRequested;
+  }
+
+  return Convert<BigInt>(result);
+}
+
+builtin BigIntDivideNoThrow(implicit context: Context)(
+    x: BigInt, y: BigInt): Numeric {
+  try {
+    return BigIntDivideImpl(x, y) otherwise BigIntDivZero, TerminationRequested;
+  } label BigIntDivZero {
+    // Smi sentinel 0 is used to signal BigIntDivZero exception.
+    return Convert<Smi>(0);
+  } label TerminationRequested {
+    // Smi sentinel 1 is used to signal TerminateExecution exception.
+    return Convert<Smi>(1);
+  }
+}
+
+builtin BigIntDivide(implicit context: Context)(
+    xNum: Numeric, yNum: Numeric): BigInt {
+  try {
+    const x = Cast<BigInt>(xNum) otherwise MixedTypes;
+    const y = Cast<BigInt>(yNum) otherwise MixedTypes;
+
+    return BigIntDivideImpl(x, y) otherwise BigIntDivZero, TerminationRequested;
+  } label MixedTypes {
+    ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+  } label BigIntDivZero {
+    ThrowRangeError(MessageTemplate::kBigIntDivZero);
+  } label TerminationRequested {
+    TerminateExecution();
+  }
+}
+
+macro BigIntBitwiseAndImpl(implicit context: Context)(
+    x: BigInt, y: BigInt): BigInt labels BigIntTooBig {
+  const xlength = ReadBigIntLength(x);
+  const ylength = ReadBigIntLength(y);
+
+  // case: 0n & y
+  if (xlength == 0) {
+    return x;
+  }
+
+  // case: x & 0n
+  if (ylength == 0) {
+    return y;
+  }
+
+  const xsign = ReadBigIntSign(x);
+  const ysign = ReadBigIntSign(y);
+
+  if (xsign == kPositiveSign && ysign == kPositiveSign) {
+    const resultLength = (xlength < ylength) ? xlength : ylength;
+    const result = AllocateEmptyBigIntNoThrow(kPositiveSign, resultLength)
+        otherwise unreachable;
+    CppBitwiseAndPosPosAndCanonicalize(result, x, y);
+    return Convert<BigInt>(result);
+  } else if (xsign == kNegativeSign && ysign == kNegativeSign) {
+    const resultLength = ((xlength > ylength) ? xlength : ylength) + 1;
+    const result = AllocateEmptyBigIntNoThrow(kNegativeSign, resultLength)
+        otherwise BigIntTooBig;
+    CppBitwiseAndNegNegAndCanonicalize(result, x, y);
+    return Convert<BigInt>(result);
+  } else if (xsign == kPositiveSign && ysign == kNegativeSign) {
+    const result = AllocateEmptyBigIntNoThrow(kPositiveSign, xlength)
+        otherwise unreachable;
+    CppBitwiseAndPosNegAndCanonicalize(result, x, y);
+    return Convert<BigInt>(result);
+  } else {
+    const result = AllocateEmptyBigIntNoThrow(kPositiveSign, ylength)
+        otherwise unreachable;
+    CppBitwiseAndPosNegAndCanonicalize(result, y, x);
+    return Convert<BigInt>(result);
+  }
+}
+
+builtin BigIntBitwiseAndNoThrow(implicit context: Context)(
+    x: BigInt, y: BigInt): Numeric {
+  try {
+    return BigIntBitwiseAndImpl(x, y) otherwise BigIntTooBig;
+  } label BigIntTooBig {
+    // Smi sentinel 0 is used to signal BigIntTooBig exception.
+    return Convert<Smi>(0);
+  }
+}
+
+builtin BigIntBitwiseAnd(implicit context: Context)(
+    xNum: Numeric, yNum: Numeric): BigInt {
+  try {
+    const x = Cast<BigInt>(xNum) otherwise MixedTypes;
+    const y = Cast<BigInt>(yNum) otherwise MixedTypes;
+
+    return BigIntBitwiseAndImpl(x, y) otherwise BigIntTooBig;
   } label MixedTypes {
     ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
   } label BigIntTooBig {

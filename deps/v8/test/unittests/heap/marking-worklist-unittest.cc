@@ -87,7 +87,7 @@ TEST_F(MarkingWorklistTest, ContextWorklistsPushPop) {
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
   worklists.SwitchToContext(context);
   worklists.Push(pushed_object);
-  worklists.SwitchToShared();
+  worklists.SwitchToSharedForTesting();
   HeapObject popped_object;
   EXPECT_TRUE(worklists.Pop(&popped_object));
   EXPECT_EQ(popped_object, pushed_object);
@@ -104,7 +104,7 @@ TEST_F(MarkingWorklistTest, ContextWorklistsEmpty) {
   worklists.SwitchToContext(context);
   worklists.Push(pushed_object);
   EXPECT_FALSE(worklists.IsEmpty());
-  worklists.SwitchToShared();
+  worklists.SwitchToSharedForTesting();
   EXPECT_FALSE(worklists.IsEmpty());
   HeapObject popped_object;
   EXPECT_TRUE(worklists.Pop(&popped_object));

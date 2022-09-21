@@ -37,7 +37,7 @@ macro CheckEmptyOr1Byte(
     it: torque_internal::SliceIterator<char16, const &char16>):
     void labels Bailout {
   let it = it;
-  if ((it.Next() otherwise return ) > 0xFF) goto Bailout;
+  if ((it.Next() otherwise return) > 0xFF) goto Bailout;
 }
 
 // This fast path works for ASCII-only strings and is based on the assumption

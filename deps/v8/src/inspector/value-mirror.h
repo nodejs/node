@@ -66,9 +66,8 @@ class ValueMirror {
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
   virtual v8::Local<v8::Value> v8Value() const = 0;
-  virtual protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result) const = 0;
+  virtual std::unique_ptr<protocol::Runtime::WebDriverValue>
+  buildWebDriverValue(v8::Local<v8::Context> context, int max_depth) const = 0;
 
   class PropertyAccumulator {
    public:

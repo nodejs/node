@@ -50,7 +50,7 @@ class JSStrictArgumentsObject
  public:
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
-  STATIC_ASSERT(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
+  static_assert(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);

@@ -18,12 +18,16 @@
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal::wasm {
+class AssemblerBufferCache;
+}
 
-namespace compiler {
+namespace v8::internal::compiler {
 
 // Forward declarations.
 class DeoptimizationExit;
@@ -51,32 +55,26 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
-enum class DeoptimizationLiteralKind { kObject, kNumber, kString, kInvalid };
+enum class DeoptimizationLiteralKind { kObject, kNumber, kInvalid };
 
-// Either a non-null Handle<Object>, a double or a StringConstantBase.
+// Either a non-null Handle<Object> or a double.
 class DeoptimizationLiteral {
  public:
   DeoptimizationLiteral()
-      : kind_(DeoptimizationLiteralKind::kInvalid),
-        object_(),
-        number_(0),
-        string_(nullptr) {}
+      : kind_(DeoptimizationLiteralKind::kInvalid), object_(), number_(0) {}
   explicit DeoptimizationLiteral(Handle<Object> object)
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     CHECK(!object_.is_null());
   }
   explicit DeoptimizationLiteral(double number)
       : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
-  explicit DeoptimizationLiteral(const StringConstantBase* string)
-      : kind_(DeoptimizationLiteralKind::kString), string_(string) {}
 
   Handle<Object> object() const { return object_; }
-  const StringConstantBase* string() const { return string_; }
 
   bool operator==(const DeoptimizationLiteral& other) const {
     return kind_ == other.kind_ && object_.equals(other.object_) &&
-           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_) &&
-           bit_cast<intptr_t>(string_) == bit_cast<intptr_t>(other.string_);
+           base::bit_cast<uint64_t>(number_) ==
+               base::bit_cast<uint64_t>(other.number_);
   }
 
   Handle<Object> Reify(Isolate* isolate) const;
@@ -95,7 +93,6 @@ class DeoptimizationLiteral {
 
   Handle<Object> object_;
   double number_ = 0;
-  const StringConstantBase* string_ = nullptr;
 };
 
 // These structs hold pc offsets for generated instructions and is only used
@@ -119,16 +116,14 @@ struct TurbolizerInstructionStartInfo {
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* instructions,
-                         OptimizedCompilationInfo* info, Isolate* isolate,
-                         base::Optional<OsrHelper> osr_helper,
-                         int start_source_position,
-                         JumpOptimizationInfo* jump_opt,
-                         const AssemblerOptions& options, Builtin builtin,
-                         size_t max_unoptimized_frame_height,
-                         size_t max_pushed_argument_count,
-                         const char* debug_name = nullptr);
+  explicit CodeGenerator(
+      Zone* codegen_zone, Frame* frame, Linkage* linkage,
+      InstructionSequence* instructions, OptimizedCompilationInfo* info,
+      Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+      int start_source_position, JumpOptimizationInfo* jump_opt,
+      const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
+      Builtin builtin, size_t max_unoptimized_frame_height,
+      size_t max_pushed_argument_count, const char* debug_name = nullptr);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -350,6 +345,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                     InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) final;
+  void MoveToTempLocation(InstructionOperand* src) final;
+  void MoveTempLocationTo(InstructionOperand* dst,
+                          MachineRepresentation rep) final;
+  void SetPendingMove(MoveOperands* move) final;
 
   // ===========================================================================
   // =================== Jump table construction methods. ======================
@@ -460,19 +459,19 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;
   int osr_pc_offset_;
-  int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+#if V8_ENABLE_WEBASSEMBLY
   ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeGenResult result_;
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;
   ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;
+  MoveCycleState move_cycle_;
 
   const char* debug_name_ = nullptr;
 };
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_BACKEND_CODE_GENERATOR_H_

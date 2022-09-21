@@ -18,37 +18,19 @@ class Isolate;
 // step and posts another task until the marking is completed.
 class IncrementalMarkingJob final {
  public:
-  enum class TaskType { kNormal, kDelayed };
+  explicit IncrementalMarkingJob(Heap* heap) V8_NOEXCEPT : heap_(heap) {}
 
-  IncrementalMarkingJob() V8_NOEXCEPT = default;
-
-  void Start(Heap* heap);
-
-  void ScheduleTask(Heap* heap, TaskType task_type = TaskType::kNormal);
-
-  double CurrentTimeToTask(Heap* heap) const;
+  void ScheduleTask();
+  double CurrentTimeToTask() const;
 
  private:
   class Task;
   static constexpr double kDelayInSeconds = 10.0 / 1000.0;
 
-  bool IsTaskPending(TaskType task_type) const {
-    return task_type == TaskType::kNormal ? normal_task_pending_
-                                          : delayed_task_pending_;
-  }
-
-  void SetTaskPending(TaskType task_type, bool value) {
-    if (task_type == TaskType::kNormal) {
-      normal_task_pending_ = value;
-    } else {
-      delayed_task_pending_ = value;
-    }
-  }
-
+  Heap* heap_;
   base::Mutex mutex_;
   double scheduled_time_ = 0.0;
-  bool normal_task_pending_ = false;
-  bool delayed_task_pending_ = false;
+  bool is_task_pending_ = false;
 };
 }  // namespace internal
 }  // namespace v8

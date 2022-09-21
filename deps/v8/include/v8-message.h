@@ -70,7 +70,7 @@ class V8_EXPORT ScriptOrigin {
                          bool resource_is_opaque = false, bool is_wasm = false,
                          bool is_module = false,
                          Local<Data> host_defined_options = Local<Data>())
-      : isolate_(isolate),
+      : v8_isolate_(isolate),
         resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
         resource_column_offset_(resource_column_offset),
@@ -87,14 +87,12 @@ class V8_EXPORT ScriptOrigin {
   V8_INLINE int ColumnOffset() const;
   V8_INLINE int ScriptId() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
-  V8_DEPRECATE_SOON("Use GetHostDefinedOptions")
-  Local<PrimitiveArray> HostDefinedOptions() const;
   V8_INLINE Local<Data> GetHostDefinedOptions() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
 
  private:
   void VerifyHostDefinedOptions() const;
-  Isolate* isolate_;
+  Isolate* v8_isolate_;
   Local<Value> resource_name_;
   int resource_line_offset_;
   int resource_column_offset_;

@@ -29,46 +29,16 @@ Reduction WasmInliner::Reduce(Node* node) {
 }
 
 #define TRACE(...) \
-  if (FLAG_trace_wasm_inlining) PrintF(__VA_ARGS__)
+  if (v8_flags.trace_wasm_inlining) PrintF(__VA_ARGS__)
 
 void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
   TRACE("[function %d: considering node %d, call to %d: %s]\n", function_index_,
         call->id(), inlinee, decision);
 }
 
-uint32_t WasmInliner::FindOriginatingFunction(Node* call) {
-  DCHECK_EQ(inlined_functions_.size(), first_node_id_.size());
-  NodeId id = call->id();
-  if (inlined_functions_.size() == 0 || id < first_node_id_[0]) {
-    return function_index_;
-  }
-  for (size_t i = 1; i < first_node_id_.size(); i++) {
-    if (id < first_node_id_[i]) return inlined_functions_[i - 1];
-  }
-  DCHECK_GE(id, first_node_id_.back());
-  return inlined_functions_.back();
-}
-
 int WasmInliner::GetCallCount(Node* call) {
-  if (!FLAG_wasm_speculative_inlining) return 0;
-  base::MutexGuard guard(&module()->type_feedback.mutex);
-  wasm::WasmCodePosition position =
-      source_positions_->GetSourcePosition(call).ScriptOffset();
-  uint32_t func = FindOriginatingFunction(call);
-  auto maybe_feedback =
-      module()->type_feedback.feedback_for_function.find(func);
-  if (maybe_feedback == module()->type_feedback.feedback_for_function.end()) {
-    return 0;
-  }
-  wasm::FunctionTypeFeedback feedback = maybe_feedback->second;
-  // It's possible that we haven't processed the feedback yet. Currently,
-  // this can happen for targets of call_direct that haven't gotten hot yet,
-  // and for functions where Liftoff bailed out.
-  if (feedback.feedback_vector.size() == 0) return 0;
-  auto index_in_vector = feedback.positions.find(position);
-  if (index_in_vector == feedback.positions.end()) return 0;
-  return feedback.feedback_vector[index_in_vector->second]
-      .absolute_call_frequency;
+  if (!v8_flags.wasm_speculative_inlining) return 0;
+  return mcgraph()->GetCallCount(call->id());
 }
 
 // TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
@@ -103,18 +73,37 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     Trace(call, inlinee_index, "imported function");
     return NoChange();
   }
-  if (inlinee_index == function_index_) {
-    Trace(call, inlinee_index, "recursive call");
+
+  // We limit the times a function can be inlined to avoid repeatedly inlining
+  // recursive calls. Since we only check here (and not in {Finalize}), it is
+  // possible to exceed this limit if we find a large number of calls in a
+  // single pass.
+  constexpr int kMaximumInlinedCallsPerFunction = 3;
+  if (function_inlining_count_[inlinee_index] >=
+      kMaximumInlinedCallsPerFunction) {
+    Trace(call, inlinee_index,
+          "too many inlined calls to (recursive?) function");
     return NoChange();
   }
-
-  Trace(call, inlinee_index, "adding to inlining candidates!");
-
-  int call_count = GetCallCount(call);
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
   base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
+
+  int call_count = GetCallCount(call);
+
+  int wire_byte_size = static_cast<int>(function_bytes.size());
+  int min_count_for_inlining = wire_byte_size / 2;
+
+  // If liftoff ran and collected call counts, only inline calls that have been
+  // invoked often, except for truly tiny functions.
+  if (v8_flags.liftoff && v8_flags.wasm_speculative_inlining &&
+      wire_byte_size >= 12 && call_count < min_count_for_inlining) {
+    Trace(call, inlinee_index, "not called often enough");
+    return NoChange();
+  }
+
+  Trace(call, inlinee_index, "adding to inlining candidates!");
 
   CandidateInfo candidate{call, inlinee_index, call_count,
                           function_bytes.length()};
@@ -124,11 +113,12 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 }
 
 bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size) {
-  if (WasmInliner::graph_size_allows_inlining(current_graph_size)) {
+  if (WasmInliner::graph_size_allows_inlining(current_graph_size +
+                                              candidate_size)) {
     return true;
   }
   // For truly tiny functions, let's be a bit more generous.
-  return candidate_size < 10 &&
+  return candidate_size <= 12 &&
          WasmInliner::graph_size_allows_inlining(current_graph_size - 100);
 }
 
@@ -152,11 +142,6 @@ void WasmInliner::Finalize() {
       Trace(candidate, "dead node");
       continue;
     }
-    int min_count_for_inlining = candidate.wire_byte_size / 2;
-    if (candidate.call_count < min_count_for_inlining) {
-      Trace(candidate, "not called often enough");
-      continue;
-    }
     // We could build the candidate's graph first and consider its node count,
     // but it turns out that wire byte size and node count are quite strongly
     // correlated, at about 1.16 nodes per wire byte (measured for J2Wasm).
@@ -166,29 +151,27 @@ void WasmInliner::Finalize() {
     }
     const wasm::WasmFunction* inlinee =
         &module()->functions[candidate.inlinee_index];
-    base::Vector<const byte> function_bytes =
-        wire_bytes_->GetCode(inlinee->code);
-    // We use the signature based on the real argument types stored in the call
-    // node. This is more specific than the callee's formal signature and might
-    // enable some optimizations.
-    const wasm::FunctionSig* specialized_sig =
-        CallDescriptorOf(call->op())->wasm_sig();
 
+    const wasm::FunctionSig* lowered_sig =
+        mcgraph_->machine()->Is64() ? inlinee->sig
+                                    : GetI32Sig(zone(), inlinee->sig);
+
+    DCHECK_EQ(lowered_sig->parameter_count(),
+              call->op()->ValueInputCount() - 2);
 #if DEBUG
-    // Check that the real signature is a subtype of the formal one.
-    const wasm::FunctionSig* formal_sig =
-        WasmGraphBuilder::Int64LoweredSig(zone(), inlinee->sig);
-    CHECK_EQ(specialized_sig->parameter_count(), formal_sig->parameter_count());
-    CHECK_EQ(specialized_sig->return_count(), formal_sig->return_count());
-    for (size_t i = 0; i < specialized_sig->parameter_count(); i++) {
-      CHECK(wasm::IsSubtypeOf(specialized_sig->GetParam(i),
-                              formal_sig->GetParam(i), module()));
-    }
-    for (size_t i = 0; i < specialized_sig->return_count(); i++) {
-      CHECK(wasm::IsSubtypeOf(formal_sig->GetReturn(i),
-                              specialized_sig->GetReturn(i), module()));
+    // The two first parameters in the call are the function and instance, and
+    // then come the wasm function parameters.
+    for (uint32_t i = 0; i < lowered_sig->parameter_count(); i++) {
+      if (!NodeProperties::IsTyped(call->InputAt(i + 2))) continue;
+      wasm::TypeInModule param_type =
+          NodeProperties::GetType(call->InputAt(i + 2)).AsWasm();
+      CHECK(IsSubtypeOf(param_type.type, lowered_sig->GetParam(i),
+                        param_type.module, module()));
     }
 #endif
+
+    base::Vector<const byte> function_bytes =
+        wire_bytes_->GetCode(inlinee->code);
 
     wasm::WasmFeatures detected;
     std::vector<WasmLoopInfo> inlinee_loop_infos;
@@ -196,12 +179,12 @@ void WasmInliner::Finalize() {
     size_t subgraph_min_node_id = graph()->NodeCount();
     Node* inlinee_start;
     Node* inlinee_end;
-    for (const wasm::FunctionSig* sig = specialized_sig;;) {
-      const wasm::FunctionBody inlinee_body(sig, inlinee->code.offset(),
-                                            function_bytes.begin(),
-                                            function_bytes.end());
-      WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
-                               source_positions_);
+    const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
+                                          function_bytes.begin(),
+                                          function_bytes.end());
+    WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
+                             source_positions_);
+    {
       Graph::SubgraphScope scope(graph());
       wasm::DecodeResult result = wasm::BuildTFGraph(
           zone()->allocator(), env_->enabled_features, module(), &builder,
@@ -214,30 +197,21 @@ void WasmInliner::Finalize() {
         builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
         inlinee_start = graph()->start();
         inlinee_end = graph()->end();
-        break;
+      } else {
+        // Otherwise report failure.
+        Trace(candidate, "failed to compile");
+        return;
       }
-      if (sig == specialized_sig) {
-        // One possible reason for failure is the opportunistic signature
-        // specialization. Try again without that.
-        sig = inlinee->sig;
-        inlinee_loop_infos.clear();
-        Trace(candidate, "retrying with original signature");
-        continue;
-      }
-      // Otherwise report failure.
-      Trace(candidate, "failed to compile");
-      return;
     }
 
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
     Trace(candidate, "inlining!");
     current_graph_size_ += additional_nodes;
-    inlined_functions_.push_back(candidate.inlinee_index);
-    static_assert(std::is_same_v<NodeId, uint32_t>);
-    first_node_id_.push_back(static_cast<uint32_t>(subgraph_min_node_id));
+    DCHECK_GE(function_inlining_count_[candidate.inlinee_index], 0);
+    function_inlining_count_[candidate.inlinee_index]++;
 
     if (call->opcode() == IrOpcode::kCall) {
-      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
+      InlineCall(call, inlinee_start, inlinee_end, lowered_sig,
                  subgraph_min_node_id);
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
@@ -480,6 +454,12 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         Int32Matcher(NodeProperties::GetValueInput(return_nodes[0], 0)).Is(0));
     int const return_arity = return_nodes[0]->op()->ValueInputCount() - 1;
     NodeVector values(zone());
+#if DEBUG
+    for (Node* const return_node : return_nodes) {
+      // 3 = effect, control, first 0 return value.
+      CHECK_EQ(return_arity, return_node->InputCount() - 3);
+    }
+#endif
     for (int i = 0; i < return_arity; i++) {
       NodeVector ith_values(zone());
       for (Node* const return_node : return_nodes) {
@@ -510,8 +490,12 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
       for (Edge use_edge : call->use_edges()) {
         if (NodeProperties::IsValueEdge(use_edge)) {
           Node* use = use_edge.from();
-          DCHECK_EQ(use->opcode(), IrOpcode::kProjection);
-          ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
+          // Other nodes are unreachable leftovers from Int32Lowering.
+          if (use->opcode() == IrOpcode::kProjection) {
+            ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
+          } else {
+            DCHECK(mcgraph()->machine()->Is32());
+          }
         }
       }
       // All value inputs are replaced by the above loop, so it is ok to use

@@ -17,7 +17,7 @@ double MemoryController<Trait>::GrowingFactor(Heap* heap, size_t max_heap_size,
   const double max_factor = MaxGrowingFactor(max_heap_size);
   const double factor =
       DynamicGrowingFactor(gc_speed, mutator_speed, max_factor);
-  if (FLAG_trace_gc_verbose) {
+  if (v8_flags.trace_gc_verbose) {
     Isolate::FromHeap(heap)->PrintWithTimestamp(
         "[%s] factor %.1f based on mu=%.3f, speed_ratio=%.f "
         "(gc=%.f, mutator=%.f)\n",
@@ -141,8 +141,8 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
       break;
   }
 
-  if (FLAG_heap_growing_percent > 0) {
-    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
+  if (v8_flags.heap_growing_percent > 0) {
+    factor = 1.0 + v8_flags.heap_growing_percent / 100.0;
   }
 
   CHECK_LT(1.0, factor);
@@ -157,7 +157,7 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
       (static_cast<uint64_t>(current_size) + max_size) / 2;
   const size_t result =
       static_cast<size_t>(std::min(limit_above_min_size, halfway_to_the_max));
-  if (FLAG_trace_gc_verbose) {
+  if (v8_flags.trace_gc_verbose) {
     Isolate::FromHeap(heap)->PrintWithTimestamp(
         "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
         Trait::kName, current_size / KB, result / KB, factor);
