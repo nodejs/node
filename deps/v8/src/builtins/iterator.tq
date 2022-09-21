@@ -111,7 +111,9 @@ transitioning builtin CallIteratorWithFeedback(
       context, feedback, callSlotUnTagged);
   const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
       otherwise ThrowIteratorError(receiver);
-  return Call(context, iteratorCallable, receiver);
+  const iterator = Call(context, iteratorCallable, receiver);
+  ThrowIfNotJSReceiver(iterator, MessageTemplate::kSymbolIteratorInvalid, '');
+  return iterator;
 }
 
 // https://tc39.es/ecma262/#sec-iteratorclose

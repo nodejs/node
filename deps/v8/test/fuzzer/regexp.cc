@@ -13,8 +13,8 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "src/base/strings.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/objects/objects-inl.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 namespace i = v8::internal;

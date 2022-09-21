@@ -15,17 +15,13 @@
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/parked-scope.h"
-#include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/slots.h"
-#include "src/objects/visitors.h"
 #include "src/parsing/parse-info.h"
-#include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -374,13 +370,6 @@ void Interpreter::Initialize() {
 
 bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != kNullAddress;
-}
-
-const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
-  if (code.kind() == CodeKind::BYTECODE_HANDLER) {
-    return Builtins::name(code.builtin_id());
-  }
-  return nullptr;
 }
 
 uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {

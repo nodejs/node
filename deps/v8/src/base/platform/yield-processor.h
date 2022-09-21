@@ -11,6 +11,16 @@
 // other hyper-thread on this core. See the following for context:
 // https://software.intel.com/en-us/articles/benefitting-power-and-performance-sleep-loops
 
+#if defined(THREAD_SANITIZER)
+#include "src/base/platform/platform.h"
+// TSAN intercepts atomic accesses and uses locking. Since YIELD_PROCESSOR is
+// used in spinlock loops in conjunction with atomic accesses, such spinlock
+// loops can exhibit starvation in TSAN. To work around the problem, have
+// YIELD_PROCESSOR sleep the process for 1ms.
+#define YIELD_PROCESSOR base::OS::Sleep(base::TimeDelta::FromMilliseconds(1))
+
+#else  // !THREAD_SANITIZER
+
 #if defined(V8_CC_MSVC)
 // MSVC does not support inline assembly via __asm__ and provides compiler
 // intrinsics instead. Check if there is a usable intrinsic.
@@ -33,11 +43,6 @@
 #elif defined(V8_HOST_ARCH_ARM64) || \
     (defined(V8_HOST_ARCH_ARM) && __ARM_ARCH >= 6)
 #define YIELD_PROCESSOR __asm__ __volatile__("yield")
-#elif defined(V8_HOST_ARCH_MIPS)
-// The MIPS32 docs state that the PAUSE instruction is a no-op on older
-// architectures (first added in MIPS32r2). To avoid assembler errors when
-// targeting pre-r2, we must encode the instruction manually.
-#define YIELD_PROCESSOR __asm__ __volatile__(".word 0x00000140")
 #elif defined(V8_HOST_ARCH_MIPS64EL) && __mips_isa_rev >= 2
 // Don't bother doing using .word here since r2 is the lowest supported mips64
 // that Chromium supports.
@@ -47,6 +52,8 @@
 #endif  // V8_HOST_ARCH
 
 #endif  // V8_CC_MSVC
+
+#endif  // THREAD_SANITIZER
 
 #ifndef YIELD_PROCESSOR
 #define YIELD_PROCESSOR ((void)0)

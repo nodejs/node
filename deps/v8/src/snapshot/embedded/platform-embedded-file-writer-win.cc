@@ -15,9 +15,6 @@
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #endif  // V8_OS_WIN64
 
-namespace v8 {
-namespace internal {
-
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more
 // precise compiler detection that can distinguish between the two. clang on
@@ -25,6 +22,13 @@ namespace internal {
 #if defined(_MSC_VER) && !defined(__clang__)
 #define V8_COMPILER_IS_MSVC
 #endif
+
+#if defined(V8_COMPILER_IS_MSVC)
+#include "src/flags/flags.h"
+#endif
+
+namespace v8 {
+namespace internal {
 
 // MSVC uses MASM for x86 and x64, while it has a ARMASM for ARM32 and
 // ARMASM64 for ARM64. Since ARMASM and ARMASM64 accept a slightly tweaked
@@ -109,7 +113,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   w->Comment("    UnwindInfoAddress");
   w->StartPdataSection();
   {
-    STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+    static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address prev_builtin_end_offset = 0;
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
@@ -196,7 +200,7 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   std::vector<int> code_chunks;
   std::vector<win64_unwindinfo::FrameOffsets> fp_adjustments;
 
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const int builtin_index = static_cast<int>(builtin);
@@ -364,15 +368,6 @@ void PlatformEmbeddedFileWriterWin::SectionText() {
   }
 }
 
-void PlatformEmbeddedFileWriterWin::SectionData() {
-  if (target_arch_ == EmbeddedTargetArch::kArm64) {
-    fprintf(fp_, "  AREA |.data|, DATA, ALIGN=%d, READWRITE\n",
-            ARM64_DATA_ALIGNMENT_POWER);
-  } else {
-    fprintf(fp_, ".DATA\n");
-  }
-}
-
 void PlatformEmbeddedFileWriterWin::SectionRoData() {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
     fprintf(fp_, "  AREA |.rodata|, DATA, ALIGN=%d, READONLY\n",
@@ -387,13 +382,6 @@ void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
   DeclareSymbolGlobal(name);
   fprintf(fp_, "%s%s %s %d\n", SYMBOL_PREFIX, name, DirectiveAsString(kLong),
           value);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  fprintf(fp_, "%s%s %s %s%s\n", SYMBOL_PREFIX, name,
-          DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
 }
 
 void PlatformEmbeddedFileWriterWin::StartPdataSection() {
@@ -584,10 +572,6 @@ void PlatformEmbeddedFileWriterWin::SectionText() {
   fprintf(fp_, ".section .text$hot,\"xr\"\n");
 }
 
-void PlatformEmbeddedFileWriterWin::SectionData() {
-  fprintf(fp_, ".section .data\n");
-}
-
 void PlatformEmbeddedFileWriterWin::SectionRoData() {
   fprintf(fp_, ".section .rdata\n");
 }
@@ -599,14 +583,6 @@ void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
   IndentedDataDirective(kLong);
   fprintf(fp_, "%d", value);
   Newline();
-}
-
-void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s%s\n", DirectiveAsString(PointerSizeDirective()),
-          SYMBOL_PREFIX, target);
 }
 
 void PlatformEmbeddedFileWriterWin::StartPdataSection() {
@@ -639,15 +615,15 @@ void PlatformEmbeddedFileWriterWin::DeclareSymbolGlobal(const char* name) {
 void PlatformEmbeddedFileWriterWin::AlignToCodeAlignment() {
 #if V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #elif V8_TARGET_ARCH_PPC64
   // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
   // don't cross 64-byte boundaries.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #else
-  STATIC_ASSERT(32 >= kCodeAlignment);
+  static_assert(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
 #endif
 }

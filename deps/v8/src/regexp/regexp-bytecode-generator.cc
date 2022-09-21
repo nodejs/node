@@ -380,7 +380,7 @@ Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Backtrack();
 
   Handle<ByteArray> array;
-  if (FLAG_regexp_peephole_optimization) {
+  if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
         isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
   } else {

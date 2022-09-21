@@ -65,20 +65,13 @@ namespace {
 
 #define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
-#elif V8_TARGET_ARCH_MIPS
-// ===========================================================================
-// == mips ===================================================================
-// ===========================================================================
-#define STACK_SHADOW_WORDS 4
-#define PARAM_REGISTERS a0, a1, a2, a3
-#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7
-#define CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
-
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================
 // == mips64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define FP_PARAM_REGISTERS f12, f13, f14, f15, f16, f17, f18, f19
+#define FP_RETURN_REGISTER f0
 #define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7
 #define CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
 
@@ -87,6 +80,8 @@ namespace {
 // == loong64 ================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define FP_PARAM_REGISTERS f0, f1, f2, f3, f4, f5, f6, f7
+#define FP_RETURN_REGISTER f0
 #define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7, s8, fp
 #define CALLEE_SAVE_FP_REGISTERS f24, f25, f26, f27, f28, f29, f30, f31
 
@@ -117,11 +112,12 @@ namespace {
 #define CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
 #define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 // ===========================================================================
 // == riscv64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define FP_PARAM_REGISTERS fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7
 // fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
 // it)
 #define CALLEE_SAVE_REGISTERS s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
@@ -135,12 +131,15 @@ namespace {
 #endif
 }  // namespace
 
-#if defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
+#if (defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)) || \
+    defined(V8_TARGET_ARCH_MIPS64)
 // As defined in
 // https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=vs-2019#parameter-passing,
 // Windows calling convention doesn't differentiate between GP and FP params
 // when counting how many of them should be placed in registers. That's why
 // we use the same counter {i} for both types here.
+// MIPS is the same, as defined in
+// https://techpubs.jurassic.nl/manuals/0630/developer/Mpro_n32_ABI/sgi_html/ch02.html#id52620.
 void BuildParameterLocations(const MachineSignature* msig,
                              size_t kFPParamRegisterCount,
                              size_t kParamRegisterCount,
@@ -172,7 +171,57 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#else  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
+#elif defined(V8_TARGET_ARCH_LOONG64)
+// As defined in
+// https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_procedure_calling_convention
+// Loongarch calling convention uses GP to pass floating-point arguments when no
+// FP is available.
+void BuildParameterLocations(const MachineSignature* msig,
+                             size_t kFPParamRegisterCount,
+                             size_t kParamRegisterCount,
+                             const DoubleRegister* kFPParamRegisters,
+                             const v8::internal::Register* kParamRegisters,
+                             LocationSignature::Builder* out_locations) {
+#ifdef STACK_SHADOW_WORDS
+  int stack_offset = STACK_SHADOW_WORDS;
+#else
+  int stack_offset = 0;
+#endif
+  size_t num_params = 0;
+  size_t num_fp_params = 0;
+  for (size_t i = 0; i < msig->parameter_count(); i++) {
+    MachineType type = msig->GetParam(i);
+    if (IsFloatingPoint(type.representation())) {
+      if (num_fp_params < kFPParamRegisterCount) {
+        out_locations->AddParam(LinkageLocation::ForRegister(
+            kFPParamRegisters[num_fp_params].code(), type));
+        ++num_fp_params;
+      } else if (num_params < kParamRegisterCount) {
+        // ForNullRegister represents a floating-point param that should be put
+        // into the GPR, and reg_code is the the negative of encoding of the
+        // GPR, and the maximum is -4.
+        out_locations->AddParam(LinkageLocation::ForNullRegister(
+            -kParamRegisters[num_params].code(), type));
+        ++num_params;
+      } else {
+        out_locations->AddParam(
+            LinkageLocation::ForCallerFrameSlot(-1 - stack_offset, type));
+        stack_offset++;
+      }
+    } else {
+      if (num_params < kParamRegisterCount) {
+        out_locations->AddParam(LinkageLocation::ForRegister(
+            kParamRegisters[num_params].code(), type));
+        ++num_params;
+      } else {
+        out_locations->AddParam(
+            LinkageLocation::ForCallerFrameSlot(-1 - stack_offset, type));
+        stack_offset++;
+      }
+    }
+  }
+}
+#else
 // As defined in https://www.agner.org/optimize/calling_conventions.pdf,
 // Section 7, Linux and Mac place parameters in consecutive registers,
 // differentiating between GP and FP params. That's why we maintain two
@@ -213,7 +262,8 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#endif  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
+#endif  // (defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)) ||
+        // defined(V8_TARGET_ARCH_MIPS64)
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,

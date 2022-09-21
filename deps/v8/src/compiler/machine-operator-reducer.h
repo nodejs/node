@@ -37,15 +37,15 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   friend class Word32Adapter;
   friend class Word64Adapter;
 
-  Node* Float32Constant(volatile float value);
-  Node* Float64Constant(volatile double value);
+  Node* Float32Constant(float value);
+  Node* Float64Constant(double value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
   Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
+    return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* Float64Mul(Node* lhs, Node* rhs);
   Node* Float64PowHalf(Node* value);
@@ -57,6 +57,9 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Word32Shr(Node* lhs, uint32_t rhs);
   Node* Word32Equal(Node* lhs, Node* rhs);
   Node* Word64And(Node* lhs, Node* rhs);
+  Node* Word64And(Node* lhs, uint64_t rhs) {
+    return Word64And(lhs, Uint64Constant(rhs));
+  }
   Node* Int32Add(Node* lhs, Node* rhs);
   Node* Int32Sub(Node* lhs, Node* rhs);
   Node* Int32Mul(Node* lhs, Node* rhs);
@@ -65,10 +68,10 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* TruncateInt64ToInt32(Node* value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
-  Reduction ReplaceFloat32(volatile float value) {
+  Reduction ReplaceFloat32(float value) {
     return Replace(Float32Constant(value));
   }
-  Reduction ReplaceFloat64(volatile double value) {
+  Reduction ReplaceFloat64(double value) {
     return Replace(Float64Constant(value));
   }
   Reduction ReplaceInt32(int32_t value) {
@@ -110,6 +113,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceWord32Xor(Node* node);
   Reduction ReduceWord64Xor(Node* node);
   Reduction ReduceWord32Equal(Node* node);
+  Reduction ReduceWord64Equal(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
@@ -144,10 +148,14 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
 
   // Helper for finding a reduced equality condition. Does not perform the
   // actual reduction; just returns a new pair that could be compared for the
-  // same outcome.
-  template <typename WordNAdapter>
-  base::Optional<std::pair<Node*, uint32_t>> ReduceWord32EqualForConstantRhs(
-      Node* lhs, uint32_t rhs);
+  // same outcome. uintN_t corresponds to the size of the Equal operator, and
+  // thus the size of rhs. While the size of the WordNAdaptor corresponds to the
+  // size of lhs, with the sizes being different for
+  // Word32Equal(TruncateInt64ToInt32(lhs), rhs).
+  template <typename WordNAdapter, typename uintN_t,
+            typename intN_t = typename std::make_signed<uintN_t>::type>
+  base::Optional<std::pair<Node*, uintN_t>> ReduceWordEqualForConstantRhs(
+      Node* lhs, uintN_t rhs);
 
   MachineGraph* mcgraph_;
   bool allow_signalling_nan_;

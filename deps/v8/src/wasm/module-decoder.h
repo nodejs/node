@@ -29,10 +29,12 @@ namespace wasm {
 struct CompilationEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
-  return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
+  // Allow everything within [kUnknownSectionCode, kLastKnownModuleSection].
+  static_assert(kUnknownSectionCode == 0);
+  return byte <= kLastKnownModuleSection;
 }
 
-const char* SectionName(SectionCode code);
+V8_EXPORT_PRIVATE const char* SectionName(SectionCode code);
 
 using ModuleResult = Result<std::shared_ptr<WasmModule>>;
 using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
@@ -54,92 +56,24 @@ struct AsmJsOffsets {
 };
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
-// The class names "NameAssoc", "NameMap", and "IndirectNameMap" match
-// the terms used by the spec:
-// https://webassembly.github.io/spec/core/bikeshed/index.html#name-section%E2%91%A0
-class NameAssoc {
+class DecodedNameSection {
  public:
-  NameAssoc(int index, WireBytesRef name) : index_(index), name_(name) {}
-
-  int index() const { return index_; }
-  WireBytesRef name() const { return name_; }
-
-  struct IndexLess {
-    bool operator()(const NameAssoc& a, const NameAssoc& b) const {
-      return a.index() < b.index();
-    }
-  };
+  explicit DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
+                              WireBytesRef name_section);
 
  private:
-  int index_;
-  WireBytesRef name_;
-};
+  friend class NamesProvider;
 
-class NameMap {
- public:
-  // For performance reasons, {NameMap} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(NameMap);
-
-  explicit NameMap(std::vector<NameAssoc> names) : names_(std::move(names)) {
-    DCHECK(
-        std::is_sorted(names_.begin(), names_.end(), NameAssoc::IndexLess{}));
-  }
-
-  WireBytesRef GetName(int index) {
-    auto it = std::lower_bound(names_.begin(), names_.end(),
-                               NameAssoc{index, {}}, NameAssoc::IndexLess{});
-    if (it == names_.end()) return {};
-    if (it->index() != index) return {};
-    return it->name();
-  }
-
- private:
-  std::vector<NameAssoc> names_;
-};
-
-class IndirectNameMapEntry : public NameMap {
- public:
-  // For performance reasons, {IndirectNameMapEntry} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMapEntry);
-
-  IndirectNameMapEntry(int index, std::vector<NameAssoc> names)
-      : NameMap(std::move(names)), index_(index) {}
-
-  int index() const { return index_; }
-
-  struct IndexLess {
-    bool operator()(const IndirectNameMapEntry& a,
-                    const IndirectNameMapEntry& b) const {
-      return a.index() < b.index();
-    }
-  };
-
- private:
-  int index_;
-};
-
-class IndirectNameMap {
- public:
-  // For performance reasons, {IndirectNameMap} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMap);
-
-  explicit IndirectNameMap(std::vector<IndirectNameMapEntry> functions)
-      : functions_(std::move(functions)) {
-    DCHECK(std::is_sorted(functions_.begin(), functions_.end(),
-                          IndirectNameMapEntry::IndexLess{}));
-  }
-
-  WireBytesRef GetName(int function_index, int local_index) {
-    auto it = std::lower_bound(functions_.begin(), functions_.end(),
-                               IndirectNameMapEntry{function_index, {}},
-                               IndirectNameMapEntry::IndexLess{});
-    if (it == functions_.end()) return {};
-    if (it->index() != function_index) return {};
-    return it->GetName(local_index);
-  }
-
- private:
-  std::vector<IndirectNameMapEntry> functions_;
+  IndirectNameMap local_names_;
+  IndirectNameMap label_names_;
+  NameMap type_names_;
+  NameMap table_names_;
+  NameMap memory_names_;
+  NameMap global_names_;
+  NameMap element_segment_names_;
+  NameMap data_segment_names_;
+  IndirectNameMap field_names_;
+  NameMap tag_names_;
 };
 
 enum class DecodingMethod {
@@ -157,10 +91,14 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
     AccountingAllocator* allocator);
+// Stripped down version for disassembler needs.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
+    const byte* module_start, const byte* module_end,
+    AccountingAllocator* allocator);
 
 // Exposed for testing. Decodes a single function signature, allocating it
-// in the given zone. Returns {nullptr} upon failure.
-V8_EXPORT_PRIVATE const FunctionSig* DecodeWasmSignatureForTesting(
+// in the given zone.
+V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
     const WasmFeatures& enabled, Zone* zone, const byte* start,
     const byte* end);
 
@@ -193,16 +131,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 // unordered map. Only names with valid utf8 encoding are stored and conflicts
 // are resolved by choosing the last name read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names);
-
-// Decode the requested subsection of the name section.
-// The result will be empty if no name section is present. On encountering an
-// error in the name section, returns all information decoded up to the first
-// error.
-NameMap DecodeNameMap(base::Vector<const uint8_t> module_bytes,
-                      uint8_t name_section_kind);
-IndirectNameMap DecodeIndirectNameMap(base::Vector<const uint8_t> module_bytes,
-                                      uint8_t name_section_kind);
+                         NameMap& names);
 
 class ModuleDecoderImpl;
 
@@ -223,7 +152,7 @@ class ModuleDecoder {
                      base::Vector<const uint8_t> bytes, uint32_t offset,
                      bool verify_functions = true);
 
-  void StartCodeSection();
+  void StartCodeSection(WireBytesRef section_bytes);
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
@@ -231,8 +160,6 @@ class ModuleDecoder {
                           bool verify_functions = true);
 
   ModuleResult FinishDecoding(bool verify_functions = true);
-
-  void set_code_section(uint32_t offset, uint32_t size);
 
   const std::shared_ptr<WasmModule>& shared_module() const;
 

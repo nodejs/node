@@ -30,9 +30,11 @@ class JSMap;
 class JSPrimitiveWrapper;
 class JSRegExp;
 class JSSet;
+class JSSharedArray;
 class JSSharedStruct;
 class Object;
 class Oddball;
+class SharedObjectConveyorHandles;
 class Smi;
 class WasmMemoryObject;
 class WasmModuleObject;
@@ -84,6 +86,7 @@ class ValueSerializer {
   void WriteUint64(uint64_t value);
   void WriteRawBytes(const void* source, size_t length);
   void WriteDouble(double value);
+  void WriteByte(uint8_t value);
 
   /*
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -132,6 +135,8 @@ class ValueSerializer {
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
   Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSSharedArray(Handle<JSSharedArray> shared_array)
+      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSharedStruct(Handle<JSSharedStruct> shared_struct)
       V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
@@ -169,7 +174,6 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
-  const bool supports_shared_values_;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -182,6 +186,9 @@ class ValueSerializer {
 
   // A similar map, for transferred array buffers.
   IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 /*
@@ -239,6 +246,7 @@ class ValueDeserializer {
   bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
+  bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
   friend class WebSnapshotDeserializer;
@@ -295,6 +303,9 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
+  bool ValidateAndSetJSArrayBufferViewFlags(
+      JSArrayBufferView view, JSArrayBuffer buffer,
+      uint32_t serialized_flags) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
@@ -320,7 +331,6 @@ class ValueDeserializer {
   v8::ValueDeserializer::Delegate* const delegate_;
   const uint8_t* position_;
   const uint8_t* const end_;
-  const bool supports_shared_values_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
   bool version_13_broken_data_mode_ = false;
@@ -329,6 +339,9 @@ class ValueDeserializer {
   // Always global handles.
   Handle<FixedArray> id_map_;
   MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 }  // namespace internal

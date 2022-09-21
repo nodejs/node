@@ -5,7 +5,6 @@
 #include "src/snapshot/shared-heap-deserializer.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/shared-heap-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -32,7 +31,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
 void SharedHeapDeserializer::DeserializeStringTable() {
   // See SharedHeapSerializer::SerializeStringTable.
 
-  DCHECK(isolate()->OwnsStringTable());
+  DCHECK(isolate()->OwnsStringTables());
 
   // Get the string table size.
   int string_table_size = source()->GetInt();

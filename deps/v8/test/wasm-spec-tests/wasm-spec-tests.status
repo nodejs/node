@@ -33,8 +33,6 @@
   'proposals/memory64/imports': [FAIL],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'proposals/simd/simd_f32x4*': [PASS, HEAVY],
-  'proposals/simd/simd_f64x2*': [PASS, HEAVY],
   'simd_f32x4*': [PASS, HEAVY],
   'simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
@@ -43,21 +41,16 @@
 
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
-  'proposals/simd/simd_f32x4': [PASS, FAIL],
-  'proposals/simd/simd_f32x4_arith': [PASS, FAIL],
-  'proposals/simd/simd_f32x4_cmp': [PASS, FAIL],
   'simd_f32x4': [PASS, FAIL],
   'simd_f32x4_arith': [PASS, FAIL],
   'simd_f32x4_cmp': [PASS, FAIL],
   # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
   # removing it from upstream, then we can run this test.
-  'proposals/simd/simd_splat' : [PASS, FAIL],
-  'proposals/simd/simd_f32x4_pmin_pmax' : [PASS, FAIL],
   'simd_splat' : [PASS, FAIL],
   'simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mips64el or arch == mips64', {
   # These tests fail because mips does not support the correct NaN bit patterns.
   'float_misc': [SKIP],
   'float_exprs': [SKIP],
@@ -87,19 +80,19 @@
   'proposals/tail-call/float_exprs': [SKIP],
   'proposals/tail-call/float_misc': [SKIP],
   'proposals/tail-call/conversions': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+}],  # 'arch == mips64el or arch == mips64'
 
-['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
+['(arch == mips64el or arch == mips64) and not simulator_run', {
   # This test fail because mips does not support the correct NaN bit patterns.
   # But it doesn't fail in simulator.
   'conversions': [SKIP],
-}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
+}],  # '(arch == mips64el or arch == mips64) and not simulator_run'
 
-['(arch == mipsel or arch == mips64el or arch == loong64) and simulator_run', {
+['(arch == mips64el or arch == loong64) and simulator_run', {
   # These tests need larger stack size on simulator.
   'skip-stack-guard-page': '--sim-stack-size=8192',
   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
-}],  # '(arch == mipsel or arch == mips64el) and simulator_run'
+}],  # '(arch == mips64el or arch == loong64) and simulator_run'
 
 ['arch == riscv64', {
    # These tests need larger stack size on simulator.
@@ -107,9 +100,21 @@
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
    # SIMD is not fully implemented yet.
-   'proposals/simd/*': [SKIP],
    'simd*': [SKIP],
-}],  # 'arch == riscv64
+}],  # 'arch == riscv64'
+
+
+
+['arch == riscv32', {
+   # These tests need larger stack size on simulator.
+   'skip-stack-guard-page': '--sim-stack-size=8192',
+   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
+
+   # SIMD is not fully implemented yet.
+   'simd*': [SKIP],
+
+   'func': ['variant == stress', SKIP],
+}],  # 'arch == riscv32'
 
 ['arch == ppc or arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
@@ -154,12 +159,25 @@
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
-}],
+}],  # variant == stress_snapshot
 
 ##############################################################################
 ['no_simd_hardware == True', {
-  'proposals/simd/*': [SKIP],
   'simd*': [SKIP],
 }],  # no_simd_hardware == True
+
+##############################################################################
+['variant == stress', {
+  # Spec tests are executing long enough even without stress mode.
+  # As stress mode is unlikely to flush out bugs, skip the tests there.
+  '*': [SKIP],
+}],  # variant == stress
+
+##############################################################################
+# Skip tests that require a large amount of virtual address space (inside the
+# sandbox if that is enabled) if tsan is enabled.
+['tsan == True', {
+  'memory_copy': [SKIP],
+}],  # tsan == True
 
 ]

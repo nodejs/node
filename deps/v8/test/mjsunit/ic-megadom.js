@@ -4,6 +4,9 @@
 //
 // Flags: --enable-mega-dom-ic --allow-natives-syntax
 
+// This tests checks that load property access using megadom IC returns
+// correct results on API.
+
 function load(obj) {
   return obj.nodeType;
 }
@@ -28,8 +31,6 @@ f.f = 1;
 const objs = [
   a, b, c, d, e, f
 ];
-
-
 
 function test() {
   let result = 0;

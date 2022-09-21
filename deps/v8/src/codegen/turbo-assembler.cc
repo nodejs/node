@@ -29,8 +29,7 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
 Address TurboAssemblerBase::BuiltinEntry(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   if (isolate_ != nullptr) {
-    Address entry =
-        isolate_->builtin_entry_table()[static_cast<int32_t>(builtin)];
+    Address entry = isolate_->builtin_entry_table()[Builtins::ToInt(builtin)];
     DCHECK_EQ(entry, EmbeddedData::FromBlob(isolate_).InstructionStartOfBuiltin(
                          builtin));
     return entry;

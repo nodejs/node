@@ -72,6 +72,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
         pending_(pending) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     AllocateSomeObjects(&local_heap);
@@ -83,8 +84,8 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
-  FLAG_max_old_space_size = 32;
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size = 32;
+  v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -116,8 +117,8 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
-  FLAG_max_old_space_size = 4;
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size = 4;
+  v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -130,8 +131,8 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
-  FLAG_max_old_space_size = 4;
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size = 4;
+  v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -160,9 +161,9 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
-  FLAG_max_old_space_size = 4;
-  FLAG_stress_concurrent_allocation = false;
-  FLAG_incremental_marking = false;
+  v8_flags.max_old_space_size = 4;
+  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.incremental_marking = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -195,9 +196,9 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
 }
 
 UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
-  FLAG_max_old_space_size = 4;
-  FLAG_stress_concurrent_allocation = false;
-  FLAG_incremental_marking = false;
+  v8_flags.max_old_space_size = 4;
+  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.incremental_marking = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -265,8 +266,8 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
-  FLAG_max_old_space_size = 32;
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size = 32;
+  v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -340,7 +341,7 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -400,8 +401,8 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
-  if (!FLAG_incremental_marking) return;
-  if (!FLAG_concurrent_marking) {
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.concurrent_marking) {
     // The test requires concurrent marking barrier.
     return;
   }
@@ -450,8 +451,11 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
         value_(value) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
+    // Modification of Code object requires write access.
+    RwxMemoryWriteScopeForTesting rwx_write_scope;
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
@@ -465,12 +469,12 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
-  if (!FLAG_incremental_marking) return;
-  if (!FLAG_concurrent_marking) {
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.concurrent_marking) {
     // The test requires concurrent marking barrier.
     return;
   }
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
   ManualGCScope manual_gc_scope;
 
   v8::Isolate::CreateParams create_params;
@@ -481,7 +485,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   {
     Code code;
     HeapObject value;
-    CodePageCollectionMemoryModificationScope modification_scope(heap);
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     {
       HandleScope handle_scope(i_isolate);
       i::byte buffer[i::Assembler::kDefaultBufferSize];
@@ -512,6 +516,10 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
 
     {
+      // TODO(v8:13023): remove ResetPKUPermissionsForThreadSpawning in the
+      // future when RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() is
+      // stable.
+      ResetPKUPermissionsForThreadSpawning thread_scope;
       auto thread =
           std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
       CHECK(thread->Start());

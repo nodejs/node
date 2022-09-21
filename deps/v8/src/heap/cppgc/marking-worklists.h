@@ -101,6 +101,9 @@ class MarkingWorklists {
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
   }
+  WeakCallbackWorklist* parallel_weak_callback_worklist() {
+    return &parallel_weak_callback_worklist_;
+  }
   ConcurrentMarkingBailoutWorklist* concurrent_marking_bailout_worklist() {
     return &concurrent_marking_bailout_worklist_;
   }
@@ -125,7 +128,10 @@ class MarkingWorklists {
   PreviouslyNotFullyConstructedWorklist
       previously_not_fully_constructed_worklist_;
   WriteBarrierWorklist write_barrier_worklist_;
+  // Hold weak callbacks which can only invoke on main thread.
   WeakCallbackWorklist weak_callback_worklist_;
+  // Hold weak callbacks which can invoke on main or worker thread.
+  WeakCallbackWorklist parallel_weak_callback_worklist_;
   ConcurrentMarkingBailoutWorklist concurrent_marking_bailout_worklist_;
   EphemeronPairsWorklist discovered_ephemeron_pairs_worklist_;
   EphemeronPairsWorklist ephemeron_pairs_for_processing_worklist_;

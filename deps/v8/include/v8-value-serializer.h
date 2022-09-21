@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <utility>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
@@ -26,7 +27,36 @@ class Value;
 
 namespace internal {
 struct ScriptStreamingData;
+class SharedObjectConveyorHandles;
+class ValueDeserializer;
+class ValueSerializer;
 }  // namespace internal
+
+/**
+ * A move-only class for managing the lifetime of shared value conveyors used
+ * by V8 to keep JS shared values alive in transit when serialized.
+ *
+ * This class is not directly constructible and is always passed to a
+ * ValueSerializer::Delegate via ValueSerializer::SetSharedValueConveyor.
+ *
+ * The embedder must not destruct the SharedValueConveyor until the associated
+ * serialized data will no longer be deserialized.
+ */
+class V8_EXPORT SharedValueConveyor final {
+ public:
+  SharedValueConveyor(SharedValueConveyor&&) noexcept;
+  ~SharedValueConveyor();
+
+  SharedValueConveyor& operator=(SharedValueConveyor&&) noexcept;
+
+ private:
+  friend class internal::ValueSerializer;
+  friend class internal::ValueDeserializer;
+
+  explicit SharedValueConveyor(Isolate* isolate);
+
+  std::unique_ptr<internal::SharedObjectConveyorHandles> private_;
+};
 
 /**
  * Value serialization compatible with the HTML structured clone algorithm.
@@ -69,20 +99,20 @@ class V8_EXPORT ValueSerializer {
         Isolate* isolate, Local<WasmModuleObject> module);
 
     /**
-     * Returns whether shared values are supported. GetSharedValueId is only
-     * called if SupportsSharedValues() returns true.
+     * Called when the first shared value is serialized. All subsequent shared
+     * values will use the same conveyor.
+     *
+     * The embedder must ensure the lifetime of the conveyor matches the
+     * lifetime of the serialized data.
+     *
+     * If the embedder supports serializing shared values, this method should
+     * return true. Otherwise the embedder should throw an exception and return
+     * false.
+     *
+     * This method is called at most once per serializer.
      */
-    virtual bool SupportsSharedValues() const;
-
-    /**
-     * Called when the ValueSerializer serializes a value that is shared across
-     * Isolates. The embedder must return an ID for the object. This function
-     * must be idempotent for the same object. When deserializing, the ID will
-     * be passed to ValueDeserializer::Delegate::GetSharedValueFromId as
-     * |shared_value_id|.
-     */
-    virtual Maybe<uint32_t> GetSharedValueId(Isolate* isolate,
-                                             Local<Value> shared_value);
+    virtual bool AdoptSharedValueConveyor(Isolate* isolate,
+                                          SharedValueConveyor&& conveyor);
 
     /**
      * Allocates memory for the buffer of at least the size provided. The actual
@@ -196,17 +226,10 @@ class V8_EXPORT ValueDeserializer {
         Isolate* isolate, uint32_t clone_id);
 
     /**
-     * Returns whether shared values are supported. GetSharedValueFromId is only
-     * called if SupportsSharedValues() returns true.
+     * Get the SharedValueConveyor previously provided by
+     * ValueSerializer::Delegate::AdoptSharedValueConveyor.
      */
-    virtual bool SupportsSharedValues() const;
-
-    /**
-     * Get a value shared across Isolates given a shared_value_id provided by
-     * ValueSerializer::Delegate::GetSharedValueId.
-     */
-    virtual MaybeLocal<Value> GetSharedValueFromId(Isolate* isolate,
-                                                   uint32_t shared_value_id);
+    virtual const SharedValueConveyor* GetSharedValueConveyor(Isolate* isolate);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);

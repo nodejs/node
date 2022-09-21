@@ -559,9 +559,10 @@ DateBuffer ToDateString(double time_val, DateCache* date_cache,
     return FormatDate("Invalid Date");
   }
   int64_t time_ms = static_cast<int64_t>(time_val);
-  int64_t local_time_ms = mode != ToDateStringMode::kUTCDateAndTime
-                              ? date_cache->ToLocal(time_ms)
-                              : time_ms;
+  int64_t local_time_ms = (mode == ToDateStringMode::kUTCDateAndTime ||
+                           mode == ToDateStringMode::kISODateAndTime)
+                              ? time_ms
+                              : date_cache->ToLocal(time_ms);
   int year, month, day, weekday, hour, min, sec, ms;
   date_cache->BreakDownTime(local_time_ms, &year, &month, &day, &weekday, &hour,
                             &min, &sec, &ms);
@@ -590,6 +591,17 @@ DateBuffer ToDateString(double time_val, DateCache* date_cache,
                                    : "%s, %02d %s %04d %02d:%02d:%02d GMT",
                         kShortWeekDays[weekday], day, kShortMonths[month], year,
                         hour, min, sec);
+    case ToDateStringMode::kISODateAndTime:
+      if (year >= 0 && year <= 9999) {
+        return FormatDate("%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
+                          month + 1, day, hour, min, sec, ms);
+      } else if (year < 0) {
+        return FormatDate("-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", -year,
+                          month + 1, day, hour, min, sec, ms);
+      } else {
+        return FormatDate("+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
+                          month + 1, day, hour, min, sec, ms);
+      }
   }
   UNREACHABLE();
 }

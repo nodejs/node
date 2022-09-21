@@ -8,13 +8,13 @@
 #include <memory>
 #include <set>
 
+#include "include/cppgc/heap-handle.h"
 #include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/heap.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
-#include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
@@ -24,11 +24,8 @@
 #include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/write-barrier.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
-
-#if defined(CPPGC_CAGED_HEAP)
-#include "src/heap/cppgc/caged-heap.h"
-#endif
 
 #if defined(CPPGC_YOUNG_GENERATION)
 #include "src/heap/cppgc/remembered-set.h"
@@ -59,18 +56,15 @@ class OverrideEmbedderStackStateScope;
 
 class Platform;
 
-class V8_EXPORT HeapHandle {
- private:
-  HeapHandle() = default;
-  friend class internal::HeapBase;
-};
-
 namespace internal {
 
 class FatalOutOfMemoryHandler;
+class GarbageCollector;
 class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
+
+enum class HeapObjectNameForUnnamedObject : uint8_t;
 
 // Base class for heap implementations.
 class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
@@ -89,7 +83,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support, MarkingType marking_support,
-           SweepingType sweeping_support);
+           SweepingType sweeping_support, GarbageCollector& garbage_collector);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -113,11 +107,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const StatsCollector* stats_collector() const {
     return stats_collector_.get();
   }
-
-#if defined(CPPGC_CAGED_HEAP)
-  CagedHeap& caged_heap() { return caged_heap_; }
-  const CagedHeap& caged_heap() const { return caged_heap_; }
-#endif
 
   heap::base::Stack* stack() { return stack_.get(); }
 
@@ -214,7 +203,33 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
 
+  bool generational_gc_supported() const {
+    const bool supported = is_young_generation_enabled();
+#if defined(CPPGC_YOUNG_GENERATION)
+    DCHECK_IMPLIES(supported, YoungGenerationEnabler::IsEnabled());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+    return supported;
+  }
+
+  // Returns whether objects should derive their name from C++ class names. Also
+  // requires build-time support through `CPPGC_SUPPORTS_OBJECT_NAMES`.
+  HeapObjectNameForUnnamedObject name_of_unnamed_object() const {
+    return name_for_unnamed_object_;
+  }
+  void set_name_of_unnamed_object(HeapObjectNameForUnnamedObject value) {
+    name_for_unnamed_object_ = value;
+  }
+
+  void set_incremental_marking_in_progress(bool value) {
+    is_incremental_marking_in_progress_ = value;
+  }
+
+  using HeapHandle::is_incremental_marking_in_progress;
+
  protected:
+  static std::unique_ptr<PageBackend> InitializePageBackend(
+      PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler);
+
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -227,6 +242,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t ExecutePreFinalizers();
 
 #if defined(CPPGC_YOUNG_GENERATION)
+  void EnableGenerationalGC();
   void ResetRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
@@ -240,9 +256,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<v8::base::LsanPageAllocator> lsan_page_allocator_;
 #endif  // LEAK_SANITIZER
 
-#if defined(CPPGC_CAGED_HEAP)
-  CagedHeap caged_heap_;
-#endif  // CPPGC_CAGED_HEAP
   std::unique_ptr<PageBackend> page_backend_;
 
   // HeapRegistry requires access to page_backend_.
@@ -284,14 +297,27 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
-  const MarkingType marking_support_;
-  const SweepingType sweeping_support_;
+  MarkingType marking_support_;
+  SweepingType sweeping_support_;
+
+  HeapObjectNameForUnnamedObject name_for_unnamed_object_ =
+      HeapObjectNameForUnnamedObject::kUseHiddenName;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
   friend class cppgc::testing::Heap;
   friend class cppgc::testing::OverrideEmbedderStackStateScope;
+};
+
+class V8_NODISCARD V8_EXPORT_PRIVATE ClassNameAsHeapObjectNameScope final {
+ public:
+  explicit ClassNameAsHeapObjectNameScope(HeapBase& heap);
+  ~ClassNameAsHeapObjectNameScope();
+
+ private:
+  HeapBase& heap_;
+  const HeapObjectNameForUnnamedObject saved_heap_object_name_value_;
 };
 
 }  // namespace internal

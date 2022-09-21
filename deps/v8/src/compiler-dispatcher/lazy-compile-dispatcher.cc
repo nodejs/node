@@ -7,24 +7,19 @@
 #include <atomic>
 
 #include "include/v8-platform.h"
-#include "src/ast/ast.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/handles/global-handles-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
-#include "src/roots/roots.h"
-#include "src/sandbox/external-pointer.h"
+#include "src/parsing/scanner.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
@@ -407,7 +402,10 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
 
   ReusableUnoptimizedCompileState reusable_state(&isolate);
 
-  while (!delegate->ShouldYield()) {
+  while (true) {
+    // Return immediately on yield, avoiding the second loop.
+    if (delegate->ShouldYield()) return;
+
     Job* job = nullptr;
     {
       base::MutexGuard lock(&mutex_);

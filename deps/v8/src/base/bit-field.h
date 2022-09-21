@@ -22,11 +22,11 @@ namespace base {
 template <class T, int shift, int size, class U = uint32_t>
 class BitField final {
  public:
-  STATIC_ASSERT(std::is_unsigned<U>::value);
-  STATIC_ASSERT(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
-  STATIC_ASSERT(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
-  STATIC_ASSERT(shift + size <= 8 * sizeof(U));
-  STATIC_ASSERT(size > 0);
+  static_assert(std::is_unsigned<U>::value);
+  static_assert(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
+  static_assert(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
+  static_assert(shift + size <= 8 * sizeof(U));
+  static_assert(size > 0);
 
   using FieldType = T;
 
@@ -40,6 +40,11 @@ class BitField final {
   static constexpr U kNumValues = U{1} << kSize;
 
   // Value for the field with all bits set.
+  // If clang complains
+  // "constexpr variable 'kMax' must be initialized by a constant expression"
+  // on this line, then you're creating a BitField for an enum with more bits
+  // than needed for the enum values. Either reduce the BitField size,
+  // or give the enum an explicit underlying type.
   static constexpr T kMax = static_cast<T>(kNumValues - 1);
 
   template <class T2, int size2>

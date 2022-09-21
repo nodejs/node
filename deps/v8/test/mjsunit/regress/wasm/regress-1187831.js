@@ -11,7 +11,7 @@ builder.addMemory(16, 32, false, true);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.addType(makeSig([], []));
 builder.setTableBounds(1, 1);
-builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [0]);
+builder.addActiveElementSegment(0, wasmI32Const(0), [0]);
 // Generate function 1 (out of 1).
 builder.addFunction(undefined, 0 /* sig */)
   .addBodyWithEnd([

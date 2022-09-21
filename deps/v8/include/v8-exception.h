@@ -197,7 +197,7 @@ class V8_EXPORT TryCatch {
 
   void ResetInternal();
 
-  internal::Isolate* isolate_;
+  internal::Isolate* i_isolate_;
   TryCatch* next_;
   void* exception_;
   void* message_obj_;

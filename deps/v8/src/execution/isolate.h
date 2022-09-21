@@ -20,6 +20,7 @@
 #include "include/v8-snapshot.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -39,10 +40,12 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
-#include "src/sandbox/external-pointer-table.h"
-#include "src/sandbox/sandbox.h"
-#include "src/strings/unicode.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
+
+#ifdef DEBUG
+#include "src/runtime/runtime-utils.h"
+#endif
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
@@ -83,6 +86,11 @@ class AsyncEventDelegate;
 
 namespace internal {
 
+void DefaultWasmAsyncResolvePromiseCallback(
+    v8::Isolate* isolate, v8::Local<v8::Context> context,
+    v8::Local<v8::Promise::Resolver> resolver,
+    v8::Local<v8::Value> compilation_result, WasmAsyncSuccess success);
+
 namespace heap {
 class HeapTester;
 }  // namespace heap
@@ -96,7 +104,7 @@ class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
-class CodeEventDispatcher;
+class Logger;
 class CodeTracer;
 class CommonFrame;
 class CompilationCache;
@@ -115,7 +123,7 @@ class HeapProfiler;
 class InnerPointerToCodeCache;
 class LazyCompileDispatcher;
 class LocalIsolate;
-class Logger;
+class V8FileLogger;
 class MaterializedObjectStore;
 class Microtask;
 class MicrotaskQueue;
@@ -128,6 +136,7 @@ class RootVisitor;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
+class StringForwardingTable;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -175,6 +184,16 @@ class StackMemory;
     }                                                  \
   } while (false)
 
+#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector) \
+  do {                                                                    \
+    Isolate* __isolate__ = (isolate);                                     \
+    DCHECK(!__isolate__->has_pending_exception());                        \
+    if (__isolate__->has_scheduled_exception()) {                         \
+      detector.AcceptSideEffects();                                       \
+      return __isolate__->PromoteScheduledException();                    \
+    }                                                                     \
+  } while (false)
+
 // Macros for MaybeHandle.
 
 #define RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, value) \
@@ -186,6 +205,10 @@ class StackMemory;
       return value;                                         \
     }                                                       \
   } while (false)
+
+#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector, value) \
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate,                                 \
+                                      (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
@@ -382,6 +405,14 @@ class StackMemory;
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
+  do {                                                        \
+    if ((call).IsNothing()) {                                 \
+      DCHECK((isolate)->has_pending_exception());             \
+      return value;                                           \
+    }                                                         \
+  } while (false)
+
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                    \
     if (!(call).To(&dst)) {                                               \
@@ -473,11 +504,11 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(SharedArrayBufferConstructorEnabledCallback,                              \
     sharedarraybuffer_constructor_enabled_callback, nullptr)                  \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
+  V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,     \
+    DefaultWasmAsyncResolvePromiseCallback)                                   \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)             \
   V(WasmExceptionsEnabledCallback, wasm_exceptions_enabled_callback, nullptr) \
-  V(WasmDynamicTieringEnabledCallback, wasm_dynamic_tiering_enabled_callback, \
-    nullptr)                                                                  \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -486,7 +517,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
   V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
-  V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \
@@ -513,6 +543,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, javascript_execution_assert, true)                                  \
   V(bool, javascript_execution_throws, true)                                  \
   V(bool, javascript_execution_dump, true)                                    \
+  V(uint32_t, javascript_execution_counter, 0)                                \
   V(bool, deoptimization_assert, true)                                        \
   V(bool, compilation_assert, true)                                           \
   V(bool, no_exception_assert, true)
@@ -597,9 +628,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // new operator.
   static Isolate* New();
 
-  // Creates a new shared Isolate object.
-  static Isolate* NewShared(const v8::Isolate::CreateParams& params);
-
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
   // Sets default isolate into "has_been_disposed" state rather then destroying,
@@ -657,7 +685,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void ClearSerializerData();
 
-  bool LogObjectRelocation();
+  void UpdateLogObjectRelocation();
 
   // Initializes the current thread to run this Isolate.
   // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
@@ -729,6 +757,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // The isolate's string table.
   StringTable* string_table() const { return string_table_.get(); }
+  StringForwardingTable* string_forwarding_table() const {
+    return string_forwarding_table_.get();
+  }
 
   Address get_address_from_id(IsolateAddressId id);
 
@@ -751,7 +782,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsWasmSimdEnabled(Handle<Context> context);
   bool AreWasmExceptionsEnabled(Handle<Context> context);
-  bool IsWasmDynamicTieringEnabled();
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -787,6 +817,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void clear_scheduled_exception();
   inline void set_scheduled_exception(Object exception);
 
+#ifdef DEBUG
+  inline Object VerifyBuiltinsResult(Object result);
+  inline ObjectPair VerifyBuiltinsResult(ObjectPair pair);
+#endif
+
   enum class ExceptionHandlerType {
     kJavaScriptHandler,
     kExternalTryCatch,
@@ -797,6 +832,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   inline bool is_catchable_by_javascript(Object exception);
   inline bool is_catchable_by_wasm(Object exception);
+  inline bool is_execution_terminating();
+  inline bool is_execution_termination_pending();
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -1111,17 +1148,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   TieringManager* tiering_manager() { return tiering_manager_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
-  Logger* logger() {
+  V8FileLogger* v8_file_logger() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
-    DCHECK_NOT_NULL(logger_);
-    return logger_;
+    DCHECK_NOT_NULL(v8_file_logger_);
+    return v8_file_logger_;
   }
   StackGuard* stack_guard() { return isolate_data()->stack_guard(); }
   Heap* heap() { return &heap_; }
   const Heap* heap() const { return &heap_; }
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
-  static Isolate* FromHeap(Heap* heap) {
+  static Isolate* FromHeap(const Heap* heap) {
     return reinterpret_cast<Isolate*>(reinterpret_cast<Address>(heap) -
                                       OFFSET_OF(Isolate, heap_));
   }
@@ -1302,22 +1339,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Debug* debug() const { return debug_; }
 
-  void* is_profiling_address() { return &is_profiling_; }
-
   bool is_profiling() const {
-    return is_profiling_.load(std::memory_order_relaxed);
+    return isolate_data_.is_profiling_.load(std::memory_order_relaxed);
   }
 
   void SetIsProfiling(bool enabled) {
     if (enabled) {
       CollectSourcePositionsForAllBytecodeArrays();
     }
-    is_profiling_.store(enabled, std::memory_order_relaxed);
+    isolate_data_.is_profiling_.store(enabled, std::memory_order_relaxed);
+    UpdateLogObjectRelocation();
   }
 
-  CodeEventDispatcher* code_event_dispatcher() const {
-    return code_event_dispatcher_.get();
-  }
+  Logger* logger() const { return logger_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
@@ -1459,6 +1493,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnSetPrototype(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+  void UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
+      Handle<JSObject> object);
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
@@ -1491,7 +1527,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
     DCHECK(optimizing_compile_dispatcher_ == nullptr ||
-           FLAG_concurrent_recompilation);
+           v8_flags.concurrent_recompilation);
     return optimizing_compile_dispatcher_ != nullptr;
   }
 
@@ -1512,7 +1548,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     was_locker_ever_used_.store(true, std::memory_order_relaxed);
   }
 
-  CompilationStatistics* GetTurboStatistics();
+  std::shared_ptr<CompilationStatistics> GetTurboStatistics();
   CodeTracer* GetCodeTracer();
 
   void DumpAndResetStats();
@@ -1522,6 +1558,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_force_slow_path(bool v) { force_slow_path_ = v; }
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
+
+  bool jitless() const { return jitless_; }
 
   DebugInfo::ExecutionMode* debug_execution_mode_address() {
     return &debug_execution_mode_;
@@ -1536,7 +1574,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   int GenerateIdentityHash(uint32_t mask);
 
   // Given an address occupied by a live code object, return that object.
-  Code FindCodeObject(Address a);
+  CodeLookupResult FindCodeObject(Address a);
 
   int NextOptimizationId() {
     int id = next_optimization_id_++;
@@ -1636,6 +1674,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Address javascript_execution_assert_address() {
     return reinterpret_cast<Address>(&javascript_execution_assert_);
+  }
+
+  void IncrementJavascriptExecutionCounter() {
+    javascript_execution_counter_++;
   }
 
   Address handle_scope_implementer_address() {
@@ -1762,7 +1804,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
-      Handle<Script> referrer, Handle<Object> specifier,
+      MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
       MaybeHandle<Object> maybe_import_assertions_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
@@ -1899,7 +1941,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   LocalHeap* main_thread_local_heap();
   LocalHeap* CurrentLocalHeap();
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable& external_pointer_table() {
     return isolate_data_.external_pointer_table_;
   }
@@ -1911,7 +1953,26 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address external_pointer_table_address() {
     return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
   }
-#endif
+
+  ExternalPointerTable& shared_external_pointer_table() {
+    return *isolate_data_.shared_external_pointer_table_;
+  }
+
+  const ExternalPointerTable& shared_external_pointer_table() const {
+    return *isolate_data_.shared_external_pointer_table_;
+  }
+
+  Address shared_external_pointer_table_address_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.shared_external_pointer_table_);
+  }
+
+  ExternalPointerHandle* GetWaiterQueueNodeExternalPointerHandleLocation() {
+    return &waiter_queue_node_external_pointer_handle_;
+  }
+
+  ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
+#endif  // V8_COMPRESS_POINTERS
 
   struct PromiseHookFields {
     using HasContextPromiseHook = base::BitField<bool, 0, 1>;
@@ -1926,16 +1987,30 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return shared_isolate_;
   }
 
+  bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+  Isolate* shared_space_isolate() const {
+    return shared_space_isolate_.value();
+  }
+
   void set_shared_isolate(Isolate* shared_isolate) {
     DCHECK(shared_isolate->is_shared());
     DCHECK_NULL(shared_isolate_);
     DCHECK(!attached_to_shared_isolate_);
     shared_isolate_ = shared_isolate;
+    owns_shareable_data_ = false;
   }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
-  bool OwnsStringTable() { return !FLAG_shared_string_table || is_shared(); }
+  bool owns_shareable_data() { return owns_shareable_data_; }
+
+  bool log_object_relocation() const { return log_object_relocation_; }
+
+  // TODO(pthier): Unify with owns_shareable_data() once the flag
+  // --shared-string-table is removed.
+  bool OwnsStringTables() {
+    return !v8_flags.shared_string_table || is_shared();
+  }
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data() { return simulator_data_; }
@@ -1950,6 +2025,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                    bool is_shared);
   ~Isolate();
 
+  static Isolate* Allocate(bool is_shared);
+
   bool Init(SnapshotData* startup_snapshot_data,
             SnapshotData* read_only_snapshot_data,
             SnapshotData* shared_heap_snapshot_data, bool can_rehash);
@@ -1958,10 +2035,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
-
-  // Common method to create an Isolate used by Isolate::New() and
-  // Isolate::NewShared().
-  static Isolate* Allocate(bool is_shared);
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
@@ -2009,6 +2082,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     EntryStackItem* previous_item;
   };
 
+  // When a feature flag that requires the shared heap is passed, a shared
+  // isolate is created to hold the shared allocations. The shared isolate is
+  // created by the first isolate to be created in the process, which is
+  // considered the main isolate and owns the lifetime of the shared
+  // isolate. The main isolate deletes the shared isolate when it itself is
+  // deleted.
+  static base::LazyMutex process_wide_shared_isolate_mutex_;
+  static Isolate* process_wide_shared_isolate_;
+
+  static Isolate* GetProcessWideSharedIsolate(bool* created_shared_isolate);
+  static void DeleteProcessWideSharedIsolate();
+
+  static Isolate* process_wide_shared_space_isolate_;
+
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
   static std::atomic<bool> isolate_key_created_;
@@ -2017,11 +2104,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  void MarkCompactPrologue(bool is_compacting,
-                           ThreadLocalTop* archived_thread_data);
-  void MarkCompactEpilogue(bool is_compacting,
-                           ThreadLocalTop* archived_thread_data);
 
   void FillCache();
 
@@ -2066,6 +2148,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void AttachToSharedIsolate();
   void DetachFromSharedIsolate();
 
+  void AttachToSharedSpaceIsolate(Isolate* shared_space_isolate);
+  void DetachFromSharedSpaceIsolate();
+
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).
@@ -2075,11 +2160,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // before Heap is constructed, as Heap's constructor consults it.
   const bool is_shared_;
 
+  // Set to true if this isolate is used as main isolate with a shared space.
+  bool is_shared_space_isolate_{false};
+
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
   std::shared_ptr<StringTable> string_table_;
+  std::shared_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
@@ -2098,7 +2187,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex shared_function_info_access_;
   base::SharedMutex map_updater_access_;
   base::SharedMutex boilerplate_migration_access_;
-  Logger* logger_ = nullptr;
+  V8FileLogger* v8_file_logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
   Deoptimizer* current_deoptimizer_ = nullptr;
@@ -2181,9 +2270,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ICUObjectCacheEntry icu_object_cache_[kICUObjectCacheTypeCount];
 #endif  // V8_INTL_SUPPORT
 
-  // true if being profiled. Causes collection of extra compile info.
-  std::atomic<bool> is_profiling_{false};
-
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_ = false;
 
@@ -2204,6 +2290,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
 
+  // Indicates whether the isolate owns shareable data.
+  // Only false for client isolates attached to a shared isolate.
+  bool owns_shareable_data_ = true;
+
+  // True if this isolate is attached to a shared isolate, and this isolate is
+  // the main isolate in the process and owns the lifetime of the shared
+  // isolate.
+  bool owns_shared_isolate_ = false;
+
+  bool log_object_relocation_ = false;
+
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Base address of the pointer compression cage containing external code
   // space, when external code space is enabled.
@@ -2221,7 +2318,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Debug* debug_ = nullptr;
   HeapProfiler* heap_profiler_ = nullptr;
-  std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
+  Logger* logger_ = nullptr;
 
   const AstStringConstants* ast_string_constants_ = nullptr;
 
@@ -2290,11 +2387,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
+  std::shared_ptr<CompilationStatistics> turbo_statistics_;
   std::shared_ptr<metrics::Recorder> metrics_recorder_;
   uintptr_t last_recorder_context_id_ = 0;
-  std::unordered_map<
-      uintptr_t,
-      Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
+  std::unordered_map<uintptr_t, v8::Global<v8::Context>>
       recorder_context_id_map_;
 
   size_t last_long_task_stats_counter_ = 0;
@@ -2302,8 +2398,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::vector<Object> startup_object_cache_;
 
-  // When sharing data among Isolates (e.g. FLAG_shared_string_table), only the
-  // shared Isolate populates this and client Isolates reference that copy.
+  // When sharing data among Isolates (e.g. v8_flags.shared_string_table), only
+  // the shared Isolate populates this and client Isolates reference that copy.
   //
   // Otherwise this is populated for all Isolates.
   std::vector<Object> shared_heap_object_cache_;
@@ -2370,7 +2466,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.
+  //
+  // When non-null, it is identical to process_wide_shared_isolate_.
   Isolate* shared_isolate_ = nullptr;
+
+  // Stores the isolate containing the shared space.
+  base::Optional<Isolate*> shared_space_isolate_;
+
+#ifdef V8_COMPRESS_POINTERS
+  // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
+  // It is used to wait for JS-exposed mutex or condition variable.
+  ExternalPointerHandle waiter_queue_node_external_pointer_handle_ =
+      kNullExternalPointerHandle;
+#endif
 
 #if DEBUG
   // Set to true once during isolate initialization right when attaching to the
@@ -2414,6 +2522,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class heap::HeapTester;
   friend class GlobalSafepoint;
   friend class TestSerializer;
+  friend class SharedHeapNoClientsTest;
 };
 
 #undef FIELD_ACCESSOR
@@ -2499,10 +2608,15 @@ class StackLimitCheck {
   static bool HasOverflowed(LocalIsolate* local_isolate);
 
   // Use this to check for interrupt request in C++ code.
-  bool InterruptRequested() {
+  V8_INLINE bool InterruptRequested() {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->climit();
   }
+
+  // Handle interripts if InterruptRequested was true.
+  // Returns true if any interrupt (overflow or termination) was handled, in
+  // which case the caller should prevent further JS execution.
+  V8_EXPORT_PRIVATE bool HandleInterrupt(Isolate* isolate);
 
   // Use this to check for stack-overflow when entering runtime from JS code.
   bool JsHasOverflowed(uintptr_t gap = 0) const;
@@ -2513,19 +2627,14 @@ class StackLimitCheck {
 
 // This macro may be used in context that disallows JS execution.
 // That is why it checks only for a stack overflow and termination.
-#define STACK_CHECK(isolate, result_value)                   \
-  do {                                                       \
-    StackLimitCheck stack_check(isolate);                    \
-    if (stack_check.InterruptRequested()) {                  \
-      if (stack_check.HasOverflowed()) {                     \
-        isolate->StackOverflow();                            \
-        return result_value;                                 \
-      }                                                      \
-      if (isolate->stack_guard()->HasTerminationRequest()) { \
-        isolate->TerminateExecution();                       \
-        return result_value;                                 \
-      }                                                      \
-    }                                                        \
+#define STACK_CHECK(isolate, result_value)        \
+  do {                                            \
+    StackLimitCheck stack_check(isolate);         \
+    if (stack_check.InterruptRequested()) {       \
+      if (stack_check.HandleInterrupt(isolate)) { \
+        return result_value;                      \
+      }                                           \
+    }                                             \
   } while (false)
 
 class StackTraceFailureMessage {

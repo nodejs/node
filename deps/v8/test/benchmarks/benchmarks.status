@@ -50,6 +50,7 @@
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
   'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [PASS, SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
@@ -104,9 +105,19 @@
   'octane/typescript': [SKIP],
 }],  # 'gc_fuzzer'
 
+##############################################################################
+['gc_fuzzer or deopt_fuzzer', {
+  # BUG(v8:12901) Skipped until bug is fixed.
+  'octane/gbemu-part1': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
+
 ['predictable', {
   # https://crbug.com/v8/8537
   'octane/typescript': [SKIP],
+
+  # https://crbug.com/v8/13234
+  'octane/box2d': [SKIP],
+  'octane/earley-boyer': [SKIP],
 }],  # 'predictable'
 
 ['variant == stress_snapshot', {

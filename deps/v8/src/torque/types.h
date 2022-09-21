@@ -521,6 +521,8 @@ class V8_EXPORT_PRIVATE BitFieldStructType final : public Type {
 
   const BitField& LookupField(const std::string& name) const;
 
+  const SourcePosition GetPosition() const { return decl_->pos; }
+
  private:
   friend class TypeOracle;
   BitFieldStructType(Namespace* nspace, const Type* parent,

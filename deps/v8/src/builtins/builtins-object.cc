@@ -280,8 +280,8 @@ Object GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, filter,
-                              GetKeysConversion::kConvertToString));
+      KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
+                              filter, GetKeysConversion::kConvertToString));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -326,9 +326,10 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, KeyAccumulator::GetKeys(
-                         receiver, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-                         GetKeysConversion::kConvertToString));
+      isolate, keys,
+      KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
+                              ALL_PROPERTIES,
+                              GetKeysConversion::kConvertToString));
 
   Handle<JSObject> descriptors =
       isolate->factory()->NewJSObject(isolate->object_function());

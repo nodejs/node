@@ -33,11 +33,11 @@ class StressConcurrentAllocatorTask : public CancelableTask {
 // Allocations are served from a TLAB if possible.
 class ConcurrentAllocator {
  public:
-  static const int kLabSize = 4 * KB;
-  static const int kMaxLabSize = 32 * KB;
-  static const int kMaxLabObjectSize = 2 * KB;
+  static constexpr int kMinLabSize = 4 * KB;
+  static constexpr int kMaxLabSize = 32 * KB;
+  static constexpr int kMaxLabObjectSize = 2 * KB;
 
-  explicit ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space)
+  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space)
       : local_heap_(local_heap),
         space_(space),
         lab_(LocalAllocationBuffer::InvalidBuffer()) {}
@@ -52,16 +52,21 @@ class ConcurrentAllocator {
   void UnmarkLinearAllocationArea();
 
  private:
-  V8_EXPORT_PRIVATE AllocationResult AllocateInLabSlow(
-      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
+  static_assert(
+      kMinLabSize > kMaxLabObjectSize,
+      "LAB size must be larger than max LAB object size as the fast "
+      "paths do not consider alignment. The assumption is that any object with "
+      "size <= kMaxLabObjectSize will fit into a newly allocated LAB of size "
+      "kLabSize after computing the alignment requirements.");
+
+  V8_EXPORT_PRIVATE AllocationResult
+  AllocateInLabSlow(int size_in_bytes, AllocationAlignment alignment,
+                    AllocationOrigin origin);
   bool EnsureLab(AllocationOrigin origin);
 
-  inline AllocationResult AllocateInLab(int object_size,
-                                        AllocationAlignment alignment,
-                                        AllocationOrigin origin);
-
-  V8_EXPORT_PRIVATE AllocationResult AllocateOutsideLab(
-      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
+  V8_EXPORT_PRIVATE AllocationResult
+  AllocateOutsideLab(int size_in_bytes, AllocationAlignment alignment,
+                     AllocationOrigin origin);
 
   bool IsBlackAllocationEnabled() const;
 

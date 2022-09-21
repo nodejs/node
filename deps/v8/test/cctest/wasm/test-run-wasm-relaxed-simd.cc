@@ -31,6 +31,11 @@ namespace test_run_wasm_relaxed_simd {
     EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
     RunWasm_##name##_Impl(TestExecutionTier::kInterpreter);     \
   }                                                             \
+  TEST(RunWasm_##name##_liftoff) {                              \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
+    FLAG_SCOPE(liftoff_only);                                   \
+    RunWasm_##name##_Impl(TestExecutionTier::kLiftoff);         \
+  }                                                             \
   void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
@@ -224,18 +229,6 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
         // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 
-WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
-  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipApprox, base::Recip,
-                   false /* !exact */);
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
-  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipSqrtApprox, base::RecipSqrt,
-                   false /* !exact */);
-}
-
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 namespace {
 // Helper to convert an array of T into an array of uint8_t to be used a v128
 // constants.
@@ -243,7 +236,7 @@ template <typename T, size_t N = kSimd128Size / sizeof(T)>
 std::array<uint8_t, kSimd128Size> as_uint8(const T* src) {
   std::array<uint8_t, kSimd128Size> arr;
   for (size_t i = 0; i < N; i++) {
-    WriteLittleEndianValue<T>(bit_cast<T*>(&arr[0]) + i, src[i]);
+    WriteLittleEndianValue<T>(base::bit_cast<T*>(&arr[0]) + i, src[i]);
   }
   return arr;
 }
@@ -386,11 +379,7 @@ WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4U) {
   IntRelaxedTruncFloatTest<uint32_t, float>(
       execution_tier, kExprI32x4RelaxedTruncF32x4U, kExprF32x4Splat);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_RISCV64
 WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
   // Output is only defined for indices in the range [0,15].
   WasmRunner<int32_t> r(execution_tier);
@@ -412,8 +401,98 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
     CHECK_EQ(LANE(dst, i), i);
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_RISCV64
+
+WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
+  WasmRunner<int32_t, int16_t, int16_t> r(execution_tier);
+  // Global to hold output.
+  int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
+  // Build fn to splat test values, perform binop, and write the result.
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
+        WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI16x8RelaxedQ15MulRS, WASM_LOCAL_GET(temp1),
+                               WASM_LOCAL_GET(temp2))),
+        WASM_ONE);
+
+  for (int16_t x : compiler::ValueHelper::GetVector<int16_t>()) {
+    for (int16_t y : compiler::ValueHelper::GetVector<int16_t>()) {
+      // Results are dependent on the underlying hardware when both inputs are
+      // INT16_MIN, we could do something specific to test for x64/ARM behavior
+      // but predictably other supported V8 platforms will have to test specific
+      // behavior in that case, given that the lowering is fairly
+      // straighforward, and occurence of this in higher level programs is rare,
+      // this is okay to skip.
+      if (x == INT16_MIN && y == INT16_MIN) break;
+      r.Call(x, y);
+      int16_t expected = SaturateRoundingQMul(x, y);
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
+
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+WASM_RELAXED_SIMD_TEST(I16x8DotI8x16I7x16S) {
+  WasmRunner<int32_t, int8_t, int8_t> r(execution_tier);
+  int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value1))),
+        WASM_LOCAL_SET(temp2, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value2))),
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI16x8DotI8x16I7x16S, WASM_LOCAL_GET(temp1),
+                               WASM_LOCAL_GET(temp2))),
+        WASM_ONE);
+
+  for (int8_t x : compiler::ValueHelper::GetVector<int8_t>()) {
+    for (int8_t y : compiler::ValueHelper::GetVector<int8_t>()) {
+      r.Call(x, y & 0x7F);
+      // * 2 because we of (x*y) + (x*y) = 2*x*y
+      int16_t expected = base::MulWithWraparound(x * (y & 0x7F), 2);
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+
+#if V8_TARGET_ARCH_ARM64
+WASM_RELAXED_SIMD_TEST(I32x4DotI8x16I7x16AddS) {
+  WasmRunner<int32_t, int8_t, int8_t, int32_t> r(execution_tier);
+  int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
+  byte value1 = 0, value2 = 1, value3 = 2;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  BUILD(
+      r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value1))),
+      WASM_LOCAL_SET(temp2, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value2))),
+      WASM_LOCAL_SET(temp3, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value3))),
+      WASM_GLOBAL_SET(0, WASM_SIMD_TERNOP(
+                             kExprI32x4DotI8x16I7x16AddS, WASM_LOCAL_GET(temp1),
+                             WASM_LOCAL_GET(temp2), WASM_LOCAL_GET(temp3))),
+      WASM_ONE);
+
+  for (int8_t x : compiler::ValueHelper::GetVector<int8_t>()) {
+    for (int8_t y : compiler::ValueHelper::GetVector<int8_t>()) {
+      for (int32_t z : compiler::ValueHelper::GetVector<int32_t>()) {
+        r.Call(x, y & 0x7F, z);
+        int32_t expected = base::AddWithWraparound(
+            base::MulWithWraparound(x * (y & 0x7F), 4), z);
+        for (int i = 0; i < 4; i++) {
+          CHECK_EQ(expected, LANE(g, i));
+        }
+      }
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
 
 #undef WASM_RELAXED_SIMD_TEST
 }  // namespace test_run_wasm_relaxed_simd

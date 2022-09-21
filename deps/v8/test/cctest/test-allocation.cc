@@ -36,11 +36,6 @@ class AllocationPlatform : public TestPlatform {
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 
-  bool OnCriticalMemoryPressure(size_t length) override {
-    oom_callback_called = true;
-    return true;
-  }
-
   static AllocationPlatform* current_platform;
   bool oom_callback_called = false;
 };
@@ -60,7 +55,8 @@ size_t GetHugeMemoryAmount() {
   static size_t huge_memory = 0;
   if (!huge_memory) {
     for (int i = 0; i < 100; i++) {
-      huge_memory |= bit_cast<size_t>(v8::internal::GetRandomMmapAddr());
+      huge_memory |=
+          v8::base::bit_cast<size_t>(v8::internal::GetRandomMmapAddr());
     }
     // Make it larger than the available address space.
     huge_memory *= 2;
@@ -153,8 +149,8 @@ TEST_WITH_PLATFORM(AlignedAllocOOM, AllocationPlatform) {
   CcTest::isolate()->SetFatalErrorHandler(OnAlignedAllocOOM);
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
   // In that case, behavior is checked in OnAlignedAllocOOM before exit.
-  void* result = v8::internal::AlignedAlloc(GetHugeMemoryAmount(),
-                                            v8::internal::AllocatePageSize());
+  void* result = v8::internal::AlignedAllocWithRetry(
+      GetHugeMemoryAmount(), v8::internal::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }

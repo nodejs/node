@@ -308,6 +308,7 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
+//  V8_HAS_BUILTIN_SMUL_OVERFLOW        - __builtin_smul_overflow() supported
 //  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
 //                                        supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
@@ -344,6 +345,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 
+# define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
@@ -356,6 +358,8 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
+# define V8_HAS_BUILTIN_SMUL_OVERFLOW (__has_builtin(__builtin_smul_overflow))
+# define V8_HAS_BUILTIN_UNREACHABLE (__has_builtin(__builtin_unreachable))
 
 // Clang has no __has_feature for computed gotos.
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
@@ -394,6 +398,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_EXPECT 1
 # define V8_HAS_BUILTIN_FRAME_ADDRESS 1
 # define V8_HAS_BUILTIN_POPCOUNT 1
+# define V8_HAS_BUILTIN_UNREACHABLE 1
 
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 #define V8_HAS_COMPUTED_GOTO 1
@@ -423,6 +428,18 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE __forceinline
 #else
 # define V8_INLINE inline
+#endif
+
+#ifdef DEBUG
+// In debug mode, check assumptions instead of actually adding annotations.
+# define V8_ASSUME(condition) DCHECK(condition)
+#elif V8_HAS_BUILTIN_ASSUME
+# define V8_ASSUME(condition) __builtin_assume(condition)
+#elif V8_HAS_BUILTIN_UNREACHABLE
+# define V8_ASSUME(condition) \
+  do { if (!(condition)) __builtin_unreachable(); } while (false)
+#else
+# define V8_ASSUME(condition)
 #endif
 
 #if V8_HAS_BUILTIN_ASSUME_ALIGNED
@@ -469,6 +486,34 @@ path. Add it with -I<path> to the command line
 #else
 # define V8_DEPRECATE_SOON(message)
 #endif
+
+
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) || \
+    defined(V8_DEPRECATION_WARNINGS)
+#if defined(V8_CC_MSVC)
+# define START_ALLOW_USE_DEPRECATED() \
+    __pragma(warning(push))           \
+    __pragma(warning(disable : 4996))
+# define END_ALLOW_USE_DEPRECATED() __pragma(warning(pop))
+#else  // !defined(V8_CC_MSVC)
+# define START_ALLOW_USE_DEPRECATED()                               \
+    _Pragma("GCC diagnostic push")                                  \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define END_ALLOW_USE_DEPRECATED() _Pragma("GCC diagnostic pop")
+#endif  // !defined(V8_CC_MSVC)
+#else  // !(defined(V8_IMMINENT_DEPRECATION_WARNINGS) ||
+       // defined(V8_DEPRECATION_WARNINGS))
+#define START_ALLOW_USE_DEPRECATED()
+#define END_ALLOW_USE_DEPRECATED()
+#endif  // !(defined(V8_IMMINENT_DEPRECATION_WARNINGS) ||
+        // defined(V8_DEPRECATION_WARNINGS))
+#define ALLOW_COPY_AND_MOVE_WITH_DEPRECATED_FIELDS(ClassName) \
+  START_ALLOW_USE_DEPRECATED()                                \
+  ClassName(const ClassName&) = default;                      \
+  ClassName(ClassName&&) = default;                           \
+  ClassName& operator=(const ClassName&) = default;           \
+  ClassName& operator=(ClassName&&) = default;                \
+  END_ALLOW_USE_DEPRECATED()
 
 
 #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 6)
@@ -580,25 +625,214 @@ V8 shared library set USING_V8_SHARED.
 
 #endif  // V8_OS_WIN
 
-// The sandbox is available (i.e. defined) when pointer compression
-// is enabled, but it is only used when V8_SANDBOX is enabled as
-// well. This allows better test coverage of the sandbox.
-#if defined(V8_COMPRESS_POINTERS)
-#define V8_SANDBOX_IS_AVAILABLE
-#endif
-
-#if defined(V8_SANDBOX) && !defined(V8_SANDBOX_IS_AVAILABLE)
-#error Inconsistent configuration: sandbox is enabled but not available
-#endif
-
-// From C++17 onwards, static constexpr member variables are defined to be
-// "inline", and adding a separate definition for them can trigger deprecation
-// warnings. For C++14 and below, however, these definitions are required.
-#if __cplusplus < 201703L && (!defined(_MSVC_LANG) || _MSVC_LANG < 201703L)
-#define V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
-#endif
-
 // clang-format on
+
+// Processor architecture detection.  For more info on what's defined, see:
+//   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
+//   http://www.agner.org/optimize/calling_conventions.pdf
+//   or with gcc, run: "echo | gcc -E -dM -"
+// The V8_HOST_ARCH_* macros correspond to the architecture on which V8, as a
+// virtual machine and compiler, runs. Don't confuse this with the architecture
+// on which V8 is built.
+#if defined(_M_X64) || defined(__x86_64__)
+#define V8_HOST_ARCH_X64 1
+#if defined(__x86_64__) && __SIZEOF_POINTER__ == 4  // Check for x32.
+#define V8_HOST_ARCH_32_BIT 1
+#else
+#define V8_HOST_ARCH_64_BIT 1
+#endif
+#elif defined(_M_IX86) || defined(__i386__)
+#define V8_HOST_ARCH_IA32 1
+#define V8_HOST_ARCH_32_BIT 1
+#elif defined(__AARCH64EL__) || defined(_M_ARM64)
+#define V8_HOST_ARCH_ARM64 1
+#define V8_HOST_ARCH_64_BIT 1
+#elif defined(__ARMEL__)
+#define V8_HOST_ARCH_ARM 1
+#define V8_HOST_ARCH_32_BIT 1
+#elif defined(__mips64)
+#define V8_HOST_ARCH_MIPS64 1
+#define V8_HOST_ARCH_64_BIT 1
+#elif defined(__loongarch64)
+#define V8_HOST_ARCH_LOONG64 1
+#define V8_HOST_ARCH_64_BIT 1
+#elif defined(__PPC64__) || defined(_ARCH_PPC64)
+#define V8_HOST_ARCH_PPC64 1
+#define V8_HOST_ARCH_64_BIT 1
+#elif defined(__PPC__) || defined(_ARCH_PPC)
+#define V8_HOST_ARCH_PPC 1
+#define V8_HOST_ARCH_32_BIT 1
+#elif defined(__s390__) || defined(__s390x__)
+#define V8_HOST_ARCH_S390 1
+#if defined(__s390x__)
+#define V8_HOST_ARCH_64_BIT 1
+#else
+#define V8_HOST_ARCH_32_BIT 1
+#endif
+#elif defined(__riscv) || defined(__riscv__)
+#if __riscv_xlen == 64
+#define V8_HOST_ARCH_RISCV64 1
+#define V8_HOST_ARCH_64_BIT 1
+#elif __riscv_xlen == 32
+#define V8_HOST_ARCH_RISCV32 1
+#define V8_HOST_ARCH_32_BIT 1
+#else
+#error "Cannot detect Riscv's bitwidth"
+#endif
+#else
+#error "Host architecture was not detected as supported by v8"
+#endif
+
+// Target architecture detection. This corresponds to the architecture for which
+// V8's JIT will generate code (the last stage of the canadian cross-compiler).
+// The macros may be set externally. If not, detect in the same way as the host
+// architecture, that is, target the native environment as presented by the
+// compiler.
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&     \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_PPC && \
+    !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&                          \
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64 &&                     \
+    !V8_TARGET_ARCH_RISCV32
+#if defined(_M_X64) || defined(__x86_64__)
+#define V8_TARGET_ARCH_X64 1
+#elif defined(_M_IX86) || defined(__i386__)
+#define V8_TARGET_ARCH_IA32 1
+#elif defined(__AARCH64EL__) || defined(_M_ARM64)
+#define V8_TARGET_ARCH_ARM64 1
+#elif defined(__ARMEL__)
+#define V8_TARGET_ARCH_ARM 1
+#elif defined(__mips64)
+#define V8_TARGET_ARCH_MIPS64 1
+#elif defined(_ARCH_PPC64)
+#define V8_TARGET_ARCH_PPC64 1
+#elif defined(_ARCH_PPC)
+#define V8_TARGET_ARCH_PPC 1
+#elif defined(__s390__)
+#define V8_TARGET_ARCH_S390 1
+#if defined(__s390x__)
+#define V8_TARGET_ARCH_S390X 1
+#endif
+#elif defined(__riscv) || defined(__riscv__)
+#if __riscv_xlen == 64
+#define V8_TARGET_ARCH_RISCV64 1
+#elif __riscv_xlen == 32
+#define V8_TARGET_ARCH_RISCV32 1
+#endif
+#else
+#error Target architecture was not detected as supported by v8
+#endif
+#endif
+
+// Determine architecture pointer size.
+#if V8_TARGET_ARCH_IA32
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_64_BIT
+#if defined(__x86_64__) && __SIZEOF_POINTER__ == 4  // Check for x32.
+#define V8_TARGET_ARCH_32_BIT 1
+#else
+#define V8_TARGET_ARCH_64_BIT 1
+#endif
+#endif
+#elif V8_TARGET_ARCH_ARM
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_ARM64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_MIPS
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_MIPS64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_LOONG64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_PPC
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_PPC64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
+#define V8_TARGET_ARCH_64_BIT 1
+#else
+#define V8_TARGET_ARCH_32_BIT 1
+#endif
+#elif V8_TARGET_ARCH_RISCV64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_RISCV32
+#define V8_TARGET_ARCH_32_BIT 1
+#else
+#error Unknown target architecture pointer size
+#endif
+
+// Check for supported combinations of host and target architectures.
+#if V8_TARGET_ARCH_IA32 && !V8_HOST_ARCH_IA32
+#error Target architecture ia32 is only supported on ia32 host
+#endif
+#if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT && \
+     !((V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64) && V8_HOST_ARCH_64_BIT))
+#error Target architecture x64 is only supported on x64 and arm64 host
+#endif
+#if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT && \
+     !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_32_BIT))
+#error Target architecture x32 is only supported on x64 host with x32 support
+#endif
+#if (V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM))
+#error Target architecture arm is only supported on arm and ia32 host
+#endif
+#if (V8_TARGET_ARCH_ARM64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64))
+#error Target architecture arm64 is only supported on arm64 and x64 host
+#endif
+#if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
+#error Target architecture mips64 is only supported on mips64 and x64 host
+#endif
+#if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv64 is only supported on riscv64 and x64 host
+#endif
+#if (V8_TARGET_ARCH_RISCV32 && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_RISCV32))
+#error Target architecture riscv32 is only supported on riscv32 and ia32 host
+#endif
+#if (V8_TARGET_ARCH_LOONG64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_LOONG64))
+#error Target architecture loong64 is only supported on loong64 and x64 host
+#endif
+
+// Determine architecture endianness.
+#if V8_TARGET_ARCH_IA32
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_X64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_ARM
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_ARM64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_LOONG64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_MIPS64
+#if defined(__MIPSEB__) || defined(V8_TARGET_ARCH_MIPS64_BE)
+#define V8_TARGET_BIG_ENDIAN 1
+#else
+#define V8_TARGET_LITTLE_ENDIAN 1
+#endif
+#elif defined(__BIG_ENDIAN__)  // FOR PPCGR on AIX
+#define V8_TARGET_BIG_ENDIAN 1
+#elif V8_TARGET_ARCH_PPC_LE
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_PPC_BE
+#define V8_TARGET_BIG_ENDIAN 1
+#elif V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390_LE_SIM
+#define V8_TARGET_LITTLE_ENDIAN 1
+#else
+#define V8_TARGET_BIG_ENDIAN 1
+#endif
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif defined(__BYTE_ORDER__)
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define V8_TARGET_BIG_ENDIAN 1
+#else
+#define V8_TARGET_LITTLE_ENDIAN 1
+#endif
+#else
+#error Unknown target architecture endianness
+#endif
 
 #undef V8_HAS_CPP_ATTRIBUTE
 

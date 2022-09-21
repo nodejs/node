@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --noalways-opt --no-stress-flush-code
+// Flags: --allow-natives-syntax --turbofan --noalways-turbofan --no-stress-flush-code
 
 // Invalidate the detaching protector.
 %ArrayBufferDetach(new ArrayBuffer(1));

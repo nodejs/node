@@ -2,284 +2,230 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { sortUnique, anyToString } from "../src/util";
-import { NodeLabel } from "./node-label";
+import { camelize, sortUnique } from "./common/util";
+import { PhaseType } from "./phases/phase";
+import { GraphPhase } from "./phases/graph-phase/graph-phase";
+import { DisassemblyPhase } from "./phases/disassembly-phase";
+import { InstructionsPhase } from "./phases/instructions-phase";
+import { SchedulePhase } from "./phases/schedule-phase";
+import { SequencePhase } from "./phases/sequence-phase";
+import { BytecodeSource, BytecodeSourceData, Source } from "./source";
+import { TurboshaftCustomDataPhase } from "./phases/turboshaft-custom-data-phase";
+import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
+import { GraphNode } from "./phases/graph-phase/graph-node";
+import { TurboshaftGraphNode } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { BytecodePosition, InliningPosition, PositionsContainer, SourcePosition } from "./position";
+import { NodeOrigin } from "./origin";
 
-function sourcePositionLe(a, b) {
-  if (a.inliningId == b.inliningId) {
-    return a.scriptOffset - b.scriptOffset;
-  }
-  return a.inliningId - b.inliningId;
-}
-
-function sourcePositionEq(a, b) {
-  return a.inliningId == b.inliningId &&
-    a.scriptOffset == b.scriptOffset;
-}
-
-export function sourcePositionToStringKey(sourcePosition: AnyPosition): string {
-  if (!sourcePosition) return "undefined";
-  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition) {
-    return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
-  }
-  if (sourcePosition.bytecodePosition) {
-    return "BCP:" + sourcePosition.bytecodePosition;
-  }
-  return "undefined";
-}
-
-export function sourcePositionValid(l) {
-  return (typeof l.scriptOffset !== undefined
-    && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
-}
-
-export interface SourcePosition {
-  scriptOffset: number;
-  inliningId: number;
-}
-
-interface TurboFanOrigin {
-  phase: string;
-  reducer: string;
-}
-
-export interface NodeOrigin {
-  nodeId: number;
-}
-
-interface BytecodePosition {
-  bytecodePosition: number;
-}
-
-export type Origin = NodeOrigin | BytecodePosition;
-export type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
-export type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
-
-type AnyPosition = SourcePosition | BytecodePosition;
-
-export interface Source {
-  sourcePositions: Array<SourcePosition>;
-  sourceName: string;
-  functionName: string;
-  sourceText: string;
-  sourceId: number;
-  startPosition?: number;
-  backwardsCompatibility: boolean;
-}
-interface Inlining {
-  inliningPosition: SourcePosition;
-  sourceId: number;
-}
-interface OtherPhase {
-  type: "disassembly" | "sequence" | "schedule";
-  name: string;
-  data: any;
-}
-
-interface InstructionsPhase {
-  type: "instructions";
-  name: string;
-  data: any;
-  instructionOffsetToPCOffset?: any;
-  blockIdToInstructionRange?: any;
-  nodeIdToInstructionRange?: any;
-  codeOffsetsInfo?: CodeOffsetsInfo;
-}
-
-interface GraphPhase {
-  type: "graph";
-  name: string;
-  data: any;
-  highestNodeId: number;
-  nodeLabelMap: Array<NodeLabel>;
-}
-
-type Phase = GraphPhase | InstructionsPhase | OtherPhase;
-
-export interface Schedule {
-  nodes: Array<any>;
-}
-
-export class Interval {
-  start: number;
-  end: number;
-
-  constructor(numbers: [number, number]) {
-    this.start = numbers[0];
-    this.end = numbers[1];
-  }
-}
-
-export interface ChildRange {
-  id: string;
-  type: string;
-  op: any;
-  intervals: Array<[number, number]>;
-  uses: Array<number>;
-}
-
-export interface Range {
-  child_ranges: Array<ChildRange>;
-  is_deferred: boolean;
-}
-
-export class RegisterAllocation {
-  fixedDoubleLiveRanges: Map<string, Range>;
-  fixedLiveRanges: Map<string, Range>;
-  liveRanges: Map<string, Range>;
-
-  constructor(registerAllocation) {
-    this.fixedDoubleLiveRanges = new Map<string, Range>(Object.entries(registerAllocation.fixed_double_live_ranges));
-    this.fixedLiveRanges = new Map<string, Range>(Object.entries(registerAllocation.fixed_live_ranges));
-    this.liveRanges = new Map<string, Range>(Object.entries(registerAllocation.live_ranges));
-  }
-}
-
-export interface Sequence {
-  blocks: Array<any>;
-  register_allocation: RegisterAllocation;
-}
-
-class CodeOffsetsInfo {
-  codeStartRegisterCheck: number;
-  deoptCheck: number;
-  initPoison: number;
-  blocksStart: number;
-  outOfLineCode: number;
-  deoptimizationExits: number;
-  pools: number;
-  jumpTables: number;
-}
-export class TurbolizerInstructionStartInfo {
-  gap: number;
-  arch: number;
-  condition: number;
-}
+export type GenericPosition = SourcePosition | BytecodePosition;
+export type DynamicPhase = GraphPhase | TurboshaftGraphPhase | SchedulePhase | SequencePhase;
+export type GenericPhase = GraphPhase | TurboshaftGraphPhase | TurboshaftCustomDataPhase
+  | DisassemblyPhase | InstructionsPhase | SchedulePhase | SequencePhase;
 
 export class SourceResolver {
-  nodePositionMap: Array<AnyPosition>;
   sources: Array<Source>;
-  inlinings: Array<Inlining>;
-  inliningsMap: Map<string, Inlining>;
-  positionToNodes: Map<string, Array<string>>;
-  phases: Array<Phase>;
+  bytecodeSources: Map<number, BytecodeSource>;
+  inlinings: Array<InliningPosition>;
+  inliningsMap: Map<string, InliningPosition>;
+  phases: Array<GenericPhase>;
   phaseNames: Map<string, number>;
-  disassemblyPhase: Phase;
-  linePositionMap: Map<string, Array<AnyPosition>>;
-  nodeIdToInstructionRange: Array<[number, number]>;
-  blockIdToInstructionRange: Array<[number, number]>;
-  instructionToPCOffset: Array<TurbolizerInstructionStartInfo>;
-  pcOffsetToInstructions: Map<number, Array<number>>;
-  pcOffsets: Array<number>;
-  blockIdToPCOffset: Array<number>;
-  blockStartPCtoBlockIds: Map<number, Array<number>>;
-  codeOffsetsInfo: CodeOffsetsInfo;
+  disassemblyPhase: DisassemblyPhase;
+  linePositionMap: Map<string, Array<GenericPosition>>;
+  finalNodeOrigins: Array<NodeOrigin>;
+  instructionsPhase: InstructionsPhase;
+  positions: PositionsContainer;
 
   constructor() {
-    // Maps node ids to source positions.
-    this.nodePositionMap = [];
     // Maps source ids to source objects.
-    this.sources = [];
+    this.sources = new Array<Source>();
+    // Maps bytecode source ids to bytecode source objects.
+    this.bytecodeSources = new Map<number, BytecodeSource>();
     // Maps inlining ids to inlining objects.
-    this.inlinings = [];
+    this.inlinings = new Array<InliningPosition>();
     // Maps source position keys to inlinings.
-    this.inliningsMap = new Map();
-    // Maps source position keys to node ids.
-    this.positionToNodes = new Map();
+    this.inliningsMap = new Map<string, InliningPosition>();
     // Maps phase ids to phases.
-    this.phases = [];
+    this.phases = new Array<GenericPhase>();
     // Maps phase names to phaseIds.
-    this.phaseNames = new Map();
-    // The disassembly phase is stored separately.
-    this.disassemblyPhase = undefined;
+    this.phaseNames = new Map<string, number>();
     // Maps line numbers to source positions
-    this.linePositionMap = new Map();
-    // Maps node ids to instruction ranges.
-    this.nodeIdToInstructionRange = [];
-    // Maps block ids to instruction ranges.
-    this.blockIdToInstructionRange = [];
-    // Maps instruction numbers to PC offsets.
-    this.instructionToPCOffset = [];
-    // Maps PC offsets to instructions.
-    this.pcOffsetToInstructions = new Map();
-    this.pcOffsets = [];
-    this.blockIdToPCOffset = [];
-    this.blockStartPCtoBlockIds = new Map();
-    this.codeOffsetsInfo = null;
+    this.linePositionMap = new Map<string, Array<GenericPosition>>();
+    // Maps node ids to node origin
+    this.finalNodeOrigins = new Array<NodeOrigin>();
   }
 
-  getBlockIdsForOffset(offset): Array<number> {
-    return this.blockStartPCtoBlockIds.get(offset);
-  }
-
-  hasBlockStartInfo() {
-    return this.blockIdToPCOffset.length > 0;
-  }
-
-  setSources(sources, mainBackup) {
-    if (sources) {
-      for (const [sourceId, source] of Object.entries(sources)) {
-        this.sources[sourceId] = source;
-        this.sources[sourceId].sourcePositions = [];
-      }
+  public getMainFunction(jsonObj): Source {
+    const fncJson = jsonObj.function;
+    // Backwards compatibility.
+    if (typeof fncJson === "string") {
+      return new Source(null, null, jsonObj.source, -1, true,
+        jsonObj.sourcePosition, jsonObj.sourcePosition + jsonObj.source.length);
     }
-    // This is a fallback if the JSON is incomplete (e.g. due to compiler crash).
-    if (!this.sources[-1]) {
-      this.sources[-1] = mainBackup;
-      this.sources[-1].sourcePositions = [];
-    }
+    return new Source(fncJson.sourceName, fncJson.functionName, fncJson.sourceText,
+      fncJson.sourceId, false, fncJson.startPosition, fncJson.endPosition);
   }
 
-  setInlinings(inlinings) {
-    if (inlinings) {
-      for (const [inliningId, inlining] of Object.entries<Inlining>(inlinings)) {
-        this.inlinings[inliningId] = inlining;
-        this.inliningsMap.set(sourcePositionToStringKey(inlining.inliningPosition), inlining);
+  public setInlinings(inliningsJson): void {
+    if (inliningsJson) {
+      for (const [inliningIdStr, inlining] of Object.entries<InliningPosition>(inliningsJson)) {
+        const scriptOffset = inlining.inliningPosition.scriptOffset;
+        const inliningId = inlining.inliningPosition.inliningId;
+        const inl = new InliningPosition(inlining.sourceId,
+          new SourcePosition(scriptOffset, inliningId));
+        this.inlinings[inliningIdStr] = inl;
+        this.inliningsMap.set(inl.inliningPosition.toString(), inl);
       }
     }
     // This is a default entry for the script itself that helps
     // keep other code more uniform.
-    this.inlinings[-1] = { sourceId: -1, inliningPosition: null };
+    this.inlinings[-1] = new InliningPosition(-1, null);
   }
 
-  setNodePositionMap(map) {
-    if (!map) return;
-    if (typeof map[0] != 'object') {
-      const alternativeMap = {};
-      for (const [nodeId, scriptOffset] of Object.entries<number>(map)) {
-        alternativeMap[nodeId] = { scriptOffset: scriptOffset, inliningId: -1 };
+  public setSources(sourcesJson, mainFunc: Source): void {
+    if (sourcesJson) {
+      for (const [sourceId, source] of Object.entries<Source>(sourcesJson)) {
+        const src = new Source(source.sourceName, source.functionName, source.sourceText,
+          source.sourceId, source.backwardsCompatibility, source.startPosition, source.endPosition);
+        this.sources[sourceId] = src;
       }
-      map = alternativeMap;
     }
-
-    for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(map)) {
-      if (sourcePosition == undefined) {
-        console.log("Warning: undefined source position ", sourcePosition, " for nodeId ", nodeId);
-      }
-      const inliningId = sourcePosition.inliningId;
-      const inlining = this.inlinings[inliningId];
-      if (inlining) {
-        const sourceId = inlining.sourceId;
-        this.sources[sourceId].sourcePositions.push(sourcePosition);
-      }
-      this.nodePositionMap[nodeId] = sourcePosition;
-      const key = sourcePositionToStringKey(sourcePosition);
-      if (!this.positionToNodes.has(key)) {
-        this.positionToNodes.set(key, []);
-      }
-      this.positionToNodes.get(key).push(nodeId);
-    }
-    for (const [, source] of Object.entries(this.sources)) {
-      source.sourcePositions = sortUnique(source.sourcePositions,
-        sourcePositionLe, sourcePositionEq);
+    // This is a fallback if the JSON is incomplete (e.g. due to compiler crash).
+    if (!this.sources[-1]) {
+      this.sources[-1] = mainFunc;
     }
   }
 
-  sourcePositionsToNodeIds(sourcePositions) {
+  public setBytecodeSources(bytecodeSourcesJson): void {
+    if (!bytecodeSourcesJson) return;
+    for (const [sourceId, source] of Object.entries<any>(bytecodeSourcesJson)) {
+      const bytecodeSource = source.bytecodeSource;
+      const data = new Array<BytecodeSourceData>();
+
+      for (const bytecode of Object.values<BytecodeSourceData>(bytecodeSource.data)) {
+        data.push(new BytecodeSourceData(bytecode.offset, bytecode.disassembly));
+      }
+
+      const numSourceId = Number(sourceId);
+      this.bytecodeSources.set(numSourceId, new BytecodeSource(source.sourceId, source.functionName,
+        data, bytecodeSource.constantPool));
+    }
+  }
+
+  public setFinalNodeOrigins(nodeOriginsJson): void {
+    if (!nodeOriginsJson) return;
+    for (const [nodeId, nodeOrigin] of Object.entries<NodeOrigin>(nodeOriginsJson)) {
+      this.finalNodeOrigins[nodeId] = new NodeOrigin(nodeOrigin.nodeId, null, nodeOrigin.phase,
+        nodeOrigin.reducer);
+    }
+  }
+
+  public parsePhases(phasesJson): void {
+    const instructionsPhase = new InstructionsPhase();
+    const selectedDynamicPhases = new Array<DynamicPhase>();
+    const nodeMap = new Array<GraphNode | TurboshaftGraphNode>();
+    let lastTurboshaftGraphPhase: TurboshaftGraphPhase = null;
+    let lastGraphPhase: GraphPhase | TurboshaftGraphPhase = null;
+    for (const [, genericPhase] of Object.entries<GenericPhase>(phasesJson)) {
+      switch (genericPhase.type) {
+        case PhaseType.Disassembly:
+          const castedDisassembly = genericPhase as DisassemblyPhase;
+          const disassemblyPhase = new DisassemblyPhase(castedDisassembly.name,
+            castedDisassembly.data, castedDisassembly?.blockIdToOffset);
+          this.disassemblyPhase = disassemblyPhase;
+          break;
+        case PhaseType.Schedule:
+          const castedSchedule = genericPhase as SchedulePhase;
+          const schedulePhase = new SchedulePhase(castedSchedule.name, castedSchedule.data);
+          this.phaseNames.set(schedulePhase.name, this.phases.length);
+          this.phases.push(schedulePhase);
+          selectedDynamicPhases.push(schedulePhase);
+          if (lastGraphPhase instanceof GraphPhase) {
+            schedulePhase.positions = lastGraphPhase.positions;
+          } else {
+            const oldIdToNewIdMap = this.getOldIdToNewIdMap(this.phases.length - 1);
+            schedulePhase.positions.merge(lastGraphPhase.data.nodes, oldIdToNewIdMap);
+          }
+          schedulePhase.instructionsPhase = instructionsPhase;
+          break;
+        case PhaseType.Sequence:
+          const castedSequence = camelize(genericPhase) as SequencePhase;
+          const sequencePhase = new SequencePhase(castedSequence.name, castedSequence.blocks,
+            castedSequence.registerAllocation);
+          const prevPhase = this.getDynamicPhase(this.phases.length - 1);
+          sequencePhase.positions = prevPhase.positions;
+          sequencePhase.instructionsPhase = prevPhase.instructionsPhase;
+          this.phaseNames.set(sequencePhase.name, this.phases.length);
+          this.phases.push(sequencePhase);
+          break;
+        case PhaseType.Instructions:
+          const castedInstructions = genericPhase as InstructionsPhase;
+          if (instructionsPhase.name === "") {
+            instructionsPhase.name = castedInstructions.name;
+          } else {
+            instructionsPhase.name += `, ${castedInstructions.name}`;
+          }
+          instructionsPhase.parseNodeIdToInstructionRangeFromJSON(castedInstructions
+            ?.nodeIdToInstructionRange);
+          instructionsPhase.parseBlockIdToInstructionRangeFromJSON(castedInstructions
+            ?.blockIdToInstructionRange);
+          instructionsPhase.parseInstructionOffsetToPCOffsetFromJSON(castedInstructions
+            ?.instructionOffsetToPCOffset);
+          instructionsPhase.parseCodeOffsetsInfoFromJSON(castedInstructions?.codeOffsetsInfo);
+          break;
+        case PhaseType.Graph:
+          const castedGraph = genericPhase as GraphPhase;
+          const graphPhase = new GraphPhase(castedGraph.name, castedGraph.data,
+            nodeMap as Array<GraphNode>, this.sources, this.inlinings);
+          this.phaseNames.set(graphPhase.name, this.phases.length);
+          this.phases.push(graphPhase);
+          selectedDynamicPhases.push(graphPhase);
+          lastGraphPhase = graphPhase;
+          break;
+        case PhaseType.TurboshaftGraph:
+          const castedTurboshaftGraph = genericPhase as TurboshaftGraphPhase;
+          const turboshaftGraphPhase = new TurboshaftGraphPhase(castedTurboshaftGraph.name,
+            castedTurboshaftGraph.data, nodeMap, this.sources, this.inlinings);
+          this.phaseNames.set(turboshaftGraphPhase.name, this.phases.length);
+          this.phases.push(turboshaftGraphPhase);
+          selectedDynamicPhases.push(turboshaftGraphPhase);
+          lastTurboshaftGraphPhase = turboshaftGraphPhase;
+          lastGraphPhase = turboshaftGraphPhase;
+          break;
+        case PhaseType.TurboshaftCustomData:
+          const castedCustomData = camelize(genericPhase) as TurboshaftCustomDataPhase;
+          const customDataPhase = new TurboshaftCustomDataPhase(castedCustomData.name,
+            castedCustomData.dataTarget, castedCustomData.data);
+          lastTurboshaftGraphPhase?.customData?.addCustomData(customDataPhase);
+          break;
+        default:
+          throw "Unsupported phase type";
+      }
+    }
+    this.sortSourcePositions();
+    this.instructionsPhase = instructionsPhase;
+    if (!lastTurboshaftGraphPhase) {
+      for (const phase of selectedDynamicPhases) {
+        if (!phase.isDynamic()) continue;
+        phase.instructionsPhase = instructionsPhase;
+      }
+      return;
+    }
+    if (instructionsPhase.name == "") return;
+    // Adapting 'nodeIdToInstructionRange' array to fix Turboshaft's nodes recreation
+    this.adaptInstructionsPhases(selectedDynamicPhases);
+  }
+
+  public sourcePositionsToNodeIds(sourcePositions: Array<GenericPosition>): Set<string> {
     const nodeIds = new Set<string>();
-    for (const sp of sourcePositions) {
-      const key = sourcePositionToStringKey(sp);
-      const nodeIdsForPosition = this.positionToNodes.get(key);
+    for (const position of sourcePositions) {
+      const key = position.toString();
+      let nodeIdsForPosition: Array<string> = null;
+      if (position instanceof SourcePosition) {
+        nodeIdsForPosition = this.positions.sourcePositionToNodes.get(key);
+      } else {
+        // Wasm support
+        nodeIdsForPosition = this.positions.bytecodePositionToNodes.get(key);
+      }
       if (!nodeIdsForPosition) continue;
       for (const nodeId of nodeIdsForPosition) {
         nodeIds.add(nodeId);
@@ -288,25 +234,51 @@ export class SourceResolver {
     return nodeIds;
   }
 
-  nodeIdsToSourcePositions(nodeIds): Array<AnyPosition> {
-    const sourcePositions = new Map();
-    for (const nodeId of nodeIds) {
-      const sp = this.nodePositionMap[nodeId];
-      const key = sourcePositionToStringKey(sp);
-      sourcePositions.set(key, sp);
+  public bytecodePositionsToNodeIds(bytecodePositions: Array<BytecodePosition>): Set<string> {
+    const nodeIds = new Set<string>();
+    for (const position of bytecodePositions) {
+      const nodeIdsForPosition = this.positions.bytecodePositionToNodes.get(position.toString());
+      if (!nodeIdsForPosition) continue;
+      for (const nodeId of nodeIdsForPosition) {
+        nodeIds.add(nodeId);
+      }
     }
-    const sourcePositionArray = [];
-    for (const sp of sourcePositions.values()) {
-      sourcePositionArray.push(sp);
+    return nodeIds;
+  }
+
+  public nodeIdsToSourcePositions(nodeIds: Iterable<string>): Array<GenericPosition> {
+    const sourcePositions = new Map<string, GenericPosition>();
+    for (const nodeId of nodeIds) {
+      const sourcePosition = this.positions.nodeIdToSourcePositionMap[nodeId];
+      if (sourcePosition) {
+        sourcePositions.set(sourcePosition.toString(), sourcePosition);
+      }
+      // Wasm support
+      if (this.bytecodeSources.size == 0) {
+        const bytecodePosition = this.positions.nodeIdToBytecodePositionMap[nodeId];
+        if (bytecodePosition) {
+          sourcePositions.set(bytecodePosition.toString(), bytecodePosition);
+        }
+      }
+    }
+    const sourcePositionArray = new Array<GenericPosition>();
+    for (const sourcePosition of sourcePositions.values()) {
+      sourcePositionArray.push(sourcePosition);
     }
     return sourcePositionArray;
   }
 
-  forEachSource(f: (value: Source, index: number, array: Array<Source>) => void) {
-    this.sources.forEach(f);
+  public nodeIdsToBytecodePositions(nodeIds: Iterable<string>): Array<BytecodePosition> {
+    const bytecodePositions = new Map<string, BytecodePosition>();
+    for (const nodeId of nodeIds) {
+      const position = this.positions.nodeIdToBytecodePositionMap[nodeId];
+      if (!position) continue;
+      bytecodePositions.set(position.toString(), position);
+    }
+    return Array.from(bytecodePositions.values());
   }
 
-  translateToSourceId(sourceId: number, location?: SourcePosition) {
+  public translateToSourceId(sourceId: number, location?: SourcePosition): SourcePosition {
     for (const position of this.getInlineStack(location)) {
       const inlining = this.inlinings[position.inliningId];
       if (!inlining) continue;
@@ -317,69 +289,97 @@ export class SourceResolver {
     return location;
   }
 
-  addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
-    const inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
+  public addInliningPositions(sourcePosition: GenericPosition, locations: Array<SourcePosition>):
+    void {
+    const inlining = this.inliningsMap.get(sourcePosition.toString());
     if (!inlining) return;
-    const sourceId = inlining.sourceId;
-    const source = this.sources[sourceId];
+    const source = this.sources[inlining.sourceId];
     for (const sp of source.sourcePositions) {
       locations.push(sp);
       this.addInliningPositions(sp, locations);
     }
   }
 
-  getInliningForPosition(sourcePosition: AnyPosition) {
-    return this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
+  public getInliningForPosition(sourcePosition: GenericPosition): InliningPosition {
+    return this.inliningsMap.get(sourcePosition.toString());
   }
 
-  getSource(sourceId: number) {
+  public getSource(sourceId: number): Source {
     return this.sources[sourceId];
   }
 
-  getSourceName(sourceId: number) {
+  public addAnyPositionToLine(lineNumber: number | string, sourcePosition: GenericPosition): void {
+    const lineNumberString = String(lineNumber);
+    if (!this.linePositionMap.has(lineNumberString)) {
+      this.linePositionMap.set(lineNumberString, new Array<GenericPosition>());
+    }
+    const storedPositions = this.linePositionMap.get(lineNumberString);
+    if (!storedPositions.includes(sourcePosition)) storedPositions.push(sourcePosition);
+  }
+
+  public repairPhaseId(anyPhaseId: number): number {
+    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1));
+  }
+
+  public getPhase(phaseId: number): GenericPhase {
+    return this.phases[phaseId];
+  }
+
+  public getGraphPhase(phaseId: number): GraphPhase | TurboshaftGraphPhase {
+    const phase = this.phases[phaseId];
+    return phase.isGraph() ? phase as GraphPhase | TurboshaftGraphPhase : null;
+  }
+
+  public getDynamicPhase(phaseId: number): DynamicPhase {
+    const phase = this.phases[phaseId];
+    return phase.isDynamic() ? phase as DynamicPhase : null;
+  }
+
+  public getPhaseNameById(phaseId: number): string {
+    return this.getPhase(phaseId).name;
+  }
+
+  public getPhaseIdByName(phaseName: string): number {
+    return this.phaseNames.get(phaseName);
+  }
+
+  public lineToSourcePositions(lineNumber: number | string): Array<GenericPosition> {
+    return this.linePositionMap.get(String(lineNumber)) ?? new Array<GenericPosition>();
+  }
+
+  public getSourceName(sourceId: number): string {
     const source = this.sources[sourceId];
     return `${source.sourceName}:${source.functionName}`;
   }
 
-  sourcePositionFor(sourceId: number, scriptOffset: number) {
-    if (!this.sources[sourceId]) {
-      return null;
-    }
-    const list = this.sources[sourceId].sourcePositions;
-    for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i];
-      const position = sourcePosition.scriptOffset;
-      const nextPosition = list[Math.min(i + 1, list.length - 1)].scriptOffset;
-      if ((position <= scriptOffset && scriptOffset < nextPosition)) {
-        return sourcePosition;
-      }
-    }
-    return null;
-  }
-
-  sourcePositionsInRange(sourceId: number, start: number, end: number) {
-    if (!this.sources[sourceId]) return [];
-    const res = [];
+  public sourcePositionsInRange(sourceId: number, start: number, end: number):
+    Array<SourcePosition> {
+    const inRange = Array<SourcePosition>();
+    if (!this.sources[sourceId]) return inRange;
     const list = this.sources[sourceId].sourcePositions;
     for (const sourcePosition of list) {
       if (start <= sourcePosition.scriptOffset && sourcePosition.scriptOffset < end) {
-        res.push(sourcePosition);
+        inRange.push(sourcePosition);
       }
     }
-    return res;
+    return inRange;
   }
 
-  getInlineStack(sourcePosition?: SourcePosition) {
-    if (!sourcePosition) return [];
+  public setSourceLineToBytecodePosition(sourceLineToBytecodePositionJson): void {
+    if (!sourceLineToBytecodePositionJson) return;
+    sourceLineToBytecodePositionJson.forEach((position, idx) => {
+      this.addAnyPositionToLine(idx, new BytecodePosition(position, -1));
+    });
+  }
 
-    const inliningStack = [];
+  private getInlineStack(sourcePosition?: SourcePosition): Array<SourcePosition> {
+    const inliningStack = Array<SourcePosition>();
+    if (!sourcePosition) return inliningStack;
     let cur = sourcePosition;
     while (cur && cur.inliningId != -1) {
       inliningStack.push(cur);
       const inlining = this.inlinings[cur.inliningId];
-      if (!inlining) {
-        break;
-      }
+      if (!inlining) break;
       cur = inlining.inliningPosition;
     }
     if (cur && cur.inliningId == -1) {
@@ -388,380 +388,78 @@ export class SourceResolver {
     return inliningStack;
   }
 
-  recordOrigins(phase: GraphPhase) {
-    if (phase.type != "graph") return;
-    for (const node of phase.data.nodes) {
-      phase.highestNodeId = Math.max(phase.highestNodeId, node.id);
-      if (node.origin != undefined &&
-        node.origin.bytecodePosition != undefined) {
-        const position = { bytecodePosition: node.origin.bytecodePosition };
-        this.nodePositionMap[node.id] = position;
-        const key = sourcePositionToStringKey(position);
-        if (!this.positionToNodes.has(key)) {
-          this.positionToNodes.set(key, []);
+  private sortSourcePositions(): void {
+    for (const source of Object.values<Source>(this.sources)) {
+      source.sourcePositions = sortUnique(source.sourcePositions,
+        (a, b) => a.lessOrEquals(b),
+        (a, b) => a.equals(b));
+    }
+  }
+
+  private adaptInstructionsPhases(dynamicPhases: Array<DynamicPhase>): void {
+    const seaOfNodesInstructions = new InstructionsPhase("sea of nodes");
+    for (let phaseId = dynamicPhases.length - 2; phaseId >= 0; phaseId--) {
+      const phase = dynamicPhases[phaseId];
+      const prevPhase = dynamicPhases[phaseId + 1];
+      if (phase.type == PhaseType.TurboshaftGraph && prevPhase.type == PhaseType.Schedule) {
+        phase.instructionsPhase.merge(prevPhase.instructionsPhase);
+        const oldIdToNewIdMap = this.getOldIdToNewIdMap(phaseId + 1);
+        const maxNodeId = (phase as TurboshaftGraphPhase).highestNodeId;
+        for (let nodeId = 0; nodeId <= maxNodeId; nodeId++) {
+          const prevNodeId = oldIdToNewIdMap.has(nodeId) ? oldIdToNewIdMap.get(nodeId) : nodeId;
+          phase.instructionsPhase.nodeIdToInstructionRange[nodeId] =
+            prevPhase.instructionsPhase.getInstruction(prevNodeId);
         }
-        const A = this.positionToNodes.get(key);
-        if (!A.includes(node.id)) A.push(`${node.id}`);
-      }
-
-      // Backwards compatibility.
-      if (typeof node.pos === "number") {
-        node.sourcePosition = { scriptOffset: node.pos, inliningId: -1 };
-      }
-    }
-  }
-
-  readNodeIdToInstructionRange(nodeIdToInstructionRange) {
-    for (const [nodeId, range] of Object.entries<[number, number]>(nodeIdToInstructionRange)) {
-      this.nodeIdToInstructionRange[nodeId] = range;
-    }
-  }
-
-  readBlockIdToInstructionRange(blockIdToInstructionRange) {
-    for (const [blockId, range] of Object.entries<[number, number]>(blockIdToInstructionRange)) {
-      this.blockIdToInstructionRange[blockId] = range;
-    }
-  }
-
-  getInstruction(nodeId: number): [number, number] {
-    const X = this.nodeIdToInstructionRange[nodeId];
-    if (X === undefined) return [-1, -1];
-    return X;
-  }
-
-  getInstructionRangeForBlock(blockId: number): [number, number] {
-    const X = this.blockIdToInstructionRange[blockId];
-    if (X === undefined) return [-1, -1];
-    return X;
-  }
-
-  readInstructionOffsetToPCOffset(instructionToPCOffset) {
-    for (const [instruction, numberOrInfo] of Object.entries<number | TurbolizerInstructionStartInfo>(instructionToPCOffset)) {
-      let info: TurbolizerInstructionStartInfo;
-      if (typeof numberOrInfo == "number") {
-        info = { gap: numberOrInfo, arch: numberOrInfo, condition: numberOrInfo };
+      } else if (phase.type == PhaseType.TurboshaftGraph &&
+        prevPhase.type == PhaseType.TurboshaftGraph) {
+        phase.instructionsPhase.merge(prevPhase.instructionsPhase);
+        const maxNodeId = (phase as TurboshaftGraphPhase).highestNodeId;
+        const originIdToNodesMap = (prevPhase as TurboshaftGraphPhase).originIdToNodesMap;
+        for (let nodeId = 0; nodeId <= maxNodeId; nodeId++) {
+          const nodes = originIdToNodesMap.get(String(nodeId));
+          const prevNodeId = nodes?.length > 0 ? nodes[0]?.id : nodeId;
+          phase.instructionsPhase.nodeIdToInstructionRange[nodeId] =
+            prevPhase.instructionsPhase.getInstruction(prevNodeId);
+        }
+      } else if (phase.type == PhaseType.Schedule && prevPhase.type == PhaseType.TurboshaftGraph) {
+        seaOfNodesInstructions.merge(prevPhase.instructionsPhase);
+        phase.instructionsPhase = seaOfNodesInstructions;
+        const originIdToNodesMap = (prevPhase as TurboshaftGraphPhase).originIdToNodesMap;
+        for (const [originId, nodes] of originIdToNodesMap.entries()) {
+          if (!originId || nodes.length == 0) continue;
+          phase.instructionsPhase.nodeIdToInstructionRange[originId] =
+            prevPhase.instructionsPhase.getInstruction(nodes[0].id);
+        }
+      } else if (phase.type == PhaseType.Graph && prevPhase.type == PhaseType.Graph) {
+        phase.instructionsPhase = seaOfNodesInstructions;
+        const prevGraphPhase = prevPhase as GraphPhase;
+        for (const [originId, nodes] of prevGraphPhase.originIdToNodesMap.entries()) {
+          if (!originId || nodes.length == 0) continue;
+          for (const node of nodes) {
+            if (!phase.instructionsPhase.nodeIdToInstructionRange[originId]) {
+              if (!prevPhase.instructionsPhase.nodeIdToInstructionRange[node.id]) continue;
+              phase.instructionsPhase.nodeIdToInstructionRange[originId] =
+                prevPhase.instructionsPhase.getInstruction(node.id);
+            } else {
+              break;
+            }
+          }
+        }
       } else {
-        info = numberOrInfo;
-      }
-      this.instructionToPCOffset[instruction] = info;
-      if (!this.pcOffsetToInstructions.has(info.gap)) {
-        this.pcOffsetToInstructions.set(info.gap, []);
-      }
-      this.pcOffsetToInstructions.get(info.gap).push(Number(instruction));
-    }
-    this.pcOffsets = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
-  }
-
-  hasPCOffsets() {
-    return this.pcOffsetToInstructions.size > 0;
-  }
-
-  getKeyPcOffset(offset: number): number {
-    if (this.pcOffsets.length === 0) return -1;
-    for (const key of this.pcOffsets) {
-      if (key <= offset) {
-        return key;
-      }
-    }
-    return -1;
-  }
-
-  getInstructionKindForPCOffset(offset: number) {
-    if (this.codeOffsetsInfo) {
-      if (offset >= this.codeOffsetsInfo.deoptimizationExits) {
-        if (offset >= this.codeOffsetsInfo.pools) {
-          return "pools";
-        } else if (offset >= this.codeOffsetsInfo.jumpTables) {
-          return "jump-tables";
-        } else {
-          return "deoptimization-exits";
-        }
-      }
-      if (offset < this.codeOffsetsInfo.deoptCheck) {
-        return "code-start-register";
-      } else if (offset < this.codeOffsetsInfo.initPoison) {
-        return "deopt-check";
-      } else if (offset < this.codeOffsetsInfo.blocksStart) {
-        return "init-poison";
-      }
-    }
-    const keyOffset = this.getKeyPcOffset(offset);
-    if (keyOffset != -1) {
-      const infos = this.pcOffsetToInstructions.get(keyOffset).map(instrId => this.instructionToPCOffset[instrId]).filter(info => info.gap != info.condition);
-      if (infos.length > 0) {
-        const info = infos[0];
-        if (!info || info.gap == info.condition) return "unknown";
-        if (offset < info.arch) return "gap";
-        if (offset < info.condition) return "arch";
-        return "condition";
-      }
-    }
-    return "unknown";
-  }
-
-  instructionKindToReadableName(instructionKind) {
-    switch (instructionKind) {
-      case "code-start-register": return "Check code register for right value";
-      case "deopt-check": return "Check if function was marked for deoptimization";
-      case "init-poison": return "Initialization of poison register";
-      case "gap": return "Instruction implementing a gap move";
-      case "arch": return "Instruction implementing the actual machine operation";
-      case "condition": return "Code implementing conditional after instruction";
-      case "pools": return "Data in a pool (e.g. constant pool)";
-      case "jump-tables": return "Part of a jump table";
-      case "deoptimization-exits": return "Jump to deoptimization exit";
-    }
-    return null;
-  }
-
-  instructionRangeToKeyPcOffsets([start, end]: [number, number]): Array<TurbolizerInstructionStartInfo> {
-    if (start == end) return [this.instructionToPCOffset[start]];
-    return this.instructionToPCOffset.slice(start, end);
-  }
-
-  instructionToPcOffsets(instr: number): TurbolizerInstructionStartInfo {
-    return this.instructionToPCOffset[instr];
-  }
-
-  instructionsToKeyPcOffsets(instructionIds: Iterable<number>): Array<number> {
-    const keyPcOffsets = [];
-    for (const instructionId of instructionIds) {
-      const pcOffset = this.instructionToPCOffset[instructionId];
-      if (pcOffset !== undefined) keyPcOffsets.push(pcOffset.gap);
-    }
-    return keyPcOffsets;
-  }
-
-  nodesToKeyPcOffsets(nodes) {
-    let offsets = [];
-    for (const node of nodes) {
-      const range = this.nodeIdToInstructionRange[node];
-      if (!range) continue;
-      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range));
-    }
-    return offsets;
-  }
-
-  nodesForPCOffset(offset: number): [Array<string>, Array<string>] {
-    if (this.pcOffsets.length === 0) return [[], []];
-    for (const key of this.pcOffsets) {
-      if (key <= offset) {
-        const instrs = this.pcOffsetToInstructions.get(key);
-        const nodes = [];
-        const blocks = [];
-        for (const instr of instrs) {
-          for (const [nodeId, range] of this.nodeIdToInstructionRange.entries()) {
-            if (!range) continue;
-            const [start, end] = range;
-            if (start == end && instr == start) {
-              nodes.push("" + nodeId);
-            }
-            if (start <= instr && instr < end) {
-              nodes.push("" + nodeId);
-            }
-          }
-        }
-        return [nodes, blocks];
-      }
-    }
-    return [[], []];
-  }
-
-  parsePhases(phases) {
-    const nodeLabelMap = [];
-    for (const [, phase] of Object.entries<Phase>(phases)) {
-      switch (phase.type) {
-        case 'disassembly':
-          this.disassemblyPhase = phase;
-          if (phase['blockIdToOffset']) {
-            for (const [blockId, pc] of Object.entries<number>(phase['blockIdToOffset'])) {
-              this.blockIdToPCOffset[blockId] = pc;
-              if (!this.blockStartPCtoBlockIds.has(pc)) {
-                this.blockStartPCtoBlockIds.set(pc, []);
-              }
-              this.blockStartPCtoBlockIds.get(pc).push(Number(blockId));
-            }
-          }
-          break;
-        case 'schedule':
-          this.phaseNames.set(phase.name, this.phases.length);
-          this.phases.push(this.parseSchedule(phase));
-          break;
-        case 'sequence':
-          this.phaseNames.set(phase.name, this.phases.length);
-          this.phases.push(this.parseSequence(phase));
-          break;
-        case 'instructions':
-          if (phase.nodeIdToInstructionRange) {
-            this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
-          }
-          if (phase.blockIdToInstructionRange) {
-            this.readBlockIdToInstructionRange(phase.blockIdToInstructionRange);
-          }
-          if (phase.instructionOffsetToPCOffset) {
-            this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
-          }
-          if (phase.codeOffsetsInfo) {
-            this.codeOffsetsInfo = phase.codeOffsetsInfo;
-          }
-          break;
-        case 'graph':
-          const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
-          this.phaseNames.set(graphPhase.name, this.phases.length);
-          this.phases.push(graphPhase);
-          this.recordOrigins(graphPhase);
-          this.internNodeLabels(graphPhase, nodeLabelMap);
-          graphPhase.nodeLabelMap = nodeLabelMap.slice();
-          break;
-        default:
-          throw "Unsupported phase type";
+        phase.instructionsPhase = seaOfNodesInstructions;
       }
     }
   }
 
-  internNodeLabels(phase: GraphPhase, nodeLabelMap: Array<NodeLabel>) {
-    for (const n of phase.data.nodes) {
-      const label = new NodeLabel(n.id, n.label, n.title, n.live,
-        n.properties, n.sourcePosition, n.origin, n.opcode, n.control,
-        n.opinfo, n.type);
-      const previous = nodeLabelMap[label.id];
-      if (!label.equals(previous)) {
-        if (previous != undefined) {
-          label.setInplaceUpdatePhase(phase.name);
-        }
-        nodeLabelMap[label.id] = label;
+  private getOldIdToNewIdMap(phaseId: number): Map<number, number> {
+    // This function works with final node origins (we can have overwriting for Turboshaft IR)
+    const oldIdToNewIdMap = new Map<number, number>();
+    for (const [newId, nodeOrigin] of this.finalNodeOrigins.entries()) {
+      if (!nodeOrigin) continue;
+      if (nodeOrigin.phase === this.phases[phaseId].name) {
+        oldIdToNewIdMap.set(nodeOrigin.nodeId, newId);
       }
-      n.nodeLabel = nodeLabelMap[label.id];
     }
-  }
-
-  repairPhaseId(anyPhaseId) {
-    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1));
-  }
-
-  getPhase(phaseId: number) {
-    return this.phases[phaseId];
-  }
-
-  getPhaseIdByName(phaseName: string) {
-    return this.phaseNames.get(phaseName);
-  }
-
-  forEachPhase(f: (value: Phase, index: number, array: Array<Phase>) => void) {
-    this.phases.forEach(f);
-  }
-
-  addAnyPositionToLine(lineNumber: number | string, sourcePosition: AnyPosition) {
-    const lineNumberString = anyToString(lineNumber);
-    if (!this.linePositionMap.has(lineNumberString)) {
-      this.linePositionMap.set(lineNumberString, []);
-    }
-    const A = this.linePositionMap.get(lineNumberString);
-    if (!A.includes(sourcePosition)) A.push(sourcePosition);
-  }
-
-  setSourceLineToBytecodePosition(sourceLineToBytecodePosition: Array<number> | undefined) {
-    if (!sourceLineToBytecodePosition) return;
-    sourceLineToBytecodePosition.forEach((pos, i) => {
-      this.addAnyPositionToLine(i, { bytecodePosition: pos });
-    });
-  }
-
-  lineToSourcePositions(lineNumber: number | string) {
-    const positions = this.linePositionMap.get(anyToString(lineNumber));
-    if (positions === undefined) return [];
-    return positions;
-  }
-
-  parseSchedule(phase) {
-    function createNode(state: any, match) {
-      let inputs = [];
-      if (match.groups.args) {
-        const nodeIdsString = match.groups.args.replace(/\s/g, '');
-        const nodeIdStrings = nodeIdsString.split(',');
-        inputs = nodeIdStrings.map(n => Number.parseInt(n, 10));
-      }
-      const node = {
-        id: Number.parseInt(match.groups.id, 10),
-        label: match.groups.label,
-        inputs: inputs
-      };
-      if (match.groups.blocks) {
-        const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g, '');
-        const nodeIdStrings = nodeIdsString.split(',');
-        const successors = nodeIdStrings.map(n => Number.parseInt(n, 10));
-        state.currentBlock.succ = successors;
-      }
-      state.nodes[node.id] = node;
-      state.currentBlock.nodes.push(node);
-    }
-    function createBlock(state, match) {
-      let predecessors = [];
-      if (match.groups.in) {
-        const blockIdsString = match.groups.in.replace(/\s/g, '').replace(/B/g, '');
-        const blockIdStrings = blockIdsString.split(',');
-        predecessors = blockIdStrings.map(n => Number.parseInt(n, 10));
-      }
-      const block = {
-        id: Number.parseInt(match.groups.id, 10),
-        isDeferred: match.groups.deferred != undefined,
-        pred: predecessors.sort(),
-        succ: [],
-        nodes: []
-      };
-      state.blocks[block.id] = block;
-      state.currentBlock = block;
-    }
-    function setGotoSuccessor(state, match) {
-      state.currentBlock.succ = [Number.parseInt(match.groups.successor.replace(/\s/g, ''), 10)];
-    }
-    const rules = [
-      {
-        lineRegexps:
-          [/^\s*(?<id>\d+):\ (?<label>.*)\((?<args>.*)\)$/,
-            /^\s*(?<id>\d+):\ (?<label>.*)\((?<args>.*)\)\ ->\ (?<blocks>.*)$/,
-            /^\s*(?<id>\d+):\ (?<label>.*)$/
-          ],
-        process: createNode
-      },
-      {
-        lineRegexps:
-          [/^\s*---\s*BLOCK\ B(?<id>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/
-          ],
-        process: createBlock
-      },
-      {
-        lineRegexps:
-          [/^\s*Goto\s*->\s*B(?<successor>\d+)\s*$/
-          ],
-        process: setGotoSuccessor
-      }
-    ];
-
-    const lines = phase.data.split(/[\n]/);
-    const state = { currentBlock: undefined, blocks: [], nodes: [] };
-
-    nextLine:
-    for (const line of lines) {
-      for (const rule of rules) {
-        for (const lineRegexp of rule.lineRegexps) {
-          const match = line.match(lineRegexp);
-          if (match) {
-            rule.process(state, match);
-            continue nextLine;
-          }
-        }
-      }
-      console.log("Warning: unmatched schedule line \"" + line + "\"");
-    }
-    phase.schedule = state;
-    return phase;
-  }
-
-  parseSequence(phase) {
-    phase.sequence = { blocks: phase.blocks,
-                       register_allocation: phase.register_allocation ? new RegisterAllocation(phase.register_allocation)
-                                                                      : undefined };
-    return phase;
+    return oldIdToNewIdMap;
   }
 }

@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "include/libplatform/libplatform.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
@@ -21,10 +20,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
-#include "src/flags/flags.h"
-#include "src/heap/read-only-heap.h"
-#include "src/libplatform/default-platform.h"
-#include "src/utils/utils.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"

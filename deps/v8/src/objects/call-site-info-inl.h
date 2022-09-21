@@ -35,6 +35,10 @@ DEF_GETTER(CallSiteInfo, code_object, HeapObject) {
   HeapObject value = TorqueGeneratedClass::code_object(cage_base);
   // The |code_object| field can contain many types of objects, but only CodeT
   // values have to be converted to Code.
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    // In this mode the callers are fine with CodeT result.
+    return value;
+  }
   if (V8_EXTERNAL_CODE_SPACE_BOOL && value.IsCodeT()) {
     return FromCodeT(CodeT::cast(value));
   }
@@ -44,7 +48,7 @@ DEF_GETTER(CallSiteInfo, code_object, HeapObject) {
 void CallSiteInfo::set_code_object(HeapObject code, WriteBarrierMode mode) {
   // The |code_object| field can contain many types of objects, but only Code
   // values have to be converted to CodeT.
-  if (V8_EXTERNAL_CODE_SPACE_BOOL && code.IsCode()) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeSpaceObject(code)) {
     TorqueGeneratedClass::set_code_object(ToCodeT(Code::cast(code)), mode);
   } else {
     TorqueGeneratedClass::set_code_object(code, mode);

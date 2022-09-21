@@ -63,6 +63,10 @@ MODULE_FROM_RESOURCES_PATTERN = re.compile(
 MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
     r"import\s*\(?['\"]([^'\"]+)['\"]",
     re.MULTILINE | re.DOTALL)
+# Pattern to detect files to push on Android for expressions like:
+# shadowRealm.importValue("path/to/file.js", "obj")
+SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN = re.compile(
+    r"(?:importValue)\((?:'|\")([^'\"]+)(?:'|\")", re.MULTILINE | re.DOTALL)
 # Pattern to detect and strip test262 frontmatter from tests to prevent false
 # positives for MODULE_RESOURCES_PATTERN above.
 TEST262_FRONTMATTER_PATTERN = re.compile(r"/\*---.*?---\*/", re.DOTALL)
@@ -208,12 +212,13 @@ class TestCase(object):
 
     def check_flags(incompatible_flags, actual_flags, rule):
       for incompatible_flag in incompatible_flags:
-          if has_flag(incompatible_flag, actual_flags):
-            self._statusfile_outcomes = outproc.OUTCOMES_FAIL
-            self._expected_outcomes = outproc.OUTCOMES_FAIL
-            self.expected_failure_reason = ("Rule " + rule + " in " +
-                "tools/testrunner/local/variants.py expected a flag " +
-                "contradiction error with " + incompatible_flag + ".")
+        if has_flag(incompatible_flag, actual_flags):
+          self._statusfile_outcomes = outproc.OUTCOMES_FAIL
+          self._expected_outcomes = outproc.OUTCOMES_FAIL
+          self.expected_failure_reason = (
+              "Rule " + rule + " in " +
+              "tools/testrunner/local/variants.py expected a flag " +
+              "contradiction error with " + incompatible_flag + ".")
 
     if not self._checked_flag_contradictions:
       self._checked_flag_contradictions = True
@@ -241,14 +246,16 @@ class TestCase(object):
       # incompatible with the build.
       for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
         if self.suite.statusfile.variables[variable]:
-            check_flags(incompatible_flags, file_specific_flags,
-              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\""+variable+"\"]")
+          check_flags(
+              incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
 
       # Contradiction: flags passed through --extra-flags are incompatible.
       for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
         if has_flag(extra_flag, extra_flags):
-            check_flags(incompatible_flags, file_specific_flags,
-              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\""+extra_flag+"\"]")
+          check_flags(
+              incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\"" + extra_flag + "\"]")
     return self._expected_outcomes
 
   @property
@@ -276,14 +283,14 @@ class TestCase(object):
 
   @property
   def is_fail(self):
-     return (statusfile.FAIL in self._statusfile_outcomes and
-             statusfile.PASS not in self._statusfile_outcomes)
+    return (statusfile.FAIL in self._statusfile_outcomes and
+            statusfile.PASS not in self._statusfile_outcomes)
 
   @property
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
-  def get_command(self):
+  def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
     shell = self.get_shell()
@@ -291,11 +298,17 @@ class TestCase(object):
       shell += '.exe'
     shell_flags = self._get_shell_flags()
     timeout = self._get_timeout(params)
-    return self._create_cmd(shell, shell_flags + params, env, timeout)
+    return self._create_cmd(ctx, shell, shell_flags + params, env, timeout)
 
   def _get_cmd_params(self):
-    """Gets command parameters and combines them in the following order:
+    """Gets all command parameters and combines them in the following order:
       - files [empty by default]
+      - all flags
+    """
+    return (self._get_files_params() + self.get_flags())
+
+  def get_flags(self):
+    """Gets all flags and combines them in the following order:
       - random seed
       - mode flags (based on chosen mode)
       - extra flags (from command line)
@@ -308,7 +321,6 @@ class TestCase(object):
     methods for getting partial parameters.
     """
     return (
-        self._get_files_params() +
         self._get_random_seed_flags() +
         self._get_mode_flags() +
         self._get_extra_flags() +
@@ -361,11 +373,9 @@ class TestCase(object):
 
   def _get_timeout(self, params):
     timeout = self._test_config.timeout
-    if "--stress-opt" in params:
-      timeout *= 4
     if "--jitless" in params:
       timeout *= 2
-    if "--no-opt" in params:
+    if "--no-turbofan" in params:
       timeout *= 2
     if "--noenable-vfp3" in params:
       timeout *= 2
@@ -381,16 +391,16 @@ class TestCase(object):
   def _get_suffix(self):
     return '.js'
 
-  def _create_cmd(self, shell, params, env, timeout):
-    return command.Command(
-      cmd_prefix=self._test_config.command_prefix,
-      shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
-      args=params,
-      env=env,
-      timeout=timeout,
-      verbose=self._test_config.verbose,
-      resources_func=self._get_resources,
-      handle_sigterm=True,
+  def _create_cmd(self, ctx, shell, params, env, timeout):
+    return ctx.command(
+        cmd_prefix=self._test_config.command_prefix,
+        shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
+        args=params,
+        env=env,
+        timeout=timeout,
+        verbose=self._test_config.verbose,
+        resources_func=self._get_resources,
+        handle_sigterm=True,
     )
 
   def _parse_source_flags(self, source=None):
@@ -475,6 +485,8 @@ class D8TestCase(TestCase):
     for match in MODULE_FROM_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
     for match in MODULE_IMPORT_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
+    for match in SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
     return result
 

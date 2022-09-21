@@ -11,7 +11,7 @@ namespace internal {
 // The deopt exit sizes below depend on the following IsolateData layout
 // guarantees:
 #define ASSERT_OFFSET(BuiltinName)                                       \
-  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+  static_assert(IsolateData::builtin_tier0_entry_table_offset() +        \
                     Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
                 0x1000)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
@@ -23,7 +23,7 @@ const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   float float_val = static_cast<float>(double_registers_[n].get_scalar());
-  return Float32::FromBits(bit_cast<uint32_t>(float_val));
+  return Float32::FromBits(base::bit_cast<uint32_t>(float_val));
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {

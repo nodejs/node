@@ -39,18 +39,22 @@ class StatsCollectorTest : public ::testing::Test {
 
 TEST_F(StatsCollectorTest, NoMarkedBytes) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   auto event = stats.GetPreviousEventForTesting();
   EXPECT_EQ(0u, event.marked_bytes);
 }
 
 TEST_F(StatsCollectorTest, EventPrevGCMarkedObjectSize) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   stats.NotifyMarkingCompleted(1024);
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   auto event = stats.GetPreviousEventForTesting();
   EXPECT_EQ(1024u, event.marked_bytes);
 }
@@ -71,45 +75,53 @@ TEST_F(StatsCollectorTest, AlllocationReportAboveAllocationThresholdBytes) {
 
 TEST_F(StatsCollectorTest, InitialAllocatedObjectSize) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   EXPECT_EQ(0u, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
   EXPECT_EQ(0u, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   EXPECT_EQ(0u, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSize) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSizeNoMarkedBytes) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kNoMarkedBytes);
   EXPECT_EQ(0u, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   EXPECT_EQ(0u, stats.allocated_object_size());
 }
 
 TEST_F(StatsCollectorTest, AllocatedObjectSizeAllocateAfterMarking) {
   stats.NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                             GarbageCollector::Config::MarkingType::kAtomic,
                              GarbageCollector::Config::IsForcedGC::kNotForced);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(kMinReportedSize, stats.allocated_object_size());
   stats.NotifyMarkingCompleted(kMinReportedSize);
   FakeAllocate(kMinReportedSize);
   EXPECT_EQ(2 * kMinReportedSize, stats.allocated_object_size());
-  stats.NotifySweepingCompleted();
+  stats.NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   EXPECT_EQ(2 * kMinReportedSize, stats.allocated_object_size());
 }
 
@@ -142,9 +154,11 @@ namespace {
 
 void FakeGC(StatsCollector* stats, size_t marked_bytes) {
   stats->NotifyMarkingStarted(GarbageCollector::Config::CollectionType::kMajor,
+                              GarbageCollector::Config::MarkingType::kAtomic,
                               GarbageCollector::Config::IsForcedGC::kNotForced);
   stats->NotifyMarkingCompleted(marked_bytes);
-  stats->NotifySweepingCompleted();
+  stats->NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
 }
 
 }  // namespace

@@ -75,9 +75,9 @@ class JSPromise
   // Flags layout.
   DEFINE_TORQUE_GENERATED_JS_PROMISE_FLAGS()
 
-  STATIC_ASSERT(v8::Promise::kPending == 0);
-  STATIC_ASSERT(v8::Promise::kFulfilled == 1);
-  STATIC_ASSERT(v8::Promise::kRejected == 2);
+  static_assert(v8::Promise::kPending == 0);
+  static_assert(v8::Promise::kFulfilled == 1);
+  static_assert(v8::Promise::kRejected == 2);
 
  private:
   // ES section #sec-triggerpromisereactions

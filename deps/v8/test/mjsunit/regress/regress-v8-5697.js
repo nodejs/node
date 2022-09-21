@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --opt --no-use-osr
+// Flags: --allow-natives-syntax --turbofan --no-use-osr
 //
 // Why not OSR? Because it may inline the `store` function into OSR'd code
 // below before it has a chance to be optimized, making

@@ -29,10 +29,7 @@
 
 #include "src/base/template-utils.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
-#include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -72,18 +69,19 @@ bool Equal128(vec128_t expected, const RegisterDump*, vec128_t result) {
 }
 
 bool EqualFP32(float expected, const RegisterDump*, float result) {
-  if (bit_cast<uint32_t>(expected) == bit_cast<uint32_t>(result)) {
+  if (base::bit_cast<uint32_t>(expected) == base::bit_cast<uint32_t>(result)) {
     return true;
   } else {
     if (std::isnan(expected) || (expected == 0.0)) {
       printf("Expected 0x%08" PRIx32 "\t Found 0x%08" PRIx32 "\n",
-             bit_cast<uint32_t>(expected), bit_cast<uint32_t>(result));
+             base::bit_cast<uint32_t>(expected),
+             base::bit_cast<uint32_t>(result));
     } else {
       printf("Expected %.9f (0x%08" PRIx32
              ")\t "
              "Found %.9f (0x%08" PRIx32 ")\n",
-             expected, bit_cast<uint32_t>(expected), result,
-             bit_cast<uint32_t>(result));
+             expected, base::bit_cast<uint32_t>(expected), result,
+             base::bit_cast<uint32_t>(result));
     }
     return false;
   }
@@ -91,19 +89,20 @@ bool EqualFP32(float expected, const RegisterDump*, float result) {
 
 
 bool EqualFP64(double expected, const RegisterDump*, double result) {
-  if (bit_cast<uint64_t>(expected) == bit_cast<uint64_t>(result)) {
+  if (base::bit_cast<uint64_t>(expected) == base::bit_cast<uint64_t>(result)) {
     return true;
   }
 
   if (std::isnan(expected) || (expected == 0.0)) {
     printf("Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
-           bit_cast<uint64_t>(expected), bit_cast<uint64_t>(result));
+           base::bit_cast<uint64_t>(expected),
+           base::bit_cast<uint64_t>(result));
   } else {
     printf("Expected %.17f (0x%016" PRIx64
            ")\t "
            "Found %.17f (0x%016" PRIx64 ")\n",
-           expected, bit_cast<uint64_t>(expected), result,
-           bit_cast<uint64_t>(result));
+           expected, base::bit_cast<uint64_t>(expected), result,
+           base::bit_cast<uint64_t>(result));
   }
   return false;
 }
@@ -148,7 +147,7 @@ bool EqualFP32(float expected, const RegisterDump* core,
   uint64_t result_64 = core->dreg_bits(fpreg.code());
   if ((result_64 & 0xFFFFFFFF00000000L) != 0) {
     printf("Expected 0x%08" PRIx32 " (%f)\t Found 0x%016" PRIx64 "\n",
-           bit_cast<uint32_t>(expected), expected, result_64);
+           base::bit_cast<uint32_t>(expected), expected, result_64);
     return false;
   }
 

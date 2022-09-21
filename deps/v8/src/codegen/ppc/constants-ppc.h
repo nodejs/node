@@ -2681,7 +2681,8 @@ immediate-specified index */                 \
 #define PPC_PREFIX_OPCODE_TYPE_00_LIST(V)        \
   V(pload_store_8ls, PLOAD_STORE_8LS, 0x4000000) \
   V(pplwa, PPLWA, 0xA4000000)                    \
-  V(ppld, PPLD, 0xE4000000)
+  V(ppld, PPLD, 0xE4000000)                      \
+  V(ppstd, PPSTD, 0xF4000000)
 
 #define PPC_PREFIX_OPCODE_TYPE_10_LIST(V) \
   V(pload_store_mls, PLOAD_STORE_MLS, 0x6000000)

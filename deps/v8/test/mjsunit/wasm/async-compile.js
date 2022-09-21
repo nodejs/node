@@ -10,10 +10,13 @@ async function assertCompiles(buffer) {
 }
 
 function assertCompileError(buffer, msg) {
-  assertEquals('string', typeof msg);
+  if (typeof msg == 'string') {
+    msg = 'WebAssembly.compile(): ' + msg;
+  } else {
+    assertInstanceof(msg, RegExp);
+  }
   return assertThrowsAsync(
-      WebAssembly.compile(buffer), WebAssembly.CompileError,
-      'WebAssembly.compile(): ' + msg);
+      WebAssembly.compile(buffer), WebAssembly.CompileError, msg);
 }
 
 assertPromiseResult(async function basicCompile() {
@@ -75,4 +78,14 @@ assertPromiseResult(async function importWithoutCode() {
   let builder = new WasmModuleBuilder();
   builder.addImport('m', 'q', kSig_i_i);
   await builder.asyncInstantiate({'m': {'q': i => i}});
+}());
+
+assertPromiseResult(async function invalidSectionCode() {
+  let kInvalidSectionCode = 61;
+  let builder = new WasmModuleBuilder();
+  builder.addExplicitSection([kInvalidSectionCode, 0]);
+  let buffer = builder.toBuffer();
+
+  // Async and streaming decoder disagree on the error message, so accept both.
+  await assertCompileError(buffer, /(unknown|invalid) section code/);
 }());

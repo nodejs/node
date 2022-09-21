@@ -486,14 +486,18 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   """
 
   def FilterFile(affected_file):
-    return input_api.FilterSourceFile(
-        affected_file,
-        files_to_check=(r'src[\\\/].*', r'test[\\\/].*'),
+    files_to_skip = _EXCLUDED_PATHS + (
         # Skip api.cc since we cannot easily add the 'noexcept' annotation to
         # public methods.
+        r'src[\\\/]api[\\\/]api\.cc',
         # Skip src/bigint/ because it's meant to be V8-independent.
-        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc',
-                       r'src[\\\/]bigint[\\\/].*'))
+        r'src[\\\/]bigint[\\\/].*',
+    )
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(r'src[\\\/].*\.cc', r'src[\\\/].*\.h',
+                        r'test[\\\/].*\.cc', r'test[\\\/].*\.h'),
+        files_to_skip=files_to_skip)
 
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'

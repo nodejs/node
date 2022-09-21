@@ -7,13 +7,17 @@
 #include "src/base/vlq.h"
 #include "src/deoptimizer/translated-state.h"
 #include "src/objects/fixed-array-inl.h"
+
+#ifdef V8_USE_ZLIB
 #include "third_party/zlib/google/compression_utils_portable.h"
+#endif  // V8_USE_ZLIB
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
+#ifdef V8_USE_ZLIB
 // Constants describing compressed TranslationArray layout. Only relevant if
 // --turbo-compress-translation-arrays is enabled.
 constexpr int kUncompressedSizeOffset = 0;
@@ -21,29 +25,33 @@ constexpr int kUncompressedSizeSize = kInt32Size;
 constexpr int kCompressedDataOffset =
     kUncompressedSizeOffset + kUncompressedSizeSize;
 constexpr int kTranslationArrayElementSize = kInt32Size;
+#endif  // V8_USE_ZLIB
 
 }  // namespace
 
 TranslationArrayIterator::TranslationArrayIterator(TranslationArray buffer,
                                                    int index)
     : buffer_(buffer), index_(index) {
+#ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
     const int size = buffer_.get_int(kUncompressedSizeOffset);
     uncompressed_contents_.insert(uncompressed_contents_.begin(), size, 0);
 
     uLongf uncompressed_size = size * kTranslationArrayElementSize;
 
-    CHECK_EQ(
-        zlib_internal::UncompressHelper(
-            zlib_internal::ZRAW,
-            bit_cast<Bytef*>(uncompressed_contents_.data()), &uncompressed_size,
-            buffer_.GetDataStartAddress() + kCompressedDataOffset,
-            buffer_.DataSize()),
-        Z_OK);
+    CHECK_EQ(zlib_internal::UncompressHelper(
+                 zlib_internal::ZRAW,
+                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
+                 &uncompressed_size,
+                 buffer_.GetDataStartAddress() + kCompressedDataOffset,
+                 buffer_.DataSize()),
+             Z_OK);
     DCHECK(index >= 0 && index < size);
-  } else {
-    DCHECK(index >= 0 && index < buffer.length());
+    return;
   }
+#endif  // V8_USE_ZLIB
+  DCHECK(!FLAG_turbo_compress_translation_arrays);
+  DCHECK(index >= 0 && index < buffer.length());
 }
 
 int32_t TranslationArrayIterator::Next() {
@@ -51,6 +59,17 @@ int32_t TranslationArrayIterator::Next() {
     return uncompressed_contents_[index_++];
   } else {
     int32_t value = base::VLQDecode(buffer_.GetDataStartAddress(), &index_);
+    DCHECK_LE(index_, buffer_.length());
+    return value;
+  }
+}
+
+uint32_t TranslationArrayIterator::NextUnsigned() {
+  if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
+    return uncompressed_contents_[index_++];
+  } else {
+    uint32_t value =
+        base::VLQDecodeUnsigned(buffer_.GetDataStartAddress(), &index_);
     DCHECK_LE(index_, buffer_.length());
     return value;
   }
@@ -72,8 +91,45 @@ void TranslationArrayBuilder::Add(int32_t value) {
   }
 }
 
+void TranslationArrayBuilder::AddOpcode(TranslationOpcode opcode) {
+  static_assert(kNumTranslationOpcodes - 1 <= base::kDataMask);
+  if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
+    contents_for_compression_.push_back(static_cast<byte>(opcode));
+  } else {
+    contents_.push_back(static_cast<byte>(opcode));
+  }
+}
+
+void TranslationArrayBuilder::AddRegister(Register reg) {
+  static_assert(Register::kNumRegisters - 1 <= base::kDataMask);
+  if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
+    contents_for_compression_.push_back(static_cast<byte>(reg.code()));
+  } else {
+    contents_.push_back(static_cast<byte>(reg.code()));
+  }
+}
+
+void TranslationArrayBuilder::AddFloatRegister(FloatRegister reg) {
+  static_assert(FloatRegister::kNumRegisters - 1 <= base::kDataMask);
+  if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
+    contents_for_compression_.push_back(static_cast<byte>(reg.code()));
+  } else {
+    contents_.push_back(static_cast<byte>(reg.code()));
+  }
+}
+
+void TranslationArrayBuilder::AddDoubleRegister(DoubleRegister reg) {
+  static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
+  if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
+    contents_for_compression_.push_back(static_cast<byte>(reg.code()));
+  } else {
+    contents_.push_back(static_cast<byte>(reg.code()));
+  }
+}
+
 Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
     Factory* factory) {
+#ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(FLAG_turbo_compress_translation_arrays)) {
     const int input_size = SizeInBytes();
     uLongf compressed_data_size = compressBound(input_size);
@@ -83,7 +139,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
     CHECK_EQ(
         zlib_internal::CompressHelper(
             zlib_internal::ZRAW, compressed_data.data(), &compressed_data_size,
-            bit_cast<const Bytef*>(contents_for_compression_.data()),
+            base::bit_cast<const Bytef*>(contents_for_compression_.data()),
             input_size, Z_DEFAULT_COMPRESSION, nullptr, nullptr),
         Z_OK);
 
@@ -97,19 +153,20 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
                 compressed_data.data(), compressed_data_size);
 
     return result;
-  } else {
-    Handle<TranslationArray> result =
-        factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
-    memcpy(result->GetDataStartAddress(), contents_.data(),
-           contents_.size() * sizeof(uint8_t));
-    return result;
   }
+#endif
+  DCHECK(!FLAG_turbo_compress_translation_arrays);
+  Handle<TranslationArray> result =
+      factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
+  memcpy(result->GetDataStartAddress(), contents_.data(),
+         contents_.size() * sizeof(uint8_t));
+  return result;
 }
 
 void TranslationArrayBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
@@ -121,7 +178,7 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     base::Optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
@@ -133,7 +190,7 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
 void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
@@ -144,7 +201,7 @@ void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode =
       TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
@@ -154,17 +211,17 @@ void TranslationArrayBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
 void TranslationArrayBuilder::BeginConstructStubFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::CONSTRUCT_STUB_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
 }
 
-void TranslationArrayBuilder::BeginArgumentsAdaptorFrame(int literal_id,
+void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
-  auto opcode = TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME;
-  Add(opcode);
+  auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
+  AddOpcode(opcode);
   Add(literal_id);
   Add(height);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
@@ -174,7 +231,7 @@ void TranslationArrayBuilder::BeginInterpretedFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     int return_value_offset, int return_value_count) {
   auto opcode = TranslationOpcode::INTERPRETED_FRAME;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(bytecode_offset.ToInt());
   Add(literal_id);
   Add(height);
@@ -185,136 +242,142 @@ void TranslationArrayBuilder::BeginInterpretedFrame(
 
 void TranslationArrayBuilder::ArgumentsElements(CreateArgumentsType type) {
   auto opcode = TranslationOpcode::ARGUMENTS_ELEMENTS;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(static_cast<uint8_t>(type));
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::ArgumentsLength() {
   auto opcode = TranslationOpcode::ARGUMENTS_LENGTH;
-  Add(opcode);
+  AddOpcode(opcode);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 0);
 }
 
 void TranslationArrayBuilder::BeginCapturedObject(int length) {
   auto opcode = TranslationOpcode::CAPTURED_OBJECT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(length);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::DuplicateObject(int object_index) {
   auto opcode = TranslationOpcode::DUPLICATED_OBJECT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(object_index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreRegister(Register reg) {
   auto opcode = TranslationOpcode::REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddRegister(reg);
 }
 
 void TranslationArrayBuilder::StoreInt32Register(Register reg) {
   auto opcode = TranslationOpcode::INT32_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddRegister(reg);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreInt64Register(Register reg) {
   auto opcode = TranslationOpcode::INT64_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddRegister(reg);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreUint32Register(Register reg) {
   auto opcode = TranslationOpcode::UINT32_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddRegister(reg);
 }
 
 void TranslationArrayBuilder::StoreBoolRegister(Register reg) {
   auto opcode = TranslationOpcode::BOOL_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddRegister(reg);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreFloatRegister(FloatRegister reg) {
   auto opcode = TranslationOpcode::FLOAT_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddFloatRegister(reg);
 }
 
 void TranslationArrayBuilder::StoreDoubleRegister(DoubleRegister reg) {
   auto opcode = TranslationOpcode::DOUBLE_REGISTER;
-  Add(opcode);
-  Add(reg.code());
+  AddOpcode(opcode);
+  AddDoubleRegister(reg);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreStackSlot(int index) {
   auto opcode = TranslationOpcode::STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreInt32StackSlot(int index) {
   auto opcode = TranslationOpcode::INT32_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreInt64StackSlot(int index) {
   auto opcode = TranslationOpcode::INT64_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreUint32StackSlot(int index) {
   auto opcode = TranslationOpcode::UINT32_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreBoolStackSlot(int index) {
   auto opcode = TranslationOpcode::BOOL_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreFloatStackSlot(int index) {
   auto opcode = TranslationOpcode::FLOAT_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(index);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
 void TranslationArrayBuilder::StoreLiteral(int literal_id) {
   auto opcode = TranslationOpcode::LITERAL;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(literal_id);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
 }
 
+void TranslationArrayBuilder::StoreOptimizedOut() {
+  auto opcode = TranslationOpcode::OPTIMIZED_OUT;
+  AddOpcode(opcode);
+  DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 0);
+}
+
 void TranslationArrayBuilder::AddUpdateFeedback(int vector_literal, int slot) {
   auto opcode = TranslationOpcode::UPDATE_FEEDBACK;
-  Add(opcode);
+  AddOpcode(opcode);
   Add(vector_literal);
   Add(slot);
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);

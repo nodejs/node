@@ -49,8 +49,7 @@ struct InvokeParams {
       MaybeHandle<Object>* exception_out, bool reschedule_terminate);
 
   static InvokeParams SetUpForRunMicrotasks(Isolate* isolate,
-                                            MicrotaskQueue* microtask_queue,
-                                            MaybeHandle<Object>* exception_out);
+                                            MicrotaskQueue* microtask_queue);
 
   bool IsScript() const {
     if (!target->IsJSFunction()) return false;
@@ -152,8 +151,7 @@ InvokeParams InvokeParams::SetUpForTryCall(
 
 // static
 InvokeParams InvokeParams::SetUpForRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue,
-    MaybeHandle<Object>* exception_out) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue) {
   auto undefined = isolate->factory()->undefined_value();
   InvokeParams params;
   params.target = undefined;
@@ -163,7 +161,7 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   params.new_target = undefined;
   params.microtask_queue = microtask_queue;
   params.message_handling = Execution::MessageHandling::kReport;
-  params.exception_out = exception_out;
+  params.exception_out = nullptr;
   params.is_construct = false;
   params.execution_target = Execution::Target::kRunMicrotasks;
   params.reschedule_terminate = true;
@@ -318,8 +316,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Handle<Object> receiver = params.is_construct
                                     ? isolate->factory()->the_hole_value()
                                     : params.receiver;
+      Handle<FunctionTemplateInfo> fun_data(
+          function->shared().get_api_func_data(), isolate);
       auto value = Builtins::InvokeApiFunction(
-          isolate, params.is_construct, function, receiver, params.argc,
+          isolate, params.is_construct, fun_data, receiver, params.argc,
           params.argv, Handle<HeapObject>::cast(params.new_target));
       bool has_exception = value.is_null();
       DCHECK(has_exception == isolate->has_pending_exception());
@@ -377,6 +377,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     V8::GetCurrentPlatform()->DumpWithoutCrashing();
     return isolate->factory()->undefined_value();
   }
+  isolate->IncrementJavascriptExecutionCounter();
 
   if (params.execution_target == Execution::Target::kCallable) {
     Handle<Context> context = isolate->native_context();
@@ -404,7 +405,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
 
-    if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
+    if (v8_flags.clear_exceptions_on_js_entry)
+      isolate->clear_pending_exception();
 
     if (params.execution_target == Execution::Target::kCallable) {
       // clang-format off
@@ -444,7 +446,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     value.ObjectVerify(isolate);
   }
 #endif
@@ -500,6 +502,8 @@ MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
           isolate->OptionalRescheduleException(true);
         }
       }
+    } else {
+      DCHECK(!isolate->has_pending_exception());
     }
   }
 
@@ -591,22 +595,20 @@ MaybeHandle<Object> Execution::TryCall(
 
 // static
 MaybeHandle<Object> Execution::TryRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue,
-    MaybeHandle<Object>* exception_out) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue) {
   return InvokeWithTryCatch(
-      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue,
-                                                   exception_out));
+      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue));
 }
 
 struct StackHandlerMarker {
   Address next;
   Address padding;
 };
-STATIC_ASSERT(offsetof(StackHandlerMarker, next) ==
+static_assert(offsetof(StackHandlerMarker, next) ==
               StackHandlerConstants::kNextOffset);
-STATIC_ASSERT(offsetof(StackHandlerMarker, padding) ==
+static_assert(offsetof(StackHandlerMarker, padding) ==
               StackHandlerConstants::kPaddingOffset);
-STATIC_ASSERT(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
+static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
@@ -640,10 +642,10 @@ void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
 
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kCodeEntry == 0);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kObjectRef == 1);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kCEntryFp == 3);
+    static_assert(compiler::CWasmEntryParameters::kCodeEntry == 0);
+    static_assert(compiler::CWasmEntryParameters::kObjectRef == 1);
+    static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
+    static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
     Address result = stub_entry.Call(wasm_call_target, object_ref->ptr(),
                                      packed_args, saved_c_entry_fp);
     if (result != kNullAddress) {

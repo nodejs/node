@@ -33,7 +33,8 @@ class CppMarkingState;
 class V8_EXPORT_PRIVATE CppHeap final
     : public cppgc::internal::HeapBase,
       public v8::CppHeap,
-      public cppgc::internal::StatsCollector::AllocationObserver {
+      public cppgc::internal::StatsCollector::AllocationObserver,
+      public cppgc::internal::GarbageCollector {
  public:
   enum GarbageCollectionFlagValues : uint8_t {
     kNoFlags = 0,
@@ -101,6 +102,8 @@ class V8_EXPORT_PRIVATE CppHeap final
         pause_scope_;
   };
 
+  static void InitializeOncePerProcess();
+
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
   }
@@ -108,10 +111,10 @@ class V8_EXPORT_PRIVATE CppHeap final
     return static_cast<const CppHeap*>(heap);
   }
 
-  CppHeap(
-      v8::Platform* platform,
-      const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
-      const v8::WrapperDescriptor& wrapper_descriptor);
+  CppHeap(v8::Platform*,
+          const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&,
+          const v8::WrapperDescriptor&, cppgc::Heap::MarkingType,
+          cppgc::Heap::SweepingType);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -164,7 +167,15 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
+  // cppgc::internal::GarbageCollector interface.
+  void CollectGarbage(Config) override;
+  const cppgc::EmbedderStackState* override_stack_state() const override;
+  void StartIncrementalGarbageCollection(Config) override;
+  size_t epoch() const override;
+
  private:
+  void ReduceGCCapabilititesFromFlags();
+
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
     // For unified heap, CppHeap shouldn't finalize independently (i.e.

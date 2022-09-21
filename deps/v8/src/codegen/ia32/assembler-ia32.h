@@ -56,9 +56,6 @@ namespace internal {
 class SafepointTableBuilder;
 
 enum Condition {
-  // any value < 0 is considered no_condition
-  no_condition = -1,
-
   overflow = 0,
   no_overflow = 1,
   below = 2,
@@ -86,9 +83,6 @@ enum Condition {
 };
 
 // Returns the equivalent of !cc.
-// Negation of the default no_condition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
@@ -118,29 +112,28 @@ class Immediate {
       : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Immediate EmbeddedStringConstant(const StringConstantBase* str);
 
   static Immediate CodeRelativeOffset(Label* label) { return Immediate(label); }
 
-  bool is_heap_object_request() const {
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool is_heap_number_request() const {
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(is_heap_object_request());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(is_heap_number_request());
+    return value_.heap_number_request;
   }
 
   int immediate() const {
-    DCHECK(!is_heap_object_request());
+    DCHECK(!is_heap_number_request());
     return value_.immediate;
   }
 
   bool is_embedded_object() const {
-    return !is_heap_object_request() &&
+    return !is_heap_number_request() &&
            rmode() == RelocInfo::FULL_EMBEDDED_OBJECT;
   }
 
@@ -154,7 +147,7 @@ class Immediate {
 
   ExternalReference external_reference() const {
     DCHECK(is_external_reference());
-    return bit_cast<ExternalReference>(immediate());
+    return base::bit_cast<ExternalReference>(immediate());
   }
 
   bool is_zero() const {
@@ -184,10 +177,10 @@ class Immediate {
 
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;
+    HeapNumberRequest heap_number_request;
     int immediate;
   } value_;
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Operand;
@@ -372,7 +365,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -1772,7 +1765,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 

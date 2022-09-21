@@ -267,11 +267,11 @@ class DeserializableProtocolObject {
     std::unique_ptr<T> value(new T());
     auto deserializer = DeferredMessage::FromSpan(span<uint8_t>(bytes, size))
                             ->MakeDeserializer();
-    Deserialize(&deserializer, value.get());
+    std::ignore = Deserialize(&deserializer, value.get());
     return value;
   }
 
-  static bool Deserialize(DeserializerState* state, T* value) {
+  [[nodiscard]] static bool Deserialize(DeserializerState* state, T* value) {
     return T::deserializer_descriptor().Deserialize(state, value);
   }
 
@@ -347,6 +347,16 @@ struct ProtocolTypeTraits<
     ProtocolTypeTraits<T>::Serialize(*value, bytes);
   }
 };
+
+template <typename T, typename F>
+bool ConvertProtocolValue(const F& from, T* to) {
+  std::vector<uint8_t> bytes;
+  ProtocolTypeTraits<F>::Serialize(from, &bytes);
+  auto deserializer =
+      DeferredMessage::FromSpan(span<uint8_t>(bytes.data(), bytes.size()))
+          ->MakeDeserializer();
+  return ProtocolTypeTraits<T>::Deserialize(&deserializer, to);
+}
 
 #define DECLARE_DESERIALIZATION_SUPPORT()  \
   friend DeserializableBase<ProtocolType>; \

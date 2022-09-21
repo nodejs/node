@@ -487,7 +487,7 @@ class SmallOrderedHashTable : public HeapObject {
   // values, which means that this value can't be used a valid
   // index.
   static const int kMaxCapacity = 254;
-  STATIC_ASSERT(kMaxCapacity < kNotFound);
+  static_assert(kMaxCapacity < kNotFound);
 
   // The load factor is used to derive the number of buckets from
   // capacity during Allocation. We also depend on this to calaculate
@@ -674,7 +674,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                       SmallOrderedHashTable<SmallOrderedHashSet>);
 };
 
-STATIC_ASSERT(kSmallOrderedHashSetMinCapacity ==
+static_assert(kSmallOrderedHashSetMinCapacity ==
               SmallOrderedHashSet::kMinCapacity);
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
@@ -709,7 +709,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                       SmallOrderedHashTable<SmallOrderedHashMap>);
 };
 
-STATIC_ASSERT(kSmallOrderedHashMapMinCapacity ==
+static_assert(kSmallOrderedHashMapMinCapacity ==
               SmallOrderedHashMap::kMinCapacity);
 
 // TODO(gsathya): Rename this to OrderedHashTable, after we rename

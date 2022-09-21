@@ -77,7 +77,7 @@ class BytecodeGraphTester {
   BytecodeGraphTester(Isolate* isolate, const char* script,
                       const char* filter = kFunctionName)
       : isolate_(isolate), script_(script) {
-    i::FLAG_always_opt = false;
+    i::FLAG_always_turbofan = false;
     i::FLAG_allow_natives_syntax = true;
   }
   virtual ~BytecodeGraphTester() = default;

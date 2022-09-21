@@ -6,15 +6,41 @@
 #define V8_HEAP_CPPGC_WRITE_BARRIER_H_
 
 #include "include/cppgc/internal/write-barrier.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
 
 namespace cppgc {
 namespace internal {
 
-class WriteBarrier::IncrementalOrConcurrentMarkingFlagUpdater {
+class WriteBarrier::FlagUpdater final {
  public:
-  static void Enter() { incremental_or_concurrent_marking_flag_.Enter(); }
-  static void Exit() { incremental_or_concurrent_marking_flag_.Exit(); }
+  static void Enter() { write_barrier_enabled_.Enter(); }
+  static void Exit() { write_barrier_enabled_.Exit(); }
+
+ private:
+  FlagUpdater() = delete;
 };
+
+#if defined(CPPGC_YOUNG_GENERATION)
+class V8_EXPORT_PRIVATE YoungGenerationEnabler final {
+ public:
+  static void Enable();
+  static void Disable();
+
+  static bool IsEnabled();
+
+ private:
+  template <typename T>
+  friend class v8::base::LeakyObject;
+
+  static YoungGenerationEnabler& Instance();
+
+  YoungGenerationEnabler() = default;
+
+  size_t is_enabled_;
+  v8::base::Mutex mutex_;
+};
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
 }  // namespace cppgc

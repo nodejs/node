@@ -41,6 +41,16 @@ void BytecodeArrayIterator::SetOffset(int offset) {
   UpdateOperandScale();
 }
 
+// static
+bool BytecodeArrayIterator::IsValidOffset(Handle<BytecodeArray> bytecode_array,
+                                          int offset) {
+  for (BytecodeArrayIterator it(bytecode_array); !it.done(); it.Advance()) {
+    if (it.current_offset() == offset) return true;
+    if (it.current_offset() > offset) break;
+  }
+  return false;
+}
+
 void BytecodeArrayIterator::ApplyDebugBreak() {
   // Get the raw bytecode from the bytecode array. This may give us a
   // scaling prefix, which we can patch with the matching debug-break
@@ -83,10 +93,16 @@ int32_t BytecodeArrayIterator::GetSignedOperand(
                                               current_operand_scale());
 }
 
-uint32_t BytecodeArrayIterator::GetFlagOperand(int operand_index) const {
+uint32_t BytecodeArrayIterator::GetFlag8Operand(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
             OperandType::kFlag8);
   return GetUnsignedOperand(operand_index, OperandType::kFlag8);
+}
+
+uint32_t BytecodeArrayIterator::GetFlag16Operand(int operand_index) const {
+  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
+            OperandType::kFlag16);
+  return GetUnsignedOperand(operand_index, OperandType::kFlag16);
 }
 
 uint32_t BytecodeArrayIterator::GetUnsignedImmediateOperand(

@@ -31,14 +31,12 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/init/v8.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -1171,7 +1169,7 @@ TEST(14) {
   code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
-  t.left = bit_cast<double>(kHoleNanInt64);
+  t.left = base::bit_cast<double>(kHoleNanInt64);
   t.right = 1;
   t.add_result = 0;
   t.sub_result = 0;
@@ -1188,17 +1186,17 @@ TEST(14) {
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.
   CHECK_EQ(kArmNanUpper32,
-           (bit_cast<int64_t>(t.add_result) >> 32) & 0x7FFFFFFF);
-  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.add_result) & 0xFFFFFFFFu);
+           (base::bit_cast<int64_t>(t.add_result) >> 32) & 0x7FFFFFFF);
+  CHECK_EQ(kArmNanLower32, base::bit_cast<int64_t>(t.add_result) & 0xFFFFFFFFu);
   CHECK_EQ(kArmNanUpper32,
-           (bit_cast<int64_t>(t.sub_result) >> 32) & 0x7FFFFFFF);
-  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.sub_result) & 0xFFFFFFFFu);
+           (base::bit_cast<int64_t>(t.sub_result) >> 32) & 0x7FFFFFFF);
+  CHECK_EQ(kArmNanLower32, base::bit_cast<int64_t>(t.sub_result) & 0xFFFFFFFFu);
   CHECK_EQ(kArmNanUpper32,
-           (bit_cast<int64_t>(t.mul_result) >> 32) & 0x7FFFFFFF);
-  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.mul_result) & 0xFFFFFFFFu);
+           (base::bit_cast<int64_t>(t.mul_result) >> 32) & 0x7FFFFFFF);
+  CHECK_EQ(kArmNanLower32, base::bit_cast<int64_t>(t.mul_result) & 0xFFFFFFFFu);
   CHECK_EQ(kArmNanUpper32,
-           (bit_cast<int64_t>(t.div_result) >> 32) & 0x7FFFFFFF);
-  CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.div_result) & 0xFFFFFFFFu);
+           (base::bit_cast<int64_t>(t.div_result) >> 32) & 0x7FFFFFFF);
+  CHECK_EQ(kArmNanLower32, base::bit_cast<int64_t>(t.div_result) & 0xFFFFFFFFu);
 }
 
 #define CHECK_EQ_SPLAT(field, ex) \
@@ -1228,9 +1226,9 @@ TEST(14) {
   CHECK_ESTIMATE(ex, tol, t.field[3]);
 
 #define INT32_TO_FLOAT(val) \
-  std::round(static_cast<float>(bit_cast<int32_t>(val)))
+  std::round(static_cast<float>(base::bit_cast<int32_t>(val)))
 #define UINT32_TO_FLOAT(val) \
-  std::round(static_cast<float>(bit_cast<uint32_t>(val)))
+  std::round(static_cast<float>(base::bit_cast<uint32_t>(val)))
 
 TEST(15) {
   // Test the Neon instructions.
@@ -3155,11 +3153,11 @@ TEST(ARMv8_float32_vrintX) {
     float nan = std::numeric_limits<float>::quiet_NaN();
     t.input = nan;
     f.Call(&t, 0, 0, 0, 0);
-    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.ar));
-    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.nr));
-    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.mr));
-    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.pr));
-    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.zr));
+    CHECK_EQ(base::bit_cast<int32_t>(nan), base::bit_cast<int32_t>(t.ar));
+    CHECK_EQ(base::bit_cast<int32_t>(nan), base::bit_cast<int32_t>(t.nr));
+    CHECK_EQ(base::bit_cast<int32_t>(nan), base::bit_cast<int32_t>(t.mr));
+    CHECK_EQ(base::bit_cast<int32_t>(nan), base::bit_cast<int32_t>(t.pr));
+    CHECK_EQ(base::bit_cast<int32_t>(nan), base::bit_cast<int32_t>(t.zr));
 
 #undef CHECK_VRINT
   }
@@ -3256,11 +3254,11 @@ TEST(ARMv8_vrintX) {
     double nan = std::numeric_limits<double>::quiet_NaN();
     t.input = nan;
     f.Call(&t, 0, 0, 0, 0);
-    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.ar));
-    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.nr));
-    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.mr));
-    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.pr));
-    CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.zr));
+    CHECK_EQ(base::bit_cast<int64_t>(nan), base::bit_cast<int64_t>(t.ar));
+    CHECK_EQ(base::bit_cast<int64_t>(nan), base::bit_cast<int64_t>(t.nr));
+    CHECK_EQ(base::bit_cast<int64_t>(nan), base::bit_cast<int64_t>(t.mr));
+    CHECK_EQ(base::bit_cast<int64_t>(nan), base::bit_cast<int64_t>(t.pr));
+    CHECK_EQ(base::bit_cast<int64_t>(nan), base::bit_cast<int64_t>(t.zr));
 
 #undef CHECK_VRINT
   }
@@ -3369,7 +3367,7 @@ TEST(ARMv8_vsel) {
 #endif
     auto f = GeneratedCode<F_ippii>::FromCode(*code);
 
-    STATIC_ASSERT(kResultPass == -kResultFail);
+    static_assert(kResultPass == -kResultFail);
 #define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)     \
   do {                                                             \
     ResultsF32 results_f32;                                        \
@@ -3460,18 +3458,20 @@ TEST(ARMv8_vminmax_f64) {
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
-#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
-  do {                                                                         \
-    Inputs inputs = {left, right};                                             \
-    Results results;                                                           \
-    f.Call(&inputs, &results, 0, 0, 0);                                        \
-    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
-    CHECK_EQ(bit_cast<uint64_t>(vminnm), bit_cast<uint64_t>(results.vminnm_)); \
-    CHECK_EQ(bit_cast<uint64_t>(vmaxnm), bit_cast<uint64_t>(results.vmaxnm_)); \
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                  \
+  do {                                                              \
+    Inputs inputs = {left, right};                                  \
+    Results results;                                                \
+    f.Call(&inputs, &results, 0, 0, 0);                             \
+    /* Use a base::bit_cast to correctly identify -0.0 and NaNs. */ \
+    CHECK_EQ(base::bit_cast<uint64_t>(vminnm),                      \
+             base::bit_cast<uint64_t>(results.vminnm_));            \
+    CHECK_EQ(base::bit_cast<uint64_t>(vmaxnm),                      \
+             base::bit_cast<uint64_t>(results.vmaxnm_));            \
   } while (0);
 
-    double nan_a = bit_cast<double>(UINT64_C(0x7FF8000000000001));
-    double nan_b = bit_cast<double>(UINT64_C(0x7FF8000000000002));
+    double nan_a = base::bit_cast<double>(UINT64_C(0x7FF8000000000001));
+    double nan_b = base::bit_cast<double>(UINT64_C(0x7FF8000000000002));
 
     CHECK_VMINMAX(1.0, -1.0, -1.0, 1.0);
     CHECK_VMINMAX(-1.0, 1.0, -1.0, 1.0);
@@ -3540,18 +3540,20 @@ TEST(ARMv8_vminmax_f32) {
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
-#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
-  do {                                                                         \
-    Inputs inputs = {left, right};                                             \
-    Results results;                                                           \
-    f.Call(&inputs, &results, 0, 0, 0);                                        \
-    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
-    CHECK_EQ(bit_cast<uint32_t>(vminnm), bit_cast<uint32_t>(results.vminnm_)); \
-    CHECK_EQ(bit_cast<uint32_t>(vmaxnm), bit_cast<uint32_t>(results.vmaxnm_)); \
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                  \
+  do {                                                              \
+    Inputs inputs = {left, right};                                  \
+    Results results;                                                \
+    f.Call(&inputs, &results, 0, 0, 0);                             \
+    /* Use a base::bit_cast to correctly identify -0.0 and NaNs. */ \
+    CHECK_EQ(base::bit_cast<uint32_t>(vminnm),                      \
+             base::bit_cast<uint32_t>(results.vminnm_));            \
+    CHECK_EQ(base::bit_cast<uint32_t>(vmaxnm),                      \
+             base::bit_cast<uint32_t>(results.vmaxnm_));            \
   } while (0);
 
-    float nan_a = bit_cast<float>(UINT32_C(0x7FC00001));
-    float nan_b = bit_cast<float>(UINT32_C(0x7FC00002));
+    float nan_a = base::bit_cast<float>(UINT32_C(0x7FC00001));
+    float nan_b = base::bit_cast<float>(UINT32_C(0x7FC00002));
 
     CHECK_VMINMAX(1.0f, -1.0f, -1.0f, 1.0f);
     CHECK_VMINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
@@ -3700,22 +3702,28 @@ TEST(macro_float_minmax_f64) {
 
   auto f = GenerateMacroFloatMinMax<DwVfpRegister, Inputs, Results>(&assm);
 
-#define CHECK_MINMAX(left, right, min, max)                                  \
-  do {                                                                       \
-    Inputs inputs = {left, right};                                           \
-    Results results;                                                         \
-    f.Call(&inputs, &results, 0, 0, 0);                                      \
-    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
-    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_abc_)); \
-    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aab_)); \
-    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aba_)); \
-    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_abc_)); \
-    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aab_)); \
-    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aba_)); \
+#define CHECK_MINMAX(left, right, min, max)                         \
+  do {                                                              \
+    Inputs inputs = {left, right};                                  \
+    Results results;                                                \
+    f.Call(&inputs, &results, 0, 0, 0);                             \
+    /* Use a base::bit_cast to correctly identify -0.0 and NaNs. */ \
+    CHECK_EQ(base::bit_cast<uint64_t>(min),                         \
+             base::bit_cast<uint64_t>(results.min_abc_));           \
+    CHECK_EQ(base::bit_cast<uint64_t>(min),                         \
+             base::bit_cast<uint64_t>(results.min_aab_));           \
+    CHECK_EQ(base::bit_cast<uint64_t>(min),                         \
+             base::bit_cast<uint64_t>(results.min_aba_));           \
+    CHECK_EQ(base::bit_cast<uint64_t>(max),                         \
+             base::bit_cast<uint64_t>(results.max_abc_));           \
+    CHECK_EQ(base::bit_cast<uint64_t>(max),                         \
+             base::bit_cast<uint64_t>(results.max_aab_));           \
+    CHECK_EQ(base::bit_cast<uint64_t>(max),                         \
+             base::bit_cast<uint64_t>(results.max_aba_));           \
   } while (0)
 
-  double nan_a = bit_cast<double>(UINT64_C(0x7FF8000000000001));
-  double nan_b = bit_cast<double>(UINT64_C(0x7FF8000000000002));
+  double nan_a = base::bit_cast<double>(UINT64_C(0x7FF8000000000001));
+  double nan_b = base::bit_cast<double>(UINT64_C(0x7FF8000000000002));
 
   CHECK_MINMAX(1.0, -1.0, -1.0, 1.0);
   CHECK_MINMAX(-1.0, 1.0, -1.0, 1.0);
@@ -3765,22 +3773,28 @@ TEST(macro_float_minmax_f32) {
 
   auto f = GenerateMacroFloatMinMax<SwVfpRegister, Inputs, Results>(&assm);
 
-#define CHECK_MINMAX(left, right, min, max)                                  \
-  do {                                                                       \
-    Inputs inputs = {left, right};                                           \
-    Results results;                                                         \
-    f.Call(&inputs, &results, 0, 0, 0);                                      \
-    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_)); \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_)); \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aba_)); \
+#define CHECK_MINMAX(left, right, min, max)                         \
+  do {                                                              \
+    Inputs inputs = {left, right};                                  \
+    Results results;                                                \
+    f.Call(&inputs, &results, 0, 0, 0);                             \
+    /* Use a base::bit_cast to correctly identify -0.0 and NaNs. */ \
+    CHECK_EQ(base::bit_cast<uint32_t>(min),                         \
+             base::bit_cast<uint32_t>(results.min_abc_));           \
+    CHECK_EQ(base::bit_cast<uint32_t>(min),                         \
+             base::bit_cast<uint32_t>(results.min_aab_));           \
+    CHECK_EQ(base::bit_cast<uint32_t>(min),                         \
+             base::bit_cast<uint32_t>(results.min_aba_));           \
+    CHECK_EQ(base::bit_cast<uint32_t>(max),                         \
+             base::bit_cast<uint32_t>(results.max_abc_));           \
+    CHECK_EQ(base::bit_cast<uint32_t>(max),                         \
+             base::bit_cast<uint32_t>(results.max_aab_));           \
+    CHECK_EQ(base::bit_cast<uint32_t>(max),                         \
+             base::bit_cast<uint32_t>(results.max_aba_));           \
   } while (0)
 
-  float nan_a = bit_cast<float>(UINT32_C(0x7FC00001));
-  float nan_b = bit_cast<float>(UINT32_C(0x7FC00002));
+  float nan_a = base::bit_cast<float>(UINT32_C(0x7FC00001));
+  float nan_b = base::bit_cast<float>(UINT32_C(0x7FC00002));
 
   CHECK_MINMAX(1.0f, -1.0f, -1.0f, 1.0f);
   CHECK_MINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
@@ -3932,10 +3946,10 @@ TEST(vswp) {
 
   __ stm(db_w, sp, {r4, r5, r6, r7, lr});
 
-  uint64_t one = bit_cast<uint64_t>(1.0);
+  uint64_t one = base::bit_cast<uint64_t>(1.0);
   __ mov(r5, Operand(one >> 32));
   __ mov(r4, Operand(one & 0xFFFFFFFF));
-  uint64_t minus_one = bit_cast<uint64_t>(-1.0);
+  uint64_t minus_one = base::bit_cast<uint64_t>(-1.0);
   __ mov(r7, Operand(minus_one >> 32));
   __ mov(r6, Operand(minus_one & 0xFFFFFFFF));
 
@@ -4244,7 +4258,7 @@ namespace {
 std::vector<Float32> Float32Inputs() {
   std::vector<Float32> inputs;
   FOR_FLOAT32_INPUTS(f) {
-    inputs.push_back(Float32::FromBits(bit_cast<uint32_t>(f)));
+    inputs.push_back(Float32::FromBits(base::bit_cast<uint32_t>(f)));
   }
   FOR_UINT32_INPUTS(bits) { inputs.push_back(Float32::FromBits(bits)); }
   return inputs;
@@ -4253,7 +4267,7 @@ std::vector<Float32> Float32Inputs() {
 std::vector<Float64> Float64Inputs() {
   std::vector<Float64> inputs;
   FOR_FLOAT64_INPUTS(f) {
-    inputs.push_back(Float64::FromBits(bit_cast<uint64_t>(f)));
+    inputs.push_back(Float64::FromBits(base::bit_cast<uint64_t>(f)));
   }
   FOR_UINT64_INPUTS(bits) { inputs.push_back(Float64::FromBits(bits)); }
   return inputs;

@@ -16,6 +16,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/cppgc/visitor.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/js-objects.h"
@@ -655,10 +656,6 @@ class VisiblityVisitor final : public WeakVisitor {
         &parent_scope_.ParentAsRegularState(),
         HeapObjectHeader::FromObject(desc.base_object_payload));
   }
-  void VisitRoot(const void*, cppgc::TraceDescriptor,
-                 const cppgc::SourceLocation&) final {}
-  void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
-                     const void*, const cppgc::SourceLocation&) final {}
 
   // JS handling.
   void Visit(const TracedReferenceBase& ref) final {
@@ -667,6 +664,24 @@ class VisiblityVisitor final : public WeakVisitor {
   }
 
  private:
+  const ParentScope& parent_scope_;
+};
+
+class GraphBuildingRootVisitor final : public cppgc::internal::RootVisitorBase {
+ public:
+  GraphBuildingRootVisitor(CppGraphBuilderImpl& graph_builder,
+                           const ParentScope& parent_scope)
+      : graph_builder_(graph_builder), parent_scope_(parent_scope) {}
+
+  void VisitRoot(const void*, cppgc::TraceDescriptor desc,
+                 const cppgc::SourceLocation& loc) final {
+    graph_builder_.VisitRootForGraphBuilding(
+        parent_scope_.ParentAsRootState(),
+        HeapObjectHeader::FromObject(desc.base_object_payload), loc);
+  }
+
+ private:
+  CppGraphBuilderImpl& graph_builder_;
   const ParentScope& parent_scope_;
 };
 
@@ -695,14 +710,7 @@ class GraphBuildingVisitor final : public JSVisitor {
         HeapObjectHeader::FromObject(strong_desc.base_object_payload),
         edge_name_);
   }
-  void VisitRoot(const void*, cppgc::TraceDescriptor desc,
-                 const cppgc::SourceLocation& loc) final {
-    graph_builder_.VisitRootForGraphBuilding(
-        parent_scope_.ParentAsRootState(),
-        HeapObjectHeader::FromObject(desc.base_object_payload), loc);
-  }
-  void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
-                     const void*, const cppgc::SourceLocation&) final {}
+
   // JS handling.
   void Visit(const TracedReferenceBase& ref) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref,
@@ -888,15 +896,16 @@ void CppGraphBuilderImpl::Run() {
   // Add roots.
   {
     ParentScope parent_scope(states_.CreateRootState(AddRootNode("C++ roots")));
-    GraphBuildingVisitor object_visitor(*this, parent_scope);
-    cpp_heap_.GetStrongPersistentRegion().Trace(&object_visitor);
+    GraphBuildingRootVisitor root_object_visitor(*this, parent_scope);
+    cpp_heap_.GetStrongPersistentRegion().Iterate(root_object_visitor);
   }
   {
     ParentScope parent_scope(
         states_.CreateRootState(AddRootNode("C++ cross-thread roots")));
-    GraphBuildingVisitor object_visitor(*this, parent_scope);
+    GraphBuildingRootVisitor root_object_visitor(*this, parent_scope);
     cppgc::internal::PersistentRegionLock guard;
-    cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
+    cpp_heap_.GetStrongCrossThreadPersistentRegion().Iterate(
+        root_object_visitor);
   }
 }
 

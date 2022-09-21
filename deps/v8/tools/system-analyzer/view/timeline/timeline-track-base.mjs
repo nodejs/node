@@ -238,21 +238,25 @@ export class TimelineTrackBase extends V8CustomElement {
     this._lastContentWidth = parseInt(this.timelineMarkersNode.style.width);
     this._timeToPixel = width / this._timeline.duration();
     this._timeStartPixelOffset = start * this._timeToPixel;
-    this.timelineChunks.style.width = `${width}px`;
+    this.$('#cropper').style.width = `${width}px`;
     this.timelineMarkersNode.style.width = `${width}px`;
     this.timelineAnnotationsNode.style.width = `${width}px`;
     this.hitPanelNode.style.width = `${width}px`;
+
+    const ratio = this._scaleContent(width) || 1;
+    this.timelineChunks.style.width = `${width / Math.min(1, ratio)}px`;
     this._drawMarkers();
     this._selectionHandler.update();
-    this._scaleContent(width);
+
     this._cachedTimelineScrollLeft = this.timelineNode.scrollLeft =
         this.timeToPosition(time) - centerOffset;
   }
 
   _scaleContent(currentWidth) {
-    if (!this._lastContentWidth) return;
+    if (!this._lastContentWidth) return 1;
     const ratio = currentWidth / this._lastContentWidth;
     this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
+    return ratio;
   }
 
   _adjustHeight(height) {

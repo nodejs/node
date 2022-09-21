@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/bits.h"
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen/arm64/utils-arm64.h"
@@ -12,43 +13,43 @@ namespace internal {
 #define __ assm->
 
 uint32_t float_sign(float val) {
-  uint32_t bits = bit_cast<uint32_t>(val);
+  uint32_t bits = base::bit_cast<uint32_t>(val);
   return unsigned_bitextract_32(31, 31, bits);
 }
 
 uint32_t float_exp(float val) {
-  uint32_t bits = bit_cast<uint32_t>(val);
+  uint32_t bits = base::bit_cast<uint32_t>(val);
   return unsigned_bitextract_32(30, 23, bits);
 }
 
 uint32_t float_mantissa(float val) {
-  uint32_t bits = bit_cast<uint32_t>(val);
+  uint32_t bits = base::bit_cast<uint32_t>(val);
   return unsigned_bitextract_32(22, 0, bits);
 }
 
 uint32_t double_sign(double val) {
-  uint64_t bits = bit_cast<uint64_t>(val);
+  uint64_t bits = base::bit_cast<uint64_t>(val);
   return static_cast<uint32_t>(unsigned_bitextract_64(63, 63, bits));
 }
 
 uint32_t double_exp(double val) {
-  uint64_t bits = bit_cast<uint64_t>(val);
+  uint64_t bits = base::bit_cast<uint64_t>(val);
   return static_cast<uint32_t>(unsigned_bitextract_64(62, 52, bits));
 }
 
 uint64_t double_mantissa(double val) {
-  uint64_t bits = bit_cast<uint64_t>(val);
+  uint64_t bits = base::bit_cast<uint64_t>(val);
   return unsigned_bitextract_64(51, 0, bits);
 }
 
 float float_pack(uint32_t sign, uint32_t exp, uint32_t mantissa) {
   uint32_t bits = sign << kFloatExponentBits | exp;
-  return bit_cast<float>((bits << kFloatMantissaBits) | mantissa);
+  return base::bit_cast<float>((bits << kFloatMantissaBits) | mantissa);
 }
 
 double double_pack(uint64_t sign, uint64_t exp, uint64_t mantissa) {
   uint64_t bits = sign << kDoubleExponentBits | exp;
-  return bit_cast<double>((bits << kDoubleMantissaBits) | mantissa);
+  return base::bit_cast<double>((bits << kDoubleMantissaBits) | mantissa);
 }
 
 int float16classify(float16 value) {

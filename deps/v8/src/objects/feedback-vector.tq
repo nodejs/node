@@ -4,25 +4,43 @@
 
 type TieringState extends uint16 constexpr 'TieringState';
 
-bitfield struct FeedbackVectorFlags extends uint32 {
+bitfield struct FeedbackVectorFlags extends uint16 {
   tiering_state: TieringState: 3 bit;
+  // Set for non-executed functions with --log-function-events in order to
+  // log first-executions of code objects with minimal overhead.
+  log_next_execution: bool: 1 bit;
   // Whether the maybe_optimized_code field contains a code object. 'maybe',
   // because they flag may lag behind the actual state of the world (it will be
   // updated in time).
-  maybe_has_optimized_code: bool: 1 bit;
+  maybe_has_maglev_code: bool: 1 bit;
+  maybe_has_turbofan_code: bool: 1 bit;
   // Just one bit, since only {kNone,kInProgress} are relevant for OSR.
   osr_tiering_state: TieringState: 1 bit;
-  all_your_bits_are_belong_to_jgruber: uint32: 27 bit;
+  all_your_bits_are_belong_to_jgruber: uint32: 9 bit;
+}
+
+bitfield struct OsrState extends uint8 {
+  // The layout is chosen s.t. osr_urgency and maybe_has_optimized_osr_code can
+  // be loaded with a single load (i.e. no masking required).
+  osr_urgency: uint32: 3 bit;
+  maybe_has_optimized_osr_code: bool: 1 bit;
+  // In order to have fast OSR checks in Ignition and Sparkplug, these bits
+  // should remain 0. That way, the OSR check can be implemented as a single
+  // comparison.
+  dont_use_these_bits_unless_beneficial: uint32: 4 bit;
 }
 
 @generateBodyDescriptor
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
+  // TODO(jgruber): We don't need 32 bits to count profiler_ticks (something
+  // like 4 bits seems sufficient).
   profiler_ticks: int32;
-  // TODO(turboprop, v8:11010): This field could be removed by changing the
-  // tier up checks for Turboprop. If removing this field also check v8:9287.
-  // Padding was necessary for GCMole.
+  // TODO(jgruber): These bits are available and could be merged with
+  // profiler_ticks.
+  placeholder0: uint8;
+  osr_state: OsrState;
   flags: FeedbackVectorFlags;
   shared_function_info: SharedFunctionInfo;
   closure_feedback_cell_array: ClosureFeedbackCellArray;

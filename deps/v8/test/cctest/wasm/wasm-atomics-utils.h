@@ -6,8 +6,8 @@
 #define WASM_ATOMICOP_UTILS_H
 
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {

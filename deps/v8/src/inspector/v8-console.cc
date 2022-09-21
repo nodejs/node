@@ -10,6 +10,7 @@
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
@@ -488,102 +489,114 @@ void V8Console::memorySetterCallback(
   // setter just ignores the passed value.  http://crbug.com/468611
 }
 
-v8::Maybe<int64_t> V8Console::ValidateAndGetTaskId(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  if (info.Length() != 1) {
-    info.GetIsolate()->ThrowError("Unexpected arguments");
-    return v8::Nothing<int64_t>();
-  }
+void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
 
-  int64_t argId;
-  if (!info[0]->IsNumber() ||
-      !v8::Just(info[0].As<v8::Integer>()->Value()).To(&argId)) {
-    info.GetIsolate()->ThrowError("Task ID should be an integer");
-    return v8::Nothing<int64_t>();
-  }
+  v8::debug::RecordAsyncStackTaggingCreateTaskCall(isolate);
 
-  auto it = m_asyncTaskIds.find(argId);
-  if (it == m_asyncTaskIds.end()) {
-    info.GetIsolate()->ThrowError("Task with ID doesn't exist");
-    return v8::Nothing<int64_t>();
-  }
-
-  return v8::Just(argId);
-}
-
-void V8Console::scheduleAsyncTask(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  if (info.Length() != 1 && info.Length() != 2) {
-    info.GetIsolate()->ThrowError("Unexpected arguments");
-    return;
-  }
-  if (info.Length() == 2 && !info[1]->IsBoolean()) {
-    info.GetIsolate()->ThrowError("Unexpected arguments");
+  if (info.Length() < 1 || !info[0]->IsString() ||
+      !info[0].As<v8::String>()->Length()) {
+    isolate->ThrowError("First argument must be a non-empty string.");
     return;
   }
 
-  v8::debug::ConsoleCallArguments args(info);
-  ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
-  String16 argName = helper.firstArgToString(String16());
-  bool recurring =
-      info.Length() == 2 ? info[1].As<v8::Boolean>()->Value() : false;
+  v8::Local<v8::Object> task = taskTemplate()
+                                   ->NewInstance(isolate->GetCurrentContext())
+                                   .ToLocalChecked();
 
-  int64_t id = m_taskIdCounter++;
-  auto it = m_asyncTaskIds.find(id);
-  if (it != m_asyncTaskIds.end()) {
-    info.GetIsolate()->ThrowError("Task with ID already exists");
+  auto taskInfo = std::make_unique<TaskInfo>(isolate, this, task);
+  void* taskId = taskInfo->Id();
+  auto [iter, inserted] = m_tasks.emplace(taskId, std::move(taskInfo));
+  CHECK(inserted);
+
+  String16 nameArgument = toProtocolString(isolate, info[0].As<v8::String>());
+  StringView taskName =
+      StringView(nameArgument.characters16(), nameArgument.length());
+  m_inspector->asyncTaskScheduled(taskName, taskId, /* recurring */ true);
+
+  info.GetReturnValue().Set(task);
+}
+
+void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1 || !info[0]->IsFunction()) {
+    isolate->ThrowError("First argument must be a function.");
+    return;
+  }
+  v8::Local<v8::Function> function = info[0].As<v8::Function>();
+
+  v8::Local<v8::Object> task = info.This();
+  v8::Local<v8::Value> maybeTaskExternal;
+  if (!task->GetPrivate(isolate->GetCurrentContext(), taskInfoKey())
+           .ToLocal(&maybeTaskExternal)) {
+    // An exception is already thrown.
     return;
   }
 
-  AsyncTaskInfo taskInfo;
-  taskInfo.ptr = new int();
-  taskInfo.recurring = recurring;
-  m_asyncTaskIds.emplace(id, taskInfo);
-
-  StringView taskName = StringView(argName.characters16(), argName.length());
-  m_inspector->asyncTaskScheduled(taskName, taskInfo.ptr, recurring);
-
-  info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), id));
-}
-
-void V8Console::startAsyncTask(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
-  if (maybeArgId.IsNothing()) return;
-
-  int64_t taskId = maybeArgId.FromJust();
-  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskStarted(taskInfo.ptr);
-}
-
-void V8Console::finishAsyncTask(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
-  if (maybeArgId.IsNothing()) return;
-
-  int64_t taskId = maybeArgId.FromJust();
-  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskFinished(taskInfo.ptr);
-
-  if (taskInfo.recurring) {
+  if (!maybeTaskExternal->IsExternal()) {
+    isolate->ThrowError("'run' called with illegal receiver.");
     return;
   }
 
-  delete taskInfo.ptr;
-  m_asyncTaskIds.erase(taskId);
+  v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
+  TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
+
+  m_inspector->asyncTaskStarted(taskInfo->Id());
+  v8::Local<v8::Value> result;
+  if (function
+          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+          .ToLocal(&result)) {
+    info.GetReturnValue().Set(result);
+  }
+  m_inspector->asyncTaskFinished(taskInfo->Id());
 }
 
-void V8Console::cancelAsyncTask(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Maybe<int64_t> maybeArgId = ValidateAndGetTaskId(info);
-  if (maybeArgId.IsNothing()) return;
+v8::Local<v8::Private> V8Console::taskInfoKey() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (m_taskInfoKey.IsEmpty()) {
+    m_taskInfoKey.Reset(isolate, v8::Private::New(isolate));
+  }
+  return m_taskInfoKey.Get(isolate);
+}
 
-  int64_t taskId = maybeArgId.FromJust();
-  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskCanceled(taskInfo.ptr);
+v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (!m_taskTemplate.IsEmpty()) {
+    return m_taskTemplate.Get(isolate);
+  }
 
-  delete taskInfo.ptr;
-  m_asyncTaskIds.erase(taskId);
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &V8Console::call<&V8Console::runTask>, data);
+  taskTemplate->Set(isolate, "run", funcTemplate);
+
+  m_taskTemplate.Reset(isolate, taskTemplate);
+  return taskTemplate;
+}
+
+void V8Console::cancelConsoleTask(TaskInfo* taskInfo) {
+  m_inspector->asyncTaskCanceled(taskInfo->Id());
+  m_tasks.erase(taskInfo->Id());
+}
+
+namespace {
+
+void cleanupTaskInfo(const v8::WeakCallbackInfo<TaskInfo>& info) {
+  TaskInfo* task = info.GetParameter();
+  CHECK(task);
+  task->Cancel();
+}
+
+}  // namespace
+
+TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console,
+                   v8::Local<v8::Object> task)
+    : m_task(isolate, task), m_console(console) {
+  task->SetPrivate(isolate->GetCurrentContext(), console->taskInfoKey(),
+                   v8::External::New(isolate, this))
+      .Check();
+  m_task.SetWeak(this, cleanupTaskInfo, v8::WeakCallbackType::kParameter);
 }
 
 void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -814,38 +827,8 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
-  console
-      ->Set(context, toV8StringInternalized(isolate, "scheduleAsyncTask"),
-            v8::Function::New(context,
-                              &V8Console::call<&V8Console::scheduleAsyncTask>,
-                              data, 0, v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasSideEffect)
-                .ToLocalChecked())
-      .Check();
-  console
-      ->Set(context, toV8StringInternalized(isolate, "startAsyncTask"),
-            v8::Function::New(context,
-                              &V8Console::call<&V8Console::startAsyncTask>,
-                              data, 0, v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasSideEffect)
-                .ToLocalChecked())
-      .Check();
-  console
-      ->Set(context, toV8StringInternalized(isolate, "finishAsyncTask"),
-            v8::Function::New(context,
-                              &V8Console::call<&V8Console::finishAsyncTask>,
-                              data, 0, v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasSideEffect)
-                .ToLocalChecked())
-      .Check();
-  console
-      ->Set(context, toV8StringInternalized(isolate, "cancelAsyncTask"),
-            v8::Function::New(context,
-                              &V8Console::call<&V8Console::cancelAsyncTask>,
-                              data, 0, v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasSideEffect)
-                .ToLocalChecked())
-      .Check();
+  createBoundFunctionProperty(context, console, data, "createTask",
+                              &V8Console::call<&V8Console::createTask>);
 }
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
@@ -1011,7 +994,9 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 }
 
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
-  v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
+  auto isolate = m_context->GetIsolate();
+  if (isolate->IsExecutionTerminating()) return;
+  v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   *static_cast<CommandLineAPIScope**>(
       m_thisReference->GetBackingStore()->Data()) = nullptr;

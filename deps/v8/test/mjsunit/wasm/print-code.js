@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --no-liftoff because we can't serialize and deserialize
-// Liftoff code.
+// Force TurboFan code for serialization.
 // Flags: --allow-natives-syntax --print-wasm-code --no-liftoff
+// Flags: --no-wasm-lazy-compilation
 
 // Just test that printing the code of the following wasm modules does not
 // crash.

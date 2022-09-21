@@ -16,8 +16,6 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/execution/simulator.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"

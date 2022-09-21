@@ -8,11 +8,8 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/smi.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/utils/ostreams.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -431,10 +428,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   DCHECK_EQ(2, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   int function_index = args.smi_value_at(1);
-  auto* native_module = instance->module_object().native_module();
-  wasm::GetWasmEngine()->CompileFunction(isolate, native_module, function_index,
-                                         wasm::ExecutionTier::kTurbofan);
-  CHECK(!native_module->compilation_state()->failed());
+  wasm::TierUpNowForTesting(isolate, *instance, function_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -6,14 +6,11 @@
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -169,7 +166,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
                                   isolate);
       if (elements->map(isolate) ==
@@ -567,7 +565,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
+  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
                 static_cast<int>(ArrayLiteral::kDisableMementos));
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 

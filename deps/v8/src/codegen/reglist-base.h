@@ -23,7 +23,7 @@ class RegListBase {
       RegisterT::kNumRegisters <= 16, uint16_t,
       typename std::conditional<RegisterT::kNumRegisters <= 32, uint32_t,
                                 uint64_t>::type>::type;
-  STATIC_ASSERT(RegisterT::kNumRegisters <= 64);
+  static_assert(RegisterT::kNumRegisters <= 64);
 
  public:
   class Iterator;

@@ -65,10 +65,6 @@ class Arguments {
 
   V8_INLINE double number_value_at(int index) const;
 
-  V8_INLINE FullObjectSlot slot_at(int index) const {
-    return FullObjectSlot(address_of_arg_at(index));
-  }
-
   V8_INLINE Address* address_of_arg_at(int index) const {
     DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
@@ -81,19 +77,6 @@ class Arguments {
 
   // Get the total number of arguments including the receiver.
   V8_INLINE int length() const { return static_cast<int>(length_); }
-
-  // Arguments on the stack are in reverse order (compared to an array).
-  FullObjectSlot first_slot() const {
-    int index = length() - 1;
-    if (arguments_type == ArgumentsType::kJS) index = 0;
-    return slot_at(index);
-  }
-
-  FullObjectSlot last_slot() const {
-    int index = 0;
-    if (arguments_type == ArgumentsType::kJS) index = length() - 1;
-    return slot_at(index);
-  }
 
  private:
   intptr_t length_;
@@ -151,15 +134,20 @@ Handle<S> Arguments<T>::at(int index) const {
                                                                             \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
-#define CONVERT_OBJECT(x) (x).ptr()
-#define CONVERT_OBJECTPAIR(x) (x)
+#ifdef DEBUG
+#define BUILTIN_CONVERT_RESULT(x) (isolate->VerifyBuiltinsResult(x)).ptr()
+#define BUILTIN_CONVERT_RESULT_PAIR(x) isolate->VerifyBuiltinsResult(x)
+#else  // DEBUG
+#define BUILTIN_CONVERT_RESULT(x) (x).ptr()
+#define BUILTIN_CONVERT_RESULT_PAIR(x) (x)
+#endif  // DEBUG
 
 #define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, CONVERT_OBJECT, Name)
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, BUILTIN_CONVERT_RESULT, Name)
 
-#define RUNTIME_FUNCTION_RETURN_PAIR(Name)                                  \
-  RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, CONVERT_OBJECTPAIR, \
-                                Name)
+#define RUNTIME_FUNCTION_RETURN_PAIR(Name)              \
+  RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, \
+                                BUILTIN_CONVERT_RESULT_PAIR, Name)
 
 }  // namespace internal
 }  // namespace v8

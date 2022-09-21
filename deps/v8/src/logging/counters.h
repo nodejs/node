@@ -155,7 +155,7 @@ class StatsCounter {
 class Histogram {
  public:
   // Add a single sample to this histogram.
-  void AddSample(int sample);
+  V8_EXPORT_PRIVATE void AddSample(int sample);
 
   // Returns true if this histogram is enabled.
   bool Enabled() { return histogram_ != nullptr; }

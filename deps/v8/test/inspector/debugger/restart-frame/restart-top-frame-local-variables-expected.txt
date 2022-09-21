@@ -1,0 +1,72 @@
+Checks that after restarting the top frame, local variables are reset
+Paused at (after evaluation):
+  let z = 'some let';
+  #debugger;
+}
+
+Pause stack:
+  foo:5 (canBeRestarted = true)
+
+Evaluating x:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some var
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some const
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some let
+        }
+    }
+}
+Restarting function "foo" ...
+Paused at (after restart):
+function foo() {
+  var x = #'some var';
+  const y = 'some const';
+
+Evaluating x:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

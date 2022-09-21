@@ -44,7 +44,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
 
 #ifdef DEBUG
 ExternalReferenceEncoder::~ExternalReferenceEncoder() {
-  if (!i::FLAG_external_reference_stats) return;
+  if (!v8_flags.external_reference_stats) return;
   if (api_references_ == nullptr) return;
   for (uint32_t i = 0; api_references_[i] != 0; ++i) {
     Address addr = static_cast<Address>(api_references_[i]);

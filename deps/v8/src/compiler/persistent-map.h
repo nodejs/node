@@ -15,6 +15,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// A fast and possibly incomplete equality check. If it returns false, the
+// values are certainly not equal, otherwise we do not know. The template is
+// intended to be specialized for types with expensive equality checks.
+template <class T>
+struct may_be_unequal {
+  bool operator()(const T& a, const T& b) { return a != b; }
+};
+
 // PersistentMap is a persistent map datastructure based on hash trees (a binary
 // tree using the bits of a hash value as addresses). The map is a conceptually
 // infinite: All keys are initially mapped to a default value, values are
@@ -55,6 +63,8 @@ class PersistentMap {
 
   struct FocusedTree;
 
+  friend struct may_be_unequal<PersistentMap<Key, Value, Hasher>>;
+
  public:
   // Depth of the last added element. This is a cheap estimate for the size of
   // the hash tree.
@@ -74,6 +84,10 @@ class PersistentMap {
 
   // Add or overwrite an existing key-value pair.
   void Set(Key key, Value value);
+  // Modify an entry in-place, avoiding repeated search.
+  // `F` is a functional that expects a `Value*` parameter to modify it.
+  template <class F>
+  void Modify(Key key, F f);
 
   bool operator==(const PersistentMap& other) const {
     if (tree_ == other.tree_) return true;
@@ -152,6 +166,14 @@ class PersistentMap {
   const FocusedTree* tree_;
   Value def_value_;
   Zone* zone_;
+};
+
+template <class Key, class Value, class Hasher>
+struct may_be_unequal<PersistentMap<Key, Value, Hasher>> {
+  bool operator()(const PersistentMap<Key, Value, Hasher>& a,
+                  const PersistentMap<Key, Value, Hasher>& b) {
+    return a.tree_ != b.tree_;
+  }
 };
 
 // This structure represents a hash tree with one focused path to a specific
@@ -375,13 +397,23 @@ class PersistentMap<Key, Value, Hasher>::double_iterator {
 };
 
 template <class Key, class Value, class Hasher>
-void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
+void PersistentMap<Key, Value, Hasher>::Set(Key key, Value new_value) {
+  Modify(key, [&](Value* value) { *value = std::move(new_value); });
+}
+
+template <class Key, class Value, class Hasher>
+template <class F>
+void PersistentMap<Key, Value, Hasher>::Modify(Key key, F f) {
+  static_assert(std::is_void_v<decltype(f(std::declval<Value*>()))>);
   HashValue key_hash = HashValue(Hasher()(key));
   std::array<const FocusedTree*, kHashBits> path;
   int length = 0;
   const FocusedTree* old = FindHash(key_hash, &path, &length);
   ZoneMap<Key, Value>* more = nullptr;
-  if (!(GetFocusedValue(old, key) != value)) return;
+  const Value& old_value = GetFocusedValue(old, key);
+  Value new_value = old_value;
+  f(&new_value);
+  if (!may_be_unequal<Value>()(old_value, new_value)) return;
   if (old && !(old->more == nullptr && old->key_value.key() == key)) {
     more = zone_->New<ZoneMap<Key, Value>>(zone_);
     if (old->more) {
@@ -391,12 +423,12 @@ void PersistentMap<Key, Value, Hasher>::Set(Key key, Value value) {
       more->emplace(old->key_value.key(), old->key_value.value());
     }
     more->erase(key);
-    more->emplace(key, value);
+    more->emplace(key, new_value);
   }
   size_t size = sizeof(FocusedTree) +
                 std::max(0, length - 1) * sizeof(const FocusedTree*);
   FocusedTree* tree = new (zone_->Allocate<FocusedTree>(size))
-      FocusedTree{KeyValue(std::move(key), std::move(value)),
+      FocusedTree{KeyValue(std::move(key), std::move(new_value)),
                   static_cast<int8_t>(length),
                   key_hash,
                   more,

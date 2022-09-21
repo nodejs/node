@@ -200,7 +200,8 @@ extern enum Flag constexpr 'JSRegExp::Flag' {
   kUnicode,
   kDotAll,
   kHasIndices,
-  kLinear
+  kLinear,
+  kUnicodeSets
 }
 
 const kNoCounterFlagGetter: constexpr int31 = -1;
@@ -294,6 +295,15 @@ transitioning javascript builtin RegExpPrototypeUnicodeGetter(
   return FlagGetter(
       receiver, Flag::kUnicode, kRegExpPrototypeUnicodeGetter,
       'RegExp.prototype.unicode');
+}
+
+// ES2023 22.2.5.14
+// ES #sec-get-regexp.prototype.unicodeSets
+transitioning javascript builtin RegExpPrototypeUnicodeSetsGetter(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return FlagGetter(
+      receiver, Flag::kUnicodeSets, kNoCounterFlagGetter,
+      'RegExp.prototype.unicodeSets');
 }
 
 extern transitioning macro

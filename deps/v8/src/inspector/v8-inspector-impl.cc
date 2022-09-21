@@ -146,11 +146,12 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 }
 
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
-    int contextGroupId, V8Inspector::Channel* channel, StringView state) {
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level) {
   int sessionId = ++m_lastSessionId;
   std::unique_ptr<V8InspectorSessionImpl> session =
       V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
-                                     state);
+                                     state, client_trust_level);
   m_sessions[contextGroupId][sessionId] = session.get();
   return std::move(session);
 }
@@ -186,7 +187,8 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
 V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
   InspectedContext* context = getContext(contextId);
   internal::V8DebuggerId unique_id;
-  if (context) unique_id = context->uniqueId();
+  if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
+
   return unique_id.toV8DebuggerId();
 }
 

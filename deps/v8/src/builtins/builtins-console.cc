@@ -166,7 +166,7 @@ void ConsoleCall(
 
 void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
                    v8::LogEventStatus se) {
-  if (!isolate->logger()->is_logging()) return;
+  if (!isolate->v8_file_logger()->is_logging()) return;
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
   const char* raw_name = "default";

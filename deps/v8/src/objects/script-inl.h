@@ -111,7 +111,7 @@ void Script::set_shared_function_infos(WeakFixedArray value,
 }
 
 int Script::shared_function_info_count() const {
-  if V8_UNLIKELY (type() == TYPE_WEB_SNAPSHOT) {
+  if (V8_UNLIKELY(type() == TYPE_WEB_SNAPSHOT)) {
     // +1 because the 0th element in shared_function_infos is reserved for the
     // top-level SharedFunctionInfo which doesn't exist.
     return shared_function_info_table().NumberOfElements() + 1;

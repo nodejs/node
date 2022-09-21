@@ -30,6 +30,7 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -38,6 +39,10 @@
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
 #endif
+
+#if V8_CC_MSVC
+#include <intrin.h>
+#endif  // V8_CC_MSVC
 
 #if V8_OS_FUCHSIA
 #include <zircon/types.h>
@@ -71,9 +76,7 @@ namespace base {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibInlineTlsOffset = 0xE10;
   const intptr_t kTibExtraTlsOffset = 0xF94;
   const intptr_t kMaxInlineSlots = 64;
@@ -91,6 +94,8 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
                                                   (index - kMaxInlineSlots));
 }
 
+// Not possible on ARM64, the register holding the base pointer is not stable
+// across major releases.
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 // tvOS simulator does not use intptr_t as TLS key.
@@ -98,20 +103,14 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
-
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
-
-inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;
 #if V8_HOST_ARCH_IA32
-  asm("movl %%gs:(%1,%2,4), %0;"
-      :"=r"(result)  // Output must be a writable register.
-      :"r"(kMacTlsBaseOffset), "r"(index));
+  asm("movl %%gs:(,%1,4), %0;"
+      : "=r"(result)  // Output must be a writable register.
+      : "r"(index));
 #else
-  asm("movq %%gs:(%1,%2,8), %0;"
-      :"=r"(result)
-      :"r"(kMacTlsBaseOffset), "r"(index));
+  asm("movq %%gs:(,%1,8), %0;" : "=r"(result) : "r"(index));
 #endif
   return result;
 }
@@ -317,7 +316,8 @@ class V8_BASE_EXPORT OS {
   // Whether the platform supports mapping a given address in another location
   // in the address space.
   V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
-#ifdef V8_OS_MACOS
+#if (defined(V8_OS_MACOS) || defined(V8_OS_LINUX)) && \
+    !(defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X))
     return true;
 #else
     return false;
@@ -330,11 +330,17 @@ class V8_BASE_EXPORT OS {
   // be a multiple of the system page size.  If there is already memory mapped
   // at the target address, it is replaced by the new mapping.
   //
+  // In addition, this is only meant to remap memory which is file-backed, and
+  // mapped from a file which is still accessible.
+  //
   // Must not be called if |IsRemapPagesSupported()| return false.
   // Returns true for success.
   V8_WARN_UNUSED_RESULT static bool RemapPages(const void* address, size_t size,
                                                void* new_address,
                                                MemoryPermission access);
+
+  // Make part of the process's data memory read-only.
+  static void SetDataReadOnly(void* address, size_t size);
 
  private:
   // These classes use the private memory management API below.
@@ -377,6 +383,9 @@ class V8_BASE_EXPORT OS {
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static bool RecommitPages(void* address, size_t size,
+                                                  MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT static bool DiscardSystemPages(void* address,
                                                        size_t size);
@@ -449,6 +458,9 @@ class V8_BASE_EXPORT AddressSpaceReservation {
 
   V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
                                             OS::MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT bool RecommitPages(void* address, size_t size,
+                                           OS::MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT bool DiscardSystemPages(void* address, size_t size);
 
@@ -615,10 +627,21 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetStackStart();
 
   // Returns the current stack top. Works correctly with ASAN and SafeStack.
+  //
   // GetCurrentStackPosition() should not be inlined, because it works on stack
   // frames if it were inlined into a function with a huge stack frame it would
   // return an address significantly above the actual current stack position.
   static V8_NOINLINE StackSlot GetCurrentStackPosition();
+
+  // Same as `GetCurrentStackPosition()` with the difference that it is always
+  // inlined and thus always returns the current frame's stack top.
+  static V8_INLINE StackSlot GetCurrentFrameAddress() {
+#if V8_CC_MSVC
+    return _AddressOfReturnAddress();
+#else
+    return __builtin_frame_address(0);
+#endif
+  }
 
   // Returns the real stack frame if slot is part of a fake frame, and slot
   // otherwise.

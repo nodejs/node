@@ -16,6 +16,10 @@ class Visitor;
 
 namespace internal {
 
+class RootVisitor;
+
+using TraceRootCallback = void (*)(RootVisitor&, const void* object);
+
 // Implementation of the default TraceTrait handling GarbageCollected and
 // GarbageCollectedMixin.
 template <typename T,

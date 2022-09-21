@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/ieee754.h"
+
 #include <limits>
 
-#include "src/base/ieee754.h"
-#include "src/base/macros.h"
 #include "src/base/overflowing-math.h"
 #include "testing/gmock-support.h"
-#include "testing/gtest-support.h"
 
 using testing::BitEq;
 using testing::IsNaN;

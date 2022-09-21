@@ -32,7 +32,7 @@
     "type": "script",
   },
   "generate-bytecode-expectations": {
-    "label": "//test/cctest:generate-bytecode-expectations",
+    "label": "//test/unittests:generate-bytecode-expectations",
     "type": "script",
   },
   "mjsunit": {

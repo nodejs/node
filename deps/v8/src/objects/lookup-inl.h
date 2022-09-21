@@ -116,7 +116,7 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
   DCHECK_EQ(index, static_cast<uint64_t>(index));
 #if V8_TARGET_ARCH_32_BIT
   if (index <= JSObject::kMaxElementIndex) {
-    STATIC_ASSERT(JSObject::kMaxElementIndex <=
+    static_assert(JSObject::kMaxElementIndex <=
                   std::numeric_limits<size_t>::max());
     index_ = static_cast<size_t>(index);
   } else {
@@ -185,6 +185,10 @@ bool LookupIterator::IsElement(JSReceiver object) const {
           object.map().has_any_typed_array_or_wasm_array_elements());
 }
 
+bool LookupIterator::IsPrivateName() const {
+  return !IsElement() && name()->IsPrivateName(isolate());
+}
+
 bool LookupIterator::is_dictionary_holder() const {
   return !holder_->HasFastProperties(isolate_);
 }
@@ -223,14 +227,23 @@ bool LookupIterator::IsCacheableTransition() {
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
+  DCHECK(name->IsInternalizedString() || name->IsSymbol());
 
-  // This list must be kept in sync with
+  // This check must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
   ReadOnlyRoots roots(isolate);
-  if (*name == roots.is_concat_spreadable_symbol() ||
+  bool maybe_protector = roots.IsNameForProtector(*name);
+
+#if DEBUG
+  bool debug_maybe_protector =
       *name == roots.constructor_string() || *name == roots.next_string() ||
-      *name == roots.species_symbol() || *name == roots.iterator_symbol() ||
-      *name == roots.resolve_string() || *name == roots.then_string()) {
+      *name == roots.resolve_string() || *name == roots.then_string() ||
+      *name == roots.is_concat_spreadable_symbol() ||
+      *name == roots.iterator_symbol() || *name == roots.species_symbol();
+  DCHECK_EQ(maybe_protector, debug_maybe_protector);
+#endif  // DEBUG
+
+  if (maybe_protector) {
     InternalUpdateProtector(isolate, receiver, name);
   }
 }

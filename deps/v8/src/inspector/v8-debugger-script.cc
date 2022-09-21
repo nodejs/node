@@ -10,6 +10,7 @@
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
+#include "src/utils/sha-256.h"
 
 namespace v8_inspector {
 
@@ -17,73 +18,23 @@ namespace {
 
 const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 
-// Hash algorithm for substrings is described in "Über die Komplexität der
-// Multiplikation in
-// eingeschränkten Branchingprogrammmodellen" by Woelfe.
-// http://opendatastructures.org/versions/edition-0.1d/ods-java/node33.html#SECTION00832000000000000000
 String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
-  static uint64_t prime[] = {0x3FB75161, 0xAB1F4E4F, 0x82675BC5, 0xCD924D35,
-                             0x81ABE279};
-  static uint64_t random[] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476,
-                              0xC3D2E1F0};
-  static uint32_t randomOdd[] = {0xB4663807, 0xCC322BF5, 0xD4F91BBD, 0xA7BEA11D,
-                                 0x8F462907};
-
-  uint64_t hashes[] = {0, 0, 0, 0, 0};
-  uint64_t zi[] = {1, 1, 1, 1, 1};
-
-  const size_t hashesSize = arraysize(hashes);
-
-  size_t current = 0;
-
   std::unique_ptr<UChar[]> buffer(new UChar[source->Length()]);
   int written = source->Write(
       isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0, source->Length());
 
-  const uint32_t* data = nullptr;
+  const uint8_t* data = nullptr;
   size_t sizeInBytes = sizeof(UChar) * written;
-  data = reinterpret_cast<const uint32_t*>(buffer.get());
-  for (size_t i = 0; i < sizeInBytes / 4; ++i) {
-    uint32_t d = v8::base::ReadUnalignedValue<uint32_t>(
-        reinterpret_cast<v8::internal::Address>(data + i));
-#if V8_TARGET_LITTLE_ENDIAN
-    uint32_t v = d;
-#else
-    uint32_t v = (d << 16) | (d >> 16);
-#endif
-    uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
-    hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
-    zi[current] = (zi[current] * random[current]) % prime[current];
-    current = current == hashesSize - 1 ? 0 : current + 1;
-  }
-  if (sizeInBytes % 4) {
-    uint32_t v = 0;
-    const uint8_t* data_8b = reinterpret_cast<const uint8_t*>(data);
-    for (size_t i = sizeInBytes - sizeInBytes % 4; i < sizeInBytes; ++i) {
-      v <<= 8;
-#if V8_TARGET_LITTLE_ENDIAN
-      v |= data_8b[i];
-#else
-      if (i % 2) {
-        v |= data_8b[i - 1];
-      } else {
-        v |= data_8b[i + 1];
-      }
-#endif
-    }
-    uint64_t xi = v * randomOdd[current] & 0x7FFFFFFF;
-    hashes[current] = (hashes[current] + zi[current] * xi) % prime[current];
-    zi[current] = (zi[current] * random[current]) % prime[current];
-    current = current == hashesSize - 1 ? 0 : current + 1;
-  }
+  data = reinterpret_cast<const uint8_t*>(buffer.get());
 
-  for (size_t i = 0; i < hashesSize; ++i)
-    hashes[i] = (hashes[i] + zi[i] * (prime[i] - 1)) % prime[i];
+  uint8_t hash[kSizeOfSha256Digest];
+  v8::internal::SHA256_hash(data, sizeInBytes, hash);
 
-  String16Builder hash;
-  for (size_t i = 0; i < hashesSize; ++i)
-    hash.appendUnsignedAsHex(static_cast<uint32_t>(hashes[i]));
-  return hash.toString();
+  String16Builder formatted_hash;
+  for (size_t i = 0; i < kSizeOfSha256Digest; i++)
+    formatted_hash.appendUnsignedAsHex(static_cast<uint8_t>(hash[i]));
+
+  return formatted_hash.toString();
 }
 
 class ActualScript : public V8DebuggerScript {
@@ -146,6 +97,15 @@ class ActualScript : public V8DebuggerScript {
     if (external_url.size() == 0) return v8::Nothing<String16>();
     return v8::Just(String16(external_url.data(), external_url.size()));
   }
+
+  void Disassemble(v8::debug::DisassemblyCollector* collector,
+                   std::vector<int>* function_body_offsets) const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::debug::Script> script = this->script();
+    DCHECK(script->IsWasm());
+    v8::debug::WasmScript::Cast(*script)->Disassemble(collector,
+                                                      function_body_offsets);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int startLine() const override { return m_startLine; }
@@ -173,10 +133,12 @@ class ActualScript : public V8DebuggerScript {
   }
 
   void setSource(const String16& newSource, bool preview,
+                 bool allowTopFrameLiveEditing,
                  v8::debug::LiveEditResult* result) override {
     v8::EscapableHandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
-    if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview, result)) {
+    if (!m_script.Get(m_isolate)->SetScriptSource(
+            v8Source, preview, allowTopFrameLiveEditing, result)) {
       result->message = scope.Escape(result->message);
       return;
     }
@@ -231,7 +193,7 @@ class ActualScript : public V8DebuggerScript {
     v8::debug::ResetBlackboxedStateCache(m_isolate, m_script.Get(m_isolate));
   }
 
-  int offset(int lineNumber, int columnNumber) const override {
+  v8::Maybe<int> offset(int lineNumber, int columnNumber) const override {
     v8::HandleScope scope(m_isolate);
     return m_script.Get(m_isolate)->GetSourceOffset(
         v8::debug::Location(lineNumber, columnNumber));
@@ -313,6 +275,11 @@ class ActualScript : public V8DebuggerScript {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     m_isModule = script->IsModule();
+
+    bool hasHash = script->GetSha256Hash().ToLocal(&tmp) && tmp->Length() > 0;
+    if (hasHash) {
+      m_hash = toProtocolString(m_isolate, tmp);
+    }
 
     m_script.Reset(m_isolate, script);
     m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);

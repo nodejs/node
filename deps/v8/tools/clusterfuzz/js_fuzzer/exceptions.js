@@ -140,7 +140,6 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
     /^--trace.*/,
     '--expose-externalize-string',
     '--interpreted-frames-native-stack',
-    '--stress-opt',
     '--validate-asm',
 ];
 

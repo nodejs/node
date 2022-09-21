@@ -11,6 +11,7 @@
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {
@@ -140,7 +141,7 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
     // Default to zero if the {receiver}s buffer was detached.
     TNode<UintPtrT> byte_length = Select<UintPtrT>(
         IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSArrayBufferViewByteLength(receiver_array); });
+        [=] { return LoadJSArrayBufferViewRawByteLength(receiver_array); });
     Return(ChangeUintPtrToTagged(byte_length));
   }
 }
@@ -196,7 +197,7 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Int32T> kind) {
-  STATIC_ASSERT(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
+  static_assert(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
   return Word32Or(
       IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS),
       IsElementsKindInRange(kind, RAB_GSAB_BIGUINT64_ELEMENTS,
@@ -399,7 +400,7 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
       TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
-  STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
+  static_assert(arraysize(elements_kinds) == arraysize(elements_kind_labels));
 
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
@@ -573,26 +574,43 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
 
   // Dispatch on the elements kind, offset by
   // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND.
-  size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                         1;
+  static_assert(LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1 ==
+                FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
+  size_t const kTypedElementsKindCount =
+      LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+      FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   Label return_##type##array(this);               \
   BIND(&return_##type##array);                    \
   Return(StringConstant(#Type "Array"));
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+  // clang-format off
   Label* elements_kind_labels[kTypedElementsKindCount] = {
+  // The TYPED_ARRAYS macro is invoked twice because while the RAB/GSAB-backed
+  // TAs have distinct ElementsKinds internally, they have the same "class"
+  // name for toString output.
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &return_##type##array,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
+
   int32_t elements_kinds[kTypedElementsKindCount] = {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  // The use of FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND below is not a typo! This
+  // computes an index into elements_kind_labels, and all TypedArray
+  // ElementsKind values are contiguous.
+#define RAB_GSAB_TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  RAB_GSAB_TYPED_ARRAYS(RAB_GSAB_TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+#undef RAB_GSAB_TYPED_ARRAY_CASE
   };
+  // clang-format on
 
   // We offset the dispatch by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND, so that
   // this can be turned into a non-sparse table switch for ideal performance.

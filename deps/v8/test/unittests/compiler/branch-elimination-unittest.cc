@@ -3,14 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/compiler/branch-elimination.h"
+
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
 namespace v8 {
 namespace internal {
@@ -31,7 +29,7 @@ class BranchEliminationTest : public GraphTest {
     GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker(),
                                jsgraph.Dead());
     BranchElimination branch_condition_elimination(&graph_reducer, &jsgraph,
-                                                   zone(), nullptr);
+                                                   zone());
     graph_reducer.AddReducer(&branch_condition_elimination);
     graph_reducer.ReduceGraph();
   }

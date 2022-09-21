@@ -5,10 +5,7 @@
 // Flags: --validate-asm --allow-natives-syntax
 
 // Note that this test file contains tests that explicitly check modules are
-// valid asm.js and then break them with invalid instantiation arguments. If
-// this script is run more than once (e.g. --stress-opt) then modules remain
-// broken in the second run and assertions would fail. We prevent re-runs.
-// Flags: --no-stress-opt
+// valid asm.js and then break them with invalid instantiation arguments.
 
 function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func));

@@ -7,8 +7,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-template.h"
-#include "src/base/win32-headers.h"
-#include "src/init/v8.h"
+#include "src/base/macros.h"
 #include "test/cctest/cctest.h"
 
 #if defined(V8_OS_WIN_X64)

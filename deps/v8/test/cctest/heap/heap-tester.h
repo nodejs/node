@@ -116,7 +116,7 @@ class HeapTester {
   static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
                                                     AllocationType allocation);
 
-  static void UncommitFromSpace(Heap* heap);
+  static void UncommitUnusedMemory(Heap* heap);
 };
 
 }  // namespace heap

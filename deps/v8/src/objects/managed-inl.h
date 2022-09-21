@@ -33,22 +33,24 @@ Handle<Managed<CppType>> Managed<CppType>::FromRawPtr(Isolate* isolate,
 template <class CppType>
 Handle<Managed<CppType>> Managed<CppType>::FromUniquePtr(
     Isolate* isolate, size_t estimated_size,
-    std::unique_ptr<CppType> unique_ptr) {
-  return FromSharedPtr(isolate, estimated_size, std::move(unique_ptr));
+    std::unique_ptr<CppType> unique_ptr, AllocationType allocation_type) {
+  return FromSharedPtr(isolate, estimated_size, std::move(unique_ptr),
+                       allocation_type);
 }
 
 // static
 template <class CppType>
 Handle<Managed<CppType>> Managed<CppType>::FromSharedPtr(
     Isolate* isolate, size_t estimated_size,
-    std::shared_ptr<CppType> shared_ptr) {
+    std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   reinterpret_cast<v8::Isolate*>(isolate)
       ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       Destructor);
-  Handle<Managed<CppType>> handle = Handle<Managed<CppType>>::cast(
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(destructor)));
+  Handle<Managed<CppType>> handle =
+      Handle<Managed<CppType>>::cast(isolate->factory()->NewForeign(
+          reinterpret_cast<Address>(destructor), allocation_type));
   Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
   destructor->global_handle_location_ = global_handle.location();
   GlobalHandles::MakeWeak(destructor->global_handle_location_, destructor,

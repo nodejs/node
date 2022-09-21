@@ -4,6 +4,7 @@
 
 #include "src/objects/js-function.h"
 
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
@@ -64,6 +65,22 @@ bool JSFunction::HasAttachedOptimizedCode() const {
   return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
 }
 
+bool JSFunction::HasAvailableHigherTierCodeThan(CodeKind kind) const {
+  return HasAvailableHigherTierCodeThanWithFilter(kind,
+                                                  kJSFunctionCodeKindsMask);
+}
+
+bool JSFunction::HasAvailableHigherTierCodeThanWithFilter(
+    CodeKind kind, CodeKinds filter_mask) const {
+  const int kind_as_int_flag = static_cast<int>(CodeKindToCodeKindFlag(kind));
+  DCHECK(base::bits::IsPowerOfTwo(kind_as_int_flag));
+  // Smear right - any higher present bit means we have a higher tier available.
+  const int mask = kind_as_int_flag | (kind_as_int_flag - 1);
+  const CodeKinds masked_available_kinds =
+      GetAvailableCodeKinds() & filter_mask;
+  return (masked_available_kinds & static_cast<CodeKinds>(~mask)) != 0;
+}
+
 bool JSFunction::HasAvailableOptimizedCode() const {
   CodeKinds result = GetAvailableCodeKinds();
   return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
@@ -87,7 +104,7 @@ V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
                                          CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
   // Higher tiers > lower tiers.
-  STATIC_ASSERT(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
+  static_assert(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
   if (kinds == 0) return false;
   const int highest_tier_log2 =
       31 - base::bits::CountLeadingZeros(static_cast<uint32_t>(kinds));
@@ -193,14 +210,14 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
 
   if (IsConcurrent(mode)) {
     if (IsInProgress(tiering_state())) {
-      if (FLAG_trace_concurrent_recompilation) {
+      if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
         ShortPrint();
         PrintF(" -- already in optimization queue.\n");
       }
       return;
     }
-    if (FLAG_trace_concurrent_recompilation) {
+    if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Marking ");
       ShortPrint();
       PrintF(" for concurrent %s recompilation.\n",
@@ -565,7 +582,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   EnsureClosureFeedbackCellArray(function, false);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
-  Handle<HeapObject> feedback_vector = FeedbackVector::New(
+  Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
       isolate, shared, closure_feedback_cell_array, compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
@@ -574,6 +591,9 @@ void JSFunction::CreateAndAttachFeedbackVector(
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
   function->SetInterruptBudget(isolate);
+
+  DCHECK_EQ(v8_flags.log_function_events,
+            feedback_vector->log_next_execution());
 }
 
 // static
@@ -603,17 +623,32 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !FLAG_lazy_feedback_allocation || FLAG_always_opt ||
+      !v8_flags.lazy_feedback_allocation || v8_flags.always_turbofan ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
-      FLAG_log_function_events || !isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile();
+      v8_flags.log_function_events ||
+      !isolate->is_best_effort_code_coverage() ||
+      isolate->is_collecting_type_profile() ||
+      function->shared().sparkplug_compiled();
 
   if (needs_feedback_vector) {
     CreateAndAttachFeedbackVector(isolate, function, is_compiled_scope);
   } else {
     EnsureClosureFeedbackCellArray(function,
                                    reset_budget_for_feedback_allocation);
+  }
+  // TODO(jgruber): Unduplicate these conditions from tiering-manager.cc.
+  if (function->shared().sparkplug_compiled() &&
+      CanCompileWithBaseline(isolate, function->shared()) &&
+      function->ActiveTierIsIgnition()) {
+    if (v8_flags.baseline_batch_compilation) {
+      isolate->baseline_batch_compiler()->EnqueueFunction(function);
+    } else {
+      IsCompiledScope is_compiled_scope(
+          function->shared().is_compiled_scope(isolate));
+      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope);
+    }
   }
 }
 
@@ -647,8 +682,8 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     }
 
     // Deoptimize all code that embeds the previous initial map.
-    initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kInitialMapChangedGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -716,7 +751,7 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
   }
   map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map, kReleaseStore);
-  if (FLAG_log_maps) {
+  if (v8_flags.log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
                               handle(function->shared(), isolate))));
@@ -1043,11 +1078,11 @@ namespace {
 // Assert that the computations in TypedArrayElementsKindToConstructorIndex and
 // TypedArrayElementsKindToRabGsabCtorIndex are sound.
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                         \
-  STATIC_ASSERT(Context::TYPE##_ARRAY_FUN_INDEX ==                        \
+  static_assert(Context::TYPE##_ARRAY_FUN_INDEX ==                        \
                 Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX +              \
                     ElementsKind::TYPE##_ELEMENTS -                       \
                     ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND); \
-  STATIC_ASSERT(Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX ==             \
+  static_assert(Context::RAB_GSAB_##TYPE##_ARRAY_MAP_INDEX ==             \
                 Context::FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX +           \
                     ElementsKind::TYPE##_ELEMENTS -                       \
                     ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
@@ -1067,11 +1102,14 @@ int TypedArrayElementsKindToRabGsabCtorIndex(ElementsKind elements_kind) {
 
 }  // namespace
 
-Handle<Map> JSFunction::GetDerivedRabGsabMap(Isolate* isolate,
-                                             Handle<JSFunction> constructor,
-                                             Handle<JSReceiver> new_target) {
-  Handle<Map> map =
-      GetDerivedMap(isolate, constructor, new_target).ToHandleChecked();
+MaybeHandle<Map> JSFunction::GetDerivedRabGsabMap(
+    Isolate* isolate, Handle<JSFunction> constructor,
+    Handle<JSReceiver> new_target) {
+  MaybeHandle<Map> maybe_map = GetDerivedMap(isolate, constructor, new_target);
+  Handle<Map> map;
+  if (!maybe_map.ToHandle(&map)) {
+    return MaybeHandle<Map>();
+  }
   {
     DisallowHeapAllocation no_alloc;
     NativeContext context = isolate->context().native_context();
@@ -1326,14 +1364,14 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
            static_cast<unsigned>(JSObject::kMaxInstanceSize));
 }
 
-void JSFunction::ClearTypeFeedbackInfo() {
+void JSFunction::ClearAllTypeFeedbackInfoForTesting() {
   ResetIfCodeFlushed();
   if (has_feedback_vector()) {
     FeedbackVector vector = feedback_vector();
     Isolate* isolate = GetIsolate();
-    if (vector.ClearSlots(isolate)) {
+    if (vector.ClearAllSlotsForTesting(isolate)) {
       IC::OnFeedbackChanged(isolate, vector, FeedbackSlot::Invalid(),
-                            "ClearTypeFeedbackInfo");
+                            "ClearAllTypeFeedbackInfoForTesting");
     }
   }
 }

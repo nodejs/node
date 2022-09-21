@@ -22,8 +22,8 @@ validUseGrouping.forEach(function(useGrouping) {
 });
 
 invalidUseGrouping.forEach(function(useGrouping) {
-  assertThrows(() => {
-    let nf = new Intl.NumberFormat(undefined, {useGrouping}); });
+  let nf = new Intl.NumberFormat(undefined, {useGrouping});
+  assertEquals("auto", nf.resolvedOptions().useGrouping);
 });
 
 // useGrouping: undefined get "auto"

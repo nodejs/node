@@ -38,7 +38,7 @@ class MockPlatformForUnmapper : public TestPlatform {
 };
 
 UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   MockPlatformForUnmapper platform;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

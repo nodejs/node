@@ -40,6 +40,9 @@
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
   # the test passed).
   'test-verifiers/Fail*': [FAIL, CRASH],
+  # BUG(chromium:1310062): these tests must crash once the side effect check
+  # is enabled.
+  #'test-api-interceptors/Crash*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
@@ -48,20 +51,8 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # We do not yet shrink weak maps after they have been emptied by the GC
-  'test-weakmaps/Shrinking': [FAIL],
-  'test-weaksets/WeakSet_Shrinking': [FAIL],
-
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
-
-  # This tests only that the preparser and parser agree, so there is no point in
-  # running several variants. Note that this still takes ages, because there
-  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
-  'test-parsing/ParserSync': [PASS, NO_VARIANTS],
-
-  # This tests only the type system, no point in running several variants.
-  'test-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
@@ -74,7 +65,6 @@
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-  'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
@@ -98,24 +88,17 @@
   # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
   'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
 
-  # https://crbug.com/v8/8919
-  'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
-
   # Test that misuse of PopAndReturn does not compile.
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
-  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
-  'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
-  'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
-
   # Slow tests.
+  'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
-  'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
@@ -136,15 +119,10 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
-
-  'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
 ['mode == debug', {
-  'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
-  'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
-
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
 }],
@@ -224,7 +202,6 @@
 
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
-  'test-sloppy-equality/*' : [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-verify-type/*': [SKIP],
 }],  # variant == nooptimization
@@ -232,7 +209,6 @@
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
-  'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
 
   # BUG(v8:7587): Strange breakage on Mac.
   'test-log-stack-tracer/PureJSStackTrace': [SKIP],
@@ -297,8 +273,6 @@
   # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  # Peephole optimization not supported on big-endian machines.
-  'test-regexp/Peephole*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -337,38 +311,12 @@
 
 ##############################################################################
 ['arch == arm', {
-  # BUG(355): Test crashes on ARM.
-  'test-log/ProfLazyMode': [SKIP],
-
   # BUG(1075): Unresolved crashes.
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == arm'
-
-##############################################################################
-['arch == mipsel or arch == mips', {
-  # TODO(mips-team): Improve code-size on large RegExp's.
-  'test-heap/TestSizeOfRegExpCode':  [SKIP],
-
-  # BUG(1075): Unresolved crashes on MIPS also.
-  'test-serialize/StartupSerializerOnce': [SKIP],
-  'test-serialize/StartupSerializerTwice': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-}],  # 'arch == mipsel or arch == mips'
-
-##############################################################################
-['arch == mips', {
-  # Too slow with TF.
-  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
-
-  # TODO(mips-team): Currently fails on mips board.
-  'test-parsing/TooManyArguments': [SKIP],
-  'test-api/Threading5': [SKIP],
-  'test-api/Threading6': [SKIP],
-}],  # 'arch == mips'
 
 ##############################################################################
 ['arch == mips64', {
@@ -395,21 +343,21 @@
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
-['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
+['(arch == mips64el or arch == mips64) and not simd_mips', {
   # Skip tests that fail on MIPS architectures which don't support SIMD,
   # because lowering mechanism doesn't work properly
   'test-run-wasm-simd/RunWasm_ReductionTest4_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest8_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_ReductionTest16_compiled': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
-}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
+}],  # '(arch == mips64el or arch == mips64) and not simd_mips'
 
-['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips', {
+['(arch == mips64el or arch == mips64) and not simd_mips', {
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-}],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
+}],  # '(arch == mips64el or arch == mips64) and not simd_mips'
 
 ##############################################################################
 ['mips_arch_variant == r6', {
@@ -423,7 +371,7 @@
 }],  # 'mips_arch_variant == r6'
 
 ##############################################################################
-['arch == riscv64', {
+['arch == riscv64 or (arch == riscv32)', {
   # this test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
@@ -448,7 +396,7 @@
 }],  # 'arch == riscv64'
 
 ##############################################################################
-['arch == riscv64 and simulator_run', {
+['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SLOW],
@@ -456,6 +404,7 @@
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
 
 }],  # 'arch == riscv64 and simulator_run'
+
 
 ##############################################################################
 ['arch == loong64', {
@@ -517,11 +466,9 @@
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ['arch == ppc64', {
-  # https://crbug.com/v8/8766
-  'test-bytecode-generator/WideRegisters': [SKIP],
-
   # SIMD / Liftoff not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
 }],
@@ -529,16 +476,10 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
+
+  # BUG(https://crbug.com/v8/12999): Very slow test.
+  'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
 }],  # variant == stress_incremental_marking
-
-##############################################################################
-['variant == stress_js_bg_compile_wasm_code_gc', {
-  # The test relies on deterministic compilation.
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-
-  # The test relies on deterministic allocation during compilation.
-  'test-compiler/DeepEagerCompilationPeakMemory': [SKIP],
-}],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
 ['variant == no_wasm_traps', {
@@ -549,7 +490,6 @@
   'test-bignum-dtoa/*': [SKIP],
   'test-cpu-profiler/*': [SKIP],
   'test-debug/*': [SKIP],
-  'test-global-handles/*': [SKIP],
   'test-heap-profiler/*': [SKIP],
   'test-heap/*': [SKIP],
   'test-inobject-slack-tracking/*': [SKIP],
@@ -558,10 +498,7 @@
   'test-serialize/*': [SKIP],
   'test-strings/*': [SKIP],
   'test-field-type-tracking/*': [SKIP],
-  'test-parsing/*': [SKIP],
   'test-page-promotion/*': [SKIP],
-  'test-decls/*': [SKIP],
-  'test-log/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -579,8 +516,6 @@
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api/WasmSetJitCodeEventHandler': [SKIP],
-  'test-api-wasm/WasmStreaming*': [SKIP],
-  'test-api-wasm/WasmCompileToWasmModuleObject': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
@@ -610,7 +545,6 @@
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
-  'codegen-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
   'test-atomic-load-store-codegen/*': [SKIP],
@@ -619,43 +553,21 @@
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-code-assembler/*': [SKIP],
   'test-code-generator/*': [SKIP],
-  'test-code-pages/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
-  'test-disasm-x64/DisasmX64': [SKIP],
   'test-js-context-specialization/*': [SKIP],
-  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],
-  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
-  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
-  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
-  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
-  'test-regexp/Graph': [SKIP],
   'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
-  'test-run-deopt/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
-  'test-run-jsbranches/*': [SKIP],
-  'test-run-jscalls/*': [SKIP],
-  'test-run-jsexceptions/*': [SKIP],
-  'test-run-jsobjects/*': [SKIP],
-  'test-run-jsops/*': [SKIP],
+
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
-  'test-run-tail-calls/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
-  'test-sloppy-equality/*' : [SKIP],
   'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
@@ -666,9 +578,6 @@
 
   # Instruction cache flushing is disabled in jitless mode.
   'test-icache/*': [SKIP],
-
-  # Tests generated irregexp code.
-  'test-regexp/RegExpInterruptReentrantExecution': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
@@ -679,9 +588,6 @@
   # TODO(mythria): Code logging tests that currently fail with lazy feedback
   # allocation. Fix logging to work without feedback vectors and enable these
   # tests in lite_mode.
-  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP]
 }], # lite_mode
 
@@ -709,11 +615,7 @@
   'test-verify-type/*': [SKIP],
 
   # --interpreted-frames-native-stack tests
-  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
-  'test-interpreter/InterpreterWithNativeStack': [SKIP],
 
   # Crashes on native arm.
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
@@ -724,10 +626,6 @@
   'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
 
-##############################################################################
-['no_i18n == True', {
-  'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
-}],  # no_i18n == True
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -787,9 +685,6 @@
   # Read data from read_only_space->pages()
   'test-serialize/CodeSerializerExternalScriptName': [SKIP],
   'test-serialize/CodeSerializerThreeBigStrings': [SKIP],
-  # Access chunk metadata
-  'test-roots/TestHeapRootsNotReadOnly': [SKIP],
-  'test-roots/TestReadOnlyRoots': [SKIP],
   # Requires heap::SimulateFullSpace
   'test-invalidated-slots/InvalidatedSlotsAfterTrimming': [SKIP],
   'test-invalidated-slots/InvalidatedSlotsAllInvalidatedRanges': [SKIP],
@@ -837,14 +732,10 @@
   'test-api/NestedIsolates': [SKIP],
   'test-api/RunTwoIsolatesOnSingleThread': [SKIP],
   'test-api/VerifyArrayPrototypeGuarantees': [SKIP],
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [SKIP],
   'test-heap/Regress538257': [SKIP],
   'test-heap/ReinitializeStringHashSeed': [SKIP],
   'test-lockers/*': [SKIP],
-  'test-log/ExternalCodeEventListenerInnerFunctions': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
-  'test-managed/*': [SKIP],
   'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
   'test-memory-measurement/RandomizedTimeout': [SKIP],
   'test-random-number-generator/*': [SKIP],
@@ -902,7 +793,6 @@
   # Performs GC or expects OOM
   'test-alloc/StressHandles': [SKIP],
   'test-alloc/StressJS': [SKIP],
-  'test-api-wasm/WasmStreamingCallback': [SKIP],
   'test-api/DontLeakGlobalObjects': [SKIP],
   'test-api/ExternalInternalizedStringCollectedAtGC': [SKIP],
   'test-api/ExternalStringWithDisposeHandling': [SKIP],
@@ -1046,15 +936,6 @@
   'test-embedder-tracing/V8RegisteringEmbedderReference': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact': [SKIP],
-  'test-factory/Factory_CodeBuilder_BuildOOM': [SKIP],
-  'test-factory/Factory_CodeBuilder_TryBuildOOM': [SKIP],
-  'test-global-handles/FinalizerDiesAndKeepsPhantomAliveOnMarkCompact': [SKIP],
-  'test-global-handles/FinalizerWeakness': [SKIP],
-  'test-global-handles/GCFromWeakCallbacks': [SKIP],
-  'test-global-handles/PhatomHandlesWithoutCallbacks': [SKIP],
-  'test-global-handles/SecondPassPhantomCallbacks': [SKIP],
-  'test-global-handles/WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact': [SKIP],
-  'test-global-handles/WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact': [SKIP],
   'test-heap-profiler/HeapSnapshotDeleteDuringTakeSnapshot': [SKIP],
   'test-heap-profiler/HeapSnapshotObjectsStats': [SKIP],
   'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
@@ -1105,7 +986,6 @@
   'test-heap/WeakMapInPolymorphicStoreIC': [SKIP],
   'test-js-weak-refs/TestJSWeakRef': [SKIP],
   'test-js-weak-refs/TestJSWeakRefKeepDuringJob': [SKIP],
-  'test-managed/GCCausesDestruction': [SKIP],
   'test-run-wasm/RunWasmInterpreter_I32AddOnDifferentRegisters': [SKIP],
   'test-run-wasm/RunWasmInterpreter_I32DivSOnDifferentRegisters': [SKIP],
   'test-run-wasm/RunWasmInterpreter_I32DivUOnDifferentRegisters': [SKIP],
@@ -1175,16 +1055,6 @@
   'test-weak-references/WeakArrayListBasic': [SKIP],
   'test-weak-references/WeakArraysBasic': [SKIP],
   'test-weak-references/WeakReferencesBasic': [SKIP],
-  'test-weakmaps/WeakMapsWithChainedEntries': [SKIP],
-  'test-weakmaps/Weakness': [SKIP],
-  'test-weaksets/WeakSet_Weakness': [SKIP],
-  'test-web-snapshots/SFIDeduplicationAfterBytecodeFlushing': [SKIP],
-  # CodeRange tests
-  'test-code-pages/LargeCodeObjectWithSignalHandler': [SKIP],
-  'test-code-pages/LargeCodeObject': [SKIP],
-  'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
-  'test-code-pages/Sorted': [SKIP],
-  'test-code-pages/CodeRangeCorrectContents': [SKIP],
   # Timeout (too many GCs)
   'test-heap/Regress8014': [SKIP],
   'test-accessors/HandleScopePop': [SKIP],
@@ -1192,10 +1062,6 @@
 
 ################################################################################
 ['variant == always_sparkplug', {
-  # SFI deduplication tests check compilation state, which always_sparkplug
-  # can break.
-  'test-web-snapshots/SFIDeduplication*': [SKIP],
-
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
@@ -1207,10 +1073,9 @@
 
 ################################################################################
 ['variant == stress', {
-  # The 'stress' variants sets the '--stress-opt' d8 flag, which executes 2 runs
-  # in debug mode and 5 runs in release mode. Hence the module will be cached
-  # between runs, and the correct caching behavior cannot be observed anymore in
-  # the later runs.
+  # The 'stress' variants sets the '--no-liftoff' flag, which means that Wasm
+  # compiles directly to TurboFan. This makes the cache no longer incremental,
+  # and these tests don't make sense.
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
@@ -1227,5 +1092,13 @@
   # always triggers a concurrent compilation.
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
+
+['arch != ia32 and arch != x64', {
+  # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
+}],
 
 ]

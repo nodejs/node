@@ -29,8 +29,14 @@ class V8_PLATFORM_EXPORT DefaultJobState
       outer_->NotifyConcurrencyIncrease();
     }
     bool ShouldYield() override {
+      // After {ShouldYield} returned true, the job is expected to return and
+      // not call {ShouldYield} again. This resembles a similar DCHECK in the
+      // gin platform.
+      DCHECK(!was_told_to_yield_);
       // Thread-safe but may return an outdated result.
-      return outer_->is_canceled_.load(std::memory_order_relaxed);
+      was_told_to_yield_ |=
+          outer_->is_canceled_.load(std::memory_order_relaxed);
+      return was_told_to_yield_;
     }
     uint8_t GetTaskId() override;
     bool IsJoiningThread() const override { return is_joining_thread_; }
@@ -42,6 +48,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
     DefaultJobState* outer_;
     uint8_t task_id_ = kInvalidTaskId;
     bool is_joining_thread_;
+    bool was_told_to_yield_ = false;
   };
 
   DefaultJobState(Platform* platform, std::unique_ptr<JobTask> job_task,
@@ -68,13 +75,6 @@ class V8_PLATFORM_EXPORT DefaultJobState
   void UpdatePriority(TaskPriority);
 
  private:
-  // Called from the joining thread. Waits for the worker count to be below or
-  // equal to max concurrency (will happen when a worker calls
-  // DidRunTask()). Returns true if the joining thread should run a task, or
-  // false if joining was completed and all other workers returned because
-  // there's no work remaining.
-  bool WaitForParticipationOpportunityLockRequired();
-
   // Returns GetMaxConcurrency() capped by the number of threads used by this
   // job.
   size_t CappedMaxConcurrency(size_t worker_count) const;

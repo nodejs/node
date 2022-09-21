@@ -18,9 +18,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSInliningHeuristic(Editor* editor, Zone* local_zone,
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
-                      SourcePositionTable* source_positions, Mode mode)
+                      SourcePositionTable* source_positions,
+                      NodeOriginTable* node_origins, Mode mode)
       : AdvancedReducer(editor),
-        inliner_(editor, local_zone, info, jsgraph, broker, source_positions),
+        inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
+                 node_origins),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),

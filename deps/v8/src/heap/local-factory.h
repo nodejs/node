@@ -33,7 +33,6 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
   // AccessorInfos appear mutable, but they're actually not mutated once they
   // finish initializing. In particular, the root accessors are not mutated and
   // are safe to access (as long as the off-thread job doesn't try to mutate
@@ -47,6 +46,16 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   Handle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
+
+  // The LocalFactory does not have access to the number_string_cache (since
+  // it's a mutable root), but it still needs to define some cache-related
+  // method that are used by FactoryBase. Those method do basically nothing in
+  // the case of the LocalFactory.
+  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(double number);
+  void NumberToStringCacheSet(Handle<Object> number, int hash,
+                              Handle<String> js_string);
+  Handle<Object> NumberToStringCacheGet(Object number, int hash);
 
  private:
   friend class FactoryBase<LocalFactory>;
@@ -65,13 +74,13 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   }
 
   // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when V8_SANDBOXED_EXTERNAL_POINTERS is enabled.
+  // external pointer entries when the sandbox is enabled.
   Isolate* isolate_for_sandbox() {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     return isolate_for_sandbox_;
 #else
     return nullptr;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
   }
 
   inline bool CanAllocateInReadOnlySpace() { return false; }
@@ -83,7 +92,7 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // ------
 
   ReadOnlyRoots roots_;
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   Isolate* isolate_for_sandbox_;
 #endif
 #ifdef DEBUG

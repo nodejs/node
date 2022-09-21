@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-eh --allow-natives-syntax
-// Disable Liftoff so we can serialize the module.
-// Flags: --no-liftoff
+// Force TurboFan code for serialization.
+// Flags: --no-liftoff --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

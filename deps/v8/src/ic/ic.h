@@ -79,8 +79,6 @@ class IC {
   bool is_vector_set() { return vector_set_; }
   inline bool vector_needs_update();
 
-  inline Handle<Object> CodeHandler(Builtin builtin);
-
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
@@ -205,7 +203,7 @@ class LoadIC : public IC {
   void UpdateCaches(LookupIterator* lookup);
 
  private:
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
+  MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
   friend class NamedLoadHandlerCompiler;

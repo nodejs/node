@@ -4,25 +4,16 @@
 
 #include <vector>
 
-#include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-coverage.h"
-#include "src/debug/debug-evaluate.h"
-#include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/counters.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -60,6 +51,14 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   if (isolate->debug_execution_mode() == DebugInfo::kBreakpoints) {
     isolate->debug()->Break(it.frame(),
                             handle(it.frame()->function(), isolate));
+  }
+
+  // If the user requested to restart a frame, there is no need
+  // to get the return value or check the bytecode for side-effects.
+  if (isolate->debug()->IsRestartFrameScheduled()) {
+    Object exception = isolate->TerminateExecution();
+    return MakePair(exception,
+                    Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
   }
 
   // Return the handler from the original bytecode array.
@@ -140,6 +139,9 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
     isolate->debug()->HandleDebugBreak(
         kIgnoreIfTopFrameBlackboxed,
         v8::debug::BreakReasons({v8::debug::BreakReason::kDebuggerStatement}));
+    if (isolate->debug()->IsRestartFrameScheduled()) {
+      return isolate->TerminateExecution();
+    }
   }
   return isolate->stack_guard()->HandleInterrupts();
 }
@@ -883,7 +885,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   Handle<Script> script(Script::cast(script_function->shared().script()),
                         isolate);
   v8::debug::LiveEditResult result;
-  LiveEdit::PatchScript(isolate, script, new_source, false, &result);
+  LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,
+                        /* allow_top_frame_live_editing */ false, &result);
   switch (result.status) {
     case v8::debug::LiveEditResult::COMPILE_ERROR:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(

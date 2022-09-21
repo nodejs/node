@@ -14,8 +14,16 @@ for a transition period.
 
 import os
 import re
+import shutil
 import subprocess
 import sys
+
+def find_harness_code(args):
+  for arg in args:
+    if arg.endswith('v8_foozzie.py'):
+      with open(arg) as f:
+        return f.read()
+  assert False, 'Foozzie harness not found'
 
 if __name__ == '__main__':
   # In some cases or older versions, the python executable is passed as
@@ -25,7 +33,18 @@ if __name__ == '__main__':
     args = sys.argv[2:]
   else:
     args = sys.argv[1:]
-  process = subprocess.Popen(['python3'] + args)
+
+  python_exe = 'python3'
+
+  # To ease bisection of really old bugs, attempt to use Python2 as long
+  # as it is supported. This enables bisection before the point where the
+  # harness switched to Python3.
+  script = find_harness_code(args)
+  use_python3 = script.startswith('#!/usr/bin/env python3')
+  if not use_python3 and shutil.which('python2'):
+    python_exe = 'python2'
+
+  process = subprocess.Popen([python_exe] + args)
   process = subprocess.Popen(args)
   process.communicate()
   sys.exit(process.returncode)

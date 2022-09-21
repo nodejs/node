@@ -29,6 +29,11 @@ bool IsHeapConstant(Node* const node) {
   return node->opcode() == IrOpcode::kHeapConstant;
 }
 
+bool IsIntConstant(Node* const node) {
+  return node->opcode() == IrOpcode::kInt32Constant ||
+         node->opcode() == IrOpcode::kInt64Constant;
+}
+
 bool IsTaggedPhi(Node* const node) {
   if (node->opcode() == IrOpcode::kPhi) {
     return CanBeTaggedPointer(PhiRepresentationOf(node->op()));
@@ -92,6 +97,25 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
                                   State::kOnly32BitsObserved);  // value_1
       break;
     // SPECIAL CASES.
+    // SPECIAL CASES - Load.
+    case IrOpcode::kLoad:
+    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kUnalignedLoad:
+    case IrOpcode::kLoadImmutable:
+      DCHECK_EQ(node->op()->ValueInputCount(), 2);
+      // Mark addressing base pointer in compressed form to allow pointer
+      // decompression via complex addressing mode.
+      if (DECOMPRESS_POINTER_BY_ADDRESSING_MODE &&
+          node->InputAt(0)->OwnedBy(node) && IsIntConstant(node->InputAt(1))) {
+        MarkAddressingBase(node->InputAt(0));
+      } else {
+        MaybeMarkAndQueueForRevisit(
+            node->InputAt(0),
+            State::kEverythingObserved);  // base pointer
+        MaybeMarkAndQueueForRevisit(node->InputAt(1),
+                                    State::kEverythingObserved);  // index
+      }
+      break;
     // SPECIAL CASES - Store.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore:
@@ -149,6 +173,32 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
   // marked as such in a future pass.
   for (int i = node->op()->ValueInputCount(); i < node->InputCount(); ++i) {
     MaybeMarkAndQueueForRevisit(node->InputAt(i), State::kOnly32BitsObserved);
+  }
+}
+
+// We mark the addressing base pointer as kOnly32BitsObserved so it can be
+// optimized to compressed form. This allows us to move the decompression to
+// use-site on X64.
+void DecompressionOptimizer::MarkAddressingBase(Node* base) {
+  if (IsTaggedMachineLoad(base)) {
+    MaybeMarkAndQueueForRevisit(base,
+                                State::kOnly32BitsObserved);  // base pointer
+  } else if (IsTaggedPhi(base)) {
+    bool should_compress = true;
+    for (int i = 0; i < base->op()->ValueInputCount(); ++i) {
+      if (!IsTaggedMachineLoad(base->InputAt(i)) ||
+          !base->InputAt(i)->OwnedBy(base)) {
+        should_compress = false;
+        break;
+      }
+    }
+    MaybeMarkAndQueueForRevisit(
+        base,
+        should_compress ? State::kOnly32BitsObserved
+                        : State::kEverythingObserved);  // base pointer
+  } else {
+    MaybeMarkAndQueueForRevisit(base,
+                                State::kEverythingObserved);  // base pointer
   }
 }
 

@@ -471,8 +471,8 @@ void Decoder::DecodeExtP(Instruction* instr) {
       // Read prefix.
       SetAsPrefixed(instr->Bits(17, 0));
       // Read suffix (next instruction).
-      Instruction* next_instr =
-          bit_cast<Instruction*>(bit_cast<intptr_t>(instr) + kInstrSize);
+      Instruction* next_instr = base::bit_cast<Instruction*>(
+          base::bit_cast<intptr_t>(instr) + kInstrSize);
       switch (next_instr->OpcodeBase()) {
           // Prefixed ADDI.
         case (ADDI): {
@@ -514,7 +514,7 @@ void Decoder::DecodeExtP(Instruction* instr) {
         }
           // Prefixed LD.
         case PPLD: {
-          Format(next_instr, "pld    'rt, 'int34('ra)");
+          Format(next_instr, "pld     'rt, 'int34('ra)");
           break;
         }
           // Prefixed LFS.
@@ -525,6 +525,36 @@ void Decoder::DecodeExtP(Instruction* instr) {
         // Prefixed LFD.
         case LFD: {
           Format(next_instr, "plfd    'Dt, 'int34('ra)");
+          break;
+        }
+          // Prefixed STB.
+        case STB: {
+          Format(next_instr, "pstb    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STH.
+        case STH: {
+          Format(next_instr, "psth    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STW.
+        case STW: {
+          Format(next_instr, "pstw    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STD.
+        case PPSTD: {
+          Format(next_instr, "pstd    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STFS.
+        case STFS: {
+          Format(next_instr, "pstfs   'Dt, 'int34('ra)");
+          break;
+        }
+        // Prefixed STFD.
+        case STFD: {
+          Format(next_instr, "pstfd   'Dt, 'int34('ra)");
           break;
         }
         default: {
@@ -1305,10 +1335,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
 void Decoder::DecodeExt3(Instruction* instr) {
   switch (EXT3 | (instr->BitField(10, 1))) {
     case FCFID: {
+      Format(instr, "fcfid'.  'Dt, 'Db");
+      break;
+    }
+    case FCFIDS: {
       Format(instr, "fcfids'. 'Dt, 'Db");
       break;
     }
     case FCFIDU: {
+      Format(instr, "fcfidu'. 'Dt, 'Db");
+      break;
+    }
+    case FCFIDUS: {
       Format(instr, "fcfidus'.'Dt, 'Db");
       break;
     }
@@ -1555,8 +1593,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   } else {
     // Prefixed instructions have a 4-byte prefix and a 4-byte suffix. Print
     // both on the same line.
-    Instruction* next_instr =
-        bit_cast<Instruction*>(bit_cast<intptr_t>(instr) + kInstrSize);
+    Instruction* next_instr = base::bit_cast<Instruction*>(
+        base::bit_cast<intptr_t>(instr) + kInstrSize);
     out_buffer_pos_ +=
         base::SNPrintF(out_buffer_ + out_buffer_pos_, "%08x|%08x ",
                        instr->InstructionBits(), next_instr->InstructionBits());

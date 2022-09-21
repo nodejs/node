@@ -23,7 +23,8 @@ class PhaseScope;
 class PipelineStatistics : public Malloced {
  public:
   PipelineStatistics(OptimizedCompilationInfo* info,
-                     CompilationStatistics* turbo_stats, ZoneStats* zone_stats);
+                     std::shared_ptr<CompilationStatistics> turbo_stats,
+                     ZoneStats* zone_stats);
   ~PipelineStatistics();
   PipelineStatistics(const PipelineStatistics&) = delete;
   PipelineStatistics& operator=(const PipelineStatistics&) = delete;
@@ -67,7 +68,7 @@ class PipelineStatistics : public Malloced {
 
   Zone* outer_zone_;
   ZoneStats* zone_stats_;
-  CompilationStatistics* compilation_stats_;
+  std::shared_ptr<CompilationStatistics> compilation_stats_;
   CodeKind code_kind_;
   std::string function_name_;
 

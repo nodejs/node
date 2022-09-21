@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --no-always-opt --allow-natives-syntax
+// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
 (() => {
   function f(s) {
     return s.charAt();

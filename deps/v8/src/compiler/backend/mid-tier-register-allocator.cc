@@ -13,12 +13,9 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/tick-counter.h"
-#include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/logging/counters.h"
-#include "src/utils/bit-vector.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -26,199 +23,6 @@ namespace compiler {
 
 class RegisterState;
 class DeferredBlocksRegion;
-
-// BlockState stores details associated with a particular basic block.
-class BlockState final {
- public:
-  BlockState(int block_count, Zone* zone)
-      : general_registers_in_state_(nullptr),
-        double_registers_in_state_(nullptr),
-        deferred_blocks_region_(nullptr),
-        dominated_blocks_(block_count, zone),
-        successors_phi_index_(-1),
-        is_deferred_block_boundary_(false) {}
-
-  // Returns the RegisterState that applies to the input of this block. Can be
-  // |nullptr| if the no registers of |kind| have been allocated up to this
-  // point.
-  RegisterState* register_in_state(RegisterKind kind);
-  void set_register_in_state(RegisterState* register_state, RegisterKind kind);
-
-  // Returns a bitvector representing all the basic blocks that are dominated
-  // by this basic block.
-  BitVector* dominated_blocks() { return &dominated_blocks_; }
-
-  // Set / get this block's index for successor's phi operations. Will return
-  // -1 if this block has no successor's with phi operations.
-  int successors_phi_index() const { return successors_phi_index_; }
-  void set_successors_phi_index(int index) {
-    DCHECK_EQ(successors_phi_index_, -1);
-    successors_phi_index_ = index;
-  }
-
-  // If this block is deferred, this represents region of deferred blocks
-  // that are directly reachable from this block.
-  DeferredBlocksRegion* deferred_blocks_region() const {
-    return deferred_blocks_region_;
-  }
-  void set_deferred_blocks_region(DeferredBlocksRegion* region) {
-    DCHECK_NULL(deferred_blocks_region_);
-    deferred_blocks_region_ = region;
-  }
-
-  // Returns true if this block represents either a transition from
-  // non-deferred to deferred or vice versa.
-  bool is_deferred_block_boundary() const {
-    return is_deferred_block_boundary_;
-  }
-  void MarkAsDeferredBlockBoundary() { is_deferred_block_boundary_ = true; }
-
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BlockState);
-
- private:
-  RegisterState* general_registers_in_state_;
-  RegisterState* double_registers_in_state_;
-  RegisterState* simd128_registers_in_state_;
-
-  DeferredBlocksRegion* deferred_blocks_region_;
-
-  BitVector dominated_blocks_;
-  int successors_phi_index_;
-  bool is_deferred_block_boundary_;
-};
-
-RegisterState* BlockState::register_in_state(RegisterKind kind) {
-  switch (kind) {
-    case RegisterKind::kGeneral:
-      return general_registers_in_state_;
-    case RegisterKind::kDouble:
-      return double_registers_in_state_;
-    case RegisterKind::kSimd128:
-      return simd128_registers_in_state_;
-  }
-}
-
-void BlockState::set_register_in_state(RegisterState* register_state,
-                                       RegisterKind kind) {
-  switch (kind) {
-    case RegisterKind::kGeneral:
-      DCHECK_NULL(general_registers_in_state_);
-      general_registers_in_state_ = register_state;
-      break;
-    case RegisterKind::kDouble:
-      DCHECK_NULL(double_registers_in_state_);
-      double_registers_in_state_ = register_state;
-      break;
-    case RegisterKind::kSimd128:
-      DCHECK_NULL(simd128_registers_in_state_);
-      simd128_registers_in_state_ = register_state;
-      break;
-  }
-}
-
-MidTierRegisterAllocationData::MidTierRegisterAllocationData(
-    const RegisterConfiguration* config, Zone* zone, Frame* frame,
-    InstructionSequence* code, TickCounter* tick_counter,
-    const char* debug_name)
-    : RegisterAllocationData(Type::kMidTier),
-      allocation_zone_(zone),
-      frame_(frame),
-      code_(code),
-      debug_name_(debug_name),
-      config_(config),
-      virtual_register_data_(code->VirtualRegisterCount(), allocation_zone()),
-      block_states_(allocation_zone()),
-      reference_map_instructions_(allocation_zone()),
-      spilled_virtual_registers_(code->VirtualRegisterCount(),
-                                 allocation_zone()),
-      tick_counter_(tick_counter) {
-  int basic_block_count = code->InstructionBlockCount();
-  block_states_.reserve(basic_block_count);
-  for (int i = 0; i < basic_block_count; i++) {
-    block_states_.emplace_back(basic_block_count, allocation_zone());
-  }
-}
-
-MoveOperands* MidTierRegisterAllocationData::AddGapMove(
-    int instr_index, Instruction::GapPosition position,
-    const InstructionOperand& from, const InstructionOperand& to) {
-  Instruction* instr = code()->InstructionAt(instr_index);
-  ParallelMove* moves = instr->GetOrCreateParallelMove(position, code_zone());
-  return moves->AddMove(from, to);
-}
-
-MoveOperands* MidTierRegisterAllocationData::AddPendingOperandGapMove(
-    int instr_index, Instruction::GapPosition position) {
-  return AddGapMove(instr_index, position, PendingOperand(), PendingOperand());
-}
-
-BlockState& MidTierRegisterAllocationData::block_state(RpoNumber rpo_number) {
-  return block_states_[rpo_number.ToInt()];
-}
-
-const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
-    RpoNumber rpo_number) {
-  return code()->InstructionBlockAt(rpo_number);
-}
-
-const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
-    int instr_index) {
-  return code()->InstructionAt(instr_index)->block();
-}
-
-const BitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
-    const InstructionBlock* block) {
-  return block_state(block->rpo_number()).dominated_blocks();
-}
-
-// RegisterIndex represents a particular register of a given kind (depending
-// on the RegisterKind of the allocator).
-class RegisterIndex final {
- public:
-  RegisterIndex() : index_(kInvalidIndex) {}
-  explicit RegisterIndex(int index) : index_(index) {}
-  static RegisterIndex Invalid() { return RegisterIndex(); }
-
-  bool is_valid() const { return index_ != kInvalidIndex; }
-
-  int ToInt() const {
-    DCHECK(is_valid());
-    return index_;
-  }
-
-  uintptr_t ToBit(MachineRepresentation rep) const {
-    if (kFPAliasing != AliasingKind::kCombine ||
-        rep != MachineRepresentation::kSimd128) {
-      return 1ull << ToInt();
-    } else {
-      DCHECK_EQ(rep, MachineRepresentation::kSimd128);
-      return 3ull << ToInt();
-    }
-  }
-
-  bool operator==(const RegisterIndex& rhs) const {
-    return index_ == rhs.index_;
-  }
-  bool operator!=(const RegisterIndex& rhs) const {
-    return index_ != rhs.index_;
-  }
-
-  class Iterator {
-   public:
-    explicit Iterator(int index) : index_(index) {}
-
-    bool operator!=(const Iterator& rhs) const { return index_ != rhs.index_; }
-    void operator++() { index_++; }
-    RegisterIndex operator*() const { return RegisterIndex(index_); }
-
-   private:
-    int index_;
-  };
-
- private:
-  static const int kInvalidIndex = -1;
-  int8_t index_;
-};
 
 // A Range from [start, end] of instructions, inclusive of start and end.
 class Range {
@@ -245,43 +49,6 @@ class Range {
  private:
   int start_;
   int end_;
-};
-
-// Represents a connected region of deferred basic blocks.
-class DeferredBlocksRegion final {
- public:
-  explicit DeferredBlocksRegion(Zone* zone, int number_of_blocks)
-      : spilled_vregs_(zone),
-        blocks_covered_(number_of_blocks, zone),
-        is_frozen_(false) {}
-
-  void AddBlock(RpoNumber block, MidTierRegisterAllocationData* data) {
-    DCHECK(data->GetBlock(block)->IsDeferred());
-    blocks_covered_.Add(block.ToInt());
-    data->block_state(block).set_deferred_blocks_region(this);
-  }
-
-  // Trys to adds |vreg| to the list of variables to potentially defer their
-  // output to a spill slot until we enter this deferred block region. Returns
-  // true if successful.
-  bool TryDeferSpillOutputUntilEntry(int vreg) {
-    if (spilled_vregs_.count(vreg) != 0) return true;
-    if (is_frozen_) return false;
-    spilled_vregs_.insert(vreg);
-    return true;
-  }
-
-  void FreezeDeferredSpills() { is_frozen_ = true; }
-
-  ZoneSet<int>::const_iterator begin() const { return spilled_vregs_.begin(); }
-  ZoneSet<int>::const_iterator end() const { return spilled_vregs_.end(); }
-
-  const BitVector* blocks_covered() const { return &blocks_covered_; }
-
- private:
-  ZoneSet<int> spilled_vregs_;
-  BitVector blocks_covered_;
-  bool is_frozen_;
 };
 
 // VirtualRegisterData stores data specific to a particular virtual register,
@@ -388,12 +155,12 @@ class VirtualRegisterData final {
   struct DeferredSpillSlotOutput {
    public:
     explicit DeferredSpillSlotOutput(int instr, AllocatedOperand op,
-                                     const BitVector* blocks)
+                                     const SparseBitVector* blocks)
         : instr_index(instr), operand(op), live_blocks(blocks) {}
 
     int instr_index;
     AllocatedOperand operand;
-    const BitVector* live_blocks;
+    const SparseBitVector* live_blocks;
   };
 
   // Represents the range of instructions for which this virtual register needs
@@ -450,20 +217,7 @@ class VirtualRegisterData final {
     void ExtendRangeTo(int instr_index) { live_range_.AddInstr(instr_index); }
 
     void AddDeferredSpillOutput(AllocatedOperand allocated_op, int instr_index,
-                                MidTierRegisterAllocationData* data) {
-      if (deferred_spill_outputs_ == nullptr) {
-        Zone* zone = data->allocation_zone();
-        deferred_spill_outputs_ =
-            zone->New<ZoneVector<DeferredSpillSlotOutput>>(zone);
-      }
-      const InstructionBlock* block = data->GetBlock(instr_index);
-      DCHECK_EQ(block->first_instruction_index(), instr_index);
-      BlockState& block_state = data->block_state(block->rpo_number());
-      const BitVector* deferred_blocks =
-          block_state.deferred_blocks_region()->blocks_covered();
-      deferred_spill_outputs_->emplace_back(instr_index, allocated_op,
-                                            deferred_blocks);
-    }
+                                MidTierRegisterAllocationData* data);
 
     void ClearDeferredBlockSpills() { deferred_spill_outputs_ = nullptr; }
     bool HasDeferredBlockSpills() const {
@@ -478,7 +232,7 @@ class VirtualRegisterData final {
 
    private:
     Range live_range_;
-    const BitVector* live_blocks_;
+    const SparseBitVector* live_blocks_;
     ZoneVector<DeferredSpillSlotOutput>* deferred_spill_outputs_;
   };
 
@@ -512,6 +266,244 @@ class VirtualRegisterData final {
   bool is_defined_in_deferred_block_ : 1;
   bool needs_spill_at_output_ : 1;
   bool is_exceptional_call_output_ : 1;
+};
+
+// BlockState stores details associated with a particular basic block.
+class BlockState final {
+ public:
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BlockState);
+
+  explicit BlockState(Zone* zone) : dominated_blocks_(zone) {}
+
+  // Returns the RegisterState that applies to the input of this block. Can be
+  // |nullptr| if the no registers of |kind| have been allocated up to this
+  // point.
+  RegisterState* register_in_state(RegisterKind kind);
+  void set_register_in_state(RegisterState* register_state, RegisterKind kind);
+
+  // Returns a bitvector representing all the basic blocks that are dominated
+  // by this basic block.
+  SparseBitVector* dominated_blocks() { return &dominated_blocks_; }
+
+  // Set / get this block's index for successor's phi operations. Will return
+  // -1 if this block has no successor's with phi operations.
+  int successors_phi_index() const { return successors_phi_index_; }
+  void set_successors_phi_index(int index) {
+    DCHECK_EQ(successors_phi_index_, -1);
+    successors_phi_index_ = index;
+  }
+
+  // If this block is deferred, this represents region of deferred blocks
+  // that are directly reachable from this block.
+  DeferredBlocksRegion* deferred_blocks_region() const {
+    return deferred_blocks_region_;
+  }
+  void set_deferred_blocks_region(DeferredBlocksRegion* region) {
+    DCHECK_NULL(deferred_blocks_region_);
+    deferred_blocks_region_ = region;
+  }
+
+  // Returns true if this block represents either a transition from
+  // non-deferred to deferred or vice versa.
+  bool is_deferred_block_boundary() const {
+    return is_deferred_block_boundary_;
+  }
+  void MarkAsDeferredBlockBoundary() { is_deferred_block_boundary_ = true; }
+
+ private:
+  RegisterState* general_registers_in_state_ = nullptr;
+  RegisterState* double_registers_in_state_ = nullptr;
+  RegisterState* simd128_registers_in_state_ = nullptr;
+
+  DeferredBlocksRegion* deferred_blocks_region_ = nullptr;
+
+  SparseBitVector dominated_blocks_;
+  int successors_phi_index_ = -1;
+  bool is_deferred_block_boundary_ = false;
+};
+
+// Represents a connected region of deferred basic blocks.
+class DeferredBlocksRegion final {
+ public:
+  explicit DeferredBlocksRegion(Zone* zone)
+      : spilled_vregs_(zone), blocks_covered_(zone) {}
+
+  void AddBlock(RpoNumber block, MidTierRegisterAllocationData* data) {
+    DCHECK(data->GetBlock(block)->IsDeferred());
+    blocks_covered_.Add(block.ToInt());
+    data->block_state(block).set_deferred_blocks_region(this);
+  }
+
+  // Trys to adds |vreg| to the list of variables to potentially defer their
+  // output to a spill slot until we enter this deferred block region. Returns
+  // true if successful.
+  bool TryDeferSpillOutputUntilEntry(int vreg) {
+    if (spilled_vregs_.count(vreg) != 0) return true;
+    if (is_frozen_) return false;
+    spilled_vregs_.insert(vreg);
+    return true;
+  }
+
+  void FreezeDeferredSpills() { is_frozen_ = true; }
+
+  ZoneSet<int>::const_iterator begin() const { return spilled_vregs_.begin(); }
+  ZoneSet<int>::const_iterator end() const { return spilled_vregs_.end(); }
+
+  const SparseBitVector* blocks_covered() const { return &blocks_covered_; }
+
+ private:
+  ZoneSet<int> spilled_vregs_;
+  SparseBitVector blocks_covered_;
+  bool is_frozen_ = false;
+};
+
+RegisterState* BlockState::register_in_state(RegisterKind kind) {
+  switch (kind) {
+    case RegisterKind::kGeneral:
+      return general_registers_in_state_;
+    case RegisterKind::kDouble:
+      return double_registers_in_state_;
+    case RegisterKind::kSimd128:
+      return simd128_registers_in_state_;
+  }
+}
+
+void BlockState::set_register_in_state(RegisterState* register_state,
+                                       RegisterKind kind) {
+  switch (kind) {
+    case RegisterKind::kGeneral:
+      DCHECK_NULL(general_registers_in_state_);
+      general_registers_in_state_ = register_state;
+      break;
+    case RegisterKind::kDouble:
+      DCHECK_NULL(double_registers_in_state_);
+      double_registers_in_state_ = register_state;
+      break;
+    case RegisterKind::kSimd128:
+      DCHECK_NULL(simd128_registers_in_state_);
+      simd128_registers_in_state_ = register_state;
+      break;
+  }
+}
+
+MidTierRegisterAllocationData::MidTierRegisterAllocationData(
+    const RegisterConfiguration* config, Zone* zone, Frame* frame,
+    InstructionSequence* code, TickCounter* tick_counter,
+    const char* debug_name)
+    : RegisterAllocationData(Type::kMidTier),
+      allocation_zone_(zone),
+      frame_(frame),
+      code_(code),
+      debug_name_(debug_name),
+      config_(config),
+      virtual_register_data_(code->VirtualRegisterCount(), zone),
+      block_states_(zone),
+      reference_map_instructions_(zone),
+      spilled_virtual_registers_(code->VirtualRegisterCount(), zone),
+      tick_counter_(tick_counter) {
+  int basic_block_count = code->InstructionBlockCount();
+  block_states_.reserve(basic_block_count);
+  for (int i = 0; i < basic_block_count; i++) {
+    block_states_.emplace_back(zone);
+  }
+}
+
+void VirtualRegisterData::SpillRange::AddDeferredSpillOutput(
+    AllocatedOperand allocated_op, int instr_index,
+    MidTierRegisterAllocationData* data) {
+  if (deferred_spill_outputs_ == nullptr) {
+    Zone* zone = data->allocation_zone();
+    deferred_spill_outputs_ =
+        zone->New<ZoneVector<DeferredSpillSlotOutput>>(zone);
+  }
+  const InstructionBlock* block = data->GetBlock(instr_index);
+  DCHECK_EQ(block->first_instruction_index(), instr_index);
+  BlockState& block_state = data->block_state(block->rpo_number());
+  const SparseBitVector* deferred_blocks =
+      block_state.deferred_blocks_region()->blocks_covered();
+  deferred_spill_outputs_->emplace_back(instr_index, allocated_op,
+                                        deferred_blocks);
+}
+
+MoveOperands* MidTierRegisterAllocationData::AddGapMove(
+    int instr_index, Instruction::GapPosition position,
+    const InstructionOperand& from, const InstructionOperand& to) {
+  Instruction* instr = code()->InstructionAt(instr_index);
+  ParallelMove* moves = instr->GetOrCreateParallelMove(position, code_zone());
+  return moves->AddMove(from, to);
+}
+
+MoveOperands* MidTierRegisterAllocationData::AddPendingOperandGapMove(
+    int instr_index, Instruction::GapPosition position) {
+  return AddGapMove(instr_index, position, PendingOperand(), PendingOperand());
+}
+
+BlockState& MidTierRegisterAllocationData::block_state(RpoNumber rpo_number) {
+  return block_states_[rpo_number.ToInt()];
+}
+
+const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
+    RpoNumber rpo_number) {
+  return code()->InstructionBlockAt(rpo_number);
+}
+
+const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
+    int instr_index) {
+  return code()->InstructionAt(instr_index)->block();
+}
+
+const SparseBitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
+    const InstructionBlock* block) {
+  return block_state(block->rpo_number()).dominated_blocks();
+}
+
+// RegisterIndex represents a particular register of a given kind (depending
+// on the RegisterKind of the allocator).
+class RegisterIndex final {
+ public:
+  RegisterIndex() : index_(kInvalidIndex) {}
+  explicit RegisterIndex(int index) : index_(index) {}
+  static RegisterIndex Invalid() { return RegisterIndex(); }
+
+  bool is_valid() const { return index_ != kInvalidIndex; }
+
+  int ToInt() const {
+    DCHECK(is_valid());
+    return index_;
+  }
+
+  uintptr_t ToBit(MachineRepresentation rep) const {
+    if (kFPAliasing != AliasingKind::kCombine ||
+        rep != MachineRepresentation::kSimd128) {
+      return 1ull << ToInt();
+    } else {
+      DCHECK_EQ(rep, MachineRepresentation::kSimd128);
+      return 3ull << ToInt();
+    }
+  }
+
+  bool operator==(const RegisterIndex& rhs) const {
+    return index_ == rhs.index_;
+  }
+  bool operator!=(const RegisterIndex& rhs) const {
+    return index_ != rhs.index_;
+  }
+
+  class Iterator {
+   public:
+    explicit Iterator(int index) : index_(index) {}
+
+    bool operator!=(const Iterator& rhs) const { return index_ != rhs.index_; }
+    void operator++() { index_++; }
+    RegisterIndex operator*() const { return RegisterIndex(index_); }
+
+   private:
+    int index_;
+  };
+
+ private:
+  static const int kInvalidIndex = -1;
+  int8_t index_;
 };
 
 VirtualRegisterData& MidTierRegisterAllocationData::VirtualRegisterDataFor(
@@ -2798,8 +2790,7 @@ MidTierOutputProcessor::MidTierOutputProcessor(
 void MidTierOutputProcessor::PopulateDeferredBlockRegion(
     RpoNumber initial_block) {
   DeferredBlocksRegion* deferred_blocks_region =
-      zone()->New<DeferredBlocksRegion>(zone(),
-                                        code()->InstructionBlockCount());
+      zone()->New<DeferredBlocksRegion>(zone());
   DCHECK(deferred_blocks_worklist_.empty());
   deferred_blocks_worklist_.push(initial_block);
   deferred_blocks_processed_.insert(initial_block);

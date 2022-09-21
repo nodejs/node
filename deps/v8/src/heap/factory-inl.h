@@ -27,11 +27,11 @@ namespace internal {
   Handle<Type> Factory::name() {                                             \
     return Handle<Type>(&isolate()->roots_table()[RootIndex::k##CamelName]); \
   }
-ROOT_LIST(ROOT_ACCESSOR)
+MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 bool Factory::CodeBuilder::CompiledWithConcurrentBaseline() const {
-  return FLAG_concurrent_sparkplug && kind_ == CodeKind::BASELINE &&
+  return v8_flags.concurrent_sparkplug && kind_ == CodeKind::BASELINE &&
          !local_isolate_->is_main_thread();
 }
 
@@ -87,6 +87,35 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
          interpreter_data->IsBytecodeArray());
   interpreter_data_ = interpreter_data;
   return *this;
+}
+
+void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
+                                     Handle<String> js_string) {
+  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate()) &&
+      !v8_flags.optimize_for_size) {
+    int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
+    if (number_string_cache()->length() != full_size) {
+      Handle<FixedArray> new_cache =
+          NewFixedArray(full_size, AllocationType::kOld);
+      isolate()->heap()->set_number_string_cache(*new_cache);
+      return;
+    }
+  }
+  DisallowGarbageCollection no_gc;
+  FixedArray cache = *number_string_cache();
+  cache.set(hash * 2, *number);
+  cache.set(hash * 2 + 1, *js_string);
+}
+
+Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
+  DisallowGarbageCollection no_gc;
+  FixedArray cache = *number_string_cache();
+  Object key = cache.get(hash * 2);
+  if (key == number || (key.IsHeapNumber() && number.IsHeapNumber() &&
+                        key.Number() == number.Number())) {
+    return Handle<String>(String::cast(cache.get(hash * 2 + 1)), isolate());
+  }
+  return undefined_value();
 }
 
 }  // namespace internal

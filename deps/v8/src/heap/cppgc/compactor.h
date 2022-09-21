@@ -25,9 +25,10 @@ class V8_EXPORT_PRIVATE Compactor final {
 
   void InitializeIfShouldCompact(GarbageCollector::Config::MarkingType,
                                  GarbageCollector::Config::StackState);
-  // Returns true is compaction was cancelled.
-  bool CancelIfShouldNotCompact(GarbageCollector::Config::MarkingType,
+  void CancelIfShouldNotCompact(GarbageCollector::Config::MarkingType,
                                 GarbageCollector::Config::StackState);
+  // Returns whether spaces need to be processed by the Sweeper after
+  // compaction.
   CompactableSpaceHandling CompactSpacesIfEnabled();
 
   CompactionWorklists* compaction_worklists() {

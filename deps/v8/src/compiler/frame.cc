@@ -4,8 +4,6 @@
 
 #include "src/compiler/frame.h"
 
-#include "src/compiler/linkage.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -55,7 +53,6 @@ void FrameAccessState::SetFrameAccessToDefault() {
   }
 }
 
-
 FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
   const int frame_offset = FrameSlotToFPOffset(spill_slot);
   if (access_frame_with_fp()) {
@@ -66,7 +63,6 @@ FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
     return FrameOffset::FromStackPointer(sp_offset);
   }
 }
-
 
 }  // namespace compiler
 }  // namespace internal

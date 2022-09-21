@@ -56,7 +56,7 @@ struct HeapStatistics final {
     /** Amount of memory actually used on the page. */
     size_t used_size_bytes = 0;
     /** Statistics for object allocated on the page. Filled only when
-     * NameProvider::HideInternalNames() is false. */
+     * NameProvider::SupportsCppClassNamesAsObjectNames() is true. */
     std::vector<ObjectStatsEntry> object_statistics;
   };
 
@@ -98,7 +98,7 @@ struct HeapStatistics final {
 
   /** Overall committed amount of memory for the heap. */
   size_t committed_size_bytes = 0;
-  /** Resident amount of memory help by the heap. */
+  /** Resident amount of memory held by the heap. */
   size_t resident_size_bytes = 0;
   /** Amount of memory actually used on the heap. */
   size_t used_size_bytes = 0;

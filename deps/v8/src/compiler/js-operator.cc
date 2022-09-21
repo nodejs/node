@@ -726,7 +726,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
     case wasm::kI32:
       return Type::Signed32();
     case wasm::kI64:
-      return Type::BigInt();
+      return Type::SignedBigInt64();
     case wasm::kF32:
     case wasm::kF64:
       return Type::Number();

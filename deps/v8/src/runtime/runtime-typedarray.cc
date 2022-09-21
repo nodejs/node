@@ -6,12 +6,9 @@
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/elements.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

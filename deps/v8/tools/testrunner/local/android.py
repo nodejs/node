@@ -29,7 +29,15 @@ class CommandFailedException(Exception):
     self.output = output
 
 
-class _Driver(object):
+class Driver(object):
+  __instance = None
+
+  @staticmethod
+  def instance(device):
+    if not Driver.__instance:
+      Driver.__instance = Driver(device)
+    return Driver.__instance
+
   """Helper class to execute shell commands on an Android device."""
   def __init__(self, device=None):
     assert os.path.exists(ANDROID_DIR)
@@ -188,12 +196,3 @@ class _Driver(object):
     """Set device into default performance mode."""
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
-
-
-_ANDROID_DRIVER = None
-def android_driver(device=None):
-  """Singleton access method to the driver class."""
-  global _ANDROID_DRIVER
-  if not _ANDROID_DRIVER:
-    _ANDROID_DRIVER = _Driver(device)
-  return _ANDROID_DRIVER

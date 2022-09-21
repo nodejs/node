@@ -9,8 +9,8 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/register-allocation.h"
-#include "src/flags/flags.h"
 #include "src/utils/bit-vector.h"
+#include "src/utils/sparse-bit-vector.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -60,7 +60,7 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
 
   // Returns a bitvector representing all the blocks that are dominated by the
   // output of the instruction in |block|.
-  const BitVector* GetBlocksDominatedBy(const InstructionBlock* block);
+  const SparseBitVector* GetBlocksDominatedBy(const InstructionBlock* block);
 
   // List of all instruction indexs that require a reference map.
   ZoneVector<int>& reference_map_instructions() {

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "test/cctest/test-api.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

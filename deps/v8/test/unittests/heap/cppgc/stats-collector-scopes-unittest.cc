@@ -78,7 +78,8 @@ class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
     DelegatingTracingControllerImpl::check_expectations = false;
     GetMarkerRef()->FinishMarking(Config::StackState::kNoHeapPointers);
     GetMarkerRef().reset();
-    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
+    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kAtomic);
   }
 
   void ResetDelegatingTracingController(const char* expected_name = nullptr) {
@@ -229,9 +230,11 @@ TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
   StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
   stats_collector->NotifyMarkingStarted(
       GarbageCollector::Config::CollectionType::kMajor,
+      GarbageCollector::Config::MarkingType::kAtomic,
       GarbageCollector::Config::IsForcedGC::kNotForced);
   stats_collector->NotifyMarkingCompleted(0);
-  stats_collector->NotifySweepingCompleted();
+  stats_collector->NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
   const StatsCollector::Event& event =
       stats_collector->GetPreviousEventForTesting();
   for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
@@ -248,6 +251,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::MarkingType::kIncremental,
         GarbageCollector::Config::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
@@ -260,7 +264,8 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
       }
     }
     stats_collector->NotifyMarkingCompleted(0);
-    stats_collector->NotifySweepingCompleted();
+    stats_collector->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kIncremental);
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
@@ -281,6 +286,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::MarkingType::kAtomic,
         GarbageCollector::Config::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
@@ -293,7 +299,8 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
       }
     }
     stats_collector->NotifyMarkingCompleted(0);
-    stats_collector->NotifySweepingCompleted();
+    stats_collector->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kAtomic);
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {

@@ -140,6 +140,10 @@ export class SVG {
     return this.element('rect', classes);
   }
 
+  static path(classes) {
+    return this.element('path', classes);
+  }
+
   static g(classes) {
     return this.element('g', classes);
   }

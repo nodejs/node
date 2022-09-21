@@ -6,7 +6,6 @@
 #define V8_API_API_NATIVES_H_
 
 #include "include/v8-template.h"
-#include "src/base/macros.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"

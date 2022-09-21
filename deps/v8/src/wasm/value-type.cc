@@ -29,6 +29,21 @@ base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
   }
 }
 
+#if DEBUG
+V8_EXPORT_PRIVATE extern void PrintFunctionSig(const wasm::FunctionSig* sig) {
+  std::ostringstream os;
+  os << sig->parameter_count() << " parameters:\n";
+  for (size_t i = 0; i < sig->parameter_count(); i++) {
+    os << "  " << i << ": " << sig->GetParam(i) << "\n";
+  }
+  os << sig->return_count() << " returns:\n";
+  for (size_t i = 0; i < sig->return_count(); i++) {
+    os << "  " << i << ": " << sig->GetReturn() << "\n";
+  }
+  PrintF("%s", os.str().c_str());
+}
+#endif
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -13,16 +13,12 @@
 #include <string>
 #include <type_traits>
 
-#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/platform/platform.h"
 #include "src/base/safe_conversions.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/utils/allocation.h"
 
 #if defined(V8_USE_SIPHASH)
 #include "src/third_party/siphash/halfsiphash.h"
@@ -231,7 +227,7 @@ inline T RoundingAverageUnsigned(T a, T b) {
 
 // Compare two offsets with static cast
 #define STATIC_ASSERT_FIELD_OFFSETS_EQUAL(Offset1, Offset2) \
-  STATIC_ASSERT(static_cast<int>(Offset1) == Offset2)
+  static_assert(static_cast<int>(Offset1) == Offset2)
 // ----------------------------------------------------------------------------
 // Hash function.
 
@@ -324,8 +320,8 @@ class SetOncePointer {
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
-  STATIC_ASSERT(std::is_unsigned<lchar>::value);
-  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned<lchar>::value);
+  static_assert(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(*rhs)) {
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
@@ -350,8 +346,8 @@ inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  STATIC_ASSERT(std::is_unsigned<lchar>::value);
-  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned<lchar>::value);
+  static_assert(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
@@ -395,19 +391,19 @@ inline int32_t signed_bitextract_32(int msb, int lsb, uint32_t x) {
 }
 
 // Check number width.
-inline bool is_intn(int64_t x, unsigned n) {
+inline constexpr bool is_intn(int64_t x, unsigned n) {
   DCHECK((0 < n) && (n < 64));
   int64_t limit = static_cast<int64_t>(1) << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
-inline bool is_uintn(int64_t x, unsigned n) {
+inline constexpr bool is_uintn(int64_t x, unsigned n) {
   DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return !(x >> n);
 }
 
 template <class T>
-inline T truncate_to_intn(T x, unsigned n) {
+inline constexpr T truncate_to_intn(T x, unsigned n) {
   DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return (x & ((static_cast<T>(1) << n) - 1));
 }
@@ -424,16 +420,16 @@ inline T truncate_to_intn(T x, unsigned n) {
 // clang-format on
 
 #define DECLARE_IS_INT_N(N) \
-  inline bool is_int##N(int64_t x) { return is_intn(x, N); }
-#define DECLARE_IS_UINT_N(N)    \
-  template <class T>            \
-  inline bool is_uint##N(T x) { \
-    return is_uintn(x, N);      \
+  inline constexpr bool is_int##N(int64_t x) { return is_intn(x, N); }
+#define DECLARE_IS_UINT_N(N)              \
+  template <class T>                      \
+  inline constexpr bool is_uint##N(T x) { \
+    return is_uintn(x, N);                \
   }
-#define DECLARE_TRUNCATE_TO_INT_N(N) \
-  template <class T>                 \
-  inline T truncate_to_int##N(T x) { \
-    return truncate_to_intn(x, N);   \
+#define DECLARE_TRUNCATE_TO_INT_N(N)           \
+  template <class T>                           \
+  inline constexpr T truncate_to_int##N(T x) { \
+    return truncate_to_intn(x, N);             \
   }
 INT_1_TO_63_LIST(DECLARE_IS_INT_N)
 INT_1_TO_63_LIST(DECLARE_IS_UINT_N)
@@ -661,6 +657,11 @@ V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
 
 inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
                               size_t max_allowed_byte_length, size_t* pages) {
+  // This check is needed, since the arithmetic in RoundUp only works when
+  // byte_length is not too close to the size_t limit.
+  if (byte_length > max_allowed_byte_length) {
+    return false;
+  }
   size_t bytes_wanted = RoundUp(byte_length, page_size);
   if (bytes_wanted > max_allowed_byte_length) {
     return false;

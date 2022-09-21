@@ -94,9 +94,9 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
 }
 
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
-  if (!FLAG_compact) return;
+  if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -130,7 +130,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
 }
 
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
@@ -154,9 +154,8 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
     CHECK_EQ(0, heap->new_space()->ExternalBackingStoreBytes(type) -
                     new_backing_store_before);
 
-    // Trigger GCs so that the newly allocated string moves to old gen.
-    heap::GcAndSweep(heap, NEW_SPACE);  // in survivor space now
-    heap::GcAndSweep(heap, NEW_SPACE);  // in old gen now
+    // Trigger full GC so that the newly allocated string moves to old gen.
+    heap::GcAndSweep(heap, OLD_SPACE);
 
     bool success =
         str->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
@@ -173,7 +172,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
 }
 
 TEST(ExternalString_PromotedThinString) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;

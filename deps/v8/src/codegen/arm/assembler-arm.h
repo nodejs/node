@@ -104,11 +104,11 @@ class V8_EXPORT_PRIVATE Operand {
     return Operand(rm, ASR, kSmiTagSize);
   }
   V8_INLINE static Operand PointerOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   }
   V8_INLINE static Operand DoubleOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
     return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
   }
 
@@ -116,7 +116,6 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   bool IsRegister() const {
@@ -148,21 +147,21 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline int32_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapObjectRequest());
+    DCHECK(!IsHeapNumberRequest());
     return value_.immediate;
   }
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
   Register rm() const { return rm_; }
@@ -176,10 +175,10 @@ class V8_EXPORT_PRIVATE Operand {
   int shift_imm_;  // valid if rm_ != no_reg && rs_ == no_reg
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     int32_t immediate;                      // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -209,7 +208,7 @@ class V8_EXPORT_PRIVATE MemOperand {
   V8_INLINE static MemOperand PointerAddressFromSmiKey(Register array,
                                                        Register key,
                                                        AddrMode am = Offset) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
 
@@ -1259,7 +1258,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
@@ -1344,7 +1343,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 
@@ -1402,7 +1401,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquire() const {
     return !assembler_->GetScratchRegisterList()->is_empty();
   }
+  bool CanAcquireS() const { return CanAcquireVfp<SwVfpRegister>(); }
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
+  bool CanAcquireQ() const { return CanAcquireVfp<QwNeonRegister>(); }
 
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
@@ -1412,12 +1413,24 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     available->set(reg1);
     available->set(reg2);
   }
+  void Include(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available & list), 0x0);
+    *available = *available | list;
+  }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);
     DCHECK(available->has(reg1));
     DCHECK_IMPLIES(reg2.is_valid(), available->has(reg2));
     available->clear(RegList{reg1, reg2});
+  }
+  void Exclude(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available | list), *available);
+    *available = *available & ~list;
   }
 
  private:

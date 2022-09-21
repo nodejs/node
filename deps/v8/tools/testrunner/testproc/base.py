@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from .result import SKIPPED
-
 
 """
 Pipeline
@@ -44,37 +42,11 @@ class TestProc(object):
     self._next_proc = None
     self._stopped = False
     self._requirement = DROP_RESULT
-    self._prev_requirement = None
-    self._reduce_result = lambda result: result
 
   def connect_to(self, next_proc):
     """Puts `next_proc` after itself in the chain."""
     next_proc._prev_proc = self
     self._next_proc = next_proc
-
-  def remove_from_chain(self):
-    if self._prev_proc:
-      self._prev_proc._next_proc = self._next_proc
-    if self._next_proc:
-      self._next_proc._prev_proc = self._prev_proc
-
-  def setup(self, requirement=DROP_RESULT):
-    """
-    Method called by previous processor or processor pipeline creator to let
-    the processors know what part of the result can be ignored.
-    """
-    self._prev_requirement = requirement
-    if self._next_proc:
-      self._next_proc.setup(max(requirement, self._requirement))
-
-    # Since we're not winning anything by droping part of the result we are
-    # dropping the whole result or pass it as it is. The real reduction happens
-    # during result creation (in the output processor), so the result is
-    # immutable.
-    if (self._prev_requirement < self._requirement and
-        self._prev_requirement == DROP_RESULT):
-      self._reduce_result = lambda _: None
-
   def next_test(self, test):
     """
     Method called by previous processor whenever it produces new test.
@@ -128,10 +100,7 @@ class TestProc(object):
 
   def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
-    if not test.keep_output:
-      result = self._reduce_result(result)
     self._prev_proc.result_for(test, result)
-
 
 class TestProcObserver(TestProc):
   """Processor used for observing the data."""

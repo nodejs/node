@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_HEAP_PAGE_H_
 #define V8_HEAP_CPPGC_HEAP_PAGE_H_
 
+#include "include/cppgc/internal/base-page-handle.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
@@ -20,7 +21,7 @@ class LargePageSpace;
 class HeapBase;
 class PageBackend;
 
-class V8_EXPORT_PRIVATE BasePage {
+class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
  public:
   static inline BasePage* FromPayload(void*);
   static inline const BasePage* FromPayload(const void*);
@@ -33,7 +34,7 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  HeapBase& heap() const { return heap_; }
+  HeapBase& heap() const;
 
   BaseSpace& space() const { return space_; }
 
@@ -86,14 +87,19 @@ class V8_EXPORT_PRIVATE BasePage {
   void ResetDiscardedMemory() { discarded_memory_ = 0; }
   size_t discarded_memory() const { return discarded_memory_; }
 
+  bool contains_young_objects() const { return contains_young_objects_; }
+  void set_as_containing_young_objects(bool value) {
+    contains_young_objects_ = value;
+  }
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
-  HeapBase& heap_;
   BaseSpace& space_;
   PageType type_;
+  bool contains_young_objects_ = false;
   size_t discarded_memory_ = 0;
 };
 
@@ -145,7 +151,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
   // Allocates a new page in the detached state.
-  static NormalPage* Create(PageBackend&, NormalPageSpace&);
+  static NormalPage* TryCreate(PageBackend&, NormalPageSpace&);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -215,7 +221,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   // Returns the allocation size required for a payload of size |size|.
   static size_t AllocationSize(size_t size);
   // Allocates a new page in the detached state.
-  static LargePage* Create(PageBackend&, LargePageSpace&, size_t);
+  static LargePage* TryCreate(PageBackend&, LargePageSpace&, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
@@ -260,16 +266,12 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
 
 // static
 BasePage* BasePage::FromPayload(void* payload) {
-  return reinterpret_cast<BasePage*>(
-      (reinterpret_cast<uintptr_t>(payload) & kPageBaseMask) + kGuardPageSize);
+  return static_cast<BasePage*>(BasePageHandle::FromPayload(payload));
 }
 
 // static
 const BasePage* BasePage::FromPayload(const void* payload) {
-  return reinterpret_cast<const BasePage*>(
-      (reinterpret_cast<uintptr_t>(const_cast<void*>(payload)) &
-       kPageBaseMask) +
-      kGuardPageSize);
+  return static_cast<const BasePage*>(BasePageHandle::FromPayload(payload));
 }
 
 template <AccessMode mode = AccessMode::kNonAtomic>

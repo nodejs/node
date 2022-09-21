@@ -9,6 +9,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -19,9 +20,8 @@ namespace v8 {
 namespace internal {
 
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X ||    \
-    V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_PPC || \
+    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_LOONG64
 
 namespace {
 
@@ -140,35 +140,35 @@ inline T XorSeqCst(T* p, T value) {
 #define InterlockedExchange8 _InterlockedExchange8
 #endif
 
-#define ATOMIC_OPS(type, suffix, vctype)                                    \
-  inline type ExchangeSeqCst(type* p, type value) {                         \
-    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
-                                       bit_cast<vctype>(value));            \
-  }                                                                         \
-  inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
-    return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
-                                              bit_cast<vctype>(newval),     \
-                                              bit_cast<vctype>(oldval));    \
-  }                                                                         \
-  inline type AddSeqCst(type* p, type value) {                              \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
-                                          bit_cast<vctype>(value));         \
-  }                                                                         \
-  inline type SubSeqCst(type* p, type value) {                              \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
-                                          -bit_cast<vctype>(value));        \
-  }                                                                         \
-  inline type AndSeqCst(type* p, type value) {                              \
-    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),             \
-                                  bit_cast<vctype>(value));                 \
-  }                                                                         \
-  inline type OrSeqCst(type* p, type value) {                               \
-    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),              \
-                                 bit_cast<vctype>(value));                  \
-  }                                                                         \
-  inline type XorSeqCst(type* p, type value) {                              \
-    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
-                                  bit_cast<vctype>(value));                 \
+#define ATOMIC_OPS(type, suffix, vctype)                                       \
+  inline type ExchangeSeqCst(type* p, type value) {                            \
+    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),           \
+                                       base::bit_cast<vctype>(value));         \
+  }                                                                            \
+  inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {       \
+    return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p),    \
+                                              base::bit_cast<vctype>(newval),  \
+                                              base::bit_cast<vctype>(oldval)); \
+  }                                                                            \
+  inline type AddSeqCst(type* p, type value) {                                 \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),        \
+                                          base::bit_cast<vctype>(value));      \
+  }                                                                            \
+  inline type SubSeqCst(type* p, type value) {                                 \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),        \
+                                          -base::bit_cast<vctype>(value));     \
+  }                                                                            \
+  inline type AndSeqCst(type* p, type value) {                                 \
+    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),                \
+                                  base::bit_cast<vctype>(value));              \
+  }                                                                            \
+  inline type OrSeqCst(type* p, type value) {                                  \
+    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),                 \
+                                 base::bit_cast<vctype>(value));               \
+  }                                                                            \
+  inline type XorSeqCst(type* p, type value) {                                 \
+    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),                \
+                                  base::bit_cast<vctype>(value));              \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -379,9 +379,12 @@ struct Xor {
   V(Uint32, uint32, UINT32, uint32_t) \
   V(Int32, int32, INT32, int32_t)
 
-#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name)      \
+#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(               \
+    isolate, sta, index, method_name)                                          \
   do {                                                                         \
-    if (V8_UNLIKELY(sta->WasDetached())) {                                     \
+    bool out_of_bounds = false;                                                \
+    auto length = sta->GetLengthOrOutOfBounds(out_of_bounds);                  \
+    if (V8_UNLIKELY(sta->WasDetached() || out_of_bounds || index >= length)) { \
       THROW_NEW_ERROR_RETURN_FAILURE(                                          \
           isolate, NewTypeError(MessageTemplate::kDetachedOperation,           \
                                 isolate->factory()->NewStringFromAsciiChecked( \
@@ -409,9 +412,10 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
 
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
+    THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                            method_name);
 
-    CHECK_LT(index, sta->length());
+    CHECK_LT(index, sta->GetLength());
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
     }
@@ -423,9 +427,10 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                          method_name);
 
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -453,8 +458,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  DCHECK(!sta->WasDetached());
-  CHECK_LT(index, sta->length());
+  DCHECK(!sta->IsDetachedOrOutOfBounds());
+  CHECK_LT(index, sta->GetLength());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
   }
@@ -476,11 +481,12 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, "Atomics.store");
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                          "Atomics.store");
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
     return *bigint;
@@ -501,7 +507,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   size_t index = NumberToSize(args[1]);
   Handle<Object> old_value_obj = args.at(2);
   Handle<Object> new_value_obj = args.at(3);
-  CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -514,10 +519,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
 
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                           "Atomics.compareExchange");
+    THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(
+        isolate, sta, index, "Atomics.compareExchange");
 
-    CHECK_LT(index, sta->length());
+    CHECK_LT(index, sta->GetLength());
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
                                         new_bigint);
@@ -534,8 +539,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                         "Atomics.compareExchange");
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(
+      isolate, sta, index, "Atomics.compareExchange");
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \
@@ -605,27 +610,29 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) { UNREACHABLE(); }
 
 RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
+        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64 ||
+        // V8_TARGET_ARCH_RISCV32
 
-RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) return *it.GetDataValue(kSeqCstAccess);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -633,7 +640,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) {
     it.WriteDataValue(shared_value, kSeqCstAccess);
     return *shared_value;
@@ -648,10 +656,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
   return ReadOnlyRoots(isolate).exception();
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -659,7 +667,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
   // Shared structs are non-extensible. Instead of duplicating logic, call
   // Object::AddDataProperty to handle the error case.
@@ -670,6 +679,5 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
   USE(result);
   return ReadOnlyRoots(isolate).exception();
 }
-
 }  // namespace internal
 }  // namespace v8

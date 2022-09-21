@@ -6,6 +6,7 @@
 #define V8_UTILS_LOCKED_QUEUE_INL_H_
 
 #include "src/base/atomic-utils.h"
+#include "src/utils/allocation.h"
 #include "src/utils/locked-queue.h"
 
 namespace v8 {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan --no-lazy-feedback-allocation
 
 var global;
 

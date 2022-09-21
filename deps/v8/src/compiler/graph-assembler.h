@@ -51,6 +51,10 @@ class Reducer;
   V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
+  V(TryTruncateFloat64ToInt64)           \
+  V(TryTruncateFloat64ToUint64)          \
+  V(TryTruncateFloat64ToInt32)           \
+  V(TryTruncateFloat64ToUint32)          \
   V(Word32ReverseBytes)                  \
   V(Word64ReverseBytes)
 
@@ -158,6 +162,8 @@ class GraphAssemblerLabel {
     // DCHECK(IsMachineRepresentationOf<T>(representations_[index]));
     return TNode<T>::UncheckedCast(PhiAt(index));
   }
+
+  bool IsUsed() const { return merged_count_ > 0; }
 
   GraphAssemblerLabel(GraphAssemblerLabelType type, int loop_nesting_level,
                       const std::array<MachineRepresentation, VarCount>& reps)
@@ -321,7 +327,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
-  Node* UnsafePointerAdd(Node* base, Node* external);
+  Node* IntPtrAdd(Node* a, Node* b);
 
   Node* DeoptimizeIf(DeoptimizeReason reason, FeedbackSource const& feedback,
                      Node* condition, Node* frame_state);

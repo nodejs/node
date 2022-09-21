@@ -522,7 +522,7 @@ std::map<std::string, std::unique_ptr<GcHistogram>> GcHistogram::histograms_ =
     std::map<std::string, std::unique_ptr<GcHistogram>>();
 
 TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
-  if (FLAG_stress_incremental_marking) return;
+  if (v8_flags.stress_incremental_marking) return;
   isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();
@@ -547,7 +547,7 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
 }
 
 TEST_F(GCTracerTest, RecordScavengerHistograms) {
-  if (FLAG_stress_incremental_marking) return;
+  if (v8_flags.stress_incremental_marking) return;
   isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();

@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "src/base/logging.h"
 #include "tools/v8windbg/base/utilities.h"
 #include "tools/v8windbg/src/object-inspection.h"
 #include "tools/v8windbg/src/v8-debug-helper-interop.h"
@@ -18,12 +19,7 @@ V8LocalVariables::~V8LocalVariables() = default;
 
 IFACEMETHODIMP V8LocalVariables::GetValue(PCWSTR key, IModelObject* context,
                                           IModelObject** value) noexcept {
-  // See if the frame can fetch locals based on symbols. If so, it's a normal
-  // C++ frame, so we can be done.
-  HRESULT original_hr = original_->GetValue(key, context, value);
-  if (SUCCEEDED(original_hr)) return original_hr;
-
-  // Next, try to find out about the instruction pointer. If it is within the V8
+  // Try to find out about the instruction pointer. If it is within the V8
   // module, or points to unknown space outside a module (generated code), then
   // we're interested. Otherwise, we have nothing useful to do.
   WRL::ComPtr<IModelObject> attributes;
@@ -48,13 +44,28 @@ IFACEMETHODIMP V8LocalVariables::GetValue(PCWSTR key, IModelObject* context,
     if (v8_module == nullptr) {
       // Anything in a module must not be in the V8 module if the V8 module
       // doesn't exist.
-      return original_hr;
+      return original_->GetValue(key, context, value);
     }
     Location v8_base;
     RETURN_IF_FAIL(v8_module->GetBaseLocation(&v8_base));
     if (module_base != v8_base) {
       // It's in a module, but not the one that contains V8.
-      return original_hr;
+      return original_->GetValue(key, context, value);
+    }
+    // Next, determine whether the instruction pointer refers to a builtin.
+    DCHECK_GE(instruction_offset, v8_base.GetOffset());
+    ULONG64 rva = instruction_offset - v8_base.GetOffset();
+    WRL::ComPtr<IDebugHostSymbol> symbol;
+    _bstr_t symbol_name;
+    WRL::ComPtr<IDebugHostModule2> module2;
+    RETURN_IF_FAIL(module.As(&module2));
+    ULONG64 offset_within_symbol{};
+    if (FAILED(module2->FindContainingSymbolByRVA(rva, &symbol,
+                                                  &offset_within_symbol)) ||
+        FAILED(symbol->GetName(symbol_name.GetAddress())) ||
+        strncmp("Builtins_", static_cast<const char*>(symbol_name),
+                strlen("Builtins_"))) {
+      return original_->GetValue(key, context, value);
     }
   }
 
@@ -98,7 +109,7 @@ IFACEMETHODIMP V8LocalVariables::GetValue(PCWSTR key, IModelObject* context,
   if (object_type == nullptr) {
     // There's nothing useful to do if we can't find the symbol for
     // v8::internal::Object.
-    return original_hr;
+    return original_->GetValue(key, context, value);
   }
   ULONG64 object_size{};
   RETURN_IF_FAIL(object_type->GetSize(&object_size));

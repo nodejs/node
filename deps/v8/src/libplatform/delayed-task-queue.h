@@ -10,7 +10,6 @@
 #include <queue>
 
 #include "include/libplatform/libplatform-export.h"
-#include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 

@@ -19,7 +19,7 @@ static const int kMaxAllocatableGeneralRegisterCount =
     ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
 static const int kMaxAllocatableDoubleRegisterCount =
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_COUNT) 0;
-#if V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 static const int kMaxAllocatableSIMD128RegisterCount =
     ALLOCATABLE_SIMD128_REGISTERS(REGISTER_COUNT) 0;
 #endif
@@ -38,30 +38,41 @@ static const int kAllocatableNoVFP32DoubleCodes[] = {
 #endif  // V8_TARGET_ARCH_ARM
 #undef REGISTER_CODE
 
-#if V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 static const int kAllocatableSIMD128Codes[] = {
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
 #define REGISTER_CODE(R) kVRCode_##R,
+#else
+#define REGISTER_CODE(R) kSimd128Code_##R,
+#endif
     ALLOCATABLE_SIMD128_REGISTERS(REGISTER_CODE)};
 #undef REGISTER_CODE
-#endif  // V8_TARGET_ARCH_RISCV64
+#endif  // V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 ||
+        // V8_TARGET_ARCH_PPC64
 
-STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
+static_assert(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               FloatRegister::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               DoubleRegister::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               Simd128Register::kNumRegisters);
+#if V8_TARGET_ARCH_X64
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
+              Simd256Register::kNumRegisters);
+#endif
 
 static int get_num_simd128_registers() {
   return
-#if V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       Simd128Register::kNumRegisters;
 #else
       0;
-#endif  // V8_TARGET_ARCH_RISCV64
+#endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 }
+
+static int get_num_simd256_registers() { return 0; }
 
 // Callers on architectures other than Arm expect this to be be constant
 // between build and runtime. Avoid adding variability on other platforms.
@@ -91,6 +102,8 @@ static int get_num_allocatable_double_registers() {
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_RISCV64
       kMaxAllocatableDoubleRegisterCount;
+#elif V8_TARGET_ARCH_RISCV32
+      kMaxAllocatableDoubleRegisterCount;
 #else
 #error Unsupported target architecture.
 #endif
@@ -100,12 +113,14 @@ static int get_num_allocatable_double_registers() {
 
 static int get_num_allocatable_simd128_registers() {
   return
-#if V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       kMaxAllocatableSIMD128RegisterCount;
 #else
       0;
 #endif
 }
+
+static int get_num_allocatable_simd256_registers() { return 0; }
 
 // Callers on architectures other than Arm expect this to be be constant
 // between build and runtime. Avoid adding variability on other platforms.
@@ -121,7 +136,7 @@ static const int* get_allocatable_double_codes() {
 
 static const int* get_allocatable_simd128_codes() {
   return
-#if V8_TARGET_ARCH_RISCV64
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       kAllocatableSIMD128Codes;
 #else
       kAllocatableDoubleCodes;
@@ -133,9 +148,11 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
   ArchDefaultRegisterConfiguration()
       : RegisterConfiguration(
             kFPAliasing, Register::kNumRegisters, DoubleRegister::kNumRegisters,
-            get_num_simd128_registers(), kMaxAllocatableGeneralRegisterCount,
+            get_num_simd128_registers(), get_num_simd256_registers(),
+            kMaxAllocatableGeneralRegisterCount,
             get_num_allocatable_double_registers(),
-            get_num_allocatable_simd128_registers(), kAllocatableGeneralCodes,
+            get_num_allocatable_simd128_registers(),
+            get_num_allocatable_simd256_registers(), kAllocatableGeneralCodes,
             get_allocatable_double_codes(), get_allocatable_simd128_codes()) {}
 };
 
@@ -153,9 +170,11 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
       std::unique_ptr<char const*[]> allocatable_general_register_names)
       : RegisterConfiguration(
             kFPAliasing, Register::kNumRegisters, DoubleRegister::kNumRegisters,
-            get_num_simd128_registers(), num_allocatable_general_registers,
+            get_num_simd128_registers(), get_num_simd256_registers(),
+            num_allocatable_general_registers,
             get_num_allocatable_double_registers(),
             get_num_allocatable_simd128_registers(),
+            get_num_allocatable_simd256_registers(),
             allocatable_general_register_codes.get(),
             get_allocatable_double_codes(), get_allocatable_simd128_codes()),
         allocatable_general_register_codes_(
@@ -211,22 +230,26 @@ const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(
 RegisterConfiguration::RegisterConfiguration(
     AliasingKind fp_aliasing_kind, int num_general_registers,
     int num_double_registers, int num_simd128_registers,
-    int num_allocatable_general_registers, int num_allocatable_double_registers,
-    int num_allocatable_simd128_registers, const int* allocatable_general_codes,
+    int num_simd256_registers, int num_allocatable_general_registers,
+    int num_allocatable_double_registers, int num_allocatable_simd128_registers,
+    int num_allocatable_simd256_registers, const int* allocatable_general_codes,
     const int* allocatable_double_codes,
     const int* independent_allocatable_simd128_codes)
     : num_general_registers_(num_general_registers),
       num_float_registers_(0),
       num_double_registers_(num_double_registers),
       num_simd128_registers_(num_simd128_registers),
+      num_simd256_registers_(num_simd256_registers),
       num_allocatable_general_registers_(num_allocatable_general_registers),
       num_allocatable_float_registers_(0),
       num_allocatable_double_registers_(num_allocatable_double_registers),
       num_allocatable_simd128_registers_(num_allocatable_simd128_registers),
+      num_allocatable_simd256_registers_(num_allocatable_simd256_registers),
       allocatable_general_codes_mask_(0),
       allocatable_float_codes_mask_(0),
       allocatable_double_codes_mask_(0),
       allocatable_simd128_codes_mask_(0),
+      allocatable_simd256_codes_mask_(0),
       allocatable_general_codes_(allocatable_general_codes),
       allocatable_double_codes_(allocatable_double_codes),
       fp_aliasing_kind_(fp_aliasing_kind) {
@@ -274,9 +297,17 @@ RegisterConfiguration::RegisterConfiguration(
     for (int i = 0; i < num_allocatable_float_registers_; ++i) {
       allocatable_float_codes_[i] = allocatable_simd128_codes_[i] =
           allocatable_double_codes_[i];
+#if V8_TARGET_ARCH_X64
+      allocatable_simd256_codes_[i] = allocatable_double_codes_[i];
+#endif
     }
     allocatable_float_codes_mask_ = allocatable_simd128_codes_mask_ =
         allocatable_double_codes_mask_;
+#if V8_TARGET_ARCH_X64
+    num_simd256_registers_ = num_double_registers_;
+    num_allocatable_simd256_registers_ = num_allocatable_double_registers_;
+    allocatable_simd256_codes_mask_ = allocatable_double_codes_mask_;
+#endif
   } else {
     DCHECK_EQ(fp_aliasing_kind_, AliasingKind::kIndependent);
     DCHECK_NE(independent_allocatable_simd128_codes, nullptr);
@@ -295,10 +326,12 @@ RegisterConfiguration::RegisterConfiguration(
   }
 }
 
-// Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.
-STATIC_ASSERT(static_cast<int>(MachineRepresentation::kSimd128) ==
+// Assert that kFloat32, kFloat64, kSimd128 and kSimd256 are consecutive values.
+static_assert(static_cast<int>(MachineRepresentation::kSimd256) ==
+              static_cast<int>(MachineRepresentation::kSimd128) + 1);
+static_assert(static_cast<int>(MachineRepresentation::kSimd128) ==
               static_cast<int>(MachineRepresentation::kFloat64) + 1);
-STATIC_ASSERT(static_cast<int>(MachineRepresentation::kFloat64) ==
+static_assert(static_cast<int>(MachineRepresentation::kFloat64) ==
               static_cast<int>(MachineRepresentation::kFloat32) + 1);
 
 int RegisterConfiguration::GetAliases(MachineRepresentation rep, int index,

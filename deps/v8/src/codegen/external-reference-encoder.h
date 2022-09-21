@@ -5,6 +5,8 @@
 #ifndef V8_CODEGEN_EXTERNAL_REFERENCE_ENCODER_H_
 #define V8_CODEGEN_EXTERNAL_REFERENCE_ENCODER_H_
 
+#include <vector>
+
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/utils/address-map.h"

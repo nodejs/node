@@ -26,10 +26,10 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   DisallowGarbageCollection no_gc;
 
   // Check that baseline compiler is enabled.
-  if (!FLAG_sparkplug) return false;
+  if (!v8_flags.sparkplug) return false;
 
   // Check that short builtin calls are enabled if needed.
-  if (FLAG_sparkplug_needs_short_builtins &&
+  if (v8_flags.sparkplug_needs_short_builtins &&
       !isolate->is_short_builtin_calls_enabled()) {
     return false;
   }
@@ -51,7 +51,7 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   }
 
   // Do not baseline compile if function doesn't pass sparkplug_filter.
-  if (!shared.PassesFilter(FLAG_sparkplug_filter)) return false;
+  if (!shared.PassesFilter(v8_flags.sparkplug_filter)) return false;
 
   return true;
 }
@@ -64,7 +64,7 @@ MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
   baseline::BaselineCompiler compiler(local_isolate, shared, bytecode);
   compiler.GenerateCode();
   MaybeHandle<Code> code = compiler.Build(local_isolate);
-  if (FLAG_print_code && !code.is_null()) {
+  if (v8_flags.print_code && !code.is_null()) {
     code.ToHandleChecked()->Print();
   }
   return code;

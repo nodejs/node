@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <map>
+#include <optional>
 
 #include "src/base/region-allocator.h"
 #include "src/execution/isolate.h"
@@ -55,7 +56,8 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
       CHECK(region_allocator_.AllocateRegionAt(current_page, size));
       Address end = current_page + size;
       while (current_page < end) {
-        page_permissions_.insert({current_page, access});
+        PageState state{access, access != kNoAccess};
+        page_permissions_.insert({current_page, state});
         current_page += commit_page_size_;
       }
     }
@@ -97,12 +99,34 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
     return result;
   }
 
+  bool RecommitPages(void* address, size_t size,
+                     PageAllocator::Permission access) override {
+    bool result = page_allocator_->RecommitPages(address, size, access);
+    if (result) {
+      // Check that given range had given access permissions.
+      CheckPagePermissions(reinterpret_cast<Address>(address), size, access,
+                           {});
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access,
+                            true);
+    }
+    return result;
+  }
+
+  bool DiscardSystemPages(void* address, size_t size) override {
+    bool result = page_allocator_->DiscardSystemPages(address, size);
+    if (result) {
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size, {},
+                            false);
+    }
+    return result;
+  }
+
   bool DecommitPages(void* address, size_t size) override {
     bool result = page_allocator_->DecommitPages(address, size);
     if (result) {
       // Mark pages as non-accessible.
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size,
-                            kNoAccess);
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size, kNoAccess,
+                            false);
     }
     return result;
   }
@@ -111,7 +135,9 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
                       PageAllocator::Permission access) override {
     bool result = page_allocator_->SetPermissions(address, size, access);
     if (result) {
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access);
+      bool committed = access != kNoAccess && access != kNoAccessWillJitLater;
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access,
+                            committed);
     }
     return result;
   }
@@ -126,9 +152,15 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
   void CheckPagePermissions(Address address, size_t size,
-                            PageAllocator::Permission access) {
+                            PageAllocator::Permission access,
+                            std::optional<bool> committed = {true}) {
+    CHECK_IMPLIES(committed.has_value() && committed.value(),
+                  access != PageAllocator::kNoAccess);
     ForEachPage(address, size, [=](PagePermissionsMap::value_type* value) {
-      EXPECT_EQ(access, value->second);
+      if (committed.has_value()) {
+        EXPECT_EQ(committed.value(), value->second.committed);
+      }
+      EXPECT_EQ(access, value->second.access);
     });
   }
 
@@ -151,32 +183,40 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
     Address contiguous_region_end = contiguous_region_start;
     PageAllocator::Permission contiguous_region_access =
         PageAllocator::kNoAccess;
+    bool contiguous_region_access_committed = false;
     for (auto& pair : page_permissions_) {
       if (contiguous_region_end == pair.first &&
-          pair.second == contiguous_region_access) {
+          pair.second.access == contiguous_region_access &&
+          pair.second.committed == contiguous_region_access_committed) {
         contiguous_region_end += commit_page_size_;
         continue;
       }
       if (contiguous_region_start != contiguous_region_end) {
         PrintRegion(os, contiguous_region_start, contiguous_region_end,
-                    contiguous_region_access);
+                    contiguous_region_access,
+                    contiguous_region_access_committed);
       }
       contiguous_region_start = pair.first;
       contiguous_region_end = pair.first + commit_page_size_;
-      contiguous_region_access = pair.second;
+      contiguous_region_access = pair.second.access;
+      contiguous_region_access_committed = pair.second.committed;
     }
     if (contiguous_region_start != contiguous_region_end) {
       PrintRegion(os, contiguous_region_start, contiguous_region_end,
-                  contiguous_region_access);
+                  contiguous_region_access, contiguous_region_access_committed);
     }
   }
 
  private:
-  using PagePermissionsMap = std::map<Address, PageAllocator::Permission>;
+  struct PageState {
+    PageAllocator::Permission access;
+    bool committed;
+  };
+  using PagePermissionsMap = std::map<Address, PageState>;
   using ForEachFn = std::function<void(PagePermissionsMap::value_type*)>;
 
   static void PrintRegion(std::ostream& os, Address start, Address end,
-                          PageAllocator::Permission access) {
+                          PageAllocator::Permission access, bool committed) {
     os << "  page: [" << start << ", " << end << "), access: ";
     switch (access) {
       case PageAllocator::kNoAccess:
@@ -196,7 +236,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
         os << "RX";
         break;
     }
-    os << "\n";
+    os << ", committed: " << static_cast<int>(committed) << "\n";
   }
 
   void ForEachPage(Address address, size_t size, const ForEachFn& fn) {
@@ -218,9 +258,13 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
   void UpdatePagePermissions(Address address, size_t size,
-                             PageAllocator::Permission access) {
+                             std::optional<PageAllocator::Permission> access,
+                             bool committed) {
     ForEachPage(address, size, [=](PagePermissionsMap::value_type* value) {
-      value->second = access;
+      if (access.has_value()) {
+        value->second.access = access.value();
+      }
+      value->second.committed = committed;
     });
   }
 
@@ -235,7 +279,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
 
 // This test is currently incompatible with the sandbox. Enable it
 // once the VirtualAddressSpace interface is stable.
-#if !V8_OS_FUCHSIA && !V8_SANDBOX
+#if !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX
 
 template <typename TMixin>
 class SequentialUnmapperTestMixin : public TMixin {
@@ -268,14 +312,14 @@ class SequentialUnmapperTest : public                                     //
     CHECK(tracking_page_allocator_->IsEmpty());
     CHECK_EQ(old_page_allocator_,
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
-    old_flag_ = i::FLAG_concurrent_sweeping;
-    i::FLAG_concurrent_sweeping = false;
+    old_flag_ = i::v8_flags.concurrent_sweeping;
+    i::v8_flags.concurrent_sweeping = false;
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Reinitialize the process-wide pointer cage so it can pick up the
     // TrackingPageAllocator.
     // The pointer cage must be destroyed before the sandbox.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     // Reinitialze the sandbox so it uses the TrackingPageAllocator.
     GetProcessWideSandbox()->TearDown();
     constexpr bool use_guard_regions = false;
@@ -292,10 +336,10 @@ class SequentialUnmapperTest : public                                     //
     // freed until process teardown.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #endif
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     GetProcessWideSandbox()->TearDown();
 #endif
-    i::FLAG_concurrent_sweeping = old_flag_;
+    i::v8_flags.concurrent_sweeping = old_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
 
     // Restore the original v8::PageAllocator and delete the tracking one.
@@ -335,7 +379,7 @@ SequentialUnmapperTestMixin<TMixin>::~SequentialUnmapperTestMixin() {
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   Page* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
@@ -348,15 +392,15 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->FreeQueuedChunks();
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kNoAccess);
+  tracking_page_allocator()->CheckPagePermissions(
+      page->address(), page_size, PageAllocator::kNoAccess, false);
   unmapper()->TearDown();
 #ifdef V8_COMPRESS_POINTERS
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kNoAccess);
+  tracking_page_allocator()->CheckPagePermissions(
+      page->address(), page_size, PageAllocator::kNoAccess, false);
 #else
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
@@ -364,7 +408,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   Page* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
@@ -382,13 +426,13 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
-  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
-                                                  PageAllocator::kNoAccess);
+  tracking_page_allocator()->CheckPagePermissions(
+      page->address(), page_size, PageAllocator::kNoAccess, false);
 #else
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
-#endif  // !V8_OS_FUCHSIA && !V8_SANDBOX
+#endif  // !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX
 
 }  // namespace internal
 }  // namespace v8

@@ -15,17 +15,28 @@ assertThrows(() => d1.toPlainDateTime(true), RangeError);
 assertThrows(() => d1.toPlainDateTime(false), RangeError);
 assertThrows(() => d1.toPlainDateTime(NaN), RangeError);
 assertThrows(() => d1.toPlainDateTime(Infinity), RangeError);
-// assertThrows(() => d1.toPlainDateTime(123), RangeError);
-//assertThrows(() => d1.toPlainDateTime(456n), RangeError);
+assertThrows(() => d1.toPlainDateTime(123), RangeError);
+assertThrows(() => d1.toPlainDateTime(456n), RangeError);
 assertThrows(() => d1.toPlainDateTime(Symbol()), TypeError);
 assertThrows(() => d1.toPlainDateTime({}), TypeError);
-assertThrows(() => d1.toPlainDateTime({hour: 23}), TypeError);
-assertThrows(() => d1.toPlainDateTime({minute: 23}), TypeError);
-assertThrows(() => d1.toPlainDateTime({second: 23}), TypeError);
-assertThrows(() => d1.toPlainDateTime({millisecond: 23}), TypeError);
-assertThrows(() => d1.toPlainDateTime({microecond: 23}), TypeError);
-assertThrows(() => d1.toPlainDateTime({nanosecond: 23}), TypeError);
-
+assertPlainDateTime(d1.toPlainDateTime(
+    {hour: 23}),
+    2021, 12, 11, 23, 0, 0, 0, 0, 0);
+assertPlainDateTime(d1.toPlainDateTime(
+    {minute: 23}),
+    2021, 12, 11, 0, 23, 0, 0, 0, 0);
+assertPlainDateTime(d1.toPlainDateTime(
+    {second: 23}),
+    2021, 12, 11, 0, 0, 23, 0, 0, 0);
+assertPlainDateTime(d1.toPlainDateTime(
+    {millisecond: 23}),
+    2021, 12, 11, 0, 0, 0, 23, 0, 0);
+assertPlainDateTime(d1.toPlainDateTime(
+    {microsecond: 23}),
+    2021, 12, 11, 0, 0, 0, 0, 23, 0);
+assertPlainDateTime(d1.toPlainDateTime(
+    {nanosecond: 23}),
+    2021, 12, 11, 0, 0, 0, 0, 0, 23);
 assertPlainDateTime(d1.toPlainDateTime(),
     2021, 12, 11, 0, 0, 0, 0, 0, 0);
 assertPlainDateTime(d1.toPlainDateTime(

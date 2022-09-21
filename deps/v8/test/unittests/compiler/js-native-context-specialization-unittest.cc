@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/compiler/graph-unittest.h"
-
 #include "src/compiler/js-native-context-specialization.h"
+
 #include "src/compiler/js-operator.h"
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/simplified-operator.h"
+#include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {

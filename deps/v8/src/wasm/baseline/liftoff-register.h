@@ -67,7 +67,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
     case kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       return kGpReg;
     default:
@@ -205,8 +205,8 @@ class LiftoffRegister {
   static LiftoffRegister ForPair(Register low, Register high) {
     DCHECK(kNeedI64RegPair);
     DCHECK_NE(low, high);
-    storage_t combined_code = low.code() | high.code() << kBitsPerGpRegCode |
-                              1 << (2 * kBitsPerGpRegCode);
+    storage_t combined_code = low.code() | (high.code() << kBitsPerGpRegCode) |
+                              (1 << (2 * kBitsPerGpRegCode));
     return LiftoffRegister(combined_code);
   }
 
@@ -282,7 +282,7 @@ class LiftoffRegister {
   }
 
   constexpr int liftoff_code() const {
-    STATIC_ASSERT(sizeof(int) >= sizeof(storage_t));
+    static_assert(sizeof(int) >= sizeof(storage_t));
     return static_cast<int>(code_);
   }
 
@@ -344,6 +344,8 @@ class LiftoffRegList {
   // Sets all even numbered fp registers.
   static constexpr uint64_t kEvenFpSetMask = uint64_t{0x5555555555555555}
                                              << kAfterMaxLiftoffGpRegCode;
+  static constexpr uint64_t kOddFpSetMask = uint64_t{0xAAAAAAAAAAAAAAAA}
+                                            << kAfterMaxLiftoffGpRegCode;
 
   constexpr LiftoffRegList() = default;
 
@@ -354,7 +356,7 @@ class LiftoffRegList {
       typename = std::enable_if_t<std::conjunction_v<std::disjunction<
           std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
           std::is_same<LiftoffRegister, Regs>>...>>>
-  constexpr LiftoffRegList(Regs... regs) {
+  constexpr explicit LiftoffRegList(Regs... regs) {
     (..., set(regs));
   }
 
@@ -426,6 +428,16 @@ class LiftoffRegList {
     return !GetAdjacentFpRegsSet().is_empty();
   }
 
+  // Returns a list where if any part of an adjacent pair of FP regs was set,
+  // both are set in the result. For example, [1, 4] is turned into [0, 1, 4, 5]
+  // because (0, 1) and (4, 5) are adjacent pairs.
+  constexpr LiftoffRegList SpreadSetBitsToAdjacentFpRegs() const {
+    storage_t odd_regs = regs_ & kOddFpSetMask;
+    storage_t even_regs = regs_ & kEvenFpSetMask;
+    return FromBits(regs_ | ((odd_regs >> 1) & kFpMask) |
+                    ((even_regs << 1) & kFpMask));
+  }
+
   constexpr bool operator==(const LiftoffRegList other) const {
     return regs_ == other.regs_;
   }
@@ -461,7 +473,7 @@ class LiftoffRegList {
   inline Iterator begin() const;
   inline Iterator end() const;
 
-  static LiftoffRegList FromBits(storage_t bits) {
+  static constexpr LiftoffRegList FromBits(storage_t bits) {
     DCHECK_EQ(bits, bits & (kGpMask | kFpMask));
     return LiftoffRegList(bits);
   }
@@ -469,8 +481,12 @@ class LiftoffRegList {
   template <storage_t bits>
   static constexpr LiftoffRegList FromBits() {
     static_assert(bits == (bits & (kGpMask | kFpMask)), "illegal reg list");
-    return LiftoffRegList(bits);
+    return LiftoffRegList{bits};
   }
+
+#if DEBUG
+  void Print() const;
+#endif
 
  private:
   // Unchecked constructor. Only use for valid bits.

@@ -168,7 +168,7 @@ class HeapObject : public Object {
   inline ObjectSlot RawField(int byte_offset) const;
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   inline CodeObjectSlot RawCodeField(int byte_offset) const;
-  inline ExternalPointer_t RawExternalPointerField(int byte_offset) const;
+  inline ExternalPointerSlot RawExternalPointerField(int byte_offset) const;
 
   DECL_CAST(HeapObject)
 
@@ -199,9 +199,10 @@ class HeapObject : public Object {
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map map);
+  bool inline CheckRequiredAlignment(PtrComprCageBase cage_base) const;
 
   // Whether the object needs rehashing. That is the case if the object's
-  // content depends on FLAG_hash_seed. When the object is deserialized into
+  // content depends on v8_flags.hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
   bool NeedsRehashing(InstanceType instance_type) const;
   bool NeedsRehashing(PtrComprCageBase cage_base) const;
@@ -224,7 +225,7 @@ class HeapObject : public Object {
   DEFINE_FIELD_OFFSET_CONSTANTS(Object::kHeaderSize, HEAP_OBJECT_FIELDS)
 #undef HEAP_OBJECT_FIELDS
 
-  STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
+  static_assert(kMapOffset == Internals::kHeapObjectMapOffset);
 
   using MapField = TaggedField<MapWord, HeapObject::kMapOffset>;
 

@@ -7,7 +7,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
-#include "src/compiler/access-builder.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-reducer.h"
 

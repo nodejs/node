@@ -49,8 +49,8 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
   if (!old_details.IsReadOnly() && details.IsReadOnly()) {
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
 }
 

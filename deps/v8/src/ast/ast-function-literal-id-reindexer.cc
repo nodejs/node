@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast-function-literal-id-reindexer.h"
-#include "src/objects/objects-inl.h"
 
 #include "src/ast/ast.h"
 

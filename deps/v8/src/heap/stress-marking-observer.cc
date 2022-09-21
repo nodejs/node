@@ -16,7 +16,6 @@ void StressMarkingObserver::Step(int bytes_allocated, Address soon_object,
                                  size_t size) {
   heap_->StartIncrementalMarkingIfAllocationLimitIsReached(Heap::kNoGCFlags,
                                                            kNoGCCallbackFlags);
-  heap_->incremental_marking()->EnsureBlackAllocated(soon_object, size);
 }
 
 }  // namespace internal

@@ -239,6 +239,12 @@ Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
 }
 
 template <typename Derived, typename Shape>
+void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry, Object value,
+                                         WriteBarrierMode mode) {
+  set_key(EntryToIndex(entry), value, mode);
+}
+
+template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Object value) {
   DCHECK(!IsEphemeronHashTable());
   FixedArray::set(index, value);
@@ -321,12 +327,13 @@ Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
   // Check whether the dictionary should be extended.
   table = EnsureCapacity(isolate, table);
-
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
   // Compute the key object.
-  InternalIndex entry = table->FindInsertionEntry(isolate, key->hash());
-  table->set(EntryToIndex(entry), *key);
-  table->set(EntryToValueIndex(entry), Smi::FromInt(index));
-  table->ElementAdded();
+  InternalIndex entry = raw_table.FindInsertionEntry(isolate, key->hash());
+  raw_table.set(EntryToIndex(entry), *key);
+  raw_table.set(EntryToValueIndex(entry), Smi::FromInt(index));
+  raw_table.ElementAdded();
   return table;
 }
 

@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/common/assert-scope.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-object-registry.h"
@@ -62,6 +63,7 @@ T ForwardingAddress(T heap_obj) {
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());
   } else if (Heap::InFromPage(heap_obj)) {
+    DCHECK(!v8_flags.minor_mc);
     return T();
   } else {
     return heap_obj;
@@ -75,26 +77,38 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   }
 
   base::EnumSet<CodeFlushMode> code_flush_mode;
-  if (FLAG_flush_bytecode) {
+  if (v8_flags.flush_bytecode) {
     code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
   }
 
-  if (FLAG_flush_baseline_code) {
+  if (v8_flags.flush_baseline_code) {
     code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
   }
 
-  if (FLAG_stress_flush_code) {
+  if (v8_flags.stress_flush_code) {
     // This is to check tests accidentally don't miss out on adding either flush
     // bytecode or flush code along with stress flush code. stress_flush_code
     // doesn't do anything if either one of them isn't enabled.
-    DCHECK(FLAG_fuzzing || FLAG_flush_baseline_code || FLAG_flush_bytecode);
+    DCHECK(v8_flags.fuzzing || v8_flags.flush_baseline_code ||
+           v8_flags.flush_bytecode);
     code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
 
   return code_flush_mode;
 }
 
-Isolate* Heap::isolate() { return Isolate::FromHeap(this); }
+Isolate* Heap::isolate() const { return Isolate::FromHeap(this); }
+
+#ifdef DEBUG
+bool Heap::IsMainThread() const {
+  return isolate()->thread_id() == ThreadId::Current();
+}
+
+bool Heap::IsSharedMainThread() const {
+  Isolate* shared_isolate = isolate()->shared_isolate();
+  return shared_isolate && shared_isolate->thread_id() == ThreadId::Current();
+}
+#endif
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
 
@@ -120,6 +134,11 @@ RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
   }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+FixedArray Heap::single_character_string_table() {
+  return FixedArray::cast(
+      Object(roots_table()[RootIndex::kSingleCharacterStringTable]));
+}
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
   void Heap::set_##name(type value) {                                          \
@@ -222,7 +241,7 @@ void Heap::FinalizeExternalString(String string) {
   DCHECK(string.IsExternalString());
   ExternalString ext_string = ExternalString::cast(string);
 
-  if (!FLAG_enable_third_party_heap) {
+  if (!v8_flags.enable_third_party_heap) {
     Page* page = Page::FromHeapObject(string);
     page->DecrementExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
@@ -263,6 +282,13 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
   }
 #endif
   return result;
+}
+
+// static
+bool Heap::InSharedWritableHeap(MaybeObject object) {
+  HeapObject heap_object;
+  return object->GetHeapObject(&heap_object) &&
+         heap_object.InSharedWritableHeap();
 }
 
 // static
@@ -322,13 +348,6 @@ Heap* Heap::FromWritableHeapObject(HeapObject obj) {
   return heap;
 }
 
-bool Heap::ShouldBePromoted(Address old_address) {
-  Page* page = Page::FromAddress(old_address);
-  Address age_mark = new_space_->age_mark();
-  return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
-         (!page->ContainsLimit(age_mark) || old_address < age_mark);
-}
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   DCHECK(IsAligned(byte_size, kTaggedSize));
   CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
@@ -383,9 +402,8 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
       top = NewSpaceTop();
-      DCHECK(memento_address == top ||
-             memento_address + HeapObject::kHeaderSize <= top ||
-             !Page::OnSamePage(memento_address, top - 1));
+      DCHECK(memento_address >= new_space()->limit() ||
+             memento_address + AllocationMemento::kSize <= top);
       if ((memento_address != top) && memento_candidate.IsValid()) {
         return memento_candidate;
       }
@@ -402,11 +420,12 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
   DCHECK_IMPLIES(chunk->IsToPage(),
-                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
+                 v8_flags.minor_mc ||
+                     chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
   DCHECK_IMPLIES(!chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
-  if (!FLAG_allocation_site_pretenuring ||
+  if (!v8_flags.allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map.instance_type())) {
     return;
   }
@@ -437,7 +456,7 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
   switch (base_space->identity()) {
     case NEW_SPACE: {
       base::SharedMutexGuard<base::kShared> guard(
-          new_space_->pending_allocation_mutex());
+          new_space_->linear_area_lock());
       Address top = new_space_->original_top_acquire();
       Address limit = new_space_->original_limit_relaxed();
       DCHECK_LE(top, limit);
@@ -449,9 +468,9 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
     case MAP_SPACE: {
       PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
       base::SharedMutexGuard<base::kShared> guard(
-          paged_space->pending_allocation_mutex());
-      Address top = paged_space->original_top();
-      Address limit = paged_space->original_limit();
+          paged_space->linear_area_lock());
+      Address top = paged_space->original_top_acquire();
+      Address limit = paged_space->original_limit_relaxed();
       DCHECK_LE(top, limit);
       return top && top <= addr && addr < limit;
     }
@@ -475,7 +494,7 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
 
 bool Heap::IsPendingAllocation(HeapObject object) {
   bool result = IsPendingAllocationInternal(object);
-  if (FLAG_trace_pending_allocations && result) {
+  if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
                    << "\n";
   }
@@ -508,7 +527,7 @@ int Heap::NextScriptId() {
   Smi new_id, last_id_before_cas;
   do {
     if (last_id.value() == Smi::kMaxValue) {
-      STATIC_ASSERT(v8::UnboundScript::kNoScriptId == 0);
+      static_assert(v8::UnboundScript::kNoScriptId == 0);
       new_id = Smi::FromInt(1);
     } else {
       new_id = Smi::FromInt(last_id.value() + 1);
@@ -597,7 +616,11 @@ AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
     : scope_(heap) {}
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
-    : heap_(heap) {
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodeSpaceMemoryModificationScope"),
+#endif
+      heap_(heap) {
   DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   heap_->safepoint()->AssertActive();
   if (heap_->write_protect_code_memory()) {
@@ -611,6 +634,33 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
       page = page->next_page();
     }
   }
+}
+
+void Heap::IncrementCodePageCollectionMemoryModificationScopeDepth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  local_heap->code_page_collection_memory_modification_scope_depth_++;
+
+#if DEBUG
+  // Maximum number of nested scopes.
+  static constexpr int kMaxCodePageCollectionMemoryModificationScopeDepth = 2;
+  DCHECK_LE(local_heap->code_page_collection_memory_modification_scope_depth_,
+            kMaxCodePageCollectionMemoryModificationScopeDepth);
+#endif
+}
+
+bool Heap::DecrementCodePageCollectionMemoryModificationScopeDepth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  local_heap->code_page_collection_memory_modification_scope_depth_--;
+  return local_heap->code_page_collection_memory_modification_scope_depth_ == 0;
+}
+
+uintptr_t Heap::code_page_collection_memory_modification_scope_depth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  return local_heap->code_page_collection_memory_modification_scope_depth_;
+}
+
+PagedNewSpace* Heap::paged_new_space() const {
+  return PagedNewSpace::From(new_space());
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
@@ -629,7 +679,11 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
 
 CodePageCollectionMemoryModificationScope::
     CodePageCollectionMemoryModificationScope(Heap* heap)
-    : heap_(heap) {
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageCollectionMemoryModificationScope"),
+#endif
+      heap_(heap) {
   if (heap_->write_protect_code_memory()) {
     heap_->IncrementCodePageCollectionMemoryModificationScopeDepth();
   }
@@ -638,8 +692,7 @@ CodePageCollectionMemoryModificationScope::
 CodePageCollectionMemoryModificationScope::
     ~CodePageCollectionMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
-    heap_->DecrementCodePageCollectionMemoryModificationScopeDepth();
-    if (heap_->code_page_collection_memory_modification_scope_depth() == 0) {
+    if (heap_->DecrementCodePageCollectionMemoryModificationScopeDepth()) {
       heap_->ProtectUnprotectedMemoryChunks();
     }
   }
@@ -647,7 +700,13 @@ CodePageCollectionMemoryModificationScope::
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
-    : chunk_(nullptr), scope_active_(false) {}
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageMemoryModificationScope"),
+#endif
+      chunk_(nullptr),
+      scope_active_(false) {
+}
 #else
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
     : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
@@ -655,7 +714,11 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     BasicMemoryChunk* chunk)
-    : chunk_(chunk),
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageMemoryModificationScope"),
+#endif
+      chunk_(chunk),
       scope_active_(chunk_->heap()->write_protect_code_memory() &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
@@ -672,7 +735,6 @@ CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
 }
 
 IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   heap_->ignore_local_gc_requests_depth_++;
 }
 

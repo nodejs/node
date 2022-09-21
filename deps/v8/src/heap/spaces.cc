@@ -43,8 +43,8 @@ namespace internal {
 // object can't overlap with the lower 32 bits of cleared weak reference value
 // and therefore it's enough to compare only the lower 32 bits of a MaybeObject
 // in order to figure out if it's a cleared weak reference or not.
-STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
-STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
+static_assert(kClearedWeakHeapObjectLower32 > 0);
+static_assert(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
 // static
 constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
@@ -140,7 +140,7 @@ size_t Page::ShrinkToHighWaterMark() {
   // Ensure that no objects will be allocated on this page.
   DCHECK_EQ(0u, AvailableInFreeList());
 
-  // Ensure that slot sets are empty. Otherwise the buckets for the shrinked
+  // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
@@ -149,7 +149,7 @@ size_t Page::ShrinkToHighWaterMark() {
                             MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
                    reinterpret_cast<void*>(area_end()),
@@ -157,8 +157,7 @@ size_t Page::ShrinkToHighWaterMark() {
     }
     heap()->CreateFillerObjectAt(
         filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused),
-        ClearRecordedSlots::kNo);
+        static_cast<int>(area_end() - filler.address() - unused));
     heap()->memory_allocator()->PartialFreeMemory(
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
@@ -170,23 +169,24 @@ size_t Page::ShrinkToHighWaterMark() {
 }
 
 void Page::CreateBlackArea(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  IncrementalMarking::MarkingState* marking_state =
-      heap()->incremental_marking()->marking_state();
+  MarkingState* marking_state = heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
                                         AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, static_cast<intptr_t>(end - start));
 }
 
 void Page::CreateBlackAreaBackground(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  IncrementalMarking::AtomicMarkingState* marking_state =
+  AtomicMarkingState* marking_state =
       heap()->incremental_marking()->atomic_marking_state();
   marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
                                         AddressToMarkbitIndex(end));
@@ -195,23 +195,24 @@ void Page::CreateBlackAreaBackground(Address start, Address end) {
 }
 
 void Page::DestroyBlackArea(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  IncrementalMarking::MarkingState* marking_state =
-      heap()->incremental_marking()->marking_state();
+  MarkingState* marking_state = heap()->incremental_marking()->marking_state();
   marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
                                           AddressToMarkbitIndex(end));
   marking_state->IncrementLiveBytes(this, -static_cast<intptr_t>(end - start));
 }
 
 void Page::DestroyBlackAreaBackground(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
-  IncrementalMarking::AtomicMarkingState* marking_state =
+  AtomicMarkingState* marking_state =
       heap()->incremental_marking()->atomic_marking_state();
   marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
                                           AddressToMarkbitIndex(end));
@@ -238,14 +239,14 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
-  if (!use_lab_) {
+  if (!allocation_info_.enabled()) {
     // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
   }
 
   if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
-    DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
+    DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
 
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower ©limit.
@@ -266,17 +267,17 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
 }
 
 void SpaceWithLinearArea::DisableInlineAllocation() {
-  if (!use_lab_) return;
+  if (!allocation_info_.enabled()) return;
 
-  use_lab_ = false;
+  allocation_info_.SetEnabled(false);
   FreeLinearAllocationArea();
   UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::EnableInlineAllocation() {
-  if (use_lab_) return;
+  if (allocation_info_.enabled()) return;
 
-  use_lab_ = true;
+  allocation_info_.SetEnabled(true);
   AdvanceAllocationObservers();
   UpdateInlineAllocationLimit(0);
 }
@@ -309,8 +310,7 @@ void LocalAllocationBuffer::MakeIterable() {
   if (IsValid()) {
     heap_->CreateFillerObjectAtBackground(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearFreedMemoryMode::kDontClearFreedMemory);
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
   }
 }
 
@@ -366,16 +366,16 @@ void SpaceWithLinearArea::ResumeAllocationObservers() {
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  if (allocation_info_->top() &&
-      allocation_info_->start() != allocation_info_->top()) {
-    allocation_counter_.AdvanceAllocationObservers(allocation_info_->top() -
-                                                   allocation_info_->start());
+  if (allocation_info_.top() &&
+      allocation_info_.start() != allocation_info_.top()) {
+    allocation_counter_.AdvanceAllocationObservers(allocation_info_.top() -
+                                                   allocation_info_.start());
     MarkLabStartInitialized();
   }
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocation_info_->ResetStart();
+  allocation_info_.ResetStart();
   if (identity() == NEW_SPACE) {
     heap()->new_space()->MoveOriginalTopForward();
 
@@ -405,12 +405,12 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 
   if (allocation_size >= allocation_counter_.NextBytes()) {
     // Only the first object in a LAB should reach the next step.
-    DCHECK_EQ(soon_object, allocation_info_->start() + aligned_size_in_bytes -
-                               size_in_bytes);
+    DCHECK_EQ(soon_object,
+              allocation_info_.start() + aligned_size_in_bytes - size_in_bytes);
 
     // Right now the LAB only contains that one object.
-    DCHECK_EQ(allocation_info_->top() + allocation_size - aligned_size_in_bytes,
-              allocation_info_->limit());
+    DCHECK_EQ(allocation_info_.top() + allocation_size - aligned_size_in_bytes,
+              allocation_info_.limit());
 
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
@@ -418,13 +418,12 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
       heap()->UnprotectAndRegisterMemoryChunk(
           chunk, UnprotectMemoryOrigin::kMainThread);
     }
-    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes),
-                                ClearRecordedSlots::kNo);
+    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes));
 
 #if DEBUG
     // Ensure that allocation_info_ isn't modified during one of the
     // AllocationObserver::Step methods.
-    LinearAllocationArea saved_allocation_info = *allocation_info_;
+    LinearAllocationArea saved_allocation_info = allocation_info_;
 #endif
 
     // Run AllocationObserver::Step through the AllocationCounter.
@@ -432,21 +431,21 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
                                                   allocation_size);
 
     // Ensure that start/top/limit didn't change.
-    DCHECK_EQ(saved_allocation_info.start(), allocation_info_->start());
-    DCHECK_EQ(saved_allocation_info.top(), allocation_info_->top());
-    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_->limit());
+    DCHECK_EQ(saved_allocation_info.start(), allocation_info_.start());
+    DCHECK_EQ(saved_allocation_info.top(), allocation_info_.top());
+    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
   }
 
   DCHECK_IMPLIES(allocation_counter_.IsActive(),
-                 (allocation_info_->limit() - allocation_info_->start()) <
+                 (allocation_info_.limit() - allocation_info_.start()) <
                      allocation_counter_.NextBytes());
 }
 
 #if DEBUG
 void SpaceWithLinearArea::VerifyTop() const {
   // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
-  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
+  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
+  DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
 }
 #endif  // DEBUG
 

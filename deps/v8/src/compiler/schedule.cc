@@ -332,12 +332,8 @@ void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
 }
 
 void Schedule::EnsureCFGWellFormedness() {
-  // Make a copy of all the blocks for the iteration, since adding the split
-  // edges will allocate new blocks.
-  BasicBlockVector all_blocks_copy(all_blocks_);
-
-  // Insert missing split edge blocks.
-  for (BasicBlock* block : all_blocks_copy) {
+  // Ensure there are no critical edges.
+  for (BasicBlock* block : all_blocks_) {
     if (block->PredecessorCount() > 1) {
       if (block != end_) {
         EnsureSplitEdgeForm(block);

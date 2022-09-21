@@ -10,39 +10,40 @@
 namespace v8 {
 namespace internal {
 
-// Convert external pointer from on-V8-heap representation to an actual external
-// pointer value.
-V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
-                                        ExternalPointer_t encoded_pointer,
-                                        ExternalPointerTag tag);
-
 constexpr ExternalPointer_t kNullExternalPointer = 0;
+constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 
-// Creates zero-initialized entry in external pointer table and writes the entry
-// id to the field. When sandbox is not enabled, it's a no-op.
+// Creates and initializes an entry in the external pointer table and writes the
+// handle for that entry to the field.
+template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
-                                        ExternalPointerTag tag);
+                                        Address value);
 
-// Creates and initializes entry in external pointer table and writes the entry
-// id to the field.
-// Basically, it's InitExternalPointerField() followed by
-// WriteExternalPointerField().
-V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
-                                        Address value, ExternalPointerTag tag);
-
-// Reads and returns a raw external pointer value.
-V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address);
-
-// Reads external pointer for the field, and decodes it if the sandbox is
-// enabled.
+// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
+// loads the corresponding external pointer from the external pointer table. If
+// the sandbox is disabled: load the external pointer from the field.
+template <ExternalPointerTag tag>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           const Isolate* isolate,
-                                           ExternalPointerTag tag);
+                                           const Isolate* isolate);
 
-// Encodes value if the sandbox is enabled and writes it into the field.
+// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
+// stores the external pointer to the corresponding entry in the external
+// pointer table. If the sandbox is disabled: stores the external pointer to the
+// field.
+template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
-                                         Isolate* isolate, Address value,
-                                         ExternalPointerTag tag);
+                                         Isolate* isolate, Address value);
+
+// Writes and possibly initialized a lazily initialized external pointer field.
+// When the sandbox is enabled, a lazily initialized external pointer field
+// initially contains the kNullExternalPointerHandle and will only be properly
+// initialized (i.e. allocate an entry in the external pointer table) once a
+// value is written into it for the first time.
+// If the sandbox is disabled, this is equivalent to WriteExternalPointerField.
+template <ExternalPointerTag tag>
+V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
+                                                          Isolate* isolate,
+                                                          Address value);
 
 }  // namespace internal
 }  // namespace v8

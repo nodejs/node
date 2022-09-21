@@ -76,7 +76,7 @@ transitioning javascript builtin TypedArrayPrototypeSlice(
   //    else let k be min(relativeStart, len).
   const start = arguments[0];
   const k: uintptr =
-      start != Undefined ? ConvertToRelativeIndex(start, len) : 0;
+      start != Undefined ? ConvertAndClampRelativeIndex(start, len) : 0;
 
   // 6. If end is undefined, let relativeEnd be len;
   //    else let relativeEnd be ? ToInteger(end).
@@ -84,7 +84,7 @@ transitioning javascript builtin TypedArrayPrototypeSlice(
   //    else let final be min(relativeEnd, len).
   const end = arguments[1];
   let final: uintptr =
-      end != Undefined ? ConvertToRelativeIndex(end, len) : len;
+      end != Undefined ? ConvertAndClampRelativeIndex(end, len) : len;
 
   // 8. Let count be max(final - k, 0).
   let count: uintptr = Unsigned(IntPtrMax(Signed(final - k), 0));

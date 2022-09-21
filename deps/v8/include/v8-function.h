@@ -106,6 +106,14 @@ class V8_EXPORT Function : public Object {
   V8_WARN_UNUSED_RESULT MaybeLocal<String> FunctionProtoToString(
       Local<Context> context);
 
+  /**
+   * Returns true if the function does nothing.
+   * The function returns false on error.
+   * Note that this function is experimental. Embedders should not rely on
+   * this existing. We may remove this function in the future.
+   */
+  V8_WARN_UNUSED_RESULT bool Experimental_IsNopFunction() const;
+
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE static Function* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS

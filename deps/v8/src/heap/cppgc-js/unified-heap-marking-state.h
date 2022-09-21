@@ -28,7 +28,7 @@ class UnifiedHeapMarkingState final {
 
  private:
   Heap* const heap_;
-  MarkCompactCollector::MarkingState* const marking_state_;
+  MarkingState* const marking_state_;
   MarkingWorklists::Local* local_marking_worklist_ = nullptr;
   const bool track_retaining_path_;
 };

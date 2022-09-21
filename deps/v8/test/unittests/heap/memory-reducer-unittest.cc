@@ -115,7 +115,7 @@ TEST(MemoryReducer, FromDoneToDone) {
 
 
 TEST(MemoryReducer, FromDoneToWait) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(DoneState()), state1(DoneState());
 
@@ -123,7 +123,8 @@ TEST(MemoryReducer, FromDoneToWait) {
       state0,
       MarkCompactEventGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
+  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
+            state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 
@@ -131,13 +132,14 @@ TEST(MemoryReducer, FromDoneToWait) {
       state0,
       MarkCompactEventNoGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
+  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
+            state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 
   state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(0));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
+  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(state0.last_gc_time_ms, state1.last_gc_time_ms);
 
@@ -147,14 +149,15 @@ TEST(MemoryReducer, FromDoneToWait) {
                   2, static_cast<size_t>(
                          1000 * MB * MemoryReducer::kCommittedMemoryFactor)));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms);
+  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
+            state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 }
 
 
 TEST(MemoryReducer, FromWaitToWait) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(WaitState(2, 1000.0)), state1(DoneState());
 
@@ -211,7 +214,7 @@ TEST(MemoryReducer, FromWaitToWait) {
 
 
 TEST(MemoryReducer, FromWaitToRun) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(WaitState(0, 1000.0)), state1(DoneState());
 
@@ -232,7 +235,7 @@ TEST(MemoryReducer, FromWaitToRun) {
 
 
 TEST(MemoryReducer, FromWaitToDone) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(WaitState(2, 0.0)), state1(DoneState());
 
@@ -259,7 +262,7 @@ TEST(MemoryReducer, FromWaitToDone) {
 
 
 TEST(MemoryReducer, FromRunToRun) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(RunState(1, 0.0)), state1(DoneState());
 
@@ -290,7 +293,7 @@ TEST(MemoryReducer, FromRunToRun) {
 
 
 TEST(MemoryReducer, FromRunToDone) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(RunState(2, 0.0)), state1(DoneState());
 
@@ -310,7 +313,7 @@ TEST(MemoryReducer, FromRunToDone) {
 
 
 TEST(MemoryReducer, FromRunToWait) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(RunState(2, 0.0)), state1(DoneState());
 

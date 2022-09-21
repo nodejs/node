@@ -61,7 +61,6 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE bool CanMigrateInParallel() const;
   V8_INLINE StringRepresentationTag representation_tag() const;
   V8_INLINE uint32_t encoding_tag() const;
   V8_INLINE uint32_t representation_and_encoding_tag() const;
@@ -411,6 +410,11 @@ class String : public TorqueGeneratedString<String, Name> {
       int* length_output = nullptr);
 
   // Externalization.
+  template <typename T>
+  bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);
+  template <typename T>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  void MakeExternalDuringGC(Isolate* isolate, T* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
@@ -542,7 +546,7 @@ class String : public TorqueGeneratedString<String, Name> {
       }
 
       // Check aligned words.
-      STATIC_ASSERT(unibrow::Latin1::kMaxChar == 0xFF);
+      static_assert(unibrow::Latin1::kMaxChar == 0xFF);
 #ifdef V8_TARGET_LITTLE_ENDIAN
       const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFFFF * 0xFF00;
 #else
@@ -649,9 +653,11 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool SlowAsIntegerIndex(size_t* index);
 
   // Compute and set the hash code.
-  V8_EXPORT_PRIVATE uint32_t ComputeAndSetHash();
+  // The value returned is always a computed hash, even if the value stored is
+  // a forwarding index.
+  V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
   V8_EXPORT_PRIVATE uint32_t
-  ComputeAndSetHash(const SharedStringAccessGuardIfNeeded&);
+  ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
 
   TQ_OBJECT_CONSTRUCTORS(String)
 };
@@ -695,6 +701,12 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
                                                        int new_length);
 
+  struct DataAndPaddingSizes {
+    const int data_size;
+    const int padding_size;
+  };
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
+
   TQ_OBJECT_CONSTRUCTORS(SeqString)
 };
 
@@ -737,14 +749,12 @@ class SeqOneByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
-  STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
+  static_assert((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
   int AllocatedSize();
 
@@ -783,14 +793,12 @@ class SeqTwoByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
-  STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
+  static_assert(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
 
   int AllocatedSize();
@@ -907,7 +915,8 @@ class ExternalString
   static const int kUncachedSize =
       kResourceOffset + FIELD_SIZE(kResourceOffset);
 
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
+  inline void InitExternalPointerFields(Isolate* isolate);
+  inline void VisitExternalPointers(ObjectVisitor* visitor) const;
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;
@@ -923,7 +932,7 @@ class ExternalString
   // Disposes string's resource object if it has not already been disposed.
   inline void DisposeResource(Isolate* isolate);
 
-  STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
+  static_assert(kResourceOffset == Internals::kStringResourceOffset);
   static const int kSizeOfAllExternalStrings = kHeaderSize;
 
  private:
@@ -968,7 +977,7 @@ class ExternalOneByteString
 
   class BodyDescriptor;
 
-  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
+  static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalOneByteString)
 
@@ -1015,7 +1024,7 @@ class ExternalTwoByteString
 
   class BodyDescriptor;
 
-  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
+  static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalTwoByteString)
 

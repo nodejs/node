@@ -110,7 +110,7 @@ class ZoneChunkList : public ZoneObject {
 
   static constexpr uint32_t kMaxChunkCapacity = 256u;
 
-  STATIC_ASSERT(kMaxChunkCapacity == static_cast<uint32_t>(StartMode::kBig));
+  static_assert(kMaxChunkCapacity == static_cast<uint32_t>(StartMode::kBig));
 
   struct Chunk {
     uint32_t capacity_ = 0;

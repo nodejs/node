@@ -37,7 +37,8 @@ class PointerAuthentication : public AllStatic {
   // When CFI is enabled, sign {pc} using {sp}, check the address and return the
   // signed value. When CFI is not enabled, return {pc} unmodified. This method
   // only applies in the deoptimizer.
-  V8_INLINE static Address SignAndCheckPC(Address pc, Address sp);
+  V8_INLINE static Address SignAndCheckPC(Isolate* isolate, Address pc,
+                                          Address sp);
 };
 
 }  // namespace internal

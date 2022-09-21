@@ -12,7 +12,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -115,6 +114,12 @@ class PendingDependencies final {
 
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
+    // Code, which are per-local Isolate, cannot depend on objects in the shared
+    // heap. Shared heap dependencies are designed to never invalidate
+    // assumptions. E.g., maps for shared structs do not have transitions or
+    // change the shape of their fields. See
+    // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
+    if (object->InSharedWritableHeap()) return;
     deps_[object] |= group;
   }
 
@@ -508,7 +513,7 @@ class OwnConstantDictionaryPropertyDependency final
         index_(index),
         value_(value) {
     // We depend on map() being cached.
-    STATIC_ASSERT(ref_traits<JSObject>::ref_serialization_kind !=
+    static_assert(ref_traits<JSObject>::ref_serialization_kind !=
                   RefSerializationKind::kNeverSerialized);
   }
 
@@ -1064,6 +1069,11 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
   return true;
 }
 
+bool CompilationDependencies::DependOnMegaDOMProtector() {
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
+}
+
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
   return DependOnProtector(MakeRef(
       broker_,
@@ -1226,25 +1236,6 @@ bool CompilationDependencies::PrepareInstallPredictable() {
   return true;
 }
 
-namespace {
-
-// This function expects to never see a JSProxy.
-void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
-                                  base::Optional<JSObjectRef> last_prototype) {
-  while (true) {
-    HeapObjectRef proto = map.prototype();
-    if (!proto.IsJSObject()) {
-      CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
-      break;
-    }
-    map = proto.map();
-    deps->DependOnStableMap(map);
-    if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
-  }
-}
-
-}  // namespace
-
 #define V(Name)                                                     \
   const Name##Dependency* CompilationDependency::As##Name() const { \
     DCHECK(Is##Name());                                             \
@@ -1257,16 +1248,33 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
   for (MapRef receiver_map : receiver_maps) {
-    if (receiver_map.IsPrimitiveMap()) {
-      // Perform the implicit ToObject for primitives here.
-      // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
-      base::Optional<JSFunctionRef> constructor =
-          broker_->target_native_context().GetConstructorFunction(receiver_map);
-      receiver_map = constructor.value().initial_map(this);
+    DependOnStablePrototypeChain(receiver_map, start, last_prototype);
+  }
+}
+
+void CompilationDependencies::DependOnStablePrototypeChain(
+    MapRef receiver_map, WhereToStart start,
+    base::Optional<JSObjectRef> last_prototype) {
+  if (receiver_map.IsPrimitiveMap()) {
+    // Perform the implicit ToObject for primitives here.
+    // Implemented according to ES6 section 7.3.2 GetV (V, P).
+    // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
+    base::Optional<JSFunctionRef> constructor =
+        broker_->target_native_context().GetConstructorFunction(receiver_map);
+    receiver_map = constructor.value().initial_map(this);
+  }
+  if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
+
+  MapRef map = receiver_map;
+  while (true) {
+    HeapObjectRef proto = map.prototype();
+    if (!proto.IsJSObject()) {
+      CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
+      break;
     }
-    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
-    DependOnStablePrototypeChain(this, receiver_map, last_prototype);
+    map = proto.map();
+    DependOnStableMap(map);
+    if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
   }
 }
 

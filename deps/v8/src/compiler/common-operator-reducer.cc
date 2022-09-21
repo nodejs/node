@@ -491,14 +491,17 @@ Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
     // This will always trap. Mark its outputs as dead and connect it to
     // graph()->end().
     ReplaceWithValue(trap, dead(), dead(), dead());
-    Node* effect = NodeProperties::GetEffectInput(trap);
-    Node* control = graph()->NewNode(common()->Throw(), effect, trap);
+    Node* control = graph()->NewNode(common()->Throw(), trap, trap);
     NodeProperties::MergeControlToEnd(graph(), common(), control);
     Revisit(graph()->end());
     return Changed(trap);
   } else {
-    // This will not trap, remove it.
-    return Replace(NodeProperties::GetControlInput(trap));
+    // This will not trap, remove it by relaxing effect/control.
+    Node* control = NodeProperties::GetControlInput(trap);
+    ReplaceWithValue(trap, dead());
+    trap->Kill();
+    // The argument below is irrelevant, picked {control} for debugging.
+    return Replace(control);
   }
 }
 

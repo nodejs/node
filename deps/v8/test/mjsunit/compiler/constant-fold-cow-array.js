@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt --opt
+// Flags: --allow-natives-syntax --no-always-turbofan --turbofan
 
 // Check that we properly deoptimize TurboFan'ed code when we constant-fold
 // elements from a COW array and we change the length of the array.

@@ -63,7 +63,7 @@ class Smi : public Object {
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
   static inline Smi FromEnum(E value) {
-    STATIC_ASSERT(sizeof(E) <= sizeof(int));
+    static_assert(sizeof(E) <= sizeof(int));
     return FromInt(static_cast<int>(value));
   }
 

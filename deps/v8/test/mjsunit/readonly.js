@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 // This test manually triggers optimization, no need for stress modes.
-// Flags: --nostress-opt --noalways-opt
+// Flags: --noalways-turbofan
 
 // Different ways to create an object.
 

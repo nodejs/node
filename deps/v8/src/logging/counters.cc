@@ -52,7 +52,7 @@ void Histogram::AddSample(int sample) {
   }
 }
 
-V8_EXPORT_PRIVATE void* Histogram::CreateHistogram() const {
+void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
@@ -82,7 +82,8 @@ void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
     AddSample(static_cast<int>(sample));
   }
   if (isolate != nullptr) {
-    Logger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd, true);
+    V8FileLogger::CallEventLogger(isolate, name(), v8::LogEventStatus::kEnd,
+                                  true);
   }
 }
 

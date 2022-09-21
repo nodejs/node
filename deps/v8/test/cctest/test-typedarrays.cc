@@ -4,13 +4,8 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/execution/protectors-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {

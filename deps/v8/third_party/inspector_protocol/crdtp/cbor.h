@@ -43,13 +43,6 @@ namespace cbor {
 // Detecting CBOR content
 // =============================================================================
 
-// The first byte for an envelope, which we use for wrapping dictionaries
-// and arrays; and the byte that indicates a byte string with 32 bit length.
-// These two bytes start an envelope, and thereby also any CBOR message
-// produced or consumed by this protocol. See also |EnvelopeEncoder| below.
-uint8_t InitialByteForEnvelope();
-uint8_t InitialByteFor32BitLengthByteString();
-
 // Checks whether |msg| is a cbor message.
 bool IsCBORMessage(span<uint8_t> msg);
 
@@ -127,6 +120,29 @@ class EnvelopeEncoder {
 
  private:
   size_t byte_size_pos_ = 0;
+};
+
+class EnvelopeHeader {
+ public:
+  EnvelopeHeader() = default;
+  ~EnvelopeHeader() = default;
+
+  // Parse envelope. Implies that `in` accomodates the entire size of envelope.
+  static StatusOr<EnvelopeHeader> Parse(span<uint8_t> in);
+  // Parse envelope, but allow `in` to only include the beginning of the
+  // envelope.
+  static StatusOr<EnvelopeHeader> ParseFromFragment(span<uint8_t> in);
+
+  size_t header_size() const { return header_size_; }
+  size_t content_size() const { return content_size_; }
+  size_t outer_size() const { return header_size_ + content_size_; }
+
+ private:
+  EnvelopeHeader(size_t header_size, size_t content_size)
+      : header_size_(header_size), content_size_(content_size) {}
+
+  size_t header_size_ = 0;
+  size_t content_size_ = 0;
 };
 
 // =============================================================================
@@ -256,17 +272,22 @@ class CBORTokenizer {
   // enclosing envelope (the header, basically).
   span<uint8_t> GetEnvelopeContents() const;
 
+  // To be called only if ::TokenTag() == CBORTokenTag::ENVELOPE.
+  // Returns the envelope header.
+  const EnvelopeHeader& GetEnvelopeHeader() const;
+
  private:
-  void ReadNextToken(bool enter_envelope);
+  void ReadNextToken();
   void SetToken(CBORTokenTag token, size_t token_byte_length);
   void SetError(Error error);
 
-  span<uint8_t> bytes_;
+  const span<uint8_t> bytes_;
   CBORTokenTag token_tag_;
   struct Status status_;
-  size_t token_byte_length_;
+  size_t token_byte_length_ = 0;
   MajorType token_start_type_;
   uint64_t token_start_internal_value_;
+  EnvelopeHeader envelope_header_;
 };
 
 // =============================================================================

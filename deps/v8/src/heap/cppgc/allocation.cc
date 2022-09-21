@@ -18,11 +18,11 @@
 namespace cppgc {
 namespace internal {
 
-STATIC_ASSERT(api_constants::kLargeObjectSizeThreshold ==
+static_assert(api_constants::kLargeObjectSizeThreshold ==
               kLargeObjectSizeThreshold);
 
 #if !(defined(V8_TARGET_ARCH_32_BIT) && defined(V8_CC_GNU))
-// GCC on x86 has alignof(std::max_alignt) == 16 (quad word) which is not
+// GCC on x86 has alignof(std::max_align_t) == 16 (quad word) which is not
 // satisfied by Oilpan.
 static_assert(api_constants::kMaxSupportedAlignment >=
                   alignof(std::max_align_t),

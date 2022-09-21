@@ -73,6 +73,32 @@ class InterpreterState {
     }
   }
 
+  void MoveToTempLocation(InstructionOperand& source) {
+    scratch_ = KeyFor(source);
+  }
+
+  void MoveFromTempLocation(InstructionOperand& dst) {
+    AllocatedOperand src(scratch_.kind, scratch_.rep, scratch_.index);
+    if (kFPAliasing == AliasingKind::kCombine && src.IsFPLocationOperand() &&
+        dst.IsFPLocationOperand()) {
+      // Canonicalize FP location-location moves by fragmenting them into
+      // an equivalent sequence of float32 moves, to simplify state
+      // equivalence testing.
+      std::vector<InstructionOperand> src_fragments;
+      GetCanonicalOperands(src, &src_fragments);
+      CHECK(!src_fragments.empty());
+      std::vector<InstructionOperand> dst_fragments;
+      GetCanonicalOperands(dst, &dst_fragments);
+      CHECK_EQ(src_fragments.size(), dst_fragments.size());
+
+      for (size_t i = 0; i < src_fragments.size(); ++i) {
+        write(dst_fragments[i], KeyFor(src_fragments[i]));
+      }
+      return;
+    }
+    write(dst, scratch_);
+  }
+
   bool operator==(const InterpreterState& other) const {
     return values_ == other.values_;
   }
@@ -183,6 +209,7 @@ class InterpreterState {
   }
 
   OperandMap values_;
+  Key scratch_ = {};
 };
 
 // An abstract interpreter for moves, swaps and parallel moves.
@@ -190,13 +217,20 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
+  void MoveToTempLocation(InstructionOperand* source) final {
+    state_.MoveToTempLocation(*source);
+  }
+  void MoveTempLocationTo(InstructionOperand* dest,
+                          MachineRepresentation rep) final {
+    state_.MoveFromTempLocation(*dest);
+  }
+  void SetPendingMove(MoveOperands* move) final {}
   void AssembleMove(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
     moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) override {
     ParallelMove* moves = zone_->New<ParallelMove>(zone_);
@@ -204,7 +238,6 @@ class MoveInterpreter : public GapResolver::Assembler {
     moves->AddMove(*destination, *source);
     state_.ExecuteInParallel(moves);
   }
-
   void AssembleParallelMove(const ParallelMove* moves) {
     state_.ExecuteInParallel(moves);
   }

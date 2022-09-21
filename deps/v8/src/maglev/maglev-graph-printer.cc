@@ -22,16 +22,32 @@ namespace maglev {
 
 namespace {
 
+int IntWidth(int val) { return std::ceil(std::log10(val + 1)); }
+
+int MaxIdWidth(MaglevGraphLabeller* graph_labeller, NodeIdT max_node_id,
+               int padding_adjustement = 0) {
+  int max_width = IntWidth(graph_labeller->max_node_id());
+  if (max_node_id != kInvalidNodeId) {
+    max_width += IntWidth(max_node_id) + 1;
+  }
+  return max_width + 2 + padding_adjustement;
+}
+
 void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                   NodeBase* node, std::string padding = " ",
-                   int padding_adjustement = 0) {
+                   NodeIdT max_node_id, NodeBase* node,
+                   std::string padding = " ", int padding_adjustement = 0) {
   int id = graph_labeller->NodeId(node);
-  int id_width = std::ceil(std::log10(id + 1));
-  int max_width = graph_labeller->max_node_id_width() + 2 + padding_adjustement;
-  int padding_width = std::max(0, max_width - id_width);
+  int id_width = IntWidth(id);
+  int other_id_width = node->has_id() ? 1 + IntWidth(node->id()) : 0;
+  int max_width = MaxIdWidth(graph_labeller, max_node_id, padding_adjustement);
+  int padding_width = std::max(0, max_width - id_width - other_id_width);
 
   for (int i = 0; i < padding_width; ++i) {
     os << padding;
+  }
+  if (FLAG_log_colour) os << "\033[0m";
+  if (node->has_id()) {
+    os << node->id() << "/";
   }
   os << graph_labeller->NodeId(node) << ": ";
 }
@@ -41,9 +57,9 @@ void PrintPadding(std::ostream& os, int size) {
 }
 
 void PrintPadding(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  int padding_adjustement = 0) {
+                  NodeIdT max_node_id, int padding_adjustement) {
   PrintPadding(os,
-               graph_labeller->max_node_id_width() + 2 + padding_adjustement);
+               MaxIdWidth(graph_labeller, max_node_id, padding_adjustement));
 }
 
 enum ConnectionLocation {
@@ -114,19 +130,24 @@ std::ostream& operator<<(std::ostream& os, const Connection& c) {
 // Print the vertical parts of connection arrows, optionally connecting arrows
 // that were only first created on this line (passed in "arrows_starting_here")
 // and should therefore connect rightwards instead of upwards.
-void PrintVerticalArrows(
-    std::ostream& os, const std::vector<BasicBlock*>& targets,
-    const std::set<size_t>& arrows_starting_here = {},
-    const std::set<BasicBlock*>& targets_starting_here = {},
-    bool is_loop = false) {
+void PrintVerticalArrows(std::ostream& os,
+                         const std::vector<BasicBlock*>& targets,
+                         std::set<size_t> arrows_starting_here = {},
+                         std::set<BasicBlock*> targets_starting_here = {},
+                         bool is_loop = false) {
   bool saw_start = false;
+  int line_color = -1;
+  int current_color = -1;
   for (size_t i = 0; i < targets.size(); ++i) {
+    int desired_color = line_color;
     Connection c;
     if (saw_start) {
       c.AddHorizontal();
     }
     if (arrows_starting_here.find(i) != arrows_starting_here.end() ||
         targets_starting_here.find(targets[i]) != targets_starting_here.end()) {
+      desired_color = (i % 6) + 1;
+      line_color = desired_color;
       c.Connect(kRight);
       c.Connect(is_loop ? kTop : kBottom);
       saw_start = true;
@@ -134,9 +155,21 @@ void PrintVerticalArrows(
 
     // Only add the vertical connection if there was no other connection.
     if (c.connected == 0 && targets[i] != nullptr) {
+      desired_color = (i % 6) + 1;
       c.AddVertical();
     }
+    if (FLAG_log_colour && desired_color != current_color &&
+        desired_color != -1) {
+      os << "\033[0;3" << desired_color << "m";
+      current_color = desired_color;
+    }
     os << c;
+  }
+  // If there are no arrows starting here, clear the color. Otherwise,
+  // PrintPaddedId will clear it.
+  if (FLAG_log_colour && arrows_starting_here.empty() &&
+      targets_starting_here.empty()) {
+    os << "\033[0m";
   }
 }
 
@@ -209,19 +242,26 @@ int MaglevPrintingVisitorOstream::overflow(int c) {
 
 }  // namespace
 
-MaglevPrintingVisitor::MaglevPrintingVisitor(std::ostream& os)
-    : os_(os),
+MaglevPrintingVisitor::MaglevPrintingVisitor(
+    MaglevGraphLabeller* graph_labeller, std::ostream& os)
+    : graph_labeller_(graph_labeller),
+      os_(os),
       os_for_additional_info_(
           new MaglevPrintingVisitorOstream(os_, &targets_)) {}
 
-void MaglevPrintingVisitor::PreProcessGraph(
-    MaglevCompilationUnit* compilation_unit, Graph* graph) {
-  os_ << "Graph (param count: " << compilation_unit->parameter_count()
-      << ", frame size: " << compilation_unit->register_count() << ")\n\n";
+void MaglevPrintingVisitor::PreProcessGraph(Graph* graph) {
+  os_ << "Graph\n\n";
 
   for (BasicBlock* block : *graph) {
     if (block->control_node()->Is<JumpLoop>()) {
       loop_headers_.insert(block->control_node()->Cast<JumpLoop>()->target());
+    }
+    if (max_node_id_ == kInvalidNodeId) {
+      if (block->control_node()->has_id()) {
+        max_node_id_ = block->control_node()->id();
+      }
+    } else {
+      max_node_id_ = std::max(max_node_id_, block->control_node()->id());
     }
   }
 
@@ -244,30 +284,37 @@ void MaglevPrintingVisitor::PreProcessGraph(
       AddTargetIfNotNext(targets_,
                          node->Cast<UnconditionalControlNode>()->target(),
                          *(block_it + 1));
-    } else if (node->Is<ConditionalControlNode>()) {
-      AddTargetIfNotNext(targets_,
-                         node->Cast<ConditionalControlNode>()->if_true(),
+    } else if (node->Is<BranchControlNode>()) {
+      AddTargetIfNotNext(targets_, node->Cast<BranchControlNode>()->if_true(),
                          *(block_it + 1));
-      AddTargetIfNotNext(targets_,
-                         node->Cast<ConditionalControlNode>()->if_false(),
+      AddTargetIfNotNext(targets_, node->Cast<BranchControlNode>()->if_false(),
                          *(block_it + 1));
+    } else if (node->Is<Switch>()) {
+      for (int i = 0; i < node->Cast<Switch>()->size(); i++) {
+        const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
+        AddTargetIfNotNext(targets_, target.block_ptr(), *(block_it + 1));
+      }
+      if (node->Cast<Switch>()->has_fallthrough()) {
+        BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
+        AddTargetIfNotNext(targets_, fallthrough_target, *(block_it + 1));
+      }
     }
   }
   DCHECK(std::all_of(targets_.begin(), targets_.end(),
                      [](BasicBlock* block) { return block == nullptr; }));
 }
 
-void MaglevPrintingVisitor::PreProcessBasicBlock(
-    MaglevCompilationUnit* compilation_unit, BasicBlock* block) {
-  MaglevGraphLabeller* graph_labeller = compilation_unit->graph_labeller();
-
+void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
   size_t loop_position = static_cast<size_t>(-1);
   if (loop_headers_.erase(block) > 0) {
     loop_position = AddTarget(targets_, block);
   }
   {
     bool saw_start = false;
+    int current_color = -1;
+    int line_color = -1;
     for (size_t i = 0; i < targets_.size(); ++i) {
+      int desired_color = line_color;
       Connection c;
       if (saw_start) {
         c.AddHorizontal();
@@ -275,6 +322,9 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
       // If this is one of the arrows pointing to this block, terminate the
       // line by connecting it rightwards.
       if (targets_[i] == block) {
+        // Update the color of the line.
+        desired_color = (i % 6) + 1;
+        line_color = desired_color;
         c.Connect(kRight);
         // If this is the loop header, go down instead of up and don't clear
         // the target.
@@ -287,16 +337,28 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
         saw_start = true;
       } else if (c.connected == 0 && targets_[i] != nullptr) {
         // If this is another arrow, connect it, but only if that doesn't
-        // clobber any existing drawing.
+        // clobber any existing drawing. Set the current color, but don't update
+        // the overall color.
+        desired_color = (i % 6) + 1;
         c.AddVertical();
+      }
+      if (FLAG_log_colour && current_color != desired_color &&
+          desired_color != -1) {
+        os_ << "\033[0;3" << desired_color << "m";
+        current_color = desired_color;
       }
       os_ << c;
     }
     os_ << (saw_start ? "►" : " ");
+    if (FLAG_log_colour) os_ << "\033[0m";
   }
 
-  int block_id = graph_labeller->BlockId(block);
-  os_ << "Block b" << block_id << "\n";
+  int block_id = graph_labeller_->BlockId(block);
+  os_ << "Block b" << block_id;
+  if (block->is_exception_handler_block()) {
+    os_ << " (exception handler)";
+  }
+  os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)->set_padding(1);
 }
@@ -305,19 +367,17 @@ namespace {
 
 template <typename NodeT>
 void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                     NodeT* node, const ProcessingState& state) {
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
-
+                     NodeT* node, MaglevGraphLabeller* graph_labeller,
+                     int max_node_id) {
   PrintVerticalArrows(os, targets);
-  PrintPadding(os, graph_labeller, 0);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
 
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
   os << "  ↱ eager @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
   int index = 0;
   deopt_info->state.register_frame->ForEachValue(
-      *state.compilation_unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -330,13 +390,15 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "}\n";
 }
 void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                          NodeBase* node, const ProcessingState& state) {
+                          NodeBase* node, MaglevGraphLabeller* graph_labeller,
+                          int max_node_id) {
   switch (node->opcode()) {
-#define CASE(Name)                                                   \
-  case Opcode::k##Name:                                              \
-    if constexpr (Name::kProperties.can_eager_deopt()) {             \
-      PrintEagerDeopt<Name>(os, targets, node->Cast<Name>(), state); \
-    }                                                                \
+#define CASE(Name)                                                           \
+  case Opcode::k##Name:                                                      \
+    if constexpr (Name::kProperties.can_eager_deopt()) {                     \
+      PrintEagerDeopt<Name>(os, targets, node->Cast<Name>(), graph_labeller, \
+                            max_node_id);                                    \
+    }                                                                        \
     break;
     NODE_BASE_LIST(CASE)
 #undef CASE
@@ -345,26 +407,24 @@ void MaybePrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
 
 template <typename NodeT>
 void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                    NodeT* node, const ProcessingState& state) {
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
-
+                    NodeT* node, MaglevGraphLabeller* graph_labeller,
+                    int max_node_id) {
   PrintVerticalArrows(os, targets);
-  PrintPadding(os, graph_labeller, 0);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
 
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
   int index = 0;
   deopt_info->state.register_frame->ForEachValue(
-      *state.compilation_unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
           os << ", ";
         }
         os << reg.ToString() << ":";
-        if (reg == deopt_info->result_location) {
+        if (deopt_info->IsResultRegister(reg)) {
           os << "<result>";
         } else {
           os << PrintNodeLabel(graph_labeller, node) << ":"
@@ -374,14 +434,67 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
       });
   os << "}\n";
 }
-void MaybePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                         NodeBase* node, const ProcessingState& state) {
+
+template <typename NodeT>
+void PrintExceptionHandlerPoint(std::ostream& os,
+                                std::vector<BasicBlock*> targets, NodeT* node,
+                                MaglevGraphLabeller* graph_labeller,
+                                int max_node_id) {
+  // If no handler info, then we cannot throw.
+  ExceptionHandlerInfo* info = node->exception_handler_info();
+  if (!info->HasExceptionHandler()) return;
+
+  BasicBlock* block = info->catch_block.block_ptr();
+  DCHECK(block->is_exception_handler_block());
+
+  Phi* first_phi = block->phis()->first();
+  if (first_phi == nullptr) {
+    // No phis in the block.
+    return;
+  }
+  int handler_offset = first_phi->merge_offset();
+
+  // The exception handler liveness should be a subset of lazy_deopt_info one.
+  auto* liveness = block->state()->frame_state().liveness();
+  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+
+  PrintVerticalArrows(os, targets);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
+
+  os << "  ↳ throw @" << handler_offset << " : {";
+  bool first = true;
+  deopt_info->state.register_frame->ForEachValue(
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+        if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
+          // Skip, since not live at the handler offset.
+          return;
+        }
+        if (first) {
+          first = false;
+        } else {
+          os << ", ";
+        }
+        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node);
+      });
+  os << "}\n";
+}
+
+void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
+                                           std::vector<BasicBlock*> targets,
+                                           NodeBase* node,
+                                           MaglevGraphLabeller* graph_labeller,
+                                           int max_node_id) {
   switch (node->opcode()) {
-#define CASE(Name)                                                  \
-  case Opcode::k##Name:                                             \
-    if constexpr (Name::kProperties.can_lazy_deopt()) {             \
-      PrintLazyDeopt<Name>(os, targets, node->Cast<Name>(), state); \
-    }                                                               \
+#define CASE(Name)                                                          \
+  case Opcode::k##Name:                                                     \
+    if constexpr (Name::kProperties.can_lazy_deopt()) {                     \
+      PrintLazyDeopt<Name>(os, targets, node->Cast<Name>(), graph_labeller, \
+                           max_node_id);                                    \
+    }                                                                       \
+    if constexpr (Name::kProperties.can_throw()) {                          \
+      PrintExceptionHandlerPoint<Name>(os, targets, node->Cast<Name>(),     \
+                                       graph_labeller, max_node_id);        \
+    }                                                                       \
     break;
     NODE_BASE_LIST(CASE)
 #undef CASE
@@ -391,48 +504,45 @@ void MaybePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
 }  // namespace
 
 void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
-
   PrintVerticalArrows(os_, targets_);
-  PrintPaddedId(os_, graph_labeller, phi);
-  os_ << "Phi (";
-  // Manually walk Phi inputs to print just the node labels, without
-  // input locations (which are shown in the predecessor block's gap
-  // moves).
-  for (int i = 0; i < phi->input_count(); ++i) {
-    if (i > 0) os_ << ", ";
-    if (state.block()->predecessor_at(i) == nullptr) {
-      os_ << "<dead>";
-    } else {
-      os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
+  PrintPaddedId(os_, graph_labeller_, max_node_id_, phi);
+  if (phi->input_count() == 0) {
+    os_ << "φₑ " << phi->owner().ToString();
+  } else {
+    os_ << "φ (";
+    // Manually walk Phi inputs to print just the node labels, without
+    // input locations (which are shown in the predecessor block's gap
+    // moves).
+    for (int i = 0; i < phi->input_count(); ++i) {
+      if (i > 0) os_ << ", ";
+      os_ << PrintNodeLabel(graph_labeller_, phi->input(i).node());
     }
+    os_ << ")";
   }
-  os_ << ") → " << phi->result().operand() << "\n";
+  os_ << " → " << phi->result().operand() << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
-      ->set_padding(graph_labeller->max_node_id_width() + 4);
+      ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
 }
 
 void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
-
-  MaybePrintEagerDeopt(os_, targets_, node, state);
+  MaybePrintEagerDeopt(os_, targets_, node, graph_labeller_, max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
-  PrintPaddedId(os_, graph_labeller, node);
-  os_ << PrintNode(graph_labeller, node) << "\n";
+  PrintPaddedId(os_, graph_labeller_, max_node_id_, node);
+  os_ << PrintNode(graph_labeller_, node) << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
-      ->set_padding(graph_labeller->max_node_id_width() + 4);
+      ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
 
-  MaybePrintLazyDeopt(os_, targets_, node, state);
+  MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, node, graph_labeller_,
+                                        max_node_id_);
 }
 
 void MaglevPrintingVisitor::Process(ControlNode* control_node,
                                     const ProcessingState& state) {
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
-
-  MaybePrintEagerDeopt(os_, targets_, control_node, state);
+  MaybePrintEagerDeopt(os_, targets_, control_node, graph_labeller_,
+                       max_node_id_);
 
   bool has_fallthrough = false;
 
@@ -441,7 +551,7 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
 
     PrintVerticalArrows(os_, targets_, {}, {target}, true);
     os_ << "◄─";
-    PrintPaddedId(os_, graph_labeller, control_node, "─", -2);
+    PrintPaddedId(os_, graph_labeller_, max_node_id_, control_node, "─", -2);
     std::replace(targets_.begin(), targets_.end(), target,
                  static_cast<BasicBlock*>(nullptr));
 
@@ -453,14 +563,14 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
     has_fallthrough |= !AddTargetIfNotNext(targets_, target, state.next_block(),
                                            &arrows_starting_here);
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
-    PrintPaddedId(os_, graph_labeller, control_node,
+    PrintPaddedId(os_, graph_labeller_, max_node_id_, control_node,
                   has_fallthrough ? " " : "─");
 
-  } else if (control_node->Is<ConditionalControlNode>()) {
+  } else if (control_node->Is<BranchControlNode>()) {
     BasicBlock* true_target =
-        control_node->Cast<ConditionalControlNode>()->if_true();
+        control_node->Cast<BranchControlNode>()->if_true();
     BasicBlock* false_target =
-        control_node->Cast<ConditionalControlNode>()->if_false();
+        control_node->Cast<BranchControlNode>()->if_false();
 
     std::set<size_t> arrows_starting_here;
     has_fallthrough |= !AddTargetIfNotNext(
@@ -468,14 +578,33 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
     has_fallthrough |= !AddTargetIfNotNext(
         targets_, true_target, state.next_block(), &arrows_starting_here);
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
-    PrintPaddedId(os_, graph_labeller, control_node, "─");
+    PrintPaddedId(os_, graph_labeller_, max_node_id_, control_node, "─");
+  } else if (control_node->Is<Switch>()) {
+    std::set<size_t> arrows_starting_here;
+    for (int i = 0; i < control_node->Cast<Switch>()->size(); i++) {
+      const BasicBlockRef& target = control_node->Cast<Switch>()->targets()[i];
+      has_fallthrough |=
+          !AddTargetIfNotNext(targets_, target.block_ptr(), state.next_block(),
+                              &arrows_starting_here);
+    }
+
+    if (control_node->Cast<Switch>()->has_fallthrough()) {
+      BasicBlock* fallthrough_target =
+          control_node->Cast<Switch>()->fallthrough();
+      has_fallthrough |=
+          !AddTargetIfNotNext(targets_, fallthrough_target, state.next_block(),
+                              &arrows_starting_here);
+    }
+
+    PrintVerticalArrows(os_, targets_, arrows_starting_here);
+    PrintPaddedId(os_, graph_labeller_, max_node_id_, control_node, "─");
 
   } else {
     PrintVerticalArrows(os_, targets_);
-    PrintPaddedId(os_, graph_labeller, control_node);
+    PrintPaddedId(os_, graph_labeller_, max_node_id_, control_node);
   }
 
-  os_ << PrintNode(graph_labeller, control_node) << "\n";
+  os_ << PrintNode(graph_labeller_, control_node) << "\n";
 
   bool printed_phis = false;
   if (control_node->Is<UnconditionalControlNode>()) {
@@ -484,25 +613,46 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
     if (target->has_phi()) {
       printed_phis = true;
       PrintVerticalArrows(os_, targets_);
-      PrintPadding(os_, graph_labeller, -1);
+      PrintPadding(os_, graph_labeller_, max_node_id_, -1);
       os_ << (has_fallthrough ? "│" : " ");
       os_ << "  with gap moves:\n";
       int pid = state.block()->predecessor_id();
       for (Phi* phi : *target->phis()) {
         PrintVerticalArrows(os_, targets_);
-        PrintPadding(os_, graph_labeller, -1);
+        PrintPadding(os_, graph_labeller_, max_node_id_, -1);
         os_ << (has_fallthrough ? "│" : " ");
         os_ << "    - ";
-        graph_labeller->PrintInput(os_, phi->input(pid));
-        os_ << " → " << graph_labeller->NodeId(phi) << ": Phi "
+        graph_labeller_->PrintInput(os_, phi->input(pid));
+        os_ << " → " << graph_labeller_->NodeId(phi) << ": φ "
             << phi->result().operand() << "\n";
+      }
+      if (target->state()->register_state().is_initialized()) {
+        PrintVerticalArrows(os_, targets_);
+        PrintPadding(os_, graph_labeller_, max_node_id_, -1);
+        os_ << (has_fallthrough ? "│" : " ");
+        os_ << "  with register merges:\n";
+        auto print_register_merges = [&](auto reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            compiler::InstructionOperand source = merge->operand(pid);
+            PrintVerticalArrows(os_, targets_);
+            PrintPadding(os_, graph_labeller_, max_node_id_, -1);
+            os_ << (has_fallthrough ? "│" : " ");
+            os_ << "    - " << source << " → " << reg << "\n";
+          }
+        };
+        target->state()->register_state().ForEachGeneralRegister(
+            print_register_merges);
+        target->state()->register_state().ForEachDoubleRegister(
+            print_register_merges);
       }
     }
   }
 
   PrintVerticalArrows(os_, targets_);
   if (has_fallthrough) {
-    PrintPadding(os_, graph_labeller, -1);
+    PrintPadding(os_, graph_labeller_, max_node_id_, -1);
     if (printed_phis) {
       os_ << "▼";
     } else {
@@ -514,17 +664,18 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
   // TODO(leszeks): Allow MaglevPrintingVisitorOstream to print the arrowhead
   // so that it overlaps the fallthrough arrow.
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
-      ->set_padding(graph_labeller->max_node_id_width() + 4);
+      ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
 }
 
-void PrintGraph(std::ostream& os, MaglevCompilationUnit* compilation_unit,
+void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph) {
-  GraphProcessor<MaglevPrintingVisitor> printer(compilation_unit, os);
+  GraphProcessor<MaglevPrintingVisitor> printer(
+      compilation_info->graph_labeller(), os);
   printer.ProcessGraph(graph);
 }
 
 void PrintNode::Print(std::ostream& os) const {
-  node_->Print(os, graph_labeller_);
+  node_->Print(os, graph_labeller_, skip_targets_);
 }
 
 std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {

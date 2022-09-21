@@ -5,7 +5,7 @@
 #ifndef V8_DEBUG_WASM_GDB_SERVER_WASM_MODULE_DEBUG_H_
 #define V8_DEBUG_WASM_GDB_SERVER_WASM_MODULE_DEBUG_H_
 
-#include "src/debug/debug.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 #include "src/execution/frames.h"
 

@@ -64,7 +64,10 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
-            heap_->incremental_marking()->IsCompacting());
+            heap_->incremental_marking()->IsCompacting(),
+            heap_->incremental_marking()->IsMinorMarking()
+                ? MarkingBarrierType::kMinor
+                : MarkingBarrierType::kMajor);
       }
     }
   });
@@ -84,6 +87,9 @@ LocalHeap::~LocalHeap() {
     FreeLinearAllocationArea();
 
     if (!is_main_thread()) {
+      CodePageHeaderModificationScope rwx_write_scope(
+          "Publishing of marking barrier results for Code space pages requires "
+          "write access to Code page headers");
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
@@ -94,7 +100,7 @@ LocalHeap::~LocalHeap() {
     current_local_heap = nullptr;
   }
 
-  DCHECK(gc_epilogue_callbacks_.empty());
+  DCHECK(gc_epilogue_callbacks_.IsEmpty());
 }
 
 void LocalHeap::SetUpMainThreadForTesting() { SetUpMainThread(); }
@@ -407,30 +413,29 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
 }
 
-void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback,
-                                      void* data) {
+void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
+                                      GCType gc_type) {
   DCHECK(!IsParked());
-  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
-  DCHECK_EQ(std::find(gc_epilogue_callbacks_.begin(),
-                      gc_epilogue_callbacks_.end(), callback_and_data),
-            gc_epilogue_callbacks_.end());
-  gc_epilogue_callbacks_.push_back(callback_and_data);
+  gc_epilogue_callbacks_.Add(callback, LocalIsolate::FromHeap(this), gc_type,
+                             data);
 }
 
 void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
                                          void* data) {
   DCHECK(!IsParked());
-  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
-  auto it = std::find(gc_epilogue_callbacks_.begin(),
-                      gc_epilogue_callbacks_.end(), callback_and_data);
-  *it = gc_epilogue_callbacks_.back();
-  gc_epilogue_callbacks_.pop_back();
+  gc_epilogue_callbacks_.Remove(callback, data);
 }
 
-void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint() {
-  for (auto callback_and_data : gc_epilogue_callbacks_) {
-    callback_and_data.first(callback_and_data.second);
-  }
+void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
+                                                     GCCallbackFlags flags) {
+  gc_epilogue_callbacks_.Invoke(gc_type, flags);
+}
+
+void LocalHeap::NotifyObjectSizeChange(
+    HeapObject object, int old_size, int new_size,
+    ClearRecordedSlots clear_recorded_slots) {
+  heap()->NotifyObjectSizeChange(object, old_size, new_size,
+                                 clear_recorded_slots);
 }
 
 }  // namespace internal

@@ -12,12 +12,9 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/factory.h"
-#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
-#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
@@ -30,8 +27,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  i::FLAG_wasm_max_mem_pages = 32;
-  i::FLAG_wasm_max_table_size = 100;
+  i::v8_flags.wasm_max_mem_pages = 32;
+  i::v8_flags.wasm_max_table_size = 100;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
@@ -62,7 +59,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
           .ToHandle(&module_object);
 
-  if (i::FLAG_wasm_fuzzer_gen_test) {
+  if (i::v8_flags.wasm_fuzzer_gen_test) {
     i::wasm::fuzzer::GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 

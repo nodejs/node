@@ -123,7 +123,9 @@
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
+#include "src/utils/hex-format.h"
 #include "src/utils/ostreams.h"
+#include "src/utils/sha-256.h"
 #include "src/utils/utils-inl.h"
 #include "src/zone/zone.h"
 
@@ -141,9 +143,8 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
   if (mode == LanguageMode::kStrict) return kThrowOnError;
 
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    if (!(it.frame()->is_optimized() || it.frame()->is_unoptimized())) {
-      continue;
-    }
+    if (!it.frame()->is_java_script()) continue;
+
     // Get the language mode from closure.
     JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(it.frame());
     std::vector<SharedFunctionInfo> functions;
@@ -177,6 +178,11 @@ bool ComparisonResultToBool(Operation op, ComparisonResult result) {
 }
 
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
+  if (InstanceTypeChecker::IsJSApiObject(instance_type)) {
+    return os << "[api object] "
+              << static_cast<int16_t>(instance_type) -
+                     i::Internals::kFirstJSApiObjectType;
+  }
   switch (instance_type) {
 #define WRITE_TYPE(TYPE) \
   case TYPE:             \
@@ -206,7 +212,7 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
 Handle<FieldType> Object::OptimalType(Isolate* isolate,
                                       Representation representation) {
   if (representation.IsNone()) return FieldType::None(isolate);
-  if (FLAG_track_field_types) {
+  if (v8_flags.track_field_types) {
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(*this).map(), isolate);
@@ -645,7 +651,8 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   return js_len;
 }
 
-bool Object::BooleanValue(Isolate* isolate) {
+template <typename IsolateT>
+bool Object::BooleanValue(IsolateT* isolate) {
   if (IsSmi()) return Smi::ToInt(*this) != 0;
   DCHECK(IsHeapObject());
   if (IsBoolean()) return IsTrue(isolate);
@@ -656,6 +663,8 @@ bool Object::BooleanValue(Isolate* isolate) {
   if (IsBigInt()) return BigInt::cast(*this).ToBoolean();
   return true;
 }
+template bool Object::BooleanValue(Isolate*);
+template bool Object::BooleanValue(LocalIsolate*);
 
 Object Object::ToBoolean(Isolate* isolate) {
   if (IsBoolean()) return *this;
@@ -1033,12 +1042,12 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           isolate, array, length);
     } else if (object->IsJSTypedArray()) {
       Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
-      size_t length = array->length();
-      if (array->WasDetached() ||
+      size_t length = array->GetLength();
+      if (array->IsDetachedOrOutOfBounds() ||
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
       }
-      STATIC_ASSERT(FixedArray::kMaxLength <=
+      static_assert(FixedArray::kMaxLength <=
                     std::numeric_limits<uint32_t>::max());
       return array->GetElementsAccessor()->CreateListFromArrayLike(
           isolate, array, static_cast<uint32_t>(length));
@@ -1318,8 +1327,8 @@ bool Object::ToInt32(int32_t* value) {
 
 // static
 Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
-  Handle<FixedArray> list =
-      isolate->factory()->NewFixedArray(kLengthIndex + size);
+  Handle<FixedArray> list = isolate->factory()->NewFixedArray(
+      kLengthIndex + size, AllocationType::kOld);
   list->set(kLengthIndex, Smi::zero());
   return Handle<TemplateList>::cast(list);
 }
@@ -1328,7 +1337,7 @@ Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
 Handle<TemplateList> TemplateList::Add(Isolate* isolate,
                                        Handle<TemplateList> list,
                                        Handle<i::Object> value) {
-  STATIC_ASSERT(kFirstElementIndex == 1);
+  static_assert(kFirstElementIndex == 1);
   int index = list->length() + 1;
   Handle<i::FixedArray> fixed_array = Handle<FixedArray>::cast(list);
   fixed_array = FixedArray::SetAndGrow(isolate, fixed_array, index, value);
@@ -1417,12 +1426,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   if (structure->IsAccessorInfo()) {
     Handle<Name> name = it->GetName();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
-    if (!info->IsCompatibleReceiver(*receiver)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   name, receiver),
-                      Object);
-    }
 
     if (!info->has_getter()) return isolate->factory()->undefined_value();
 
@@ -1470,35 +1473,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   return isolate->factory()->undefined_value();
 }
 
-// static
-Address AccessorInfo::redirect(Address address, AccessorComponent component) {
-  ApiFunction fun(address);
-  DCHECK_EQ(ACCESSOR_GETTER, component);
-  ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
-  return ExternalReference::Create(&fun, type).address();
-}
-
-Address AccessorInfo::redirected_getter() const {
-  Address accessor = v8::ToCData<Address>(getter());
-  if (accessor == kNullAddress) return kNullAddress;
-  return redirect(accessor, ACCESSOR_GETTER);
-}
-
-Address CallHandlerInfo::redirected_callback() const {
-  Address address = v8::ToCData<Address>(callback());
-  ApiFunction fun(address);
-  ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
-  return ExternalReference::Create(&fun, type).address();
-}
-
-bool AccessorInfo::IsCompatibleReceiverMap(Handle<AccessorInfo> info,
-                                           Handle<Map> map) {
-  if (!info->HasExpectedReceiverType()) return true;
-  if (!map->IsJSObjectMap()) return false;
-  return FunctionTemplateInfo::cast(info->expected_receiver_type())
-      .IsTemplateFor(*map);
-}
-
 Maybe<bool> Object::SetPropertyWithAccessor(
     LookupIterator* it, Handle<Object> value,
     Maybe<ShouldThrow> maybe_should_throw) {
@@ -1520,11 +1494,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(
   if (structure->IsAccessorInfo()) {
     Handle<Name> name = it->GetName();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
-    if (!info->IsCompatibleReceiver(*receiver)) {
-      isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kIncompatibleMethodReceiver, name, receiver));
-      return Nothing<bool>();
-    }
 
     if (!info->has_setter()) {
       // TODO(verwaest): We should not get here anymore once all AccessorInfos
@@ -1675,7 +1644,7 @@ bool Object::SameValueZero(Object other) {
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, Handle<Object> original_array) {
   Handle<Object> default_species = isolate->array_function();
-  if (!FLAG_builtin_subclassing) return default_species;
+  if (!v8_flags.builtin_subclassing) return default_species;
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
       Protectors::IsArraySpeciesLookupChainIntact(isolate)) {
@@ -1864,12 +1833,16 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case MAP_TYPE: {
       os << "<Map";
       Map mapInstance = Map::cast(*this);
-      if (mapInstance.IsJSObjectMap()) {
-        os << "(" << ElementsKindToString(mapInstance.elements_kind()) << ")";
-      } else if (mapInstance.instance_size() != kVariableSizeSentinel) {
+      if (mapInstance.instance_size() != kVariableSizeSentinel) {
         os << "[" << mapInstance.instance_size() << "]";
       }
-      os << ">";
+      os << "(";
+      if (mapInstance.IsJSObjectMap()) {
+        os << ElementsKindToString(mapInstance.elements_kind());
+      } else {
+        os << mapInstance.instance_type();
+      }
+      os << ")>";
     } break;
     case AWAIT_CONTEXT_TYPE: {
       os << "<AwaitContext generator= ";
@@ -2054,6 +2027,19 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
+    case CODE_DATA_CONTAINER_TYPE: {
+#ifdef V8_EXTERNAL_CODE_SPACE
+      CodeDataContainer code = CodeDataContainer::cast(*this);
+      os << "<CodeDataContainer " << CodeKindToString(code.kind());
+      if (code.is_builtin()) {
+        os << " " << Builtins::name(code.builtin_id());
+      }
+      os << ">";
+#else
+      os << "<CodeDataContainer>";
+#endif  // V8_EXTERNAL_CODE_SPACE
+      break;
+    }
     case CODE_TYPE: {
       Code code = Code::cast(*this);
       os << "<Code " << CodeKindToString(code.kind());
@@ -2125,11 +2111,18 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << '>';
       break;
     }
+    case ACCESSOR_INFO_TYPE: {
+      AccessorInfo info = AccessorInfo::cast(*this);
+      os << "<AccessorInfo ";
+      os << "name= " << Brief(info.name());
+      os << ", data= " << Brief(info.data());
+      os << ">";
+      break;
+    }
     case CALL_HANDLER_INFO_TYPE: {
       CallHandlerInfo info = CallHandlerInfo::cast(*this);
       os << "<CallHandlerInfo ";
-      os << "callback= " << Brief(info.callback());
-      os << ", js_callback= " << Brief(info.js_callback());
+      os << "callback= " << reinterpret_cast<void*>(info.callback());
       os << ", data= " << Brief(info.data());
       if (info.IsSideEffectFreeCallHandlerInfo()) {
         os << ", side_effect_free= true>";
@@ -2151,7 +2144,7 @@ void Tuple2::BriefPrintDetails(std::ostream& os) {
 }
 
 void MegaDomHandler::BriefPrintDetails(std::ostream& os) {
-  os << " " << Brief(accessor()) << ", " << Brief(context());
+  os << " " << Brief(accessor(kAcquireLoad)) << ", " << Brief(context());
 }
 
 void ClassPositions::BriefPrintDetails(std::ostream& os) {
@@ -2297,11 +2290,15 @@ int HeapObject::SizeFromMap(Map map) const {
         CoverageInfo::unchecked_cast(*this).slot_count());
   }
 #if V8_ENABLE_WEBASSEMBLY
+  if (instance_type == WASM_TYPE_INFO_TYPE) {
+    return WasmTypeInfo::SizeFor(
+        WasmTypeInfo::unchecked_cast(*this).supertypes_length());
+  }
   if (instance_type == WASM_STRUCT_TYPE) {
     return WasmStruct::GcSafeSize(map);
   }
   if (instance_type == WASM_ARRAY_TYPE) {
-    return WasmArray::SizeFor(map, WasmArray::cast(*this).length());
+    return WasmArray::SizeFor(map, WasmArray::unchecked_cast(*this).length());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
@@ -2801,21 +2798,15 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        BigInt::FromObject(isolate, value),
                                        Nothing<bool>());
-      // We have to recheck the length. However, it can only change if the
-      // underlying buffer was detached, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
+      if (Handle<JSTypedArray>::cast(receiver)->IsDetachedOrOutOfBounds()) {
         return Just(true);
-        // TODO(neis): According to the spec, this should throw a TypeError.
       }
     } else if (!value->IsNumber() && !value->IsUndefined(isolate)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        Object::ToNumber(isolate, value),
                                        Nothing<bool>());
-      // We have to recheck the length. However, it can only change if the
-      // underlying buffer was detached, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
+      if (Handle<JSTypedArray>::cast(receiver)->IsDetachedOrOutOfBounds()) {
         return Just(true);
-        // TODO(neis): According to the spec, this should throw a TypeError.
       }
     }
   }
@@ -2835,25 +2826,26 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   } else  // NOLINT(readability/braces)
 #endif    // V8_ENABLE_WEBASSEMBLY
           // clang-format off
-  if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate))) {
-    // clang-format on
+  if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate) ||
+                  receiver->IsJSSharedArray(isolate))) {
+      // clang-format on
 
-    // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-        Nothing<bool>());
-    it->WriteDataValue(to_assign, false);
-  } else {
-    // Possibly migrate to the most up-to-date map that will be able to store
-    // |value| under it->name().
-    it->PrepareForDataProperty(to_assign);
+      // Shared structs can only point to primitives or shared values.
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
+          Nothing<bool>());
+      it->WriteDataValue(to_assign, false);
+    } else {
+      // Possibly migrate to the most up-to-date map that will be able to store
+      // |value| under it->name().
+      it->PrepareForDataProperty(to_assign);
 
-    // Write the property value.
-    it->WriteDataValue(to_assign, false);
-  }
+      // Write the property value.
+      it->WriteDataValue(to_assign, false);
+    }
 
 #if VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     receiver->HeapObjectVerify(isolate);
   }
 #endif
@@ -2939,9 +2931,9 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
   it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify(it->isolate());
-    }
+  if (v8_flags.verify_heap) {
+    receiver->HeapObjectVerify(it->isolate());
+  }
 #endif
 
     return Just(true);
@@ -2952,6 +2944,8 @@ MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
                                       ShouldThrow throw_if_cannot_be_shared) {
   // Use Object::Share() if value might already be shared.
   DCHECK(!value->IsShared());
+
+  SharedObjectSafePublishGuard publish_guard;
 
   if (value->IsString()) {
     return String::Share(isolate, Handle<String>::cast(value));
@@ -3987,18 +3981,25 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
                                           Handle<Object> value) {
-  if (index < array->length()) {
+  int src_length = array->length();
+  if (index < src_length) {
     array->set(index, *value);
     return array;
   }
-  int capacity = array->length();
+  int capacity = src_length;
   do {
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array = isolate->factory()->NewFixedArray(capacity);
-  array->CopyTo(0, *new_array, 0, array->length());
-  new_array->FillWithHoles(array->length(), new_array->length());
-  new_array->set(index, *value);
+
+  DisallowGarbageCollection no_gc;
+  auto raw_src = *array;
+  auto raw_dst = *new_array;
+  raw_src.CopyTo(0, raw_dst, 0, src_length);
+  DCHECK_EQ(raw_dst.length(), capacity);
+  raw_dst.FillWithHoles(src_length, capacity);
+  raw_dst.set(index, *value);
+
   return new_array;
 }
 
@@ -4033,9 +4034,10 @@ void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
 
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj) {
+                                 Handle<Object> obj,
+                                 AllocationType allocation) {
   int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 1);
+  array = EnsureSpace(isolate, array, length + 1, allocation);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->Length(), length);
   {
@@ -4100,14 +4102,15 @@ Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
 namespace {
 
 Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
-                                           Handle<FixedArray> array,
-                                           int length) {
+                                           Handle<FixedArray> array, int length,
+                                           AllocationType allocation) {
   int capacity = array->length();
   if (capacity < length) {
     int new_capacity = length;
     new_capacity = new_capacity + std::max(new_capacity / 2, 2);
     int grow_by = new_capacity - capacity;
-    array = isolate->factory()->CopyFixedArrayAndGrow(array, grow_by);
+    array =
+        isolate->factory()->CopyFixedArrayAndGrow(array, grow_by, allocation);
   }
   return array;
 }
@@ -4116,10 +4119,11 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
 
 // static
 Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
-                                         Handle<ArrayList> array, int length) {
+                                         Handle<ArrayList> array, int length,
+                                         AllocationType allocation) {
   DCHECK_LT(0, length);
-  auto new_array = Handle<ArrayList>::cast(
-      EnsureSpaceInFixedArray(isolate, array, kFirstIndex + length));
+  auto new_array = Handle<ArrayList>::cast(EnsureSpaceInFixedArray(
+      isolate, array, kFirstIndex + length, allocation));
   DCHECK_EQ(array->Length(), new_array->Length());
   return new_array;
 }
@@ -4284,6 +4288,13 @@ bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
   return false;
 }
 
+bool WeakArrayList::Contains(MaybeObject value) {
+  for (int i = 0; i < length(); ++i) {
+    if (Get(i) == value) return true;
+  }
+  return false;
+}
+
 // static
 Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
                                           Handle<WeakArrayList> array,
@@ -4394,8 +4405,9 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
   int capture_register_count =
       JSRegExp::RegistersForCaptureCount(capture_count);
   const int required_length = kFirstCaptureIndex + capture_register_count;
-  Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(
-      EnsureSpaceInFixedArray(isolate, match_info, required_length));
+  Handle<RegExpMatchInfo> result =
+      Handle<RegExpMatchInfo>::cast(EnsureSpaceInFixedArray(
+          isolate, match_info, required_length, AllocationType::kYoung));
   result->SetNumberOfCaptureRegisters(capture_register_count);
   return result;
 }
@@ -4514,9 +4526,24 @@ void DescriptorArray::Sort() {
   DCHECK(IsSortedNoDuplicates());
 }
 
+void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
+                                                        uint32_t desc_hash,
+                                                        int insertion_index) {
+  DCHECK_GE(insertion_index, 0);
+  DCHECK_LE(insertion_index, number_of_all_descriptors());
+
+  if (insertion_index <= 0) return;
+
+  for (int i = insertion_index; i > 0; --i) {
+    Name current_key = GetSortedKey(i - 1);
+    if (current_key.hash() != desc_hash) return;
+    CHECK(current_key != *desc->GetKey());
+  }
+}
+
 int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
     unsigned mark_compact_epoch, int16_t new_marked) {
-  STATIC_ASSERT(kMaxNumberOfDescriptors <=
+  static_assert(kMaxNumberOfDescriptors <=
                 NumberOfMarkedDescriptors::kMaxNumberOfMarkedDescriptors);
   int16_t old_raw_marked = raw_number_of_marked_descriptors();
   int16_t old_marked =
@@ -4539,8 +4566,11 @@ int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
 Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
                                         Handle<AccessorPair> pair) {
   Handle<AccessorPair> copy = isolate->factory()->NewAccessorPair();
-  copy->set_getter(pair->getter());
-  copy->set_setter(pair->setter());
+  DisallowGarbageCollection no_gc;
+  auto raw_src = *pair;
+  auto raw_copy = *copy;
+  raw_copy.set_getter(raw_src.getter());
+  raw_copy.set_setter(raw_src.setter());
   return copy;
 }
 
@@ -4810,7 +4840,8 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
       Handle<SharedFunctionInfo> shared =
           handle(script->eval_from_shared(), isolate);
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-      position = shared->abstract_code(isolate).SourcePosition(-position);
+      position =
+          shared->abstract_code(isolate).SourcePosition(isolate, -position);
     }
     DCHECK_GE(position, 0);
     script->set_eval_from_position(position);
@@ -5042,13 +5073,58 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
+// static
+Handle<String> Script::GetScriptHash(Isolate* isolate, Handle<Script> script,
+                                     bool forceForInspector) {
+  if (script->origin_options().IsOpaque() && !forceForInspector) {
+    return isolate->factory()->empty_string();
+  }
+
+  PtrComprCageBase cage_base(isolate);
+  {
+    Object maybe_source_hash = script->source_hash(cage_base);
+    if (maybe_source_hash.IsString(cage_base)) {
+      Handle<String> precomputed(String::cast(maybe_source_hash), isolate);
+      if (precomputed->length() > 0) {
+        return precomputed;
+      }
+    }
+  }
+
+  Handle<String> src_text;
+  {
+    Object maybe_script_source = script->source(cage_base);
+
+    if (!maybe_script_source.IsString(cage_base)) {
+      return isolate->factory()->empty_string();
+    }
+    src_text = handle(String::cast(maybe_script_source), isolate);
+  }
+
+  char formatted_hash[kSizeOfFormattedSha256Digest];
+
+  std::unique_ptr<char[]> string_val = src_text->ToCString();
+  size_t len = strlen(string_val.get());
+  uint8_t hash[kSizeOfSha256Digest];
+  SHA256_hash(string_val.get(), len, hash);
+  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
+                   kSizeOfSha256Digest);
+  formatted_hash[kSizeOfSha256Digest * 2] = '\0';
+
+  Handle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(formatted_hash);
+  script->set_source_hash(*result);
+  return result;
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, IsolateT* isolate,
     FunctionLiteral* function_literal) {
   int function_literal_id = function_literal->function_literal_id();
-  if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT &&
-                  function_literal_id >= script->shared_function_info_count()) {
+  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT &&
+                  function_literal_id >=
+                      script->shared_function_info_count())) {
     return FindWebSnapshotSharedFunctionInfo(script, isolate, function_literal);
   }
 
@@ -5262,7 +5338,7 @@ AllocationType AllocationSite::GetAllocationType() const {
 }
 
 bool AllocationSite::IsNested() {
-  DCHECK(FLAG_trace_track_allocation_sites);
+  DCHECK(v8_flags.trace_track_allocation_sites);
   Object current = boilerplate().GetHeap()->allocation_sites_list();
   while (current.IsAllocationSite()) {
     AllocationSite current_site = AllocationSite::cast(current);
@@ -5630,7 +5706,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     }
     if (!has_handler_context) handler_context = isolate->native_context();
 
-    STATIC_ASSERT(
+    static_assert(
         static_cast<int>(PromiseReaction::kSize) ==
         static_cast<int>(
             PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks));
@@ -5642,14 +5718,14 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           *argument);
       Handle<PromiseFulfillReactionJobTask>::cast(task)->set_context(
           *handler_context);
-      STATIC_ASSERT(
+      static_assert(
           static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
           static_cast<int>(PromiseFulfillReactionJobTask::kHandlerOffset));
-      STATIC_ASSERT(
+      static_assert(
           static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
           static_cast<int>(
               PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
-      STATIC_ASSERT(
+      static_assert(
           static_cast<int>(
               PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
           static_cast<int>(PromiseFulfillReactionJobTask::
@@ -5664,11 +5740,11 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           *handler_context);
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_handler(
           *primary_handler);
-      STATIC_ASSERT(
+      static_assert(
           static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
           static_cast<int>(
               PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
-      STATIC_ASSERT(
+      static_assert(
           static_cast<int>(
               PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
           static_cast<int>(PromiseRejectReactionJobTask::
@@ -5723,10 +5799,11 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
       Derived::GetMap(ReadOnlyRoots(isolate)), length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
-
-  table->SetNumberOfElements(0);
-  table->SetNumberOfDeletedElements(0);
-  table->SetCapacity(capacity);
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
+  raw_table.SetNumberOfElements(0);
+  raw_table.SetNumberOfDeletedElements(0);
+  raw_table.SetCapacity(capacity);
   return table;
 }
 
@@ -6221,7 +6298,7 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
     if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
-    if ((attr & ONLY_ENUMERABLE) == 0) result++;
+    if ((int{attr} & ONLY_ENUMERABLE) == 0) result++;
   }
   return result;
 }
@@ -6579,8 +6656,8 @@ void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
   Transition(details, roots.the_hole_value_handle());
   // TODO(11527): pass Isolate as an argument.
   Isolate* isolate = GetIsolateFromWritableObject(*this);
-  dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kPropertyCellChangedGroup);
+  DependentCode::DeoptimizeDependencyGroups(
+      isolate, *this, DependentCode::kPropertyCellChangedGroup);
 }
 
 // static
@@ -6676,8 +6753,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     // forever.
     if (original_details.cell_type() != new_type ||
         (!original_details.IsReadOnly() && details.IsReadOnly())) {
-      cell->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kPropertyCellChangedGroup);
+      DependentCode::DeoptimizeDependencyGroups(
+          isolate, *cell, DependentCode::kPropertyCellChangedGroup);
     }
   }
   return cell;
@@ -6690,8 +6767,8 @@ void PropertyCell::InvalidateProtector() {
     set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore);
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
 }
 
@@ -6740,21 +6817,25 @@ bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
 }
 #endif  // DEBUG
 
+int JSGeneratorObject::code_offset() const {
+  DCHECK(input_or_debug_pos().IsSmi());
+  int code_offset = Smi::ToInt(input_or_debug_pos());
+
+  // The stored bytecode offset is relative to a different base than what
+  // is used in the source position table, hence the subtraction.
+  code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+  return code_offset;
+}
+
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function().shared().HasBytecodeArray());
   Isolate* isolate = GetIsolate();
   DCHECK(
       function().shared().GetBytecodeArray(isolate).HasSourcePositionTable());
-
-  int code_offset = Smi::ToInt(input_or_debug_pos());
-
-  // The stored bytecode offset is relative to a different base than what
-  // is used in the source position table, hence the subtraction.
-  code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
   AbstractCode code =
       AbstractCode::cast(function().shared().GetBytecodeArray(isolate));
-  return code.SourcePosition(code_offset);
+  return code.SourcePosition(isolate, code_offset());
 }
 
 // static

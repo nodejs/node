@@ -169,8 +169,6 @@ class PersistentBase {
    * Turns this handle into a weak phantom handle without finalization callback.
    * The handle will be reset automatically when the garbage collector detects
    * that the object is no longer reachable.
-   * A related function Isolate::NumberOfPhantomHandleResetsSinceLastCall
-   * returns how many phantom handles were reset by the garbage collector.
    */
   V8_INLINE void SetWeak();
 
@@ -254,7 +252,7 @@ class NonCopyablePersistentTraits {
  * This will clone the contents of storage cell, but not any of the flags, etc.
  */
 template <class T>
-struct CopyablePersistentTraits {
+struct V8_DEPRECATED("Use v8::Global instead") CopyablePersistentTraits {
   using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
   static const bool kResetInDestructor = true;
   template <class S, class M>

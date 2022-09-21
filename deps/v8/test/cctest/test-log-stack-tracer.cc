@@ -30,14 +30,11 @@
 #include <stdlib.h>
 
 #include "include/v8-function.h"
-#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "src/diagnostics/disassembler.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "test/cctest/cctest.h"

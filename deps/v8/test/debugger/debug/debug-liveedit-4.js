@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noalways-opt
+// Flags: --noalways-turbofan
 
 // In this test case we edit a script so that techincally function text
 // hasen't been changed. However actually function became one level more nested

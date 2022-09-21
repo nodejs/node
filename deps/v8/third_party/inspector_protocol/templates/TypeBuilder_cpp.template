@@ -276,10 +276,11 @@ void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Di
     {% if "parameters" in command %}
     auto deserializer = {{config.crdtp.namespace}}::DeferredMessage::FromSpan(dispatchable.Params())->MakeDeserializer();
     {{command.name}}Params params;
-    {{command.name}}Params::Deserialize(&deserializer, &params);
-    if (MaybeReportInvalidParams(dispatchable, deserializer))
+    if (!{{command.name}}Params::Deserialize(&deserializer, &params)) {
+      ReportInvalidParams(dispatchable, deserializer);
       return;
-    {% endif %}
+    }
+    {% endif -%}
 
     {% if "returns" in command and not protocol.is_async_command(domain.domain, command.name) %}
     // Declare output parameters.

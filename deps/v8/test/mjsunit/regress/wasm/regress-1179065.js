@@ -8,14 +8,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.addMemory(1, 10);
-builder.addFunction('load', kSig_i_i).addBody([
+let loadFct = builder.addFunction('load', kSig_i_i).addBody([
   // signature: i_i
   // body:
   kExprLocalGet, 0,       // local.get
   kExprI32LoadMem, 0, 0,  // i32.load_mem
 ]).exportFunc();
 const instance = builder.instantiate();
-// Call multiple times to trigger dynamic tiering.
-while (%IsLiftoffFunction(instance.exports.load)) {
-  instance.exports.load(1);
-}
+for (let i = 0; i < 20; i++) instance.exports.load(1);
+%WasmTierUpFunction(instance, loadFct.index);
+assertFalse(%IsLiftoffFunction(instance.exports.load));
+instance.exports.load(1);

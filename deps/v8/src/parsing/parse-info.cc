@@ -31,7 +31,8 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_type_profile(isolate->is_collecting_type_profile());
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
-  set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
+  set_might_always_turbofan(FLAG_always_turbofan ||
+                            FLAG_prepare_always_turbofan);
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_lazy_compile(true);
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
@@ -102,8 +103,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
                                    is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
 
-  LOG(isolate,
-      ScriptEvent(Logger::ScriptEventType::kReserveId, flags.script_id()));
+  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kReserveId,
+                           flags.script_id()));
   return flags;
 }
 
@@ -173,7 +174,7 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     Isolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->logger()),
+      v8_file_logger_(isolate->v8_file_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
       ast_raw_string_zone_(allocator_,
@@ -187,7 +188,7 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     LocalIsolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->main_thread_logger()),
+      v8_file_logger_(isolate->main_thread_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
       ast_raw_string_zone_(allocator_,
@@ -255,28 +256,31 @@ Handle<Script> ParseInfo::CreateScript(
          flags().script_id() == Script::kTemporaryScriptId);
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id());
+  DisallowGarbageCollection no_gc;
+  auto raw_script = *script;
   switch (natives) {
     case EXTENSION_CODE:
-      script->set_type(Script::TYPE_EXTENSION);
+      raw_script.set_type(Script::TYPE_EXTENSION);
       break;
     case INSPECTOR_CODE:
-      script->set_type(Script::TYPE_INSPECTOR);
+      raw_script.set_type(Script::TYPE_INSPECTOR);
       break;
     case NOT_NATIVES_CODE:
       break;
   }
-  script->set_origin_options(origin_options);
-  script->set_is_repl_mode(flags().is_repl_mode());
+  raw_script.set_origin_options(origin_options);
+  raw_script.set_is_repl_mode(flags().is_repl_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
-    script->set_wrapped_arguments(*maybe_wrapped_arguments.ToHandleChecked());
+    raw_script.set_wrapped_arguments(
+        *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+    raw_script.set_compilation_type(Script::COMPILATION_TYPE_EVAL);
   }
-
-  CheckFlagsForToplevelCompileFromScript(*script,
+  CheckFlagsForToplevelCompileFromScript(raw_script,
                                          isolate->is_collecting_type_profile());
+
   return script;
 }
 

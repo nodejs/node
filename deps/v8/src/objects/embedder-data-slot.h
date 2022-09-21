@@ -32,7 +32,7 @@ class Object;
 class EmbedderDataSlot
     : public SlotBase<EmbedderDataSlot, Address, kTaggedSize> {
  public:
-#if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, an EmbedderDataSlot always contains a valid
   // external pointer table index (initially, zero) in it's "raw" part and a
   // valid tagged value in its 32-bit "tagged" part.
@@ -85,7 +85,7 @@ class EmbedderDataSlot
   // kExternalPointerOffset
   static constexpr int kTaggedPayloadOffset = 0;
   static constexpr int kExternalPointerOffset = 0;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
@@ -120,9 +120,9 @@ class EmbedderDataSlot
   // the pointer-like value. Note, that some Smis could still look like an
   // aligned pointers.
   // Returns true on success.
-  // When sandboxed external pointers are enabled, calling this method when the
-  // raw part of the slot does not contain valid external pointer table index
-  // is undefined behaviour and most likely result in crashes.
+  // When the sandbox is enabled, calling this method when the raw part of the
+  // slot does not contain valid external pointer table index is undefined
+  // behaviour and most likely result in crashes.
   V8_INLINE bool ToAlignedPointer(Isolate* isolate, void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer

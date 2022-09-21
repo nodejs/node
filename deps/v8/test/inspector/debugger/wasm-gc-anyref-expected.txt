@@ -1,0 +1,36 @@
+Test inspection of Wasm anyref objects
+
+Running test: test
+Calling instantiate function.
+Waiting for wasm script to be parsed.
+Got wasm script!
+Setting breakpoint
+Module instantiated.
+{
+    columnNumber : 138
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+Table populated.
+Paused:
+Script wasm://wasm/0e116a66 byte offset 138: Wasm opcode 0x01 (kExprNop)
+Scope:
+at $main (0:138):
+ - scope (wasm-expression-stack):
+   stack: 
+ - scope (local):
+   $anyref_local: Struct ((ref $type0))
+   $anyref_local2: Array ((ref $type1))
+   $anyref_local_i31: null (anyref)
+   $anyref_local_null: null (anyref)
+ - scope (module):
+   instance: exports: "exported_ref_table" (Table), "fill_ref_table" (Function), "main" (Function)
+   module: Module
+   functions: "$fill_ref_table": (Function), "$main": (Function)
+   tables: 
+      $exported_ref_table: 0: Struct ((ref $type0)), 1: Array ((ref $type1)), 2: undefined (anyref), 3: undefined (anyref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+exports.main returned. Test finished.

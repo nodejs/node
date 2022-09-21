@@ -71,6 +71,8 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
       return kSimd128Size;
+    case MachineRepresentation::kSimd256:
+      return kSimd256Size;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
       break;

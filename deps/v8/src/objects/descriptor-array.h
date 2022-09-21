@@ -120,6 +120,14 @@ class DescriptorArray
   // Sort the instance descriptors by the hash codes of their keys.
   V8_EXPORT_PRIVATE void Sort();
 
+  // Iterate through Name hash collisions in the descriptor array starting from
+  // insertion index checking for Name collisions. Note: If we ever add binary
+  // insertion for large DescriptorArrays it would need to be hardened in a
+  // similar way. This function only expects to be called on Sorted
+  // DescriptorArrays.
+  V8_EXPORT_PRIVATE void CheckNameCollisionDuringInsertion(
+      Descriptor* desc, uint32_t descriptor_hash, int insertion_index);
+
   // Search the instance descriptors for given name. {concurrent_search} signals
   // if we are doing the search on a background thread. If so, we will sacrifice
   // speed for thread-safety.
@@ -127,6 +135,11 @@ class DescriptorArray
                                  bool concurrent_search = false);
   V8_INLINE InternalIndex Search(Name name, Map map,
                                  bool concurrent_search = false);
+
+  // Search the instance descriptors for given field offset.
+  V8_INLINE InternalIndex Search(int field_offset,
+                                 int number_of_own_descriptors);
+  V8_INLINE InternalIndex Search(int field_offset, Map map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
@@ -147,8 +160,8 @@ class DescriptorArray
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
-  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+  static_assert(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
+  static_assert(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
   DECL_INT16_ACCESSORS(raw_number_of_marked_descriptors)

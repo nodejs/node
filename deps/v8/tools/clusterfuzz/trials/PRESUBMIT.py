@@ -21,10 +21,15 @@ def _CheckTrialsConfig(input_api, output_api):
     with open(f.AbsoluteLocalPath()) as j:
       try:
         trials = json.load(j)
+        mandatory_properties = {'app_args', 'app_name', 'probability'}
+        optional_properties = {'contradicts'}
+        all_properties = mandatory_properties.union(optional_properties)
         for trial in trials:
-          if not all(
-              k in trial for k in ('app_args', 'app_name', 'probability')):
-            results.append('trial {} is not configured correctly'.format(trial))
+          trial_keys = set(trial.keys())
+          if not mandatory_properties.issubset(trial_keys):
+            results.append('trial {} does not have mandatory propertie(s) {}'.format(trial, mandatory_properties - trial_keys))
+          if not trial_keys.issubset(all_properties):
+            results.append('trial {} has incorrect propertie(s) {}'.format(trial, trial_keys - all_properties))
           if trial['app_name'] != 'd8':
             results.append('trial {} has an incorrect app_name'.format(trial))
           if not isinstance(trial['probability'], float):
@@ -36,6 +41,11 @@ def _CheckTrialsConfig(input_api, output_api):
             results.append(
                 'trial {} should have a non-empty string for app_args'.format(
                     trial))
+          contradicts = trial.get('contradicts', [])
+          if not isinstance(contradicts, list) or not all(
+              isinstance(cont, str) for cont in contradicts):
+              results.append(
+                'trial {} contradicts is not a list of strings'.format(trial))
       except Exception as e:
         results.append(
             'JSON validation failed for %s. Error:\n%s' % (f.LocalPath(), e))

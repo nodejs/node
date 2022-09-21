@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --opt --no-always-opt --deopt-every-n-times=0
+// Flags: --allow-natives-syntax --expose-gc --turbofan --no-always-turbofan --deopt-every-n-times=0
 
 var elements_kind = {
   packed_smi               :  'packed smi elements',

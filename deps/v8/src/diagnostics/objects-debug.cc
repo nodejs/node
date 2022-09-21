@@ -18,6 +18,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
@@ -32,6 +33,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/turbofan-types-inl.h"
@@ -54,13 +56,14 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
-#include "src/objects/js-shadow-realms-inl.h"
+#include "src/objects/js-shadow-realm-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -176,6 +179,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   VerifyPointer(isolate, map(cage_base));
   CHECK(map(cage_base).IsMap(cage_base));
 
+  CHECK(CheckRequiredAlignment(isolate));
+
   switch (map(cage_base).instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
@@ -261,6 +266,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
+    case WASM_EXCEPTION_PACKAGE_TYPE:
+      WasmExceptionPackage::cast(*this).WasmExceptionPackageVerify(isolate);
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -321,6 +329,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 // static
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
+  // If you crashed here and {isolate->is_shared()}, there is a bug causing the
+  // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), HeapObject::cast(p)));
   CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsCode());
 }
@@ -335,8 +345,10 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
 
 void Symbol::SymbolVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SymbolVerify(*this, isolate);
-  CHECK(HasHashCode());
-  CHECK_GT(hash(), 0);
+  uint32_t hash;
+  const bool has_hash = TryGetHash(&hash);
+  CHECK(has_hash);
+  CHECK_GT(hash, 0);
   CHECK(description().IsUndefined(isolate) || description().IsString());
   CHECK_IMPLIES(IsPrivateName(), IsPrivate());
   CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
@@ -538,6 +550,20 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(header_end_offset +
                  JSObject::GetEmbedderFieldCount(*this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
+
+    if (IsJSSharedStructMap() || IsJSSharedArrayMap() || IsJSAtomicsMutex() ||
+        IsJSAtomicsCondition()) {
+      CHECK(InSharedHeap());
+      CHECK(GetBackPointer().IsUndefined(isolate));
+      Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
+      if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
+      CHECK(!is_extensible());
+      CHECK(!is_prototype_map());
+      CHECK(instance_descriptors(isolate).InSharedHeap());
+      if (IsJSSharedArrayMap()) {
+        CHECK(has_shared_array_elements());
+      }
+    }
   }
 
   if (!may_have_interesting_symbols()) {
@@ -555,7 +581,8 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
-                    IsAnyHoleyNonextensibleElementsKind(elements_kind()));
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()) ||
+                    IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     DCHECK(prototype_info() == Smi::zero() ||
@@ -631,7 +658,7 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);
       uint64_t unexpected =
-          bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
+          base::bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
           uint64_t{0x7FF8000000000000};
       // Create implementation specific sNaN by inverting relevant bit.
       unexpected ^= uint64_t{0x0008000000000000};
@@ -665,7 +692,7 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
       iter.Next();
       FeedbackSlotKind kind = iter.kind();
       CHECK_NE(FeedbackSlotKind::kInvalid, kind);
-      CHECK_GT(FeedbackSlotKind::kKindsNumber, kind);
+      CHECK_GT(kFeedbackSlotKindCount, kind);
     }
   }
 }
@@ -832,6 +859,7 @@ void String::StringVerify(Isolate* isolate) {
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   CHECK_IMPLIES(length() == 0, *this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString()) {
+    CHECK(HasHashCode());
     CHECK(!ObjectInYoungGeneration(*this));
   }
 }
@@ -850,6 +878,7 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
+  CHECK(!HasForwardingIndex(kAcquireLoad));
   CHECK(actual().IsInternalizedString());
   CHECK(actual().IsSeqString() || actual().IsExternalString());
 }
@@ -876,7 +905,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(JSFunction::TorqueGeneratedClass::kHeaderSize ==
+  static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
                 8 * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
@@ -926,7 +955,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm = HasWasmExportedFunctionData() || HasAsmWasmData() ||
                  HasWasmJSFunctionData() || HasWasmCapiFunctionData() ||
-                 HasWasmOnFulfilledData();
+                 HasWasmResumeData();
 #else
   bool is_wasm = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1062,19 +1091,27 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
+      Code code = this->code();
 #ifdef V8_EXTERNAL_CODE_SPACE
-      // kind and builtin_id() getters are not available on CodeDataContainer
+      // kind() and builtin_id() getters are not available on CodeDataContainer
       // when external code space is not enabled.
-      CHECK_EQ(code().kind(), kind());
-      CHECK_EQ(code().builtin_id(), builtin_id());
+      CHECK_EQ(code.kind(), kind());
+      CHECK_EQ(code.builtin_id(), builtin_id());
+      if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+        // When FLAG_interpreted_frames_native_stack is enabled each interpreted
+        // function gets its own copy of the InterpreterEntryTrampoline.
+        // Thus, there could be Code'ful builtins.
+        CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
+                      builtin_id() == Builtin::kInterpreterEntryTrampoline);
+      }
 #endif  // V8_EXTERNAL_CODE_SPACE
-      CHECK_EQ(code().code_data_container(kAcquireLoad), *this);
+      CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
 
       // Ensure the cached code entry point corresponds to the Code object
       // associated with this CodeDataContainer.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
       if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-        if (code().InstructionStart() == code_entry_point()) {
+        if (code.InstructionStart() == code_entry_point()) {
           // Most common case, all good.
         } else {
           // When shared pointer compression cage is enabled and it has the
@@ -1085,15 +1122,17 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
           // So, do a reverse Code object lookup via code_entry_point value to
           // ensure it corresponds to the same Code object associated with this
           // CodeDataContainer.
-          Code the_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
-              code_entry_point());
-          CHECK_EQ(the_code, code());
+          CodeLookupResult lookup_result =
+              isolate->heap()->GcSafeFindCodeForInnerPointer(
+                  code_entry_point());
+          CHECK(lookup_result.IsFound());
+          CHECK_EQ(lookup_result.ToCode(), code);
         }
       } else {
-        CHECK_EQ(code().InstructionStart(), code_entry_point());
+        CHECK_EQ(code.InstructionStart(), code_entry_point());
       }
 #else
-      CHECK_EQ(code().InstructionStart(), code_entry_point());
+      CHECK_EQ(code.InstructionStart(), code_entry_point());
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     }
   }
@@ -1212,28 +1251,48 @@ USE_TORQUE_VERIFIER(JSWrappedFunction)
 
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());
+  CHECK(InSharedWritableHeap());
   JSObjectVerify(isolate);
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
   // even internally.
-  // TODO(v8:12547): Generalize shared -> shared pointer verification.
   Map struct_map = map();
-  CHECK(struct_map.InSharedHeap());
-  CHECK(struct_map.GetBackPointer().IsUndefined(isolate));
-  Object maybe_cell = struct_map.prototype_validity_cell();
-  if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
-  CHECK(!struct_map.is_extensible());
-  CHECK(!struct_map.is_prototype_map());
   CHECK(property_array().InSharedHeap());
   DescriptorArray descriptors = struct_map.instance_descriptors(isolate);
-  CHECK(descriptors.InSharedHeap());
   for (InternalIndex i : struct_map.IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     CHECK_EQ(PropertyKind::kData, details.kind());
     CHECK_EQ(PropertyLocation::kField, details.location());
     CHECK(details.representation().IsTagged());
-    CHECK(
-        RawFastPropertyAt(FieldIndex::ForDescriptor(struct_map, i)).IsShared());
+    FieldIndex field_index = FieldIndex::ForDescriptor(struct_map, i);
+    CHECK(RawFastPropertyAt(field_index).IsShared());
+    CHECK(field_index.is_inobject());
+  }
+}
+
+void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
+  CHECK(IsJSAtomicsMutex());
+  CHECK(InSharedWritableHeap());
+  JSObjectVerify(isolate);
+}
+
+void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
+  CHECK(IsJSAtomicsCondition());
+  CHECK(InSharedHeap());
+  JSObjectVerify(isolate);
+}
+
+void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
+  CHECK(IsJSSharedArray());
+  JSObjectVerify(isolate);
+  CHECK(HasFastProperties());
+  // Shared arrays can only point to primitives or other shared HeapObjects,
+  // even internally.
+  FixedArray storage = FixedArray::cast(elements());
+  uint32_t length = storage.length();
+  for (uint32_t j = 0; j < length; j++) {
+    Object element_value = storage.get(j);
+    CHECK(element_value.IsShared());
   }
 }
 
@@ -1499,7 +1558,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       bool is_compiled = latin1_code.IsCodeT();
       if (is_compiled) {
-        CHECK_EQ(FromCodeT(CodeT::cast(latin1_code)).builtin_id(),
+        CHECK_EQ(CodeT::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1776,6 +1835,11 @@ void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   CHECK(IsWasmValueObject());
 }
 
+void WasmExceptionPackage::WasmExceptionPackageVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  CHECK(IsWasmExceptionPackage());
+}
+
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
@@ -1795,7 +1859,7 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(DataHandler::kHeaderSize == 6 * kTaggedSize);
+  static_assert(DataHandler::kHeaderSize == 6 * kTaggedSize);
 
   StructVerify(isolate);
   CHECK(IsDataHandler());
@@ -1845,7 +1909,7 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-  if V8_UNLIKELY (type() == Script::TYPE_WEB_SNAPSHOT) {
+  if (V8_UNLIKELY(type() == Script::TYPE_WEB_SNAPSHOT)) {
     CHECK_LE(shared_function_info_count(), shared_function_infos().length());
   } else {
     // No overallocating shared_function_infos.
@@ -1946,7 +2010,7 @@ class StringTableVerifier : public RootVisitor {
 
 void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
   DCHECK_EQ(isolate->string_table(), this);
-  if (!isolate->OwnsStringTable()) return;
+  if (!isolate->OwnsStringTables()) return;
   StringTableVerifier verifier(isolate);
   IterateElements(&verifier);
 }
@@ -1994,7 +2058,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS: {
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
       FixedArray e = FixedArray::cast(elements());
@@ -2075,13 +2140,14 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
+    uint32_t hash;
+    const bool has_hash = key.TryGetHash(&hash);
+    CHECK(has_hash);
     if (key == current_key) {
       Print();
       return false;
     }
     current_key = key;
-    uint32_t hash = key.hash();
     if (hash < current) {
       Print();
       return false;
@@ -2099,8 +2165,9 @@ bool TransitionArray::IsSortedNoDuplicates() {
 
   for (int i = 0; i < number_of_transitions(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
-    uint32_t hash = key.hash();
+    uint32_t hash;
+    const bool has_hash = key.TryGetHash(&hash);
+    CHECK(has_hash);
     PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key.GetReadOnlyRoots(),

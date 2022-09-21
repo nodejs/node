@@ -160,6 +160,59 @@
           ]
         },
         {
+          "name": "Multiply",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["multiply.js", "bigint-util.js"],
+          "test_flags": ["multiply"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Multiply-Zero" },
+            { "name": "Multiply-Small"},
+            { "name": "Multiply-Small-Truncated" },
+            { "name": "Multiply-Random" }
+          ]
+        },
+        {
+          "name": "Divide",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["divide.js", "bigint-util.js"],
+          "test_flags": ["divide"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Divide-One" },
+            { "name": "Divide-Small"},
+            { "name": "Divide-Small-Truncated" },
+            { "name": "Divide-Random" }
+          ]
+        },
+        {
+          "name": "BitwiseAnd",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["bitwise-and.js", "bigint-util.js"],
+          "test_flags": ["bitwise-and"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "BitwiseAnd-Zero" },
+            { "name": "BitwiseAnd-Small" },
+            { "name": "BitwiseAnd-Small-Truncated" },
+            { "name": "BitwiseAnd-Random" }
+          ]
+        },
+        {
+          "name": "Exponentiate",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["exponentiate.js", "bigint-util.js"],
+          "test_flags": ["exponentiate"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Exponentiate-Base-Two" }
+          ]
+        },
+        {
           "name": "AsUintN",
           "main": "run.js",
           "flags": ["--allow-natives-syntax"],

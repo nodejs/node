@@ -746,21 +746,21 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   // from generated code.
   __ mov(frame_pointer(), sp);
   __ lay(sp, MemOperand(sp, -10 * kSystemPointerSize));
-  STATIC_ASSERT(kSuccessfulCaptures == kInputString - kSystemPointerSize);
+  static_assert(kSuccessfulCaptures == kInputString - kSystemPointerSize);
   __ mov(r1, Operand::Zero());  // success counter
-  STATIC_ASSERT(kStringStartMinusOne ==
+  static_assert(kStringStartMinusOne ==
                 kSuccessfulCaptures - kSystemPointerSize);
   __ mov(r0, r1);  // offset of location
   __ StoreMultipleP(r0, r9, MemOperand(sp, 0));
-  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  static_assert(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
   __ Push(r1);  // The backtrack counter.
-  STATIC_ASSERT(kRegExpStackBasePointer ==
+  static_assert(kRegExpStackBasePointer ==
                 kBacktrackCount - kSystemPointerSize);
   __ push(r1);  // The regexp stack base ptr.
 
   // Initialize backtrack stack pointer. It must not be clobbered from here on.
   // Note the backtrack_stackpointer is callee-saved.
-  STATIC_ASSERT(backtrack_stackpointer() == r13);
+  static_assert(backtrack_stackpointer() == r13);
   LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
   // Store the regexp base pointer - we'll later restore it / write it to
@@ -1146,7 +1146,7 @@ void RegExpMacroAssemblerS390::ReadStackPointerFromRegister(int reg) {
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ mov(r2, Operand(ref));
   __ LoadU64(r2, MemOperand(r2));
-  __ LoadU64(backtrack_stackpointer(), register_location(reg));
+  __ LoadU64(backtrack_stackpointer(), register_location(reg), r0);
   __ AddS64(backtrack_stackpointer(), backtrack_stackpointer(), r2);
 }
 

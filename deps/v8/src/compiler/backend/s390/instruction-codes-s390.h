@@ -208,8 +208,6 @@ namespace compiler {
   V(S390_F32x4Le)                           \
   V(S390_F32x4Abs)                          \
   V(S390_F32x4Neg)                          \
-  V(S390_F32x4RecipApprox)                  \
-  V(S390_F32x4RecipSqrtApprox)              \
   V(S390_F32x4SConvertI32x4)                \
   V(S390_F32x4UConvertI32x4)                \
   V(S390_F32x4Sqrt)                         \

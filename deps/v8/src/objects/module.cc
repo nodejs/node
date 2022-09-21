@@ -39,7 +39,7 @@ void PrintModuleName(Module module, std::ostream& os) {
 }
 
 void PrintStatusTransition(Module module, Module::Status old_status) {
-  if (!FLAG_trace_module_status) return;
+  if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Changing module status from " << old_status << " to "
      << module.status() << " for ";
@@ -47,7 +47,7 @@ void PrintStatusTransition(Module module, Module::Status old_status) {
 }
 
 void PrintStatusMessage(Module module, const char* message) {
-  if (!FLAG_trace_module_status) return;
+  if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Instantiating module ";
   PrintModuleName(module, os);
@@ -74,31 +74,24 @@ void Module::SetStatus(Status new_status) {
   SetStatusInternal(*this, new_status);
 }
 
-// static
-void Module::RecordErrorUsingPendingException(Isolate* isolate,
-                                              Handle<Module> module) {
-  Handle<Object> the_exception(isolate->pending_exception(), isolate);
-  RecordError(isolate, module, the_exception);
-}
-
-// static
-void Module::RecordError(Isolate* isolate, Handle<Module> module,
-                         Handle<Object> error) {
+void Module::RecordError(Isolate* isolate, Object error) {
   DisallowGarbageCollection no_gc;
-  DCHECK(module->exception().IsTheHole(isolate));
-  DCHECK(!error->IsTheHole(isolate));
-  if (module->IsSourceTextModule()) {
+  // Allow overriding exceptions with termination exceptions.
+  DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
+                 exception().IsTheHole(isolate));
+  DCHECK(!error.IsTheHole(isolate));
+  if (IsSourceTextModule()) {
     // Revert to minmal SFI in case we have already been instantiating or
     // evaluating.
-    auto self = SourceTextModule::cast(*module);
+    auto self = SourceTextModule::cast(*this);
     self.set_code(self.GetSharedFunctionInfo());
   }
-  SetStatusInternal(*module, Module::kErrored);
-  if (isolate->is_catchable_by_javascript(*error)) {
-    module->set_exception(*error);
+  SetStatusInternal(*this, Module::kErrored);
+  if (isolate->is_catchable_by_javascript(error)) {
+    set_exception(error);
   } else {
     // v8::TryCatch uses `null` for termination exceptions.
-    module->set_exception(*isolate->factory()->null_value());
+    set_exception(ReadOnlyRoots(isolate).null_value());
   }
 }
 
@@ -246,10 +239,10 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
-  STACK_CHECK(isolate, MaybeHandle<Object>());
+  int module_status = module->status();
 
   // In the event of errored evaluation, return a rejected promise.
-  if (module->status() == kErrored) {
+  if (module_status == kErrored) {
     // If we have a top level capability we assume it has already been
     // rejected, and return it here. Otherwise create a new promise and
     // reject it with the module's exception.
@@ -267,12 +260,12 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 
   // Start of Evaluate () Concrete Method
   // 2. Assert: module.[[Status]] is "linked" or "evaluated".
-  CHECK(module->status() == kLinked || module->status() == kEvaluated);
+  CHECK(module_status == kLinked || module_status == kEvaluated);
 
   // 3. If module.[[Status]] is "evaluated", set module to
   //    module.[[CycleRoot]].
   // A Synthetic Module has no children so it is its own cycle root.
-  if (module->status() == kEvaluated && module->IsSourceTextModule()) {
+  if (module_status == kEvaluated && module->IsSourceTextModule()) {
     module = Handle<SourceTextModule>::cast(module)->GetCycleRoot(isolate);
   }
 
@@ -365,6 +358,11 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
       Map::GetOrCreatePrototypeInfo(Handle<JSObject>::cast(ns), isolate);
   proto_info->set_module_namespace(*ns);
   return ns;
+}
+
+bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
+  Handle<Object> object(module().exports().Lookup(name), isolate);
+  return !object->IsTheHole(isolate);
 }
 
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,

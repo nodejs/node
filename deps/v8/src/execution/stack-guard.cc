@@ -217,7 +217,7 @@ void StackGuard::FreeThreadResources() {
 
 void StackGuard::ThreadLocal::Initialize(Isolate* isolate,
                                          const ExecutionAccess& lock) {
-  const uintptr_t kLimitSize = FLAG_stack_size * KB;
+  const uintptr_t kLimitSize = v8_flags.stack_size * KB;
   DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
   uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
   real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
@@ -271,7 +271,7 @@ Object StackGuard::HandleInterrupts() {
   isolate_->heap()->VerifyNewSpaceTop();
 #endif
 
-  if (FLAG_verify_predictable) {
+  if (v8_flags.verify_predictable) {
     // Advance synthetic time by making a time request.
     isolate_->heap()->MonotonicallyIncreasingTimeInMs();
   }
@@ -291,6 +291,11 @@ Object StackGuard::HandleInterrupts() {
   if (TestAndClear(&interrupt_flags, GC_REQUEST)) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCHandleGCRequest");
     isolate_->heap()->HandleGCRequest();
+  }
+
+  if (TestAndClear(&interrupt_flags, GLOBAL_SAFEPOINT)) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GlobalSafepoint");
+    isolate_->main_thread_local_heap()->Safepoint();
   }
 
 #if V8_ENABLE_WEBASSEMBLY

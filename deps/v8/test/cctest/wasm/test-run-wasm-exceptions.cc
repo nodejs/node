@@ -372,8 +372,6 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
   BUILD(throw_func, WASM_THROW(except));
-  byte sig_index = r.builder().AddSignature(sigs.i_ii());
-  throw_func.SetSigIndex(0);
 
   // Add an indirect function table.
   uint16_t indirect_function_table[] = {
@@ -382,16 +380,16 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_T(
-            kWasmI32,
-            WASM_STMTS(WASM_I32V(kResult1),
-                       WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                               WASM_STMTS(WASM_CALL_INDIRECT(
-                                              sig_index, WASM_I32V(7),
-                                              WASM_I32V(9), WASM_LOCAL_GET(0)),
-                                          WASM_DROP))),
-            WASM_I32V(kResult0), except));
+  BUILD(r, WASM_TRY_CATCH_T(
+               kWasmI32,
+               WASM_STMTS(
+                   WASM_I32V(kResult1),
+                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                           WASM_STMTS(WASM_CALL_INDIRECT(
+                                          throw_func.sig_index(), WASM_I32V(7),
+                                          WASM_I32V(9), WASM_LOCAL_GET(0)),
+                                      WASM_DROP))),
+               WASM_I32V(kResult0), except));
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -414,8 +412,6 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
   BUILD(throw_func, WASM_THROW(except));
-  byte sig_index = r.builder().AddSignature(sigs.i_ii());
-  throw_func.SetSigIndex(0);
 
   // Add an indirect function table.
   uint16_t indirect_function_table[] = {
@@ -424,16 +420,16 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the main test function.
-  BUILD(r,
-        WASM_TRY_CATCH_ALL_T(
-            kWasmI32,
-            WASM_STMTS(WASM_I32V(kResult1),
-                       WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                               WASM_STMTS(WASM_CALL_INDIRECT(
-                                              sig_index, WASM_I32V(7),
-                                              WASM_I32V(9), WASM_LOCAL_GET(0)),
-                                          WASM_DROP))),
-            WASM_I32V(kResult0)));
+  BUILD(r, WASM_TRY_CATCH_ALL_T(
+               kWasmI32,
+               WASM_STMTS(
+                   WASM_I32V(kResult1),
+                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
+                           WASM_STMTS(WASM_CALL_INDIRECT(
+                                          throw_func.sig_index(), WASM_I32V(7),
+                                          WASM_I32V(9), WASM_LOCAL_GET(0)),
+                                      WASM_DROP))),
+               WASM_I32V(kResult0)));
 
   if (execution_tier != TestExecutionTier::kInterpreter) {
     // Need to call through JS to allow for creation of stack traces.
@@ -601,8 +597,8 @@ class IsolateScope {
 UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  // FLAG_stack_size must be set before isolate initialization.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  // v8_flags.stack_size must be set before isolate initialization.
+  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext context(isolate_scope.isolate());

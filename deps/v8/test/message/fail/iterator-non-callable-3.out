@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: TypedArray's constructor requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+new Uint8Array(x);
+^
+TypeError: TypedArray's constructor requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+    at new Uint8Array (<anonymous>)
+    at *%(basename)s:7:1

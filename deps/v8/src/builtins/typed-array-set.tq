@@ -274,7 +274,8 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     //                                  value, true, Unordered).
     //    iii. Set srcByteIndex to srcByteIndex + 1.
     //     iv. Set targetByteIndex to targetByteIndex + 1.
-    if (IsSharedArrayBuffer(target.buffer)) {
+    if (IsSharedArrayBuffer(target.buffer) ||
+        IsSharedArrayBuffer(source.buffer)) {
       // SABs need a relaxed memmove to preserve atomicity.
       CallCRelaxedMemmove(dstPtr, source.data_ptr, countBytes);
     } else {

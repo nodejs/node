@@ -4,7 +4,6 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
-#include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -51,25 +50,25 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
   // 3. JS objects with embedder fields cannot be deferred because the
   // serialize/deserialize callbacks need the back reference immediately to
   // identify the object.
+  // 4. ByteArray cannot be deferred as JSTypedArray needs the base_pointer
+  // ByteArray immediately if it's on heap.
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
   return !o.IsMap() && !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0);
+         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0) &&
+         !o.IsByteArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, AccessorInfo accessor_info) {
   DisallowGarbageCollection no_gc;
-  // Restore wiped accessor infos.
-  Foreign::cast(accessor_info.js_getter())
-      .set_foreign_address(isolate, accessor_info.redirected_getter());
+  accessor_info.init_getter_redirection(isolate);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, CallHandlerInfo call_handler_info) {
   DisallowGarbageCollection no_gc;
-  Foreign::cast(call_handler_info.js_callback())
-      .set_foreign_address(isolate, call_handler_info.redirected_callback());
+  call_handler_info.init_callback_redirection(isolate);
 }
 
 }  // namespace internal

@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+enum AllocationSiteOverrideMode;
+
 class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit ArrayBuiltinsAssembler(compiler::CodeAssemblerState* state);

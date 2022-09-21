@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 // https://bugs.chromium.org/p/v8/issues/detail?id=10816
 // When V8 sees a deprecated map, update the IC with its target.

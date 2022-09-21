@@ -66,7 +66,8 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
     return current_bytecode_offset_;
   }
 
-  static void UpdatePointersCallback(void* iterator) {
+  static void UpdatePointersCallback(LocalIsolate*, GCType, GCCallbackFlags,
+                                     void* iterator) {
     reinterpret_cast<BytecodeOffsetIterator*>(iterator)->UpdatePointers();
   }
 

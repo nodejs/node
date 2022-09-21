@@ -46,7 +46,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       'WebAssembly.Module(): ' +
-          'start function index 1 out of bounds (1 entry) @+20');
+          'function index 1 out of bounds (1 entry) @+20');
 })();
 
 

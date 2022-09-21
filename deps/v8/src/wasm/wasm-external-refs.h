@@ -11,11 +11,13 @@
 
 #include <stdint.h>
 
-#include "src/common/globals.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+using Address = uintptr_t;
 
 V8_EXPORT_PRIVATE void f32_trunc_wrapper(Address data);
 
@@ -115,6 +117,9 @@ int32_t memory_fill_wrapper(Address data);
 void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
                         uint32_t dst_index, Address raw_src_array,
                         uint32_t src_index, uint32_t length);
+
+void array_fill_with_zeroes_wrapper(Address raw_array, uint32_t length,
+                                    uint32_t element_size_bytes);
 
 using WasmTrapCallbackForTesting = void (*)();
 

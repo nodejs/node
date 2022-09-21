@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -404,6 +404,10 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
 // - |timestamp| must be non-null or it crashes. Use DCHECK(timestamp) before
 //   calling this to detect an invalid timestamp even when tracing is not
 //   enabled, as the commit queue doesn't run all tests with tracing enabled.
+// Note: This legacy macro is deprecated. It should not be used in new code.
+//       If thread_id is different from current thread id, it will result into
+//       DCHECK failure. This note is also applicable to `_COPY` and `_END`
+//       variant of this macro.
 #define TRACE_EVENT_BEGIN_WITH_ID_TID_AND_TIMESTAMP0(category_group, name, id, \
                                                      thread_id, timestamp)     \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
@@ -1024,18 +1028,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
       TRACE_EVENT_PHASE_DELETE_OBJECT, category_group, name, id,     \
       TRACE_EVENT_FLAG_NONE)
 
-// Records entering and leaving trace event contexts. |category_group| and
-// |name| specify the context category and type. |context| is a
-// snapshotted context object id.
-#define TRACE_EVENT_ENTER_CONTEXT(category_group, name, context)      \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                   \
-      TRACE_EVENT_PHASE_ENTER_CONTEXT, category_group, name, context, \
-      TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_LEAVE_CONTEXT(category_group, name, context)      \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                   \
-      TRACE_EVENT_PHASE_LEAVE_CONTEXT, category_group, name, context, \
-      TRACE_EVENT_FLAG_NONE)
-
 // Macro to efficiently determine if a given category group is enabled.
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
   do {                                                                      \
@@ -1099,12 +1091,15 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
 #define TRACE_EVENT_PHASE_MEMORY_DUMP ('v')
 #define TRACE_EVENT_PHASE_MARK ('R')
 #define TRACE_EVENT_PHASE_CLOCK_SYNC ('c')
-#define TRACE_EVENT_PHASE_ENTER_CONTEXT ('(')
-#define TRACE_EVENT_PHASE_LEAVE_CONTEXT (')')
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE (static_cast<unsigned int>(0))
+
+// Should not be used outside this file or
+// except `trace_event_impl.cc` (implementation details).
+// If used, it will result in CHECK failure in SDK build.
 #define TRACE_EVENT_FLAG_COPY (static_cast<unsigned int>(1 << 0))
+
 #define TRACE_EVENT_FLAG_HAS_ID (static_cast<unsigned int>(1 << 1))
 #define TRACE_EVENT_FLAG_SCOPE_OFFSET (static_cast<unsigned int>(1 << 2))
 #define TRACE_EVENT_FLAG_SCOPE_EXTRA (static_cast<unsigned int>(1 << 3))

@@ -5,7 +5,7 @@
 // Flags: --expose-gc --stress-flush-code --allow-natives-syntax
 // Flags: --baseline-batch-compilation-threshold=0 --sparkplug
 // Flags: --no-always-sparkplug --lazy-feedback-allocation
-// Flags: --flush-baseline-code --no-flush-bytecode --no-opt
+// Flags: --flush-baseline-code --no-flush-bytecode --no-turbofan --no-maglev
 // Flags: --no-stress-concurrent-inlining
 // Flags: --no-concurrent-sparkplug
 

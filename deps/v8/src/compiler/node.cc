@@ -162,7 +162,7 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
     bit_field_ = InlineCountField::update(bit_field_, inline_count + 1);
     *GetInputPtr(inline_count) = new_to;
     Use* use = GetUsePtr(inline_count);
-    STATIC_ASSERT(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
+    static_assert(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
     use->bit_field_ = Use::InputIndexField::encode(inline_count) |
                       Use::InlineField::encode(true);
     new_to->AppendUse(use);
@@ -389,7 +389,7 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
   // Check that the id didn't overflow.
-  STATIC_ASSERT(IdField::kMax < std::numeric_limits<NodeId>::max());
+  static_assert(IdField::kMax < std::numeric_limits<NodeId>::max());
   CHECK(IdField::is_valid(id));
 
   // Inputs must either be out of line or within the inline capacity.

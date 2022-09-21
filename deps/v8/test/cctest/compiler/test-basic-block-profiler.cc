@@ -47,7 +47,6 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
   }
 };
 
-
 TEST(ProfileDiamond) {
   BasicBlockProfilerTest m;
 
@@ -101,7 +100,6 @@ TEST(ProfileDiamond) {
     m.Expect(arraysize(expected), expected);
   }
 }
-
 
 TEST(ProfileLoop) {
   BasicBlockProfilerTest m;

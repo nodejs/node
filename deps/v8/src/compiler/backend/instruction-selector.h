@@ -300,7 +300,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
-  bool SelectInstructions();
+  base::Optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
@@ -636,6 +636,16 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                             const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
                           const CallDescriptor* call_descriptor, Node* node);
+
+  // In LOONG64, calling convention uses free GP param register to pass
+  // floating-point arguments when no FP param register is available. But
+  // gap does not support moving from FPR to GPR, so we add EmitMoveFPRToParam
+  // to complete movement.
+  void EmitMoveFPRToParam(InstructionOperand* op, LinkageLocation location);
+  // Moving floating-point param from GP param register to FPR to participate in
+  // subsequent operations, whether CallCFunction or normal floating-point
+  // operations.
+  void EmitMoveParamToFPR(Node* node, int index);
 
   bool CanProduceSignalingNaN(Node* node);
 

@@ -162,9 +162,10 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   // Check if private name property can be store on the object. It will return
-  // false with an error when it cannot.
-  V8_WARN_UNUSED_RESULT static bool CheckPrivateNameStore(LookupIterator* it,
-                                                          bool is_define);
+  // false with an error when it cannot but didn't throw, or a Nothing if
+  // it throws.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckPrivateNameStore(
+      LookupIterator* it, bool is_define);
 
   // Check if a data property can be created on the object. It will fail with
   // an error when it cannot.
@@ -294,14 +295,14 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
-      Handle<JSReceiver> object);
+      Isolate* isolate, Handle<JSReceiver> object);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetOwnValues(
-      Handle<JSReceiver> object, PropertyFilter filter,
+      Isolate* isolate, Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetOwnEntries(
-      Handle<JSReceiver> object, PropertyFilter filter,
+      Isolate* isolate, Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
   static const int kHashMask = PropertyArray::HashField::kMask;
@@ -382,6 +383,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(HasPackedElements, bool)
   DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
+  DECL_GETTER(HasSharedArrayElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
@@ -649,7 +651,15 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // an initial capacity for holding these properties.
   V8_EXPORT_PRIVATE static void NormalizeProperties(
       Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
-      int expected_additional_properties, const char* reason);
+      int expected_additional_properties, bool use_cache, const char* reason);
+
+  V8_EXPORT_PRIVATE static void NormalizeProperties(
+      Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
+      int expected_additional_properties, const char* reason) {
+    const bool kUseCache = true;
+    NormalizeProperties(isolate, object, mode, expected_additional_properties,
+                        kUseCache, reason);
+  }
 
   // Convert and update the elements backing store to be a
   // NumberDictionary dictionary.  Returns the backing after conversion.
@@ -838,19 +848,19 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.
   static const int kFieldsAdded = 3;
-  STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
+  static_assert(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
 
-  STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
+  static_assert(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
-  STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
+  static_assert(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 
   static const int kMaxFirstInobjectPropertyOffset =
       (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
   static const int kMaxEmbedderFields =
       (kMaxFirstInobjectPropertyOffset - kHeaderSize) / kEmbedderDataSlotSize;
-  STATIC_ASSERT(kHeaderSize +
+  static_assert(kHeaderSize +
                     kMaxEmbedderFields * kEmbedderDataSlotSizeInTaggedSlots <=
                 kMaxInstanceSize);
 
@@ -901,14 +911,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 class JSExternalObject
     : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
  public:
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // [value]: field containing the pointer value.
-  DECL_GETTER(value, void*)
-
-  inline void set_value(Isolate* isolate, void* value);
+  DECL_EXTERNAL_POINTER_ACCESSORS(value, void*)
 
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
+
+  DECL_PRINTER(JSExternalObject)
 
   class BodyDescriptor;
 
@@ -921,7 +929,7 @@ class JSObjectWithEmbedderSlots
     : public TorqueGeneratedJSObjectWithEmbedderSlots<JSObjectWithEmbedderSlots,
                                                       JSObject> {
  public:
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSObjectWithEmbedderSlots)
 };
 
@@ -933,7 +941,7 @@ class JSCustomElementsObject
     : public TorqueGeneratedJSCustomElementsObject<JSCustomElementsObject,
                                                    JSObject> {
  public:
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSCustomElementsObject)
 };
 
@@ -946,7 +954,7 @@ class JSSpecialObject
     : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
                                             JSCustomElementsObject> {
  public:
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
 };
 

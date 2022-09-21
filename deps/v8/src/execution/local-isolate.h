@@ -73,10 +73,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   LazyCompileDispatcher* lazy_compile_dispatcher() {
     return isolate_->lazy_compile_dispatcher();
   }
-  Logger* main_thread_logger() {
+  V8FileLogger* main_thread_logger() {
     // TODO(leszeks): This is needed for logging in ParseInfo. Figure out a way
     // to use the LocalLogger for this instead.
-    return isolate_->logger();
+    return isolate_->v8_file_logger();
   }
 
   v8::internal::LocalFactory* factory() {
@@ -91,6 +91,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   void RegisterDeserializerStarted();
   void RegisterDeserializerFinished();
+  bool has_active_deserializer() const;
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
@@ -107,7 +108,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   bool is_collecting_type_profile() const;
 
-  LocalLogger* logger() const { return logger_.get(); }
+  // TODO(cbruni): rename this back to logger() once the V8FileLogger
+  // refactoring is completed.
+  LocalLogger* v8_file_logger() const { return logger_.get(); }
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
 #ifdef V8_RUNTIME_CALL_STATS

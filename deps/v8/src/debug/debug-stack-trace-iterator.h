@@ -30,16 +30,23 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
   debug::Location GetSourceLocation() const override;
   v8::Local<v8::Function> GetFunction() const override;
   std::unique_ptr<v8::debug::ScopeIterator> GetScopeIterator() const override;
+  bool CanBeRestarted() const override;
 
   v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                      bool throw_on_side_effect) override;
+  void PrepareRestart();
+
+  Handle<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
  private:
+  void UpdateInlineFrameIndexAndResumableFnOnStack();
+
   Isolate* isolate_;
   StackTraceFrameIterator iterator_;
   std::unique_ptr<FrameInspector> frame_inspector_;
   int inlined_frame_index_;
   bool is_top_frame_;
+  bool resumable_fn_on_stack_;
 };
 }  // namespace internal
 }  // namespace v8

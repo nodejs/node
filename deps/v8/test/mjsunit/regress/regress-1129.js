@@ -31,7 +31,7 @@
 
 // Create RegExp that is syntactically correct, but throws a stack overflow
 // during compilation.
-var source = Array(50000).join("(") + "a" + Array(50000).join(")");
+var source = Array(25000).join("(") + "a" + Array(25000).join(")");
 var r = RegExp(source);
 try {
   // Try to compile in UC16 mode, and drop the exception.

@@ -25,6 +25,9 @@ DEFAULT_FLAGS = [
     '--harmony',
     '--wasm-staging',
     '--no-wasm-async-compilation',
+    # Limit wasm memory to just below 2GiB, to avoid differences between 32-bit
+    # and 64-bit builds.
+    '--wasm-max-mem-pages=32767',
     '--suppress-asm-messages',
 ]
 

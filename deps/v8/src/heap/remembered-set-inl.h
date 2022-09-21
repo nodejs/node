@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_REMEMBERED_SET_INL_H_
 #define V8_HEAP_REMEMBERED_SET_INL_H_
 
+#include "src/codegen/assembler-inl.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/remembered-set.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -49,6 +51,44 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
     }
     case SlotType::kConstPoolEmbeddedObjectFull: {
       return callback(FullMaybeObjectSlot(addr));
+    }
+    case SlotType::kCleared:
+      break;
+  }
+  UNREACHABLE();
+}
+
+HeapObject UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
+                                                  SlotType slot_type,
+                                                  Address addr) {
+  switch (slot_type) {
+    case SlotType::kCodeEntry: {
+      RelocInfo rinfo(addr, RelocInfo::CODE_TARGET, 0, Code());
+      return Code::GetCodeFromTargetAddress(rinfo.target_address());
+    }
+    case SlotType::kConstPoolCodeEntry: {
+      return Code::GetObjectFromEntryAddress(addr);
+    }
+    case SlotType::kEmbeddedObjectCompressed: {
+      RelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT, 0, Code());
+      return rinfo.target_object(heap->isolate());
+    }
+    case SlotType::kEmbeddedObjectFull: {
+      RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
+      return rinfo.target_object(heap->isolate());
+    }
+    case SlotType::kEmbeddedObjectData: {
+      RelocInfo rinfo(addr, RelocInfo::DATA_EMBEDDED_OBJECT, 0, Code());
+      return rinfo.target_object(heap->isolate());
+    }
+    case SlotType::kConstPoolEmbeddedObjectCompressed: {
+      Address full =
+          DecompressTaggedAny(heap->isolate(), base::Memory<Tagged_t>(addr));
+      return HeapObject::cast(Object(full));
+    }
+    case SlotType::kConstPoolEmbeddedObjectFull: {
+      FullHeapObjectSlot slot(addr);
+      return (*slot).GetHeapObjectAssumeStrong(heap->isolate());
     }
     case SlotType::kCleared:
       break;

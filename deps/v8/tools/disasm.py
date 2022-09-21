@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -46,12 +46,11 @@ _COMMON_DISASM_OPTIONS = ["-M", "intel-mnemonic", "-C", "-z"]
 _DISASM_HEADER_RE = re.compile(r"[a-f0-9]+\s+<.*:$")
 _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):\s*(\S.*)")
 
-# Keys must match constants in Logger::LogCodeInfo.
+# Keys must match constants in V8FileLogger::LogCodeInfo.
 _ARCH_MAP = {
   "ia32": "-m i386",
   "x64": "-m i386 -M x86-64",
   "arm": "-m arm",  # Not supported by our objdump build.
-  "mips": "-m mips",  # Not supported by our objdump build.
   "arm64": "-m aarch64"
 }
 

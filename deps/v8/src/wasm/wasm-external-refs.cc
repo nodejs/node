@@ -8,7 +8,6 @@
 
 #include <limits>
 
-#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
@@ -153,7 +152,7 @@ void uint64_to_float32_wrapper(Address data) {
     // the second MSB (a.k.a '<< 23'). The encoded exponent itself is
     // ('actual exponent' - 127).
     int32_t multiplier_bits = ((shift_back - 127) & 0xff) << 23;
-    result *= bit_cast<float>(multiplier_bits);
+    result *= base::bit_cast<float>(multiplier_bits);
     WriteUnalignedValue<float>(data, result);
     return;
   }
@@ -489,11 +488,11 @@ int32_t memory_init_wrapper(Address data) {
   uint64_t mem_size = instance.memory_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  uint32_t seg_size = instance.data_segment_sizes()[seg_index];
+  uint32_t seg_size = instance.data_segment_sizes().get(seg_index);
   if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
   byte* seg_start =
-      reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
+      reinterpret_cast<byte*>(instance.data_segment_starts().get(seg_index));
   std::memcpy(EffectiveAddress(instance, dst), seg_start + src, size);
   return kSuccess;
 }
@@ -538,10 +537,14 @@ int32_t memory_fill_wrapper(Address data) {
 }
 
 namespace {
+inline void* ArrayElementAddress(Address array, uint32_t index,
+                                 int element_size_bytes) {
+  return reinterpret_cast<void*>(array + WasmArray::kHeaderSize -
+                                 kHeapObjectTag + index * element_size_bytes);
+}
 inline void* ArrayElementAddress(WasmArray array, uint32_t index,
                                  int element_size_bytes) {
-  return reinterpret_cast<void*>(array.ptr() + WasmArray::kHeaderSize -
-                                 kHeapObjectTag + index * element_size_bytes);
+  return ArrayElementAddress(array.ptr(), index, element_size_bytes);
 }
 }  // namespace
 
@@ -583,6 +586,14 @@ void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
       MemCopy(dst, src, copy_size);
     }
   }
+}
+
+void array_fill_with_zeroes_wrapper(Address raw_array, uint32_t length,
+                                    uint32_t element_size_bytes) {
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
+  DisallowGarbageCollection no_gc;
+  std::memset(ArrayElementAddress(raw_array, 0, element_size_bytes), 0,
+              length * element_size_bytes);
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;

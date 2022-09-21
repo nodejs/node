@@ -20,7 +20,7 @@ def _CommonChecks(input_api, output_api):
                                      '..', 'tools', 'mb', 'mb.py')
   mb_config_path = input_api.os_path.join(input_api.PresubmitLocalPath(),
                                           'mb_config.pyl')
-  cmd = [input_api.python_executable, mb_script, 'validate', '--config-file',
+  cmd = [input_api.python3_executable, mb_script, 'validate', '--config-file',
          mb_config_path]
   kwargs = {'cwd': input_api.PresubmitLocalPath()}
   results.extend(input_api.RunTests([

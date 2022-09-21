@@ -240,40 +240,6 @@ class Simulator : public SimulatorBase {
   inline void IncreaseStopCounter(uint32_t bkpt_code);
   void PrintStopInfo(uint32_t code);
 
-  // Byte Reverse
-  static inline __uint128_t __builtin_bswap128(__uint128_t v) {
-    union {
-      uint64_t u64[2];
-      __uint128_t u128;
-    } res, val;
-    val.u128 = v;
-    res.u64[0] = __builtin_bswap64(val.u64[1]);
-    res.u64[1] = __builtin_bswap64(val.u64[0]);
-    return res.u128;
-  }
-
-  template <class T>
-  static inline T ByteReverse(T val) {
-    constexpr int size = sizeof(T);
-#define CASE(type, size_in_bits)                                              \
-  case sizeof(type): {                                                        \
-    type res = __builtin_bswap##size_in_bits(*reinterpret_cast<type*>(&val)); \
-    return *reinterpret_cast<T*>(&res);                                       \
-  }
-    switch (size) {
-      case 1:
-        return val;
-        CASE(uint16_t, 16);
-        CASE(uint32_t, 32);
-        CASE(uint64_t, 64);
-        CASE(__uint128_t, 128);
-      default:
-        UNREACHABLE();
-    }
-#undef CASE
-    return val;
-  }
-
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
   inline int8_t ReadB(intptr_t addr);

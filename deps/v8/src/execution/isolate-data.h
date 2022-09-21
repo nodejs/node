@@ -26,6 +26,12 @@ class Isolate;
   /* Misc. fields. */                                                         \
   V(kCageBaseOffset, kSystemPointerSize, cage_base)                           \
   V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                 \
+  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                              \
+  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                   \
+  V(kIsProfilingOffset, kUInt8Size, is_profiling)                             \
+  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
+  IF_TARGET_ARCH_64_BIT(V, kTablesAlignmentPaddingOffset,                     \
+                        kSystemPointerSize - 4, tables_alignment_padding)     \
   /* Tier 0 tables (small but fast access). */                                \
   V(kBuiltinTier0EntryTableOffset,                                            \
     Builtins::kBuiltinTier0Count* kSystemPointerSize,                         \
@@ -39,6 +45,7 @@ class Isolate;
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
+  ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -51,17 +58,17 @@ class Isolate;
     builtin_table)                                                            \
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
-  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)                          \
-  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
+  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)    \
+#ifdef V8_COMPRESS_POINTERS
+#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)            \
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
-    external_pointer_table)
+    external_pointer_table)                                   \
+  V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
+    shared_external_pointer_table)
 #else
-#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
+#endif  // V8_COMPRESS_POINTERS
 
 // This class contains a collection of data accessible from both C++ runtime
 // and compiled code (including builtins, interpreter bytecode handlers and
@@ -137,7 +144,7 @@ class IsolateData final {
   // it's the case then the value can be accessed indirectly through the root
   // register.
   bool contains(Address address) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     Address start = reinterpret_cast<Address>(this);
     return (address - start) < sizeof(*this);
   }
@@ -167,6 +174,37 @@ class IsolateData final {
   // the stack limit used by stack checks in generated code.
   StackGuard stack_guard_;
 
+  //
+  // Hot flags that are regularily checked.
+  //
+
+  // These flags are regularily checked by write barriers.
+  // Only valid values are 0 or 1.
+  uint8_t is_marking_flag_ = false;
+  uint8_t is_minor_marking_flag_ = false;
+
+  // true if the Isolate is being profiled. Causes collection of extra compile
+  // info.
+  // This flag is checked on every API callback/getter call.
+  // Only valid values are 0 or 1.
+  std::atomic<uint8_t> is_profiling_{false};
+
+  //
+  // Not super hot flags, which are put here because we have to align the
+  // builtin entry table to kSystemPointerSize anyway.
+  //
+
+  // Whether the SafeStackFrameIterator can successfully iterate the current
+  // stack. Only valid values are 0 or 1.
+  uint8_t stack_is_iterable_ = 1;
+
+#if V8_TARGET_ARCH_64_BIT
+  // Ensure the following tables are kSystemPointerSize-byte aligned.
+  // 32-bit architectures currently don't require the alignment.
+  static_assert(FIELD_SIZE(kTablesAlignmentPaddingOffset) > 0);
+  uint8_t tables_alignment_padding_[FIELD_SIZE(kTablesAlignmentPaddingOffset)];
+#endif  // V8_TARGET_ARCH_64_BIT
+
   // Tier 0 tables. See also builtin_entry_table_ and builtin_table_.
   Address builtin_tier0_entry_table_[Builtins::kBuiltinTier0Count] = {};
   Address builtin_tier0_table_[Builtins::kBuiltinTier0Count] = {};
@@ -193,6 +231,12 @@ class IsolateData final {
   // long tasks.
   size_t long_task_stats_counter_ = 0;
 
+  // Table containing pointers to external objects.
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerTable external_pointer_table_;
+  ExternalPointerTable* shared_external_pointer_table_;
+#endif
+
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
 
@@ -209,22 +253,13 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
-  // Table containing pointers to external objects.
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerTable external_pointer_table_;
-#endif
-
-  // Whether the SafeStackFrameIterator can successfully iterate the current
-  // stack. Only valid values are 0 or 1.
-  uint8_t stack_is_iterable_ = 1;
-
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with
   // C++ compilers for 32-bit platforms which are not consistent at aligning
   // int64_t fields.
   // In order to avoid dealing with zero-size arrays the padding size is always
   // in the range [8, 15).
-  STATIC_ASSERT(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
+  static_assert(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
   char padding_[kPaddingOffsetEnd + 1 - kPaddingOffset];
 
   V8_INLINE static void AssertPredictableLayout();
@@ -240,18 +275,18 @@ class IsolateData final {
 // issues because of different compilers used for snapshot generator and
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
-  STATIC_ASSERT(std::is_standard_layout<RootsTable>::value);
-  STATIC_ASSERT(std::is_standard_layout<ThreadLocalTop>::value);
-  STATIC_ASSERT(std::is_standard_layout<ExternalReferenceTable>::value);
-  STATIC_ASSERT(std::is_standard_layout<IsolateData>::value);
+  static_assert(std::is_standard_layout<RootsTable>::value);
+  static_assert(std::is_standard_layout<ThreadLocalTop>::value);
+  static_assert(std::is_standard_layout<ExternalReferenceTable>::value);
+  static_assert(std::is_standard_layout<IsolateData>::value);
 #define V(Offset, Size, Name) \
-  STATIC_ASSERT(offsetof(IsolateData, Name##_) == Offset);
+  static_assert(offsetof(IsolateData, Name##_) == Offset);
   ISOLATE_DATA_FIELDS(V)
 #undef V
-  STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
+  static_assert(sizeof(IsolateData) == IsolateData::kSize);
 }
 
-#undef ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS
+#undef ISOLATE_DATA_FIELDS_POINTER_COMPRESSION
 #undef ISOLATE_DATA_FIELDS
 
 }  // namespace internal

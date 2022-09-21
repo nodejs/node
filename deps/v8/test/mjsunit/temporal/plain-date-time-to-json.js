@@ -16,9 +16,9 @@ assertEquals("+010000-01-01T00:00:00",
     (new Temporal.PlainDateTime(10000, 1, 1)).toJSON());
 assertEquals("+025021-07-01T00:00:00",
     (new Temporal.PlainDateTime(25021, 7, 1)).toJSON());
-assertEquals("+000999-12-31T00:00:00",
+assertEquals("0999-12-31T00:00:00",
     (new Temporal.PlainDateTime(999, 12, 31)).toJSON());
-assertEquals("+000099-08-01T00:00:00",
+assertEquals("0099-08-01T00:00:00",
     (new Temporal.PlainDateTime(99, 8, 1)).toJSON());
 assertEquals("-000020-09-30T00:00:00",
     (new Temporal.PlainDateTime(-20, 9, 30)).toJSON());

@@ -4,7 +4,6 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/leb-helper.h"
 

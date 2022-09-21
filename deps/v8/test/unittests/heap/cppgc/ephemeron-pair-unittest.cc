@@ -66,7 +66,8 @@ class EphemeronPairTest : public testing::TestWithHeap {
     marker_->FinishMarking(MarkingConfig::StackState::kNoHeapPointers);
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
-    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
+    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kIncremental);
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform) {

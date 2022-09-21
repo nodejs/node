@@ -153,7 +153,7 @@ static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
   // result is not accurate.
   // We know that Windows32 with MSVC, unlike with MinGW32, uses 64 bits and is
   // therefore accurate.
-  // Note that the ARM and MIPS simulators are compiled for 32bits. They
+  // Note that the ARM simulators are compiled for 32bits. They
   // therefore exhibit the same problem.
   USE(exact_powers_of_ten);
   USE(kMaxExactDoubleIntegerDecimalDigits);

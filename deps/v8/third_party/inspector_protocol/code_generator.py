@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2016 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -95,27 +95,28 @@ def read_config():
                                     config_base)
     config_json_file.close()
     defaults = {
-      ".use_snake_file_names": False,
-      ".use_title_case_methods": False,
-      ".imported": False,
-      ".imported.export_macro": "",
-      ".imported.export_header": False,
-      ".imported.header": False,
-      ".imported.package": False,
-      ".imported.options": False,
-      ".protocol.export_macro": "",
-      ".protocol.export_header": False,
-      ".protocol.options": False,
-      ".protocol.file_name_prefix": "",
-      ".exported": False,
-      ".exported.export_macro": "",
-      ".exported.export_header": False,
-      ".lib": False,
-      ".lib.export_macro": "",
-      ".lib.export_header": False,
-      ".crdtp": False,
-      ".crdtp.dir": os.path.join(inspector_protocol_dir, "crdtp"),
-      ".crdtp.namespace": "crdtp",
+        ".use_snake_file_names": False,
+        ".use_title_case_methods": False,
+        ".use_embedder_types": False,
+        ".imported": False,
+        ".imported.export_macro": "",
+        ".imported.export_header": False,
+        ".imported.header": False,
+        ".imported.package": False,
+        ".imported.options": False,
+        ".protocol.export_macro": "",
+        ".protocol.export_header": False,
+        ".protocol.options": False,
+        ".protocol.file_name_prefix": "",
+        ".exported": False,
+        ".exported.export_macro": "",
+        ".exported.export_header": False,
+        ".lib": False,
+        ".lib.export_macro": "",
+        ".lib.export_header": False,
+        ".crdtp": False,
+        ".crdtp.dir": os.path.join(inspector_protocol_dir, "crdtp"),
+        ".crdtp.namespace": "crdtp",
     }
     for key_value in config_values:
       parts = key_value.split("=")
@@ -638,31 +639,32 @@ def main():
 
     lib_templates_dir = os.path.join(module_path, "lib")
     # Note these should be sorted in the right order.
-    # TODO(dgozman): sort them programmatically based on commented includes.
-    protocol_h_templates = [
-      "Values_h.template",
-      "Object_h.template",
-      "ValueConversions_h.template",
-    ]
 
-    protocol_cpp_templates = [
-      "Protocol_cpp.template",
-      "Values_cpp.template",
-      "Object_cpp.template",
-      "ValueConversions_cpp.template",
-    ]
+    # TODO(dgozman): sort them programmatically based on commented includes.
 
     forward_h_templates = [
       "Forward_h.template",
     ]
 
-    base_string_adapter_h_templates = [
-      "base_string_adapter_h.template",
-    ]
+    protocol_h_templates = []
+    protocol_cpp_templates = []
 
-    base_string_adapter_cc_templates = [
-      "base_string_adapter_cc.template",
-    ]
+    if not config.use_embedder_types:
+      protocol_h_templates += [
+          "Values_h.template",
+          "Object_h.template",
+          "ValueConversions_h.template",
+      ]
+      protocol_cpp_templates += [
+          "Protocol_cpp.template",
+          "Values_cpp.template",
+          "Object_cpp.template",
+          "ValueConversions_cpp.template",
+      ]
+    else:
+      protocol_h_templates += [
+          "Forward_h.template",
+      ]
 
     def generate_lib_file(file_name, template_files):
       parts = []
@@ -676,12 +678,11 @@ def main():
         config, "Forward.h")), forward_h_templates)
     generate_lib_file(os.path.join(config.lib.output, to_file_name(
         config, "Protocol.h")), protocol_h_templates)
-    generate_lib_file(os.path.join(config.lib.output, to_file_name(
-        config, "Protocol.cpp")), protocol_cpp_templates)
-    generate_lib_file(os.path.join(config.lib.output, to_file_name(
-        config, "base_string_adapter.h")), base_string_adapter_h_templates)
-    generate_lib_file(os.path.join(config.lib.output, to_file_name(
-        config, "base_string_adapter.cc")), base_string_adapter_cc_templates)
+
+    if not config.use_embedder_types:
+      generate_lib_file(
+          os.path.join(config.lib.output, to_file_name(config, "Protocol.cpp")),
+          protocol_cpp_templates)
 
   # Make gyp / make generatos happy, otherwise make rebuilds world.
   inputs_ts = max(map(os.path.getmtime, inputs))

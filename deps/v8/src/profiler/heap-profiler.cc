@@ -4,10 +4,13 @@
 
 #include "src/profiler/heap-profiler.h"
 
+#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/optional.h"
 #include "src/debug/debug.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -79,14 +82,17 @@ v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
 }
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
-    v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver,
-    bool treat_global_objects_as_roots, bool capture_numeric_value) {
+    const v8::HeapProfiler::HeapSnapshotOptions options) {
   is_taking_snapshot_ = true;
-  HeapSnapshot* result = new HeapSnapshot(this, treat_global_objects_as_roots,
-                                          capture_numeric_value);
+  HeapSnapshot* result =
+      new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode);
   {
-    HeapSnapshotGenerator generator(result, control, resolver, heap());
+    base::Optional<CppClassNamesAsHeapObjectNameScope> use_cpp_class_name;
+    if (result->expose_internals() && heap()->cpp_heap())
+      use_cpp_class_name.emplace(heap()->cpp_heap());
+
+    HeapSnapshotGenerator generator(
+        result, options.control, options.global_object_name_resolver, heap());
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = nullptr;
@@ -96,6 +102,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   }
   ids_->RemoveDeadEntries();
   is_tracking_object_moves_ = true;
+  heap()->isolate()->UpdateLogObjectRelocation();
   is_taking_snapshot_ = false;
 
   heap()->isolate()->debug()->feature_tracker()->Track(
@@ -134,6 +141,7 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
+  heap()->isolate()->UpdateLogObjectRelocation();
   DCHECK(!allocation_tracker_);
   if (track_allocations) {
     allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
@@ -225,7 +233,10 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
-  if (!allocation_tracker_) is_tracking_object_moves_ = false;
+  if (!allocation_tracker_) {
+    is_tracking_object_moves_ = false;
+    heap()->isolate()->UpdateLogObjectRelocation();
+  }
 }
 
 
@@ -235,7 +246,7 @@ Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
 void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
-                                PersistentValueVector<v8::Object>* objects) {
+                                std::vector<v8::Global<v8::Object>>* objects) {
   {
     HandleScope handle_scope(isolate());
     std::vector<Handle<JSTypedArray>> on_heap_typed_arrays;
@@ -273,7 +284,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;
-    objects->Append(v8_obj);
+    objects->emplace_back(reinterpret_cast<v8::Isolate*>(isolate()), v8_obj);
   }
 }
 

@@ -42,6 +42,12 @@ namespace internal {
 #define DOUBLE_REGISTERS(V) \
   LOW_DOUBLE_REGISTERS(V) NON_LOW_DOUBLE_REGISTERS(V)
 
+#define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
+  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
+  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
+  V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
+  V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS(V)                              \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
@@ -49,11 +55,11 @@ namespace internal {
   V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
   V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
-#define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
-  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
-  V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
-  V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
-  V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+#define ALLOCATABLE_SIMD128_REGISTERS(V)                  \
+  V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
+  V(v8)  V(v9)  V(v10) V(v11) V(v12)                      \
+  V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
+  V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
 #define C_REGISTERS(V)                                            \
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
@@ -138,40 +144,8 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
+constexpr AliasingKind kFPAliasing = AliasingKind::kIndependent;
 constexpr bool kSimdMaskRegisters = false;
-
-enum DoubleRegisterCode {
-#define REGISTER_CODE(R) kDoubleCode_##R,
-  DOUBLE_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kDoubleAfterLast
-};
-
-// Double word FP register.
-class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
- public:
-  // A few double registers are reserved: one as a scratch register and one to
-  // hold 0.0, that does not fit in the immediate field of vmov instructions.
-  // d14: 0.0
-  // d15: scratch register.
-  static constexpr int kSizeInBytes = 8;
-
-  // This function differs from kNumRegisters by returning the number of double
-  // registers supported by the current CPU, while kNumRegisters always returns
-  // 32.
-  inline static int SupportedRegisterCount();
-
- private:
-  friend class RegisterBase;
-  explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
-};
-
-ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
-static_assert(sizeof(DoubleRegister) <= sizeof(int),
-              "DoubleRegister can efficiently be passed by value");
-
-using FloatRegister = DoubleRegister;
 
 //     |      | 0
 //     |      | 1
@@ -206,13 +180,55 @@ enum Simd128RegisterCode {
 // Simd128 register.
 class Simd128Register
     : public RegisterBase<Simd128Register, kSimd128AfterLast> {
- private:
   friend class RegisterBase;
+
+ public:
   explicit constexpr Simd128Register(int code) : RegisterBase(code) {}
 };
 ASSERT_TRIVIALLY_COPYABLE(Simd128Register);
 static_assert(sizeof(Simd128Register) <= sizeof(int),
               "Simd128Register can efficiently be passed by value");
+
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kDoubleAfterLast
+};
+
+// Double word FP register.
+class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
+ public:
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0, that does not fit in the immediate field of vmov instructions.
+  // d14: 0.0
+  // d15: scratch register.
+  static constexpr int kSizeInBytes = 8;
+
+  // This function differs from kNumRegisters by returning the number of double
+  // registers supported by the current CPU, while kNumRegisters always returns
+  // 32.
+  inline static int SupportedRegisterCount();
+
+  // On PPC Simdi128 registers are separate from Double registers.
+  // More details can be found here: https://crrev.com/c/2718472 . This is a
+  // helper function to cast a Double to a Simdi128 register.
+  Simd128Register toSimd() const {
+    int reg_code = code();
+    V8_ASSUME(reg_code >= 0 && reg_code < kSimd128AfterLast);
+    return Simd128Register(reg_code);
+  }
+
+ private:
+  friend class RegisterBase;
+  explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
+};
+
+ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
+static_assert(sizeof(DoubleRegister) <= sizeof(int),
+              "DoubleRegister can efficiently be passed by value");
+
+using FloatRegister = DoubleRegister;
 
 #define DECLARE_SIMD128_REGISTER(R) \
   constexpr Simd128Register R = Simd128Register::from_code(kSimd128Code_##R);
@@ -230,10 +246,9 @@ constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
 constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
 constexpr DoubleRegister kDoubleRegZero = d14;
 constexpr DoubleRegister kScratchDoubleReg = d13;
-// Simd128 zero and scratch regs must have the same numbers as Double zero and
-// scratch
 constexpr Simd128Register kSimd128RegZero = v14;
 constexpr Simd128Register kScratchSimd128Reg = v13;
+constexpr Simd128Register kScratchSimd128Reg2 = v15;
 
 Register ToRegister(int num);
 

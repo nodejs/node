@@ -290,6 +290,14 @@ selects.config_setting_group(
     ],
 )
 
+selects.config_setting_group(
+    name = "is_macos_arm64",
+    match_all = [
+        ":is_macos",
+        ":is_arm64",
+    ],
+)
+
 config_setting(
     name = "is_compiler_default",
     flag_values = {

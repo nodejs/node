@@ -10,7 +10,6 @@
 {% if config.lib.export_header %}
 #include {{format_include(config.lib.export_header)}}
 {% endif %}
-#include {{format_include(config.lib.string_header)}}
 
 #include <memory>
 #include <vector>
@@ -20,24 +19,40 @@
 #include "{{config.crdtp.dir}}/frontend_channel.h"
 #include "{{config.crdtp.dir}}/protocol_core.h"
 
+{% if config.use_embedder_types %}
+#include {{format_include(config.lib.protocol_traits)}}
+{% else %}
+#include {{format_include(config.lib.string_header)}}
+{% endif %}
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
 
-class DictionaryValue;
 using DispatchResponse = {{config.crdtp.namespace}}::DispatchResponse;
 using ErrorSupport = {{config.crdtp.namespace}}::ErrorSupport;
 using Serializable = {{config.crdtp.namespace}}::Serializable;
 using FrontendChannel = {{config.crdtp.namespace}}::FrontendChannel;
 using DomainDispatcher = {{config.crdtp.namespace}}::DomainDispatcher;
 using UberDispatcher = {{config.crdtp.namespace}}::UberDispatcher;
+using Response = DispatchResponse;
+
+{% if config.use_embedder_types %}
+using DictionaryValue = crdtp::traits::DictionaryValue;
+using Object = crdtp::traits::DictionaryValue;
+using ListValue = crdtp::traits::ListValue;
+using Value = crdtp::traits::Value;
+using String = crdtp::traits::String;
+using Binary = crdtp::Binary;
+{% else %}
+class DictionaryValue;
 class FundamentalValue;
 class ListValue;
 class Object;
-using Response = DispatchResponse;
 class SerializedValue;
 class StringValue;
 class Value;
+{% endif %}
 
 using {{config.crdtp.namespace}}::detail::PtrMaybe;
 using {{config.crdtp.namespace}}::detail::ValueMaybe;

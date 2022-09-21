@@ -35,6 +35,7 @@ namespace interpreter {
 
 #define UNSIGNED_FIXED_SCALAR_OPERAND_TYPE_LIST(V)    \
   V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
+  V(Flag16, OperandTypeInfo::kFixedUnsignedShort)     \
   V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
   V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)  \
   V(NativeContextIndex, OperandTypeInfo::kFixedUnsignedByte)

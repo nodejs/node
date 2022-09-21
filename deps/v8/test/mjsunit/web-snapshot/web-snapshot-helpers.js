@@ -8,13 +8,14 @@ function use(exports) {
   return result;
 }
 
-function takeAndUseWebSnapshot(createObjects, exports) {
+function takeAndUseWebSnapshot(createObjects, exports, realmForDeserializing) {
   // Take a snapshot in Realm r1.
   const r1 = Realm.create();
   Realm.eval(r1, createObjects, { type: 'function' });
   const snapshot = Realm.takeWebSnapshot(r1, exports);
   // Use the snapshot in Realm r2.
-  const r2 = Realm.create();
+  const r2 = realmForDeserializing != undefined ?
+      realmForDeserializing : Realm.create();
   const success = Realm.useWebSnapshot(r2, snapshot);
   assertTrue(success);
   const result =

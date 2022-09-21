@@ -32,7 +32,7 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
       Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
       Handle<JSReceiver> target, Handle<String> prefix, int arg_count);
 
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
 
@@ -101,6 +101,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Context context();
   DECL_RELAXED_GETTER(context, Context)
   inline bool has_context() const;
+  using TorqueGeneratedClass::context;
+  using TorqueGeneratedClass::set_context;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(context, Context)
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -148,6 +151,11 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // attached/available/active sets. This is because the JSFunction might have
   // been already deoptimized but its code() still needs to be unlinked, which
   // will happen on its next activation.
+
+  bool HasAvailableHigherTierCodeThan(CodeKind kind) const;
+  // As above but only considers available code kinds passing the filter mask.
+  bool HasAvailableHigherTierCodeThanWithFilter(CodeKind kind,
+                                                CodeKinds filter_mask) const;
 
   // True, iff any generated code kind is attached/available to this function.
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
@@ -209,8 +217,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
   // available after compile when lazily allocating feedback vectors.
-  inline FeedbackVector feedback_vector() const;
-  inline bool has_feedback_vector() const;
+  DECL_GETTER(feedback_vector, FeedbackVector)
+  DECL_GETTER(has_feedback_vector, bool)
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
       Isolate* isolate, Handle<JSFunction> function,
       IsCompiledScope* compiled_scope);
@@ -235,8 +243,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
-  // Unconditionally clear the type feedback vector.
-  void ClearTypeFeedbackInfo();
+  // Unconditionally clear the type feedback vector, even those that we usually
+  // keep (e.g.: BinaryOp feedback).
+  void ClearAllTypeFeedbackInfoForTesting();
 
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode();
@@ -276,7 +285,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Handle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
-  static V8_WARN_UNUSED_RESULT Handle<Map> GetDerivedRabGsabMap(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
 

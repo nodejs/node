@@ -28,7 +28,7 @@
 // Tests the Object.seal and Object.isSealed methods - ES 19.1.2.17 and
 // ES 19.1.2.13
 
-// Flags: --allow-natives-syntax --opt --noalways-opt
+// Flags: --allow-natives-syntax --turbofan --noalways-turbofan
 
 // Test that we return obj if non-object is passed as argument
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43, Symbol("test"));

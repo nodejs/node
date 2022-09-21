@@ -37,6 +37,9 @@ class V8_EXPORT_PRIVATE FatalOutOfMemoryHandler final {
   Callback* custom_handler_ = nullptr;
 };
 
+// Gets the global OOM handler that is not bound to any specific Heap instance.
+FatalOutOfMemoryHandler& GetGlobalOOMHandler();
+
 }  // namespace internal
 }  // namespace cppgc
 

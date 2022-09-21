@@ -160,7 +160,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
              IntPtrEqual(LoadMapInstanceSizeInWords(function_map),
                          IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                         kTaggedSize)));
-  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);

@@ -16,9 +16,6 @@ namespace internal {
 // The following functions execute on the host and therefore need a different
 // path based on whether we are simulating arm64 or not.
 
-// clang-format fails to detect this file as C++, turn it off.
-// clang-format off
-
 // Authenticate the address stored in {pc_address}. {offset_from_sp} is the
 // offset between {pc_address} and the pointer used as a context for signing.
 V8_INLINE Address PointerAuthentication::AuthenticatePC(
@@ -47,15 +44,17 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
 #ifdef USE_SIMULATOR
   return Simulator::StripPAC(pc, Simulator::kInstructionPointer);
 #else
+  // x30 == lr, but use 'x30' instead of 'lr' below, as GCC does not accept
+  // 'lr' in the clobbers list.
   asm volatile(
-      "  mov x16, lr\n"
-      "  mov lr, %[pc]\n"
+      "  mov x16, x30\n"
+      "  mov x30, %[pc]\n"
       "  xpaclri\n"
-      "  mov %[pc], lr\n"
-      "  mov lr, x16\n"
+      "  mov %[pc], x30\n"
+      "  mov x30, x16\n"
       : [pc] "+r"(pc)
       :
-      : "x16", "lr");
+      : "x16", "x30");
   return pc;
 #endif
 }
@@ -97,28 +96,26 @@ V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
 
 
 // Sign {pc} using {sp}.
-V8_INLINE Address PointerAuthentication::SignAndCheckPC(Address pc,
-                                                          Address sp) {
+V8_INLINE Address PointerAuthentication::SignAndCheckPC(Isolate* isolate,
+                                                        Address pc,
+                                                        Address sp) {
 #ifdef USE_SIMULATOR
   pc = Simulator::AddPAC(pc, sp, Simulator::kPACKeyIB,
-                        Simulator::kInstructionPointer);
-  CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc)));
-  return pc;
+                         Simulator::kInstructionPointer);
 #else
   asm volatile(
-    "  mov x17, %[pc]\n"
-    "  mov x16, %[sp]\n"
-    "  pacib1716\n"
-    "  mov %[pc], x17\n"
-    : [pc] "+r"(pc)
-    : [sp] "r"(sp)
-    : "x16", "x17");
-  CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc)));
-  return pc;
+      "  mov x17, %[pc]\n"
+      "  mov x16, %[sp]\n"
+      "  pacib1716\n"
+      "  mov %[pc], x17\n"
+      : [pc] "+r"(pc)
+      : [sp] "r"(sp)
+      : "x16", "x17");
 #endif
+  CHECK(Deoptimizer::IsValidReturnAddress(PointerAuthentication::StripPAC(pc),
+                                          isolate));
+  return pc;
 }
-
-// clang-format on
 
 }  // namespace internal
 }  // namespace v8

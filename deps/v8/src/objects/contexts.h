@@ -9,7 +9,6 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/objects/osr-optimized-code-cache.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -105,8 +104,6 @@ enum ContextLookupFlags {
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
-  V(CALL_ASYNC_MODULE_FULFILLED, JSFunction, call_async_module_fulfilled)      \
-  V(CALL_ASYNC_MODULE_REJECTED, JSFunction, call_async_module_rejected)        \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
@@ -116,6 +113,8 @@ enum ContextLookupFlags {
   V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
+  V(ERROR_MESSAGE_FOR_WASM_CODE_GEN_INDEX, Object,                             \
+    error_message_for_wasm_code_gen)                                           \
   V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
   V(EXTRAS_BINDING_OBJECT_INDEX, JSObject, extras_binding_object)              \
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
@@ -179,6 +178,8 @@ enum ContextLookupFlags {
     js_array_packed_double_elements_map)                                       \
   V(JS_ARRAY_HOLEY_DOUBLE_ELEMENTS_MAP_INDEX, Map,                             \
     js_array_holey_double_elements_map)                                        \
+  V(JS_ATOMICS_CONDITION_MAP, Map, js_atomics_condition_map)                   \
+  V(JS_ATOMICS_MUTEX_MAP, Map, js_atomics_mutex_map)                           \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
@@ -353,6 +354,8 @@ enum ContextLookupFlags {
   V(SET_ADD_INDEX, JSFunction, set_add)                                        \
   V(SET_DELETE_INDEX, JSFunction, set_delete)                                  \
   V(SET_HAS_INDEX, JSFunction, set_has)                                        \
+  V(SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX, JSFunction,                      \
+    shadow_realm_import_value_rejected)                                        \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \
@@ -361,15 +364,12 @@ enum ContextLookupFlags {
   V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function)      \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction,                             \
     wasm_runtime_error_function)                                               \
-  V(WASM_EXCEPTION_ERROR_FUNCTION_INDEX, JSFunction,                           \
-    wasm_exception_error_function)                                             \
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
-  V(RETAINED_MAPS, Object, retained_maps)                                      \
-  V(OSR_CODE_CACHE_INDEX, OSROptimizedCodeCache, osr_code_cache)
+  V(RETAINED_MAPS, Object, retained_maps)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
@@ -633,6 +633,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool HasSameSecurityTokenAs(Context that) const;
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
+  Handle<Object> ErrorMessageForWasmCodeGeneration();
 
   static int IntrinsicIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(const unsigned char* name, int length);
@@ -678,7 +679,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));
-    return elements_kind + FIRST_JS_ARRAY_MAP_SLOT;
+    return int{elements_kind} + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
   inline Map GetInitialJSArrayMap(ElementsKind kind) const;
@@ -713,8 +714,6 @@ class NativeContext : public Context {
   DECL_CAST(NativeContext)
   // TODO(neis): Move some stuff from Context here.
 
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // NativeContext fields are read concurrently from background threads; any
   // concurrent writes of affected fields must have acquire-release semantics,
   // thus we hide the non-atomic setter. Note this doesn't protect fully since
@@ -725,8 +724,7 @@ class NativeContext : public Context {
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
-  DECL_GETTER(microtask_queue, MicrotaskQueue*)
-  inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);
+  DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
 
   inline void synchronized_set_script_context_table(
       ScriptContextTable script_context_table);
@@ -742,6 +740,11 @@ class NativeContext : public Context {
   JSGlobalObject global_object(AcquireLoadTag) {
     return Context::global_object();
   }
+
+  inline Map TypedArrayElementsKindToCtorMap(ElementsKind element_kind) const;
+
+  inline Map TypedArrayElementsKindToRabGsabCtorMap(
+      ElementsKind element_kind) const;
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)
@@ -787,7 +790,7 @@ class NativeContext : public Context {
 #endif
 
  private:
-  STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+  static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
 
   OBJECT_CONSTRUCTORS(NativeContext, Context);

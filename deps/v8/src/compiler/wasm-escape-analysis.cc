@@ -4,7 +4,7 @@
 
 #include "src/compiler/wasm-escape-analysis.h"
 
-#include "src/compiler/js-graph.h"
+#include "src/compiler/machine-graph.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {

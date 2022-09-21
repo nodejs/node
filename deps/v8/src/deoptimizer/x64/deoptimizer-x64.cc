@@ -13,7 +13,7 @@ namespace internal {
 // The deopt exit sizes below depend on the following IsolateData layout
 // guarantees:
 #define ASSERT_OFFSET(BuiltinName)                                       \
-  STATIC_ASSERT(IsolateData::builtin_tier0_entry_table_offset() +        \
+  static_assert(IsolateData::builtin_tier0_entry_table_offset() +        \
                     Builtins::ToInt(BuiltinName) * kSystemPointerSize <= \
                 0x7F)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);

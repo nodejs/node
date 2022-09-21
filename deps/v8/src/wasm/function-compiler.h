@@ -13,7 +13,6 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
@@ -28,6 +27,7 @@ class TurbofanCompilationJob;
 
 namespace wasm {
 
+class AssemblerBufferCache;
 class NativeModule;
 class WasmCode;
 class WasmEngine;
@@ -62,13 +62,12 @@ struct WasmCompilationResult {
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
-  static ExecutionTier GetBaselineExecutionTier(const WasmModule*);
-
   WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
       : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
+                                           AssemblerBufferCache*,
                                            WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
@@ -83,6 +82,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   WasmCompilationResult ExecuteFunctionCompilation(CompilationEnv*,
                                                    const WireBytesStorage*,
                                                    Counters*,
+                                                   AssemblerBufferCache*,
                                                    WasmFeatures* detected);
 
   WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);
@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 // {WasmCompilationUnit} should be trivially copyable and small enough so we can
 // efficiently pass it by value.
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
-STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
+static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
@@ -112,22 +112,22 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   Isolate* isolate() const { return isolate_; }
 
   void Execute();
-  Handle<Code> Finalize();
+  Handle<CodeT> Finalize();
 
   bool is_import() const { return is_import_; }
   const FunctionSig* sig() const { return sig_; }
 
   // Run a compilation unit synchronously.
-  static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                             const FunctionSig* sig,
-                                             const WasmModule* module,
-                                             bool is_import);
+  static Handle<CodeT> CompileJSToWasmWrapper(Isolate* isolate,
+                                              const FunctionSig* sig,
+                                              const WasmModule* module,
+                                              bool is_import);
 
   // Run a compilation unit synchronously, but ask for the specific
   // wrapper.
-  static Handle<Code> CompileSpecificJSToWasmWrapper(Isolate* isolate,
-                                                     const FunctionSig* sig,
-                                                     const WasmModule* module);
+  static Handle<CodeT> CompileSpecificJSToWasmWrapper(Isolate* isolate,
+                                                      const FunctionSig* sig,
+                                                      const WasmModule* module);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the

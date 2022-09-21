@@ -45,15 +45,22 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 6;
+  // Number of gp parameters, without the instance.
+  static constexpr int kNumberOfSavedGpParamRegs = 5;
   static constexpr int kNumberOfSavedFpParamRegs = 6;
 
-  // FP-relative.
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kFixedFrameSizeFromFp =
-      TypedFrameConstants::kFixedFrameSizeFromFp +
-      kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kSimd128Size;
+  static constexpr int kInstanceSpillOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  static constexpr int kParameterSpillsOffset[] = {
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(5)};
+
+  // SP-relative.
+  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
+  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kNativeModuleOffset = 0;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.
@@ -61,7 +68,8 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr RegList kPushedGpRegs = {rax, rcx, rdx, rbx, rsi, rdi, r9};
+  static constexpr RegList kPushedGpRegs = {rax, rcx, rdx, rbx, rsi,
+                                            rdi, r8,  r9,  r12, r15};
 
   static constexpr DoubleRegList kPushedFpRegs = {xmm0, xmm1, xmm2, xmm3,
                                                   xmm4, xmm5, xmm6, xmm7};

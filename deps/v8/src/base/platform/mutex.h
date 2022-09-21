@@ -5,16 +5,23 @@
 #ifndef V8_BASE_PLATFORM_MUTEX_H_
 #define V8_BASE_PLATFORM_MUTEX_H_
 
-#include "src/base/base-export.h"
-#include "src/base/lazy-instance.h"
-#include "src/base/optional.h"
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
+#include "include/v8config.h"
+
+#if V8_OS_DARWIN
+#include <shared_mutex>
 #endif
-#include "src/base/logging.h"
 
 #if V8_OS_POSIX
 #include <pthread.h>
+#endif
+
+#include "src/base/base-export.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
+#include "src/base/optional.h"
+
+#if V8_OS_WIN
+#include "src/base/win32-headers.h"
 #endif
 
 #if V8_OS_STARBOARD
@@ -25,6 +32,8 @@
 
 namespace v8 {
 namespace base {
+
+class ConditionVariable;
 
 // ----------------------------------------------------------------------------
 // Mutex - a replacement for std::mutex
@@ -267,9 +276,10 @@ class V8_BASE_EXPORT SharedMutex final {
   // The implementation-defined native handle type.
 #if V8_OS_DARWIN
   // pthread_rwlock_t is broken on MacOS when signals are being sent to the
-  // process (see https://crbug.com/v8/11399). Until Apple fixes that in the OS,
-  // we have to fall back to a non-shared mutex.
-  using NativeHandle = pthread_mutex_t;
+  // process (see https://crbug.com/v8/11399).
+  // We thus use std::shared_mutex on MacOS, which does not have this problem.
+  // TODO(13256): Use std::shared_mutex directly, on all platforms.
+  using NativeHandle = std::shared_mutex;
 #elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN

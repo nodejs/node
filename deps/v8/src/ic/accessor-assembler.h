@@ -59,7 +59,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLoadGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLookupGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupContextTrampoline(TypeofMode typeof_mode);
   void GenerateLookupContextBaseline(TypeofMode typeof_mode);
 
   void GenerateKeyedStoreIC();
@@ -333,15 +335,21 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void DefineKeyedOwnIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
 
+  void LookupGlobalIC(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
+                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
+                      LazyNode<FeedbackVector> lazy_feedback_vector,
+                      TypeofMode typeof_mode);
+  void LookupContext(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
+                     LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
+                     TypeofMode typeof_mode);
+
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  TNode<MaybeObject> TryMonomorphicCase(TNode<TaggedIndex> slot,
-                                        TNode<FeedbackVector> vector,
-                                        TNode<Map> lookup_start_object_map,
-                                        Label* if_handler,
-                                        TVariable<MaybeObject>* var_handler,
-                                        Label* if_miss);
+  TNode<HeapObjectReference> TryMonomorphicCase(
+      TNode<TaggedIndex> slot, TNode<FeedbackVector> vector,
+      TNode<Map> lookup_start_object_map, Label* if_handler,
+      TVariable<MaybeObject>* var_handler, Label* if_miss);
   void HandlePolymorphicCase(TNode<Map> lookup_start_object_map,
                              TNode<WeakFixedArray> feedback, Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
@@ -355,7 +363,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
-      const LazyLoadICParameters* p, TNode<Object> handler, Label* miss,
+      const LazyLoadICParameters* p, TNode<MaybeObject> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties,
@@ -363,7 +371,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void HandleLoadICSmiHandlerCase(const LazyLoadICParameters* p,
                                   TNode<Object> holder, TNode<Smi> smi_handler,
-                                  TNode<Object> handler, Label* miss,
+                                  TNode<MaybeObject> handler, Label* miss,
                                   ExitPoint* exit_point, ICMode ic_mode,
                                   OnNonExistent on_nonexistent,
                                   ElementSupport support_elements,
@@ -372,22 +380,23 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleLoadICProtoHandler(const LazyLoadICParameters* p,
                                 TNode<DataHandler> handler,
                                 TVariable<Object>* var_holder,
-                                TVariable<Object>* var_smi_handler,
+                                TVariable<MaybeObject>* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
                                 ExitPoint* exit_point, ICMode ic_mode,
                                 LoadAccessMode access_mode);
 
   void HandleLoadCallbackProperty(const LazyLoadICParameters* p,
                                   TNode<JSObject> holder,
-                                  TNode<WordT> handler_word,
+                                  TNode<Word32T> handler_word,
                                   ExitPoint* exit_point);
 
   void HandleLoadAccessor(const LazyLoadICParameters* p,
                           TNode<CallHandlerInfo> call_handler_info,
-                          TNode<WordT> handler_word, TNode<DataHandler> handler,
-                          TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
+                          TNode<Word32T> handler_word,
+                          TNode<DataHandler> handler,
+                          TNode<Uint32T> handler_kind, ExitPoint* exit_point);
 
-  void HandleLoadField(TNode<JSObject> holder, TNode<WordT> handler_word,
+  void HandleLoadField(TNode<JSObject> holder, TNode<Word32T> handler_word,
                        TVariable<Float64T>* var_double_value,
                        Label* rebox_double, Label* miss, ExitPoint* exit_point);
 
@@ -398,7 +407,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                            TVariable<Float64T>* var_double_value,
                            Label* rebox_double, ExitPoint* exit_point);
 
-  void HandleLoadWasmField(TNode<WasmObject> holder, TNode<WordT> handler_word,
+  void HandleLoadWasmField(TNode<WasmObject> holder,
+                           TNode<Word32T> handler_word,
                            TVariable<Float64T>* var_double_value,
                            Label* rebox_double, ExitPoint* exit_point);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -409,14 +419,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void HandleLoadICSmiHandlerLoadNamedCase(
       const LazyLoadICParameters* p, TNode<Object> holder,
-      TNode<IntPtrT> handler_kind, TNode<WordT> handler_word,
+      TNode<Uint32T> handler_kind, TNode<Word32T> handler_word,
       Label* rebox_double, TVariable<Float64T>* var_double_value,
-      TNode<Object> handler, Label* miss, ExitPoint* exit_point, ICMode ic_mode,
-      OnNonExistent on_nonexistent, ElementSupport support_elements);
+      TNode<MaybeObject> handler, Label* miss, ExitPoint* exit_point,
+      ICMode ic_mode, OnNonExistent on_nonexistent,
+      ElementSupport support_elements);
 
   void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
                                           TNode<Object> holder,
-                                          TNode<IntPtrT> handler_kind,
+                                          TNode<Uint32T> handler_kind,
                                           Label* miss, ExitPoint* exit_point,
                                           ICMode ic_mode);
 

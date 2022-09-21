@@ -4,13 +4,11 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
-#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -657,7 +655,7 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     return;
   }
 
-  STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+  static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
 
   Node* fallthrough_control = NodeProperties::GetControlInput(node);
   int const num_calls = candidate.num_functions;

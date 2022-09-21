@@ -82,7 +82,7 @@ function assertConversionError(bytes, imports, msg) {
   ]).end().toBuffer(), f_error('invalid local index: 0 @+24'));
   assertCompileError(
       builder().addStart(0).toBuffer(),
-      'start function index 0 out of bounds (0 entries) @+10');
+      'function index 0 out of bounds (0 entries) @+10');
 })();
 
 function import_error(index, module, func, msg) {

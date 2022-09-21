@@ -212,7 +212,7 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   __ cmpl(rdi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
   Drop();
-  BranchOrBacktrack(no_condition, on_equal);
+  BranchOrBacktrack(on_equal);
   __ bind(&fallthrough);
 }
 
@@ -699,7 +699,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(
 }
 
 void RegExpMacroAssemblerX64::Fail() {
-  STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
+  static_assert(FAILURE == 0);  // Return value for failure is zero.
   if (!global()) {
     __ Move(rax, FAILURE);
   }
@@ -763,7 +763,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(Operand(rbp, kInputStart), arg_reg_3);
   __ movq(Operand(rbp, kInputEnd), arg_reg_4);
 
-  STATIC_ASSERT(kNumCalleeSaveRegisters == 3);
+  static_assert(kNumCalleeSaveRegisters == 3);
   __ pushq(rsi);
   __ pushq(rdi);
   __ pushq(rbx);
@@ -783,25 +783,25 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ pushq(r8);
   __ pushq(r9);
 
-  STATIC_ASSERT(kNumCalleeSaveRegisters == 1);
+  static_assert(kNumCalleeSaveRegisters == 1);
   __ pushq(rbx);
 #endif
 
-  STATIC_ASSERT(kSuccessfulCaptures ==
+  static_assert(kSuccessfulCaptures ==
                 kLastCalleeSaveRegister - kSystemPointerSize);
   __ Push(Immediate(0));  // Number of successful matches in a global regexp.
-  STATIC_ASSERT(kStringStartMinusOne ==
+  static_assert(kStringStartMinusOne ==
                 kSuccessfulCaptures - kSystemPointerSize);
   __ Push(Immediate(0));  // Make room for "string start - 1" constant.
-  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  static_assert(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
   __ Push(Immediate(0));  // The backtrack counter.
-  STATIC_ASSERT(kRegExpStackBasePointer ==
+  static_assert(kRegExpStackBasePointer ==
                 kBacktrackCount - kSystemPointerSize);
   __ Push(Immediate(0));  // The regexp stack base ptr.
 
   // Initialize backtrack stack pointer. It must not be clobbered from here on.
   // Note the backtrack_stackpointer is *not* callee-saved.
-  STATIC_ASSERT(backtrack_stackpointer() == rcx);
+  static_assert(backtrack_stackpointer() == rcx);
   LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
   // Store the regexp base pointer - we'll later restore it / write it to
@@ -998,14 +998,14 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #ifdef V8_TARGET_OS_WIN
   // Restore callee save registers.
   __ leaq(rsp, Operand(rbp, kLastCalleeSaveRegister));
-  STATIC_ASSERT(kNumCalleeSaveRegisters == 3);
+  static_assert(kNumCalleeSaveRegisters == 3);
   __ popq(rbx);
   __ popq(rdi);
   __ popq(rsi);
   // Stack now at rbp.
 #else
   // Restore callee save register.
-  STATIC_ASSERT(kNumCalleeSaveRegisters == 1);
+  static_assert(kNumCalleeSaveRegisters == 1);
   __ movq(rbx, Operand(rbp, kBackup_rbx));
   // Skip rsp to rbp.
   __ movq(rsp, rbp);
@@ -1104,11 +1104,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   return Handle<HeapObject>::cast(code);
 }
 
-
-void RegExpMacroAssemblerX64::GoTo(Label* to) {
-  BranchOrBacktrack(no_condition, to);
-}
-
+void RegExpMacroAssemblerX64::GoTo(Label* to) { BranchOrBacktrack(to); }
 
 void RegExpMacroAssemblerX64::IfRegisterGE(int reg,
                                            int comparand,
@@ -1318,24 +1314,18 @@ void RegExpMacroAssemblerX64::CheckPosition(int cp_offset,
   }
 }
 
+void RegExpMacroAssemblerX64::BranchOrBacktrack(Label* to) {
+  if (to == nullptr) {
+    Backtrack();
+    return;
+  }
+  __ jmp(to);
+}
 
 void RegExpMacroAssemblerX64::BranchOrBacktrack(Condition condition,
                                                 Label* to) {
-  if (condition < 0) {  // No condition
-    if (to == nullptr) {
-      Backtrack();
-      return;
-    }
-    __ jmp(to);
-    return;
-  }
-  if (to == nullptr) {
-    __ j(condition, &backtrack_label_);
-    return;
-  }
-  __ j(condition, to);
+  __ j(condition, to ? to : &backtrack_label_);
 }
-
 
 void RegExpMacroAssemblerX64::SafeCall(Label* to) {
   __ call(to);

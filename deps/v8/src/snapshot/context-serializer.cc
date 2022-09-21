@@ -25,42 +25,48 @@ class V8_NODISCARD SanitizeNativeContextScope final {
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
                              bool allow_active_isolate_for_testing,
                              const DisallowGarbageCollection& no_gc)
-      : isolate_(isolate),
-        native_context_(native_context),
-        microtask_queue_(native_context.microtask_queue()),
+      : native_context_(native_context),
         optimized_code_list_(native_context.OptimizedCodeListHead()),
-        deoptimized_code_list_(native_context.DeoptimizedCodeListHead()) {
+        deoptimized_code_list_(native_context.DeoptimizedCodeListHead()),
+        no_gc_(no_gc) {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {
       // Microtasks.
-      DCHECK_EQ(0, microtask_queue_->size());
-      DCHECK(!microtask_queue_->HasMicrotasksSuppressions());
-      DCHECK_EQ(0, microtask_queue_->GetMicrotasksScopeDepth());
-      DCHECK(microtask_queue_->DebugMicrotasksScopeDepthIsZero());
+      MicrotaskQueue* microtask_queue = native_context_.microtask_queue();
+      DCHECK_EQ(0, microtask_queue->size());
+      DCHECK(!microtask_queue->HasMicrotasksSuppressions());
+      DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
+      DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
       // Code lists.
       DCHECK(optimized_code_list_.IsUndefined(isolate));
       DCHECK(deoptimized_code_list_.IsUndefined(isolate));
     }
 #endif
+    microtask_queue_external_pointer_ =
+        native_context
+            .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+            .GetAndClearContentForSerialization(no_gc);
     Object undefined = ReadOnlyRoots(isolate).undefined_value();
-    native_context.set_microtask_queue(isolate, nullptr);
     native_context.SetOptimizedCodeListHead(undefined);
     native_context.SetDeoptimizedCodeListHead(undefined);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
-    native_context_.SetDeoptimizedCodeListHead(optimized_code_list_);
-    native_context_.SetOptimizedCodeListHead(deoptimized_code_list_);
-    native_context_.set_microtask_queue(isolate_, microtask_queue_);
+    native_context_.SetOptimizedCodeListHead(optimized_code_list_);
+    native_context_.SetDeoptimizedCodeListHead(deoptimized_code_list_);
+    native_context_
+        .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+        .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
+                                          no_gc_);
   }
 
  private:
-  Isolate* isolate_;
   NativeContext native_context_;
-  MicrotaskQueue* const microtask_queue_;
+  ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
   const Object optimized_code_list_;
   const Object deoptimized_code_list_;
+  const DisallowGarbageCollection& no_gc_;
 };
 
 }  // namespace
@@ -210,7 +216,7 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
 }
 
 bool ContextSerializer::ShouldBeInTheSharedObjectCache(HeapObject o) {
-  // FLAG_shared_string_table may be true during deserialization, so put
+  // v8_flags.shared_string_table may be true during deserialization, so put
   // internalized strings into the shared object snapshot.
   return o.IsInternalizedString();
 }

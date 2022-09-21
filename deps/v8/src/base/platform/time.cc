@@ -9,10 +9,17 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
+
 #if V8_OS_DARWIN
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <pthread.h>
+#endif
+
+#if V8_OS_FUCHSIA
+#include <threads.h>
+#include <zircon/syscalls.h>
+#include <zircon/threads.h>
 #endif
 
 #include <cstring>
@@ -67,6 +74,15 @@ int64_t ComputeThreadTicks() {
   micros += (thread_info_data.user_time.microseconds +
              thread_info_data.system_time.microseconds);
   return micros;
+}
+#elif V8_OS_FUCHSIA
+V8_INLINE int64_t GetFuchsiaThreadTicks() {
+  zx_info_thread_stats_t info;
+  zx_status_t status = zx_object_get_info(thrd_get_zx_handle(thrd_current()),
+                                          ZX_INFO_THREAD_STATS, &info,
+                                          sizeof(info), nullptr, nullptr);
+  CHECK_EQ(status, ZX_OK);
+  return info.total_runtime / v8::base::Time::kNanosecondsPerMicrosecond;
 }
 #elif V8_OS_POSIX
 // Helper function to get results from clock_gettime() and convert to a
@@ -721,6 +737,8 @@ TimeTicks TimeTicks::Now() {
            info.numer / info.denom);
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
+#elif V8_OS_FUCHSIA
+  ticks = zx_clock_get_monotonic() / Time::kNanosecondsPerMicrosecond;
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
 #elif V8_OS_STARBOARD
@@ -735,6 +753,8 @@ TimeTicks TimeTicks::Now() {
 // static
 bool TimeTicks::IsHighResolution() {
 #if V8_OS_DARWIN
+  return true;
+#elif V8_OS_FUCHSIA
   return true;
 #elif V8_OS_POSIX
   static const bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
@@ -783,6 +803,8 @@ ThreadTicks ThreadTicks::Now() {
 #endif
 #elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
+#elif V8_OS_FUCHSIA
+  return ThreadTicks(GetFuchsiaThreadTicks());
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
   defined(V8_OS_ANDROID)
   return ThreadTicks(ClockNow(CLOCK_THREAD_CPUTIME_ID));

@@ -533,8 +533,7 @@ static void StackCheck(Local<String> name,
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
-    i::Code code = frame->LookupCode();
-    CHECK(code.IsCode());
+    i::CodeT code = frame->LookupCodeT().ToCodeT();
     CHECK(code.contains(isolate, frame->pc()));
     iter.Advance();
   }
@@ -701,7 +700,7 @@ THREADED_TEST(GlobalObjectAccessor) {
 
 static void EmptyGetter(Local<Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
+  // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
 }
 
 

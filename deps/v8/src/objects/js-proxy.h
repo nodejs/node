@@ -106,7 +106,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   // JSProxy::target is a Javascript value which cannot be confused with an
   // elements backing store is exploited by loading from this offset from an
   // unknown JSReceiver.
-  STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
+  static_assert(static_cast<int>(JSObject::kElementsOffset) ==
                 static_cast<int>(JSProxy::kTargetOffset));
 
   using BodyDescriptor =

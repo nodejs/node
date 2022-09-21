@@ -537,7 +537,6 @@ class StdGlobalValueMap : public GlobalValueMap<K, V, Traits> {
       : GlobalValueMap<K, V, Traits>(isolate) {}
 };
 
-
 class DefaultPersistentValueVectorTraits {
  public:
   typedef std::vector<PersistentContainerValue> Impl;
@@ -562,7 +561,6 @@ class DefaultPersistentValueVectorTraits {
   }
 };
 
-
 /**
  * A vector wrapper that safely stores Global values.
  * C++11 embedders don't need this class, as they can use Global
@@ -573,8 +571,8 @@ class DefaultPersistentValueVectorTraits {
  * PersistentContainerValue, with all conversion into and out of V8
  * handles being transparently handled by this class.
  */
-template<typename V, typename Traits = DefaultPersistentValueVectorTraits>
-class PersistentValueVector {
+template <typename V, typename Traits = DefaultPersistentValueVectorTraits>
+class V8_DEPRECATE_SOON("Use std::vector<Global<V>>.") PersistentValueVector {
  public:
   explicit PersistentValueVector(Isolate* isolate) : isolate_(isolate) { }
 

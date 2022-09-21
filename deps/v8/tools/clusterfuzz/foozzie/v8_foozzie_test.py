@@ -8,6 +8,7 @@ import random
 import subprocess
 import sys
 import unittest
+import unittest.mock
 
 import v8_commands
 import v8_foozzie
@@ -232,6 +233,24 @@ other weird stuff
     check('1\n2\n3', '4\n5', True, True, '1\n2', '4\n5')
     check('12', '345', True, True, '12', '34')
     check('123', '45', True, True, '12', '45')
+
+  @unittest.mock.patch('v8_foozzie.DISALLOWED_FLAGS', ['A'])
+  @unittest.mock.patch('v8_foozzie.CONTRADICTORY_FLAGS',
+                       [('B', 'C'), ('B', 'D')])
+  def testFilterFlags(self):
+    def check(input_flags, expected):
+      self.assertEqual(expected, v8_foozzie.filter_flags(input_flags))
+
+    check([], [])
+    check(['A'], [])
+    check(['D', 'A'], ['D'])
+    check(['A', 'D'], ['D'])
+    check(['C', 'D'], ['C', 'D'])
+    check(['E', 'C', 'D', 'F'], ['E', 'C', 'D', 'F'])
+    check(['B', 'D'], ['D'])
+    check(['D', 'B'], ['B'])
+    check(['C', 'B', 'D'], ['C', 'D'])
+    check(['E', 'C', 'A', 'F', 'B', 'G', 'D'], ['E', 'C', 'F', 'G', 'D'])
 
 
 def cut_verbose_output(stdout, n_comp):

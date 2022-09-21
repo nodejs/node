@@ -14,10 +14,12 @@ namespace v8 {
 namespace internal {
 
 #define TYPED_VISITOR_ID_LIST(V)        \
+  V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \
+  V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(Code)                               \
   V(CodeDataContainer)                  \
@@ -34,6 +36,7 @@ namespace internal {
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
+  V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
   V(WeakCell)                           \
   V(JSWeakCollection)                   \
@@ -65,8 +68,9 @@ namespace internal {
   IF_WASM(V, WasmJSFunctionData)        \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmOnFulfilledData)       \
-  IF_WASM(V, WasmTypeInfo)
+  IF_WASM(V, WasmResumeData)            \
+  IF_WASM(V, WasmTypeInfo)              \
+  IF_WASM(V, WasmContinuationObject)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
@@ -94,18 +98,19 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 
   V8_INLINE ResultType Visit(HeapObject object);
   V8_INLINE ResultType Visit(Map map, HeapObject object);
+
   // A callback for visiting the map pointer in the object header.
-  V8_INLINE void VisitMapPointer(HeapObject host);
+  void VisitMapPointer(HeapObject host);
+  // Guard predicate for visiting the objects map pointer separately.
+  V8_INLINE bool ShouldVisitMapPointer() { return true; }
 
  protected:
   // A guard predicate for visiting the object.
   // If it returns false then the default implementations of the Visit*
   // functions bailout from iterating the object pointers.
   V8_INLINE bool ShouldVisit(HeapObject object) { return true; }
-  // Guard predicate for visiting the objects map pointer separately.
-  V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // If this predicate returns false, then the heap visitor will fail
-  // in default Visit implemention for subclasses of JSObject.
+  // in default Visit implementation for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
 #define VISIT(TypeName) \

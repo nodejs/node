@@ -23,22 +23,24 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  static constexpr int kNumberOfSavedGpParamRegs = 4;
+  static constexpr int kNumberOfSavedGpParamRegs = 3;
 #ifdef V8_TARGET_ARCH_S390X
   static constexpr int kNumberOfSavedFpParamRegs = 4;
 #else
   static constexpr int kNumberOfSavedFpParamRegs = 2;
 #endif
 
-  // FP-relative.
-  // The instance is pushed as part of the saved registers. Being in {r6}, it is
-  // the first register pushed (highest register code in
-  // {wasm::kGpParamRegisters}).
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kFixedFrameSizeFromFp =
-      TypedFrameConstants::kFixedFrameSizeFromFp +
-      kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kSimd128Size;
+  static constexpr int kInstanceSpillOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+
+  static constexpr int kParameterSpillsOffset[] = {
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(3)};
+
+  // SP-relative.
+  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
+  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kNativeModuleOffset = 0;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

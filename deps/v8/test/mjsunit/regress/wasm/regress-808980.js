@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --no-liftoff because we can't serialize and deserialize
-// Liftoff code.
+// Force TurboFan code for serialization.
 // Flags: --allow-natives-syntax --throws --no-liftoff
+// Flags: --no-wasm-lazy-compilation
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let kTableSize = 3;

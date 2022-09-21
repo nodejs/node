@@ -15,8 +15,12 @@
 
 #include "include/v8-metrics.h"
 #include "src/base/optional.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/logging/metrics.h"
+#include "src/execution/isolate.h"
+#include "src/logging/counters.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
@@ -76,10 +80,21 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
+bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index,
+                 NativeModule** out_native_module);
 
-V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, NativeModule*, int func_index,
-                                     Handle<WasmInstanceObject> instance);
+// Throws the compilation error after failed lazy compilation.
+void ThrowLazyCompilationError(Isolate* isolate,
+                               const NativeModule* native_module,
+                               int func_index);
+
+// Trigger tier-up of a particular function to TurboFan. If tier-up was already
+// triggered, we instead increase the priority with exponential back-off.
+V8_EXPORT_PRIVATE void TriggerTierUp(WasmInstanceObject instance,
+                                     int func_index);
+// Synchronous version of the above.
+void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
+                         int func_index);
 
 template <typename Key, typename Hash>
 class WrapperQueue {
@@ -156,12 +171,40 @@ class AsyncCompileJob {
 
   friend class AsyncStreamingProcessor;
 
+  enum FinishingComponent { kStreamingDecoder, kCompilation };
+
   // Decrements the number of outstanding finishers. The last caller of this
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
-  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
-    DCHECK_LT(0, outstanding_finishers_.load());
-    return outstanding_finishers_.fetch_sub(1) == 1;
+  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount(
+      FinishingComponent component) {
+    base::MutexGuard guard(&check_finisher_mutex_);
+    DCHECK_LT(0, outstanding_finishers_);
+    if (outstanding_finishers_-- == 2) {
+      // The first component finished, we just start a timer for a histogram.
+      streaming_until_finished_timer_.Start();
+      return false;
+    }
+    // The timer has only been started above in the case of streaming
+    // compilation.
+    if (streaming_until_finished_timer_.IsStarted()) {
+      // We measure the time delta from when the StreamingDecoder finishes until
+      // when module compilation finishes. Depending on whether streaming or
+      // compilation finishes first we add the delta to the according histogram.
+      int elapsed = static_cast<int>(
+          streaming_until_finished_timer_.Elapsed().InMilliseconds());
+      if (component == kStreamingDecoder) {
+        isolate_->counters()
+            ->wasm_compilation_until_streaming_finished()
+            ->AddSample(elapsed);
+      } else {
+        isolate_->counters()
+            ->wasm_streaming_until_compilation_finished()
+            ->AddSample(elapsed);
+      }
+    }
+    DCHECK_EQ(0, outstanding_finishers_);
+    return true;
   }
 
   void CreateNativeModule(std::shared_ptr<const WasmModule> module,
@@ -241,7 +284,9 @@ class AsyncCompileJob {
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
   // compilation can be finished.
-  std::atomic<int32_t> outstanding_finishers_{1};
+  int32_t outstanding_finishers_ = 1;
+  base::ElapsedTimer streaming_until_finished_timer_;
+  base::Mutex check_finisher_mutex_;
 
   // A reference to a pending foreground task, or {nullptr} if none is pending.
   CompileTask* pending_foreground_task_ = nullptr;

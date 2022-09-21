@@ -10,10 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
-#include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
-#include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
 using testing::_;
 using testing::StrictMock;

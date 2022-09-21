@@ -31,13 +31,14 @@ enum class DispatchCode {
   FALL_THROUGH = 2,
   // For historical reasons, these error codes correspond to commonly used
   // XMLRPC codes (e.g. see METHOD_NOT_FOUND in
-  // https://github.com/python/cpython/blob/master/Lib/xmlrpc/client.py).
+  // https://github.com/python/cpython/blob/main/Lib/xmlrpc/client.py).
   PARSE_ERROR = -32700,
   INVALID_REQUEST = -32600,
   METHOD_NOT_FOUND = -32601,
   INVALID_PARAMS = -32602,
   INTERNAL_ERROR = -32603,
   SERVER_ERROR = -32000,
+  SESSION_NOT_FOUND = SERVER_ERROR - 1,
 };
 
 // Information returned by command handlers. Usually returned after command
@@ -75,6 +76,10 @@ class DispatchResponse {
 
   // Used for application level errors, e.g. within protocol agents.
   static DispatchResponse ServerError(std::string message);
+
+  // Indicate that session with the id specified in the protocol message
+  // was not found (e.g. because it has already been detached).
+  static DispatchResponse SessionNotFound(std::string message);
 
  private:
   DispatchResponse() = default;
@@ -150,8 +155,7 @@ class Dispatchable {
 
 std::unique_ptr<Serializable> CreateErrorResponse(
     int callId,
-    DispatchResponse dispatch_response,
-    const ErrorSupport* errors = nullptr);
+    DispatchResponse dispatch_response);
 
 std::unique_ptr<Serializable> CreateErrorNotification(
     DispatchResponse dispatch_response);
@@ -230,13 +234,8 @@ class DomainDispatcher {
                     const DispatchResponse&,
                     std::unique_ptr<Serializable> result = nullptr);
 
-  // Returns true if |errors| contains errors *and* reports these errors
-  // as a response on the frontend channel. Called from generated code,
-  // optimized for code size of the callee.
-  bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
-                                const ErrorSupport& errors);
-  bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
-                                const DeserializerState& state);
+  void ReportInvalidParams(const Dispatchable& dispatchable,
+                           const DeserializerState& state);
 
   FrontendChannel* channel() { return frontend_channel_; }
 

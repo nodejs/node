@@ -35,6 +35,14 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckSymbol:
+    // These are not really check nodes, but behave the same in that they can be
+    // folded together if repeated with identical inputs.
+    case IrOpcode::kBigIntAdd:
+    case IrOpcode::kBigIntSubtract:
+    case IrOpcode::kStringCharCodeAt:
+    case IrOpcode::kStringCodePointAt:
+    case IrOpcode::kStringFromCodePointAt:
+    case IrOpcode::kStringSubstring:
 #define SIMPLIFIED_CHECKED_OP(Opcode) case IrOpcode::k##Opcode:
       SIMPLIFIED_CHECKED_OP_LIST(SIMPLIFIED_CHECKED_OP)
 #undef SIMPLIFIED_CHECKED_OP

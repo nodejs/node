@@ -691,7 +691,7 @@ assertTrue(setDesc.configurable);
 
 // 'WebAssembly.Table.prototype.set' method
 let set = setDesc.value;
-assertEq(set.length, 2);
+assertEq(set.length, 1);
 assertFalse(isConstructor(set));
 assertThrows(
     () => set.call(), TypeError, /Receiver is not a WebAssembly.Table/);
@@ -715,18 +715,19 @@ assertThrows(
   /must be convertible to a valid number/);
 assertThrows(
     () => set.call(tbl1, 0, undefined), TypeError,
-    /Argument 1 is invalid for table of type funcref/);
+    /Argument 1 is invalid for table: /);
 assertThrows(
     () => set.call(tbl1, undefined, undefined), TypeError,
     /must be convertible to a valid number/);
 assertThrows(
     () => set.call(tbl1, 0, {}), TypeError,
-    /Argument 1 is invalid for table of type funcref/);
-assertThrows(() => set.call(tbl1, 0, function() {}),
-             TypeError, /Argument 1 is invalid for table of type funcref/);
+    /Argument 1 is invalid for table:.*null.*or a Wasm function object/);
+assertThrows(
+    () => set.call(tbl1, 0, function() {}), TypeError,
+    /Argument 1 is invalid for table:.*null.*or a Wasm function object/);
 assertThrows(
     () => set.call(tbl1, 0, Math.sin), TypeError,
-    /Argument 1 is invalid for table of type funcref/);
+    /Argument 1 is invalid for table:.*null.*or a Wasm function object/);
 assertThrows(
     () => set.call(tbl1, {valueOf() { throw Error('hai') }}, null), Error,
     'hai');

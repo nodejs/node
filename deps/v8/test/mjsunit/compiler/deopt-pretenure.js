@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --allocation-site-pretenuring --stress-gc-during-compilation
 // Flags: --stress-scavenge=0 --gc-interval=-1
 // Flags: --max-optimized-bytecode-size=132000

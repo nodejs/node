@@ -11,6 +11,7 @@
 
 #include <unordered_map>
 
+#include "src/base/functional.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 

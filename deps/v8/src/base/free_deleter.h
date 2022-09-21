@@ -12,7 +12,7 @@
 
 #include <memory>
 
-#include "src/base/platform/wrappers.h"
+#include "src/base/platform/memory.h"
 
 namespace v8 {
 namespace base {

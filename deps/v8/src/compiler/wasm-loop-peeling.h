@@ -10,7 +10,8 @@
 #define V8_COMPILER_WASM_LOOP_PEELING_H_
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/loop-analysis.h"
+#include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/node-origin-table.h"
 
 namespace v8 {
 namespace internal {

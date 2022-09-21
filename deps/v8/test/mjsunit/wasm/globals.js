@@ -101,16 +101,15 @@ function TestExported(type, val, expected) {
   assertEquals(expected, instance.exports.foo.value);
 }
 
-TestExported(kWasmI32, WasmInitExpr.I32Const(455.5), 455);
-TestExported(kWasmF32, WasmInitExpr.F32Const(-999.34343),
+TestExported(kWasmI32, wasmI32Const(455.5), 455);
+TestExported(kWasmF32, wasmF32Const(-999.34343),
              Math.fround(-999.34343));
-TestExported(kWasmF64, WasmInitExpr.F64Const(87347.66666), 87347.66666);
+TestExported(kWasmF64, wasmF64Const(87347.66666), 87347.66666);
 
 (function TestI64Exported() {
   var builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32);  // pad
-  builder.addGlobal(kWasmI64, false, WasmInitExpr.I64Const(1234))
-      .exportAs("foo");
+  builder.addGlobal(kWasmI64, false, wasmI64Const(1234)).exportAs("foo");
   builder.addGlobal(kWasmI32);  // pad
 
   var instance = builder.instantiate();
@@ -123,8 +122,7 @@ function TestImportedExported(type, val, expected) {
   var builder = new WasmModuleBuilder();
   var i = builder.addImportedGlobal("ttt", "foo", type);
   builder.addGlobal(kWasmI32);  // pad
-  builder.addGlobal(type, false, WasmInitExpr.GlobalGet(i))
-      .exportAs("bar");
+  builder.addGlobal(type, false, [kExprGlobalGet, i]).exportAs("bar");
   builder.addGlobal(kWasmI32);  // pad
 
   var instance = builder.instantiate({ttt: {foo: val}});
@@ -140,7 +138,7 @@ function TestGlobalIndexSpace(type, val) {
   var builder = new WasmModuleBuilder();
   var im = builder.addImportedGlobal("nnn", "foo", type);
   assertEquals(0, im);
-  var def = builder.addGlobal(type, false, WasmInitExpr.GlobalGet(im));
+  var def = builder.addGlobal(type, false, [kExprGlobalGet, im]);
   assertEquals(1, def.index);
 
   var sig = makeSig([], [type]);

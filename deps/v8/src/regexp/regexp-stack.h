@@ -97,7 +97,7 @@ class RegExpStack final {
       2 * kStackLimitSlack * kSystemPointerSize;
   byte static_stack_[kStaticStackSize] = {0};
 
-  STATIC_ASSERT(kStaticStackSize <= kMaximumStackSize);
+  static_assert(kStaticStackSize <= kMaximumStackSize);
 
   // Structure holding the allocated memory, size and limit. Thread switching
   // archives and restores this struct.

@@ -33,7 +33,7 @@ class BasicBlock {
     if (has_phi()) return phis()->first()->id();
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
-        if (node->Is<GapMove>()) continue;
+        if (IsGapMoveNode(node->opcode())) continue;
         return node->id();
       }
     }
@@ -57,11 +57,22 @@ class BasicBlock {
     return empty_block_predecessor_;
   }
 
+  MergePointRegisterState& empty_block_register_state() {
+    DCHECK(is_empty_block());
+    return *empty_block_register_state_;
+  }
+
+  void set_empty_block_register_state(MergePointRegisterState* register_state) {
+    DCHECK(is_empty_block());
+    empty_block_register_state_ = register_state;
+  }
+
   void set_empty_block_predecessor(BasicBlock* predecessor) {
     DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
     is_empty_block_ = true;
+    empty_block_register_state_ = nullptr;
     empty_block_predecessor_ = predecessor;
   }
 
@@ -87,7 +98,11 @@ class BasicBlock {
     DCHECK(has_state());
     return state_;
   }
-  bool has_state() const { return state_ != nullptr && !is_empty_block(); }
+  bool has_state() const { return !is_empty_block() && state_ != nullptr; }
+
+  bool is_exception_handler_block() const {
+    return has_state() && state_->is_exception_handler();
+  }
 
  private:
   bool is_empty_block_ = false;
@@ -95,8 +110,9 @@ class BasicBlock {
   ControlNode* control_node_;
   union {
     MergePointInterpreterFrameState* state_;
-    BasicBlock* empty_block_predecessor_;
+    MergePointRegisterState* empty_block_register_state_;
   };
+  BasicBlock* empty_block_predecessor_;
   Label label_;
 };
 

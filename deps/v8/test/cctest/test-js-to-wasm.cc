@@ -8,12 +8,10 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
-#include "src/api/api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
-#include "test/common/wasm/flag-utils.h"
+#include "test/common/node-observer-tester.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -268,10 +266,10 @@ class FastJSWasmCallTester {
       : allocator_(),
         zone_(&allocator_, ZONE_NAME),
         builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_inline_js_wasm_calls = true;
-    i::FLAG_stress_background_compile = false;
-    i::FLAG_concurrent_osr = false;  // Seems to mess with %ObserveNode.
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.turbo_inline_js_wasm_calls = true;
+    i::v8_flags.stress_background_compile = false;
+    i::v8_flags.concurrent_osr = false;  // Seems to mess with %ObserveNode.
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,

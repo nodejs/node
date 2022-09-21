@@ -143,11 +143,11 @@ TEST_F(LEBHelperTest, WriteAndDecode_i32v) {
   CheckEncodeDecode_i32v(-77377);
 
   for (uint32_t val = 0x3A; val != 0; val = val << 1) {
-    CheckEncodeDecode_i32v(bit_cast<int32_t>(val));
+    CheckEncodeDecode_i32v(base::bit_cast<int32_t>(val));
   }
 
   for (uint32_t val = 0xFFFFFF3B; val != 0; val = val << 1) {
-    CheckEncodeDecode_i32v(bit_cast<int32_t>(val));
+    CheckEncodeDecode_i32v(base::bit_cast<int32_t>(val));
   }
 }
 
@@ -182,11 +182,11 @@ TEST_F(LEBHelperTest, WriteAndDecode_i64v) {
   CheckEncodeDecode_i64v(-77377);
 
   for (uint64_t val = 0x3A; val != 0; val = val << 1) {
-    CheckEncodeDecode_i64v(bit_cast<int64_t>(val));
+    CheckEncodeDecode_i64v(base::bit_cast<int64_t>(val));
   }
 
   for (uint64_t val = 0xFFFFFFFFFFFFFF3B; val != 0; val = val << 1) {
-    CheckEncodeDecode_i64v(bit_cast<int64_t>(val));
+    CheckEncodeDecode_i64v(base::bit_cast<int64_t>(val));
   }
 }
 }  // namespace wasm

@@ -6,10 +6,10 @@
 #define V8_DIAGNOSTICS_CODE_TRACER_H_
 
 #include "src/base/optional.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"

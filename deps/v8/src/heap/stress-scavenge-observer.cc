@@ -20,7 +20,7 @@ StressScavengeObserver::StressScavengeObserver(Heap* heap)
       max_new_space_size_reached_(0.0) {
   limit_percentage_ = NextLimit();
 
-  if (FLAG_trace_stress_scavenge && !FLAG_fuzzer_gc_analysis) {
+  if (v8_flags.trace_stress_scavenge && !v8_flags.fuzzer_gc_analysis) {
     heap_->isolate()->PrintWithTimestamp(
         "[StressScavenge] %d%% is the new limit\n", limit_percentage_);
   }
@@ -35,20 +35,20 @@ void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
   double current_percent =
       heap_->new_space()->Size() * 100.0 / heap_->new_space()->Capacity();
 
-  if (FLAG_trace_stress_scavenge) {
+  if (v8_flags.trace_stress_scavenge) {
     heap_->isolate()->PrintWithTimestamp(
         "[Scavenge] %.2lf%% of the new space capacity reached\n",
         current_percent);
   }
 
-  if (FLAG_fuzzer_gc_analysis) {
+  if (v8_flags.fuzzer_gc_analysis) {
     max_new_space_size_reached_ =
         std::max(max_new_space_size_reached_, current_percent);
     return;
   }
 
   if (static_cast<int>(current_percent) >= limit_percentage_) {
-    if (FLAG_trace_stress_scavenge) {
+    if (v8_flags.trace_stress_scavenge) {
       heap_->isolate()->PrintWithTimestamp("[Scavenge] GC requested\n");
     }
 
@@ -66,7 +66,7 @@ void StressScavengeObserver::RequestedGCDone() {
       heap_->new_space()->Size() * 100.0 / heap_->new_space()->Capacity();
   limit_percentage_ = NextLimit(static_cast<int>(current_percent));
 
-  if (FLAG_trace_stress_scavenge) {
+  if (v8_flags.trace_stress_scavenge) {
     heap_->isolate()->PrintWithTimestamp(
         "[Scavenge] %.2lf%% of the new space capacity reached\n",
         current_percent);
@@ -82,7 +82,7 @@ double StressScavengeObserver::MaxNewSpaceSizeReached() const {
 }
 
 int StressScavengeObserver::NextLimit(int min) {
-  int max = FLAG_stress_scavenge;
+  int max = v8_flags.stress_scavenge;
   if (min >= max) {
     return max;
   }

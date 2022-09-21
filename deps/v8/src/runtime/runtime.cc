@@ -5,14 +5,9 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
-#include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/contexts.h"
-#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/strings/string-hasher-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -137,6 +132,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kTerminateExecution:
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
@@ -175,6 +171,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowConstAssignError:
+    case Runtime::kTerminateExecution:
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:

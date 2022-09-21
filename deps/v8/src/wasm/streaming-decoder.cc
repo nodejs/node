@@ -4,11 +4,7 @@
 
 #include "src/wasm/streaming-decoder.h"
 
-#include "src/base/platform/wrappers.h"
-#include "src/handles/handles.h"
-#include "src/objects/descriptor-array.h"
-#include "src/objects/dictionary.h"
-#include "src/objects/objects-inl.h"
+#include "src/logging/counters.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-decoder.h"
@@ -17,9 +13,9 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
-#define TRACE_STREAMING(...)                            \
-  do {                                                  \
-    if (FLAG_trace_wasm_streaming) PrintF(__VA_ARGS__); \
+#define TRACE_STREAMING(...)                                \
+  do {                                                      \
+    if (v8_flags.trace_wasm_streaming) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {
@@ -199,7 +195,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
     if (!ok()) return;
-    if (!processor_->ProcessFunctionBody(bytes, module_offset)) Fail();
+    processor_->ProcessFunctionBody(bytes, module_offset);
   }
 
   void Fail() {
@@ -317,11 +313,12 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class CompilationChunkFinishedCallback : public CompilationEventCallback {
+class CallMoreFunctionsCanBeSerializedCallback
+    : public CompilationEventCallback {
  public:
-  CompilationChunkFinishedCallback(
+  CallMoreFunctionsCanBeSerializedCallback(
       std::weak_ptr<NativeModule> native_module,
-      AsyncStreamingDecoder::ModuleCompiledCallback callback)
+      AsyncStreamingDecoder::MoreFunctionsCanBeSerializedCallback callback)
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {
     // As a baseline we also count the modules that could be cached but
@@ -332,10 +329,7 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
   }
 
   void call(CompilationEvent event) override {
-    if (event != CompilationEvent::kFinishedCompilationChunk &&
-        event != CompilationEvent::kFinishedTopTierCompilation) {
-      return;
-    }
+    if (event != CompilationEvent::kFinishedCompilationChunk) return;
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
@@ -345,12 +339,12 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
   }
 
   ReleaseAfterFinalEvent release_after_final_event() override {
-    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
+    return kKeepAfterFinalEvent;
   }
 
  private:
   const std::weak_ptr<NativeModule> native_module_;
-  const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
+  const AsyncStreamingDecoder::MoreFunctionsCanBeSerializedCallback callback_;
   int cache_count_ = 0;
 };
 
@@ -358,12 +352,14 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
 
 void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
-  if (!module_compiled_callback_) return;
+  if (!more_functions_can_be_serialized_callback_) return;
   auto* comp_state = native_module->compilation_state();
 
-  comp_state->AddCallback(std::make_unique<CompilationChunkFinishedCallback>(
-      std::move(native_module), std::move(module_compiled_callback_)));
-  module_compiled_callback_ = {};
+  comp_state->AddCallback(
+      std::make_unique<CallMoreFunctionsCanBeSerializedCallback>(
+          native_module,
+          std::move(more_functions_can_be_serialized_callback_)));
+  more_functions_can_be_serialized_callback_ = {};
 }
 
 // An abstract class to share code among the states which decode VarInts. This
@@ -586,8 +582,9 @@ AsyncStreamingDecoder::DecodeModuleHeader::Next(
 
 std::unique_ptr<AsyncStreamingDecoder::DecodingState>
 AsyncStreamingDecoder::DecodeSectionID::Next(AsyncStreamingDecoder* streaming) {
-  TRACE_STREAMING("DecodeSectionID: %s section\n",
+  TRACE_STREAMING("DecodeSectionID: %u (%s)\n", id_,
                   SectionName(static_cast<SectionCode>(id_)));
+  if (!IsValidSectionCode(id_)) return streaming->Error("invalid section code");
   if (id_ == SectionCode::kCodeSectionCode) {
     // Explicitly check for multiple code sections as module decoder never
     // sees the code section and hence cannot track this section.
@@ -648,14 +645,6 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   }
   memcpy(payload_buf.begin(), buffer().begin(), bytes_consumed_);
 
-  // {value} is the number of functions.
-  if (value_ == 0) {
-    if (payload_buf.size() != bytes_consumed_) {
-      return streaming->Error("not all code section bytes were used");
-    }
-    return std::make_unique<DecodeSectionID>(streaming->module_offset());
-  }
-
   DCHECK_GE(kMaxInt, section_buffer_->module_offset() +
                          section_buffer_->payload_offset());
   int code_section_start = static_cast<int>(section_buffer_->module_offset() +
@@ -667,6 +656,15 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
                               streaming->section_buffers_.back(),
                               code_section_start, code_section_len);
   if (!streaming->ok()) return nullptr;
+
+  // {value} is the number of functions.
+  if (value_ == 0) {
+    if (payload_buf.size() != bytes_consumed_) {
+      return streaming->Error("not all code section bytes were used");
+    }
+    return std::make_unique<DecodeSectionID>(streaming->module_offset());
+  }
+
   return std::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
       value_);

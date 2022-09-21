@@ -18,8 +18,9 @@ class TestLoader(testsuite.TestLoader):
 
 #TODO(tmrts): refactor the test creation logic to migrate to TestLoader
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
 
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
     self.expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
@@ -47,7 +48,3 @@ class TestCase(testcase.TestCase):
   @property
   def output_proc(self):
     return mkgrokdump.OutProc(self.expected_outcomes, self.suite.expected_path)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

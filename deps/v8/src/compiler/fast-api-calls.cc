@@ -13,6 +13,8 @@ namespace fast_api_call {
 
 ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
   switch (type) {
+    case CTypeInfo::Type::kUint8:
+      return UINT8_ELEMENTS;
     case CTypeInfo::Type::kInt32:
       return INT32_ELEMENTS;
     case CTypeInfo::Type::kUint32:
@@ -46,15 +48,14 @@ OverloadsResolutionResult ResolveOverloads(
   // supported.
   DCHECK_EQ(candidates.size(), 2);
 
-  for (unsigned int arg_index = 0; arg_index < arg_count - kReceiver;
-       arg_index++) {
+  for (unsigned int arg_index = kReceiver; arg_index < arg_count; arg_index++) {
     int index_of_func_with_js_array_arg = -1;
     int index_of_func_with_typed_array_arg = -1;
     CTypeInfo::Type element_type = CTypeInfo::Type::kVoid;
 
     for (size_t i = 0; i < candidates.size(); i++) {
       const CTypeInfo& type_info =
-          candidates[i].signature->ArgumentInfo(arg_index + kReceiver);
+          candidates[i].signature->ArgumentInfo(arg_index);
       CTypeInfo::SequenceType sequence_type = type_info.GetSequenceType();
 
       if (sequence_type == CTypeInfo::SequenceType::kIsSequence) {
@@ -116,6 +117,275 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   }
 
   return true;
+}
+
+#define __ gasm()->
+
+class FastApiCallBuilder {
+ public:
+  FastApiCallBuilder(Isolate* isolate, Graph* graph,
+                     GraphAssembler* graph_assembler,
+                     const GetParameter& get_parameter,
+                     const ConvertReturnValue& convert_return_value,
+                     const InitializeOptions& initialize_options,
+                     const GenerateSlowApiCall& generate_slow_api_call)
+      : isolate_(isolate),
+        graph_(graph),
+        graph_assembler_(graph_assembler),
+        get_parameter_(get_parameter),
+        convert_return_value_(convert_return_value),
+        initialize_options_(initialize_options),
+        generate_slow_api_call_(generate_slow_api_call) {}
+
+  Node* Build(const FastApiCallFunctionVector& c_functions,
+              const CFunctionInfo* c_signature, Node* data_argument);
+
+ private:
+  Node* WrapFastCall(const CallDescriptor* call_descriptor, int inputs_size,
+                     Node** inputs, Node* target,
+                     const CFunctionInfo* c_signature, int c_arg_count,
+                     Node* stack_slot);
+
+  Isolate* isolate() const { return isolate_; }
+  Graph* graph() const { return graph_; }
+  GraphAssembler* gasm() const { return graph_assembler_; }
+  Isolate* isolate_;
+  Graph* graph_;
+  GraphAssembler* graph_assembler_;
+  const GetParameter& get_parameter_;
+  const ConvertReturnValue& convert_return_value_;
+  const InitializeOptions& initialize_options_;
+  const GenerateSlowApiCall& generate_slow_api_call_;
+};
+
+Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
+                                       int inputs_size, Node** inputs,
+                                       Node* target,
+                                       const CFunctionInfo* c_signature,
+                                       int c_arg_count, Node* stack_slot) {
+  // CPU profiler support
+  Node* target_address = __ ExternalConstant(
+      ExternalReference::fast_api_call_target_address(isolate()));
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           target_address, 0, target);
+
+  // Disable JS execution
+  Node* javascript_execution_assert = __ ExternalConstant(
+      ExternalReference::javascript_execution_assert(isolate()));
+  static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
+
+  if (FLAG_debug_code) {
+    auto do_store = __ MakeLabel();
+    Node* old_scope_value =
+        __ Load(MachineType::Int8(), javascript_execution_assert, 0);
+    __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
+
+    // We expect that JS execution is enabled, otherwise assert.
+    __ Unreachable(&do_store);
+    __ Bind(&do_store);
+  }
+  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+           javascript_execution_assert, 0, __ Int32Constant(0));
+
+  // Update effect and control
+  if (stack_slot != nullptr) {
+    inputs[c_arg_count + 1] = stack_slot;
+    inputs[c_arg_count + 2] = __ effect();
+    inputs[c_arg_count + 3] = __ control();
+  } else {
+    inputs[c_arg_count + 1] = __ effect();
+    inputs[c_arg_count + 2] = __ control();
+  }
+
+  // Create the fast call
+  Node* call = __ Call(call_descriptor, inputs_size, inputs);
+
+  // Reenable JS execution
+  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+           javascript_execution_assert, 0, __ Int32Constant(1));
+
+  // Reset the CPU profiler target address.
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           target_address, 0, __ IntPtrConstant(0));
+
+  return call;
+}
+
+Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
+                                const CFunctionInfo* c_signature,
+                                Node* data_argument) {
+  const int c_arg_count = c_signature->ArgumentCount();
+
+  // Hint to fast path.
+  auto if_success = __ MakeLabel();
+  auto if_error = __ MakeDeferredLabel();
+
+  // Overload resolution
+  bool generate_fast_call = false;
+  OverloadsResolutionResult overloads_resolution_result =
+      OverloadsResolutionResult::Invalid();
+
+  if (c_functions.size() == 1) {
+    generate_fast_call = true;
+  } else {
+    DCHECK_EQ(c_functions.size(), 2);
+    overloads_resolution_result =
+        ResolveOverloads(graph()->zone(), c_functions, c_arg_count);
+    if (overloads_resolution_result.is_valid()) {
+      generate_fast_call = true;
+    }
+  }
+
+  if (!generate_fast_call) {
+    // Only generate the slow call.
+    return generate_slow_api_call_();
+  }
+
+  // Generate fast call.
+
+  const int kFastTargetAddressInputIndex = 0;
+  const int kFastTargetAddressInputCount = 1;
+
+  int extra_input_count = FastApiCallNode::kEffectAndControlInputCount +
+                          (c_signature->HasOptions() ? 1 : 0);
+
+  Node** const inputs = graph()->zone()->NewArray<Node*>(
+      kFastTargetAddressInputCount + c_arg_count + extra_input_count);
+
+  ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
+
+  // The inputs to {Call} node for the fast call look like:
+  // [fast callee, receiver, ... C arguments, [optional Options], effect,
+  //  control].
+  //
+  // The first input node represents the target address for the fast call.
+  // If the function is not overloaded (c_functions.size() == 1) this is the
+  // address associated to the first and only element in the c_functions vector.
+  // If there are multiple overloads the value of this input will be set later
+  // with a Phi node created by AdaptOverloadedFastCallArgument.
+  inputs[kFastTargetAddressInputIndex] =
+      (c_functions.size() == 1) ? __ ExternalConstant(ExternalReference::Create(
+                                      c_functions[0].address, ref_type))
+                                : nullptr;
+
+  for (int i = 0; i < c_arg_count; ++i) {
+    inputs[i + kFastTargetAddressInputCount] =
+        get_parameter_(i, overloads_resolution_result, &if_error);
+    if (overloads_resolution_result.target_address) {
+      inputs[kFastTargetAddressInputIndex] =
+          overloads_resolution_result.target_address;
+    }
+  }
+  DCHECK_NOT_NULL(inputs[kFastTargetAddressInputIndex]);
+
+  MachineSignature::Builder builder(
+      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
+  MachineType return_type =
+      MachineType::TypeForCType(c_signature->ReturnInfo());
+  builder.AddReturn(return_type);
+  for (int i = 0; i < c_arg_count; ++i) {
+    CTypeInfo type = c_signature->ArgumentInfo(i);
+    MachineType machine_type =
+        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
+            ? MachineType::TypeForCType(type)
+            : MachineType::AnyTagged();
+    builder.AddParam(machine_type);
+  }
+
+  Node* stack_slot = nullptr;
+  if (c_signature->HasOptions()) {
+    const int kAlign = alignof(v8::FastApiCallbackOptions);
+    const int kSize = sizeof(v8::FastApiCallbackOptions);
+    // If this check fails, you've probably added new fields to
+    // v8::FastApiCallbackOptions, which means you'll need to write code
+    // that initializes and reads from them too.
+    static_assert(kSize == sizeof(uintptr_t) * 3);
+    stack_slot = __ StackSlot(kSize, kAlign);
+
+    __ Store(
+        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
+        stack_slot,
+        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
+        __ Int32Constant(0));
+
+    Node* data_stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
+    __ Store(
+        StoreRepresentation(MachineType::PointerRepresentation(),
+                            kNoWriteBarrier),
+        data_stack_slot, 0, data_argument);
+
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
+             data_stack_slot);
+
+    initialize_options_(stack_slot);
+
+    builder.AddParam(MachineType::Pointer());  // stack_slot
+  }
+
+  CallDescriptor* call_descriptor =
+      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+
+  Node* c_call_result =
+      WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,
+                   inputs[0], c_signature, c_arg_count, stack_slot);
+
+  Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
+
+  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
+  if (c_signature->HasOptions()) {
+    DCHECK_NOT_NULL(stack_slot);
+    Node* load = __ Load(
+        MachineType::Int32(), stack_slot,
+        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+
+    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
+    __ Branch(is_zero, &if_success, &if_error);
+  } else {
+    __ Goto(&if_success);
+  }
+
+  // We need to generate a fallback (both fast and slow call) in case:
+  // 1) the generated code might fail, in case e.g. a Smi was passed where
+  // a JSObject was expected and an error must be thrown or
+  // 2) the embedder requested fallback possibility via providing options arg.
+  // None of the above usually holds true for Wasm functions with primitive
+  // types only, so we avoid generating an extra branch here.
+  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
+  if (if_error.IsUsed()) {
+    // Generate direct slow call.
+    __ Bind(&if_error);
+    {
+      Node* slow_call_result = generate_slow_api_call_();
+      __ Goto(&merge, slow_call_result);
+    }
+  }
+
+  __ Bind(&if_success);
+  __ Goto(&merge, fast_call_result);
+
+  __ Bind(&merge);
+  return merge.PhiAt(0);
+}
+
+#undef __
+
+Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
+                       GraphAssembler* graph_assembler,
+                       const FastApiCallFunctionVector& c_functions,
+                       const CFunctionInfo* c_signature, Node* data_argument,
+                       const GetParameter& get_parameter,
+                       const ConvertReturnValue& convert_return_value,
+                       const InitializeOptions& initialize_options,
+                       const GenerateSlowApiCall& generate_slow_api_call) {
+  FastApiCallBuilder builder(isolate, graph, graph_assembler, get_parameter,
+                             convert_return_value, initialize_options,
+                             generate_slow_api_call);
+  return builder.Build(c_functions, c_signature, data_argument);
 }
 
 }  // namespace fast_api_call

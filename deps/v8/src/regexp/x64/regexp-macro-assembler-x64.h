@@ -195,6 +195,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Byte size of chars in the string to match (decided by the Mode argument)
   inline int char_size() { return static_cast<int>(mode_); }
 
+  // Equivalent to an unconditional branch to the label, unless the label
+  // is nullptr, in which case it is a Backtrack.
+  void BranchOrBacktrack(Label* to);
+
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);

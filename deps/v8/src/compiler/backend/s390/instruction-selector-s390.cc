@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/platform/wrappers.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -320,6 +319,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd128:
       opcode = kS390_LoadSimd128;
       break;
+    case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
     default:
@@ -801,6 +801,7 @@ static void VisitGeneralStore(
           value = value->InputAt(0);
         }
         break;
+      case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1547,6 +1548,14 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
 
 #endif
 
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
   DCHECK(SmiValuesAre31Bits());
   DCHECK(COMPRESS_POINTERS_BOOL);
@@ -2113,6 +2122,11 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -2526,8 +2540,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16AddSatS)                          \
   V(I8x16SubSatS)                          \
   V(I8x16AddSatU)                          \
-  V(I8x16SubSatU)                          \
-  V(I8x16Swizzle)
+  V(I8x16SubSatU)
 
 #define SIMD_UNOP_LIST(V)    \
   V(F64x2Abs)                \
@@ -2543,8 +2556,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F64x2Splat)              \
   V(F32x4Abs)                \
   V(F32x4Neg)                \
-  V(F32x4RecipApprox)        \
-  V(F32x4RecipSqrtApprox)    \
   V(F32x4Sqrt)               \
   V(F32x4Ceil)               \
   V(F32x4Floor)              \
@@ -2684,6 +2695,27 @@ SIMD_VISIT_QFMOP(F64x2Qfms)
 SIMD_VISIT_QFMOP(F32x4Qfma)
 SIMD_VISIT_QFMOP(F32x4Qfms)
 #undef SIMD_VISIT_QFMOP
+
+#define SIMD_RELAXED_OP_LIST(V)                           \
+  V(F64x2RelaxedMin, F64x2Pmin)                           \
+  V(F64x2RelaxedMax, F64x2Pmax)                           \
+  V(F32x4RelaxedMin, F32x4Pmin)                           \
+  V(F32x4RelaxedMax, F32x4Pmax)                           \
+  V(I32x4RelaxedTruncF32x4S, I32x4SConvertF32x4)          \
+  V(I32x4RelaxedTruncF32x4U, I32x4UConvertF32x4)          \
+  V(I32x4RelaxedTruncF64x2SZero, I32x4TruncSatF64x2SZero) \
+  V(I32x4RelaxedTruncF64x2UZero, I32x4TruncSatF64x2UZero) \
+  V(I16x8RelaxedQ15MulRS, I16x8Q15MulRSatS)               \
+  V(I8x16RelaxedLaneSelect, S128Select)                   \
+  V(I16x8RelaxedLaneSelect, S128Select)                   \
+  V(I32x4RelaxedLaneSelect, S128Select)                   \
+  V(I64x2RelaxedLaneSelect, S128Select)
+
+#define SIMD_VISIT_RELAXED_OP(name, op) \
+  void InstructionSelector::Visit##name(Node* node) { Visit##op(node); }
+SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
+#undef SIMD_VISIT_RELAXED_OP
+#undef SIMD_RELAXED_OP_LIST
 #undef SIMD_TYPES
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2711,8 +2743,21 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
+
+void InstructionSelector::VisitI8x16Swizzle(Node* node) {
+  S390OperandGenerator g(this);
+  bool relaxed = OpParameter<bool>(node->op());
+  // TODO(miladfarca): Optimize Swizzle if relaxed.
+  USE(relaxed);
+
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
 #else
 void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // This is a replica of SimdShuffle::Pack4Lanes. However, above function will
@@ -2744,10 +2789,10 @@ void InstructionSelector::VisitS128Const(Node* node) {
     // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
     // Which in this case is ineffective on LE.
     Emit(kS390_S128Const, dst,
-         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]))),
-         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 4)),
-         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 8)),
-         g.UseImmediate(Pack4Lanes(bit_cast<uint8_t*>(&val[0]) + 12)));
+         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]))),
+         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 4)),
+         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
+         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
   }
 }
 
@@ -2879,7 +2924,6 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   }
 
   S390OperandGenerator g(this);
-  InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionOperand inputs[5];
   size_t input_count = 0;
 
@@ -2889,7 +2933,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(mode);
-  Emit(opcode, 1, outputs, input_count, inputs);
+  Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {

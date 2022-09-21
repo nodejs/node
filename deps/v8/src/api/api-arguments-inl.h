@@ -12,7 +12,6 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/slots-inl.h"
-#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -134,7 +133,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
-      v8::ToCData<v8::FunctionCallback>(handler.callback());
+      reinterpret_cast<v8::FunctionCallback>(handler.callback());
   Handle<Object> receiver_check_unsupported;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
       !isolate->debug()->PerformSideEffectCheckForCallback(
@@ -146,6 +145,17 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   FunctionCallbackInfo<v8::Value> info(values_, argv_, argc_);
   f(info);
   return GetReturnValue<Object>(isolate);
+}
+
+PropertyCallbackArguments::~PropertyCallbackArguments(){
+#ifdef DEBUG
+// TODO(chromium:1310062): enable this check.
+// if (javascript_execution_counter_) {
+//   CHECK_WITH_MSG(javascript_execution_counter_ ==
+//                      isolate()->javascript_execution_counter(),
+//                  "Unexpected side effect detected");
+// }
+#endif  // DEBUG
 }
 
 Handle<JSObject> PropertyCallbackArguments::CallNamedEnumerator(
@@ -296,8 +306,12 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
     Handle<AccessorInfo> info, Handle<Name> name) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
+  // Unlike interceptor callbacks we know that the property exists, so
+  // the callback is allowed to have side effects.
+  AcceptSideEffects();
+
   AccessorNameGetterCallback f =
-      ToCData<AccessorNameGetterCallback>(info->getter());
+      reinterpret_cast<AccessorNameGetterCallback>(info->getter());
   return BasicCallNamedGetterCallback(f, name, info,
                                       handle(receiver(), isolate));
 }
@@ -307,8 +321,12 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorSetterCallback);
+  // Unlike interceptor callbacks we know that the property exists, so
+  // the callback is allowed to have side effects.
+  AcceptSideEffects();
+
   AccessorNameSetterCallback f =
-      ToCData<AccessorNameSetterCallback>(accessor_info->setter());
+      reinterpret_cast<AccessorNameSetterCallback>(accessor_info->setter());
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void, accessor_info,
                         handle(receiver(), isolate), Setter);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);

@@ -19,6 +19,7 @@
 namespace v8_inspector {
 
 struct ScriptBreakpoint;
+class DisassemblyCollectorImpl;
 class V8Debugger;
 class V8DebuggerScript;
 class V8InspectorImpl;
@@ -83,20 +84,31 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
           locations) override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
-      Maybe<bool> dryRun,
+      Maybe<bool> dryRun, Maybe<bool> allowTopFrameEditing,
       Maybe<protocol::Array<protocol::Debugger::CallFrame>>* optOutCallFrames,
       Maybe<bool>* optOutStackChanged,
       Maybe<protocol::Runtime::StackTrace>* optOutAsyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* optOutAsyncStackTraceId,
+      String16* outStatus,
       Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) override;
   Response restartFrame(
-      const String16& callFrameId,
+      const String16& callFrameId, Maybe<String16> mode,
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*
           newCallFrames,
       Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) override;
   Response getScriptSource(const String16& scriptId, String16* scriptSource,
                            Maybe<protocol::Binary>* bytecode) override;
+  Response disassembleWasmModule(
+      const String16& in_scriptId, Maybe<String16>* out_streamId,
+      int* out_totalNumberOfLines,
+      std::unique_ptr<protocol::Array<int>>* out_functionBodyOffsets,
+      std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk)
+      override;
+  Response nextWasmDisassemblyChunk(
+      const String16& in_streamId,
+      std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk)
+      override;
   Response getWasmBytecode(const String16& scriptId,
                            protocol::Binary* bytecode) override;
   Response pause() override;
@@ -223,6 +235,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unordered_map<v8::debug::BreakpointId,
                      std::unique_ptr<protocol::DictionaryValue>>
       m_breakpointsOnScriptRun;
+  std::map<String16, std::unique_ptr<DisassemblyCollectorImpl>>
+      m_wasmDisassemblies;
+  size_t m_nextWasmDisassemblyStreamId = 0;
 
   size_t m_maxScriptCacheSize = 0;
   size_t m_cachedScriptSize = 0;

@@ -246,7 +246,7 @@ option(CPPGC_ENABLE_OBJECT_NAMES "Enable object names in cppgc for debug purpose
 option(CPPGC_ENABLE_CAGED_HEAP "Enable heap reservation of size 4GB, only possible for 64bit archs" OFF)
 option(CPPGC_ENABLE_VERIFY_HEAP "Enables additional heap verification phases and checks" OFF)
 option(CPPGC_ENABLE_YOUNG_GENERATION "Enable young generation in cppgc" OFF)
-set(CPPGC_TARGET_ARCH "x64" CACHE STRING "Target architecture, possible options: x64, x86, arm, arm64, ppc64, s390x, mipsel, mips64el")
+set(CPPGC_TARGET_ARCH "x64" CACHE STRING "Target architecture, possible options: x64, x86, arm, arm64, ppc64, s390x, mips64el")
 
 set(IS_POSIX ${{UNIX}})
 set(IS_MAC ${{APPLE}})

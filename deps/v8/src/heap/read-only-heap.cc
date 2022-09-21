@@ -76,8 +76,8 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
         artifacts = InitializeSharedReadOnlyArtifacts();
         artifacts->InitializeChecksum(read_only_snapshot_data);
         ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
-        ro_heap->DeseralizeIntoIsolate(isolate, read_only_snapshot_data,
-                                       can_rehash);
+        ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
+                                        can_rehash);
         read_only_heap_created = true;
       } else {
         // With pointer compression, there is one ReadOnlyHeap per Isolate.
@@ -104,15 +104,15 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
     auto* ro_heap = new ReadOnlyHeap(new ReadOnlySpace(isolate->heap()));
     isolate->SetUpFromReadOnlyArtifacts(nullptr, ro_heap);
     if (read_only_snapshot_data != nullptr) {
-      ro_heap->DeseralizeIntoIsolate(isolate, read_only_snapshot_data,
-                                     can_rehash);
+      ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
+                                      can_rehash);
     }
   }
 }
 
-void ReadOnlyHeap::DeseralizeIntoIsolate(Isolate* isolate,
-                                         SnapshotData* read_only_snapshot_data,
-                                         bool can_rehash) {
+void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
+                                          SnapshotData* read_only_snapshot_data,
+                                          bool can_rehash) {
   DCHECK_NOT_NULL(read_only_snapshot_data);
   ReadOnlyDeserializer des(isolate, read_only_snapshot_data, can_rehash);
   des.DeserializeIntoIsolate();

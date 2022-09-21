@@ -179,7 +179,9 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
     // 14. Return A.
     return a;
   } label IteratorNotCallable(_value: JSAny) deferred {
-    ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
+    ThrowTypeError(
+        MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+        '%Array%.from');
   }
 }
 }

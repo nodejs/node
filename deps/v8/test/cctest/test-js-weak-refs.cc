@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/execution/microtask-queue.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"

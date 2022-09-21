@@ -20,6 +20,7 @@ include_rules = [
   "+src/debug/interface-types.h",
   "+src/base/vector.h",
   "+src/base/enum-set.h",
+  "+src/utils/sha-256.h",
   "+third_party/inspector_protocol/crdtp",
   "+../../third_party/inspector_protocol/crdtp",
 ]

@@ -20,6 +20,7 @@
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
+#include "src/common/globals.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -78,7 +79,7 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
 }
 
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -167,7 +168,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   {
     EmbedderStackStateScope stack_scope(
         &js_heap, EmbedderStackStateScope::kExplicitInvocation,
-        EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+        StackState::kNoHeapPointers);
     CollectGarbage(OLD_SPACE);
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_FALSE(weak_holder);
@@ -297,7 +298,7 @@ class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
   // TPH does not support kIncrementalAndConcurrent yet.
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   StatisticsReceiver::num_calls_ = 0;
   // Initial state.
   cpp_heap().CollectCustomSpaceStatisticsAtLastGC(
@@ -347,6 +348,45 @@ TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
     }
   }
   EXPECT_EQ(4u, StatisticsReceiver::num_calls_);
+}
+
+namespace {
+
+class InConstructionObjectReferringToGlobalHandle final
+    : public cppgc::GarbageCollected<
+          InConstructionObjectReferringToGlobalHandle> {
+ public:
+  InConstructionObjectReferringToGlobalHandle(Heap* heap,
+                                              v8::Local<v8::Object> wrapper)
+      : wrapper_(reinterpret_cast<v8::Isolate*>(heap->isolate()), wrapper) {
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+  }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(wrapper_); }
+
+  TracedReference<v8::Object>& GetWrapper() { return wrapper_; }
+
+ private:
+  TracedReference<v8::Object> wrapper_;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
+  v8::HandleScope handle_scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope inner_handle_scope(v8_isolate());
+    auto local = v8::Object::New(v8_isolate());
+    auto* cpp_obj = cppgc::MakeGarbageCollected<
+        InConstructionObjectReferringToGlobalHandle>(
+        allocation_handle(),
+        reinterpret_cast<i::Isolate*>(v8_isolate())->heap(), local);
+    CHECK_NE(kGlobalHandleZapValue,
+             *reinterpret_cast<Address*>(*cpp_obj->GetWrapper()));
+  }
 }
 
 }  // namespace internal

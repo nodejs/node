@@ -5,8 +5,11 @@
 #ifndef V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_INL_H_
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_INL_H_
 
+#include <atomic>
+
 #include "include/v8-traced-handle.h"
 #include "src/base/logging.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
@@ -26,10 +29,11 @@ class BasicTracedReferenceExtractor {
     // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
     if (!global_handle_location) return Object();
 
+    // The load synchronizes internal bitfields that are also read atomically
+    // from the concurrent marker.
+    Object object = GlobalHandles::Acquire(global_handle_location);
     GlobalHandles::MarkTraced(global_handle_location);
-    return Object(
-        reinterpret_cast<std::atomic<Address>*>(global_handle_location)
-            ->load(std::memory_order_relaxed));
+    return object;
   }
 };
 
@@ -41,7 +45,9 @@ void UnifiedHeapMarkingState::MarkAndPush(
   Object object = BasicTracedReferenceExtractor::GetObjectForMarking(reference);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
-    // objects are just passed around as Smis.
+    // objects are just passed around as Smis. This branch also filters out
+    // intentionally passed `Smi::zero()` that indicate that there's no object
+    // to mark.
     return;
   }
   HeapObject heap_object = HeapObject::cast(object);

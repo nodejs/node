@@ -412,7 +412,7 @@ class VRegister : public CPURegister {
   unsigned LaneSizeInBits() const { return LaneSizeInBytes() * 8; }
 
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
-  STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
+  static_assert(kMaxNumRegisters == kDoubleAfterLast);
 
   static constexpr VRegister from_code(int code) {
     // Always return a D register.

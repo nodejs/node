@@ -4,10 +4,6 @@
 
 #include "src/wasm/function-body-decoder.h"
 
-#include "src/codegen/assembler-inl.h"
-#include "src/flags/flags.h"
-#include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -20,17 +16,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-namespace value_type_reader {
-HeapType consume_heap_type(Decoder* decoder, const WasmModule* module,
-                           const WasmFeatures& enabled) {
-  uint32_t length;
-  HeapType result = value_type_reader::read_heap_type<Decoder::kFullValidation>(
-      decoder, decoder->pc(), &length, module, enabled);
-  decoder->consume_bytes(length, "heap type");
-  return result;
-}
-}  // namespace value_type_reader
-
 bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
                       const WasmModule* module, const byte* start,
                       const byte* end) {
@@ -39,7 +24,8 @@ bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
   WasmDecoder<Decoder::kFullValidation> decoder(
       zone, module, enabled, &no_features, nullptr, start, end, 0);
   uint32_t length;
-  if (decoder.DecodeLocals(decoder.pc(), &length, 0) < 0) {
+  decoder.DecodeLocals(decoder.pc(), &length);
+  if (decoder.failed()) {
     decls->encoded_size = 0;
     return false;
   }
@@ -221,7 +207,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     os << RawOpcodeName(opcode) << ",";
 
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
-        opcode == kExprTry || opcode == kExprLet) {
+        opcode == kExprTry) {
       if (i.pc()[1] & 0x80) {
         uint32_t temp_length;
         ValueType type =
@@ -259,8 +245,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprLoop:
       case kExprIf:
       case kExprBlock:
-      case kExprTry:
-      case kExprLet: {
+      case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(), &i,
                                                        i.pc() + 1, module);
         os << " @" << i.pc_offset();

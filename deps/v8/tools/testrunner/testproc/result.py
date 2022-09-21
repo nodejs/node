@@ -20,10 +20,26 @@ class ResultBase(object):
 class Result(ResultBase):
   """Result created by the output processor."""
 
-  def __init__(self, has_unexpected_output, output, cmd=None):
+  def __init__(self,
+               has_unexpected_output,
+               output,
+               cmd=None,
+               error_details=None):
     self.has_unexpected_output = has_unexpected_output
     self.output = output
     self.cmd = cmd
+    self.error_details = error_details
+
+  def status(self):
+    if self.has_unexpected_output:
+      if not hasattr(self.output, "HasCrashed"):
+        raise Exception(type(self))
+      if self.output.HasCrashed():
+        return 'CRASH'
+      else:
+        return 'FAIL'
+    else:
+      return 'PASS'
 
 
 class GroupedResult(ResultBase):
@@ -95,3 +111,6 @@ class RerunResult(Result):
   @property
   def is_rerun(self):
     return True
+
+  def status(self):
+    return ' '.join(r.status() for r in self.results)

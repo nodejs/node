@@ -112,6 +112,7 @@ const funcs = [
   "get Temporal.ZonedDateTime.prototype.timeZone",
   "get Temporal.ZonedDateTime.prototype.weekOfYear",
   "get Temporal.ZonedDateTime.prototype.year",
+  "Date.prototype.toTemporalInstant ( )",
   "Temporal.Calendar.from ( _item_ )",
   "Temporal.Calendar ( _id_ )",
   "Temporal.Calendar.prototype.dateAdd ( _date_, _duration_ [ , _options_ ] )",

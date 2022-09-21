@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
@@ -345,6 +345,7 @@ header = '''
 #include "src/objects/data-handler.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
+#include "src/objects/megadom-handler.h"
 
 namespace v8 {
 namespace internal {

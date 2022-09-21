@@ -43,7 +43,7 @@ void MemoryReducer::TimerTask::RunInternal() {
                                    heap->EmbedderAllocationCounter());
   bool low_allocation_rate = heap->HasLowAllocationRate();
   bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
-  if (FLAG_trace_gc_verbose) {
+  if (v8_flags.trace_gc_verbose) {
     heap->isolate()->PrintWithTimestamp(
         "Memory reducer: %s, %s\n",
         low_allocation_rate ? "low alloc" : "high alloc",
@@ -58,7 +58,7 @@ void MemoryReducer::TimerTask::RunInternal() {
       low_allocation_rate || optimize_for_memory;
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
-      (heap->incremental_marking()->CanBeActivated() || optimize_for_memory);
+      (heap->incremental_marking()->CanBeStarted() || optimize_for_memory);
   event.committed_memory = heap->CommittedOldGenerationMemory();
   memory_reducer_->NotifyTimer(event);
 }
@@ -70,8 +70,8 @@ void MemoryReducer::NotifyTimer(const Event& event) {
   state_ = Step(state_, event);
   if (state_.action == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
-    DCHECK(FLAG_incremental_marking);
-    if (FLAG_trace_gc_verbose) {
+    DCHECK(v8_flags.incremental_marking);
+    if (v8_flags.trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
                                             state_.started_gcs);
     }
@@ -84,18 +84,11 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       // Make progress with pending incremental marking if memory usage has
       // higher priority than latency. This is important for background tabs
       // that do not send idle notifications.
-      const int kIncrementalMarkingDelayMs = 500;
-      double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
-                        kIncrementalMarkingDelayMs;
-      heap()->incremental_marking()->AdvanceWithDeadline(
-          deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-          StepOrigin::kTask);
-      heap()->FinalizeIncrementalMarkingIfComplete(
-          GarbageCollectionReason::kFinalizeMarkingViaTask);
+      heap()->incremental_marking()->AdvanceAndFinalizeIfComplete();
     }
     // Re-schedule the timer.
     ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp(
           "Memory reducer: waiting for %.f ms\n",
           state_.next_gc_start_ms - event.time_ms);
@@ -113,7 +106,7 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
     ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
   if (old_action == kRun) {
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp(
           "Memory reducer: finished GC #%d (%s)\n", state_.started_gcs,
           state_.action == kWait ? "will do more" : "done");
@@ -141,7 +134,7 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
-  if (!FLAG_incremental_marking || !FLAG_memory_reducer) {
+  if (!v8_flags.incremental_marking || !v8_flags.memory_reducer) {
     return State(kDone, 0, 0, state.last_gc_time_ms, 0);
   }
   switch (state.action) {
@@ -156,17 +149,14 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                 state.committed_memory_at_last_run + kCommittedMemoryDelta)) {
           return state;
         } else {
-          return State(kWait, 0, event.time_ms + kLongDelayMs,
-                       event.type == kMarkCompact ? event.time_ms
-                                                  : state.last_gc_time_ms,
+          return State(kWait, 0, event.time_ms + kLongDelayMs, event.time_ms,
                        0);
         }
       } else {
         DCHECK_EQ(kPossibleGarbage, event.type);
-        return State(
-            kWait, 0, event.time_ms + kLongDelayMs,
-            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms,
-            0);
+        return State(kWait, 0,
+                     event.time_ms + v8_flags.gc_memory_reducer_start_delay_ms,
+                     state.last_gc_time_ms, 0);
       }
     case kWait:
       switch (event.type) {

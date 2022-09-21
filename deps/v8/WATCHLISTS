@@ -108,6 +108,7 @@
       'jgruber+watch@chromium.org',
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
+      'victorgomes+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
@@ -129,6 +130,7 @@
     'arm': [
       'v8-mips-ports@googlegroups.com',
       'v8-ppc-ports@googlegroups.com',
+      'v8-risc-v-ports@chromium.org',
     ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py

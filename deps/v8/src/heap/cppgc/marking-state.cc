@@ -27,7 +27,7 @@ void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
   discovered_ephemeron_pairs_worklist_.Publish();
   if (!discovered_ephemeron_pairs_worklist_.IsGlobalEmpty()) {
     ephemeron_pairs_for_processing_worklist_.Merge(
-        &discovered_ephemeron_pairs_worklist_);
+        discovered_ephemeron_pairs_worklist_);
   }
 }
 

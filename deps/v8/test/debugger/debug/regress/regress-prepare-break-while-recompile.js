@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --concurrent-recompilation
-// Flags: --no-always-opt
+// Flags: --no-always-turbofan
 
 Debug = debug.Debug
 

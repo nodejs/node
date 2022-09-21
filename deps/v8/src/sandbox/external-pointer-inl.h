@@ -6,6 +6,7 @@
 #define V8_SANDBOX_EXTERNAL_POINTER_INL_H_
 
 #include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/external-pointer.h"
@@ -13,80 +14,95 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
-                                        ExternalPointer_t encoded_pointer,
-                                        ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  STATIC_ASSERT(kExternalPointerSize == kInt32Size);
-  uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
-  return isolate->external_pointer_table().Get(index, tag);
-#else
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-  return encoded_pointer;
-#endif
+#ifdef V8_ENABLE_SANDBOX
+template <ExternalPointerTag tag>
+const ExternalPointerTable& GetExternalPointerTable(const Isolate* isolate) {
+  return IsSharedExternalPointerType(tag)
+             ? isolate->shared_external_pointer_table()
+             : isolate->external_pointer_table();
 }
 
+template <ExternalPointerTag tag>
+ExternalPointerTable& GetExternalPointerTable(Isolate* isolate) {
+  return IsSharedExternalPointerType(tag)
+             ? isolate->shared_external_pointer_table()
+             : isolate->external_pointer_table();
+}
+#endif  // V8_ENABLE_SANDBOX
+
+template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
-                                        ExternalPointerTag tag) {
-  InitExternalPointerField(field_address, isolate, kNullExternalPointer, tag);
-}
-
-V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
-                                        Address value, ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointer_t index = isolate->external_pointer_table().Allocate();
-  isolate->external_pointer_table().Set(index, value, tag);
-  index <<= kExternalPointerIndexShift;
-  base::Memory<ExternalPointer_t>(field_address) = index;
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool v8_pointer_compression_unaligned =
-      kExternalPointerSize > kTaggedSize;
-  ExternalPointer_t encoded_value = static_cast<ExternalPointer_t>(value);
-  if (v8_pointer_compression_unaligned) {
-    base::WriteUnalignedValue<ExternalPointer_t>(field_address, encoded_value);
-  } else {
-    base::Memory<ExternalPointer_t>(field_address) = encoded_value;
+                                        Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
+    ExternalPointerHandle handle =
+        table.AllocateAndInitializeEntry(isolate, value, tag);
+    // Use a Release_Store to ensure that the store of the pointer into the
+    // table is not reordered after the store of the handle. Otherwise, other
+    // threads may access an uninitialized table entry and crash.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    base::AsAtomic32::Release_Store(location, handle);
+    return;
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
+  WriteExternalPointerField<tag>(field_address, isolate, value);
 }
 
-V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address) {
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool v8_pointer_compression_unaligned =
-      kExternalPointerSize > kTaggedSize;
-  if (v8_pointer_compression_unaligned) {
-    return base::ReadUnalignedValue<ExternalPointer_t>(field_address);
-  } else {
-    return base::Memory<ExternalPointer_t>(field_address);
-  }
-}
-
+template <ExternalPointerTag tag>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           const Isolate* isolate,
-                                           ExternalPointerTag tag) {
-  ExternalPointer_t encoded_value = ReadRawExternalPointerField(field_address);
-  return DecodeExternalPointer(isolate, encoded_value, tag);
+                                           const Isolate* isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    // Handles may be written to objects from other threads so the handle needs
+    // to be loaded atomically. We assume that the load from the table cannot
+    // be reordered before the load of the handle due to the data dependency
+    // between the two loads and therefore use relaxed memory ordering.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+    return GetExternalPointerTable<tag>(isolate).Get(handle, tag);
+  }
+#endif  // V8_ENABLE_SANDBOX
+  return ReadMaybeUnalignedValue<Address>(field_address);
 }
 
+template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
-                                         Isolate* isolate, Address value,
-                                         ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointer_t index = base::Memory<ExternalPointer_t>(field_address);
-  index >>= kExternalPointerIndexShift;
-  isolate->external_pointer_table().Set(index, value, tag);
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool v8_pointer_compression_unaligned =
-      kExternalPointerSize > kTaggedSize;
-  ExternalPointer_t encoded_value = static_cast<ExternalPointer_t>(value);
-  if (v8_pointer_compression_unaligned) {
-    base::WriteUnalignedValue<ExternalPointer_t>(field_address, encoded_value);
-  } else {
-    base::Memory<ExternalPointer_t>(field_address) = encoded_value;
+                                         Isolate* isolate, Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    // See comment above for why this is a Relaxed_Load.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+    GetExternalPointerTable<tag>(isolate).Set(handle, value, tag);
+    return;
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+}
+
+template <ExternalPointerTag tag>
+V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
+                                                          Isolate* isolate,
+                                                          Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    // See comment above for why this uses a Relaxed_Load and Release_Store.
+    ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+    if (handle == kNullExternalPointerHandle) {
+      // Field has not been initialized yet.
+      ExternalPointerHandle handle =
+          table.AllocateAndInitializeEntry(isolate, value, tag);
+      base::AsAtomic32::Release_Store(location, handle);
+    } else {
+      table.Set(handle, value, tag);
+    }
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(field_address, value);
 }
 
 }  // namespace internal

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-optimize-apply --opt
+// Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
 
-// These tests do not work well if this script is run more than once (e.g.
-// --stress-opt); after a few runs the whole function is immediately compiled
-// and assertions would fail. We prevent re-runs.
-// Flags: --nostress-opt --no-always-opt
+// These tests do not work well if this script is run more than once; after a
+// few runs the whole function is immediately compiled and assertions would
+// fail. We prevent re-runs.
+// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.

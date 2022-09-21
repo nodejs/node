@@ -4,7 +4,6 @@
 
 #include "src/wasm/jump-table-assembler.h"
 
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 
 namespace v8 {
@@ -113,8 +112,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   // after the currently executing one.
   ldr_pcrel(pc, -kInstrSize);  // 1 instruction
   dd(target);                  // 4 bytes (== 1 instruction)
-  STATIC_ASSERT(kInstrSize == kInt32Size);
-  STATIC_ASSERT(kFarJumpTableSlotSize == 2 * kInstrSize);
+  static_assert(kInstrSize == kInt32Size);
+  static_assert(kFarJumpTableSlotSize == 2 * kInstrSize);
 }
 
 // static
@@ -171,9 +170,9 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   nop();       // To keep the target below aligned to kSystemPointerSize.
 #endif
   dq(target);  // 8 bytes (== 2 instructions)
-  STATIC_ASSERT(2 * kInstrSize == kSystemPointerSize);
+  static_assert(2 * kInstrSize == kSystemPointerSize);
   const int kSlotCount = ENABLE_CONTROL_FLOW_INTEGRITY_BOOL ? 6 : 4;
-  STATIC_ASSERT(kFarJumpTableSlotSize == kSlotCount * kInstrSize);
+  static_assert(kFarJumpTableSlotSize == kSlotCount * kInstrSize);
 }
 
 // static
@@ -247,7 +246,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   int start = pc_offset();
@@ -390,6 +389,46 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   Register rd = temp.Acquire();
   auipc(rd, 0);
   ld(rd, rd, 4 * kInstrSize);
+  Jump(rd);
+  nop();
+  dq(target);
+}
+
+// static
+void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+  UNREACHABLE();
+}
+
+void JumpTableAssembler::NopBytes(int bytes) {
+  DCHECK_LE(0, bytes);
+  DCHECK_EQ(0, bytes % kInstrSize);
+  for (; bytes > 0; bytes -= kInstrSize) {
+    nop();
+  }
+}
+
+#elif V8_TARGET_ARCH_RISCV32
+void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
+                                                 Address lazy_compile_target) {
+  int start = pc_offset();
+  li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
+  // Jump produces max. 8 instructions (include constant pool and j)
+  Jump(lazy_compile_target, RelocInfo::NO_INFO);
+  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
+  DCHECK_EQ(nop_bytes % kInstrSize, 0);
+  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+}
+
+bool JumpTableAssembler::EmitJumpSlot(Address target) {
+  PatchAndJump(target);
+  return true;
+}
+
+void JumpTableAssembler::EmitFarJumpSlot(Address target) {
+  UseScratchRegisterScope temp(this);
+  Register rd = temp.Acquire();
+  auipc(rd, 0);
+  lw(rd, rd, 4 * kInstrSize);
   Jump(rd);
   nop();
   dq(target);

@@ -83,6 +83,8 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // State may be updated, and therefore has to be revisited.
   void MarkNodeInputs(Node* node);
 
+  void MarkAddressingBase(Node* base);
+
   // Mark node's State to be state. We only do this if we have new information,
   // i.e either if:
   // * We are marking an unvisited node, or

@@ -44,6 +44,9 @@ class Deoptimizer : public Malloced {
   };
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
+  DeoptInfo GetDeoptInfo() const {
+    return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+  }
 
   static int ComputeSourcePositionFromBytecodeArray(
       Isolate* isolate, SharedFunctionInfo shared,
@@ -54,6 +57,13 @@ class Deoptimizer : public Malloced {
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
+
+  // Where the deopt exit occurred *in the outermost frame*, i.e in the
+  // function we generated OSR'd code for. If the deopt occurred in an inlined
+  // function, this would point at the corresponding outermost Call bytecode.
+  BytecodeOffset bytecode_offset_in_outermost_frame() const {
+    return bytecode_offset_in_outermost_frame_;
+  }
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
@@ -69,7 +79,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction function, Code code = Code());
+  static void DeoptimizeFunction(JSFunction function, CodeT code = {});
 
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
@@ -84,7 +94,7 @@ class Deoptimizer : public Malloced {
   // deoptimizer, in particular the signing process, to gain control over the
   // program.
   // When building mksnapshot, always return false.
-  static bool IsValidReturnAddress(Address address);
+  static bool IsValidReturnAddress(Address pc, Isolate* isolate);
 
   ~Deoptimizer();
 
@@ -142,7 +152,7 @@ class Deoptimizer : public Malloced {
   void DoComputeOutputFrames();
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
-  void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
+  void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
@@ -188,16 +198,20 @@ class Deoptimizer : public Malloced {
   static void TraceDeoptAll(Isolate* isolate);
   static void TraceDeoptMarked(Isolate* isolate);
 
+  bool is_restart_frame() const { return restart_frame_index_ >= 0; }
+
   Isolate* isolate_;
   JSFunction function_;
   Code compiled_code_;
   unsigned deopt_exit_index_;
+  BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;
   Address from_;
   int fp_to_sp_delta_;
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
+  int restart_frame_index_;
 
   // Input frame description.
   FrameDescription* input_;

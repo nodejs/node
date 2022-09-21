@@ -7,7 +7,6 @@
 #include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace platform {

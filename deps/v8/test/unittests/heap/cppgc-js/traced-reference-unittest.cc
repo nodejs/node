@@ -24,7 +24,7 @@ TEST_F(TracedReferenceTest, ResetFromLocal) {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    EXPECT_TRUE(ref.IsEmpty());
+    ASSERT_TRUE(ref.IsEmpty());
     EXPECT_NE(ref, local);
     ref.Reset(v8_isolate(), local);
     EXPECT_FALSE(ref.IsEmpty());
@@ -205,7 +205,8 @@ TEST_F(TracedReferenceTest, TracedReferenceTrace) {
 }
 
 TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -214,7 +215,7 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     auto ref =
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
@@ -223,8 +224,9 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
   }
 }
 
-TEST_F(TracedReferenceTest, WriteBarrierOnHeapReset) {
-  if (!FLAG_incremental_marking) return;
+TEST_F(TracedReferenceTest, WriteBarrierForOnHeapReset) {
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -234,17 +236,16 @@ TEST_F(TracedReferenceTest, WriteBarrierOnHeapReset) {
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     auto ref = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref->Reset(v8_isolate(), local);
-    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
-TEST_F(TracedReferenceTest, NoWriteBarrierOnStackReset) {
-  if (!FLAG_incremental_marking) return;
-
-  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+TEST_F(TracedReferenceTest, WriteBarrierForOnStackReset) {
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -254,15 +255,16 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackReset) {
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
     v8::TracedReference<v8::Object> ref;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref.Reset(v8_isolate(), local);
-    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
 TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -274,18 +276,17 @@ TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
-    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
-TEST_F(TracedReferenceTest, NoWriteBarrierOnStackCopy) {
-  if (!FLAG_incremental_marking) return;
-
-  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+TEST_F(TracedReferenceTest, WriteBarrierForOnStackCopy) {
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -297,16 +298,17 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackCopy) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = *ref_from;
     EXPECT_TRUE(!ref_from->IsEmpty());
-    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
-TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
-  if (!FLAG_incremental_marking) return;
+TEST_F(TracedReferenceTest, WriteBarrierForOnHeapMove) {
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -318,18 +320,17 @@ TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     auto ref_to = std::make_unique<v8::TracedReference<v8::Object>>();
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     *ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());
-    EXPECT_TRUE(state.IsGrey(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 
-TEST_F(TracedReferenceTest, NoWriteBarrierOnStackMove) {
-  if (!FLAG_incremental_marking) return;
-
-  isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
+TEST_F(TracedReferenceTest, WriteBarrierForOnStackMove) {
+  if (!v8_flags.incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -341,11 +342,11 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackMove) {
         std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
     v8::TracedReference<v8::Object> ref_to;
     SimulateIncrementalMarking();
-    MarkCompactCollector::MarkingState state(i_isolate());
+    MarkingState state(i_isolate());
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
     ref_to = std::move(*ref_from);
     ASSERT_TRUE(ref_from->IsEmpty());
-    EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
+    EXPECT_FALSE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
 

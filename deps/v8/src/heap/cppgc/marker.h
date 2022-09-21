@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/cppgc/heap.h"
+#include "include/cppgc/platform.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
@@ -79,6 +80,11 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkerBase(const MarkerBase&) = delete;
   MarkerBase& operator=(const MarkerBase&) = delete;
 
+  template <typename Class>
+  Class& To() {
+    return *static_cast<Class*>(this);
+  }
+
   // Signals entering the atomic marking pause. The method
   // - stops incremental/concurrent marking;
   // - flushes back any in-construction worklists if needed;
@@ -112,6 +118,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   void ProcessWeakness();
 
   bool JoinConcurrentMarkingIfNeeded();
+  void NotifyConcurrentMarkingOfWorkIfNeeded(cppgc::TaskPriority);
 
   inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
 

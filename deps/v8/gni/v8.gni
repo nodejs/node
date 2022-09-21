@@ -69,6 +69,9 @@ declare_args() {
   # executed as standard JavaScript instead.
   v8_enable_webassembly = ""
 
+  # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
+  v8_enable_wasm_simd256_revec = false
+
   # Enable runtime call stats.
   v8_enable_runtime_call_stats = !is_on_release_branch
 
@@ -77,6 +80,12 @@ declare_args() {
 
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
+
+  # Use the object start bitmap for inner pointer resolution.
+  v8_enable_inner_pointer_resolution_osb = false
+
+  # Use the marking bitmap for inner pointer resolution.
+  v8_enable_inner_pointer_resolution_mb = false
 
   v8_enable_google_benchmark = false
 
@@ -87,6 +96,13 @@ declare_args() {
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
+
+  # Enable pointer compression in cppgc.
+  cppgc_enable_pointer_compression = false
+
+  # Enable 2gb cage for fast compression/decompression. Currently disabled
+  # due to an increased number of OOMs.
+  cppgc_enable_2gb_cage = false
 
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
@@ -142,7 +158,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+  if (is_posix && !is_android && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
@@ -183,8 +199,7 @@ if ((is_posix || is_fuchsia) &&
 }
 
 # On MIPS gcc_target_rpath and ldso_path might be needed for all builds.
-if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
-    target_cpu == "mips" || target_cpu == "mips64") {
+if (target_cpu == "mips64el" || target_cpu == "mips64") {
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 

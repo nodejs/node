@@ -84,6 +84,9 @@ class MemoryAllocator {
     V8_EXPORT_PRIVATE int NumberOfChunks();
     size_t CommittedBufferedMemory();
 
+    // Returns true when Unmapper task may be running.
+    bool IsRunning() const;
+
    private:
     static const int kReservedQueueingSlots = 64;
     static const int kMaxUnmapperTasks = 4;
@@ -258,7 +261,17 @@ class MemoryAllocator {
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
-  Address HandleAllocationFailure();
+  Address HandleAllocationFailure(Executability executable);
+
+  // Return the normal or large page that contains this address, if it is owned
+  // by this heap, otherwise a nullptr.
+  const MemoryChunk* LookupChunkContainingAddress(Address addr) const;
+
+  // Insert and remove normal and large pages that are owned by this heap.
+  void RecordNormalPageCreated(const Page& page);
+  void RecordNormalPageDestroyed(const Page& page);
+  void RecordLargePageCreated(const LargePage& page);
+  void RecordLargePageDestroyed(const LargePage& page);
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -407,6 +420,12 @@ class MemoryAllocator {
   std::unordered_set<MemoryChunk*> executable_memory_;
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
+
+  // Allocated normal and large pages are stored here, to be used during
+  // conservative stack scanning.
+  std::unordered_set<const Page*> normal_pages_;
+  std::set<const LargePage*> large_pages_;
+  mutable base::Mutex pages_mutex_;
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;

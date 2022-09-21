@@ -37,9 +37,9 @@
 #ifndef V8_CODEGEN_S390_ASSEMBLER_S390_INL_H_
 #define V8_CODEGEN_S390_ASSEMBLER_S390_INL_H_
 
-#include "src/codegen/s390/assembler-s390.h"
-
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/s390/assembler-s390.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 
@@ -189,9 +189,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !FLAG_disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target);
+  if (!host().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
 }
 
@@ -206,6 +205,8 @@ void RelocInfo::set_target_external_reference(
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
 }
+
+Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));

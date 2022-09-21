@@ -7,16 +7,26 @@ import("../../gni/v8.gni")
 
 if (v8_enable_google_benchmark) {
   config("benchmark_config") {
-    include_dirs = [
-      "src/include",
-      "precompiled_headers",
+    include_dirs = [ "src/include" ]
+    defines = [
+      # We always build google_benchmark statically.
+      "BENCHMARK_STATIC_DEFINE=1",
     ]
+  }
+
+  # TODO(crbug.com/1344570): Remove once third_party/google_benchmark no longer
+  # uses std::wstring_convert.
+  config("benchmark_suppress_warnings") {
+    cflags = [ "-Wno-deprecated-declarations" ]
   }
 
   source_set("google_benchmark") {
     testonly = true
 
-    public = [ "src/include/benchmark/benchmark.h" ]
+    public = [
+      "src/include/benchmark/benchmark.h",
+      "src/include/benchmark/export.h",
+    ]
 
     sources = [
       "src/src/arraysize.h",
@@ -63,6 +73,8 @@ if (v8_enable_google_benchmark) {
     ]
 
     all_dependent_configs = [ ":benchmark_config" ]
+
+    configs += [ ":benchmark_suppress_warnings" ]
 
     defines = [
       # Tell google_benchmark to always use standard regular expressions.

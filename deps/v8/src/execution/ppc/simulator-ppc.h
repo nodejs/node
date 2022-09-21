@@ -21,7 +21,6 @@
 #include "src/base/hashmap.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/execution/simulator-base.h"
@@ -177,11 +176,11 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
   void set_d_register_from_double(int dreg, const double dbl) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    *bit_cast<double*>(&fp_registers_[dreg]) = dbl;
+    *base::bit_cast<double*>(&fp_registers_[dreg]) = dbl;
   }
   double get_double_from_d_register(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return *bit_cast<double*>(&fp_registers_[dreg]);
+    return *base::bit_cast<double*>(&fp_registers_[dreg]);
   }
   void set_d_register(int dreg, int64_t value) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
@@ -328,8 +327,8 @@ class Simulator : public SimulatorBase {
       __uint128_t u128;
     } res, val;
     val.u128 = v;
-    res.u64[0] = __builtin_bswap64(val.u64[1]);
-    res.u64[1] = __builtin_bswap64(val.u64[0]);
+    res.u64[0] = ByteReverse<int64_t>(val.u64[1]);
+    res.u64[1] = ByteReverse<int64_t>(val.u64[0]);
     return res.u128;
   }
 
@@ -434,7 +433,7 @@ class Simulator : public SimulatorBase {
   T get_simd_register_bytes(int reg, int byte_from) {
     // Byte location is reversed in memory.
     int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
-    void* src = bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    void* src = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
     T dst;
     memcpy(&dst, src, sizeof(T));
     return dst;
@@ -457,7 +456,7 @@ class Simulator : public SimulatorBase {
   void set_simd_register_bytes(int reg, int byte_from, T value) {
     // Byte location is reversed in memory.
     int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
-    void* dst = bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    void* dst = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
     memcpy(dst, &value, sizeof(T));
   }
 

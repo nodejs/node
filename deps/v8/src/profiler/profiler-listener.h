@@ -24,7 +24,7 @@ class CodeEventObserver {
   virtual ~CodeEventObserver() = default;
 };
 
-class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
+class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
                                            public WeakCodeRegistry::Listener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*,
@@ -35,18 +35,18 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
   ProfilerListener(const ProfilerListener&) = delete;
   ProfilerListener& operator=(const ProfilerListener&) = delete;
 
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        const char* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<Name> name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
 #if V8_ENABLE_WEBASSEMBLY
-  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+  void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY

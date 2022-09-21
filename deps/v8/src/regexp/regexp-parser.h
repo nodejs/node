@@ -28,12 +28,6 @@ class V8_EXPORT_PRIVATE RegExpParser : public AllStatic {
                                  const CharT* input, int input_length,
                                  RegExpFlags flags, RegExpCompileData* result,
                                  const DisallowGarbageCollection& no_gc);
-
-  // Used by the SpiderMonkey embedding of irregexp.
-  static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
-                                 Handle<String> input, RegExpFlags flags,
-                                 RegExpCompileData* result,
-                                 const DisallowGarbageCollection& no_gc);
 };
 
 }  // namespace internal

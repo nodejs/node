@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2015 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -11,11 +11,27 @@ import os
 import sys
 import re
 
-from search_related_commits import git_execute
+from subprocess import Popen, PIPE
 
 GIT_OPTION_HASH_ONLY = '--pretty=format:%H'
 GIT_OPTION_NO_DIFF = '--quiet'
 GIT_OPTION_ONELINE = '--oneline'
+
+
+def git_execute(working_dir, args, verbose=False):
+  command = ["git", "-C", working_dir] + args
+  if verbose:
+    print("Git working dir: " + working_dir)
+    print("Executing git command:" + str(command))
+  p = Popen(args=command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+  output, err = p.communicate()
+  rc = p.returncode
+  if rc != 0:
+    raise Exception(err)
+  if verbose:
+    print("Git return value: " + output)
+  return output
+
 
 def describe_commit(git_working_dir, hash_to_search, one_line=False):
   if one_line:
@@ -109,7 +125,7 @@ def print_analysis(git_working_dir, hash_to_search):
 
 if __name__ == '__main__':  # pragma: no cover
   parser = argparse.ArgumentParser('Tool to check where a git commit was'
- ' merged and reverted.')
+                                   ' merged and reverted.')
 
   parser.add_argument('-g', '--git-dir', required=False, default='.',
                         help='The path to your git working directory.')

@@ -46,8 +46,9 @@ const int kNumCalleeSaved = 18;
 const DoubleRegList kCallerSavedDoubles = {d0, d1, d2, d3,  d4,  d5,  d6,
                                            d7, d8, d9, d10, d11, d12, d13};
 
-const Simd128RegList kCallerSavedSimd128s = {v0, v1, v2, v3,  v4,  v5,  v6,
-                                             v7, v8, v9, v10, v11, v12, v13};
+const Simd128RegList kCallerSavedSimd128s = {v0,  v1,  v2,  v3,  v4,  v5,  v6,
+                                             v7,  v8,  v9,  v10, v11, v12, v13,
+                                             v14, v15, v16, v17, v18, v19};
 
 const int kNumCallerSavedDoubles = 14;
 

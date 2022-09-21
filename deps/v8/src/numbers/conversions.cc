@@ -11,7 +11,7 @@
 
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
-#include "src/base/platform/wrappers.h"
+#include "src/base/small-vector.h"
 #include "src/bigint/bigint.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
@@ -140,7 +140,7 @@ class SimpleStringBuilder {
 };
 
 inline double JunkStringValue() {
-  return bit_cast<double, uint64_t>(kQuietNaNMask);
+  return base::bit_cast<double, uint64_t>(kQuietNaNMask);
 }
 
 inline double SignedZero(bool negative) {
@@ -461,7 +461,7 @@ void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
   }
 
   DCHECK(radix_ >= 2 && radix_ <= 36);
-  STATIC_ASSERT(String::kMaxLength <= INT_MAX);
+  static_assert(String::kMaxLength <= INT_MAX);
   cursor_ = static_cast<int>(current - start);
 }
 
@@ -970,6 +970,27 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
     UNREACHABLE();
   }
 
+  // Used for converting BigInt literals. The scanner has already checked
+  // that the literal is valid and not too big, so this always succeeds.
+  std::unique_ptr<char[]> DecimalString(bigint::Processor* processor) {
+    DCHECK_EQ(behavior_, Behavior::kLiteral);
+    this->ParseInt();
+    if (this->state() == State::kZero) {
+      // Input may have been "0x0" or similar.
+      return std::unique_ptr<char[]>(new char[2]{'0', '\0'});
+    }
+    DCHECK_EQ(this->state(), State::kDone);
+    int num_digits = accumulator_.ResultLength();
+    base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
+    bigint::RWDigits digits(digit_storage.data(), num_digits);
+    processor->FromString(digits, &accumulator_);
+    int num_chars = bigint::ToStringResultLength(digits, 10, false);
+    std::unique_ptr<char[]> out(new char[num_chars + 1]);
+    processor->ToString(out.get(), &num_chars, digits, 10, false);
+    out[num_chars] = '\0';
+    return out;
+  }
+
  private:
   template <class Char>
   void ParseInternal(Char start) {
@@ -1017,6 +1038,13 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate,
                                       const char* string);
+
+std::unique_ptr<char[]> BigIntLiteralToDecimal(
+    LocalIsolate* isolate, base::Vector<const uint8_t> literal) {
+  StringToBigIntHelper<LocalIsolate> helper(nullptr, literal.begin(),
+                                            literal.length());
+  return helper.DecimalString(isolate->bigint_processor());
+}
 
 const char* DoubleToCString(double v, base::Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {

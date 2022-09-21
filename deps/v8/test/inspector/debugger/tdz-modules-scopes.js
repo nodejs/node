@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-opt --no-always-opt
+// Flags: --no-always-turbofan
 
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test module scope with variables in TDZ.');

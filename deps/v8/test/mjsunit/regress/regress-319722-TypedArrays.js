@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
+// Flags: --allow-natives-syntax --mock-arraybuffer-allocator
 
 let kArrayBufferByteLengthLimit = %ArrayBufferMaxByteLength() + 1;
 let kTypedArrayLengthLimit = %TypedArrayMaxLength() + 1;

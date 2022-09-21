@@ -176,7 +176,7 @@ class ZoneHandleSet final {
     kTagMask = 3
   };
 
-  STATIC_ASSERT(kTagMask < kPointerAlignment);
+  static_assert(kTagMask < kPointerAlignment);
 
   Address data_;
 };

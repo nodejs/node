@@ -200,7 +200,7 @@ class NfaInterpreter {
         // TODO(mbid,v8:10765): If we're in unicode mode, we have to advance to
         // the next codepoint, not to the next code unit. See also
         // `RegExpUtils::AdvanceStringIndex`.
-        STATIC_ASSERT(!ExperimentalRegExp::kSupportsUnicode);
+        static_assert(!ExperimentalRegExp::kSupportsUnicode);
       }
     }
 

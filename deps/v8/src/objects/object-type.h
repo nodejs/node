@@ -20,6 +20,7 @@ enum class ObjectType {
   ENUM_ELEMENT(Smi)                    //
   ENUM_ELEMENT(TaggedIndex)            //
   ENUM_ELEMENT(HeapObject)             //
+  ENUM_ELEMENT(HeapObjectReference)    //
   OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
   HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //
   STRUCT_LIST(ENUM_STRUCT_ELEMENT)     //

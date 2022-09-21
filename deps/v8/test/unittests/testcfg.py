@@ -24,10 +24,10 @@ class TestLoader(testsuite.TestLoader):
 
     output = None
     for i in range(3): # Try 3 times in case of errors.
-      cmd = command.Command(
-        cmd_prefix=self.test_config.command_prefix,
-        shell=shell,
-        args=['--gtest_list_tests'] + self.test_config.extra_flags)
+      cmd = self.ctx.command(
+          cmd_prefix=self.test_config.command_prefix,
+          shell=shell,
+          args=['--gtest_list_tests'] + self.test_config.extra_flags)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -78,6 +78,14 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return self.suite.name
 
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+  def _get_resources(self):
+    # Bytecode-generator tests are the only ones requiring extra files on
+    # Android.
+    parts = self.name.split('.')
+    if parts[0] == 'BytecodeGeneratorTest':
+      expectation_file = os.path.join(self.suite.root, 'interpreter',
+                                      'bytecode_expectations',
+                                      '%s.golden' % parts[1])
+      if os.path.exists(expectation_file):
+        return [expectation_file]
+    return []
