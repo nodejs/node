@@ -226,6 +226,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
     __ecx = info[2];                                                           \
     __edx = info[3];                                                           \
   }
+#define __cpuid(__level, __eax, __ebx, __ecx, __edx) \
+	__cpuid_count(__level, 0, __eax, __ebx, __ecx, __edx)
 #else
 #include <cpuid.h>
 #endif
