@@ -1,15 +1,11 @@
 'use strict';
+
 require('../common');
+
+const fixtures = require('../common/fixtures');
 const { Worker } = require('node:worker_threads');
 
-if (!require.main) {
-  globalThis.setup = true;
-} else {
-  process.env.NODE_OPTIONS ??= '';
-  process.env.NODE_OPTIONS += ` --require ${JSON.stringify(__filename)}`;
+process.env.NODE_OPTIONS ??= '';
+process.env.NODE_OPTIONS += ` --require ${JSON.stringify(fixtures.path('define-global.js'))}`;
 
-  new Worker(`
-    const assert = require('assert');
-    assert.strictEqual(globalThis.setup, true);
-  `, { eval: true });
-}
+new Worker(fixtures.path('assert-global.js'));

@@ -485,46 +485,44 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     env_vars = env->env_vars();
   }
 
-  if (args[1]->IsObject() || args[2]->IsArray()) {
-    per_isolate_opts.reset(new PerIsolateOptions());
+  per_isolate_opts.reset(new PerIsolateOptions());
 
-    HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
-      return env_vars->Get(name).FromMaybe("");
-    });
+  HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
+    return env_vars->Get(name).FromMaybe("");
+  });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
-    MaybeLocal<String> maybe_node_opts =
-        env_vars->Get(isolate, OneByteString(isolate, "NODE_OPTIONS"));
-    Local<String> node_opts;
-    if (maybe_node_opts.ToLocal(&node_opts)) {
-      std::string node_options(*String::Utf8Value(isolate, node_opts));
-      std::vector<std::string> errors{};
-      std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, &errors);
-      // [0] is expected to be the program name, add dummy string.
-      env_argv.insert(env_argv.begin(), "");
-      std::vector<std::string> invalid_args{};
-      options_parser::Parse(&env_argv,
-                            nullptr,
-                            &invalid_args,
-                            per_isolate_opts.get(),
-                            kAllowedInEnvironment,
-                            &errors);
-      if (!errors.empty() && args[1]->IsObject()) {
-        // Only fail for explicitly provided env, this protects from failures
-        // when NODE_OPTIONS from parent's env is used (which is the default).
-        Local<Value> error;
-        if (!ToV8Value(env->context(), errors).ToLocal(&error)) return;
-        Local<String> key =
-            FIXED_ONE_BYTE_STRING(env->isolate(), "invalidNodeOptions");
-        // Ignore the return value of Set() because exceptions bubble up to JS
-        // when we return anyway.
-        USE(args.This()->Set(env->context(), key, error));
-        return;
-      }
+  MaybeLocal<String> maybe_node_opts =
+      env_vars->Get(isolate, OneByteString(isolate, "NODE_OPTIONS"));
+  Local<String> node_opts;
+  if (maybe_node_opts.ToLocal(&node_opts)) {
+    std::string node_options(*String::Utf8Value(isolate, node_opts));
+    std::vector<std::string> errors{};
+    std::vector<std::string> env_argv =
+        ParseNodeOptionsEnvVar(node_options, &errors);
+    // [0] is expected to be the program name, add dummy string.
+    env_argv.insert(env_argv.begin(), "");
+    std::vector<std::string> invalid_args{};
+    options_parser::Parse(&env_argv,
+                          nullptr,
+                          &invalid_args,
+                          per_isolate_opts.get(),
+                          kAllowedInEnvironment,
+                          &errors);
+    if (!errors.empty() && args[1]->IsObject()) {
+      // Only fail for explicitly provided env, this protects from failures
+      // when NODE_OPTIONS from parent's env is used (which is the default).
+      Local<Value> error;
+      if (!ToV8Value(env->context(), errors).ToLocal(&error)) return;
+      Local<String> key =
+          FIXED_ONE_BYTE_STRING(env->isolate(), "invalidNodeOptions");
+      // Ignore the return value of Set() because exceptions bubble up to JS
+      // when we return anyway.
+      USE(args.This()->Set(env->context(), key, error));
+      return;
     }
-#endif  // NODE_WITHOUT_NODE_OPTIONS
   }
+#endif  // NODE_WITHOUT_NODE_OPTIONS
 
   if (args[2]->IsArray()) {
     Local<Array> array = args[2].As<Array>();
