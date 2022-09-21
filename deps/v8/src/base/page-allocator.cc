@@ -5,7 +5,6 @@
 #include "src/base/page-allocator.h"
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 
 #if V8_OS_DARWIN
 #include <sys/mman.h>  // For MAP_JIT.
@@ -146,6 +145,12 @@ bool PageAllocator::ReleasePages(void* address, size_t size, size_t new_size) {
 bool PageAllocator::SetPermissions(void* address, size_t size,
                                    PageAllocator::Permission access) {
   return base::OS::SetPermissions(
+      address, size, static_cast<base::OS::MemoryPermission>(access));
+}
+
+bool PageAllocator::RecommitPages(void* address, size_t size,
+                                  PageAllocator::Permission access) {
+  return base::OS::RecommitPages(
       address, size, static_cast<base::OS::MemoryPermission>(access));
 }
 

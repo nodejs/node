@@ -41,6 +41,8 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
     return HeapBase::override_stack_state();
   }
 
+  void EnableGenerationalGC();
+
   void DisableHeapGrowingForTesting();
 
  private:
@@ -55,6 +57,7 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   Config config_;
   GCInvoker gc_invoker_;
   HeapGrowing growing_;
+  bool generational_gc_enabled_ = false;
 
   size_t epoch_ = 0;
 };

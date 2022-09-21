@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --wasm-dynamic-tiering --liftoff
-// Flags: --no-wasm-tier-up --no-stress-opt
+// Flags: --no-wasm-tier-up
 // Make the test faster:
 // Flags: --wasm-tiering-budget=1000
 

@@ -5,16 +5,11 @@
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/source-text-module.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

@@ -27,7 +27,7 @@ function assertGlobalIsValid(global) {
   }
 })();
 
-// Copied from //src/v8/test/cctest/compiler/value-helper.h
+// Copied from //src/v8/test/common/value-helper.h
 const u32_values = [
   0x00000000, 0x00000001, 0xFFFFFFFF, 0x1B09788B, 0x04C5FCE8, 0xCC0DE5BF,
   // This row is useful for testing lea optimizations on intel.

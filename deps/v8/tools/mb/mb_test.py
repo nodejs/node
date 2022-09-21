@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # Copyright 2016 the V8 project authors. All rights reserved.
 # Copyright 2015 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -6,7 +6,7 @@
 """Tests for mb.py."""
 
 import json
-import StringIO
+import io
 import os
 import sys
 import unittest
@@ -17,7 +17,7 @@ import mb
 class FakeMBW(mb.MetaBuildWrapper):
 
   def __init__(self, win32=False):
-    super(FakeMBW, self).__init__()
+    super().__init__()
 
     # Override vars for test portability.
     if win32:
@@ -85,14 +85,14 @@ class FakeMBW(mb.MetaBuildWrapper):
   def RemoveFile(self, path):
     del self.files[path]
 
-  def RemoveDirectory(self, path):
-    self.rmdirs.append(path)
-    files_to_delete = [f for f in self.files if f.startswith(path)]
+  def RemoveDirectory(self, abs_path):
+    self.rmdirs.append(abs_path)
+    files_to_delete = [f for f in self.files if f.startswith(abs_path)]
     for f in files_to_delete:
       self.files[f] = None
 
 
-class FakeFile(object):
+class FakeFile():
 
   def __init__(self, files):
     self.name = '/tmp/file'
@@ -592,7 +592,7 @@ class UnitTest(unittest.TestCase):
   def test_help(self):
     orig_stdout = sys.stdout
     try:
-      sys.stdout = StringIO.StringIO()
+      sys.stdout = io.StringIO()
       self.assertRaises(SystemExit, self.check, ['-h'])
       self.assertRaises(SystemExit, self.check, ['help'])
       self.assertRaises(SystemExit, self.check, ['help', 'gen'])

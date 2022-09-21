@@ -6,9 +6,7 @@
 
 #include <sstream>
 
-#include "src/base/bits.h"
 #include "src/base/safe_conversions.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -241,6 +239,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       return node;
     case MachineRepresentation::kCompressed:
@@ -400,7 +399,6 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant:
-    case IrOpcode::kDelayedStringConstant:
       if (use_info.type_check() == TypeCheckKind::kBigInt) break;
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
@@ -513,7 +511,6 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kNumberConstant:
     case IrOpcode::kHeapConstant:
-    case IrOpcode::kDelayedStringConstant:
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat64Constant:

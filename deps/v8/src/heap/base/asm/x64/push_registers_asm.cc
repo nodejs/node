@@ -6,7 +6,7 @@
 // stack scanning.
 //
 // We cannot rely on clang generating the function and right symbol mangling
-// as `__attribite__((naked))` does not prevent clang from generating TSAN
+// as `__attribute__((naked))` does not prevent clang from generating TSAN
 // function entry stubs (`__tsan_func_entry`). Even with
 // `__attribute__((no_sanitize_thread)` annotation clang generates the entry
 // stub.

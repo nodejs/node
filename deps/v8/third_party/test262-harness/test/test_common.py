@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2014 by Sam Mikes.  All rights reserved.
 # This code is governed by the BSD license found in the LICENSE file.

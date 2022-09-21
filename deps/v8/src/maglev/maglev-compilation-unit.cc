@@ -15,15 +15,26 @@ namespace maglev {
 
 MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
                                              Handle<JSFunction> function)
+    : MaglevCompilationUnit(
+          info, nullptr,
+          MakeRef(info->broker(),
+                  info->broker()->CanonicalPersistentHandle(function))) {}
+
+MaglevCompilationUnit::MaglevCompilationUnit(
+    MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
+    compiler::JSFunctionRef function)
     : info_(info),
-      shared_function_info_(MakeRef(broker(), function->shared())),
+      caller_(caller),
+      function_(function),
+      shared_function_info_(function_.shared()),
       bytecode_(shared_function_info_.GetBytecodeArray()),
-      feedback_(MakeRef(broker(), function->feedback_vector())),
+      feedback_(
+          function_.feedback_vector(info_->broker()->dependencies()).value()),
       bytecode_analysis_(bytecode_.object(), zone(), BytecodeOffset::None(),
                          true),
       register_count_(bytecode_.register_count()),
       parameter_count_(bytecode_.parameter_count()),
-      stack_value_repr_(info->zone()) {}
+      inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
   return info_->broker();

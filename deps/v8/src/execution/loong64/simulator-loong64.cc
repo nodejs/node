@@ -14,8 +14,8 @@
 #include <cmath>
 
 #include "src/base/bits.h"
+#include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
@@ -830,7 +830,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
-  stack_size_ = FLAG_sim_stack_size * KB;
+  stack_size_ = v8_flags.sim_stack_size * KB;
   stack_ = reinterpret_cast<char*>(base::Malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;
@@ -884,6 +884,36 @@ Simulator* Simulator::current(Isolate* isolate) {
   return sim;
 }
 
+#define FloatPoint_Covert_F32(func)                  \
+  float Simulator::func(float value) {               \
+    float result = std::func(value);                 \
+    if (std::isnan(result)) {                        \
+      uint32_t q_nan, nan;                           \
+      nan = *reinterpret_cast<uint32_t*>(&result);   \
+      q_nan = nan | 0x400000;                        \
+      *reinterpret_cast<uint32_t*>(&result) = q_nan; \
+    }                                                \
+    return result;                                   \
+  }
+#define FloatPoint_Covert_F64(func)                  \
+  FloatPoint_Covert_F32(func)                        \
+  double Simulator::func(double value) {             \
+    double result = std::func(value);                \
+    if (std::isnan(result)) {                        \
+      uint64_t q_nan, nan;                           \
+      nan = *reinterpret_cast<uint64_t*>(&value);    \
+      q_nan = nan | 0x8000000000000;                 \
+      *reinterpret_cast<uint64_t*>(&result) = q_nan; \
+    }                                                \
+    return result;                                   \
+  }
+
+FloatPoint_Covert_F64(ceil)
+FloatPoint_Covert_F64(floor)
+FloatPoint_Covert_F64(trunc)
+#undef FloatPoint_Covert_F32
+#undef FloatPoint_Covert_F64
+
 // Sets the register in the architecture state. It will also deal with updating
 // Simulator internal state for special registers such as PC.
 void Simulator::set_register(int reg, int64_t value) {
@@ -928,12 +958,12 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<float*>(&FPUregisters_[fpureg]) = value;
+  *base::bit_cast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
 void Simulator::set_cf_register(int cfreg, bool value) {
@@ -986,12 +1016,12 @@ int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<double*>(&FPUregisters_[fpureg]);
+  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
 bool Simulator::get_cf_register(int cfreg) const {
@@ -1289,7 +1319,7 @@ void Simulator::round_according_to_fcsr(double toRound, double* rounded,
   // switch ((FCSR_ >> 8) & 3) {
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int32_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1303,11 +1333,11 @@ void Simulator::round_according_to_fcsr(double toRound, double* rounded,
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
@@ -1330,7 +1360,7 @@ void Simulator::round64_according_to_fcsr(double toRound, double* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int64_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1340,15 +1370,15 @@ void Simulator::round64_according_to_fcsr(double toRound, double* rounded,
       }
       break;
     case kRoundToZero:
-      *rounded = std::trunc(toRound);
+      *rounded = trunc(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
@@ -1371,7 +1401,7 @@ void Simulator::round_according_to_fcsr(float toRound, float* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int32_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1381,15 +1411,15 @@ void Simulator::round_according_to_fcsr(float toRound, float* rounded,
       }
       break;
     case kRoundToZero:
-      *rounded = std::trunc(toRound);
+      *rounded = trunc(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
@@ -1412,7 +1442,7 @@ void Simulator::round64_according_to_fcsr(float toRound, float* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int64_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1426,11 +1456,11 @@ void Simulator::round64_according_to_fcsr(float toRound, float* rounded,
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
@@ -1460,7 +1490,7 @@ void Simulator::DieOrDebug() {
 }
 
 void Simulator::TraceRegWr(int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -1510,7 +1540,7 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
 // TODO(plind): consider making icount_ printing a flag option.
 void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -1559,7 +1589,7 @@ void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
 }
 
 void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (t) {
       case BYTE:
         base::SNPrintF(trace_buf_,
@@ -1592,7 +1622,7 @@ void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
 
 template <typename T>
 void Simulator::TraceMemRd(int64_t addr, T value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
         base::SNPrintF(trace_buf_,
@@ -1633,7 +1663,7 @@ void Simulator::TraceMemRd(int64_t addr, T value) {
 
 template <typename T>
 void Simulator::TraceMemWr(int64_t addr, T value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
         base::SNPrintF(trace_buf_,
@@ -2036,6 +2066,132 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
 
+using MixedRuntimeCall_0 = AnyCType (*)();
+
+#define BRACKETS(ident, N) ident[N]
+
+#define REP_0(expr, FMT)
+#define REP_1(expr, FMT) FMT(expr, 0)
+#define REP_2(expr, FMT) REP_1(expr, FMT), FMT(expr, 1)
+#define REP_3(expr, FMT) REP_2(expr, FMT), FMT(expr, 2)
+#define REP_4(expr, FMT) REP_3(expr, FMT), FMT(expr, 3)
+#define REP_5(expr, FMT) REP_4(expr, FMT), FMT(expr, 4)
+#define REP_6(expr, FMT) REP_5(expr, FMT), FMT(expr, 5)
+#define REP_7(expr, FMT) REP_6(expr, FMT), FMT(expr, 6)
+#define REP_8(expr, FMT) REP_7(expr, FMT), FMT(expr, 7)
+#define REP_9(expr, FMT) REP_8(expr, FMT), FMT(expr, 8)
+#define REP_10(expr, FMT) REP_9(expr, FMT), FMT(expr, 9)
+#define REP_11(expr, FMT) REP_10(expr, FMT), FMT(expr, 10)
+#define REP_12(expr, FMT) REP_11(expr, FMT), FMT(expr, 11)
+#define REP_13(expr, FMT) REP_12(expr, FMT), FMT(expr, 12)
+#define REP_14(expr, FMT) REP_13(expr, FMT), FMT(expr, 13)
+#define REP_15(expr, FMT) REP_14(expr, FMT), FMT(expr, 14)
+#define REP_16(expr, FMT) REP_15(expr, FMT), FMT(expr, 15)
+#define REP_17(expr, FMT) REP_16(expr, FMT), FMT(expr, 16)
+#define REP_18(expr, FMT) REP_17(expr, FMT), FMT(expr, 17)
+#define REP_19(expr, FMT) REP_18(expr, FMT), FMT(expr, 18)
+#define REP_20(expr, FMT) REP_19(expr, FMT), FMT(expr, 19)
+
+#define GEN_MAX_PARAM_COUNT(V) \
+  V(0)                         \
+  V(1)                         \
+  V(2)                         \
+  V(3)                         \
+  V(4)                         \
+  V(5)                         \
+  V(6)                         \
+  V(7)                         \
+  V(8)                         \
+  V(9)                         \
+  V(10)                        \
+  V(11)                        \
+  V(12)                        \
+  V(13)                        \
+  V(14)                        \
+  V(15)                        \
+  V(16)                        \
+  V(17)                        \
+  V(18)                        \
+  V(19)                        \
+  V(20)
+
+#define MIXED_RUNTIME_CALL(N) \
+  using MixedRuntimeCall_##N = AnyCType (*)(REP_##N(AnyCType arg, CONCAT));
+
+GEN_MAX_PARAM_COUNT(MIXED_RUNTIME_CALL)
+#undef MIXED_RUNTIME_CALL
+
+#define CALL_ARGS(N) REP_##N(args, BRACKETS)
+#define CALL_TARGET_VARARG(N)                                   \
+  if (signature.ParameterCount() == N) { /* NOLINT */           \
+    MixedRuntimeCall_##N target =                               \
+        reinterpret_cast<MixedRuntimeCall_##N>(target_address); \
+    result = target(CALL_ARGS(N));                              \
+  } else /* NOLINT */
+
+// Configuration for C calling convention (see c-linkage.cc).
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define RETURN_REGISTER a0
+#define FP_PARAM_REGISTERS f0, f1, f2, f3, f4, f5, f6, f7
+#define FP_RETURN_REGISTER f0
+
+void Simulator::CallAnyCTypeFunction(Address target_address,
+                                     const EncodedCSignature& signature) {
+  const int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
+  const double* double_stack_pointer =
+      reinterpret_cast<double*>(get_register(sp));
+
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const FPURegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+
+  int num_gp_params = 0, num_fp_params = 0, num_stack_params = 0;
+
+  CHECK_LE(signature.ParameterCount(), kMaxCParameters);
+  static_assert(sizeof(AnyCType) == 8, "AnyCType is assumed to be 64-bit.");
+  AnyCType args[kMaxCParameters];
+  for (int i = 0; i < signature.ParameterCount(); ++i) {
+    if (signature.IsFloat(i)) {
+      if (num_fp_params < 8) {
+        args[i].double_value =
+            get_fpu_register_double(kFPParamRegisters[num_fp_params++]);
+      } else if (num_gp_params < 8) {
+        args[i].int64_value = get_register(kParamRegisters[num_gp_params++]);
+      } else {
+        args[i].double_value = double_stack_pointer[num_stack_params++];
+      }
+    } else {
+      if (num_gp_params < 8) {
+        args[i].int64_value = get_register(kParamRegisters[num_gp_params++]);
+      } else {
+        args[i].int64_value = stack_pointer[num_stack_params++];
+      }
+    }
+  }
+  AnyCType result;
+  GEN_MAX_PARAM_COUNT(CALL_TARGET_VARARG)
+  /* else */ {
+    UNREACHABLE();
+  }
+  static_assert(20 == kMaxCParameters,
+                "If you've changed kMaxCParameters, please change the "
+                "GEN_MAX_PARAM_COUNT macro.");
+
+#undef CALL_TARGET_VARARG
+#undef CALL_ARGS
+#undef GEN_MAX_PARAM_COUNT
+
+  if (signature.IsReturnFloat()) {
+    set_fpu_register_double(FP_RETURN_REGISTER, result.double_value);
+  } else {
+    set_register(RETURN_REGISTER, result.int64_value);
+  }
+}
+
+#undef PARAM_REGISTERS
+#undef RETURN_REGISTER
+#undef FP_PARAM_REGISTERS
+#undef FP_RETURN_REGISTER
+
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
 void Simulator::SoftwareInterrupt() {
@@ -2045,6 +2201,25 @@ void Simulator::SoftwareInterrupt() {
   // We first check if we met a call_rt_redirected.
   if (instr_.InstructionBits() == rtCallRedirInstr) {
     Redirection* redirection = Redirection::FromInstruction(instr_.instr());
+
+    // This is dodgy but it works because the C entry stubs are never moved.
+    int64_t saved_ra = get_register(ra);
+    intptr_t external =
+        reinterpret_cast<intptr_t>(redirection->external_function());
+
+    Address func_addr =
+        reinterpret_cast<Address>(redirection->external_function());
+    SimulatorData* simulator_data = isolate_->simulator_data();
+    DCHECK_NOT_NULL(simulator_data);
+    const EncodedCSignature& signature =
+        simulator_data->GetSignatureForTarget(func_addr);
+    if (signature.IsValid()) {
+      CHECK_EQ(redirection->type(), ExternalReference::FAST_C_CALL);
+      CallAnyCTypeFunction(external, signature);
+      set_register(ra, saved_ra);
+      set_pc(get_register(ra));
+      return;
+    }
 
     int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
 
@@ -2068,7 +2243,7 @@ void Simulator::SoftwareInterrupt() {
     int64_t arg17 = stack_pointer[9];
     int64_t arg18 = stack_pointer[10];
     int64_t arg19 = stack_pointer[11];
-    STATIC_ASSERT(kMaxCParameters == 20);
+    static_assert(kMaxCParameters == 20);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2103,13 +2278,6 @@ void Simulator::SoftwareInterrupt() {
       }
     }
 
-    // This is dodgy but it works because the C entry stubs are never moved.
-    // See comment in codegen-arm.cc and bug 1242173.
-    int64_t saved_ra = get_register(ra);
-
-    intptr_t external =
-        reinterpret_cast<intptr_t>(redirection->external_function());
-
     // Based on CpuFeatures::IsSupported(FPU), Loong64 will use either hardware
     // FPU, or gcc soft-float routines. Hardware FPU is simulated in this
     // simulator. Soft-float has additional abstraction of ExternalReference,
@@ -2122,7 +2290,7 @@ void Simulator::SoftwareInterrupt() {
       GetFpArgs(&dval0, &dval1, &ival);
       SimulatorRuntimeCall generic_target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
@@ -2177,7 +2345,7 @@ void Simulator::SoftwareInterrupt() {
         default:
           UNREACHABLE();
       }
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
@@ -2192,7 +2360,7 @@ void Simulator::SoftwareInterrupt() {
         }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 " \n",
                reinterpret_cast<void*>(external), arg0);
       }
@@ -2200,16 +2368,16 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       target(arg0);
     } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeProfilingApiCall target =
           reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-      target(arg0, Redirection::ReverseRedirection(arg1));
+      target(arg0, Redirection::UnwrapRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
                reinterpret_cast<void*>(external), arg0, arg1);
@@ -2219,20 +2387,20 @@ void Simulator::SoftwareInterrupt() {
       target(arg0, arg1);
     } else if (redirection->type() ==
                ExternalReference::PROFILING_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
                "  %08" PRIx64 " \n",
                reinterpret_cast<void*>(external), arg0, arg1, arg2);
       }
       SimulatorRuntimeProfilingGetterCall target =
           reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+      target(arg0, arg1, Redirection::UnwrapRedirection(arg2));
     } else {
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
              redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF(
             "Call to host function at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
@@ -2251,7 +2419,7 @@ void Simulator::SoftwareInterrupt() {
       set_register(v0, (int64_t)(result.x));
       set_register(v1, (int64_t)(result.y));
     }
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("Returned %08" PRIx64 "  : %08" PRIx64 " \n", get_register(v1),
              get_register(v0));
     }
@@ -4692,7 +4860,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj);
+      float rounded = floor(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4705,7 +4873,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj);
+      double rounded = floor(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4718,7 +4886,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj);
+      float rounded = floor(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4731,7 +4899,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj);
+      double rounded = floor(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4744,7 +4912,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::ceil(fj);
+      float rounded = ceil(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4757,7 +4925,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::ceil(fj);
+      double rounded = ceil(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4770,7 +4938,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::ceil(fj);
+      float rounded = ceil(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4783,7 +4951,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::ceil(fj);
+      double rounded = ceil(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4796,7 +4964,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::trunc(fj);
+      float rounded = trunc(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4809,7 +4977,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::trunc(fj);
+      double rounded = trunc(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4822,7 +4990,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::trunc(fj);
+      float rounded = trunc(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4835,7 +5003,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::trunc(fj);
+      double rounded = trunc(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4848,7 +5016,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj + 0.5);
+      float rounded = floor(fj + 0.5);
       int32_t result = static_cast<int32_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -4866,7 +5034,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj + 0.5);
+      double rounded = floor(fj + 0.5);
       int32_t result = static_cast<int32_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -4884,7 +5052,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj + 0.5);
+      float rounded = floor(fj + 0.5);
       int64_t result = static_cast<int64_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -4902,7 +5070,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj + 0.5);
+      double rounded = floor(fj + 0.5);
       int64_t result = static_cast<int64_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -5010,8 +5178,8 @@ void Simulator::DecodeTypeOp22() {
       float fj = fj_float();
       float result, temp_result;
       double temp;
-      float upper = std::ceil(fj);
-      float lower = std::floor(fj);
+      float upper = ceil(fj);
+      float lower = floor(fj);
       switch (get_fcsr_rounding_mode()) {
         case kRoundToNearest:
           printf_instr(" kRoundToNearest\n");
@@ -5052,8 +5220,8 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
       double result, temp, temp_result;
-      double upper = std::ceil(fj);
-      double lower = std::floor(fj);
+      double upper = ceil(fj);
+      double lower = floor(fj);
       switch (get_fcsr_rounding_mode()) {
         case kRoundToNearest:
           printf_instr(" kRoundToNearest\n");
@@ -5150,14 +5318,14 @@ void Simulator::DecodeTypeOp22() {
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8::internal::FLAG_check_icache) {
+  if (v8_flags.check_icache) {
     CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
 
   v8::base::EmbeddedVector<char, 256> buffer;
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     base::SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
@@ -5201,7 +5369,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     }
   }
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     PrintF("  0x%08" PRIxPTR "   %-44s   %s\n",
            reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
@@ -5216,7 +5384,7 @@ void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int64_t program_counter = get_pc();
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
+  if (v8_flags.stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
@@ -5226,12 +5394,12 @@ void Simulator::Execute() {
       program_counter = get_pc();
     }
   } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
+    // v8_flags.stop_sim_at is at the non-default value. Stop in the debugger
+    // when we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
-      if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
+      if (icount_ == static_cast<int64_t>(v8_flags.stop_sim_at)) {
         Loong64Debugger dbg(this);
         dbg.Debug();
       } else {
@@ -5317,35 +5485,40 @@ void Simulator::CallInternal(Address entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(Address entry, int argument_count,
-                             const intptr_t* arguments) {
-  constexpr int kRegisterPassedArguments = 8;
-  // Set up arguments.
+void Simulator::CallImpl(Address entry, CallArgument* args) {
+  int index_gp = 0;
+  int index_fp = 0;
 
-  int reg_arg_count = std::min(kRegisterPassedArguments, argument_count);
-  if (reg_arg_count > 0) set_register(a0, arguments[0]);
-  if (reg_arg_count > 1) set_register(a1, arguments[1]);
-  if (reg_arg_count > 2) set_register(a2, arguments[2]);
-  if (reg_arg_count > 3) set_register(a3, arguments[3]);
-  if (reg_arg_count > 4) set_register(a4, arguments[4]);
-  if (reg_arg_count > 5) set_register(a5, arguments[5]);
-  if (reg_arg_count > 6) set_register(a6, arguments[6]);
-  if (reg_arg_count > 7) set_register(a7, arguments[7]);
+  std::vector<int64_t> stack_args(0);
+  for (int i = 0; !args[i].IsEnd(); i++) {
+    CallArgument arg = args[i];
+    if (arg.IsGP() && (index_gp < 8)) {
+      set_register(index_gp + 4, arg.bits());
+      index_gp++;
+    } else if (arg.IsFP() && (index_fp < 8)) {
+      set_fpu_register(index_fp++, arg.bits());
+    } else if (arg.IsFP() && (index_gp < 8)) {
+      set_register(index_gp + 4, arg.bits());
+      index_gp++;
+    } else {
+      DCHECK(arg.IsFP() || arg.IsGP());
+      stack_args.push_back(arg.bits());
+    }
+  }
 
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments);
+  int64_t stack_args_size = stack_args.size() * sizeof(stack_args[0]);
   int64_t entry_stack = original_stack - stack_args_size;
 
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument, arguments + reg_arg_count,
-         stack_args_count * sizeof(*arguments));
+  char* stack_argument = reinterpret_cast<char*>(entry_stack);
+  memcpy(stack_argument, stack_args.data(),
+         stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -5353,8 +5526,6 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Pop stack passed arguments.
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
-
-  return get_register(a0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
@@ -5554,6 +5725,7 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
 }
 
 #undef SScanF
+#undef BRACKETS
 
 }  // namespace internal
 }  // namespace v8

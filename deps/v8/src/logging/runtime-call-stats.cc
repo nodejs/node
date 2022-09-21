@@ -8,6 +8,7 @@
 
 #include <iomanip>
 
+#include "src/flags/flags.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
 

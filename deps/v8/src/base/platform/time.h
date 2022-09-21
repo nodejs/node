@@ -322,22 +322,22 @@ class TimeBase : public TimeConstants {
   }
 
   // Comparison operators
-  bool operator==(TimeClass other) const {
+  bool operator==(const TimeBase<TimeClass>& other) const {
     return us_ == other.us_;
   }
-  bool operator!=(TimeClass other) const {
+  bool operator!=(const TimeBase<TimeClass>& other) const {
     return us_ != other.us_;
   }
-  bool operator<(TimeClass other) const {
+  bool operator<(const TimeBase<TimeClass>& other) const {
     return us_ < other.us_;
   }
-  bool operator<=(TimeClass other) const {
+  bool operator<=(const TimeBase<TimeClass>& other) const {
     return us_ <= other.us_;
   }
-  bool operator>(TimeClass other) const {
+  bool operator>(const TimeBase<TimeClass>& other) const {
     return us_ > other.us_;
   }
-  bool operator>=(TimeClass other) const {
+  bool operator>=(const TimeBase<TimeClass>& other) const {
     return us_ >= other.us_;
   }
 

@@ -28,10 +28,7 @@
 #ifndef V8_ARM64_TEST_UTILS_ARM64_H_
 #define V8_ARM64_TEST_UTILS_ARM64_H_
 
-#include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -80,7 +77,7 @@ class RegisterDump {
   }
 
   inline float sreg(unsigned code) const {
-    return bit_cast<float>(sreg_bits(code));
+    return base::bit_cast<float>(sreg_bits(code));
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
@@ -89,7 +86,7 @@ class RegisterDump {
   }
 
   inline double dreg(unsigned code) const {
-    return bit_cast<double>(dreg_bits(code));
+    return base::bit_cast<double>(dreg_bits(code));
   }
 
   inline vec128_t qreg(unsigned code) const { return dump_.q_[code]; }

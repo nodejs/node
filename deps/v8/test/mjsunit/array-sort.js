@@ -431,12 +431,17 @@ function TestSortOnTypedArray() {
   var array = new Int8Array([10,9,8,7,6,5,4,3,2,1]);
   Object.defineProperty(array, "length", {value: 5});
   Array.prototype.sort.call(array);
-  assertEquals(array, new Int8Array([10,6,7,8,9,5,4,3,2,1]));
+  // Elements within `length` sorted by string comparison.
+  var expected = new Int8Array([10,6,7,8,9,5,4,3,2,1]);
+  Object.defineProperty(expected, "length", {value: 5});
+  assertEquals(expected, array);
 
   var array = new Int8Array([10,9,8,7,6,5,4,3,2,1]);
   Object.defineProperty(array, "length", {value: 15});
   Array.prototype.sort.call(array);
-  assertEquals(array, new Int8Array([1,10,2,3,4,5,6,7,8,9]));
+  var expected = new Int8Array([1,10,2,3,4,5,6,7,8,9]);
+  Object.defineProperty(expected, "length", {value: 15});
+  assertEquals(expected, array);
 }
 TestSortOnTypedArray();
 

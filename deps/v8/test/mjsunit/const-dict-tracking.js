@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 // Flags: --no-stress-flush-code --concurrent-recompilation
 //
 // Tests tracking of constness of properties stored in dictionary

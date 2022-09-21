@@ -14,9 +14,9 @@
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-#include "test/cctest/compiler/c-signature.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/c-signature.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -404,7 +404,7 @@ bool IsExtreme(float x) {
 }
 
 bool IsCanonical(float actual) {
-  uint32_t actual_bits = bit_cast<uint32_t>(actual);
+  uint32_t actual_bits = base::bit_cast<uint32_t>(actual);
   // Canonical NaN has quiet bit and no payload.
   return (actual_bits & 0xFFC00000) == actual_bits;
 }
@@ -418,7 +418,8 @@ void CheckFloatResult(float x, float y, float expected, float actual,
     if (IsSameNan(expected, actual)) return;
     if (IsCanonical(actual)) return;
     // This is expected to assert; it's useful for debugging.
-    CHECK_EQ(bit_cast<uint32_t>(expected), bit_cast<uint32_t>(actual));
+    CHECK_EQ(base::bit_cast<uint32_t>(expected),
+             base::bit_cast<uint32_t>(actual));
   } else {
     if (exact) {
       CHECK_EQ(expected, actual);
@@ -469,7 +470,7 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 
   FOR_FLOAT32_NAN_INPUTS(f) {
-    float x = bit_cast<float>(nan_test_array[f]);
+    float x = base::bit_cast<float>(nan_test_array[f]);
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
@@ -529,10 +530,10 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 
   FOR_FLOAT32_NAN_INPUTS(f) {
-    float x = bit_cast<float>(nan_test_array[f]);
+    float x = base::bit_cast<float>(nan_test_array[f]);
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT32_NAN_INPUTS(j) {
-      float y = bit_cast<float>(nan_test_array[j]);
+      float y = base::bit_cast<float>(nan_test_array[j]);
       if (!PlatformCanRepresent(y)) continue;
       if (ShouldSkipTestingConstants(opcode, x, y)) continue;
       float expected = expected_op(x, y);
@@ -585,7 +586,7 @@ bool IsExtreme(double x) {
 }
 
 bool IsCanonical(double actual) {
-  uint64_t actual_bits = bit_cast<uint64_t>(actual);
+  uint64_t actual_bits = base::bit_cast<uint64_t>(actual);
   // Canonical NaN has quiet bit and no payload.
   return (actual_bits & 0xFFF8000000000000) == actual_bits;
 }
@@ -599,7 +600,8 @@ void CheckDoubleResult(double x, double y, double expected, double actual,
     if (IsSameNan(expected, actual)) return;
     if (IsCanonical(actual)) return;
     // This is expected to assert; it's useful for debugging.
-    CHECK_EQ(bit_cast<uint64_t>(expected), bit_cast<uint64_t>(actual));
+    CHECK_EQ(base::bit_cast<uint64_t>(expected),
+             base::bit_cast<uint64_t>(actual));
   } else {
     if (exact) {
       CHECK_EQ(expected, actual);
@@ -650,7 +652,7 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 
   FOR_FLOAT64_NAN_INPUTS(d) {
-    double x = bit_cast<double>(double_nan_test_array[d]);
+    double x = base::bit_cast<double>(double_nan_test_array[d]);
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
@@ -695,10 +697,10 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 
   FOR_FLOAT64_NAN_INPUTS(d) {
-    double x = bit_cast<double>(double_nan_test_array[d]);
+    double x = base::bit_cast<double>(double_nan_test_array[d]);
     if (!PlatformCanRepresent(x)) continue;
     FOR_FLOAT64_NAN_INPUTS(j) {
-      double y = bit_cast<double>(double_nan_test_array[j]);
+      double y = base::bit_cast<double>(double_nan_test_array[j]);
       double expected = expected_op(x, y);
       if (!PlatformCanRepresent(expected)) continue;
       if (ShouldSkipTestingConstants(opcode, x, y)) continue;

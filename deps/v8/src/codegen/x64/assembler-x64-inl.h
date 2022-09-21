@@ -5,10 +5,10 @@
 #ifndef V8_CODEGEN_X64_ASSEMBLER_X64_INL_H_
 #define V8_CODEGEN_X64_ASSEMBLER_X64_INL_H_
 
-#include "src/codegen/x64/assembler-x64.h"
-
 #include "src/base/cpu.h"
 #include "src/base/memory.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 
@@ -35,7 +35,6 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
-// TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
   DCHECK_NE(options().code_range_base, 0);
@@ -272,6 +271,12 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
   return GetEmbeddedObject(ReadUnalignedValue<uint32_t>(pc));
 }
 
+Builtin Assembler::target_builtin_at(Address pc) {
+  int32_t builtin_id = ReadUnalignedValue<int32_t>(pc);
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return static_cast<Builtin>(builtin_id);
+}
+
 Address Assembler::runtime_entry_at(Address pc) {
   return ReadUnalignedValue<int32_t>(pc) + options().code_range_base;
 }
@@ -281,7 +286,8 @@ Address Assembler::runtime_entry_at(Address pc) {
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
+      IsRuntimeEntry(rmode_)) {
     WriteUnalignedValue(
         pc_, ReadUnalignedValue<int32_t>(pc_) - static_cast<int32_t>(delta));
   } else if (IsInternalReference(rmode_)) {
@@ -291,7 +297,8 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
+         IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -382,15 +389,19 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !FLAG_disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target);
+  if (!host().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
+}
+
+Builtin RelocInfo::target_builtin_at(Assembler* origin) {
+  DCHECK(IsNearBuiltinEntry(rmode_));
+  return Assembler::target_builtin_at(pc_);
 }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
-  return origin->runtime_entry_at(pc_);
+  return target_address();
 }
 
 void RelocInfo::set_target_runtime_entry(Address target,
@@ -414,7 +425,8 @@ void RelocInfo::WipeOut() {
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     Address smi_address = Smi::FromInt(0).ptr();
     WriteUnalignedValue(pc_, CompressTagged(smi_address));
-  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+  } else if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
+             IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));

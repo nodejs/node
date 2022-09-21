@@ -113,6 +113,11 @@ domain Debugger
       Runtime.RemoteObject this
       # The value being returned, if the function is at return point.
       optional Runtime.RemoteObject returnValue
+      # Valid only while the VM is paused and indicates whether this frame
+      # can be restarted or not. Note that a `true` value here does not
+      # guarantee that Debugger#restartFrame with this CallFrameId will be
+      # successful, but it is very likely.
+      experimental optional boolean canBeRestarted
 
   # Scope description.
   type Scope extends object
@@ -239,6 +244,40 @@ domain Debugger
       # Wasm bytecode.
       optional binary bytecode
 
+  experimental type WasmDisassemblyChunk extends object
+    properties
+      # The next chunk of disassembled lines.
+      array of string lines
+      # The bytecode offsets describing the start of each line.
+      array of integer bytecodeOffsets
+
+  experimental command disassembleWasmModule
+    parameters
+      # Id of the script to disassemble
+      Runtime.ScriptId scriptId
+    returns
+      # For large modules, return a stream from which additional chunks of
+      # disassembly can be read successively.
+      optional string streamId
+      # The total number of lines in the disassembly text.
+      integer totalNumberOfLines
+      # The offsets of all function bodies, in the format [start1, end1,
+      # start2, end2, ...] where all ends are exclusive.
+      array of integer functionBodyOffsets
+      # The first chunk of disassembly.
+      WasmDisassemblyChunk chunk
+
+  # Disassemble the next chunk of lines for the module corresponding to the
+  # stream. If disassembly is complete, this API will invalidate the streamId
+  # and return an empty chunk. Any subsequent calls for the now invalid stream
+  # will return errors.
+  experimental command nextWasmDisassemblyChunk
+    parameters
+      string streamId
+    returns
+      # The next chunk of disassembly.
+      WasmDisassemblyChunk chunk
+
   # This command is deprecated. Use getScriptSource instead.
   deprecated command getWasmBytecode
     parameters
@@ -268,18 +307,35 @@ domain Debugger
     parameters
       BreakpointId breakpointId
 
-  # Restarts particular call frame from the beginning.
-  deprecated command restartFrame
+  # Restarts particular call frame from the beginning. The old, deprecated
+  # behavior of `restartFrame` is to stay paused and allow further CDP commands
+  # after a restart was scheduled. This can cause problems with restarting, so
+  # we now continue execution immediatly after it has been scheduled until we
+  # reach the beginning of the restarted frame.
+  #
+  # To stay back-wards compatible, `restartFrame` now expects a `mode`
+  # parameter to be present. If the `mode` parameter is missing, `restartFrame`
+  # errors out.
+  #
+  # The various return values are deprecated and `callFrames` is always empty.
+  # Use the call frames from the `Debugger#paused` events instead, that fires
+  # once V8 pauses at the beginning of the restarted function.
+  command restartFrame
     parameters
       # Call frame identifier to evaluate on.
       CallFrameId callFrameId
+      # The `mode` parameter must be present and set to 'StepInto', otherwise
+      # `restartFrame` will error out.
+      experimental optional enum mode
+        # Pause at the beginning of the restarted function
+        StepInto
     returns
       # New stack trace.
-      array of CallFrame callFrames
+      deprecated array of CallFrame callFrames
       # Async stack trace, if any.
-      optional Runtime.StackTrace asyncStackTrace
+      deprecated optional Runtime.StackTrace asyncStackTrace
       # Async stack trace, if any.
-      experimental optional Runtime.StackTraceId asyncStackTraceId
+      deprecated optional Runtime.StackTraceId asyncStackTraceId
 
   # Resumes JavaScript execution.
   command resume
@@ -419,6 +475,12 @@ domain Debugger
       Runtime.CallArgument newValue
 
   # Edits JavaScript source live.
+  #
+  # In general, functions that are currently on the stack can not be edited with
+  # a single exception: If the edited function is the top-most stack frame and
+  # that is the only activation of that function on the stack. In this case
+  # the live edit will be successful and a `Debugger.restartFrame` for the
+  # top-most function is automatically triggered.
   command setScriptSource
     parameters
       # Id of the script to edit.
@@ -428,16 +490,27 @@ domain Debugger
       #  If true the change will not actually be applied. Dry run may be used to get result
       # description without actually modifying the code.
       optional boolean dryRun
+      # If true, then `scriptSource` is allowed to change the function on top of the stack
+      # as long as the top-most stack frame is the only activation of that function.
+      experimental optional boolean allowTopFrameEditing
     returns
       # New stack trace in case editing has happened while VM was stopped.
-      optional array of CallFrame callFrames
+      deprecated optional array of CallFrame callFrames
       # Whether current call stack  was modified after applying the changes.
-      optional boolean stackChanged
+      deprecated optional boolean stackChanged
       # Async stack trace, if any.
-      optional Runtime.StackTrace asyncStackTrace
+      deprecated optional Runtime.StackTrace asyncStackTrace
       # Async stack trace, if any.
-      experimental optional Runtime.StackTraceId asyncStackTraceId
-      # Exception details if any.
+      deprecated optional Runtime.StackTraceId asyncStackTraceId
+      # Whether the operation was successful or not. Only `Ok` denotes a
+      # successful live edit while the other enum variants denote why
+      # the live edit failed.
+      experimental enum status
+        Ok
+        CompileError
+        BlockedByActiveGenerator
+        BlockedByActiveFunction
+      # Exception details if any. Only present when `status` is `CompileError`.
       optional Runtime.ExceptionDetails exceptionDetails
 
   # Makes page not interrupt on any pauses (breakpoint, exception, dom exception etc).
@@ -554,7 +627,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
@@ -593,7 +666,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
@@ -708,18 +781,24 @@ experimental domain HeapProfiler
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken
       # when the tracking is stopped.
       optional boolean reportProgress
-      optional boolean treatGlobalObjectsAsRoots
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   command takeHeapSnapshot
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
-      # If true, a raw snapshot without artificial roots will be generated
-      optional boolean treatGlobalObjectsAsRoots
+      # If true, a raw snapshot without artificial roots will be generated.
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   event addHeapSnapshotChunk
     parameters
@@ -1342,7 +1421,9 @@ domain Runtime
       optional string objectGroup
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       experimental optional boolean throwOnSideEffect
-      # Whether the result should be serialized according to https://w3c.github.io/webdriver-bidi.
+      # Whether the result should contain `webDriverValue`, serialized according to
+      # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
+      # resulting `objectId` is still provided.
       experimental optional boolean generateWebDriverValue
     returns
       # Call result.

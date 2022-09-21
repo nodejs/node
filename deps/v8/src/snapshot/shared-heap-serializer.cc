@@ -4,7 +4,6 @@
 
 #include "src/snapshot/shared-heap-serializer.h"
 
-#include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/read-only-serializer.h"
@@ -61,7 +60,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   VisitRootPointer(Root::kSharedHeapObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
-  // When FLAG_shared_string_table is true, all internalized and
+  // When v8_flags.shared_string_table is true, all internalized and
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();

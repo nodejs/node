@@ -51,7 +51,7 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 }
 
 size_t JSArrayBuffer::GetByteLength() const {
-  if V8_UNLIKELY (is_shared() && is_resizable()) {
+  if (V8_UNLIKELY(is_shared() && is_resizable())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
     // BackingStore).
     DCHECK_EQ(0, byte_length());
@@ -230,6 +230,23 @@ bool JSTypedArray::IsDetachedOrOutOfBounds() const {
   return out_of_bounds;
 }
 
+// static
+inline void JSTypedArray::ForFixedTypedArray(ExternalArrayType array_type,
+                                             size_t* element_size,
+                                             ElementsKind* element_kind) {
+  switch (array_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    *element_size = sizeof(ctype);                \
+    *element_kind = TYPE##_ELEMENTS;              \
+    return;
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+}
+
 size_t JSTypedArray::length() const {
   DCHECK(!is_length_tracking());
   DCHECK(!is_backed_by_rab());
@@ -292,7 +309,7 @@ void* JSTypedArray::DataPtr() {
   // so that the addition with |external_pointer| (which already contains
   // compensated offset value) will decompress the tagged value.
   // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
-  STATIC_ASSERT(kOffHeapDataPtrEqualsExternalPointer);
+  static_assert(kOffHeapDataPtrEqualsExternalPointer);
   return reinterpret_cast<void*>(external_pointer() +
                                  static_cast<Tagged_t>(base_pointer().ptr()));
 }

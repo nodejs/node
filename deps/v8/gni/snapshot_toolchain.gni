@@ -64,8 +64,7 @@ if (v8_snapshot_toolchain == "") {
              current_cpu == "arm") {
     # Trying to compile 32-bit arm on arm64. Good luck!
     v8_snapshot_toolchain = current_toolchain
-  } else if (host_cpu == "x64" &&
-             (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+  } else if (host_cpu == "x64" && v8_current_cpu == "mips64") {
     # We don't support snapshot generation for big-endian targets,
     # therefore snapshots will need to be built using native mksnapshot
     # in combination with qemu
@@ -96,7 +95,7 @@ if (v8_snapshot_toolchain == "") {
       } else {
         _cpus = "x64_v8_${v8_current_cpu}"
       }
-    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "riscv32") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
       # This branch should not be reached; leave _cpus blank so the assert
@@ -121,7 +120,6 @@ assert(v8_snapshot_toolchain != "",
 # avoid building v8_libbase on the host more than once. On mips with big endian,
 # the snapshot toolchain is the target toolchain and, hence, can't be used.
 v8_generator_toolchain = v8_snapshot_toolchain
-if (host_cpu == "x64" &&
-    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+if (host_cpu == "x64" && v8_current_cpu == "mips64") {
   v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
 }

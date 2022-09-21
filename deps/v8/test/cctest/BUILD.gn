@@ -16,14 +16,19 @@ v8_executable("cctest") {
 
   sources = [ "cctest.cc" ]
 
-  deps = [ ":cctest_sources" ]
+  deps = [
+    ":cctest_sources",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../../tools/debug_helper:v8_debug_helper",
+  ]
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
   data = [
     "testcfg.py",
     "cctest.status",
-    "interpreter/bytecode_expectations/",
   ]
 
   configs = [
@@ -77,17 +82,19 @@ v8_source_set("cctest_sources") {
   sources = [
     ### gcmole(all) ###
     "../common/assembler-tester.h",
+    "../common/c-signature.h",
+    "../common/call-tester.h",
+    "../common/code-assembler-tester.h",
     "../common/flag-utils.h",
+    "../common/node-observer-tester.h",
+    "../common/value-helper.cc",
+    "../common/value-helper.h",
     "cctest-utils.h",
     "collector.h",
-    "compiler/c-signature.h",
-    "compiler/call-tester.h",
-    "compiler/code-assembler-tester.h",
     "compiler/codegen-tester.cc",
     "compiler/codegen-tester.h",
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
-    "compiler/node-observer-tester.h",
     "compiler/test-atomic-load-store-codegen.cc",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
@@ -111,31 +118,14 @@ v8_source_set("cctest_sources") {
     "compiler/test-representation-change.cc",
     "compiler/test-run-bytecode-graph-builder.cc",
     "compiler/test-run-calls-to-external-references.cc",
-    "compiler/test-run-deopt.cc",
-    "compiler/test-run-jsbranches.cc",
-    "compiler/test-run-jscalls.cc",
-    "compiler/test-run-jsexceptions.cc",
-    "compiler/test-run-jsobjects.cc",
-    "compiler/test-run-jsops.cc",
     "compiler/test-run-load-store.cc",
     "compiler/test-run-machops.cc",
     "compiler/test-run-stackcheck.cc",
-    "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
-    "compiler/test-sloppy-equality.cc",
     "compiler/test-verify-type.cc",
-    "compiler/value-helper.cc",
-    "compiler/value-helper.h",
-    "disasm-regex-helper.cc",
-    "disasm-regex-helper.h",
     "expression-type-collector-macros.h",
-    "gay-fixed.cc",
-    "gay-fixed.h",
-    "gay-precision.cc",
-    "gay-precision.h",
-    "gay-shortest.cc",
-    "gay-shortest.h",
+    "feedback-vector-helper.h",
     "heap/heap-tester.h",
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
@@ -151,152 +141,69 @@ v8_source_set("cctest_sources") {
     "heap/test-iterators.cc",
     "heap/test-mark-compact.cc",
     "heap/test-memory-measurement.cc",
-    "heap/test-page-promotion.cc",
-    "heap/test-shared-heap.cc",
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
     "heap/test-write-barrier.cc",
-    "interpreter/bytecode-expectations-printer.cc",
-    "interpreter/bytecode-expectations-printer.h",
-    "interpreter/interpreter-tester.cc",
-    "interpreter/interpreter-tester.h",
-    "interpreter/source-position-matcher.cc",
-    "interpreter/source-position-matcher.h",
-    "interpreter/test-bytecode-generator.cc",
-    "interpreter/test-interpreter-intrinsics.cc",
-    "interpreter/test-interpreter.cc",
-    "interpreter/test-source-positions.cc",
-    "libplatform/test-tracing.cc",
-    "libsampler/signals-and-mutexes.cc",
-    "libsampler/test-sampler.cc",
     "manually-externalized-buffer.h",
-    "parsing/test-parse-decision.cc",
-    "parsing/test-preparser.cc",
-    "parsing/test-scanner-streams.cc",
-    "parsing/test-scanner.cc",
     "print-extension.cc",
     "print-extension.h",
     "profiler-extension.cc",
     "profiler-extension.h",
-    "scope-test-helper.h",
     "setup-isolate-for-tests.cc",
     "setup-isolate-for-tests.h",
-    "test-access-checks.cc",
     "test-accessor-assembler.cc",
     "test-accessors.cc",
     "test-allocation.cc",
-    "test-api-accessors.cc",
     "test-api-array-buffer.cc",
-    "test-api-icu.cc",
     "test-api-interceptors.cc",
     "test-api-stack-traces.cc",
     "test-api-typed-array.cc",
     "test-api.cc",
     "test-api.h",
-    "test-array-list.cc",
-    "test-atomicops.cc",
-    "test-bignum-dtoa.cc",
-    "test-bignum.cc",
-    "test-bit-vector.cc",
-    "test-circular-queue.cc",
-    "test-code-layout.cc",
-    "test-code-pages.cc",
     "test-code-stub-assembler.cc",
-    "test-compiler.cc",
-    "test-concurrent-descriptor-array.cc",
-    "test-concurrent-feedback-vector.cc",
-    "test-concurrent-js-array.cc",
-    "test-concurrent-prototype.cc",
-    "test-concurrent-script-context-table.cc",
-    "test-concurrent-string.cc",
-    "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
-    "test-conversions.cc",
     "test-cpu-profiler.cc",
-    "test-date.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
-    "test-decls.cc",
-    "test-deoptimization.cc",
     "test-descriptor-array.cc",
-    "test-dictionary.cc",
-    "test-diy-fp.cc",
-    "test-double.cc",
-    "test-dtoa.cc",
-    "test-elements-kind.cc",
-    "test-factory.cc",
-    "test-fast-dtoa.cc",
-    "test-feedback-vector.cc",
-    "test-feedback-vector.h",
+    "test-disasm-regex-helper.cc",
+    "test-disasm-regex-helper.h",
     "test-field-type-tracking.cc",
-    "test-fixed-dtoa.cc",
-    "test-flags.cc",
     "test-func-name-inference.cc",
-    "test-global-handles.cc",
-    "test-global-object.cc",
-    "test-hashcode.cc",
-    "test-hashmap.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
-    "test-identity-map.cc",
     "test-ignition-statistics-extension.cc",
     "test-inobject-slack-tracking.cc",
-    "test-inspector.cc",
-    "test-intl.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
-    "test-local-handles.cc",
     "test-lockers.cc",
-    "test-log.cc",
-    "test-managed.cc",
     "test-mementos.cc",
-    "test-modules.cc",
-    "test-object.cc",
     "test-orderedhashtable.cc",
-    "test-parsing.cc",
-    "test-persistent-handles.cc",
-    "test-platform.cc",
     "test-profile-generator.cc",
     "test-property-details.cc",
     "test-ptr-compr-cage.cc",
     "test-random-number-generator.cc",
-    "test-regexp.cc",
-    "test-representation.cc",
-    "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
     "test-shared-strings.cc",
     "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
-    "test-strtod.cc",
     "test-swiss-name-dictionary-csa.cc",
     "test-swiss-name-dictionary-infra.cc",
     "test-swiss-name-dictionary.cc",
-    "test-symbols.cc",
-    "test-temporal-parser.cc",
-    "test-thread-termination.cc",
-    "test-threads.cc",
     "test-trace-event.cc",
-    "test-traced-value.cc",
     "test-transitions.cc",
     "test-transitions.h",
     "test-typedarrays.cc",
-    "test-types.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
     "test-usecounters.cc",
     "test-utils.cc",
     "test-verifiers.cc",
-    "test-version.cc",
-    "test-weakmaps.cc",
-    "test-weaksets.cc",
-    "test-web-snapshots.cc",
     "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
-    "unicode-helpers.cc",
-    "unicode-helpers.h",
   ]
 
   if (v8_current_cpu == "arm") {
@@ -304,19 +211,15 @@ v8_source_set("cctest_sources") {
       "assembler-helper-arm.cc",
       "assembler-helper-arm.h",
       "test-assembler-arm.cc",
-      "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
       "test-assembler-arm64.cc",
-      "test-disasm-arm64.cc",
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
-      "test-macro-assembler-arm64.cc",
-      "test-pointer-auth-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
@@ -327,65 +230,47 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
-      "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
-    ]
-  } else if (v8_current_cpu == "mips") {
-    sources += [  ### gcmole(arch:mips) ###
-      "test-assembler-mips.cc",
-      "test-disasm-mips.cc",
-      "test-macro-assembler-mips.cc",
-    ]
-  } else if (v8_current_cpu == "mipsel") {
-    sources += [  ### gcmole(arch:mipsel) ###
-      "test-assembler-mips.cc",
-      "test-disasm-mips.cc",
-      "test-macro-assembler-mips.cc",
     ]
   } else if (v8_current_cpu == "mips64") {
     sources += [  ### gcmole(arch:mips64) ###
       "test-assembler-mips64.cc",
-      "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "test-assembler-mips64.cc",
-      "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [  ### gcmole(arch:x64) ###
-      "test-assembler-x64.cc",
-      "test-disasm-x64.cc",
+    sources += [
+      ### gcmole(arch:x64) ###
       "test-log-stack-tracer.cc",
-      "test-macro-assembler-x64.cc",
     ]
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    sources += [  ### gcmole(arch:ppc) ###
-      "test-assembler-ppc.cc",
-      "test-disasm-ppc.cc",
-    ]
+    sources += [ "test-assembler-ppc.cc" ]  ### gcmole(arch:ppc) ###
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
-      "test-assembler-s390.cc",
-      "test-disasm-s390.cc",
-    ]
+    sources += [ "test-assembler-s390.cc" ]  ### gcmole(arch:s390) ###
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
       "test-assembler-riscv64.cc",
-      "test-disasm-riscv64.cc",
       "test-helper-riscv64.cc",
       "test-macro-assembler-riscv64.cc",
       "test-simple-riscv64.cc",
     ]
+  } else if (v8_current_cpu == "riscv32") {
+    sources += [  ### gcmole(arch:riscv32) ###
+      "test-assembler-riscv32.cc",
+      "test-helper-riscv32.cc",
+      "test-macro-assembler-riscv32.cc",
+      "test-simple-riscv32.cc",
+    ]
   } else if (v8_current_cpu == "loong64") {
     sources += [  ### gcmole(arch:loong64) ###
       "test-assembler-loong64.cc",
-      "test-disasm-loong64.cc",
       "test-macro-assembler-loong64.cc",
     ]
   }
@@ -406,10 +291,7 @@ v8_source_set("cctest_sources") {
   public_deps = [
     ":cctest_headers",
     "..:common_test_headers",
-    "../..:v8_for_testing",
-    "../..:v8_libbase",
-    "../..:v8_libplatform",
-    "../../tools/debug_helper:v8_debug_helper",
+    "../../src/inspector:protocol_generated_sources",
     "//build/win:default_exe_manifest",
   ]
 
@@ -422,7 +304,6 @@ v8_source_set("cctest_sources") {
 
       # test-run-native-calls uses wasm's LinkageAllocator.
       "compiler/test-run-native-calls.cc",
-      "test-api-wasm.cc",
       "test-js-to-wasm.cc",
       "wasm/test-backing-store.cc",
       "wasm/test-c-wasm-entry.cc",
@@ -456,6 +337,7 @@ v8_source_set("cctest_sources") {
       "wasm/test-wasm-serialization.cc",
       "wasm/test-wasm-shared-engine.cc",
       "wasm/test-wasm-stack.cc",
+      "wasm/test-wasm-strings.cc",
       "wasm/test-wasm-trap-position.cc",
       "wasm/wasm-atomics-utils.h",
       "wasm/wasm-run-utils.cc",
@@ -475,17 +357,15 @@ v8_source_set("cctest_sources") {
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
     public_deps += [ "//third_party/icu" ]
-  } else {
-    sources -= [ "test-intl.cc" ]
   }
 
   cflags = []
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
-      v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
-      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64" ||
-      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64") {
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
+      v8_current_cpu == "riscv32") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     if (!is_win) {
@@ -514,29 +394,4 @@ v8_source_set("cctest_sources") {
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
   }
-}
-
-v8_executable("generate-bytecode-expectations") {
-  testonly = true
-
-  sources = [
-    "interpreter/bytecode-expectations-printer.cc",
-    "interpreter/bytecode-expectations-printer.h",
-    "interpreter/generate-bytecode-expectations.cc",
-  ]
-
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
-
-  deps = [
-    ":cctest_headers",
-    "../..:v8",
-    "../..:v8_libbase",
-    "../..:v8_libplatform",
-    "//build/win:default_exe_manifest",
-  ]
-
-  data = [ "interpreter/bytecode_expectations/" ]
 }

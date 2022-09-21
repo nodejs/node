@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --opt --no-concurrent-recompilation
-// Flags: --no-stress-opt --no-always-opt --no-assert-types
+// Flags: --allow-natives-syntax --expose-gc --turbofan --no-concurrent-recompilation
+// Flags: --no-always-turbofan --no-assert-types
 
 // This weak ref is for checking whether the closure-allocated object o got
 // collected as it should.

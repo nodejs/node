@@ -8,7 +8,7 @@
 let arr1 = [];
 for (let i = 0; i < 32; i++) arr1.push(i);
 let popped = false;
-let grouped1 = arr1.groupBy(() => {
+let grouped1 = arr1.group(() => {
   // Pop all of the elements to trigger right-trimming of the elements
   // FixedArray.
   for (let i = 0, len = arr1.length; i < len; i++) {
@@ -27,7 +27,7 @@ assertArrayEquals(expectedGrouped1, grouped1['undefined']);
 //
 // Initial Smi array, but due to length truncation result is not a Smi array.
 let arr2 = [0,1,2,3,4,5,6,7,8,9];
-let grouped2 = arr2.groupBy(() => { arr2.length = 2; });
+let grouped2 = arr2.group(() => { arr2.length = 2; });
 // 'undefined' is the only group.
 assertArrayEquals(['undefined'], Object.getOwnPropertyNames(grouped2));
 // 0,1 are the only values in the group because the source array gets truncated

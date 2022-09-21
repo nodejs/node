@@ -298,7 +298,7 @@ builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
   return kStoreSucceded;
 }
 
-// Returns True on sucess or False if the typedArrays was detached.
+// Returns True on success or False if the typedArrays was detached.
 builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
     context: Context, typedArray: JSTypedArray, index: uintptr,
     value: JSAny): Smi {

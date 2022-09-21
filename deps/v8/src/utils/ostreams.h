@@ -11,10 +11,8 @@
 #include <ostream>
 #include <streambuf>
 
-#include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/strings.h"
 #include "src/common/globals.h"
 
 namespace v8 {

@@ -8,40 +8,60 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/debug/interface-types.h"
-#include "src/execution/frames-inl.h"
-#include "src/execution/simulator.h"
-#include "src/init/v8.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/property-descriptor.h"
-#include "src/snapshot/snapshot.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-module-builder.h"  // For {ZoneBuffer}.
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
+
+template <class Value>
+void AdaptiveMap<Value>::FinishInitialization() {
+  uint32_t count = 0;
+  uint32_t max = 0;
+  DCHECK_EQ(mode_, kInitializing);
+  for (const auto& entry : *map_) {
+    count++;
+    max = std::max(max, entry.first);
+  }
+  if (count >= (max + 1) / kLoadFactor) {
+    mode_ = kDense;
+    vector_.resize(max + 1);
+    for (auto& entry : *map_) {
+      vector_[entry.first] = std::move(entry.second);
+    }
+    map_.reset();
+  } else {
+    mode_ = kSparse;
+  }
+}
+template void NameMap::FinishInitialization();
+template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) const {
+    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get());
+  if (!has_functions_) {
+    has_functions_ = true;
+    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
   }
-  auto it = function_names_->find(function_index);
-  if (it == function_names_->end()) return WireBytesRef();
-  return it->second;
+  const WireBytesRef* result = function_names_.Get(function_index);
+  if (!result) return WireBytesRef();
+  return *result;
+}
+
+bool LazilyGeneratedNames::Has(uint32_t function_index) {
+  DCHECK(has_functions_);
+  base::MutexGuard lock(&mutex_);
+  return function_names_.Get(function_index) != nullptr;
 }
 
 // static
@@ -66,7 +86,8 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 
 int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
                           bool is_import) {
-  uint32_t canonical_sig_index = module->canonicalized_type_ids[sig_index];
+  uint32_t canonical_sig_index =
+      module->per_module_canonical_type_ids[sig_index];
   return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
 }
 
@@ -130,10 +151,7 @@ int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-  }
-  function_names_->insert(std::make_pair(function_index, name));
+  function_names_.Put(function_index, name);
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
@@ -236,6 +254,13 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
          codegen_callback(
              v8::Utils::ToLocal(context),
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
+}
+
+Handle<String> ErrorStringForCodegen(Isolate* isolate,
+                                     Handle<Context> context) {
+  Handle<Object> error = context->ErrorMessageForWasmCodeGeneration();
+  DCHECK(!error.is_null());
+  return Object::NoSideEffectsToString(isolate, error);
 }
 
 namespace {
@@ -625,7 +650,8 @@ size_t EstimateStoredSize(const WasmModule* module) {
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
          VectorSize(module->types) +
-         VectorSize(module->canonicalized_type_ids) +
+         VectorSize(module->per_module_canonical_type_ids) +
+         VectorSize(module->isorecursive_canonical_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +
          VectorSize(module->export_table) + VectorSize(module->tags) +
@@ -652,6 +678,157 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,
   return old_size - buffer.size();
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+int JumpTableOffset(const WasmModule* module, int func_index) {
+  return JumpTableAssembler::JumpSlotIndexToOffset(
+      declared_function_index(module, func_index));
+}
+
+size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
+  return StringHasher::HashSequentialString(
+      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
+      kZeroHashSeed);
+}
+
+base::OwnedVector<uint8_t> GetProfileData(const WasmModule* module) {
+  const TypeFeedbackStorage& type_feedback = module->type_feedback;
+  AccountingAllocator allocator;
+  Zone zone{&allocator, "wasm::GetProfileData"};
+  ZoneBuffer buffer{&zone};
+  base::MutexGuard mutex_guard{&type_feedback.mutex};
+
+  // Get an ordered list of function indexes, so we generate deterministic data.
+  std::vector<uint32_t> ordered_func_indexes;
+  ordered_func_indexes.reserve(type_feedback.feedback_for_function.size());
+  for (const auto& entry : type_feedback.feedback_for_function) {
+    ordered_func_indexes.push_back(entry.first);
+  }
+  std::sort(ordered_func_indexes.begin(), ordered_func_indexes.end());
+
+  buffer.write_u32v(static_cast<uint32_t>(ordered_func_indexes.size()));
+  for (const uint32_t func_index : ordered_func_indexes) {
+    buffer.write_u32v(func_index);
+    // Serialize {feedback_vector}.
+    const FunctionTypeFeedback& feedback =
+        type_feedback.feedback_for_function.at(func_index);
+    buffer.write_u32v(static_cast<uint32_t>(feedback.feedback_vector.size()));
+    for (const CallSiteFeedback& call_site_feedback :
+         feedback.feedback_vector) {
+      int cases = call_site_feedback.num_cases();
+      buffer.write_i32v(cases);
+      for (int i = 0; i < cases; ++i) {
+        buffer.write_i32v(call_site_feedback.function_index(i));
+        buffer.write_i32v(call_site_feedback.call_count(i));
+      }
+    }
+    // Serialize {call_targets}.
+    buffer.write_u32v(static_cast<uint32_t>(feedback.call_targets.size()));
+    for (uint32_t call_target : feedback.call_targets) {
+      buffer.write_u32v(call_target);
+    }
+  }
+  return base::OwnedVector<uint8_t>::Of(buffer);
+}
+
+void RestoreProfileData(WasmModule* module,
+                        base::Vector<uint8_t> profile_data) {
+  TypeFeedbackStorage& type_feedback = module->type_feedback;
+  Decoder decoder{profile_data.begin(), profile_data.end()};
+  uint32_t num_entries = decoder.consume_u32v("num function entries");
+  CHECK_LE(num_entries, module->num_declared_functions);
+  for (uint32_t missing_entries = num_entries; missing_entries > 0;
+       --missing_entries) {
+    uint32_t function_index = decoder.consume_u32v("function index");
+    CHECK(!type_feedback.feedback_for_function.count(function_index));
+    FunctionTypeFeedback& feedback =
+        type_feedback.feedback_for_function[function_index];
+    // Deserialize {feedback_vector}.
+    uint32_t feedback_vector_size =
+        decoder.consume_u32v("feedback vector size");
+    feedback.feedback_vector.resize(feedback_vector_size);
+    for (CallSiteFeedback& feedback : feedback.feedback_vector) {
+      int num_cases = decoder.consume_i32v("num cases");
+      if (num_cases == 0) continue;  // no feedback
+      if (num_cases == 1) {          // monomorphic
+        int called_function_index = decoder.consume_i32v("function index");
+        int call_count = decoder.consume_i32v("call count");
+        feedback = CallSiteFeedback{called_function_index, call_count};
+      } else {  // polymorphic
+        auto* polymorphic = new CallSiteFeedback::PolymorphicCase[num_cases];
+        for (int i = 0; i < num_cases; ++i) {
+          polymorphic[i].function_index =
+              decoder.consume_i32v("function index");
+          polymorphic[i].absolute_call_frequency =
+              decoder.consume_i32v("call count");
+        }
+        feedback = CallSiteFeedback{polymorphic, num_cases};
+      }
+    }
+    // Deserialize {call_targets}.
+    uint32_t num_call_targets = decoder.consume_u32v("num call targets");
+    feedback.call_targets =
+        base::OwnedVector<uint32_t>::NewForOverwrite(num_call_targets);
+    for (uint32_t& call_target : feedback.call_targets) {
+      call_target = decoder.consume_u32v("call target");
+    }
+  }
+  CHECK(decoder.ok());
+  CHECK_EQ(decoder.pc(), decoder.end());
+}
+
+void DumpProfileToFile(const WasmModule* module,
+                       base::Vector<const uint8_t> wire_bytes) {
+  CHECK(!wire_bytes.empty());
+  // File are named `profile-wasm-<hash>`.
+  // We use the same hash as for reported scripts, to make it easier to
+  // correlate files to wasm modules (see {CreateWasmScript}).
+  uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
+  base::EmbeddedVector<char, 32> filename;
+  SNPrintF(filename, "profile-wasm-%08x", hash);
+  base::OwnedVector<uint8_t> profile_data = GetProfileData(module);
+  PrintF("Dumping Wasm PGO data to file '%s' (%zu bytes)\n", filename.begin(),
+         profile_data.size());
+  if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
+    CHECK_EQ(profile_data.size(),
+             fwrite(profile_data.begin(), 1, profile_data.size(), file));
+    base::Fclose(file);
+  }
+}
+
+void LoadProfileFromFile(WasmModule* module,
+                         base::Vector<const uint8_t> wire_bytes) {
+  CHECK(!wire_bytes.empty());
+  // File are named `profile-wasm-<hash>`.
+  // We use the same hash as for reported scripts, to make it easier to
+  // correlate files to wasm modules (see {CreateWasmScript}).
+  uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
+  base::EmbeddedVector<char, 32> filename;
+  SNPrintF(filename, "profile-wasm-%08x", hash);
+
+  FILE* file = base::OS::FOpen(filename.begin(), "rb");
+  if (!file) {
+    PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.begin());
+    return;
+  }
+
+  fseek(file, 0, SEEK_END);
+  size_t size = ftell(file);
+  rewind(file);
+
+  PrintF("Loading Wasm PGO data from file '%s' (%zu bytes)\n", filename.begin(),
+         size);
+  base::OwnedVector<uint8_t> profile_data =
+      base::OwnedVector<uint8_t>::NewForOverwrite(size);
+  for (size_t read = 0; read < size;) {
+    read += fread(profile_data.begin() + read, 1, size - read, file);
+    CHECK(!ferror(file));
+  }
+
+  base::Fclose(file);
+
+  RestoreProfileData(module, profile_data.as_vector());
+
+  // Check that the generated profile is deterministic.
+  DCHECK_EQ(profile_data.as_vector(), GetProfileData(module).as_vector());
+}
+
+}  // namespace v8::internal::wasm

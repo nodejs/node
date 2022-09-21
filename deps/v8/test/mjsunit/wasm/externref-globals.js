@@ -549,7 +549,7 @@ function dummy_func() {
   const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
   builder.addDeclarativeElementSegment([f_func.index]);
   const g_func = builder.addGlobal(kWasmAnyFunc, true,
-    WasmInitExpr.RefFunc(f_func.index));
+    [kExprRefFunc, f_func.index]);
   // Doing this here to break the cyclic dependency with g_func.
   f_func.addBody([kExprGlobalGet, g_func.index])
     .exportAs('get_anyfunc_global');
@@ -567,9 +567,9 @@ function dummy_func() {
   const import_wasm = builder.addImport('m', 'wasm', sig_index);
   const import_js = builder.addImport('m', 'js', sig_index);
   const g_wasm = builder.addGlobal(kWasmAnyFunc, true,
-                                   WasmInitExpr.RefFunc(import_wasm));
+                                   [kExprRefFunc, import_wasm]);
   const g_js = builder.addGlobal(kWasmAnyFunc, true,
-                                 WasmInitExpr.RefFunc(import_js));
+                                 [kExprRefFunc, import_js]);
   builder.addDeclarativeElementSegment([import_wasm, import_js]);
   builder.addFunction('get_global_wasm', kSig_a_v)
       .addBody([kExprGlobalGet, g_wasm.index])

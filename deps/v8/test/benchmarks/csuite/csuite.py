@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # Copyright 2018 the V8 project authors. All rights reserved.
 '''
 C S u i t e                                         because who can remember?
@@ -19,7 +19,7 @@ runs the versions we pull into ./test/benchmarks/data.
 Examples:
 
 Say you want to see how much optimization buys you:
-  ./csuite.py kraken baseline ~/src/v8/out/d8 -x="--noopt"
+  ./csuite.py kraken baseline ~/src/v8/out/d8 -x="--noturbofan"
   ./csuite.py kraken compare ~/src/v8/out/d8
 
 Suppose you are comparing two binaries, quick n' dirty style:

@@ -389,7 +389,7 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return;
-  if (map->is_dictionary_map() || !FLAG_cache_prototype_transitions) return;
+  if (map->is_dictionary_map() || !v8_flags.cache_prototype_transitions) return;
 
   const int header = TransitionArray::kProtoTransitionHeaderSize;
 

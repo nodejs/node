@@ -7,6 +7,7 @@
 
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -18,28 +19,28 @@
 namespace v8 {
 namespace internal {
 
-AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
+AllocationResult ConcurrentAllocator::AllocateRaw(int size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   // TODO(dinfuehr): Add support for allocation observers
 #ifdef DEBUG
   if (local_heap_) local_heap_->VerifyCurrent();
-#endif
+#endif  // DEBUG
 
-  if (object_size > kMaxLabObjectSize) {
-    return AllocateOutsideLab(object_size, alignment, origin);
+  if (size_in_bytes > kMaxLabObjectSize) {
+    return AllocateOutsideLab(size_in_bytes, alignment, origin);
   }
 
-  return AllocateInLab(object_size, alignment, origin);
-}
-
-AllocationResult ConcurrentAllocator::AllocateInLab(
-    int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
-  AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
-  return allocation.IsFailure()
-             ? AllocateInLabSlow(object_size, alignment, origin)
-             : allocation;
+  AllocationResult result;
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
+    result = lab_.AllocateRawAligned(size_in_bytes, alignment);
+  } else {
+    result = lab_.AllocateRawUnaligned(size_in_bytes);
+  }
+  return result.IsFailure()
+             ? AllocateInLabSlow(size_in_bytes, alignment, origin)
+             : result;
 }
 
 }  // namespace internal

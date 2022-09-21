@@ -58,16 +58,16 @@ std::string Status::Message() const {
       return "CBOR: invalid binary";
     case Error::CBOR_UNSUPPORTED_VALUE:
       return "CBOR: unsupported value";
-    case Error::CBOR_NO_INPUT:
-      return "CBOR: no input";
+    case Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE:
+      return "CBOR: unexpected EOF reading envelope";
     case Error::CBOR_INVALID_START_BYTE:
       return "CBOR: invalid start byte";
     case Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE:
-      return "CBOR: unexpected eof expected value";
+      return "CBOR: unexpected EOF expected value";
     case Error::CBOR_UNEXPECTED_EOF_IN_ARRAY:
-      return "CBOR: unexpected eof in array";
+      return "CBOR: unexpected EOF in array";
     case Error::CBOR_UNEXPECTED_EOF_IN_MAP:
-      return "CBOR: unexpected eof in map";
+      return "CBOR: unexpected EOF in map";
     case Error::CBOR_INVALID_MAP_KEY:
       return "CBOR: invalid map key";
     case Error::CBOR_DUPLICATE_MAP_KEY:
@@ -115,6 +115,8 @@ std::string Status::Message() const {
       return "BINDINGS: binary value expected";
     case Error::BINDINGS_DICTIONARY_VALUE_EXPECTED:
       return "BINDINGS: dictionary value expected";
+    case Error::BINDINGS_INVALID_BASE64_STRING:
+      return "BINDINGS: invalid base64 string";
   }
   // Some compilers can't figure out that we can't get here.
   return "INVALID ERROR CODE";

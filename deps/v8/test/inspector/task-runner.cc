@@ -4,11 +4,13 @@
 
 #include "test/inspector/task-runner.h"
 
-#include "include/libplatform/libplatform.h"
 #include "include/v8-exception.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
+#include "src/libplatform/default-platform.h"
+#include "src/utils/locked-queue-inl.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>

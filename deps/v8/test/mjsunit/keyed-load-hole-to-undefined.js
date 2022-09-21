@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-stress-opt --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
-// --nostress-opt is specified because the test corrupts the "pristine"
+// is specified because the test corrupts the "pristine"
 // array prototype chain by storing an element, and this is tracked
 // per-isolate. A subsequent stress run would send the load generic,
 // and no more deoptimizations of foo would occur.

@@ -73,7 +73,3 @@ class TestCase(testcase.D8TestCase):
     if os.path.exists(base_path + self._get_suffix()):
       return base_path + self._get_suffix()
     return base_path + '.mjs'
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

@@ -34,7 +34,11 @@ class NodeAuxData {
 
   // Update entry. Returns true iff entry was changed.
   bool Set(Node* node, T const& data) {
-    size_t const id = node->id();
+    NodeId const id = node->id();
+    return Set(id, data);
+  }
+
+  bool Set(NodeId id, T const& data) {
     if (id >= aux_data_.size()) aux_data_.resize(id + 1, def(zone_));
     if (aux_data_[id] != data) {
       aux_data_[id] = data;
@@ -43,8 +47,9 @@ class NodeAuxData {
     return false;
   }
 
-  T Get(Node* node) const {
-    size_t const id = node->id();
+  T Get(Node* node) const { return Get(node->id()); }
+
+  T Get(NodeId id) const {
     return (id < aux_data_.size()) ? aux_data_[id] : def(zone_);
   }
 
@@ -104,6 +109,28 @@ typename NodeAuxData<T, def>::const_iterator NodeAuxData<T, def>::end() const {
   return typename NodeAuxData<T, def>::const_iterator(&aux_data_,
                                                       aux_data_.size());
 }
+
+template <class T, T kNonExistent>
+class NodeAuxDataMap {
+ public:
+  explicit NodeAuxDataMap(Zone* zone) : map_(zone) {}
+
+  void Put(NodeId key, T value) { map_[key] = value; }
+
+  T Get(NodeId key) const {
+    auto entry = map_.find(key);
+    if (entry == map_.end()) return kNonExistent;
+    return entry->second;
+  }
+
+  void Reserve(size_t count) {
+    size_t new_capacity = map_.size() + count;
+    map_.reserve(new_capacity);
+  }
+
+ private:
+  ZoneUnorderedMap<NodeId, T> map_;
+};
 
 }  // namespace compiler
 }  // namespace internal

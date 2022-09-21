@@ -2,15 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/futex-emulation.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 // Implement Futex API for SharedArrayBuffers as defined in the
@@ -27,7 +21,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
@@ -48,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();

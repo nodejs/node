@@ -174,7 +174,7 @@ class SpillPlacer::Entry {
 
   template <State state>
   uint64_t GetValuesInState() const {
-    STATIC_ASSERT(state < 8);
+    static_assert(state < 8);
     return ((state & 1) ? first_bit_ : ~first_bit_) &
            ((state & 2) ? second_bit_ : ~second_bit_) &
            ((state & 4) ? third_bit_ : ~third_bit_);
@@ -182,7 +182,7 @@ class SpillPlacer::Entry {
 
   template <State state>
   void UpdateValuesToState(uint64_t mask) {
-    STATIC_ASSERT(state < 8);
+    static_assert(state < 8);
     first_bit_ =
         Entry::UpdateBitDataWithMask<(state & 1) != 0>(first_bit_, mask);
     second_bit_ =

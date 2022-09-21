@@ -5,7 +5,6 @@
 #ifndef V8_CODEGEN_RELOC_INFO_H_
 #define V8_CODEGEN_RELOC_INFO_H_
 
-#include "src/codegen/flush-instruction-cache.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 
@@ -57,6 +56,7 @@ class RelocInfo {
     NO_INFO,  // Never recorded value. Most common one, hence value 0.
 
     CODE_TARGET,
+    // TODO(ishell): rename to NEAR_CODE_TARGET.
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
     FULL_EMBEDDED_OBJECT,
@@ -65,19 +65,22 @@ class RelocInfo {
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
 
-    // TODO(ishell): rename to UNEMBEDDED_BUILTIN_ENTRY.
-    // An un-embedded off-heap instruction stream target.
-    // See http://crbug.com/v8/11527 for details.
+    // TODO(ishell): This reloc info shouldn't be used anymore. Remove it.
     RUNTIME_ENTRY,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
-    // Encoded internal reference, used only on RISCV64, MIPS, MIPS64 and PPC.
+    // Encoded internal reference, used only on RISCV64, RISCV32, MIPS64
+    // and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
     // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
-    OFF_HEAP_TARGET,
+    // TODO(ishell): rename to BUILTIN_ENTRY.
+    OFF_HEAP_TARGET,  // FIRST_BUILTIN_ENTRY_MODE
+    // An un-embedded off-heap instruction stream target.
+    // See http://crbug.com/v8/11527 for details.
+    NEAR_BUILTIN_ENTRY,  // LAST_BUILTIN_ENTRY_MODE
 
     // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
@@ -106,10 +109,12 @@ class RelocInfo {
     FIRST_EMBEDDED_OBJECT_RELOC_MODE = COMPRESSED_EMBEDDED_OBJECT,
     LAST_EMBEDDED_OBJECT_RELOC_MODE = DATA_EMBEDDED_OBJECT,
     LAST_GCED_ENUM = LAST_EMBEDDED_OBJECT_RELOC_MODE,
+    FIRST_BUILTIN_ENTRY_MODE = OFF_HEAP_TARGET,
+    LAST_BUILTIN_ENTRY_MODE = NEAR_BUILTIN_ENTRY,
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
   };
 
-  STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
+  static_assert(NUMBER_OF_MODES <= kBitsPerInt);
 
   RelocInfo() = default;
 
@@ -155,7 +160,6 @@ class RelocInfo {
     return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
                            LAST_EMBEDDED_OBJECT_RELOC_MODE);
   }
-  // TODO(ishell): rename to IsUnembeddedBuiltinEntry().
   static constexpr bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;
   }
@@ -190,6 +194,13 @@ class RelocInfo {
   }
   static constexpr bool IsOffHeapTarget(Mode mode) {
     return mode == OFF_HEAP_TARGET;
+  }
+  static constexpr bool IsNearBuiltinEntry(Mode mode) {
+    return mode == NEAR_BUILTIN_ENTRY;
+  }
+  static constexpr bool IsBuiltinEntryMode(Mode mode) {
+    return base::IsInRange(mode, FIRST_BUILTIN_ENTRY_MODE,
+                           LAST_BUILTIN_ENTRY_MODE);
   }
   static constexpr bool IsNoInfo(Mode mode) { return mode == NO_INFO; }
 
@@ -249,6 +260,10 @@ class RelocInfo {
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
+  void set_off_heap_target_address(
+      Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   V8_INLINE Address target_address();
@@ -261,6 +276,9 @@ class RelocInfo {
       Heap* heap, HeapObject target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  // Decodes builtin ID encoded as a PC-relative offset. This encoding is used
+  // during code generation of call/jump with NEAR_BUILTIN_ENTRY.
+  V8_INLINE Builtin target_builtin_at(Assembler* origin);
   V8_INLINE Address target_runtime_entry(Assembler* origin);
   V8_INLINE void set_target_runtime_entry(
       Address target,
@@ -323,7 +341,7 @@ class RelocInfo {
       visitor->VisitInternalReference(host(), this);
     } else if (IsRuntimeEntry(mode)) {
       visitor->VisitRuntimeEntry(host(), this);
-    } else if (IsOffHeapTarget(mode)) {
+    } else if (IsBuiltinEntryMode(mode)) {
       visitor->VisitOffHeapTarget(host(), this);
     }
   }
@@ -365,6 +383,7 @@ class RelocInfo {
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
+           ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
            ModeMask(RelocInfo::RUNTIME_ENTRY) |
            ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
   }
@@ -414,7 +433,6 @@ class RelocInfoWriter {
   inline void WriteMode(RelocInfo::Mode rmode);
   inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
   inline void WriteIntData(int data_delta);
-  inline void WriteData(intptr_t data_delta);
 
   byte* pos_;
   byte* last_pc_;

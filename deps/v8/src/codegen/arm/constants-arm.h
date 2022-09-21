@@ -60,6 +60,10 @@ constexpr int kVldrMaxReachBits = 10;
 // is still addressable with a single load instruction.
 constexpr int kRootRegisterBias = 4095;
 
+// TODO(pkasting): For all the enum type aliases below, if overload resolution
+// is desired, we could try to add some kind of constexpr class with implicit
+// conversion to/from int and operator overloads, then inherit from that.
+
 // -----------------------------------------------------------------------------
 // Conditions.
 
@@ -73,32 +77,32 @@ constexpr int kRootRegisterBias = 4095;
 // General constants are in an anonymous enum in class Instr.
 
 // Values for the condition field as defined in section A3.2
-enum Condition {
-  kNoCondition = -1,
+using Condition = int;
+constexpr Condition kNoCondition = -1;
 
-  eq = 0 << 28,   // Z set            Equal.
-  ne = 1 << 28,   // Z clear          Not equal.
-  cs = 2 << 28,   // C set            Unsigned higher or same.
-  cc = 3 << 28,   // C clear          Unsigned lower.
-  mi = 4 << 28,   // N set            Negative.
-  pl = 5 << 28,   // N clear          Positive or zero.
-  vs = 6 << 28,   // V set            Overflow.
-  vc = 7 << 28,   // V clear          No overflow.
-  hi = 8 << 28,   // C set, Z clear   Unsigned higher.
-  ls = 9 << 28,   // C clear or Z set Unsigned lower or same.
-  ge = 10 << 28,  // N == V           Greater or equal.
-  lt = 11 << 28,  // N != V           Less than.
-  gt = 12 << 28,  // Z clear, N == V  Greater than.
-  le = 13 << 28,  // Z set or N != V  Less then or equal
-  al = 14 << 28,  //                  Always.
+constexpr Condition eq = 0 << 28;   // Z set            Equal.
+constexpr Condition ne = 1 << 28;   // Z clear          Not equal.
+constexpr Condition cs = 2 << 28;   // C set            Unsigned higher or same.
+constexpr Condition cc = 3 << 28;   // C clear          Unsigned lower.
+constexpr Condition mi = 4 << 28;   // N set            Negative.
+constexpr Condition pl = 5 << 28;   // N clear          Positive or zero.
+constexpr Condition vs = 6 << 28;   // V set            Overflow.
+constexpr Condition vc = 7 << 28;   // V clear          No overflow.
+constexpr Condition hi = 8 << 28;   // C set, Z clear   Unsigned higher.
+constexpr Condition ls = 9 << 28;   // C clear or Z set Unsigned lower or same.
+constexpr Condition ge = 10 << 28;  // N == V           Greater or equal.
+constexpr Condition lt = 11 << 28;  // N != V           Less than.
+constexpr Condition gt = 12 << 28;  // Z clear, N == V  Greater than.
+constexpr Condition le = 13 << 28;  // Z set or N != V  Less then or equal
+constexpr Condition al = 14 << 28;  //                  Always.
 
-  kSpecialCondition = 15 << 28,  // Special condition (refer to section A3.2.1).
-  kNumberOfConditions = 16,
+// Special condition (refer to section A3.2.1).
+constexpr Condition kSpecialCondition = 15 << 28;
+constexpr Condition kNumberOfConditions = 16;
 
-  // Aliases.
-  hs = cs,  // C set            Unsigned higher or same.
-  lo = cc   // C clear          Unsigned lower.
-};
+// Aliases.
+constexpr Condition hs = cs;  // C set            Unsigned higher or same.
+constexpr Condition lo = cc;  // C clear          Unsigned lower.
 
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
@@ -116,196 +120,200 @@ using Instr = int32_t;
 
 // Opcodes for Data-processing instructions (instructions with a type 0 and 1)
 // as defined in section A3.4
-enum Opcode {
-  AND = 0 << 21,   // Logical AND.
-  EOR = 1 << 21,   // Logical Exclusive OR.
-  SUB = 2 << 21,   // Subtract.
-  RSB = 3 << 21,   // Reverse Subtract.
-  ADD = 4 << 21,   // Add.
-  ADC = 5 << 21,   // Add with Carry.
-  SBC = 6 << 21,   // Subtract with Carry.
-  RSC = 7 << 21,   // Reverse Subtract with Carry.
-  TST = 8 << 21,   // Test.
-  TEQ = 9 << 21,   // Test Equivalence.
-  CMP = 10 << 21,  // Compare.
-  CMN = 11 << 21,  // Compare Negated.
-  ORR = 12 << 21,  // Logical (inclusive) OR.
-  MOV = 13 << 21,  // Move.
-  BIC = 14 << 21,  // Bit Clear.
-  MVN = 15 << 21   // Move Not.
-};
+using Opcode = int;
+constexpr Opcode AND = 0 << 21;   // Logical AND.
+constexpr Opcode EOR = 1 << 21;   // Logical Exclusive OR.
+constexpr Opcode SUB = 2 << 21;   // Subtract.
+constexpr Opcode RSB = 3 << 21;   // Reverse Subtract.
+constexpr Opcode ADD = 4 << 21;   // Add.
+constexpr Opcode ADC = 5 << 21;   // Add with Carry.
+constexpr Opcode SBC = 6 << 21;   // Subtract with Carry.
+constexpr Opcode RSC = 7 << 21;   // Reverse Subtract with Carry.
+constexpr Opcode TST = 8 << 21;   // Test.
+constexpr Opcode TEQ = 9 << 21;   // Test Equivalence.
+constexpr Opcode CMP = 10 << 21;  // Compare.
+constexpr Opcode CMN = 11 << 21;  // Compare Negated.
+constexpr Opcode ORR = 12 << 21;  // Logical (inclusive) OR.
+constexpr Opcode MOV = 13 << 21;  // Move.
+constexpr Opcode BIC = 14 << 21;  // Bit Clear.
+constexpr Opcode MVN = 15 << 21;  // Move Not.
 
 // The bits for bit 7-4 for some type 0 miscellaneous instructions.
-enum MiscInstructionsBits74 {
-  // With bits 22-21 01.
-  BX = 1 << 4,
-  BXJ = 2 << 4,
-  BLX = 3 << 4,
-  BKPT = 7 << 4,
+using MiscInstructionsBits74 = int;
+// With bits 22-21 01.
+constexpr MiscInstructionsBits74 BX = 1 << 4;
+constexpr MiscInstructionsBits74 BXJ = 2 << 4;
+constexpr MiscInstructionsBits74 BLX = 3 << 4;
+constexpr MiscInstructionsBits74 BKPT = 7 << 4;
 
-  // With bits 22-21 11.
-  CLZ = 1 << 4
-};
+// With bits 22-21 11.
+constexpr MiscInstructionsBits74 CLZ = 1 << 4;
 
 // Instruction encoding bits and masks.
-enum {
-  H = 1 << 5,   // Halfword (or byte).
-  S6 = 1 << 6,  // Signed (or unsigned).
-  L = 1 << 20,  // Load (or store).
-  S = 1 << 20,  // Set condition code (or leave unchanged).
-  W = 1 << 21,  // Writeback base register (or leave unchanged).
-  A = 1 << 21,  // Accumulate in multiply instruction (or not).
-  B = 1 << 22,  // Unsigned byte (or word).
-  N = 1 << 22,  // Long (or short).
-  U = 1 << 23,  // Positive (or negative) offset/index.
-  P = 1 << 24,  // Offset/pre-indexed addressing (or post-indexed addressing).
-  I = 1 << 25,  // Immediate shifter operand (or not).
-  B0 = 1 << 0,
-  B4 = 1 << 4,
-  B5 = 1 << 5,
-  B6 = 1 << 6,
-  B7 = 1 << 7,
-  B8 = 1 << 8,
-  B9 = 1 << 9,
-  B10 = 1 << 10,
-  B12 = 1 << 12,
-  B16 = 1 << 16,
-  B17 = 1 << 17,
-  B18 = 1 << 18,
-  B19 = 1 << 19,
-  B20 = 1 << 20,
-  B21 = 1 << 21,
-  B22 = 1 << 22,
-  B23 = 1 << 23,
-  B24 = 1 << 24,
-  B25 = 1 << 25,
-  B26 = 1 << 26,
-  B27 = 1 << 27,
-  B28 = 1 << 28,
+constexpr int H = 1 << 5;   // Halfword (or byte).
+constexpr int S6 = 1 << 6;  // Signed (or unsigned).
+constexpr int L = 1 << 20;  // Load (or store).
+constexpr int S = 1 << 20;  // Set condition code (or leave unchanged).
+constexpr int W = 1 << 21;  // Writeback base register (or leave unchanged).
+constexpr int A = 1 << 21;  // Accumulate in multiply instruction (or not).
+constexpr int B = 1 << 22;  // Unsigned byte (or word).
+constexpr int N = 1 << 22;  // Long (or short).
+constexpr int U = 1 << 23;  // Positive (or negative) offset/index.
+constexpr int P =
+    1 << 24;  // Offset/pre-indexed addressing (or post-indexed addressing).
+constexpr int I = 1 << 25;  // Immediate shifter operand (or not).
+constexpr int B0 = 1 << 0;
+constexpr int B4 = 1 << 4;
+constexpr int B5 = 1 << 5;
+constexpr int B6 = 1 << 6;
+constexpr int B7 = 1 << 7;
+constexpr int B8 = 1 << 8;
+constexpr int B9 = 1 << 9;
+constexpr int B10 = 1 << 10;
+constexpr int B12 = 1 << 12;
+constexpr int B16 = 1 << 16;
+constexpr int B17 = 1 << 17;
+constexpr int B18 = 1 << 18;
+constexpr int B19 = 1 << 19;
+constexpr int B20 = 1 << 20;
+constexpr int B21 = 1 << 21;
+constexpr int B22 = 1 << 22;
+constexpr int B23 = 1 << 23;
+constexpr int B24 = 1 << 24;
+constexpr int B25 = 1 << 25;
+constexpr int B26 = 1 << 26;
+constexpr int B27 = 1 << 27;
+constexpr int B28 = 1 << 28;
 
-  // Instruction bit masks.
-  kCondMask = 15 << 28,
-  kALUMask = 0x6f << 21,
-  kRdMask = 15 << 12,  // In str instruction.
-  kCoprocessorMask = 15 << 8,
-  kOpCodeMask = 15 << 21,  // In data-processing instructions.
-  kImm24Mask = (1 << 24) - 1,
-  kImm16Mask = (1 << 16) - 1,
-  kImm8Mask = (1 << 8) - 1,
-  kOff12Mask = (1 << 12) - 1,
-  kOff8Mask = (1 << 8) - 1
-};
+// Instruction bit masks.
+constexpr int kCondMask = 15 << 28;
+constexpr int kALUMask = 0x6f << 21;
+constexpr int kRdMask = 15 << 12;  // In str instruction.
+constexpr int kCoprocessorMask = 15 << 8;
+constexpr int kOpCodeMask = 15 << 21;  // In data-processing instructions.
+constexpr int kImm24Mask = (1 << 24) - 1;
+constexpr int kImm16Mask = (1 << 16) - 1;
+constexpr int kImm8Mask = (1 << 8) - 1;
+constexpr int kOff12Mask = (1 << 12) - 1;
+constexpr int kOff8Mask = (1 << 8) - 1;
 
-enum BarrierOption {
-  OSHLD = 0x1,
-  OSHST = 0x2,
-  OSH = 0x3,
-  NSHLD = 0x5,
-  NSHST = 0x6,
-  NSH = 0x7,
-  ISHLD = 0x9,
-  ISHST = 0xa,
-  ISH = 0xb,
-  LD = 0xd,
-  ST = 0xe,
-  SY = 0xf,
-};
+using BarrierOption = int;
+constexpr BarrierOption OSHLD = 0x1;
+constexpr BarrierOption OSHST = 0x2;
+constexpr BarrierOption OSH = 0x3;
+constexpr BarrierOption NSHLD = 0x5;
+constexpr BarrierOption NSHST = 0x6;
+constexpr BarrierOption NSH = 0x7;
+constexpr BarrierOption ISHLD = 0x9;
+constexpr BarrierOption ISHST = 0xa;
+constexpr BarrierOption ISH = 0xb;
+constexpr BarrierOption LD = 0xd;
+constexpr BarrierOption ST = 0xe;
+constexpr BarrierOption SY = 0xf;
 
 // -----------------------------------------------------------------------------
 // Addressing modes and instruction variants.
 
 // Condition code updating mode.
-enum SBit {
-  SetCC = 1 << 20,   // Set condition code.
-  LeaveCC = 0 << 20  // Leave condition code unchanged.
-};
+using SBit = int;
+constexpr SBit SetCC = 1 << 20;    // Set condition code.
+constexpr SBit LeaveCC = 0 << 20;  // Leave condition code unchanged.
 
 // Status register selection.
-enum SRegister { CPSR = 0 << 22, SPSR = 1 << 22 };
+using SRegister = int;
+constexpr SRegister CPSR = 0 << 22;
+constexpr SRegister SPSR = 1 << 22;
 
 // Shifter types for Data-processing operands as defined in section A5.1.2.
-enum ShiftOp {
-  LSL = 0 << 5,  // Logical shift left.
-  LSR = 1 << 5,  // Logical shift right.
-  ASR = 2 << 5,  // Arithmetic shift right.
-  ROR = 3 << 5,  // Rotate right.
+using ShiftOp = int;
+constexpr ShiftOp LSL = 0 << 5;  // Logical shift left.
+constexpr ShiftOp LSR = 1 << 5;  // Logical shift right.
+constexpr ShiftOp ASR = 2 << 5;  // Arithmetic shift right.
+constexpr ShiftOp ROR = 3 << 5;  // Rotate right.
 
-  // RRX is encoded as ROR with shift_imm == 0.
-  // Use a special code to make the distinction. The RRX ShiftOp is only used
-  // as an argument, and will never actually be encoded. The Assembler will
-  // detect it and emit the correct ROR shift operand with shift_imm == 0.
-  RRX = -1,
-  kNumberOfShifts = 4
-};
+// RRX is encoded as ROR with shift_imm == 0.
+// Use a special code to make the distinction. The RRX ShiftOp is only used
+// as an argument, and will never actually be encoded. The Assembler will
+// detect it and emit the correct ROR shift operand with shift_imm == 0.
+constexpr ShiftOp RRX = -1;
+constexpr ShiftOp kNumberOfShifts = 4;
 
 // Status register fields.
-enum SRegisterField {
-  CPSR_c = CPSR | 1 << 16,
-  CPSR_x = CPSR | 1 << 17,
-  CPSR_s = CPSR | 1 << 18,
-  CPSR_f = CPSR | 1 << 19,
-  SPSR_c = SPSR | 1 << 16,
-  SPSR_x = SPSR | 1 << 17,
-  SPSR_s = SPSR | 1 << 18,
-  SPSR_f = SPSR | 1 << 19
-};
+using SRegisterField = int;
+constexpr SRegisterField CPSR_c = CPSR | 1 << 16;
+constexpr SRegisterField CPSR_x = CPSR | 1 << 17;
+constexpr SRegisterField CPSR_s = CPSR | 1 << 18;
+constexpr SRegisterField CPSR_f = CPSR | 1 << 19;
+constexpr SRegisterField SPSR_c = SPSR | 1 << 16;
+constexpr SRegisterField SPSR_x = SPSR | 1 << 17;
+constexpr SRegisterField SPSR_s = SPSR | 1 << 18;
+constexpr SRegisterField SPSR_f = SPSR | 1 << 19;
 
 // Status register field mask (or'ed SRegisterField enum values).
 using SRegisterFieldMask = uint32_t;
 
 // Memory operand addressing mode.
-enum AddrMode {
-  // Bit encoding P U W.
-  Offset = (8 | 4 | 0) << 21,     // Offset (without writeback to base).
-  PreIndex = (8 | 4 | 1) << 21,   // Pre-indexed addressing with writeback.
-  PostIndex = (0 | 4 | 0) << 21,  // Post-indexed addressing with writeback.
-  NegOffset =
-      (8 | 0 | 0) << 21,  // Negative offset (without writeback to base).
-  NegPreIndex = (8 | 0 | 1) << 21,  // Negative pre-indexed with writeback.
-  NegPostIndex = (0 | 0 | 0) << 21  // Negative post-indexed with writeback.
-};
+using AddrMode = int;
+// Bit encoding P U W.
+constexpr AddrMode Offset = (8 | 4 | 0)
+                            << 21;  // Offset (without writeback to base).
+constexpr AddrMode PreIndex = (8 | 4 | 1)
+                              << 21;  // Pre-indexed addressing with writeback.
+constexpr AddrMode PostIndex =
+    (0 | 4 | 0) << 21;  // Post-indexed addressing with writeback.
+constexpr AddrMode NegOffset =
+    (8 | 0 | 0) << 21;  // Negative offset (without writeback to base).
+constexpr AddrMode NegPreIndex = (8 | 0 | 1)
+                                 << 21;  // Negative pre-indexed with writeback.
+constexpr AddrMode NegPostIndex =
+    (0 | 0 | 0) << 21;  // Negative post-indexed with writeback.
 
 // Load/store multiple addressing mode.
-enum BlockAddrMode {
-  // Bit encoding P U W .
-  da = (0 | 0 | 0) << 21,    // Decrement after.
-  ia = (0 | 4 | 0) << 21,    // Increment after.
-  db = (8 | 0 | 0) << 21,    // Decrement before.
-  ib = (8 | 4 | 0) << 21,    // Increment before.
-  da_w = (0 | 0 | 1) << 21,  // Decrement after with writeback to base.
-  ia_w = (0 | 4 | 1) << 21,  // Increment after with writeback to base.
-  db_w = (8 | 0 | 1) << 21,  // Decrement before with writeback to base.
-  ib_w = (8 | 4 | 1) << 21,  // Increment before with writeback to base.
+using BlockAddrMode = int;
+// Bit encoding P U W .
+constexpr BlockAddrMode da = (0 | 0 | 0) << 21;  // Decrement after.
+constexpr BlockAddrMode ia = (0 | 4 | 0) << 21;  // Increment after.
+constexpr BlockAddrMode db = (8 | 0 | 0) << 21;  // Decrement before.
+constexpr BlockAddrMode ib = (8 | 4 | 0) << 21;  // Increment before.
+constexpr BlockAddrMode da_w =
+    (0 | 0 | 1) << 21;  // Decrement after with writeback to base.
+constexpr BlockAddrMode ia_w =
+    (0 | 4 | 1) << 21;  // Increment after with writeback to base.
+constexpr BlockAddrMode db_w =
+    (8 | 0 | 1) << 21;  // Decrement before with writeback to base.
+constexpr BlockAddrMode ib_w =
+    (8 | 4 | 1) << 21;  // Increment before with writeback to base.
 
-  // Alias modes for comparison when writeback does not matter.
-  da_x = (0 | 0 | 0) << 21,  // Decrement after.
-  ia_x = (0 | 4 | 0) << 21,  // Increment after.
-  db_x = (8 | 0 | 0) << 21,  // Decrement before.
-  ib_x = (8 | 4 | 0) << 21,  // Increment before.
+// Alias modes for comparison when writeback does not matter.
+constexpr BlockAddrMode da_x = (0 | 0 | 0) << 21;  // Decrement after.
+constexpr BlockAddrMode ia_x = (0 | 4 | 0) << 21;  // Increment after.
+constexpr BlockAddrMode db_x = (8 | 0 | 0) << 21;  // Decrement before.
+constexpr BlockAddrMode ib_x = (8 | 4 | 0) << 21;  // Increment before.
 
-  kBlockAddrModeMask = (8 | 4 | 1) << 21
-};
+constexpr BlockAddrMode kBlockAddrModeMask = (8 | 4 | 1) << 21;
 
 // Coprocessor load/store operand size.
-enum LFlag {
-  Long = 1 << 22,  // Long load/store coprocessor.
-  Short = 0 << 22  // Short load/store coprocessor.
-};
+using LFlag = int;
+constexpr LFlag Long = 1 << 22;   // Long load/store coprocessor.
+constexpr LFlag Short = 0 << 22;  // Short load/store coprocessor.
 
 // Neon sizes.
-enum NeonSize { Neon8 = 0x0, Neon16 = 0x1, Neon32 = 0x2, Neon64 = 0x3 };
+using NeonSize = int;
+constexpr NeonSize Neon8 = 0x0;
+constexpr NeonSize Neon16 = 0x1;
+constexpr NeonSize Neon32 = 0x2;
+constexpr NeonSize Neon64 = 0x3;
 
 // NEON data type, top bit set for unsigned data types.
-enum NeonDataType {
-  NeonS8 = 0,
-  NeonS16 = 1,
-  NeonS32 = 2,
-  NeonS64 = 3,
-  NeonU8 = 4,
-  NeonU16 = 5,
-  NeonU32 = 6,
-  NeonU64 = 7
-};
+using NeonDataType = int;
+constexpr NeonDataType NeonS8 = 0;
+constexpr NeonDataType NeonS16 = 1;
+constexpr NeonDataType NeonS32 = 2;
+constexpr NeonDataType NeonS64 = 3;
+constexpr NeonDataType NeonU8 = 4;
+constexpr NeonDataType NeonU16 = 5;
+constexpr NeonDataType NeonU32 = 6;
+constexpr NeonDataType NeonU64 = 7;
 
 inline int NeonU(NeonDataType dt) { return static_cast<int>(dt) >> 2; }
 inline int NeonSz(NeonDataType dt) { return static_cast<int>(dt) & 0x3; }
@@ -320,7 +328,11 @@ inline NeonSize NeonDataTypeToSize(NeonDataType dt) {
   return static_cast<NeonSize>(NeonSz(dt));
 }
 
-enum NeonListType { nlt_1 = 0x7, nlt_2 = 0xA, nlt_3 = 0x6, nlt_4 = 0x2 };
+using NeonListType = int;
+constexpr NeonListType nlt_1 = 0x7;
+constexpr NeonListType nlt_2 = 0xA;
+constexpr NeonListType nlt_3 = 0x6;
+constexpr NeonListType nlt_4 = 0x2;
 
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.
@@ -329,56 +341,55 @@ enum NeonListType { nlt_1 = 0x7, nlt_2 = 0xA, nlt_3 = 0x6, nlt_4 = 0x2 };
 // simulator.
 // svc (formerly swi) provides a 24bit immediate value. Use bits 22:0 for
 // standard SoftwareInterrupCode. Bit 23 is reserved for the stop feature.
-enum SoftwareInterruptCodes {
-  // transition to C code
-  kCallRtRedirected = 0x10,
-  // break point
-  kBreakpoint = 0x20,
-  // stop
-  kStopCode = 1 << 23
-};
-const uint32_t kStopCodeMask = kStopCode - 1;
-const uint32_t kMaxStopCode = kStopCode - 1;
-const int32_t kDefaultStopCode = -1;
+using SoftwareInterruptCodes = int;
+// transition to C code
+constexpr SoftwareInterruptCodes kCallRtRedirected = 0x10;
+// break point
+constexpr SoftwareInterruptCodes kBreakpoint = 0x20;
+// stop
+constexpr SoftwareInterruptCodes kStopCode = 1 << 23;
+constexpr uint32_t kStopCodeMask = kStopCode - 1;
+constexpr uint32_t kMaxStopCode = kStopCode - 1;
+constexpr int32_t kDefaultStopCode = -1;
 
 // Type of VFP register. Determines register encoding.
-enum VFPRegPrecision {
-  kSinglePrecision = 0,
-  kDoublePrecision = 1,
-  kSimd128Precision = 2
-};
+using VFPRegPrecision = int;
+constexpr VFPRegPrecision kSinglePrecision = 0;
+constexpr VFPRegPrecision kDoublePrecision = 1;
+constexpr VFPRegPrecision kSimd128Precision = 2;
 
 // VFP FPSCR constants.
-enum VFPConversionMode { kFPSCRRounding = 0, kDefaultRoundToZero = 1 };
+using VFPConversionMode = int;
+constexpr VFPConversionMode kFPSCRRounding = 0;
+constexpr VFPConversionMode kDefaultRoundToZero = 1;
 
 // This mask does not include the "inexact" or "input denormal" cumulative
 // exceptions flags, because we usually don't want to check for it.
-const uint32_t kVFPExceptionMask = 0xf;
-const uint32_t kVFPInvalidOpExceptionBit = 1 << 0;
-const uint32_t kVFPOverflowExceptionBit = 1 << 2;
-const uint32_t kVFPUnderflowExceptionBit = 1 << 3;
-const uint32_t kVFPInexactExceptionBit = 1 << 4;
-const uint32_t kVFPFlushToZeroMask = 1 << 24;
-const uint32_t kVFPDefaultNaNModeControlBit = 1 << 25;
+constexpr uint32_t kVFPExceptionMask = 0xf;
+constexpr uint32_t kVFPInvalidOpExceptionBit = 1 << 0;
+constexpr uint32_t kVFPOverflowExceptionBit = 1 << 2;
+constexpr uint32_t kVFPUnderflowExceptionBit = 1 << 3;
+constexpr uint32_t kVFPInexactExceptionBit = 1 << 4;
+constexpr uint32_t kVFPFlushToZeroMask = 1 << 24;
+constexpr uint32_t kVFPDefaultNaNModeControlBit = 1 << 25;
 
-const uint32_t kVFPNConditionFlagBit = 1 << 31;
-const uint32_t kVFPZConditionFlagBit = 1 << 30;
-const uint32_t kVFPCConditionFlagBit = 1 << 29;
-const uint32_t kVFPVConditionFlagBit = 1 << 28;
+constexpr uint32_t kVFPNConditionFlagBit = 1 << 31;
+constexpr uint32_t kVFPZConditionFlagBit = 1 << 30;
+constexpr uint32_t kVFPCConditionFlagBit = 1 << 29;
+constexpr uint32_t kVFPVConditionFlagBit = 1 << 28;
 
 // VFP rounding modes. See ARM DDI 0406B Page A2-29.
-enum VFPRoundingMode {
-  RN = 0 << 22,  // Round to Nearest.
-  RP = 1 << 22,  // Round towards Plus Infinity.
-  RM = 2 << 22,  // Round towards Minus Infinity.
-  RZ = 3 << 22,  // Round towards zero.
+using VFPRoundingMode = int;
+constexpr VFPRoundingMode RN = 0 << 22;  // Round to Nearest.
+constexpr VFPRoundingMode RP = 1 << 22;  // Round towards Plus Infinity.
+constexpr VFPRoundingMode RM = 2 << 22;  // Round towards Minus Infinity.
+constexpr VFPRoundingMode RZ = 3 << 22;  // Round towards zero.
 
-  // Aliases.
-  kRoundToNearest = RN,
-  kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM,
-  kRoundToZero = RZ
-};
+// Aliases.
+constexpr VFPRoundingMode kRoundToNearest = RN;
+constexpr VFPRoundingMode kRoundToPlusInf = RP;
+constexpr VFPRoundingMode kRoundToMinusInf = RM;
+constexpr VFPRoundingMode kRoundToZero = RZ;
 
 const uint32_t kVFPRoundingModeMask = 3 << 22;
 

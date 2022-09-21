@@ -249,7 +249,7 @@
   'ecma/Date/15.9.2.2-5': [PASS, FAIL],
   'ecma/Date/15.9.2.2-6': [PASS, FAIL],
 
-  # 1026139: These date tests fail on arm and mips.
+  # 1026139: These date tests fail on arm.
   # These date tests also fail in a time zone without daylight saving time.
   'ecma/Date/15.9.5.29-1': [PASS, FAIL],
   'ecma/Date/15.9.5.28-1': [PASS, FAIL],
@@ -270,8 +270,8 @@
   'ecma/Date/15.9.5.18': [PASS,  ['no_i18n == False', FAIL]],
   'ecma/Date/15.9.5.22-1': [PASS, ['no_i18n == False', FAIL]],
 
-  # 1050186: Arm/MIPS vm is broken;  probably unrelated to dates
-  'ecma/Date/15.9.5.22-2': [PASS, ['no_i18n == False or arch == arm or arch == mipsel or arch == mips', FAIL]],
+  # 1050186: Arm vm is broken;  probably unrelated to dates
+  'ecma/Date/15.9.5.22-2': [PASS, ['no_i18n == False or arch == arm', FAIL]],
 
   # Flaky test that fails due to what appears to be a bug in the test.
   # Occurs depending on current time
@@ -959,7 +959,7 @@
 }],  # 'arch ==  arm64'
 
 
-['arch == mipsel or arch == mips64el or arch == mips64', {
+['arch == mips64el or arch == mips64', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -976,35 +976,11 @@
 
   # BUG(1040): This test might time out.
   'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips64'
-
-['arch == mipsel and simulator_run', {
-  # Crashes due to C stack overflow.
-  'js1_5/extensions/regress-355497': [SKIP],
-}], # 'arch == mipsel and simulator_run'
+}],  # 'arch == mips64el or arch == mips64'
 
 ['arch == mips64el and simulator_run', {
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }], # 'arch == mips64el and simulator_run'
-
-['arch == mips', {
-
-  # BUG(3251229): Times out when running new crankshaft test script.
-  'ecma_3/RegExp/regress-311414': [SKIP],
-  'ecma/Date/15.9.5.8': [SKIP],
-  'ecma/Date/15.9.5.10-2': [SKIP],
-  'ecma/Date/15.9.5.11-2': [SKIP],
-  'ecma/Date/15.9.5.12-2': [SKIP],
-  'js1_5/Array/regress-99120-02': [SKIP],
-  'js1_5/extensions/regress-371636': [SKIP],
-  'js1_5/Regress/regress-203278-1': [SKIP],
-  'js1_5/Regress/regress-404755': [SKIP],
-  'js1_5/Regress/regress-451322': [SKIP],
-
-
-  # BUG(1040): This test might time out.
-  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
-}],  # 'arch == mips'
 
 ['arch == arm and simulator_run', {
 

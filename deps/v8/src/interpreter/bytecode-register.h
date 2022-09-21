@@ -29,6 +29,9 @@ class V8_EXPORT_PRIVATE Register final {
   static Register FromParameterIndex(int index);
   int ToParameterIndex() const;
 
+  static Register receiver() { return FromParameterIndex(0); }
+  bool is_receiver() const { return ToParameterIndex() == 0; }
+
   // Returns an invalid register.
   static Register invalid_value() { return Register(); }
 

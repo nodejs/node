@@ -564,14 +564,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, AbortReason reason);
+  void Assert(Condition cond, AbortReason reason) NOOP_UNLESS_DEBUG_CODE
 
   // Like Assert(), but without condition.
   // Use --debug_code to enable.
-  void AssertUnreachable(AbortReason reason);
+  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE
 
   void AssertSmi(Register object,
-                 AbortReason reason = AbortReason::kOperandIsNotASmi);
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
@@ -694,7 +695,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
-  void AssertSpAligned();
+  void AssertSpAligned() NOOP_UNLESS_DEBUG_CODE
 
   // Copy slot_count stack slots from the stack offset specified by src to
   // the stack offset specified by dst. The offsets and count are expressed in
@@ -778,7 +779,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
-  void AssertPositiveOrZero(Register value);
+  void AssertPositiveOrZero(Register value) NOOP_UNLESS_DEBUG_CODE
 
 #define DECLARE_FUNCTION(FN, REGTYPE, REG, OP) \
   inline void FN(const REGTYPE REG, const MemOperand& addr);
@@ -838,12 +839,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                SaveFPRegsMode fp_mode);
 
   void CallRecordWriteStubSaveRegisters(
-      Register object, Operand offset,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Operand offset, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
-      Register object, Register slot_address,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // For a given |object| and |offset|:
@@ -943,6 +942,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
+                                        Register scratch);
+
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<CodeT> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -963,7 +971,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
   void CallBuiltinByIndex(Register builtin);
   void CallBuiltin(Builtin builtin);
-  void TailCallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
@@ -1055,6 +1063,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Sxtw(const Register& rd, const Register& rn);
   inline void Ubfiz(const Register& rd, const Register& rn, unsigned lsb,
                     unsigned width);
+  inline void Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
+                    unsigned width);
   inline void Ubfx(const Register& rd, const Register& rn, unsigned lsb,
                    unsigned width);
   inline void Lsr(const Register& rd, const Register& rn, unsigned shift);
@@ -1098,6 +1108,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    Condition cond);
   inline void CcmpTagged(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond);
+  inline void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv,
+                   Condition cond);
 
   inline void Clz(const Register& rd, const Register& rn);
 
@@ -1141,7 +1153,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     ucvtf(vd, vn, fbits);
   }
 
-  void AssertFPCRState(Register fpcr = NoReg);
+  void AssertFPCRState(Register fpcr = NoReg) NOOP_UNLESS_DEBUG_CODE
   void CanonicalizeNaN(const VRegister& dst, const VRegister& src);
   void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
@@ -1149,6 +1161,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Cset(const Register& rd, Condition cond);
   inline void Csetm(const Register& rd, Condition cond);
   inline void Fccmp(const VRegister& fn, const VRegister& fm, StatusFlags nzcv,
+                    Condition cond);
+  inline void Fccmp(const VRegister& fn, const double value, StatusFlags nzcv,
                     Condition cond);
   inline void Csinc(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
@@ -1543,16 +1557,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   inline void Ngc(const Register& rd, const Operand& operand);
   inline void Ngcs(const Register& rd, const Operand& operand);
 
-  inline void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv,
-                   Condition cond);
-
 #define DECLARE_FUNCTION(FN, OP) \
   inline void FN(const Register& rs, const Register& rt, const Register& rn);
   STLX_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
   // Branch type inversion relies on these relations.
-  STATIC_ASSERT((reg_zero == (reg_not_zero ^ 1)) &&
+  static_assert((reg_zero == (reg_not_zero ^ 1)) &&
                 (reg_bit_clear == (reg_bit_set ^ 1)) &&
                 (always == (never ^ 1)));
 
@@ -1615,8 +1626,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     mvni(vd, imm8, shift, shift_amount);
   }
   inline void Rev(const Register& rd, const Register& rn);
-  inline void Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
-                    unsigned width);
   inline void Smaddl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
   inline void Smsubl(const Register& rd, const Register& rn, const Register& rm,
@@ -1824,6 +1833,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // authenticates the link register after popping it.
   void PopCalleeSavedRegisters();
 
+  // Tiering support.
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure);
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind,
+      Label* flags_need_processing);
+  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                                    Register feedback_vector);
+
   // Helpers ------------------------------------------------------------------
 
   template <typename Field>
@@ -1838,6 +1859,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
+  void JumpIfCodeTIsMarkedForDeoptimization(
+      Register codet, Register scratch, Label* if_marked_for_deoptimization);
+  Operand ClearedValue() const;
+
   Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----
@@ -1846,32 +1871,33 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object,
-                    AbortReason reason = AbortReason::kOperandIsASmi);
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a CodeT, enabled via --debug-code.
-  void AssertCodeT(Register object);
+  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
-  void AssertConstructor(Register object);
+  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object);
+  void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a callable JSFunction, enabled via
   // --debug-code.
-  void AssertCallableFunction(Register object);
+  void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
+  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
-  void AssertBoundFunction(Register object);
+  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object);
+  void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // ---- Calling / Jumping helpers ----
 
@@ -2037,14 +2063,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitIncrementCounter(counter, value, scratch1, scratch2);
   }
   void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch1,
                             Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitIncrementCounter(counter, -value, scratch1, scratch2);
   }
 
@@ -2061,19 +2087,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // stored.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
-  void RecordWriteField(
-      Register object, int offset, Register value, LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWriteField(Register object, int offset, Register value,
+                        LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+                        SmiCheck smi_check = SmiCheck::kInline);
 
   // For a given |object| notify the garbage collector that the slot at |offset|
   // has been written. |value| is the object being stored.
-  void RecordWrite(
-      Register object, Operand offset, Register value,
-      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWrite(Register object, Operand offset, Register value,
+                   LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+                   SmiCheck smi_check = SmiCheck::kInline);
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -2161,10 +2183,14 @@ class V8_NODISCARD UseScratchRegisterScope {
     return VRegister::Create(AcquireNextAvailable(availablefp_).code(), format);
   }
 
+  bool CanAcquire() const { return !available_->IsEmpty(); }
+  bool CanAcquireFP() const { return !availablefp_->IsEmpty(); }
+
   Register AcquireSameSizeAs(const Register& reg);
   V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
 
   void Include(const CPURegList& list) { available_->Combine(list); }
+  void IncludeFP(const CPURegList& list) { availablefp_->Combine(list); }
   void Exclude(const CPURegList& list) {
 #if DEBUG
     CPURegList copy(list);
@@ -2175,6 +2201,16 @@ class V8_NODISCARD UseScratchRegisterScope {
 #endif
     available_->Remove(list);
   }
+  void ExcludeFP(const CPURegList& list) {
+#if DEBUG
+    CPURegList copy(list);
+    while (!copy.IsEmpty()) {
+      const CPURegister& reg = copy.PopHighestIndex();
+      DCHECK(availablefp_->IncludesAliasOf(reg));
+    }
+#endif
+    availablefp_->Remove(list);
+  }
   void Include(const Register& reg1, const Register& reg2 = NoReg) {
     CPURegList list(reg1, reg2);
     Include(list);
@@ -2183,6 +2219,7 @@ class V8_NODISCARD UseScratchRegisterScope {
     CPURegList list(reg1, reg2);
     Exclude(list);
   }
+  void ExcludeFP(const VRegister& reg) { ExcludeFP(CPURegList(reg)); }
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
@@ -2195,6 +2232,18 @@ class V8_NODISCARD UseScratchRegisterScope {
   // The state of the available lists at the start of this scope.
   uint64_t old_available_;    // kRegister
   uint64_t old_availablefp_;  // kVRegister
+};
+
+struct MoveCycleState {
+  // List of scratch registers reserved for pending moves in a move cycle, and
+  // which should therefore not be used as a temporary location by
+  // {MoveToTempLocation}.
+  RegList scratch_regs;
+  DoubleRegList scratch_fp_regs;
+  // Available scratch registers during the move cycle resolution scope.
+  base::Optional<UseScratchRegisterScope> temps;
+  // Scratch register picked by {MoveToTempLocation}.
+  base::Optional<CPURegister> scratch_reg;
 };
 
 }  // namespace internal

@@ -7,13 +7,10 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/persistent-map.h"
-#include "src/handles/maybe-handles.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -165,6 +162,7 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
                                         AbstractState const* state) const;
   Node* TruncateAndExtend(Node* node, MachineRepresentation from,
                           MachineType to);
+  Reduction AssertUnreachable(Node* node);
 
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;

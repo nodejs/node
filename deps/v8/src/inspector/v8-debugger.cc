@@ -139,10 +139,10 @@ std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
     int contextGroupId, V8DebuggerAgentImpl* agent) {
   std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
-  v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
+  std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(m_isolate, scripts);
-  for (size_t i = 0; i < scripts.Size(); ++i) {
-    v8::Local<v8::debug::Script> script = scripts.Get(i);
+  for (size_t i = 0; i < scripts.size(); ++i) {
+    v8::Local<v8::debug::Script> script = scripts[i].Get(m_isolate);
     if (!script->WasCompiled()) continue;
     if (!script->IsEmbedded()) {
       int contextId;
@@ -340,6 +340,18 @@ Response V8Debugger::continueToLocation(
   }
 }
 
+bool V8Debugger::restartFrame(int targetContextGroupId, int callFrameOrdinal) {
+  DCHECK(isPaused());
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+
+  if (v8::debug::PrepareRestartFrame(m_isolate, callFrameOrdinal)) {
+    continueProgram(targetContextGroupId);
+    return true;
+  }
+  return false;
+}
+
 bool V8Debugger::shouldContinueToCurrentLocation() {
   if (m_continueToLocationTargetCallFrames ==
       protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any) {
@@ -523,7 +535,7 @@ void V8Debugger::BreakOnInstrumentation(
       });
   {
     v8::Context::Scope scope(pausedContext);
-    m_inspector->client()->runMessageLoopOnPause(contextGroupId);
+    m_inspector->client()->runMessageLoopOnInstrumentationPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }
 
@@ -797,17 +809,17 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
 v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
                                               v8::Local<v8::Object> prototype) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::PersistentValueVector<v8::Object> v8Objects(isolate);
+  std::vector<v8::Global<v8::Object>> v8_objects;
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
-  v8::debug::QueryObjects(context, &predicate, &v8Objects);
+  v8::debug::QueryObjects(context, &predicate, &v8_objects);
 
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> resultArray = v8::Array::New(
-      m_inspector->isolate(), static_cast<int>(v8Objects.Size()));
-  for (size_t i = 0; i < v8Objects.Size(); ++i) {
+      m_inspector->isolate(), static_cast<int>(v8_objects.size()));
+  for (size_t i = 0; i < v8_objects.size(); ++i) {
     createDataProperty(context, resultArray, static_cast<int>(i),
-                       v8Objects.Get(i));
+                       v8_objects[i].Get(isolate));
   }
   return resultArray;
 }

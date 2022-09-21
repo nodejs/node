@@ -7,11 +7,14 @@
 #include <iomanip>
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/handles/handles-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-subtyping.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -259,7 +262,10 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case JS_SHADOW_REALM_TYPE:
+    case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
+    case JS_ATOMICS_CONDITION_TYPE:
+    case JS_ATOMICS_MUTEX_TYPE:
     case JS_TEMPORAL_CALENDAR_TYPE:
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
@@ -280,6 +286,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case WEAK_CELL_TYPE:
@@ -571,6 +578,16 @@ bool Type::SlowIs(Type that) const {
     return this->IsRange() && Contains(that.AsRange(), this->AsRange());
   }
   if (this->IsRange()) return false;
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  if (this->IsWasm()) {
+    if (!that.IsWasm()) return false;
+    wasm::TypeInModule this_type = this->AsWasm();
+    wasm::TypeInModule that_type = that.AsWasm();
+    return wasm::IsSubtypeOf(this_type.type, that_type.type, this_type.module,
+                             that_type.module);
+  }
+#endif
 
   return this->SimplyEquals(that);
 }
@@ -1062,6 +1079,10 @@ void Type::PrintTo(std::ostream& os) const {
       os << type_i;
     }
     os << ">";
+#ifdef V8_ENABLE_WEBASSEMBLY
+  } else if (this->IsWasm()) {
+    os << "Wasm:" << this->AsWasm().type.name();
+#endif
   } else {
     UNREACHABLE();
   }
@@ -1146,6 +1167,25 @@ const UnionType* Type::AsUnion() const {
   return static_cast<const UnionType*>(ToTypeBase());
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+// static
+Type Type::Wasm(wasm::ValueType value_type, const wasm::WasmModule* module,
+                Zone* zone) {
+  return FromTypeBase(WasmType::New(value_type, module, zone));
+}
+
+// static
+Type Type::Wasm(wasm::TypeInModule type_in_module, Zone* zone) {
+  return Wasm(type_in_module.type, type_in_module.module, zone);
+}
+
+wasm::TypeInModule Type::AsWasm() const {
+  DCHECK(IsKind(TypeBase::kWasm));
+  auto wasm_type = static_cast<const WasmType*>(ToTypeBase());
+  return {wasm_type->value_type(), wasm_type->module()};
+}
+#endif
+
 std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);
   return os;
@@ -1183,10 +1223,10 @@ Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
 }
 
 #define VERIFY_TORQUE_LOW_BITSET_AGREEMENT(Name, _)           \
-  STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
+  static_assert(static_cast<uint32_t>(BitsetType::k##Name) == \
                 static_cast<uint32_t>(TurbofanTypeLowBits::k##Name));
 #define VERIFY_TORQUE_HIGH_BITSET_AGREEMENT(Name, _)                     \
-  STATIC_ASSERT(static_cast<uint32_t>(                                   \
+  static_assert(static_cast<uint32_t>(                                   \
                     static_cast<uint64_t>(BitsetType::k##Name) >> 32) == \
                 static_cast<uint32_t>(TurbofanTypeHighBits::k##Name));
 INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)

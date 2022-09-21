@@ -7,6 +7,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/reloc-info.h"
 #include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-frames.h"
@@ -16,8 +17,8 @@
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/contexts.h"
-#include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
@@ -275,7 +276,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
       Handle<FixedArray> keys =
-          KeyAccumulator::GetKeys(element.materialized_object,
+          KeyAccumulator::GetKeys(isolate_, element.materialized_object,
                                   KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS)
               .ToHandleChecked();
@@ -1072,9 +1073,11 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayForEachLoopContinuation:
     case Builtin::kArrayIncludesHoleyDoubles:
     case Builtin::kArrayIncludesPackedDoubles:
+    case Builtin::kArrayIncludesSmi:
     case Builtin::kArrayIncludesSmiOrObject:
     case Builtin::kArrayIndexOfHoleyDoubles:
     case Builtin::kArrayIndexOfPackedDoubles:
+    case Builtin::kArrayIndexOfSmi:
     case Builtin::kArrayIndexOfSmiOrObject:
     case Builtin::kArrayMapLoopContinuation:
     case Builtin::kArrayReduceLoopContinuation:
@@ -1104,6 +1107,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kExtractFastJSArray:
     case Builtin::kFastNewObject:
     case Builtin::kFindOrderedHashMapEntry:
+    case Builtin::kFindOrderedHashSetEntry:
     case Builtin::kFlatMapIntoArray:
     case Builtin::kFlattenIntoArray:
     case Builtin::kGetProperty:
@@ -1120,10 +1124,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kProxyHasProperty:
     case Builtin::kProxyIsExtensible:
     case Builtin::kProxyGetPrototypeOf:
-    case Builtin::kRecordWriteEmitRememberedSetSaveFP:
-    case Builtin::kRecordWriteOmitRememberedSetSaveFP:
-    case Builtin::kRecordWriteEmitRememberedSetIgnoreFP:
-    case Builtin::kRecordWriteOmitRememberedSetIgnoreFP:
+    case Builtin::kRecordWriteSaveFP:
+    case Builtin::kRecordWriteIgnoreFP:
     case Builtin::kStringAdd_CheckNone:
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
@@ -1205,10 +1207,11 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     for (RelocIterator it(code, mode); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-      Code callee_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
-          rinfo->target_address());
-      if (!callee_code.is_builtin()) continue;
-      Builtin callee = static_cast<Builtin>(callee_code.builtin_id());
+      CodeLookupResult lookup_result =
+          isolate->heap()->GcSafeFindCodeForInnerPointer(
+              rinfo->target_address());
+      CHECK(lookup_result.IsFound());
+      Builtin callee = lookup_result.builtin_id();
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;
       }
@@ -1222,8 +1225,9 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     }
   }
   CHECK(!failed);
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) ||      \
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_RISCV32) || \
+    defined(V8_TARGET_ARCH_RISCV64)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.

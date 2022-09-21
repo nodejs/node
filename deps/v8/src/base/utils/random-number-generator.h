@@ -112,7 +112,7 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
     // Exponent for double values for [1.0 .. 2.0)
     static const uint64_t kExponentBits = uint64_t{0x3FF0000000000000};
     uint64_t random = (state0 >> 12) | kExponentBits;
-    return bit_cast<double>(random) - 1;
+    return base::bit_cast<double>(random) - 1;
   }
 
   // Static and exposed for external use.

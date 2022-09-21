@@ -436,7 +436,7 @@ int SwissNameDictionary::GetMetaTableField(int field_index) {
 template <typename T>
 void SwissNameDictionary::SetMetaTableField(ByteArray meta_table,
                                             int field_index, int value) {
-  STATIC_ASSERT((std::is_same<T, uint8_t>::value) ||
+  static_assert((std::is_same<T, uint8_t>::value) ||
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
   DCHECK_LE(value, std::numeric_limits<T>::max());
@@ -450,7 +450,7 @@ void SwissNameDictionary::SetMetaTableField(ByteArray meta_table,
 template <typename T>
 int SwissNameDictionary::GetMetaTableField(ByteArray meta_table,
                                            int field_index) {
-  STATIC_ASSERT((std::is_same<T, uint8_t>::value) ||
+  static_assert((std::is_same<T, uint8_t>::value) ||
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
   DCHECK_LT(meta_table.GetDataStartAddress() + field_index * sizeof(T),
@@ -512,15 +512,16 @@ Handle<SwissNameDictionary> SwissNameDictionary::Add(
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
 
   Handle<SwissNameDictionary> table = EnsureGrowable(isolate, original_table);
-
-  int nof = table->NumberOfElements();
-  int nod = table->NumberOfDeletedElements();
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
+  int nof = raw_table.NumberOfElements();
+  int nod = raw_table.NumberOfDeletedElements();
   int new_enum_index = nof + nod;
 
-  int new_entry = table->AddInternal(*key, *value, details);
+  int new_entry = raw_table.AddInternal(*key, *value, details);
 
-  table->SetNumberOfElements(nof + 1);
-  table->SetEntryForEnumerationIndex(new_enum_index, new_entry);
+  raw_table.SetNumberOfElements(nof + 1);
+  raw_table.SetEntryForEnumerationIndex(new_enum_index, new_entry);
 
   if (entry_out) {
     *entry_out = InternalIndex(new_entry);
@@ -723,9 +724,9 @@ bool SwissNameDictionary::IsEmpty(ctrl_t c) { return c == Ctrl::kEmpty; }
 
 // static
 bool SwissNameDictionary::IsFull(ctrl_t c) {
-  STATIC_ASSERT(Ctrl::kEmpty < 0);
-  STATIC_ASSERT(Ctrl::kDeleted < 0);
-  STATIC_ASSERT(Ctrl::kSentinel < 0);
+  static_assert(Ctrl::kEmpty < 0);
+  static_assert(Ctrl::kDeleted < 0);
+  static_assert(Ctrl::kSentinel < 0);
   return c >= 0;
 }
 
@@ -734,9 +735,9 @@ bool SwissNameDictionary::IsDeleted(ctrl_t c) { return c == Ctrl::kDeleted; }
 
 // static
 bool SwissNameDictionary::IsEmptyOrDeleted(ctrl_t c) {
-  STATIC_ASSERT(Ctrl::kDeleted < Ctrl::kSentinel);
-  STATIC_ASSERT(Ctrl::kEmpty < Ctrl::kSentinel);
-  STATIC_ASSERT(Ctrl::kSentinel < 0);
+  static_assert(Ctrl::kDeleted < Ctrl::kSentinel);
+  static_assert(Ctrl::kEmpty < Ctrl::kSentinel);
+  static_assert(Ctrl::kSentinel < 0);
   return c < Ctrl::kSentinel;
 }
 

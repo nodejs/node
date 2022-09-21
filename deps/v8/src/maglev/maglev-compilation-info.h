@@ -11,11 +11,17 @@
 #include "src/handles/maybe-handles.h"
 
 namespace v8 {
+
+namespace base {
+class DefaultAllocationPolicy;
+}
+
 namespace internal {
 
 class Isolate;
 class PersistentHandles;
 class SharedFunctionInfo;
+class TranslationArrayBuilder;
 class Zone;
 
 namespace compiler {
@@ -51,7 +57,6 @@ class MaglevCompilationInfo final {
   MaglevCompilationUnit* toplevel_compilation_unit() const {
     return toplevel_compilation_unit_;
   }
-  Handle<JSFunction> function() const { return function_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -62,6 +67,19 @@ class MaglevCompilationInfo final {
 
   void set_graph(Graph* graph) { graph_ = graph; }
   Graph* graph() const { return graph_; }
+
+  void set_translation_array_builder(
+      std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
+      std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+          deopt_literals);
+  TranslationArrayBuilder& translation_array_builder() const {
+    DCHECK(translation_array_builder_);
+    return *translation_array_builder_;
+  }
+  IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals() const {
+    DCHECK(deopt_literals_);
+    return *deopt_literals_;
+  }
 
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
@@ -92,13 +110,14 @@ class MaglevCompilationInfo final {
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
 
-  Handle<SharedFunctionInfo> shared_;
-  Handle<JSFunction> function_;
-
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 
   // Produced off-thread during ExecuteJobImpl.
   Graph* graph_ = nullptr;
+
+  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
+  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+      deopt_literals_;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)

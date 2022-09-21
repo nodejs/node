@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2016 the V8 project authors. All rights reserved.
 # Copyright 2015 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -66,9 +66,9 @@ def _v8_builder_fallback(builder, builder_group):
   elif builder.endswith(' builder'):
     builders.append(builder[:-len(' builder')])
 
-  for builder in builders:
-    if builder in builder_group:
-      return builder_group[builder]
+  for b in builders:
+    if b in builder_group:
+      return builder_group[b]
   return None
 
 
@@ -77,7 +77,7 @@ def main(args):
   return mbw.Main(args)
 
 
-class MetaBuildWrapper(object):
+class MetaBuildWrapper():
   def __init__(self):
     self.chromium_src_dir = CHROMIUM_SRC_DIR
     self.default_config = os.path.join(self.chromium_src_dir, 'infra', 'mb',
@@ -562,7 +562,7 @@ class MetaBuildWrapper(object):
       contents = ast.literal_eval(self.ReadFile(self.args.config_file))
     except SyntaxError as e:
       raise MBErr('Failed to parse config file "%s": %s' %
-                 (self.args.config_file, e))
+                 (self.args.config_file, e)) from e
 
     self.configs = contents['configs']
     self.luci_tryservers = contents.get('luci_tryservers', {})
@@ -587,8 +587,8 @@ class MetaBuildWrapper(object):
               ', '.join(duplicates))
         isolate_maps.update(isolate_map)
       except SyntaxError as e:
-        raise MBErr(
-            'Failed to parse isolate map file "%s": %s' % (isolate_map, e))
+        raise MBErr('Failed to parse isolate map file "%s": %s' %
+                    (isolate_map, e)) from e
     return isolate_maps
 
   def ConfigFromArgs(self):
@@ -1071,7 +1071,7 @@ class MetaBuildWrapper(object):
                      force_verbose=force_verbose)
     except Exception as e:
       raise MBErr('Error %s writing to the output path "%s"' %
-                 (e, path))
+                 (e, path)) from e
 
   def CheckCompile(self, builder_group, builder):
     url_template = self.args.url_template + '/{builder}/builds/_all?as_text=1'
@@ -1089,7 +1089,7 @@ class MetaBuildWrapper(object):
     if not successes:
       return "no successful builds"
     build = builds[str(successes[0])]
-    step_names = set([step["name"] for step in build["steps"]])
+    step_names = {step["name"] for step in build["steps"]}
     compile_indicators = set(["compile", "compile (with patch)", "analyze"])
     if compile_indicators & step_names:
       return "compiles"

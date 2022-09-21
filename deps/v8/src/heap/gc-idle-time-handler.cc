@@ -45,14 +45,14 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     return GCIdleTimeAction::kDone;
   }
 
-  if (FLAG_incremental_marking && !heap_state.incremental_marking_stopped) {
+  if (v8_flags.incremental_marking && !heap_state.incremental_marking_stopped) {
     return GCIdleTimeAction::kIncrementalStep;
   }
 
   return GCIdleTimeAction::kDone;
 }
 
-bool GCIdleTimeHandler::Enabled() { return FLAG_incremental_marking; }
+bool GCIdleTimeHandler::Enabled() { return v8_flags.incremental_marking; }
 
 }  // namespace internal
 }  // namespace v8

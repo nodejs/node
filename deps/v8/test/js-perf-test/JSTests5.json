@@ -481,7 +481,7 @@
       "name": "ExpressionDepth",
       "path": ["ExpressionDepth"],
       "main": "run.js",
-      "flags": [ "--no-opt" ],
+      "flags": [ "--no-turbofan" ],
       "results_regexp": "^%s\\-ExpressionDepth\\(Score\\): (.+)$",
       "tests": [
         {"name": "Or-Value"},
@@ -647,7 +647,7 @@
       "name": "IC",
       "path": ["IC"],
       "main": "run.js",
-      "flags": ["--no-opt"],
+      "flags": ["--no-turbofan"],
       "resources": ["loadconstantfromprototype.js"],
       "results_regexp": "^%s\\-IC\\(Score\\): (.+)$",
       "tests": [

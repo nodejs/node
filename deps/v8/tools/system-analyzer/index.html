@@ -13,7 +13,7 @@ found in the LICENSE file. -->
   <link rel="modulepreload" href="./view/helper.mjs" >
   <link rel="preload" href="../js/log-file-reader-template.html" as="fetch" crossorigin="anonymous">
   <script type="module">
-    // Force instatiating the log-reader before anything else.
+    // Force instantiating the log-reader before anything else.
     import "./view/log-file-reader.mjs";
     // Delay loading of the main App
     (async function() {
@@ -34,7 +34,7 @@ found in the LICENSE file. -->
     .panels {
       display: grid;
       align-content: center;
-      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
       grid-auto-flow: row dense;
       grid-gap: 10px;
       margin-top: 10px;
@@ -91,6 +91,7 @@ found in the LICENSE file. -->
       <list-panel id="map-list" title="Map Events"></list-panel>
       <list-panel id="deopt-list" title="Deopt Events"></list-panel>
       <list-panel id="code-list" title="Code Events"></list-panel>
+      <profiler-panel id="profiler-panel"></profiler-panel>
     </div>
   </section>
 
@@ -171,6 +172,12 @@ found in the LICENSE file. -->
           </dt>
           <dd>Log ticks from the sampling profiler.</dd>
         </dl>
+
+        <h3>Local Symbol Server</h3>
+        To get detailed C++ symbols for local binaries you can host the
+        system-analyzer locally using <code>tools/system-analyzer/local-server.sh</code>.
+        You can then access the analyzer on
+        <a href="http://localhost:8000/system-analyzer/index.html">localhost</a>.
 
         <h3>Keyboard Shortcuts for Navigation</h3>
         <dl>

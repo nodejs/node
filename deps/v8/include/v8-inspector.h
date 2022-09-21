@@ -207,10 +207,10 @@ class V8_EXPORT V8InspectorSession {
 
 class V8_EXPORT WebDriverValue {
  public:
-  explicit WebDriverValue(StringView type, v8::MaybeLocal<v8::Value> value = {})
-      : type(type), value(value) {}
-
-  StringView type;
+  explicit WebDriverValue(std::unique_ptr<StringBuffer> type,
+                          v8::MaybeLocal<v8::Value> value = {})
+      : type(std::move(type)), value(value) {}
+  std::unique_ptr<StringBuffer> type;
   v8::MaybeLocal<v8::Value> value;
 };
 
@@ -219,6 +219,9 @@ class V8_EXPORT V8InspectorClient {
   virtual ~V8InspectorClient() = default;
 
   virtual void runMessageLoopOnPause(int contextGroupId) {}
+  virtual void runMessageLoopOnInstrumentationPause(int contextGroupId) {
+    runMessageLoopOnPause(contextGroupId);
+  }
   virtual void quitMessageLoopOnPause() {}
   virtual void runIfWaitingForDebugger(int contextGroupId) {}
 
@@ -361,9 +364,12 @@ class V8_EXPORT V8Inspector {
     virtual void sendNotification(std::unique_ptr<StringBuffer> message) = 0;
     virtual void flushProtocolNotifications() = 0;
   };
-  virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId,
-                                                      Channel*,
-                                                      StringView state) = 0;
+  enum ClientTrustLevel { kUntrusted, kFullyTrusted };
+  virtual std::unique_ptr<V8InspectorSession> connect(
+      int contextGroupId, Channel*, StringView state,
+      ClientTrustLevel client_trust_level) {
+    return nullptr;
+  }
 
   // API methods.
   virtual std::unique_ptr<V8StackTrace> createStackTrace(

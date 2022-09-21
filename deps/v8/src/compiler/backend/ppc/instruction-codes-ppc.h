@@ -225,8 +225,6 @@ namespace compiler {
   V(PPC_F32x4Le)                     \
   V(PPC_F32x4Abs)                    \
   V(PPC_F32x4Neg)                    \
-  V(PPC_F32x4RecipApprox)            \
-  V(PPC_F32x4RecipSqrtApprox)        \
   V(PPC_F32x4Sqrt)                   \
   V(PPC_F32x4SConvertI32x4)          \
   V(PPC_F32x4UConvertI32x4)          \

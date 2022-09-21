@@ -8,6 +8,7 @@
 #include "src/execution/protectors.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/new-spaces.h"
 #include "src/ic/handler-configuration.h"
 #include "src/init/heap-symbols.h"
 #include "src/init/setup-isolate.h"
@@ -74,6 +75,9 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
+  if (v8_flags.minor_mc && new_space()) {
+    paged_new_space()->paged_space()->free_list()->RepairLists(this);
+  }
   CreateApiObjects();
 
   // Create initial objects
@@ -127,7 +131,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    int instance_size,
                                    ElementsKind elements_kind,
                                    int inobject_properties) {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  static_assert(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
   bool is_wasm_object = false;
 #if V8_ENABLE_WEBASSEMBLY
@@ -172,7 +176,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_inobject_properties_start_or_constructor_function_index(0);
   DCHECK(!map.IsJSObjectMap());
-  map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid));
+  map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
+                                  kRelaxedStore);
   map.SetInObjectUnusedPropertyFields(0);
   map.set_bit_field(0);
   map.set_bit_field2(0);
@@ -406,9 +411,6 @@ bool Heap::CreateInitialMaps() {
       if (StringShape(entry.type).IsCons()) map.mark_unstable();
       roots_table()[entry.index] = map.ptr();
     }
-    ALLOCATE_VARSIZE_MAP(SHARED_STRING_TYPE, seq_string_migration_sentinel);
-    ALLOCATE_VARSIZE_MAP(SHARED_ONE_BYTE_STRING_TYPE,
-                         one_byte_seq_string_migration_sentinel);
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
@@ -491,6 +493,8 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
 
+    ALLOCATE_MAP(ACCESSOR_INFO_TYPE, AccessorInfo::kSize, accessor_info)
+
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
@@ -518,10 +522,12 @@ bool Heap::CreateInitialMaps() {
             WasmInternalFunction::kSize, wasm_internal_function)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
-    IF_WASM(ALLOCATE_MAP, WASM_ON_FULFILLED_DATA_TYPE,
-            WasmOnFulfilledData::kSize, wasm_onfulfilled_data)
-    IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
+    IF_WASM(ALLOCATE_MAP, WASM_RESUME_DATA_TYPE, WasmResumeData::kSize,
+            wasm_resume_data)
+    IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
+    IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
+            WasmContinuationObject::kSize, wasm_continuation_object)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
 
@@ -687,9 +693,17 @@ void Heap::CreateInitialObjects() {
 
   set_weak_refs_keep_during_job(roots.undefined_value());
 
-  // Allocate cache for single character one byte strings.
-  set_single_character_string_cache(*factory->NewFixedArray(
-      String::kMaxOneByteCharCode + 1, AllocationType::kOld));
+  // Allocate and initialize table for single character one byte strings.
+  int table_size = String::kMaxOneByteCharCode + 1;
+  set_single_character_string_table(
+      *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
+  for (int i = 0; i < table_size; ++i) {
+    uint8_t code = static_cast<uint8_t>(i);
+    Handle<String> str =
+        factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
+    DCHECK(ReadOnlyHeap::Contains(*str));
+    single_character_string_table().set(i, *str);
+  }
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
@@ -754,8 +768,6 @@ void Heap::CreateInitialObjects() {
   set_self_reference_marker(*factory->NewSelfReferenceMarker());
   set_basic_block_counters_marker(*factory->NewBasicBlockCountersMarker());
 
-  set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
-
   {
     HandleScope handle_scope(isolate());
 #define SYMBOL_INIT(_, name)                                                \
@@ -770,25 +782,63 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope handle_scope(isolate());
-#define SYMBOL_INIT(_, name, description)                                \
+#define PUBLIC_SYMBOL_INIT(_, name, description)                         \
   Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
   name->set_description(*name##d);                                       \
   roots_table()[RootIndex::k##name] = name->ptr();
-    PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
-#undef SYMBOL_INIT
 
-#define SYMBOL_INIT(_, name, description)                                \
+    PUBLIC_SYMBOL_LIST_GENERATOR(PUBLIC_SYMBOL_INIT, /* not used */)
+
+#define WELL_KNOWN_SYMBOL_INIT(_, name, description)                     \
   Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
   name->set_is_well_known_symbol(true);                                  \
   name->set_description(*name##d);                                       \
   roots_table()[RootIndex::k##name] = name->ptr();
-    WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
-#undef SYMBOL_INIT
+
+    WELL_KNOWN_SYMBOL_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT, /* not used */)
 
     // Mark "Interesting Symbols" appropriately.
     to_string_tag_symbol->set_is_interesting_symbol(true);
+  }
+
+  {
+    // All Names that can cause protector invalidation have to be allocated
+    // consecutively to allow for fast checks
+
+    // Allocate the symbols's internal strings first, so we don't get
+    // interleaved string allocations for the symbols later.
+#define ALLOCATE_SYMBOL_STRING(_, name, description) \
+  Handle<String> name##symbol_string =               \
+      factory->InternalizeUtf8String(#description);  \
+  USE(name##symbol_string);
+
+    SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
+                                        /* not used */)
+    WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(ALLOCATE_SYMBOL_STRING,
+                                                   /* not used */)
+#undef ALLOCATE_SYMBOL_STRING
+
+#define INTERNALIZED_STRING_INIT(_, name, description)               \
+  Handle<String> name = factory->InternalizeUtf8String(description); \
+  roots_table()[RootIndex::k##name] = name->ptr();
+
+    INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(INTERNALIZED_STRING_INIT,
+                                                     /* not used */)
+    SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(PUBLIC_SYMBOL_INIT,
+                                        /* not used */)
+    WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(WELL_KNOWN_SYMBOL_INIT,
+                                                   /* not used */)
+
+#ifdef DEBUG
+    roots.VerifyNameForProtectors();
+#endif
+    roots.VerifyNameForProtectorsPages();
+
+#undef INTERNALIZED_STRING_INIT
+#undef PUBLIC_SYMBOL_INIT
+#undef WELL_KNOWN_SYMBOL_INIT
   }
 
   Handle<NameDictionary> empty_property_dictionary = NameDictionary::New(
@@ -1066,6 +1116,24 @@ void Heap::CreateInitialObjects() {
     Handle<SharedFunctionInfo> info =
         CreateSharedFunctionInfo(isolate_, Builtin::kProxyRevoke, 0);
     set_proxy_revoke_shared_fun(*info);
+  }
+
+  // ShadowRealm:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
+    set_shadow_realm_import_value_fulfilled_sfi(*info);
+  }
+
+  // SourceTextModule:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
+    set_source_text_module_execute_async_module_fulfilled_sfi(*info);
+
+    info = CreateSharedFunctionInfo(isolate_, Builtin::kCallAsyncModuleRejected,
+                                    0);
+    set_source_text_module_execute_async_module_rejected_sfi(*info);
   }
 }
 

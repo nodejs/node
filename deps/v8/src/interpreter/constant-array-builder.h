@@ -8,9 +8,8 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/interpreter/bytecodes.h"
+#include "src/interpreter/bytecode-operands.h"
 #include "src/objects/smi.h"
-#include "src/utils/identity-map.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -245,6 +245,12 @@ class V8_EXPORT Context : public Data {
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
 
   /**
+   * Sets the error description for the exception that is thrown when
+   * wasm code generation is not allowed.
+   */
+  void SetErrorMessageForWasmCodeGeneration(Local<String> message);
+
+  /**
    * Return data that was previously attached to the context snapshot via
    * SnapshotCreator, and removes the reference to it.
    * Repeated call with the same index returns an empty MaybeLocal.
@@ -374,15 +380,13 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   A ctx = *reinterpret_cast<const A*>(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  value_offset += I::kEmbedderDataSlotRawPayloadOffset;
-#endif
-  internal::Isolate* isolate = I::GetIsolateForSandbox(ctx);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +
+                     (I::kEmbedderDataSlotSize * index) +
+                     I::kEmbedderDataSlotExternalPointerOffset;
+  Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField(isolate, embedder_data, value_offset,
-                                  internal::kEmbedderDataSlotPayloadTag));
+      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+          isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif

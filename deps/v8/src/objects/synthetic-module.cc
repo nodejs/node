@@ -111,7 +111,7 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
            Utils::ToLocal(Handle<Module>::cast(module)))
            .ToLocal(&result)) {
     isolate->PromoteScheduledException();
-    Module::RecordErrorUsingPendingException(isolate, module);
+    module->RecordError(isolate, isolate->pending_exception());
     return MaybeHandle<Object>();
   }
 

@@ -70,6 +70,9 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions) override;
 
+  bool RecommitPages(Address address, size_t size,
+                     PagePermissions permissions) override;
+
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;

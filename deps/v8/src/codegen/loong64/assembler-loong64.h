@@ -41,7 +41,6 @@ class Operand {
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<int64_t>(f.address());
   }
-  V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
   V8_INLINE explicit Operand(Smi value)
       : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
@@ -49,7 +48,6 @@ class Operand {
   }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Register.
   V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
@@ -61,17 +59,17 @@ class Operand {
 
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
 
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
   Register rm() const { return rm_; }
@@ -82,10 +80,10 @@ class Operand {
   Register rm_;
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     int64_t immediate;                      // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -277,6 +275,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+
+  DoubleRegList* GetScratchFPRegisterList() {
+    return &scratch_fpregister_list_;
+  }
 
   // ---------------------------------------------------------------------------
   // Code generation.
@@ -906,7 +908,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 64;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
@@ -1066,8 +1068,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   RegList scratch_register_list_;
 
+  DoubleRegList scratch_fpregister_list_;
+
  private:
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 
@@ -1088,22 +1092,38 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   ~UseScratchRegisterScope();
 
   Register Acquire();
+  DoubleRegister AcquireFp();
   bool hasAvailable() const;
+  bool hasAvailableFp() const;
 
   void Include(const RegList& list) { *available_ |= list; }
+  void IncludeFp(const DoubleRegList& list) { *availablefp_ |= list; }
   void Exclude(const RegList& list) { available_->clear(list); }
+  void ExcludeFp(const DoubleRegList& list) { availablefp_->clear(list); }
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList list({reg1, reg2});
     Include(list);
+  }
+  void IncludeFp(const DoubleRegister& reg1,
+                 const DoubleRegister& reg2 = no_dreg) {
+    DoubleRegList list({reg1, reg2});
+    IncludeFp(list);
   }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
     RegList list({reg1, reg2});
     Exclude(list);
   }
+  void ExcludeFp(const DoubleRegister& reg1,
+                 const DoubleRegister& reg2 = no_dreg) {
+    DoubleRegList list({reg1, reg2});
+    ExcludeFp(list);
+  }
 
  private:
   RegList* available_;
+  DoubleRegList* availablefp_;
   RegList old_available_;
+  DoubleRegList old_availablefp_;
 };
 
 }  // namespace internal

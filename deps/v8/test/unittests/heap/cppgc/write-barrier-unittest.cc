@@ -190,7 +190,7 @@ class NoWriteBarrierTest : public testing::TestWithHeap {};
 TEST_F(WriteBarrierTest, EnableDisableIncrementalMarking) {
   {
     IncrementalMarkingScope scope(marker());
-    EXPECT_TRUE(WriteBarrier::IsAnyIncrementalOrConcurrentMarking());
+    EXPECT_TRUE(WriteBarrier::IsEnabled());
   }
 }
 
@@ -351,11 +351,10 @@ TEST_F(NoWriteBarrierTest, WriteBarrierBailoutWhenMarkingIsOff) {
   {
     EXPECT_FALSE(object1->IsMarked());
     WriteBarrierParams params;
-#if defined(CPPGC_YOUNG_GENERATION)
-    WriteBarrierType expected = WriteBarrierType::kGenerational;
-#else   // !CPPGC_YOUNG_GENERATION
-    WriteBarrierType expected = WriteBarrierType::kNone;
-#endif  // !CPPGC_YOUNG_GENERATION
+    const WriteBarrierType expected =
+        Heap::From(GetHeap())->generational_gc_supported()
+            ? WriteBarrierType::kGenerational
+            : WriteBarrierType::kNone;
     EXPECT_EQ(expected, HeapConsistency::GetWriteBarrierType(
                             object2->next_ref().GetSlotForTesting(),
                             object2->next_ref().Get(), params));

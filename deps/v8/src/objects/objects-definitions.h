@@ -51,9 +51,13 @@ namespace internal {
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
   V(SHARED_STRING_TYPE)                                  \
+  V(SHARED_EXTERNAL_STRING_TYPE)                         \
   V(SHARED_THIN_STRING_TYPE)                             \
   V(SHARED_ONE_BYTE_STRING_TYPE)                         \
-  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)
+  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE)                \
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)                    \
+  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE)                \
+  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
 
 #define INSTANCE_TYPE_LIST(V) \
   INSTANCE_TYPE_LIST_BASE(V)  \
@@ -103,6 +107,17 @@ namespace internal {
   V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
   V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
     shared_one_byte_string, SharedOneByteString)                               \
+  V(SHARED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize,                 \
+    shared_external_string, SharedExternalString)                              \
+  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,        \
+    shared_external_one_byte_string, SharedExternalOneByteString)              \
+  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE,                                      \
+    ExternalTwoByteString::kUncachedSize, shared_uncached_external_string,     \
+    SharedUncachedExternalString)                                              \
+  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
+    ExternalOneByteString::kUncachedSize,                                      \
+    shared_uncached_external_one_byte_string,                                  \
+    SharedUncachedExternalOneByteString)                                       \
   V(SHARED_THIN_STRING_TYPE, ThinString::kSize, shared_thin_string,            \
     SharedThinString)                                                          \
   V(SHARED_THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize,                       \
@@ -126,7 +141,6 @@ namespace internal {
     function_template_info)                                                    \
   V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
   V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)             \
-  V(_, ACCESSOR_INFO_TYPE, AccessorInfo, accessor_info)                        \
   V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                        \
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                    \
     aliased_arguments_entry)                                                   \
@@ -166,8 +180,6 @@ namespace internal {
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
-  IF_WASM(V, _, WASM_CONTINUATION_OBJECT_TYPE, WasmContinuationObject,         \
-          wasm_continuation_object)                                            \
   IF_WASM(V, _, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag) \
   IF_WASM(V, _, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,  \
           wasm_indirect_function_table)

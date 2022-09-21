@@ -228,6 +228,8 @@ namespace interpreter {
   /* GetSuperConstructor operator */                                           \
   V(GetSuperConstructor, ImplicitRegisterUse::kReadAccumulator,                \
     OperandType::kRegOut)                                                      \
+  V(FindNonDefaultConstructor, ImplicitRegisterUse::kNone, OperandType::kReg,  \
+    OperandType::kReg, OperandType::kRegOutPair)                               \
                                                                                \
   /* Call operations */                                                        \
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
@@ -300,7 +302,7 @@ namespace interpreter {
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, ImplicitRegisterUse::kWriteAccumulator,               \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kFlag16)                \
   V(CreateArrayLiteral, ImplicitRegisterUse::kWriteAccumulator,                \
     OperandType::kIdx, OperandType::kIdx, OperandType::kFlag8)                 \
   V(CreateArrayFromIterable, ImplicitRegisterUse::kReadWriteAccumulator)       \
@@ -340,7 +342,7 @@ namespace interpreter {
   /* Control Flow -- carefully ordered for efficient checks */                 \
   /* - [Unconditional jumps] */                                                \
   V(JumpLoop, ImplicitRegisterUse::kNone, OperandType::kUImm,                  \
-    OperandType::kImm)                                                         \
+    OperandType::kImm, OperandType::kIdx)                                      \
   /* - [Forward jumps] */                                                      \
   V(Jump, ImplicitRegisterUse::kNone, OperandType::kUImm)                      \
   /* - [Start constant jumps] */                                               \
@@ -648,7 +650,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static constexpr bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
-    STATIC_ASSERT(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
+    static_assert(Bytecode::kLdar < Bytecode::kLdaImmutableCurrentContextSlot);
     return bytecode >= Bytecode::kLdar &&
            bytecode <= Bytecode::kLdaImmutableCurrentContextSlot;
   }
@@ -656,7 +658,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns true if |bytecode| is a compare operation without external effects
   // (e.g., Type cooersion).
   static constexpr bool IsCompareWithoutEffects(Bytecode bytecode) {
-    STATIC_ASSERT(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
+    static_assert(Bytecode::kTestReferenceEqual < Bytecode::kTestTypeOf);
     return bytecode >= Bytecode::kTestReferenceEqual &&
            bytecode <= Bytecode::kTestTypeOf;
   }
@@ -868,7 +870,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     DCHECK_LE(bytecode, Bytecode::kLast);
     DCHECK_GE(operand_scale, OperandScale::kSingle);
     DCHECK_LE(operand_scale, OperandScale::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kOperandSizes[scale_index][static_cast<size_t>(bytecode)];
@@ -883,7 +885,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // given |operand_scale|.
   static int Size(Bytecode bytecode, OperandScale operand_scale) {
     DCHECK_LE(bytecode, Bytecode::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kBytecodeSizes[scale_index][static_cast<size_t>(bytecode)];
@@ -974,7 +976,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     DCHECK_LE(operand_type, OperandType::kLast);
     DCHECK_GE(operand_scale, OperandScale::kSingle);
     DCHECK_LE(operand_scale, OperandScale::kLast);
-    STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
+    static_assert(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;
     return kOperandKindSizes[scale_index][static_cast<size_t>(operand_type)];

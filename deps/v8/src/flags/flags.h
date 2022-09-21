@@ -5,14 +5,74 @@
 #ifndef V8_FLAGS_FLAGS_H_
 #define V8_FLAGS_FLAGS_H_
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 
-namespace v8 {
-namespace internal {
+#if V8_ENABLE_WEBASSEMBLY
+// Include the wasm-limits.h header for some default values of Wasm flags.
+// This can be reverted once we can use designated initializations (C++20) for
+// {v8_flags} (defined in flags.cc) instead of specifying the default values in
+// the header and using the default constructor.
+#include "src/wasm/wasm-limits.h"
+#endif
 
-// Declare all of our flags.
+namespace v8::internal {
+
+// The value of a single flag (this is the type of all v8_flags.* fields).
+template <typename T>
+class FlagValue {
+  // {FlagValue} types will be memory-protected in {FlagList::FreezeFlags}.
+  // We currently allow the following types to be used for flags:
+  // - Arithmetic types like bool, int, size_t, double; those will trivially be
+  //   protected.
+  // - base::Optional<bool>, which is basically a POD, and can also be
+  //   protected.
+  // - const char*, for which we currently do not protect the actual string
+  //   value. TODO(12887): Also protect the string storage.
+  //
+  // Other types can be added as needed, after checking that memory protection
+  // works for them.
+  static_assert(std::is_same_v<std::decay_t<T>, T>);
+  static_assert(std::is_arithmetic_v<T> ||
+                std::is_same_v<base::Optional<bool>, T> ||
+                std::is_same_v<const char*, T>);
+
+ public:
+  explicit constexpr FlagValue(T value) : value_(value) {}
+
+  // Implicitly convert to a {T}. Not marked {constexpr} so we do not get
+  // compiler warnings about dead code (when checking readonly flags).
+  operator T() const { return value_; }
+
+  // Explicitly convert to a {T} via {value()}. This is {constexpr} so we can
+  // use it for computing other constants.
+  constexpr T value() const { return value_; }
+
+  // Assign a new value (defined below).
+  inline FlagValue<T>& operator=(T new_value);
+
+ private:
+  T value_;
+};
+
+// Declare a struct to hold all of our flags.
+struct alignas(kMinimumOSPageSize) FlagValues {
+  FlagValues() = default;
+  // No copying, moving, or assigning. This is a singleton struct.
+  FlagValues(const FlagValues&) = delete;
+  FlagValues(FlagValues&&) = delete;
+  FlagValues& operator=(const FlagValues&) = delete;
+  FlagValues& operator=(FlagValues&&) = delete;
+
 #define FLAG_MODE_DECLARE
-#include "src/flags/flag-definitions.h"
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+};
+
+V8_EXPORT_PRIVATE extern FlagValues v8_flags;
+
+// TODO(clemensb): Remove this after v10.7.
+#define FLAG_MODE_DEFINE_GLOBAL_ALIASES
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 
 // The global list of all flags.
 class V8_EXPORT_PRIVATE FlagList {
@@ -61,8 +121,15 @@ class V8_EXPORT_PRIVATE FlagList {
   // and then calls SetFlagsFromCommandLine() and returns its result.
   static int SetFlagsFromString(const char* str, size_t len);
 
-  // Reset all flags to their default value.
-  static void ResetAllFlags();
+  // Freeze the current flag values (disallow changes via the API).
+  static void FreezeFlags();
+
+  // Returns true if the flags are currently frozen.
+  static bool IsFrozen();
+
+  // Free dynamically allocated memory of strings. This is called during
+  // teardown; flag values cannot be used afterwards any more.
+  static void ReleaseDynamicAllocations();
 
   // Print help to stdout with flags, types, and default values.
   static void PrintHelp();
@@ -75,9 +142,27 @@ class V8_EXPORT_PRIVATE FlagList {
   // Hash of flags (to quickly determine mismatching flag expectations).
   // This hash is calculated during V8::Initialize and cached.
   static uint32_t Hash();
+
+ private:
+  // Reset the flag hash on flag changes. This is a private method called from
+  // {FlagValue<T>::operator=}; there should be no need to call it from any
+  // other place.
+  static void ResetFlagHash();
+
+  // Make {FlagValue<T>} a friend, so it can call {ResetFlagHash()}.
+  template <typename T>
+  friend class FlagValue;
 };
 
-}  // namespace internal
-}  // namespace v8
+template <typename T>
+FlagValue<T>& FlagValue<T>::operator=(T new_value) {
+  if (new_value != value_) {
+    FlagList::ResetFlagHash();
+    value_ = new_value;
+  }
+  return *this;
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_FLAGS_FLAGS_H_

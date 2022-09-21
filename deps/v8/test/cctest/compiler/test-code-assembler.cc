@@ -10,8 +10,8 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {

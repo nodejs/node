@@ -8,7 +8,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/type-cache.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {

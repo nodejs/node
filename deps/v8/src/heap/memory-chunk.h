@@ -50,9 +50,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
 
-  // Maximum number of nested code memory modification scopes.
-  static const int kMaxWriteUnprotectCounter = 3;
-
   MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
               Address area_end, VirtualMemory reservation,
               Executability executable, PageSize page_size);
@@ -143,17 +140,17 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void ReleaseInvalidatedSlots();
   template <RememberedSetType type>
-  V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object);
-  void InvalidateRecordedSlots(HeapObject object);
+  V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object,
+                                                            int new_size);
+  template <RememberedSetType type>
+  V8_EXPORT_PRIVATE void UpdateInvalidatedObjectSize(HeapObject object,
+                                                     int new_size);
   template <RememberedSetType type>
   bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
   template <RememberedSetType type>
   InvalidatedSlots* invalidated_slots() {
     return invalidated_slots_[type];
   }
-
-  void AllocateYoungGenerationBitmap();
-  void ReleaseYoungGenerationBitmap();
 
   int FreeListsLength();
 
@@ -188,8 +185,12 @@ class MemoryChunk : public BasicMemoryChunk {
   void InitializationMemoryFence();
 
   static PageAllocator::Permission GetCodeModificationPermission() {
-    return FLAG_write_code_using_rwx ? PageAllocator::kReadWriteExecute
-                                     : PageAllocator::kReadWrite;
+    DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
+    // On MacOS on ARM64 RWX permissions are allowed to be set only when
+    // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
+    return !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && v8_flags.write_code_using_rwx
+               ? PageAllocator::kReadWriteExecute
+               : PageAllocator::kReadWrite;
   }
 
   V8_EXPORT_PRIVATE void SetReadable();
@@ -211,9 +212,13 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap* object_start_bitmap() { return &object_start_bitmap_; }
-#endif
+
+  const ObjectStartBitmap* object_start_bitmap() const {
+    return &object_start_bitmap_;
+  }
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
@@ -225,10 +230,6 @@ class MemoryChunk : public BasicMemoryChunk {
   void DecrementWriteUnprotectCounterAndMaybeSetPermissions(
       PageAllocator::Permission permission);
 
-  template <AccessMode mode>
-  ConcurrentBitmap<mode>* young_generation_bitmap() const {
-    return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
-  }
 #ifdef DEBUG
   static void ValidateOffsets(MemoryChunk* chunk);
 #endif
@@ -262,8 +263,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // counter is decremented when a component resets to read+executable.
   // If Value() == 0 => The memory is read and executable.
   // If Value() >= 1 => The Memory is read and writable (and maybe executable).
-  // The maximum value is limited by {kMaxWriteUnprotectCounter} to prevent
-  // excessive nesting of scopes.
   // All executable MemoryChunks are allocated rw based on the assumption that
   // they will be used immediately for an allocation. They are initialized
   // with the number of open CodeSpaceMemoryModificationScopes. The caller
@@ -278,28 +277,23 @@ class MemoryChunk : public BasicMemoryChunk {
 
   FreeListCategory** categories_;
 
-  std::atomic<intptr_t> young_generation_live_byte_count_;
-  Bitmap* young_generation_bitmap_;
-
   CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
   ActiveSystemPages active_system_pages_;
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap object_start_bitmap_;
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  private:
   friend class ConcurrentMarkingState;
-  friend class MajorMarkingState;
-  friend class MajorAtomicMarkingState;
-  friend class MajorNonAtomicMarkingState;
+  friend class MarkingState;
+  friend class AtomicMarkingState;
+  friend class NonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
-  friend class MinorMarkingState;
-  friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
 };
 

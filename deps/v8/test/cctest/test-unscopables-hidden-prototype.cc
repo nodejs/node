@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #include "include/v8-function.h"
-#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace {

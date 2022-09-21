@@ -10,6 +10,7 @@
 #define V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
 
 #include "src/base/numbers/double.h"
+#include "src/base/platform/platform.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/ppc/assembler-ppc.h"
 #include "src/common/globals.h"
@@ -49,8 +50,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
-  void CallBuiltin(Builtin builtin, Condition cond);
-  void TailCallBuiltin(Builtin builtin);
+  void CallBuiltin(Builtin builtin, Condition cond = al);
+  void TailCallBuiltin(Builtin builtin, Condition cond = al,
+                       CRegister cr = cr7);
   void Popcnt32(Register dst, Register src);
   void Popcnt64(Register dst, Register src);
   // Converts the integer (untagged smi) in |src| to a double, storing
@@ -142,7 +144,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadDoubleLiteral(DoubleRegister result, base::Double value,
                          Register scratch);
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
@@ -547,12 +548,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                SaveFPRegsMode fp_mode);
 
   void CallRecordWriteStubSaveRegisters(
-      Register object, Register slot_address,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
-      Register object, Register slot_address,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   void MultiPush(RegList regs, Register location = sp);
@@ -561,12 +560,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
   void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(Simd128RegList dregs, Register location = sp);
-  void MultiPopV128(Simd128RegList dregs, Register location = sp);
+  void MultiPushV128(Simd128RegList dregs, Register scratch,
+                     Register location = sp);
+  void MultiPopV128(Simd128RegList dregs, Register scratch,
+                    Register location = sp);
 
   void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
+                           Register scratch1, Register scratch2,
                            Register location = sp);
   void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
+                          Register scratch1, Register scratch2,
                           Register location = sp);
 
   // Calculate how much stack space (in bytes) are required to store caller
@@ -578,12 +581,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push caller saved registers on the stack, and return the number of bytes
   // stack pointer is adjusted.
-  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
+                      Register scratch2, Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
-  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
+                     Register scratch2, Register exclusion1 = no_reg,
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
@@ -610,8 +615,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
-                   Simd128Register scratch);
-  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch);
+                   Simd128Register scratch1, Register scratch2);
+  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch1,
+                   Simd128Register scratch2, Register scratch3);
 
   void ByteReverseU16(Register dst, Register val, Register scratch);
   void ByteReverseU32(Register dst, Register val, Register scratch);
@@ -663,7 +669,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, AbortReason reason, CRegister cr = cr7);
+  void Assert(Condition cond, AbortReason reason,
+              CRegister cr = cr7) NOOP_UNLESS_DEBUG_CODE
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason, CRegister cr = cr7);
@@ -689,6 +696,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
+
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
+                                        Register scratch);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target);
@@ -771,7 +787,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
-  void Move(Register dst, const MemOperand& src) { LoadU64(dst, src); }
+  void Move(Register dst, const MemOperand& src) {
+    // TODO: use scratch register scope instead of r0
+    LoadU64(dst, src, r0);
+  }
 
   void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
                 Register scratch = no_reg);
@@ -785,7 +804,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }
   }
   void SmiToInt32(Register smi) {
-    if (FLAG_enable_slow_asserts) {
+    if (v8_flags.enable_slow_asserts) {
       AssertSmi(smi);
     }
     DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -799,8 +818,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object);
-  void AssertSmi(Register object);
+  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE
+  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE
 
   void ZeroExtByte(Register dst, Register src);
   void ZeroExtHalfWord(Register dst, Register src);
@@ -969,10 +988,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
     ShiftLeftU64(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
 #else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
     ShiftRightS64(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
 #endif
   }
@@ -1022,8 +1041,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
                           Register scratch = no_reg);
 
-  void StoreSimd128(Simd128Register src, const MemOperand& mem);
-
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
@@ -1062,6 +1079,150 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch,
                   Register scratch2);
 
+  // Simd Support.
+#define SIMD_BINOP_LIST(V) \
+  V(F64x2Add)              \
+  V(F64x2Sub)              \
+  V(F64x2Mul)              \
+  V(F64x2Div)              \
+  V(F64x2Eq)               \
+  V(F64x2Lt)               \
+  V(F64x2Le)               \
+  V(F32x4Add)              \
+  V(F32x4Sub)              \
+  V(F32x4Mul)              \
+  V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
+  V(F32x4Eq)               \
+  V(F32x4Lt)               \
+  V(F32x4Le)               \
+  V(I64x2Add)              \
+  V(I64x2Sub)              \
+  V(I64x2Eq)               \
+  V(I64x2GtS)              \
+  V(I32x4MinS)             \
+  V(I32x4MinU)             \
+  V(I32x4MaxS)             \
+  V(I32x4MaxU)             \
+  V(I32x4Add)              \
+  V(I32x4Sub)              \
+  V(I32x4Mul)              \
+  V(I32x4Eq)               \
+  V(I32x4GtS)              \
+  V(I32x4GtU)              \
+  V(I16x8Add)              \
+  V(I16x8Sub)              \
+  V(I16x8Mul)              \
+  V(I16x8MinS)             \
+  V(I16x8MinU)             \
+  V(I16x8MaxS)             \
+  V(I16x8MaxU)             \
+  V(I16x8Eq)               \
+  V(I16x8GtS)              \
+  V(I16x8GtU)              \
+  V(I8x16Add)              \
+  V(I8x16Sub)              \
+  V(I8x16MinS)             \
+  V(I8x16MinU)             \
+  V(I8x16MaxS)             \
+  V(I8x16MaxU)             \
+  V(I8x16Eq)               \
+  V(I8x16GtS)              \
+  V(I8x16GtU)
+
+#define PROTOTYPE_SIMD_BINOP(name) \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
+  SIMD_BINOP_LIST(PROTOTYPE_SIMD_BINOP)
+#undef PROTOTYPE_SIMD_BINOP
+#undef SIMD_BINOP_LIST
+
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                   Register scratch);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem,
+                    Register scratch);
+  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch);
+  void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
+                      Register scratch1, Simd128Register scratch2);
+  void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
+  void F32x4Splat(Simd128Register dst, DoubleRegister src,
+                  DoubleRegister scratch1, Register scratch2);
+  void I64x2Splat(Simd128Register dst, Register src);
+  void I32x4Splat(Simd128Register dst, Register src);
+  void I16x8Splat(Simd128Register dst, Register src);
+  void I8x16Splat(Simd128Register dst, Register src);
+  void F64x2ExtractLane(DoubleRegister dst, Simd128Register src,
+                        uint8_t imm_lane_idx, Simd128Register scratch1,
+                        Register scratch2);
+  void F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
+                        uint8_t imm_lane_idx, Simd128Register scratch1,
+                        Register scratch2, Register scratch3);
+  void I64x2ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I32x4ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I16x8ExtractLaneU(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I16x8ExtractLaneS(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I8x16ExtractLaneU(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I8x16ExtractLaneS(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        DoubleRegister src2, uint8_t imm_lane_idx,
+                        Register scratch1, Simd128Register scratch2);
+  void F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        DoubleRegister src2, uint8_t imm_lane_idx,
+                        Register scratch1, DoubleRegister scratch2,
+                        Simd128Register scratch3);
+  void I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I64x2Mul(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Register scratch1, Register scrahc2, Register scratch3,
+                Simd128Register scratch4);
+  void F64x2Min(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch1, Simd128Register scratch2);
+  void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch1, Simd128Register scratch2);
+  void F64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void F32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void I64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void I64x2GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void I32x4GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I32x4GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I16x8Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void I16x8GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I16x8GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I8x16Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+               Simd128Register scratch);
+  void I8x16GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I8x16GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
@@ -1097,20 +1258,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
-  void RecordWriteField(
-      Register object, int offset, Register value, Register slot_address,
-      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWriteField(Register object, int offset, Register value,
+                        Register slot_address, LinkRegisterStatus lr_status,
+                        SaveFPRegsMode save_fp,
+                        SmiCheck smi_check = SmiCheck::kInline);
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
-  void RecordWrite(
-      Register object, Register slot_address, Register value,
-      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWrite(Register object, Register slot_address, Register value,
+                   LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+                   SmiCheck smi_check = SmiCheck::kInline);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
@@ -1236,6 +1394,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
+  // Tiering support.
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure, Register scratch1,
+                                           Register slot_address);
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind,
+      Label* flags_need_processing);
+  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                                    Register feedback_vector);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 
@@ -1284,14 +1455,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitIncrementCounter(counter, value, scratch1, scratch2);
   }
   void EmitIncrementCounter(StatsCounter* counter, int value, Register scratch1,
                             Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2) {
-    if (!FLAG_native_code_counters) return;
+    if (!v8_flags.native_code_counters) return;
     EmitDecrementCounter(counter, value, scratch1, scratch2);
   }
   void EmitDecrementCounter(StatsCounter* counter, int value, Register scratch1,
@@ -1316,8 +1487,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 #if !defined(V8_COMPRESS_POINTERS) && !defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   // Ensure it is permissible to read/write int value directly from
   // upper half of the smi.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+  static_assert(kSmiTag == 0);
+  static_assert(kSmiTagSize + kSmiShiftSize == 32);
 #endif
 #if V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN
 #define SmiWordOffset(offset) (offset + kSystemPointerSize / 2)
@@ -1326,26 +1497,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 #endif
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
-  void AssertConstructor(Register object);
+  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object);
+  void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a callable JSFunction, enabled via
   // --debug-code.
-  void AssertCallableFunction(Register object);
+  void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
-  void AssertBoundFunction(Register object);
+  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
+  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
+  void AssertUndefinedOrAllocationSite(Register object,
+                                       Register scratch) NOOP_UNLESS_DEBUG_CODE
 
   // ---------------------------------------------------------------------------
   // Patching helpers.
@@ -1361,6 +1533,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
+  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch1,
+                                          Register scratch2);
+  Operand ClearedValue() const;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
@@ -1370,6 +1546,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       InvokeType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
+};
+
+struct MoveCycleState {
+  // Whether a move in the cycle needs a double scratch register.
+  bool pending_double_scratch_register_use = false;
 };
 
 #define ACCESS_MASM(masm) masm->

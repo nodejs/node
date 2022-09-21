@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-generic.h"

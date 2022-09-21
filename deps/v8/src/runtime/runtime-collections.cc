@@ -5,11 +5,8 @@
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/numbers/conversions-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

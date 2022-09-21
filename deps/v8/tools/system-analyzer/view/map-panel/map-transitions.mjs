@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {FocusEvent, SelectRelatedEvent, ToolTipEvent} from '../events.mjs';
-import {CSSColor} from '../helper.mjs';
-import {DOM, V8CustomElement} from '../helper.mjs';
+import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement('./view/map-panel/map-transitions',
                         (templateText) =>

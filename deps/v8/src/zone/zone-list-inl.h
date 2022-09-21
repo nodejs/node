@@ -7,7 +7,6 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone-list.h"
 

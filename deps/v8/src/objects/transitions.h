@@ -325,7 +325,7 @@ class TransitionArray : public WeakFixedArray {
                                               int value);
 
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
-  STATIC_ASSERT(kProtoTransitionHeaderSize == 1);
+  static_assert(kProtoTransitionHeaderSize == 1);
 
   // Returns the fixed array length required to hold number_of_transitions
   // transitions.

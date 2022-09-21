@@ -8,7 +8,7 @@
 // and may deoptimize eagerly or lazily.
 // This test ensures the eager deoptimization is handled correctly.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-turbofan
 
 var getIteratorCount = 0;
 var iteratorCount = 0;
@@ -17,9 +17,10 @@ var iteratorAfterEagerDeoptCount = 0;
 function foo(obj) {
     // The following for-of loop uses the iterator protocol to iterate
     // over the 'obj'.
-    // The GetIterator bytecode invovlves 2 steps:
+    // The GetIterator bytecode involves 3 steps:
     // 1. method = GetMethod(obj, @@iterator)
     // 2. iterator = Call(method, obj).
+    // 3. if(!IsJSReceiver(iterator)) throw SymbolIteratorInvalid.
     for(var x of obj){}
 }
 

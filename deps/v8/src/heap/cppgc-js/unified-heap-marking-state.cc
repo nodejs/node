@@ -16,9 +16,9 @@ UnifiedHeapMarkingState::UnifiedHeapMarkingState(
       marking_state_(heap_ ? heap_->mark_compact_collector()->marking_state()
                            : nullptr),
       local_marking_worklist_(local_marking_worklist),
-      track_retaining_path_(FLAG_track_retaining_path) {
-  DCHECK_IMPLIES(FLAG_track_retaining_path,
-                 !FLAG_concurrent_marking && !FLAG_parallel_marking);
+      track_retaining_path_(v8_flags.track_retaining_path) {
+  DCHECK_IMPLIES(v8_flags.track_retaining_path,
+                 !v8_flags.concurrent_marking && !v8_flags.parallel_marking);
   DCHECK_IMPLIES(heap_, marking_state_);
 }
 

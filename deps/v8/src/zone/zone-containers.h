@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <forward_list>
+#include <initializer_list>
 #include <list>
 #include <map>
 #include <queue>
@@ -45,6 +46,11 @@ class ZoneVector : public std::vector<T, ZoneAllocator<T>> {
   // initializer list.
   ZoneVector(std::initializer_list<T> list, Zone* zone)
       : std::vector<T, ZoneAllocator<T>>(list, ZoneAllocator<T>(zone)) {}
+
+  ZoneVector& operator=(std::initializer_list<T> ilist) {
+    std::vector<T, ZoneAllocator<T>>::operator=(ilist);
+    return *this;
+  }
 
   // Constructs a new vector and fills it with the contents of the range
   // [first, last).

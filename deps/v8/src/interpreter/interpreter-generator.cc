@@ -8,10 +8,7 @@
 #include <tuple>
 
 #include "src/builtins/builtins-constructor-gen.h"
-#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/profile-data-reader.h"
-#include "src/codegen/code-factory.h"
-#include "src/debug/debug.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 #include "src/ic/ic.h"
@@ -465,7 +462,7 @@ IGNITION_HANDLER(LdaLookupGlobalSlotInsideTypeof,
 IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(0));
-  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(1);
+  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(1);
   TNode<Context> context = GetContext();
   TVARIABLE(Object, var_result);
 
@@ -735,7 +732,7 @@ IGNITION_HANDLER(DefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
   TNode<Smi> flags =
-      SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag(2)));
+      SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag8(2)));
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
 
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
@@ -1778,7 +1775,7 @@ IGNITION_HANDLER(TestUndefined, InterpreterAssembler) {
 // by |literal_flag|.
 IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
-  TNode<Uint32T> literal_flag = BytecodeOperandFlag(0);
+  TNode<Uint32T> literal_flag = BytecodeOperandFlag8(0);
 
 #define MAKE_LABEL(name, lower_case) Label if_##lower_case(this);
   TYPEOF_LITERAL_LIST(MAKE_LABEL)
@@ -2169,48 +2166,52 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 // performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  TNode<Int32T> loop_depth = BytecodeOperandImm(1);
-  TNode<Int16T> osr_urgency_and_install_target =
-      LoadOsrUrgencyAndInstallTarget();
-  TNode<Context> context = GetContext();
 
-  // OSR requests can be triggered either through urgency (when > the current
-  // loop depth), or an explicit install target (= the lower bits of the
-  // targeted bytecode offset).
-  Label ok(this), maybe_osr(this, Label::kDeferred);
-  Branch(Int32GreaterThanOrEqual(loop_depth, osr_urgency_and_install_target),
-         &ok, &maybe_osr);
+  Label ok(this);
+  TNode<FeedbackVector> feedback_vector =
+      CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure(), &ok);
+  TNode<Int8T> osr_state = LoadOsrState(feedback_vector);
+  TNode<Int32T> loop_depth = BytecodeOperandImm(1);
+
+  Label maybe_osr_because_baseline(this),
+      maybe_osr_because_osr_state(this, Label::kDeferred);
+  // The quick initial OSR check. If it passes, we proceed on to more expensive
+  // OSR logic.
+  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  GotoIfNot(Uint32GreaterThanOrEqual(loop_depth, osr_state),
+            &maybe_osr_because_osr_state);
+
+  // Perhaps we've got cached baseline code?
+  TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+      LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+  TNode<HeapObject> sfi_data =
+      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
+  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
+         &maybe_osr_because_baseline, &ok);
 
   BIND(&ok);
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
   JumpBackward(relative_jump);
 
-  BIND(&maybe_osr);
-  Label osr(this);
-  // OSR based on urgency, i.e. is the OSR urgency greater than the current
-  // loop depth?
-  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
-  TNode<Word32T> osr_urgency = Word32And(osr_urgency_and_install_target,
-                                         BytecodeArray::OsrUrgencyBits::kMask);
-  GotoIf(Int32GreaterThan(osr_urgency, loop_depth), &osr);
+  BIND(&maybe_osr_because_baseline);
+  {
+    TNode<Context> context = GetContext();
+    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(2));
+    OnStackReplacement(context, feedback_vector, relative_jump, loop_depth,
+                       slot_index, osr_state,
+                       OnStackReplacementParams::kBaselineCodeIsCached);
+  }
 
-  // OSR based on the install target offset, i.e. does the current bytecode
-  // offset match the install target offset?
-  //
-  //  if (((offset << kShift) & kMask) == (target & kMask)) { ... }
-  static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
-  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
-  // Note: We OR in 1 to avoid 0 offsets, see Code::OsrInstallTargetFor.
-  TNode<Word32T> actual = Word32Or(
-      Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
-      Int32Constant(1));
-  actual = Word32And(Word32Shl(UncheckedCast<Int32T>(actual), kShift), kMask);
-  TNode<Word32T> expected = Word32And(osr_urgency_and_install_target, kMask);
-  Branch(Word32Equal(actual, expected), &osr, &ok);
-
-  BIND(&osr);
-  OnStackReplacement(context, relative_jump);
+  BIND(&maybe_osr_because_osr_state);
+  {
+    TNode<Context> context = GetContext();
+    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(2));
+    OnStackReplacement(context, feedback_vector, relative_jump, loop_depth,
+                       slot_index, osr_state,
+                       OnStackReplacementParams::kDefault);
+  }
 }
 
 // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
@@ -2259,7 +2260,7 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
   TNode<Smi> flags =
-      SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag(2)));
+      SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag16(2)));
   TNode<Context> context = GetContext();
 
   TVARIABLE(JSRegExp, result);
@@ -2279,7 +2280,7 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
   TNode<Context> context = GetContext();
-  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(2);
+  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(2);
 
   Label fast_shallow_clone(this), call_runtime(this, Label::kDeferred);
   // No feedback, so handle it as a slow case.
@@ -2367,7 +2368,7 @@ IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
 IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);
-  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(2);
+  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(2);
 
   Label if_fast_clone(this), if_not_fast_clone(this, Label::kDeferred);
   // No feedback, so handle it as a slow case.
@@ -2427,7 +2428,7 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
 // {source}, converting getters into data properties.
 IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<Object> source = LoadRegisterAtOperandIndex(0);
-  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(1);
+  TNode<Uint32T> bytecode_flags = BytecodeOperandFlag8(1);
   TNode<UintPtrT> raw_flags =
       DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(bytecode_flags);
   TNode<Smi> smi_flags = SmiTag(Signed(raw_flags));
@@ -2467,7 +2468,7 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
 // constant pool and with pretenuring controlled by |flags|.
 IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   TNode<Object> shared = LoadConstantPoolEntryAtOperandIndex(0);
-  TNode<Uint32T> flags = BytecodeOperandFlag(2);
+  TNode<Uint32T> flags = BytecodeOperandFlag8(2);
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
 
@@ -2780,6 +2781,43 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
   }
 }
 
+// FinNonDefaultConstructor <this_function> <new_target> <output>
+//
+// Walks the prototype chain from <this_function>'s super ctor until we see a
+// non-default ctor. If the walk ends at a default base ctor, creates an
+// instance and stores it in <output[1]> and stores true into output[0].
+// Otherwise, stores the first non-default ctor into <output[1]> and false into
+// <output[0]>.
+IGNITION_HANDLER(FindNonDefaultConstructor, InterpreterAssembler) {
+  TNode<Context> context = GetContext();
+  TVARIABLE(Object, constructor);
+  Label found_default_base_ctor(this, &constructor),
+      found_something_else(this, &constructor);
+
+  TNode<JSFunction> this_function = CAST(LoadRegisterAtOperandIndex(0));
+
+  FindNonDefaultConstructor(context, this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
+
+  BIND(&found_default_base_ctor);
+  {
+    // Create an object directly, without calling the default base ctor.
+    TNode<Object> new_target = LoadRegisterAtOperandIndex(1);
+    TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
+                                         constructor.value(), new_target);
+
+    StoreRegisterPairAtOperandIndex(TrueConstant(), instance, 2);
+    Dispatch();
+  }
+
+  BIND(&found_something_else);
+  {
+    // Not a base ctor (or bailed out).
+    StoreRegisterPairAtOperandIndex(FalseConstant(), constructor.value(), 2);
+    Dispatch();
+  }
+}
+
 // Debugger
 //
 // Call runtime to handle debugger statement.
@@ -2953,10 +2991,8 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
 // GetIterator <object>
 //
 // Retrieves the object[Symbol.iterator] method, calls it and stores
-// the result in the accumulator
-// TODO(swapnilgaikwad): Extend the functionality of the bytecode to
-// check if the result is a JSReceiver else throw SymbolIteratorInvalid
-// runtime exception
+// the result in the accumulator. If the result is not JSReceiver,
+// throw SymbolIteratorInvalid runtime exception.
 IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<Context> context = GetContext();

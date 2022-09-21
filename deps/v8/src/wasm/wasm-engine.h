@@ -109,8 +109,6 @@ class NativeModuleCache {
 
   bool empty() { return map_.empty(); }
 
-  static size_t WireBytesHash(base::Vector<const uint8_t> bytes);
-
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the
   // cache. See {GetStreamingCompilationOwnership}. Assumes that the bytes have
@@ -222,8 +220,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   AccountingAllocator* allocator() { return &allocator_; }
 
-  // Compilation statistics for TurboFan compilations.
-  CompilationStatistics* GetOrCreateTurboStatistics();
+  // Compilation statistics for TurboFan compilations. Returns a shared_ptr
+  // so that background compilation jobs can hold on to it while the main thread
+  // shuts down.
+  std::shared_ptr<CompilationStatistics> GetOrCreateTurboStatistics();
 
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
@@ -409,7 +409,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>>
       async_compile_jobs_;
 
-  std::unique_ptr<CompilationStatistics> compilation_stats_;
+  std::shared_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;
 
   // Set of isolates which use this WasmEngine.

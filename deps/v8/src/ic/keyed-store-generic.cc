@@ -121,6 +121,10 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                           ElementsKind from_kind, ElementsKind to_kind,
                           Label* bailout);
 
+  void StoreSharedArrayElement(TNode<Context> context,
+                               TNode<FixedArrayBase> elements,
+                               TNode<IntPtrT> index, TNode<Object> value);
+
   void StoreElementWithCapacity(TNode<JSObject> receiver,
                                 TNode<Map> receiver_map,
                                 TNode<FixedArrayBase> elements,
@@ -369,6 +373,15 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
   Return(value);
 }
 
+void KeyedStoreGenericAssembler::StoreSharedArrayElement(
+    TNode<Context> context, TNode<FixedArrayBase> elements,
+    TNode<IntPtrT> index, TNode<Object> value) {
+  TVARIABLE(Object, shared_value, value);
+  SharedValueBarrier(context, &shared_value);
+  UnsafeStoreFixedArrayElement(CAST(elements), index, shared_value.value());
+  Return(value);
+}
+
 void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     TNode<JSObject> receiver, TNode<Map> receiver_map,
     TNode<FixedArrayBase> elements, TNode<Word32T> elements_kind,
@@ -386,7 +399,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }
-  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;
 
   Label check_double_elements(this), check_cow_elements(this);
@@ -435,8 +448,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Check if we already have object elements; just do the store if so.
     {
       Label must_transition(this);
-      STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-      STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
+      static_assert(PACKED_SMI_ELEMENTS == 0);
+      static_assert(HOLEY_SMI_ELEMENTS == 1);
       GotoIf(Int32LessThanOrEqual(elements_kind,
                                   Int32Constant(HOLEY_SMI_ELEMENTS)),
              &must_transition);
@@ -570,12 +583,11 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     TNode<Context> context, Label* slow) {
   Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
       if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
-      if_typed_array(this), if_dictionary(this);
+      if_typed_array(this), if_dictionary(this), if_shared_array(this);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
   TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
   Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
   BIND(&if_fast);
-
   Label if_array(this);
   GotoIf(IsJSArrayInstanceType(instance_type), &if_array);
   {
@@ -626,7 +638,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   // dispatch.
   BIND(&if_nonfast);
   {
-    STATIC_ASSERT(LAST_ELEMENTS_KIND ==
+    static_assert(LAST_ELEMENTS_KIND ==
                   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
     GotoIf(Int32GreaterThanOrEqual(
                elements_kind,
@@ -634,6 +646,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
            &if_typed_array);
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &if_dictionary);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(SHARED_ARRAY_ELEMENTS)),
+           &if_shared_array);
     Goto(slow);
   }
 
@@ -650,6 +664,13 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     // TODO(jkummerow): Support typed arrays. Note: RAB / GSAB backed typed
     // arrays end up here too.
     Goto(slow);
+  }
+
+  BIND(&if_shared_array);
+  {
+    TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
+    GotoIf(UintPtrGreaterThanOrEqual(index, length), slow);
+    StoreSharedArrayElement(context, elements, index, value);
   }
 }
 
@@ -798,8 +819,8 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
       // transition array is expected to be the first among the transitions
       // with the same name.
       // See TransitionArray::CompareDetails() for details.
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      STATIC_ASSERT(NONE == 0);
+      static_assert(static_cast<int>(PropertyKind::kData) == 0);
+      static_assert(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
@@ -1012,7 +1033,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&accessor);
     {
       Label not_callable(this);
-      TNode<Struct> accessor_pair = CAST(var_accessor_pair.value());
+      TNode<HeapObject> accessor_pair = CAST(var_accessor_pair.value());
       GotoIf(IsAccessorInfo(accessor_pair), slow);
       CSA_DCHECK(this, IsAccessorPair(accessor_pair));
       TNode<HeapObject> setter =

@@ -164,7 +164,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
 // Make sure the Fields enum agrees with Torque-generated offsets.
 #define ASSERT_MATCHED_FIELD(name) \
-  STATIC_ASSERT(OffsetOfElementAt(k##name) == k##name##Offset);
+  static_assert(OffsetOfElementAt(k##name) == k##name##Offset);
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
 #undef ASSERT_MATCHED_FIELD
 
@@ -501,7 +501,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info =
       factory->NewScopeInfo(length, AllocationType::kReadOnly);
-
+  DisallowGarbageCollection _nogc;
   // Encode the flags.
   int flags =
       ScopeTypeBits::encode(is_empty_function ? FUNCTION_SCOPE : SCRIPT_SCOPE) |
@@ -524,18 +524,20 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
       IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
-  scope_info->set_flags(flags);
-  scope_info->set_parameter_count(parameter_count);
-  scope_info->set_context_local_count(context_local_count);
+  auto raw_scope_info = *scope_info;
+  raw_scope_info.set_flags(flags);
+  raw_scope_info.set_parameter_count(parameter_count);
+  raw_scope_info.set_context_local_count(context_local_count);
 
   int index = kVariablePartIndex;
 
   // Here we add info for context-allocated "this".
-  DCHECK_EQ(index, scope_info->ContextLocalNamesIndex());
+  DCHECK_EQ(index, raw_scope_info.ContextLocalNamesIndex());
+  ReadOnlyRoots roots(isolate);
   if (context_local_count) {
-    scope_info->set(index++, ReadOnlyRoots(isolate).this_string());
+    raw_scope_info.set(index++, roots.this_string());
   }
-  DCHECK_EQ(index, scope_info->ContextLocalInfosIndex());
+  DCHECK_EQ(index, raw_scope_info.ContextLocalInfosIndex());
   if (context_local_count > 0) {
     const uint32_t value =
         VariableModeBits::encode(VariableMode::kConst) |
@@ -543,30 +545,30 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
         MaybeAssignedFlagBit::encode(kNotAssigned) |
         ParameterNumberBits::encode(ParameterNumberBits::kMax) |
         IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
-    scope_info->set(index++, Smi::FromInt(value));
+    raw_scope_info.set(index++, Smi::FromInt(value));
   }
 
-  DCHECK_EQ(index, scope_info->FunctionVariableInfoIndex());
+  DCHECK_EQ(index, raw_scope_info.FunctionVariableInfoIndex());
   if (is_empty_function) {
-    scope_info->set(index++, *isolate->factory()->empty_string());
-    scope_info->set(index++, Smi::zero());
+    raw_scope_info.set(index++, roots.empty_string());
+    raw_scope_info.set(index++, Smi::zero());
   }
-  DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
+  DCHECK_EQ(index, raw_scope_info.InferredFunctionNameIndex());
   if (has_inferred_function_name) {
-    scope_info->set(index++, *isolate->factory()->empty_string());
+    raw_scope_info.set(index++, roots.empty_string());
   }
-  DCHECK_EQ(index, scope_info->PositionInfoIndex());
+  DCHECK_EQ(index, raw_scope_info.PositionInfoIndex());
   // Store dummy position to be in sync with the {scope_type}.
-  scope_info->set(index++, Smi::zero());
-  scope_info->set(index++, Smi::zero());
-  DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
-  DCHECK_EQ(index, scope_info->length());
-  DCHECK_EQ(scope_info->ParameterCount(), parameter_count);
+  raw_scope_info.set(index++, Smi::zero());
+  raw_scope_info.set(index++, Smi::zero());
+  DCHECK_EQ(index, raw_scope_info.OuterScopeInfoIndex());
+  DCHECK_EQ(index, raw_scope_info.length());
+  DCHECK_EQ(raw_scope_info.ParameterCount(), parameter_count);
   if (is_empty_function || is_native_context) {
-    DCHECK_EQ(scope_info->ContextLength(), 0);
+    DCHECK_EQ(raw_scope_info.ContextLength(), 0);
   } else {
-    DCHECK_EQ(scope_info->ContextLength(),
-              scope_info->ContextHeaderLength() + 1);
+    DCHECK_EQ(raw_scope_info.ContextLength(),
+              raw_scope_info.ContextHeaderLength() + 1);
   }
 
   return scope_info;
@@ -1119,9 +1121,11 @@ Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
                                          int position) {
   Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
-  result->set_specifier(*specifier);
-  result->set_import_assertions(*import_assertions);
-  result->set_position(position);
+  DisallowGarbageCollection no_gc;
+  auto raw = *result;
+  raw.set_specifier(*specifier);
+  raw.set_import_assertions(*import_assertions);
+  raw.set_position(position);
   return result;
 }
 
@@ -1141,13 +1145,15 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
   Handle<SourceTextModuleInfoEntry> result =
       Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
           SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
-  result->set_export_name(*export_name);
-  result->set_local_name(*local_name);
-  result->set_import_name(*import_name);
-  result->set_module_request(module_request);
-  result->set_cell_index(cell_index);
-  result->set_beg_pos(beg_pos);
-  result->set_end_pos(end_pos);
+  DisallowGarbageCollection no_gc;
+  auto raw = *result;
+  raw.set_export_name(*export_name);
+  raw.set_local_name(*local_name);
+  raw.set_import_name(*import_name);
+  raw.set_module_request(module_request);
+  raw.set_cell_index(cell_index);
+  raw.set_beg_pos(beg_pos);
+  raw.set_end_pos(end_pos);
   return result;
 }
 

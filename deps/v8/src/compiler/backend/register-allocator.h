@@ -13,6 +13,7 @@
 #include "src/compiler/backend/register-allocation.h"
 #include "src/flags/flags.h"
 #include "src/utils/ostreams.h"
+#include "src/utils/sparse-bit-vector.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -285,8 +286,8 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   const ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() const {
     return fixed_simd128_live_ranges_;
   }
-  ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
-  ZoneVector<BitVector*>& live_out_sets() { return live_out_sets_; }
+  ZoneVector<SparseBitVector*>& live_in_sets() { return live_in_sets_; }
+  ZoneVector<SparseBitVector*>& live_out_sets() { return live_out_sets_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
   DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
@@ -361,8 +362,8 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   const char* const debug_name_;
   const RegisterConfiguration* const config_;
   PhiMap phi_map_;
-  ZoneVector<BitVector*> live_in_sets_;
-  ZoneVector<BitVector*> live_out_sets_;
+  ZoneVector<SparseBitVector*> live_in_sets_;
+  ZoneVector<SparseBitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_float_live_ranges_;
@@ -931,8 +932,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     spill_start_index_ = -1;
     spilled_in_deferred_blocks_ = true;
     spill_move_insertion_locations_ = nullptr;
-    list_of_blocks_requiring_spill_operands_ =
-        zone->New<BitVector>(total_block_count, zone);
+    list_of_blocks_requiring_spill_operands_ = zone->New<SparseBitVector>(zone);
   }
 
   // Updates internal data structures to reflect that this range is not
@@ -940,8 +940,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void TransitionRangeToDeferredSpill(Zone* zone, int total_block_count) {
     spill_start_index_ = -1;
     spill_move_insertion_locations_ = nullptr;
-    list_of_blocks_requiring_spill_operands_ =
-        zone->New<BitVector>(total_block_count, zone);
+    list_of_blocks_requiring_spill_operands_ = zone->New<SparseBitVector>(zone);
   }
 
   // Promotes this range to spill at definition if it was marked for spilling
@@ -1014,7 +1013,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     GetListOfBlocksRequiringSpillOperands(data)->Add(block_id.ToInt());
   }
 
-  BitVector* GetListOfBlocksRequiringSpillOperands(
+  SparseBitVector* GetListOfBlocksRequiringSpillOperands(
       const TopTierRegisterAllocationData* data) const {
     DCHECK(IsSpilledOnlyInDeferredBlocks(data));
     return list_of_blocks_requiring_spill_operands_;
@@ -1049,7 +1048,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   union {
     SpillMoveInsertionList* spill_move_insertion_locations_;
-    BitVector* list_of_blocks_requiring_spill_operands_;
+    SparseBitVector* list_of_blocks_requiring_spill_operands_;
   };
 
   // TODO(mtrofin): generalize spilling after definition, currently specialized
@@ -1211,8 +1210,8 @@ class LiveRangeBuilder final : public ZoneObject {
 
   // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
-  static BitVector* ComputeLiveOut(const InstructionBlock* block,
-                                   TopTierRegisterAllocationData* data);
+  static SparseBitVector* ComputeLiveOut(const InstructionBlock* block,
+                                         TopTierRegisterAllocationData* data);
 
  private:
   using SpillMode = TopTierRegisterAllocationData::SpillMode;
@@ -1224,7 +1223,7 @@ class LiveRangeBuilder final : public ZoneObject {
   Zone* allocation_zone() const { return data()->allocation_zone(); }
   Zone* code_zone() const { return code()->zone(); }
   const RegisterConfiguration* config() const { return data()->config(); }
-  ZoneVector<BitVector*>& live_in_sets() const {
+  ZoneVector<SparseBitVector*>& live_in_sets() const {
     return data()->live_in_sets();
   }
 
@@ -1236,10 +1235,12 @@ class LiveRangeBuilder final : public ZoneObject {
   bool NextIntervalStartsInDifferentBlocks(const UseInterval* interval) const;
 
   // Liveness analysis support.
-  void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);
-  void ProcessInstructions(const InstructionBlock* block, BitVector* live);
-  void ProcessPhis(const InstructionBlock* block, BitVector* live);
-  void ProcessLoopHeader(const InstructionBlock* block, BitVector* live);
+  void AddInitialIntervals(const InstructionBlock* block,
+                           SparseBitVector* live_out);
+  void ProcessInstructions(const InstructionBlock* block,
+                           SparseBitVector* live);
+  void ProcessPhis(const InstructionBlock* block, SparseBitVector* live);
+  void ProcessLoopHeader(const InstructionBlock* block, SparseBitVector* live);
 
   static int FixedLiveRangeID(int index) { return -index - 1; }
   int FixedFPLiveRangeID(int index, MachineRepresentation rep);

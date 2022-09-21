@@ -10,11 +10,9 @@
 #ifdef V8_RUNTIME_CALL_STATS
 
 #include "src/base/atomic-utils.h"
-#include "src/base/optional.h"
-#include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/debug/debug-interface.h"
 #include "src/execution/thread-id.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/tracing-flags.h"
@@ -280,6 +278,7 @@ class RuntimeCallTimer final {
   V(Uint32Array_New)                                       \
   V(Uint8Array_New)                                        \
   V(Uint8ClampedArray_New)                                 \
+  V(UnboundScript_GetColumnNumber)                         \
   V(UnboundScript_GetId)                                   \
   V(UnboundScript_GetLineNumber)                           \
   V(UnboundScript_GetName)                                 \
@@ -358,6 +357,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulatePointerMaps)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintTurboshaftGraph)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                  \
@@ -368,16 +368,22 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildTurboshaft)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeTurboshaft)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Untyper)                         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, VerifyGraph)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmBaseOptimization)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCLowering)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmGCOptimization)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                      \
                                                                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, FunctionLiteral)                    \
@@ -481,13 +487,19 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_ArrayBuffers)       \
+  V(WebSnapshotDeserialize_BigInts)            \
+  V(WebSnapshotDeserialize_BuiltinObjects)     \
   V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
+  V(WebSnapshotDeserialize_DataViews)          \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)            \
+  V(WebSnapshotDeserialize_Symbols)            \
+  V(WebSnapshotDeserialize_TypedArrays)        \
   V(WrappedFunctionLengthGetter)               \
   V(WrappedFunctionNameGetter)
 

@@ -9,7 +9,7 @@
 
 #include "include/v8-function-callback.h"
 #include "include/v8-local-handle.h"
-#include "src/common/globals.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 

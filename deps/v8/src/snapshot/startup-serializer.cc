@@ -4,14 +4,11 @@
 
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api/api.h"
-#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/contexts.h"
-#include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
@@ -96,38 +93,8 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
   if (!code.is_builtin()) return true;
   if (code.is_off_heap_trampoline()) return false;
 
-  // An on-heap builtin. We only expect this for the interpreter entry
-  // trampoline copy stored on the root list and transitively called builtins.
-  // See Heap::interpreter_entry_trampoline_for_profiling.
-
-  switch (code.builtin_id()) {
-    case Builtin::kAbort:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kInterpreterEntryTrampoline:
-    case Builtin::kRecordWriteEmitRememberedSetSaveFP:
-    case Builtin::kRecordWriteOmitRememberedSetSaveFP:
-    case Builtin::kRecordWriteEmitRememberedSetIgnoreFP:
-    case Builtin::kRecordWriteOmitRememberedSetIgnoreFP:
-#ifdef V8_IS_TSAN
-    case Builtin::kTSANRelaxedStore8IgnoreFP:
-    case Builtin::kTSANRelaxedStore8SaveFP:
-    case Builtin::kTSANRelaxedStore16IgnoreFP:
-    case Builtin::kTSANRelaxedStore16SaveFP:
-    case Builtin::kTSANRelaxedStore32IgnoreFP:
-    case Builtin::kTSANRelaxedStore32SaveFP:
-    case Builtin::kTSANRelaxedStore64IgnoreFP:
-    case Builtin::kTSANRelaxedStore64SaveFP:
-    case Builtin::kTSANRelaxedLoad32IgnoreFP:
-    case Builtin::kTSANRelaxedLoad32SaveFP:
-    case Builtin::kTSANRelaxedLoad64IgnoreFP:
-    case Builtin::kTSANRelaxedLoad64SaveFP:
-#endif  // V8_IS_TSAN
-      return false;
-    default:
-      return true;
-  }
-
-  UNREACHABLE();
+  // An on-heap builtin.
+  return true;
 }
 
 }  // namespace
@@ -156,25 +123,14 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   if (SerializeUsingSharedHeapObjectCache(&sink_, obj)) return;
   if (SerializeBackReference(*obj)) return;
 
-  bool use_simulator = false;
-#ifdef USE_SIMULATOR
-  use_simulator = true;
-#endif
-
-  if (use_simulator && obj->IsAccessorInfo(cage_base)) {
+  if (USE_SIMULATOR_BOOL && obj->IsAccessorInfo(cage_base)) {
     // Wipe external reference redirects in the accessor info.
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
-    Address original_address =
-        Foreign::cast(info->getter()).foreign_address(isolate());
-    Foreign::cast(info->js_getter())
-        .set_foreign_address(isolate(), original_address);
+    info->remove_getter_redirection(isolate());
     accessor_infos_.Push(*info);
-  } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
+  } else if (USE_SIMULATOR_BOOL && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
-    Address original_address =
-        Foreign::cast(info->callback()).foreign_address(isolate());
-    Foreign::cast(info->js_callback())
-        .set_foreign_address(isolate(), original_address);
+    info->remove_callback_redirection(isolate());
     call_handler_infos_.Push(*info);
   } else if (obj->IsScript(cage_base) &&
              Handle<Script>::cast(obj)->IsUserJavaScript()) {

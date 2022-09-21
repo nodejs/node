@@ -93,7 +93,7 @@ function foo2(arg) {
 }
 //# sourceURL=test2.js`, 5);
     await evaluate('foo1(0)', breakpointId);
-    await evaluate('foo2(0)');
+    await evaluate('foo2(0)', breakpointId);
 }
 ]);
 

@@ -132,8 +132,8 @@ class V8_EXPORT Platform {
  *
  * Can be called multiple times when paired with `ShutdownProcess()`.
  *
- * \param page_allocator The allocator used for maintaining meta data. Must not
- *   change between multiple calls to InitializeProcess.
+ * \param page_allocator The allocator used for maintaining meta data. Must stay
+ *   always alive and not change between multiple calls to InitializeProcess.
  */
 V8_EXPORT void InitializeProcess(PageAllocator* page_allocator);
 

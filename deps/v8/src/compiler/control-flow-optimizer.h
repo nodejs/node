@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_CONTROL_FLOW_OPTIMIZER_H_
 #define V8_COMPILER_CONTROL_FLOW_OPTIMIZER_H_
 
-#include "src/common/globals.h"
 #include "src/compiler/node-marker.h"
 #include "src/zone/zone-containers.h"
 

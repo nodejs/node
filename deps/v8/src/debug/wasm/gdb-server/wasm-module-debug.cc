@@ -6,7 +6,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
-#include "src/base/platform/wrappers.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/objects/script.h"
@@ -94,9 +93,10 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
     switch (frame->type()) {
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
-      case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
+      case StackFrame::MAGLEV:
+      case StackFrame::TURBOFAN:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -153,9 +153,10 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
     switch (frame->type()) {
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
-      case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
+      case StackFrame::MAGLEV:
+      case StackFrame::TURBOFAN:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -400,7 +401,7 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
     case wasm::kS128:
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
     case wasm::kRef:
-    case wasm::kOptRef:
+    case wasm::kRefNull:
     case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:

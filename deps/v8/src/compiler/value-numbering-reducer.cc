@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "src/base/functional.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 

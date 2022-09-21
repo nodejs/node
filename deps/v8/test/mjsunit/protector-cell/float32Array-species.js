@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-stress-opt
+// Flags: --allow-natives-syntax
 
 assertTrue(%TypedArraySpeciesProtector());
 class MyFloat32Array extends Float32Array { }

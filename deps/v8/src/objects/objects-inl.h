@@ -20,6 +20,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
@@ -102,7 +103,7 @@ IS_TYPE_FUNCTION_DEF(CodeT)
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
   bool Object::Is##Type(ReadOnlyRoots roots) const {             \
-    return *this == roots.Value();                               \
+    return SafeEquals(roots.Value());                            \
   }                                                              \
   bool Object::Is##Type() const {                                \
     return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
@@ -122,6 +123,10 @@ ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 
 bool Object::IsNullOrUndefined(Isolate* isolate) const {
   return IsNullOrUndefined(ReadOnlyRoots(isolate));
+}
+
+bool Object::IsNullOrUndefined(LocalIsolate* local_isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(local_isolate));
 }
 
 bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
@@ -344,16 +349,6 @@ DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
   return IsWeakFixedArray(cage_base);
 }
 
-bool HeapObject::IsAbstractCode() const {
-  // TODO(v8:11880): Either make AbstractCode be ByteArray|CodeT or
-  // ensure this version is not called for hot code.
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
-  return HeapObject::IsAbstractCode(cage_base);
-}
-bool HeapObject::IsAbstractCode(PtrComprCageBase cage_base) const {
-  return IsBytecodeArray(cage_base) || IsCode(cage_base);
-}
-
 DEF_GETTER(HeapObject, IsStringWrapper, bool) {
   return IsJSPrimitiveWrapper(cage_base) &&
          JSPrimitiveWrapper::cast(*this).value().IsString(cage_base);
@@ -399,14 +394,6 @@ DEF_GETTER(HeapObject, IsObjectHashTable, bool) {
 }
 
 DEF_GETTER(HeapObject, IsHashTableBase, bool) { return IsHashTable(cage_base); }
-
-#if V8_ENABLE_WEBASSEMBLY
-DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
-  // It is not possible to check for the existence of certain properties on the
-  // underlying {JSReceiver} here because that requires calling handlified code.
-  return IsJSReceiver(cage_base);
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;
@@ -676,24 +663,22 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                 PtrComprCageBase(isolate), value);
 }
 
+template <ExternalPointerTag tag>
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      ExternalPointerTag tag) {
-  i::InitExternalPointerField(field_address(offset), isolate, tag);
+                                      Address value) {
+  i::InitExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      Address value, ExternalPointerTag tag) {
-  i::InitExternalPointerField(field_address(offset), isolate, value, tag);
+template <ExternalPointerTag tag>
+Address Object::ReadExternalPointerField(size_t offset,
+                                         Isolate* isolate) const {
+  return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
 }
 
-Address Object::ReadExternalPointerField(size_t offset, Isolate* isolate,
-                                         ExternalPointerTag tag) const {
-  return i::ReadExternalPointerField(field_address(offset), isolate, tag);
-}
-
+template <ExternalPointerTag tag>
 void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value, ExternalPointerTag tag) {
-  i::WriteExternalPointerField(field_address(offset), isolate, value, tag);
+                                       Address value) {
+  i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {
@@ -708,8 +693,8 @@ CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
   return CodeObjectSlot(field_address(byte_offset));
 }
 
-ExternalPointer_t HeapObject::RawExternalPointerField(int byte_offset) const {
-  return ReadRawExternalPointerField(field_address(byte_offset));
+ExternalPointerSlot HeapObject::RawExternalPointerField(int byte_offset) const {
+  return ExternalPointerSlot(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) {
@@ -761,18 +746,18 @@ HeapObject MapWord::ToForwardingAddress(PtrComprCageBase host_cage_base) {
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
   VerifyPointer(isolate, TaggedField<Object>::load(isolate, *this, offset));
-  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
+  static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
   MaybeObject::VerifyMaybeObjectPointer(
       isolate, TaggedField<MaybeObject>::load(isolate, *this, offset));
-  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
+  static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifySmiField(int offset) {
   CHECK(TaggedField<Object>::load(*this, offset).IsSmi());
-  STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
+  static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 #endif
@@ -845,22 +830,20 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
   // background threads.
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
                  !LocalHeap::Current());
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !value.is_null()) {
+  if (v8_flags.verify_heap && !value.is_null()) {
     Heap* heap = GetHeapFromWritableObject(*this);
     if (mode == VerificationMode::kSafeMapTransition) {
-      heap->VerifySafeMapTransition(*this, value);
+      HeapVerifier::VerifySafeMapTransition(heap, *this, value);
     } else {
       DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
-      heap->VerifyObjectLayoutChange(*this, value);
+      HeapVerifier::VerifyObjectLayoutChange(heap, *this, value);
     }
   }
-#endif
   set_map_word(MapWord::FromMap(value), order);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     if (emit_write_barrier == EmitWriteBarrier::kYes) {
-      WriteBarrier::Marking(*this, map_slot(), value);
+      CombinedWriteBarrier(*this, map_slot(), value, UPDATE_WRITE_BARRIER);
     } else {
       DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
       SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
@@ -875,7 +858,7 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    WriteBarrier::Marking(*this, map_slot(), value);
+    CombinedWriteBarrier(*this, map_slot(), value, mode);
   } else {
     SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
   }
@@ -1012,6 +995,12 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
   return kTaggedAligned;
+}
+
+bool HeapObject::CheckRequiredAlignment(PtrComprCageBase cage_base) const {
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map(cage_base));
+  CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));
+  return true;
 }
 
 Address HeapObject::GetFieldAddress(int field_offset) const {
@@ -1179,12 +1168,15 @@ bool Object::IsShared() const {
   switch (object.map().instance_type()) {
     case SHARED_STRING_TYPE:
     case SHARED_ONE_BYTE_STRING_TYPE:
+    case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
+    case JS_ATOMICS_MUTEX_TYPE:
+    case JS_ATOMICS_CONDITION_TYPE:
       DCHECK(object.InSharedHeap());
       return true;
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-      if (FLAG_shared_string_table) {
+      if (v8_flags.shared_string_table) {
         DCHECK(object.InSharedHeap());
         return true;
       }

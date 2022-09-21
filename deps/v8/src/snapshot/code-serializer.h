@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class PersistentHandles;
+class BackgroundMergeTask;
 
 class V8_EXPORT_PRIVATE AlignedCachedData {
  public:
@@ -62,6 +63,10 @@ enum class SerializedCodeSanityCheckResult {
 class CodeSerializer : public Serializer {
  public:
   struct OffThreadDeserializeData {
+   public:
+    bool HasResult() const { return !maybe_result.is_null(); }
+    Handle<Script> GetOnlyScript(LocalHeap* heap);
+
    private:
     friend class CodeSerializer;
     MaybeHandle<SharedFunctionInfo> maybe_result;
@@ -87,10 +92,11 @@ class CodeSerializer : public Serializer {
                             AlignedCachedData* cached_data);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
-  FinishOffThreadDeserialize(Isolate* isolate, OffThreadDeserializeData&& data,
-                             AlignedCachedData* cached_data,
-                             Handle<String> source,
-                             ScriptOriginOptions origin_options);
+  FinishOffThreadDeserialize(
+      Isolate* isolate, OffThreadDeserializeData&& data,
+      AlignedCachedData* cached_data, Handle<String> source,
+      ScriptOriginOptions origin_options,
+      BackgroundMergeTask* background_merge_task = nullptr);
 
   uint32_t source_hash() const { return source_hash_; }
 

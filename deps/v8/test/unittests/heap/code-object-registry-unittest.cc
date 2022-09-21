@@ -14,7 +14,7 @@ TEST(CodeObjectRegistry, RegisterAlreadyExistingObjectsAndContains) {
   const int elements = 10;
   const int offset = 100;
   for (int i = 0; i < elements; i++) {
-    registry.RegisterAlreadyExistingCodeObject(i * offset);
+    registry.RegisterNewlyAllocatedCodeObject(i * offset);
   }
 
   for (int i = 0; i < elements; i++) {
@@ -41,7 +41,7 @@ TEST(CodeObjectRegistry, FindAlreadyExistingObjects) {
   const int offset = 100;
   const int inner = 2;
   for (int i = 1; i <= elements; i++) {
-    registry.RegisterAlreadyExistingCodeObject(i * offset);
+    registry.RegisterNewlyAllocatedCodeObject(i * offset);
   }
 
   for (int i = 1; i <= elements; i++) {
@@ -69,25 +69,5 @@ TEST(CodeObjectRegistry, FindNewlyAllocatedObjects) {
   }
 }
 
-TEST(CodeObjectRegistry, FindAlternatingObjects) {
-  CodeObjectRegistry registry;
-  const int elements = 10;
-  const int offset = 100;
-  const int inner = 2;
-  for (int i = 1; i <= elements; i++) {
-    if (i % 2 == 0) {
-      registry.RegisterAlreadyExistingCodeObject(i * offset);
-    } else {
-      registry.RegisterNewlyAllocatedCodeObject(i * offset);
-    }
-  }
-
-  for (int i = 1; i <= elements; i++) {
-    for (int j = 0; j < inner; j++) {
-      CHECK_EQ(registry.GetCodeObjectStartFromInnerAddress(i * offset + j),
-               i * offset);
-    }
-  }
-}
 }  // namespace internal
 }  // namespace v8

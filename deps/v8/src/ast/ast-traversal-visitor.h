@@ -7,6 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {

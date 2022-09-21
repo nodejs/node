@@ -274,6 +274,7 @@ class V8_EXPORT_PRIVATE Debug {
   void PrepareStepInSuspendedGenerator();
   void PrepareStepOnThrow();
   void ClearStepping();
+  void PrepareRestartFrame(JavaScriptFrame* frame, int inlined_frame_index);
 
   void SetBreakOnNextFunctionCall();
   void ClearBreakOnNextFunctionCall();
@@ -329,7 +330,8 @@ class V8_EXPORT_PRIVATE Debug {
   // change. stack_changed is true if after editing script on pause stack is
   // changed and client should request stack trace again.
   bool SetScriptSource(Handle<Script> script, Handle<String> source,
-                       bool preview, debug::LiveEditResult* result);
+                       bool preview, bool allow_top_frame_live_editing,
+                       debug::LiveEditResult* result);
 
   int GetFunctionDebuggingId(Handle<JSFunction> function);
 
@@ -391,6 +393,24 @@ class V8_EXPORT_PRIVATE Debug {
   StepAction last_step_action() { return thread_local_.last_step_action_; }
   bool break_on_next_function_call() const {
     return thread_local_.break_on_next_function_call_;
+  }
+
+  bool scheduled_break_on_function_call() const {
+    return thread_local_.scheduled_break_on_next_function_call_;
+  }
+
+  bool IsRestartFrameScheduled() const {
+    return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+  }
+  bool ShouldRestartFrame(StackFrameId id) const {
+    return IsRestartFrameScheduled() && thread_local_.restart_frame_id_ == id;
+  }
+  void clear_restart_frame() {
+    thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
+    thread_local_.restart_inline_frame_index_ = -1;
+  }
+  int restart_inline_frame_index() const {
+    return thread_local_.restart_inline_frame_index_;
   }
 
   inline bool break_disabled() const { return break_disabled_; }
@@ -568,9 +588,25 @@ class V8_EXPORT_PRIVATE Debug {
     // debugger to break on next function call.
     bool break_on_next_function_call_;
 
+    // This flag is true when we break via stack check (BreakReason::kScheduled)
+    // We don't stay paused there but instead "step in" to the function similar
+    // to what "BreakOnNextFunctionCall" does.
+    bool scheduled_break_on_next_function_call_;
+
     // Throwing an exception may cause a Promise rejection.  For this purpose
     // we keep track of a stack of nested promises.
     Object promise_stack_;
+
+    // Frame ID for the frame that needs to be restarted. StackFrameId::NO_ID
+    // otherwise. The unwinder uses the id to restart execution in this frame
+    // instead of any potential catch handler.
+    StackFrameId restart_frame_id_;
+
+    // If `restart_frame_id_` is an optimized frame, then this index denotes
+    // which of the inlined frames we actually want to restart. The
+    // deoptimizer uses the info to materialize and drop execution into the
+    // right frame.
+    int restart_inline_frame_index_;
   };
 
   static void Iterate(RootVisitor* v, ThreadLocal* thread_local_data);

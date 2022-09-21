@@ -2369,7 +2369,54 @@ TEST_P(InstructionSelectorSIMDArchShuffleTest, SIMDArchShuffle) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDArchShuffleTest,
                          ::testing::ValuesIn(kArchShuffles));
-#endif  // V8_ENABLE_WEBASSEMBLY
+
+struct ShuffleWithZeroInput {
+  uint8_t shuffle_mask[kSimd128Size];
+  ArchOpcode arch_opcode;
+  size_t input_count;
+};
+
+static constexpr ShuffleWithZeroInput kShuffleWithZeroInput[] = {
+    // These are matched by TryMatchByteToDwordZeroExtend.
+    {
+        {16, 1, 2, 3, 17, 4, 5, 6, 18, 7, 8, 9, 19, 10, 11, 12},
+        kX64I32X4ShiftZeroExtendI8x16,
+        2,
+    },
+    // Generic shuffle that uses one zero input.
+    {
+        {16, 1, 2, 3, 17, 4, 5, 6, 18, 7, 8, 9, 19, 20, 21, 22},
+        kX64I8x16Shuffle,
+        5,
+    },
+};
+
+using InstructionSelectorSIMDShuffleWithZeroInputTest =
+    InstructionSelectorTestWithParam<ShuffleWithZeroInput>;
+
+TEST_P(InstructionSelectorSIMDShuffleWithZeroInputTest,
+       SIMDShuffleWithZeroInputTest) {
+  MachineType type = MachineType::Simd128();
+  {
+    // Tests shuffle to packed zero extend optimization
+    uint8_t zeros[kSimd128Size] = {0};
+    StreamBuilder m(this, type, type);
+    auto param = GetParam();
+    const Operator* op = m.machine()->I8x16Shuffle(param.shuffle_mask);
+    Node* const c = m.S128Const(zeros);
+    Node* n = m.AddNode(op, c, m.Parameter(0));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(param.arch_opcode, s[0]->arch_opcode());
+    ASSERT_EQ(param.input_count, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDShuffleWithZeroInputTest,
+                         ::testing::ValuesIn(kShuffleWithZeroInput));
 
 struct SwizzleConstants {
   uint8_t shuffle[kSimd128Size];
@@ -2430,6 +2477,7 @@ TEST_F(InstructionSelectorTest, F64x2PromoteLowF32x4WithS128Load64Zero) {
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

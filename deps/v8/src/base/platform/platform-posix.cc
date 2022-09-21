@@ -52,6 +52,9 @@
 
 #if V8_OS_DARWIN
 #include <mach/mach.h>
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
 #endif
 
 #if V8_OS_LINUX
@@ -123,25 +126,6 @@ constexpr int kAppleArmPageSize = 1 << 14;
 
 const int kMmapFdOffset = 0;
 
-// TODO(v8:10026): Add the right permission flag to make executable pages
-// guarded.
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
-  switch (access) {
-    case OS::MemoryPermission::kNoAccess:
-    case OS::MemoryPermission::kNoAccessWillJitLater:
-      return PROT_NONE;
-    case OS::MemoryPermission::kRead:
-      return PROT_READ;
-    case OS::MemoryPermission::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case OS::MemoryPermission::kReadWriteExecute:
-      return PROT_READ | PROT_WRITE | PROT_EXEC;
-    case OS::MemoryPermission::kReadExecute:
-      return PROT_READ | PROT_EXEC;
-  }
-  UNREACHABLE();
-}
-
 enum class PageType { kShared, kPrivate };
 
 int GetFlagsForMemoryPermission(OS::MemoryPermission access,
@@ -195,6 +179,25 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
 #endif  // !V8_OS_FUCHSIA
 
 }  // namespace
+
+// TODO(v8:10026): Add the right permission flag to make executable pages
+// guarded.
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+      return PROT_NONE;
+    case OS::MemoryPermission::kRead:
+      return PROT_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return PROT_READ | PROT_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PROT_READ | PROT_WRITE | PROT_EXEC;
+    case OS::MemoryPermission::kReadExecute:
+      return PROT_READ | PROT_EXEC;
+  }
+  UNREACHABLE();
+}
 
 #if V8_OS_LINUX || V8_OS_FREEBSD
 #ifdef __arm__
@@ -354,6 +357,10 @@ void* OS::GetRandomMmapAddr() {
   // TODO(RISCV): We need more information from the kernel to correctly mask
   // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
   raw_addr &= uint64_t{0xFFFFFF0000};
+#elif V8_TARGET_ARCH_RISCV32
+  // TODO(RISCV): We need more information from the kernel to correctly mask
+  // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
+  raw_addr &= 0x3FFFF000;
 #elif V8_TARGET_ARCH_LOONG64
   // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
   // to fulfill request.
@@ -472,6 +479,11 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
 
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures.
+  if (ret != 0) CHECK_EQ(ENOMEM, errno);
+
   // MacOS 11.2 on Apple Silicon refuses to switch permissions from
   // rwx to none. Just use madvise instead.
 #if defined(V8_OS_DARWIN)
@@ -501,6 +513,28 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+void OS::SetDataReadOnly(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+  CHECK_EQ(0, mprotect(address, size, PROT_READ));
+}
+
+// static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+#if defined(V8_OS_DARWIN)
+  while (madvise(address, size, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
+  }
+  return true;
+#else
+  return SetPermissions(address, size, access);
+#endif  // defined(V8_OS_DARWIN)
+}
+
+// static
 bool OS::DiscardSystemPages(void* address, size_t size) {
   // Roughly based on PartitionAlloc's DiscardSystemPagesInternal
   // (base/allocator/partition_allocator/page_allocator_internals_posix.h)
@@ -510,7 +544,10 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
   // marks the pages with the reusable bit, which allows both Activity Monitor
   // and memory-infra to correctly track the pages.
-  int ret = madvise(address, size, MADV_FREE_REUSABLE);
+  int ret;
+  do {
+    ret = madvise(address, size, MADV_FREE_REUSABLE);
+  } while (ret != 0 && errno == EAGAIN);
   if (ret) {
     // MADV_FREE_REUSABLE sometimes fails, so fall back to MADV_DONTNEED.
     ret = madvise(address, size, MADV_DONTNEED);
@@ -581,7 +618,26 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // Need to disable CFI_ICALL due to the indirect call to memfd_create.
 DISABLE_CFI_ICALL
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+#if V8_OS_LINUX && !V8_OS_ANDROID
+  // Use memfd_create if available, otherwise mkstemp.
+  using memfd_create_t = int (*)(const char*, unsigned int);
+  memfd_create_t memfd_create =
+      reinterpret_cast<memfd_create_t>(dlsym(RTLD_DEFAULT, "memfd_create"));
+  int fd = -1;
+  if (memfd_create) {
+    fd = memfd_create("V8MemFDForTesting", 0);
+  }
+  if (fd == -1) {
+    char filename[] = "/tmp/v8_tmp_file_for_testing_XXXXXX";
+    fd = mkstemp(filename);
+    if (fd != -1) CHECK_EQ(0, unlink(filename));
+  }
+  if (fd == -1) return kInvalidSharedMemoryHandle;
+  CHECK_EQ(0, ftruncate(fd, size));
+  return SharedMemoryHandleFromFileDescriptor(fd);
+#else
   return kInvalidSharedMemoryHandle;
+#endif
 }
 
 // static
@@ -643,6 +699,8 @@ void OS::DebugBreak() {
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
 #elif V8_HOST_ARCH_RISCV64
+  asm("ebreak");
+#elif V8_HOST_ARCH_RISCV32
   asm("ebreak");
 #else
 #error Unsupported host architecture.
@@ -972,6 +1030,12 @@ bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
   return OS::SetPermissions(address, size, access);
 }
 
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::RecommitPages(address, size, access);
+}
+
 bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {
   DCHECK(Contains(address, size));
   return OS::DiscardSystemPages(address, size);
@@ -1015,7 +1079,7 @@ static void SetThreadName(const char* name) {
 #if V8_OS_DRAGONFLYBSD || V8_OS_FREEBSD || V8_OS_OPENBSD
   pthread_set_name_np(pthread_self(), name);
 #elif V8_OS_NETBSD
-  STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
+  static_assert(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
   pthread_setname_np(pthread_self(), "%s", name);
 #elif V8_OS_DARWIN
   // pthread_setname_np is only available in 10.6 or later, so test
@@ -1027,7 +1091,7 @@ static void SetThreadName(const char* name) {
 
   // Mac OS X does not expose the length limit of the name, so hardcode it.
   static const int kMaxNameLength = 63;
-  STATIC_ASSERT(Thread::kMaxThreadNameLength <= kMaxNameLength);
+  static_assert(Thread::kMaxThreadNameLength <= kMaxNameLength);
   dynamic_pthread_setname_np(name);
 #elif defined(PR_SET_NAME)
   prctl(PR_SET_NAME,
@@ -1093,7 +1157,7 @@ static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
   // We need to cast pthread_key_t to Thread::LocalStorageKey in two steps
   // because pthread_key_t is a pointer type on Cygwin. This will probably not
   // work on 64-bit platforms, but Cygwin doesn't support 64-bit anyway.
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  static_assert(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
   intptr_t ptr_key = reinterpret_cast<intptr_t>(pthread_key);
   return static_cast<Thread::LocalStorageKey>(ptr_key);
 #else
@@ -1104,7 +1168,7 @@ static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 
 static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 #if V8_OS_CYGWIN
-  STATIC_ASSERT(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
+  static_assert(sizeof(Thread::LocalStorageKey) == sizeof(pthread_key_t));
   intptr_t ptr_key = static_cast<intptr_t>(local_key);
   return reinterpret_cast<pthread_key_t>(ptr_key);
 #else
@@ -1112,47 +1176,7 @@ static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 #endif
 }
 
-
-#ifdef V8_FAST_TLS_SUPPORTED
-
-static std::atomic<bool> tls_base_offset_initialized{false};
-intptr_t kMacTlsBaseOffset = 0;
-
-// It's safe to do the initialization more that once, but it has to be
-// done at least once.
-static void InitializeTlsBaseOffset() {
-  const size_t kBufferSize = 128;
-  char buffer[kBufferSize];
-  size_t buffer_size = kBufferSize;
-  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
-  if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
-    FATAL("V8 failed to get kernel version");
-  }
-  // The buffer now contains a string of the form XX.YY.ZZ, where
-  // XX is the major kernel version component.
-  // Make sure the buffer is 0-terminated.
-  buffer[kBufferSize - 1] = '\0';
-  char* period_pos = strchr(buffer, '.');
-  *period_pos = '\0';
-  int kernel_version_major = static_cast<int>(strtol(buffer, nullptr, 10));
-  // The constants below are taken from pthreads.s from the XNU kernel
-  // sources archive at www.opensource.apple.com.
-  if (kernel_version_major < 11) {
-    // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
-    // same offsets.
-#if V8_HOST_ARCH_IA32
-    kMacTlsBaseOffset = 0x48;
-#else
-    kMacTlsBaseOffset = 0x60;
-#endif
-  } else {
-    // 11.x.x (Lion) changed the offset.
-    kMacTlsBaseOffset = 0;
-  }
-
-  tls_base_offset_initialized.store(true, std::memory_order_release);
-}
-
+#if defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
 
 static void CheckFastTls(Thread::LocalStorageKey key) {
   void* expected = reinterpret_cast<void*>(0x1234CAFE);
@@ -1164,29 +1188,19 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
   Thread::SetThreadLocal(key, nullptr);
 }
 
-#endif  // V8_FAST_TLS_SUPPORTED
-
+#endif  // defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-#ifdef V8_FAST_TLS_SUPPORTED
-  bool check_fast_tls = false;
-  if (!tls_base_offset_initialized.load(std::memory_order_acquire)) {
-    check_fast_tls = true;
-    InitializeTlsBaseOffset();
-  }
-#endif
   pthread_key_t key;
   int result = pthread_key_create(&key, nullptr);
   DCHECK_EQ(0, result);
   USE(result);
   LocalStorageKey local_key = PthreadKeyToLocalKey(key);
-#ifdef V8_FAST_TLS_SUPPORTED
-  // If we just initialized fast TLS support, make sure it works.
-  if (check_fast_tls) CheckFastTls(local_key);
+#if defined(V8_FAST_TLS_SUPPORTED) && defined(DEBUG)
+  CheckFastTls(local_key);
 #endif
   return local_key;
 }
-
 
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
   pthread_key_t pthread_key = LocalKeyToPthreadKey(key);

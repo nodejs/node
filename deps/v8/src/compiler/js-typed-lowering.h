@@ -6,9 +6,7 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/opcodes.h"
 
 namespace v8 {
 namespace internal {

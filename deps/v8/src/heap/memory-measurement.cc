@@ -166,8 +166,8 @@ void MeasureMemoryDelegate::MeasurementComplete(
 
 MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
     : isolate_(isolate), random_number_generator_() {
-  if (FLAG_random_seed) {
-    random_number_generator_.SetSeed(FLAG_random_seed);
+  if (v8_flags.random_seed) {
+    random_number_generator_.SetSeed(v8_flags.random_seed);
   }
 }
 
@@ -279,7 +279,7 @@ void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
     SetGCTaskDone(execution);
     if (received_.empty()) return;
     Heap* heap = isolate_->heap();
-    if (FLAG_incremental_marking) {
+    if (v8_flags.incremental_marking) {
       if (heap->incremental_marking()->IsStopped()) {
         heap->StartIncrementalMarking(Heap::kNoGCFlags,
                                       GarbageCollectionReason::kMeasureMemory);

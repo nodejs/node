@@ -6,11 +6,12 @@
 #define V8_D8_ASYNC_HOOKS_WRAPPER_H_
 
 #include <stack>
+#include <vector>
 
 #include "include/v8-function-callback.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-promise.h"
-#include "src/objects/objects.h"
+#include "src/base/platform/mutex.h"
 
 namespace v8 {
 

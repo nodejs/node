@@ -8,6 +8,7 @@
 namespace v8 {
 namespace internal {
 
+class AbstractCode;
 class CodeCommentsIterator;
 class HeapObject;
 class Isolate;
@@ -38,7 +39,7 @@ class CodeStatistics {
 #ifdef DEBUG
   static void CollectCommentStatistics(Isolate* isolate,
                                        CodeCommentsIterator* it);
-  static void CollectCodeCommentStatistics(HeapObject obj, Isolate* isolate);
+  static void CollectCodeCommentStatistics(AbstractCode obj, Isolate* isolate);
   static void EnterComment(Isolate* isolate, const char* comment, int delta);
   static void ResetCodeStatistics(Isolate* isolate);
 #endif

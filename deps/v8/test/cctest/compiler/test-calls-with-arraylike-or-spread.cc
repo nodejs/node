@@ -4,8 +4,8 @@
 
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
-#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
+#include "test/common/node-observer-tester.h"
 
 namespace v8 {
 namespace internal {

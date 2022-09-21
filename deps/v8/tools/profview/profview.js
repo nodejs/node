@@ -212,29 +212,30 @@ let main = {
 
 const CATEGORY_COLOR = "#f5f5f5";
 const bucketDescriptors =
-  [{
-    kinds: ["JS_OPT"],
-    color: "#64dd17",
-    backgroundColor: "#80e27e",
-    text: "JS Optimized"
-  },
+  [
   {
-    kinds: ["JS_TURBOPROP"],
-    color: "#693eb8",
-    backgroundColor: "#a6c452",
-    text: "JS Turboprop"
-  },
-  {
-    kinds: ["JS_BASELINE"],
-    color: "#b3005b",
-    backgroundColor: "#ff9e80",
-    text: "JS Baseline"
-  },
-  {
-    kinds: ["JS_UNOPT", "BC"],
+    kinds: ["JS_IGNITION", "BC"],
     color: "#dd2c00",
     backgroundColor: "#ff9e80",
-    text: "JS Unoptimized"
+    text: "JS Ignition"
+  },
+  {
+    kinds: ["JS_SPARKPLUG"],
+    color: "#b3005b",
+    backgroundColor: "#ff9e80",
+    text: "JS Sparkplug"
+  },
+  {
+    kinds: ["JS_MAGLEV"],
+    color: "#693eb8",
+    backgroundColor: "#d80093",
+    text: "JS Maglev"
+  },
+  {
+    kinds: ["JS_TURBOFAN"],
+    color: "#64dd17",
+    backgroundColor: "#80e27e",
+    text: "JS Turbofan"
   },
   {
     kinds: ["IC"],
@@ -348,14 +349,16 @@ function codeTypeToText(type) {
       return "Builtin";
     case "REGEXP":
       return "RegExp";
-    case "JS_OPT":
-      return "JS opt";
+    case "JS_IGNITION":
+      return "JS Ignition";
+    case "JS_SPARKPLUG":
+      return "JS Sparkplug";
     case "JS_TURBOPROP":
       return "JS Turboprop";
-    case "JS_BASELINE":
-      return "JS Baseline";
-    case "JS_UNOPT":
-      return "JS unopt";
+    case "JS_MAGLEV":
+      return "JS Maglev";
+    case "JS_TURBOFAN":
+      return "JS Turbofan";
   }
   console.error("Unknown type: " + type);
 }

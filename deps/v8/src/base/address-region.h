@@ -39,12 +39,12 @@ class AddressRegion {
   bool is_empty() const { return size_ == 0; }
 
   bool contains(Address address) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     return (address - begin()) < size();
   }
 
   bool contains(Address address, size_t size) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     Address offset = address - begin();
     return (offset < size_) && (offset + size <= size_);
   }
@@ -74,14 +74,19 @@ class AddressRegion {
 };
 ASSERT_TRIVIALLY_COPYABLE(AddressRegion);
 
+// Construct an AddressRegion from a start pointer and a size.
+template <typename T>
+inline AddressRegion AddressRegionOf(T* ptr, size_t size) {
+  return AddressRegion{reinterpret_cast<AddressRegion::Address>(ptr),
+                       sizeof(T) * size};
+}
+
 // Construct an AddressRegion from anything providing a {data()} and {size()}
 // accessor.
-template <typename Container,
-          typename = decltype(std::declval<Container>().data()),
-          typename = decltype(std::declval<Container>().size())>
-inline constexpr AddressRegion AddressRegionOf(Container&& c) {
-  return AddressRegion{reinterpret_cast<AddressRegion::Address>(c.data()),
-                       sizeof(*c.data()) * c.size()};
+template <typename Container>
+inline auto AddressRegionOf(Container&& c)
+    -> decltype(AddressRegionOf(c.data(), c.size())) {
+  return AddressRegionOf(c.data(), c.size());
 }
 
 inline std::ostream& operator<<(std::ostream& out, AddressRegion region) {

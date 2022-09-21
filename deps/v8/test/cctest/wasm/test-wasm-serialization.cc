@@ -23,20 +23,17 @@
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace test_wasm_serialization {
+namespace v8::internal::wasm {
 
 // Approximate gtest TEST_F style, in case we adopt gtest.
 class WasmSerializationTest {
  public:
-  WasmSerializationTest()
-      : zone_(&allocator_, ZONE_NAME),
-        no_wasm_dynamic_tiering_(&FLAG_wasm_dynamic_tiering, false) {
+  WasmSerializationTest() : zone_(&allocator_, ZONE_NAME) {
     // Don't call here if we move to gtest.
     SetUp();
   }
+
+  static constexpr const char* kFunctionName = "increment";
 
   static void BuildWireBytes(Zone* zone, ZoneBuffer* buffer) {
     WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
@@ -50,7 +47,7 @@ class WasmSerializationTest {
     builder->WriteTo(buffer);
   }
 
-  void ClearSerializedData() { serialized_bytes_ = {nullptr, 0}; }
+  void ClearSerializedData() { serialized_bytes_ = {}; }
 
   void InvalidateVersion() {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
@@ -99,13 +96,10 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
-    CcTest::i_isolate()->heap()->CollectAllAvailableGarbage(
-        GarbageCollectionReason::kTesting);
+    CcTest::CollectAllAvailableGarbage();
   }
 
  private:
-  static const char* kFunctionName;
-
   Zone* zone() { return &zone_; }
 
   void SetUp() {
@@ -141,10 +135,6 @@ class WasmSerializationTest {
       // Check that the native module exists at this point.
       CHECK(weak_native_module.lock());
 
-      auto* native_module = module_object->native_module();
-      native_module->compilation_state()->WaitForTopTierFinished();
-      DCHECK(!native_module->compilation_state()->failed());
-
       v8::Local<v8::Object> v8_module_obj =
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWasmModuleObject());
@@ -158,8 +148,19 @@ class WasmSerializationTest {
       uint8_t* bytes_copy = zone()->NewArray<uint8_t>(uncompiled_bytes.size());
       memcpy(bytes_copy, uncompiled_bytes.data(), uncompiled_bytes.size());
       wire_bytes_ = {bytes_copy, uncompiled_bytes.size()};
-      // keep alive data_ until the end
-      data_ = compiled_module.Serialize();
+
+      // Run the code until tier-up (of the single function) was observed.
+      Handle<WasmInstanceObject> instance =
+          GetWasmEngine()
+              ->SyncInstantiate(serialization_isolate, &thrower, module_object,
+                                {}, {})
+              .ToHandleChecked();
+      CHECK_EQ(0, data_.size);
+      while (data_.size == 0) {
+        testing::CallWasmFunctionForTesting(serialization_isolate, instance,
+                                            kFunctionName, 0, nullptr);
+        data_ = compiled_module.Serialize();
+      }
       CHECK_LT(0, data_.size);
     }
     // Dispose of serialization isolate to destroy the reference to the
@@ -186,10 +187,7 @@ class WasmSerializationTest {
   v8::OwnedBuffer data_;
   v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
   v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
-  FlagScope<bool> no_wasm_dynamic_tiering_;
 };
-
-const char* WasmSerializationTest::kFunctionName = "increment";
 
 TEST(DeserializeValidModule) {
   WasmSerializationTest test;
@@ -323,6 +321,8 @@ TEST(TierDownAfterDeserialization) {
   auto* native_module = module_object->native_module();
   CHECK_EQ(1, native_module->module()->functions.size());
   WasmCodeRefScope code_ref_scope;
+  // The deserialized code must be TurboFan (we wait for tier-up before
+  // serializing).
   auto* turbofan_code = native_module->GetCode(0);
   CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
@@ -335,8 +335,8 @@ TEST(TierDownAfterDeserialization) {
 
 TEST(SerializeLiftoffModuleFails) {
   // Make sure that no function is tiered up to TurboFan.
-  if (!FLAG_liftoff) return;
-  FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
+  if (!v8_flags.liftoff) return;
+  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, "test_zone");
 
@@ -363,7 +363,4 @@ TEST(SerializeLiftoffModuleFails) {
   CHECK(!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}));
 }
 
-}  // namespace test_wasm_serialization
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

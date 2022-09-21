@@ -16,6 +16,14 @@
 namespace v8 {
 namespace internal {
 
+#define ROOT_ACCESSOR(Type, name, CamelName)  \
+  template <typename Impl>                    \
+  Handle<Type> FactoryBase<Impl>::name() {    \
+    return read_only_roots().name##_handle(); \
+  }
+READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
 template <typename Impl>
 Handle<Oddball> FactoryBase<Impl>::ToBoolean(bool value) {
   return value ? impl()->true_value() : impl()->false_value();

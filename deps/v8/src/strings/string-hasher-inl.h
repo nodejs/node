@@ -11,8 +11,7 @@
 #include <type_traits>
 
 #include "src/objects/name-inl.h"
-#include "src/objects/objects.h"
-#include "src/objects/string.h"
+#include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils-inl.h"
 
@@ -42,7 +41,7 @@ uint32_t StringHasher::GetTrivialHash(int length) {
   // The hash of a large string is simply computed from the length.
   // Ensure that the max length is small enough to be encoded without losing
   // information.
-  STATIC_ASSERT(String::kMaxLength <= String::HashBits::kMax);
+  static_assert(String::kMaxLength <= String::HashBits::kMax);
   uint32_t hash = static_cast<uint32_t>(length);
   return String::CreateHashFieldValue(hash, String::HashFieldType::kHash);
 }
@@ -50,8 +49,8 @@ uint32_t StringHasher::GetTrivialHash(int length) {
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
                                             uint64_t seed) {
-  STATIC_ASSERT(std::is_integral<char_t>::value);
-  STATIC_ASSERT(sizeof(char_t) <= 2);
+  static_assert(std::is_integral<char_t>::value);
+  static_assert(sizeof(char_t) <= 2);
   using uchar = typename std::make_unsigned<char_t>::type;
   const uchar* chars = reinterpret_cast<const uchar*>(chars_raw);
   DCHECK_LE(0, length);

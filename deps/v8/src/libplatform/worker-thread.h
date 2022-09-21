@@ -9,7 +9,6 @@
 
 #include "include/libplatform/libplatform-export.h"
 #include "src/base/compiler-specific.h"
-#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {

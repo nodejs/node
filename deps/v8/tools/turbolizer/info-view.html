@@ -1,5 +1,5 @@
 <div>This is view contains hints about available keyboard shortcuts.</div>
-<div class="info-topic" id="info-global">
+<div id="info-global" class="info-topic">
   <div class="info-topic-header">Global shortcuts</div>
   <div class="info-topic-content">
     <table>
@@ -14,8 +14,8 @@
     </table>
   </div>
 </div>
-<div class="info-topic" id="info-graph-view">
-  <div class="info-topic-header">Graph view</div>
+<div id="info-common-graph-view" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph view</div>
   <div class="info-topic-content">
     <table>
       <tr>
@@ -31,6 +31,10 @@
         <td>Show graph with selected nodes for previous phase</td>
       </tr>
       <tr>
+        <td>h</td>
+        <td>Show hovered node's history</td>
+      </tr>
+      <tr>
         <td>a</td>
         <td>Select all nodes</td>
       </tr>
@@ -38,6 +42,13 @@
         <td>/</td>
         <td>Select search box</td>
       </tr>
+    </table>
+  </div>
+</div>
+<div id="info-graph-view" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes graph view</div>
+  <div class="info-topic-content">
+    <table>
       <tr>
         <td>i</td>
         <td>Reveal node's input nodes</td>
@@ -57,8 +68,39 @@
     </table>
   </div>
 </div>
-<div class="info-topic" id="info-graph-nodes">
-  <div class="info-topic-header">TurboFan graph nodes</div>
+<div id="info-turboshaft-graph-view" class="info-topic">
+  <div class="info-topic-header">Turboshaft graph view</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>i</td>
+        <td>Select all selected block's nodes</td>
+      </tr>
+      <tr>
+        <td>p</td>
+        <td>Collapse selected blocks</td>
+      </tr>
+      <tr>
+        <td>s</td>
+        <td>Uncollapse selected blocks</td>
+      </tr>
+      <tr>
+        <td>c</td>
+        <td>Copy hovered node's info</td>
+      </tr>
+      <tr>
+        <td>y</td>
+        <td>Collapse unused blocks (blocks that don't have direct inputs and outputs of a hovered node)</td>
+      </tr>
+      <tr>
+        <td>u</td>
+        <td>Collapse unused blocks (blocks that don't have direct inputs and outputs of selected nodes)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-common-nodes" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph nodes</div>
   <div class="info-topic-content">
     <div>The following commands transform node selections, i.e. each operation will be applied
       to each node in the current selection and the union of the resulting nodes will become the
@@ -72,6 +114,13 @@
         <td>DOWN</td>
         <td>Select all output nodes</td>
       </tr>
+    </table>
+  </div>
+</div>
+<div id="info-graph-nodes" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes graph nodes</div>
+  <div class="info-topic-content">
+    <table>
       <tr>
         <td>1-9</td>
         <td>Select input node 1-9</td>
@@ -95,8 +144,8 @@
     </table>
   </div>
 </div>
-<div class="info-topic" id="info-graph-search">
-  <div class="info-topic-header">Graph search</div>
+<div id="info-graph-search" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph search</div>
   <div class="info-topic-content">
     <table>
       <tr>
@@ -109,9 +158,7 @@
         <td>Select nodes according to regular expression, always including invisible nodes regardless of checkbox.</td>
       </tr>
     </table>
-    <div style="font-weight: bold">
-      Useful patterns
-    </div>
+    <div style="font-weight: bold;">Useful patterns</div>
     <table>
       <tr>
         <td>IfTrue</td>

@@ -6,7 +6,7 @@ import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 import {RemoteLinuxCppEntriesProvider, RemoteMacOSCppEntriesProvider} from '../tickprocessor.mjs'
 
-import {CodeLogEntry, DeoptLogEntry, FeedbackVectorEntry, SharedLibLogEntry} from './log/code.mjs';
+import {CodeLogEntry, CPPCodeLogEntry, DeoptLogEntry, FeedbackVectorEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
@@ -58,7 +58,11 @@ export class Processor extends LogReader {
   _lastTimestamp = 0;
   _lastCodeLogEntry;
   _lastTickLogEntry;
+
+  _cppEntriesProvider;
+
   _chunkRemainder = '';
+  _lineNumber = 1;
 
   _totalInputBytes = 0;
   _processedInputChars = 0;
@@ -195,8 +199,6 @@ export class Processor extends LogReader {
         processor: this.processApiEvent
       },
     });
-    // TODO(cbruni): Choose correct cpp entries provider
-    this._cppEntriesProvider = new RemoteLinuxCppEntriesProvider();
   }
 
   printError(str) {
@@ -228,12 +230,11 @@ export class Processor extends LogReader {
     let current = 0;
     let next = 0;
     let line;
-    let lineNumber = 1;
     try {
       while (current < end) {
         next = chunk.indexOf('\n', current);
         if (next === -1) {
-          this._chunkRemainder = chunk.substring(current);
+          this._chunkRemainder += chunk.substring(current);
           break;
         }
         line = chunk.substring(current, next);
@@ -242,14 +243,14 @@ export class Processor extends LogReader {
           this._chunkRemainder = '';
         }
         current = next + 1;
-        lineNumber++;
+        this._lineNumber++;
         await this.processLogLine(line);
         this._processedInputChars = prevProcessedInputChars + current;
       }
       this._updateProgress();
     } catch (e) {
-      console.error(
-          `Could not parse log line ${lineNumber}, trying to continue: ${e}`);
+      console.error(`Could not parse log line ${
+          this._lineNumber}, trying to continue: ${e}`);
     }
   }
 
@@ -309,28 +310,62 @@ export class Processor extends LogReader {
     // Many events rely on having a script around, creating fake entries for
     // shared libraries.
     this._profile.addScriptSource(-1, name, '');
+
+    if (this._cppEntriesProvider == undefined) {
+      await this._setupCppEntriesProvider();
+    }
+
     await this._cppEntriesProvider.parseVmSymbols(
         name, startAddr, endAddr, aslrSlide, (fName, fStart, fEnd) => {
-          this._profile.addStaticCode(fName, fStart, fEnd);
+          const entry = this._profile.addStaticCode(fName, fStart, fEnd);
+          entry.logEntry = new CPPCodeLogEntry(entry);
         });
   }
 
-  processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
+  async _setupCppEntriesProvider() {
+    // Probe the local symbol server for the platform:
+    const url = new URL('http://localhost:8000/v8/info/platform')
+    let platform = {name: 'linux'};
+    try {
+      const response = await fetch(url, {timeout: 1});
+      if (response.status == 404) {
+        throw new Error(
+            `Local symbol server returned 404: ${await response.text()}`);
+      }
+      platform = await response.json();
+    } catch (e) {
+      console.warn(`Local symbol server is not running on ${url}`);
+      console.warn(e);
+    }
+    let CppEntriesProvider = RemoteLinuxCppEntriesProvider;
+    if (platform.name === 'darwin') {
+      CppEntriesProvider = RemoteMacOSCppEntriesProvider;
+    }
+    this._cppEntriesProvider = new CppEntriesProvider(
+        platform.nmExec, platform.objdumpExec, platform.targetRootFS,
+        platform.apkEmbeddedLibrary);
+  }
+
+  processCodeCreation(
+      type, kind, timestamp, start, size, nameAndPosition, maybe_func) {
     this._lastTimestamp = timestamp;
-    let entry;
+    let profilerEntry;
     let stateName = '';
     if (maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
       stateName = maybe_func[1] ?? '';
       const state = Profile.parseState(maybe_func[1]);
-      entry = this._profile.addFuncCode(
-          type, name, timestamp, start, size, funcAddr, state);
+      profilerEntry = this._profile.addFuncCode(
+          type, nameAndPosition, timestamp, start, size, funcAddr, state);
     } else {
-      entry = this._profile.addCode(type, name, timestamp, start, size);
+      profilerEntry = this._profile.addAnyCode(
+          type, nameAndPosition, timestamp, start, size);
     }
+    const name = nameAndPosition.slice(0, nameAndPosition.indexOf(' '));
     this._lastCodeLogEntry = new CodeLogEntry(
         type + stateName, timestamp,
-        Profile.getKindFromState(Profile.parseState(stateName)), kind, entry);
+        Profile.getKindFromState(Profile.parseState(stateName)), kind, name,
+        profilerEntry);
     this._codeTimeline.push(this._lastCodeLogEntry);
   }
 

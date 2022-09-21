@@ -6,7 +6,6 @@
 
 #include "src/ast/scopes.h"
 #include "src/common/globals.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

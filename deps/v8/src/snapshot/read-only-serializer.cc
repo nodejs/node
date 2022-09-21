@@ -5,14 +5,11 @@
 #include "src/snapshot/read-only-serializer.h"
 
 #include "src/api/api.h"
-#include "src/diagnostics/code-tracer.h"
 #include "src/execution/v8threads.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/serializer-inl.h"
-#include "src/snapshot/startup-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +23,7 @@ ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
       did_serialize_not_mapped_symbol_(false)
 #endif
 {
-  STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
+  static_assert(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {

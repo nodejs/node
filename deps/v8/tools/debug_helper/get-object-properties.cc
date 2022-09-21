@@ -257,7 +257,7 @@ class ReadStringVisitor : public TqObjectVisitor {
   void ReadStringCharacters(const TqString* object, uintptr_t data_address) {
     int32_t length = GetOrFinish(object->GetLengthValue(accessor_));
     for (; index_ < length && index_ < limit_ && !done_; ++index_) {
-      STATIC_ASSERT(sizeof(TChar) <= sizeof(char16_t));
+      static_assert(sizeof(TChar) <= sizeof(char16_t));
       char16_t c = static_cast<char16_t>(
           GetOrFinish(ReadCharacter<TChar>(data_address, index_)));
       if (!done_) AddCharacter(c);
@@ -349,14 +349,17 @@ class ReadStringVisitor : public TqObjectVisitor {
     if (IsExternalStringCached(object)) {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       Isolate* isolate = GetIsolateForSandbox(
           HeapObject::unchecked_cast(Object(heap_addresses_.any_heap_pointer)));
-      uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
-          isolate, resource_data, kExternalStringResourceDataTag));
+      ExternalPointerHandle handle =
+          static_cast<ExternalPointerHandle>(resource_data);
+      uintptr_t data_address =
+          static_cast<uintptr_t>(isolate->shared_external_pointer_table().Get(
+              handle, kExternalStringResourceDataTag));
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_ENABLE_SANDBOX
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);
     } else {

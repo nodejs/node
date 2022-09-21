@@ -20,6 +20,11 @@ found in the LICENSE file. -->
     user-select: none;
   }
 
+  #cropper {
+    overflow: hidden;
+    position: relative;
+  }
+
   .dataSized {
     min-height: var(--data-height);
   }
@@ -143,7 +148,7 @@ found in the LICENSE file. -->
     cursor: grabbing;
   }
   #selectionBackground {
-    background-color: rgba(133, 68, 163, 0.5);
+    background-color: var(--selection-color);
     height: 100%;
     position: absolute;
   }
@@ -226,12 +231,14 @@ found in the LICENSE file. -->
       <div id="selectionBackground"></div>
       <div id="rightHandle"></div>
     </div>
-    <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg" class="dataSized">
-      <g id="scalableContent"></g>
-    </svg>
-    <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
-    <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
-    <div id="toolTipTarget"></div>
+    <div id="cropper" class="dataSized">
+      <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg" class="dataSized">
+        <g id="scalableContent"></g>
+      </svg>
+      <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+      <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+      <div id="toolTipTarget"></div>
+    </div>
     <!-- Use a div element covering all complex items to prevent slow hit test-->
     <div id="hitPanel" class="dataSized"></div>
   </div>

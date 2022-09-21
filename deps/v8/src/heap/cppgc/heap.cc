@@ -79,7 +79,7 @@ void CheckConfig(Heap::Config config, HeapBase::MarkingType marking_support,
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
     : HeapBase(platform, options.custom_spaces, options.stack_support,
-               options.marking_support, options.sweeping_support),
+               options.marking_support, options.sweeping_support, gc_invoker_),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
@@ -170,6 +170,15 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   config_.stack_state = stack_state;
   SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
   in_atomic_pause_ = true;
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Check if the young generation was enabled. We must enable young generation
+  // before calling the custom weak callbacks to make sure that the callbacks
+  // for old objects are registered in the remembered set.
+  if (generational_gc_enabled_) {
+    HeapBase::EnableGenerationalGC();
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
@@ -201,6 +210,12 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();
+}
+
+void Heap::EnableGenerationalGC() {
+  DCHECK(!IsMarking());
+  DCHECK(!generational_gc_enabled_);
+  generational_gc_enabled_ = true;
 }
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }

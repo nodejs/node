@@ -118,6 +118,7 @@ void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
 void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> current_context, TNode<Microtask> microtask) {
   CSA_DCHECK(this, TaggedIsNotSmi(microtask));
+  CSA_DCHECK(this, Word32BinaryNot(IsExecutionTerminating()));
 
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
   TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();

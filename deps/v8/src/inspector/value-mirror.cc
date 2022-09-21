@@ -95,7 +95,8 @@ std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
     double doubleValue) {
   if (doubleValue >= std::numeric_limits<int>::min() &&
       doubleValue <= std::numeric_limits<int>::max() &&
-      bit_cast<int64_t>(doubleValue) != bit_cast<int64_t>(-0.0)) {
+      v8::base::bit_cast<int64_t>(doubleValue) !=
+          v8::base::bit_cast<int64_t>(-0.0)) {
     int intValue = static_cast<int>(doubleValue);
     if (intValue == doubleValue) {
       return protocol::FundamentalValue::create(intValue);
@@ -439,44 +440,40 @@ class PrimitiveValueMirror final : public ValueMirror {
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
   }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-primitiveProtocolValue-serialization
 
     if (m_value->IsUndefined()) {
-      *result =
-          protocol::Runtime::WebDriverValue::create()
-              .setType(protocol::Runtime::WebDriverValue::TypeEnum::Undefined)
-              .build();
-      return Response::Success();
+      return protocol::Runtime::WebDriverValue::create()
+          .setType(protocol::Runtime::WebDriverValue::TypeEnum::Undefined)
+          .build();
     }
     if (m_value->IsNull()) {
-      *result = protocol::Runtime::WebDriverValue::create()
-                    .setType(protocol::Runtime::WebDriverValue::TypeEnum::Null)
-                    .build();
-      return Response::Success();
+      return protocol::Runtime::WebDriverValue::create()
+          .setType(protocol::Runtime::WebDriverValue::TypeEnum::Null)
+          .build();
     }
     if (m_value->IsString()) {
-      *result =
-          protocol::Runtime::WebDriverValue::create()
-              .setType(protocol::Runtime::WebDriverValue::TypeEnum::String)
-              .setValue(protocol::StringValue::create(toProtocolString(
-                  context->GetIsolate(), m_value.As<v8::String>())))
-              .build();
-      return Response::Success();
+      return protocol::Runtime::WebDriverValue::create()
+          .setType(protocol::Runtime::WebDriverValue::TypeEnum::String)
+          .setValue(protocol::StringValue::create(toProtocolString(
+              context->GetIsolate(), m_value.As<v8::String>())))
+          .build();
     }
     if (m_value->IsBoolean()) {
-      *result =
-          protocol::Runtime::WebDriverValue::create()
-              .setType(protocol::Runtime::WebDriverValue::TypeEnum::Boolean)
-              .setValue(protocol::FundamentalValue::create(
-                  m_value.As<v8::Boolean>()->Value()))
-              .build();
-      return Response::Success();
+      return protocol::Runtime::WebDriverValue::create()
+          .setType(protocol::Runtime::WebDriverValue::TypeEnum::Boolean)
+          .setValue(protocol::FundamentalValue::create(
+              m_value.As<v8::Boolean>()->Value()))
+          .build();
     }
-    return Response::ServerError("unexpected primitive type");
+
+    DCHECK(false);
+    // Fallback.
+    return protocol::Runtime::WebDriverValue::create()
+        .setType(protocol::Runtime::WebDriverValue::TypeEnum::Object)
+        .build();
   }
 
  private:
@@ -529,23 +526,21 @@ class NumberMirror final : public ValueMirror {
             .build();
   }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-primitiveProtocolValue-serialization
-    *result = protocol::Runtime::WebDriverValue::create()
-                  .setType(protocol::Runtime::WebDriverValue::TypeEnum::Number)
-                  .build();
-
+    std::unique_ptr<protocol::Runtime::WebDriverValue> result =
+        protocol::Runtime::WebDriverValue::create()
+            .setType(protocol::Runtime::WebDriverValue::TypeEnum::Number)
+            .build();
     bool unserializable = false;
     String16 descriptionValue = description(&unserializable);
     if (unserializable) {
-      (*result)->setValue(protocol::StringValue::create(descriptionValue));
+      result->setValue(protocol::StringValue::create(descriptionValue));
     } else {
-      (*result)->setValue(toProtocolValue(m_value.As<v8::Number>()->Value()));
+      result->setValue(toProtocolValue(m_value.As<v8::Number>()->Value()));
     }
-    return Response::Success();
+    return result;
   }
 
  private:
@@ -608,18 +603,18 @@ class BigIntMirror final : public ValueMirror {
 
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-primitiveProtocolValue-serialization
 
-    *result = protocol::Runtime::WebDriverValue::create()
-                  .setType(protocol::Runtime::WebDriverValue::TypeEnum::Bigint)
-                  .setValue(protocol::StringValue::create(
-                      descriptionForBigInt(context, m_value)))
-                  .build();
-    return Response::Success();
+    v8::Local<v8::String> string_value =
+        v8::debug::GetBigIntStringValue(context->GetIsolate(), m_value);
+
+    return protocol::Runtime::WebDriverValue::create()
+        .setType(protocol::Runtime::WebDriverValue::TypeEnum::Bigint)
+        .setValue(protocol::StringValue::create(
+            toProtocolString(context->GetIsolate(), string_value)))
+        .build();
   }
 
  private:
@@ -658,15 +653,12 @@ class SymbolMirror final : public ValueMirror {
 
   v8::Local<v8::Value> v8Value() const override { return m_symbol; }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-RemoteValue-serialization
-    *result = protocol::Runtime::WebDriverValue::create()
-                  .setType(protocol::Runtime::WebDriverValue::TypeEnum::Symbol)
-                  .build();
-    return Response::Success();
+    return protocol::Runtime::WebDriverValue::create()
+        .setType(protocol::Runtime::WebDriverValue::TypeEnum::Symbol)
+        .build();
   }
 
  private:
@@ -713,14 +705,11 @@ class LocationMirror final : public ValueMirror {
   }
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
-    *result = protocol::Runtime::WebDriverValue::create()
-                  .setType(protocol::Runtime::WebDriverValue::TypeEnum::Object)
-                  .build();
-    return Response::Success();
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
+    return protocol::Runtime::WebDriverValue::create()
+        .setType(protocol::Runtime::WebDriverValue::TypeEnum::Object)
+        .build();
   }
 
  private:
@@ -800,16 +789,12 @@ class FunctionMirror final : public ValueMirror {
             .build();
   }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-RemoteValue-serialization
-    *result =
-        protocol::Runtime::WebDriverValue::create()
-            .setType(protocol::Runtime::WebDriverValue::TypeEnum::Function)
-            .build();
-    return Response::Success();
+    return protocol::Runtime::WebDriverValue::create()
+        .setType(protocol::Runtime::WebDriverValue::TypeEnum::Function)
+        .build();
   }
 
  private:
@@ -1097,10 +1082,8 @@ class ObjectMirror final : public ValueMirror {
     if (m_hasSubtype) (*result)->setSubtype(m_subtype);
   }
 
-  protocol::Response buildWebDriverValue(
-      v8::Local<v8::Context> context, int max_depth,
-      std::unique_ptr<protocol::Runtime::WebDriverValue>* result)
-      const override {
+  std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
+      v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-RemoteValue-serialization
 
     // Check if embedder implemented custom serialization.
@@ -1109,27 +1092,24 @@ class ObjectMirror final : public ValueMirror {
 
     if (embedder_serialized_result) {
       // Embedder-implemented serialization.
-      *result = protocol::Runtime::WebDriverValue::create()
-                    .setType(toString16(embedder_serialized_result->type))
-                    .build();
+      std::unique_ptr<protocol::Runtime::WebDriverValue> result =
+          protocol::Runtime::WebDriverValue::create()
+              .setType(toString16(embedder_serialized_result->type->string()))
+              .build();
 
-      if (!embedder_serialized_result->value.IsEmpty()) {
+      v8::Local<v8::Value> v8_value;
+      if (embedder_serialized_result->value.ToLocal(&v8_value)) {
         // Embedder-implemented serialization has value.
         std::unique_ptr<protocol::Value> protocol_value;
-        Response response = toProtocolValue(
-            context, embedder_serialized_result->value.ToLocalChecked(),
-            &protocol_value);
-        if (!response.IsSuccess()) return response;
-
-        (*result)->setValue(std::move(protocol_value));
+        Response response = toProtocolValue(context, v8_value, &protocol_value);
+        DCHECK(response.IsSuccess());
+        result->setValue(std::move(protocol_value));
       }
-      return Response::Success();
+      return result;
     }
 
     // No embedder-implemented serialization. Serialize as V8 Object.
-    Response response = V8WebDriverSerializer::serializeV8Value(
-        m_value, context, max_depth, result);
-    return response;
+    return V8WebDriverSerializer::serializeV8Value(m_value, context, max_depth);
   }
 
  private:
@@ -1505,7 +1485,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     if (!accumulator->Add(std::move(mirror))) return true;
 
     if (!iterator->Advance().FromMaybe(false)) {
-      CHECK(tryCatch.HasCaught());
+      CHECK(tryCatchAttributes.HasCaught());
       return false;
     }
   }
