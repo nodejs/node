@@ -771,28 +771,49 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
       ->NewInstance(env->context()).ToLocal(&wrap)) {
     return;
   }
-  BaseObjectPtr<WorkerHeapSnapshotTaker> taker =
-      MakeDetachedBaseObject<WorkerHeapSnapshotTaker>(env, wrap);
+
+  // The created WorkerHeapSnapshotTaker is an object owned by main
+  // thread's Isolate, it can not be accessed by worker thread
+  std::unique_ptr<BaseObjectPtr<WorkerHeapSnapshotTaker>> taker =
+      std::make_unique<BaseObjectPtr<WorkerHeapSnapshotTaker>>(
+          MakeDetachedBaseObject<WorkerHeapSnapshotTaker>(env, wrap));
 
   // Interrupt the worker thread and take a snapshot, then schedule a call
   // on the parent thread that turns that snapshot into a readable stream.
-  bool scheduled = w->RequestInterrupt([taker, env](Environment* worker_env) {
-    heap::HeapSnapshotPointer snapshot {
-        worker_env->isolate()->GetHeapProfiler()->TakeHeapSnapshot() };
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    heap::HeapSnapshotPointer snapshot{
+        worker_env->isolate()->GetHeapProfiler()->TakeHeapSnapshot()};
     CHECK(snapshot);
+
+    // Here, the worker thread temporarily owns the WorkerHeapSnapshotTaker
+    // object.
+
     env->SetImmediateThreadsafe(
-        [taker, snapshot = std::move(snapshot)](Environment* env) mutable {
+        [taker = std::move(taker),
+         snapshot = std::move(snapshot)](Environment* env) mutable {
           HandleScope handle_scope(env->isolate());
           Context::Scope context_scope(env->context());
 
-          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
-          BaseObjectPtr<AsyncWrap> stream = heap::CreateHeapSnapshotStream(
-              env, std::move(snapshot));
-          Local<Value> args[] = { stream->object() };
-          taker->MakeCallback(env->ondone_string(), arraysize(args), args);
-        }, CallbackFlags::kUnrefed);
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
+          BaseObjectPtr<AsyncWrap> stream =
+              heap::CreateHeapSnapshotStream(env, std::move(snapshot));
+          Local<Value> args[] = {stream->object()};
+          taker->get()->MakeCallback(
+              env->ondone_string(), arraysize(args), args);
+          // implicitly delete `taker`
+        },
+        CallbackFlags::kUnrefed);
+
+    // Now, the lambda is delivered to the main thread, as a result, the
+    // WorkerHeapSnapshotTaker object is delivered to the main thread, too.
   });
-  args.GetReturnValue().Set(scheduled ? taker->object() : Local<Object>());
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  } else {
+    args.GetReturnValue().Set(Local<Object>());
+  }
 }
 
 void Worker::LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
