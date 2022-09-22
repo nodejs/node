@@ -4392,9 +4392,6 @@ otherwise `err` will be `null`. By default, the successfully generated
 `derivedKey` will be passed to the callback as a [`Buffer`][]. An error will be
 thrown if any of the input arguments specify invalid values or types.
 
-If `digest` is `null`, `'sha1'` will be used. This behavior is deprecated,
-please specify a `digest` explicitly.
-
 The `iterations` argument must be a number set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
 but will take a longer amount of time to complete.
@@ -4489,9 +4486,6 @@ applied to derive a key of the requested byte length (`keylen`) from the
 
 If an error occurs an `Error` will be thrown, otherwise the derived key will be
 returned as a [`Buffer`][].
-
-If `digest` is `null`, `'sha1'` will be used. This behavior is deprecated,
-please specify a `digest` explicitly.
 
 The `iterations` argument must be a number set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
