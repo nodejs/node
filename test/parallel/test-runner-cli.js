@@ -1,4 +1,6 @@
 'use strict';
+// Flags: --expose-internals
+
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
@@ -36,7 +38,12 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // Same but with a prototype mutation in require scripts.
-  const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test', testFixtures];
+  const args = [
+    '--require',
+    join(testFixtures, 'protoMutation.js'),
+    '--test',
+    testFixtures,
+  ];
   const child = spawnSync(process.execPath, args);
 
   const stdout = child.stdout.toString();
