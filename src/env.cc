@@ -1501,14 +1501,14 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
           expected_async_id);
   DumpBacktrace(stderr);
   fflush(stderr);
-  if (!env()->abort_on_uncaught_exception())
-    exit(1);
+  // TODO(joyeecheung): should this exit code be more specific?
+  if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);
   fprintf(stderr, "\n");
   fflush(stderr);
   ABORT_NO_BACKTRACE();
 }
 
-void Environment::Exit(int exit_code) {
+void Environment::Exit(ExitCode exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
     Isolate::DisallowJavascriptExecutionScope disallow_js(
@@ -1536,7 +1536,7 @@ void Environment::stop_sub_worker_contexts() {
   while (!sub_worker_contexts_.empty()) {
     Worker* w = *sub_worker_contexts_.begin();
     remove_sub_worker_context(w);
-    w->Exit(1);
+    w->Exit(ExitCode::kGenericUserError);
     w->JoinThread();
   }
 }

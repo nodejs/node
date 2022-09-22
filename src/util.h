@@ -118,7 +118,7 @@ void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT_NO_BACKTRACE() _exit(134)
+#define ABORT_NO_BACKTRACE() _exit(static_cast<int>(ExitCode::kAbort))
 #else
 #define ABORT_NO_BACKTRACE() abort()
 #endif

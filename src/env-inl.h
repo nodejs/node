@@ -801,7 +801,7 @@ void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
 }
 
 void Environment::set_process_exit_handler(
-    std::function<void(Environment*, int)>&& handler) {
+    std::function<void(Environment*, ExitCode)>&& handler) {
   process_exit_handler_ = std::move(handler);
 }
 

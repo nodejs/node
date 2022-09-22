@@ -64,7 +64,8 @@ int wmain(int argc, wchar_t* wargv[]) {
     if (size == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
-      exit(1);
+      // FIXME(joyeecheung): should be kInvalidCommandLineArgument.
+      Exit(ExitCode::kGenericUserError);
     }
     // Do the actual conversion
     argv[i] = new char[size];
@@ -79,7 +80,8 @@ int wmain(int argc, wchar_t* wargv[]) {
     if (result == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
-      exit(1);
+      // FIXME(joyeecheung): should be kInvalidCommandLineArgument.
+      Exit(ExitCode::kGenericUserError);
     }
   }
   argv[argc] = nullptr;
