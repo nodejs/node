@@ -16,17 +16,9 @@
     "fail": {
       "expected": [
         "ReadableStream with byte source: enqueue() discards auto-allocated BYOB request",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, respond()",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader with 1 element Uint16Array, respond(1)",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader with 2 element Uint8Array, respond(3)",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, respondWithNewView()",
         "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, enqueue()",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, close(), respond(0)",
-        "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read() on second reader, respond()",
         "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read() on second reader, enqueue()",
-        "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read(view) on second reader, respond()",
         "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read(view) on second reader, enqueue()",
-        "ReadableStream with byte source: read(view) with 1 element Uint16Array, respond(1), releaseLock(), read(view) on second reader with 1 element Uint16Array, respond(1)",
         "ReadableStream with byte source: read(view) with 1 element Uint16Array, respond(1), releaseLock(), read() on second reader, enqueue()"
       ]
     }
