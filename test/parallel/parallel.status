@@ -9,6 +9,8 @@ prefix parallel
 test-repl-sigint-nested-eval: PASS, FLAKY
 # https://github.com/nodejs/node/issues/43084
 test-worker-http2-stream-terminate: PASS, FLAKY
+# temporary hot fix to allow rc version of npm
+test-npm-version: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
