@@ -705,12 +705,16 @@ $ git pull upstream main
 $ git cherry-pick v1.x^
 ```
 
-Git should stop to let you fix conflicts. Revert all changes that were made to
-`src/node_version.h`:
+Git should stop to let you fix conflicts.
+
+Revert all changes that were made to `src/node_version.h`:
 
 ```console
 $ git checkout --ours HEAD -- src/node_version.h
 ```
+
+Even if there are no conflicts, ensure that you revert all the changes that were
+made to `src/node_version.h`.
 
 If there are conflicts in `doc` due to updated `REPLACEME`
 placeholders (that happens when a change previously landed on another release
