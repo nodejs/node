@@ -166,6 +166,13 @@ When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
 backport PR with `Landed in ...`. Update the label on the original PR from
 `backport-requested-vN.x` to `backported-to-vN.x`.
 
+You can add the `Backport-PR-URL` metadata by using `--backport` with
+`git node land`
+
+```console
+$ git node land --backport $PR-NUMBER
+```
+
 To determine the relevant commits, use
 [`branch-diff`](https://github.com/nodejs/branch-diff). The tool is available on
 npm and should be installed globally or run with `npx`. It depends on our commit
