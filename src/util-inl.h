@@ -214,7 +214,7 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-//simd swapping only works for X86
+// simd swapping only works for X86
 #if (__x86_64__ || __i386__ || _M_X86 || _M_X64)
 
 #ifdef _MSC_VER
@@ -228,8 +228,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
     __ecx = info[2];                                                           \
     __edx = info[3];                                                           \
   }
-#define __cpuid(__level, __eax, __ebx, __ecx, __edx) \
-	__cpuid_count(__level, 0, __eax, __ebx, __ecx, __edx)
+#define __cpuid(__level, __eax, __ebx, __ecx, __edx)                           \
+  __cpuid_count(__level, 0, __eax, __ebx, __ecx, __edx)
 #else
 #include <cpuid.h>
 #endif
@@ -303,7 +303,7 @@ __attribute__((target("avx512vbmi"))) inline static void set_simd_level() {
 }
 
 __attribute__((target("avx512vbmi"))) inline static size_t swap16_avx(
-  char* data, size_t nbytes) {
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m512i shuffle_input = _mm512_set_epi64(0x3e3f3c3d3a3b3839,
                                            0x3637343532333031,
@@ -325,7 +325,7 @@ __attribute__((target("avx512vbmi"))) inline static size_t swap16_avx(
 }
 
 __attribute__((target("avx512vbmi"))) inline static size_t swap32_avx(
-  char* data, size_t nbytes) {
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m512i shuffle_input = _mm512_set_epi64(0x3c3d3e3f38393a3b,
                                            0x3435363730313233,
@@ -348,7 +348,7 @@ __attribute__((target("avx512vbmi"))) inline static size_t swap32_avx(
 }
 
 __attribute__((target("avx512vbmi"))) inline static size_t swap64_avx(
-  char* data, size_t nbytes) {
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m512i shuffle_input = _mm512_set_epi64(0x38393a3b3c3d3e3f,
                                            0x3031323334353637,
@@ -369,8 +369,8 @@ __attribute__((target("avx512vbmi"))) inline static size_t swap64_avx(
   return processed;
 }
 
-__attribute__((target("ssse3"))) inline static size_t swap16_sse(char* data,
-                                                               size_t nbytes) {
+__attribute__((target("ssse3"))) inline static size_t swap16_sse(
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m128i shuffle_input =
       _mm_set_epi64x(0x0e0f0c0d0a0b0809, 0x0607040502030001);
@@ -385,8 +385,8 @@ __attribute__((target("ssse3"))) inline static size_t swap16_sse(char* data,
   return processed;
 }
 
-__attribute__((target("ssse3"))) inline static size_t swap32_sse(char* data,
-                                                               size_t nbytes) {
+__attribute__((target("ssse3"))) inline static size_t swap32_sse(
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m128i shuffle_input =
       _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
@@ -401,8 +401,8 @@ __attribute__((target("ssse3"))) inline static size_t swap32_sse(char* data,
   return processed;
 }
 
-__attribute__((target("ssse3"))) inline static size_t swap64_sse(char* data,
-                                                               size_t nbytes) {
+__attribute__((target("ssse3"))) inline static size_t swap64_sse(
+    char* data, size_t nbytes) {
   size_t processed = 0;
   __m128i shuffle_input =
       _mm_set_epi64x(0x08090a0b0c0d0e0f, 0x0001020304050607);
