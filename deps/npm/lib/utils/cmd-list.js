@@ -4,7 +4,6 @@ const abbrev = require('abbrev')
 const aliases = {
 
   // aliases
-  login: 'adduser',
   author: 'owner',
   home: 'docs',
   issues: 'bugs',
@@ -74,7 +73,6 @@ const cmdList = [
   'access',
   'adduser',
   'audit',
-  'bin',
   'bugs',
   'cache',
   'ci',
@@ -122,7 +120,6 @@ const cmdList = [
   'run-script',
   'search',
   'set',
-  'set-script',
   'shrinkwrap',
   'star',
   'stars',
@@ -140,7 +137,7 @@ const cmdList = [
   'whoami',
 ]
 
-const plumbing = ['birthday', 'help-search']
+const plumbing = ['help-search']
 const abbrevs = abbrev(cmdList.concat(Object.keys(aliases)))
 
 module.exports = {

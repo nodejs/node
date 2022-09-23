@@ -3,7 +3,6 @@ module.exports = definitions
 
 const Definition = require('./definition.js')
 
-const log = require('../log-shim')
 const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
@@ -238,25 +237,12 @@ define('audit-level', {
 })
 
 define('auth-type', {
-  default: 'legacy',
-  type: ['legacy', 'web', 'sso', 'saml', 'oauth', 'webauthn'],
-  // deprecation in description rather than field, because not every value
-  // is deprecated
+  default: 'web',
+  type: ['legacy', 'web'],
   description: `
-    NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-    removed in a future version.
-
     What authentication strategy to use with \`login\`.
   `,
-  flatten (key, obj, flatOptions) {
-    flatOptions.authType = obj[key]
-    if (obj[key] === 'sso') {
-      // no need to deprecate saml/oauth here, as sso-type will be set by these in
-      // lib/auth/ and is deprecated already
-      log.warn('config',
-        '--auth-type=sso is will be removed in a future version.')
-    }
-  },
+  flatten,
 })
 
 define('before', {
@@ -1083,7 +1069,7 @@ define('init.version', {
 })
 
 define('install-links', {
-  default: false,
+  default: true,
   type: Boolean,
   description: `
     When set file: protocol dependencies that exist outside of the project root
@@ -2000,33 +1986,6 @@ define('sign-git-tag', {
 
     Note that git requires you to have set up GPG keys in your git configs
     for this to work properly.
-  `,
-  flatten,
-})
-
-define('sso-poll-frequency', {
-  default: 500,
-  type: Number,
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    When used with SSO-enabled \`auth-type\`s, configures how regularly the
-    registry should be polled while the user is completing authentication.
-  `,
-  flatten,
-})
-
-define('sso-type', {
-  default: 'oauth',
-  type: [null, 'oauth', 'saml'],
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    If \`--auth-type=sso\`, the type of SSO type to use.
   `,
   flatten,
 })

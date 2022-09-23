@@ -250,14 +250,11 @@ exit code\.
 .SS \fBauth\-type\fP
 .RS 0
 .IP \(bu 2
-Default: "legacy"
+Default: "web"
 .IP \(bu 2
-Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
+Type: "legacy" or "web"
 
 .RE
-.P
-NOTE: auth\-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version\.
 .P
 What authentication strategy to use with \fBlogin\fP\|\.
 .SS \fBbefore\fP
@@ -968,7 +965,7 @@ number, if not already set in package\.json\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 
@@ -2184,33 +2181,6 @@ DEPRECATED: Use the \-\-package\-lock setting instead\.
 .RE
 .P
 Alias for \-\-package\-lock
-.SS \fBsso\-poll\-frequency\fP
-.RS 0
-.IP \(bu 2
-Default: 500
-.IP \(bu 2
-Type: Number
-.IP \(bu 2
-DEPRECATED: The \-\-auth\-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web\-based login\.
-
-.RE
-.P
-When used with SSO\-enabled \fBauth\-type\fPs, configures how regularly the
-registry should be polled while the user is completing authentication\.
-.SS \fBsso\-type\fP
-.RS 0
-.IP \(bu 2
-Default: "oauth"
-.IP \(bu 2
-Type: null, "oauth", or "saml"
-.IP \(bu 2
-DEPRECATED: The \-\-auth\-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web\-based login\.
-
-.RE
-.P
-If \fB\-\-auth\-type=sso\fP, the type of SSO type to use\.
 .SS \fBtmp\fP
 .RS 0
 .IP \(bu 2

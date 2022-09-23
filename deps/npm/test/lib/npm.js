@@ -52,7 +52,7 @@ t.test('not yet loaded', async t => {
 })
 
 t.test('npm.load', async t => {
-  t.test('load error', async t => {
+  await t.test('load error', async t => {
     const { npm } = await loadMockNpm(t, { load: false })
     const loadError = new Error('load error')
     npm.config.load = async () => {
@@ -75,9 +75,12 @@ t.test('npm.load', async t => {
     t.equal(npm.loadErr, loadError)
   })
 
-  t.test('basic loading', async t => {
-    const { npm, logs, prefix: dir, cache } = await loadMockNpm(t, {
+  await t.test('basic loading', async t => {
+    const { npm, logs, prefix: dir, cache, other } = await loadMockNpm(t, {
       prefixDir: { node_modules: {} },
+      otherDirs: {
+        newCache: {},
+      },
     })
 
     t.equal(npm.loaded, true)
@@ -94,10 +97,9 @@ t.test('npm.load', async t => {
 
     mockGlobals(t, { process: { platform: 'posix' } })
     t.equal(resolve(npm.cache), resolve(cache), 'cache is cache')
-    const newCache = t.testdir()
-    npm.cache = newCache
-    t.equal(npm.config.get('cache'), newCache, 'cache setter sets config')
-    t.equal(npm.cache, newCache, 'cache getter gets new config')
+    npm.cache = other.newCache
+    t.equal(npm.config.get('cache'), other.newCache, 'cache setter sets config')
+    t.equal(npm.cache, other.newCache, 'cache getter gets new config')
     t.equal(npm.lockfileVersion, 2, 'lockfileVersion getter')
     t.equal(npm.prefix, npm.localPrefix, 'prefix is local prefix')
     t.not(npm.prefix, npm.globalPrefix, 'prefix is not global prefix')
@@ -138,7 +140,7 @@ t.test('npm.load', async t => {
     t.equal(tmp, npm.tmp, 'getter only generates it once')
   })
 
-  t.test('forceful loading', async t => {
+  await t.test('forceful loading', async t => {
     const { logs } = await loadMockNpm(t, {
       globals: {
         'process.argv': [...process.argv, '--force', '--color', 'always'],
@@ -152,7 +154,7 @@ t.test('npm.load', async t => {
     ])
   })
 
-  t.test('node is a symlink', async t => {
+  await t.test('node is a symlink', async t => {
     const node = process.platform === 'win32' ? 'node.exe' : 'node'
     const { npm, logs, outputs, prefix } = await loadMockNpm(t, {
       prefixDir: {
@@ -227,7 +229,7 @@ t.test('npm.load', async t => {
     t.same(outputs, [['scope=@foo\n\u2010not-a-dash=undefined']])
   })
 
-  t.test('--no-workspaces with --workspace', async t => {
+  await t.test('--no-workspaces with --workspace', async t => {
     const { npm } = await loadMockNpm(t, {
       load: false,
       prefixDir: {
@@ -262,7 +264,7 @@ t.test('npm.load', async t => {
     )
   })
 
-  t.test('workspace-aware configs and commands', async t => {
+  await t.test('workspace-aware configs and commands', async t => {
     const { npm, outputs } = await loadMockNpm(t, {
       prefixDir: {
         packages: {
@@ -318,7 +320,7 @@ t.test('npm.load', async t => {
     )
   })
 
-  t.test('workspaces in global mode', async t => {
+  await t.test('workspaces in global mode', async t => {
     const { npm } = await loadMockNpm(t, {
       prefixDir: {
         packages: {
@@ -572,10 +574,10 @@ t.test('aliases and typos', async t => {
   const { npm } = await loadMockNpm(t, { load: false })
   await t.rejects(npm.cmd('thisisnotacommand'), { code: 'EUNKNOWNCOMMAND' })
   await t.rejects(npm.cmd(''), { code: 'EUNKNOWNCOMMAND' })
-  await t.rejects(npm.cmd('birt'), { code: 'EUNKNOWNCOMMAND' })
+  await t.rejects(npm.cmd('birthday'), { code: 'EUNKNOWNCOMMAND' })
   await t.resolves(npm.cmd('it'), { name: 'install-test' })
   await t.resolves(npm.cmd('installTe'), { name: 'install-test' })
-  await t.resolves(npm.cmd('birthday'), { name: 'birthday' })
+  await t.resolves(npm.cmd('access'), { name: 'access' })
 })
 
 t.test('explicit workspace rejection', async t => {

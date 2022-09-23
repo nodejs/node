@@ -222,9 +222,9 @@ package in the tree, and POST it to the default configured registry at
 the path <code>/-/npm/v1/security/advisories/bulk</code>.</p>
 <p>Any packages in the tree that do not have a <code>version</code> field in their
 package.json file will be ignored.  If any <code>--omit</code> options are specified
-(either via the <code>--omit</code> config, or one of the shorthands such as
-<code>--production</code>, <code>--only=dev</code>, and so on), then packages will be omitted
-from the submitted payload as appropriate.</p>
+(either via the <a href="../using-npm/config#omit.html"><code>--omit</code> config</a>, or one of the
+shorthands such as <code>--production</code>, <code>--only=dev</code>, and so on), then packages will
+be omitted from the submitted payload as appropriate.</p>
 <p>If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the <code>Quick Audit</code> endpoint.</p>
 <p>The expected result will contain a set of advisory objects for each
@@ -282,7 +282,7 @@ were found.  The <code>npm audit fix</code> command will exit with 0 exit code i
 vulnerabilities are found <em>or</em> if the remediation is able to successfully
 fix all vulnerabilities.</p>
 <p>If vulnerabilities were found the exit code will depend on the
-<code>audit-level</code> configuration setting.</p>
+<a href="../using-npm/config#audit-level.html"><code>audit-level</code> config</a>.</p>
 <h3 id="examples">Examples</h3>
 <p>Scan your project for vulnerabilities and automatically install any compatible
 updates to vulnerable dependencies:</p>
@@ -485,7 +485,7 @@ the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
 <p>When set file: protocol dependencies that exist outside of the project root

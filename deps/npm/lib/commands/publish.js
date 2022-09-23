@@ -114,7 +114,10 @@ class Publish extends BaseCommand {
       }
     }
 
-    log.notice('', `Publishing to ${outputRegistry}${dryRun ? ' (dry-run)' : ''}`)
+    log.notice(
+      '',
+      `Publishing to ${outputRegistry} with tag ${defaultTag}${dryRun ? ' (dry-run)' : ''}`
+    )
 
     if (!dryRun) {
       await otplease(this.npm, opts, opts => libpub(manifest, tarballData, opts))

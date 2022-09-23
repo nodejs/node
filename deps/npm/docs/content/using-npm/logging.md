@@ -58,7 +58,8 @@ The `npm` CLI began hiding the output of lifecycle scripts for `npm install` as 
 
 ### Timing Information
 
-The `--timing` config can be set which does two things:
+The [`--timing` config](/using-npm/config#timing) can be set which does two
+things:
 
 1. Always shows the full path to the debug log regardless of command exit status
 1. Write timing information to a timing file in the cache or `logs-dir`

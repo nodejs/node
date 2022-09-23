@@ -186,6 +186,9 @@ an item in an array field. To just get the email address of the first
 contributor in the list, you can run:</p>
 <pre lang="bash"><code>npm view express contributors[0].email
 </code></pre>
+<p>If the field value you are querying for is a property of an object, you should run:</p>
+<pre lang="bash"><code>npm view express time'[4.8.0]'
+</code></pre>
 <p>Multiple fields may be specified, and will be printed one after another.
 For example, to get all the contributor names and email addresses, you
 can do this:</p>

@@ -26,9 +26,11 @@ The npm public registry is powered by a CouchDB database,
 of which there is a public mirror at <https://skimdb.npmjs.com/registry>.
 
 The registry URL used is determined by the scope of the package (see
-[`scope`](/using-npm/scope). If no scope is specified, the default registry is used, which is
-supplied by the `registry` config parameter.  See [`npm config`](/commands/npm-config),
-[`npmrc`](/configuring-npm/npmrc), and [`config`](/using-npm/config) for more on managing npm's configuration.
+[`scope`](/using-npm/scope). If no scope is specified, the default registry is
+used, which is supplied by the [`registry` config](/using-npm/config#registry)
+parameter.  See [`npm config`](/commands/npm-config),
+[`npmrc`](/configuring-npm/npmrc), and [`config`](/using-npm/config) for more on
+managing npm's configuration.
 
 When the default registry is used in a package-lock or shrinkwrap is has the
 special meaning of "the currently configured registry". If you create a lock
@@ -69,7 +71,7 @@ to force it to be published only to your internal/private registry.
 
 See [`package.json`](/configuring-npm/package-json) for more info on what goes in the package.json file.
 
-### Where can I find my own, & other's, published packages?
+### Where can I find my (and others') published packages?
 
 <https://www.npmjs.com/>
 

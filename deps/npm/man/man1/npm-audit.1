@@ -114,9 +114,9 @@ the path \fB/\-/npm/v1/security/advisories/bulk\fP\|\.
 .P
 Any packages in the tree that do not have a \fBversion\fP field in their
 package\.json file will be ignored\.  If any \fB\-\-omit\fP options are specified
-(either via the \fB\-\-omit\fP config, or one of the shorthands such as
-\fB\-\-production\fP, \fB\-\-only=dev\fP, and so on), then packages will be omitted
-from the submitted payload as appropriate\.
+(either via the npm help \fB\-\-omit\fP config, or one of the
+shorthands such as \fB\-\-production\fP, \fB\-\-only=dev\fP, and so on), then packages will
+be omitted from the submitted payload as appropriate\.
 .P
 If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the \fBQuick Audit\fP endpoint\.
@@ -196,7 +196,7 @@ vulnerabilities are found \fIor\fR if the remediation is able to successfully
 fix all vulnerabilities\.
 .P
 If vulnerabilities were found the exit code will depend on the
-\fBaudit\-level\fP configuration setting\.
+npm help \fBaudit\-level\fP config\.
 .SS Examples
 .P
 Scan your project for vulnerabilities and automatically install any compatible
@@ -496,7 +496,7 @@ This value is not exported to the environment for child processes\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 

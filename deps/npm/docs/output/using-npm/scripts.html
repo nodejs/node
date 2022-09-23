@@ -177,20 +177,14 @@ situations. These scripts happen in addition to the <code>pre&lt;event&gt;</code
 <p><strong>prepare</strong> (since <code>npm@4.0.0</code>)</p>
 <ul>
 <li>
-<p>Runs any time before the package is packed, i.e. during <code>npm publish</code>
+<p>Runs BEFORE the package is packed, i.e. during <code>npm publish</code>
 and <code>npm pack</code></p>
-</li>
-<li>
-<p>Runs BEFORE the package is packed</p>
-</li>
-<li>
-<p>Runs BEFORE the package is published</p>
 </li>
 <li>
 <p>Runs on local <code>npm install</code> without any arguments</p>
 </li>
 <li>
-<p>Run AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+<p>Runs AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
 </li>
 <li>
 <p>NOTE: If a package being installed through git contains a <code>prepare</code>

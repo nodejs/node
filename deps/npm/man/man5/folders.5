@@ -24,10 +24,10 @@ If you need both, then install it in both places, or use \fBnpm link\fP\|\.
 .RE
 .SS prefix Configuration
 .P
-The \fBprefix\fP config defaults to the location where node is installed\.
-On most systems, this is \fB/usr/local\fP\|\. On Windows, it's \fB%AppData%\\npm\fP\|\.
-On Unix systems, it's one level up, since node is typically installed at
-\fB{prefix}/bin/node\fP rather than \fB{prefix}/node\.exe\fP\|\.
+The npm help \fBprefix\fP config defaults to the location where
+node is installed\. On most systems, this is \fB/usr/local\fP\|\. On Windows, it's
+\fB%AppData%\\npm\fP\|\. On Unix systems, it's one level up, since node is typically
+installed at \fB{prefix}/bin/node\fP rather than \fB{prefix}/node\.exe\fP\|\.
 .P
 When the \fBglobal\fP flag is set, npm installs things into this prefix\.
 When it is not set, it uses the root of the current package, or the
@@ -72,12 +72,12 @@ Man pages are not installed on Windows systems\.
 See npm help \fBcache\fP\|\.  Cache files are stored in \fB~/\.npm\fP on Posix, or
 \fB%AppData%/npm\-cache\fP on Windows\.
 .P
-This is controlled by the \fBcache\fP configuration param\.
+This is controlled by the npm help \fBcache\fP config param\.
 .SS Temp Files
 .P
 Temporary files are stored by default in the folder specified by the
-\fBtmp\fP config, which defaults to the TMPDIR, TMP, or TEMP environment
-variables, or \fB/tmp\fP on Unix and \fBc:\\windows\\temp\fP on Windows\.
+npm help \fBtmp\fP config, which defaults to the TMPDIR, TMP, or
+TEMP environment variables, or \fB/tmp\fP on Unix and \fBc:\\windows\\temp\fP on Windows\.
 .P
 Temp files are given a unique folder under this root for each run of the
 program, and are deleted upon successful exit\.
@@ -106,7 +106,7 @@ Any bin files are symlinked to \fB\|\./node_modules/\.bin/\fP, so that they may
 be found by npm scripts when necessary\.
 .SS Global Installation
 .P
-If the \fBglobal\fP configuration is set to true, then npm will
+If the npm help \fBglobal\fP config is set to true, then npm will
 install packages "globally"\.
 .P
 For global installation, packages are installed roughly the same way,

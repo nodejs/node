@@ -42,12 +42,10 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
 * `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`, `dependencies`
 
 **prepare** (since `npm@4.0.0`)
-* Runs any time before the package is packed, i.e. during `npm publish`
+* Runs BEFORE the package is packed, i.e. during `npm publish`
     and `npm pack`
-* Runs BEFORE the package is packed
-* Runs BEFORE the package is published
 * Runs on local `npm install` without any arguments
-* Run AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
 
 * NOTE: If a package being installed through git contains a `prepare`
  script, its `dependencies` and `devDependencies` will be installed, and
@@ -219,7 +217,7 @@ will default the `start` command to `node server.js`.  `prestart` and
 
 #### A Note on a lack of [`npm uninstall`](/commands/npm-uninstall) scripts
 
-While npm v6 had `uninstall` lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful.
+While npm v6 had `uninstall` lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful. 
 
 Reasons for a package removal include:
 

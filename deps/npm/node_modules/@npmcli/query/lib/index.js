@@ -168,6 +168,13 @@ const fixupPaths = astNode => {
   astNode.nodes.length = 0
 }
 
+const fixupOutdated = astNode => {
+  if (astNode.nodes.length) {
+    astNode.outdatedKind = String(astNode.nodes[0])
+    astNode.nodes.length = 0
+  }
+}
+
 // a few of the supported ast nodes need to be tweaked in order to properly be
 // interpreted as proper arborist query selectors, namely semver ranges from
 // both ids and :semver pseudo-class selectors need to be translated from what
@@ -196,6 +203,8 @@ const transformAst = selector => {
         return fixupSemverSpecs(nextAstNode)
       case ':type':
         return fixupTypes(nextAstNode)
+      case ':outdated':
+        return fixupOutdated(nextAstNode)
     }
   })
 }

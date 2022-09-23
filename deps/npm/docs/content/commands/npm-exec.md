@@ -240,7 +240,8 @@ $ npx -c 'eslint && say "hooray, lint passed"'
 
 ### Workspaces support
 
-You may use the `workspace` or `workspaces` configs in order to run an
+You may use the [`workspace`](/using-npm/config#workspace) or
+[`workspaces`](/using-npm/config#workspaces) configs in order to run an
 arbitrary command from an npm package (either one installed locally, or fetched
 remotely) in the context of the specified workspaces.
 If no positional argument or `--call` option is provided, it will open an
@@ -271,9 +272,9 @@ Assuming the workspace configuration is properly set up at the root level
 ```
 
 You can execute an arbitrary command from a package in the context of each of
-the configured workspaces when using the `workspaces` configuration options,
-in this example we're using **eslint** to lint any js file found within each
-workspace folder:
+the configured workspaces when using the
+[`workspaces` config options](/using-npm/config#workspace), in this example
+we're using **eslint** to lint any js file found within each workspace folder:
 
 ```
 npm exec --ws -- eslint ./*.js

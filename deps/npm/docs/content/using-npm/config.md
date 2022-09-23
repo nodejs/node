@@ -217,11 +217,8 @@ exit code.
 
 #### `auth-type`
 
-* Default: "legacy"
-* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
-
-NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.
+* Default: "web"
+* Type: "legacy" or "web"
 
 What authentication strategy to use with `login`.
 
@@ -910,7 +907,7 @@ number, if not already set in package.json.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
 When set file: protocol dependencies that exist outside of the project root
@@ -2080,31 +2077,6 @@ Alias for `--omit=dev`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### `sso-poll-frequency`
-
-* Default: 500
-* Type: Number
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-When used with SSO-enabled `auth-type`s, configures how regularly the
-registry should be polled while the user is completing authentication.
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### `sso-type`
-
-* Default: "oauth"
-* Type: null, "oauth", or "saml"
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-If `--auth-type=sso`, the type of SSO type to use.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
