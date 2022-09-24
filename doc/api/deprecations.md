@@ -2889,12 +2889,15 @@ Prefer [`message.socket`][] over [`message.connection`][].
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43627
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36902
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `process.config` property provides access to Node.js compile-time settings.
 However, the property is mutable and therefore subject to tampering. The ability
@@ -3057,7 +3060,9 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: v17.5.0
+  - version:
+    - v17.5.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: Documentation-only deprecation.
 -->
@@ -3090,7 +3095,9 @@ changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3104,7 +3111,9 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
@@ -3122,15 +3131,20 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42796
+    description: End-of-Life.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42607
     description: Runtime deprecation.
-  - version: v17.8.0
+  - version:
+    - v17.8.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Implicit coercion of objects with own `toString` property, passed as second
 parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
@@ -3141,7 +3155,9 @@ Convert them to primitive strings.
 
 <!-- YAML
 changes:
-  - version: v18.7.0
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42714
     description: Documentation-only deprecation.
 -->
@@ -3155,19 +3171,27 @@ Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
 [`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
 thing instead.
 
-### DEP0164: `process.exit([code])` coercion to integer
+### DEP0164: `process.exit(code)`, `process.exitCode` coercion to integer
 
 <!-- YAML
 changes:
-  - version: v18.7.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44714
+    description: Documentation-only deprecation of `process.exitCode` integer
+                 coercion.
+  - version:
+    - v18.7.0
+    - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43738
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation of `process.exit(code)` integer
+                 coercion.
 -->
 
 Type: Documentation-only
 
-`code` values other than `undefined`, `null`, integer numbers and integer
-strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
+Values other than `undefined`, `null`, integer numbers, and integer strings
+(e.g., `'1'`) are deprecated as value for the `code` parameter in
+[`process.exit()`][] and as value to assign to [`process.exitCode`][].
 
 ### DEP0165: `--trace-atomics-wait`
 
@@ -3187,12 +3211,15 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44495
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44477
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Package imports and exports targets mapping into paths including a double slash
 (of _"/"_ or _"\\"_) are deprecated and will fail with a resolution validation
@@ -3320,6 +3347,7 @@ Node-API callbacks.
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
 [`process.exit()`]: process.md#processexitcode
+[`process.exitCode`]: process.md#processexitcode_1
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
