@@ -3171,21 +3171,27 @@ Use [`diagnostics_channel.subscribe(name, onMessage)`][] or
 [`diagnostics_channel.unsubscribe(name, onMessage)`][] which does the same
 thing instead.
 
-### DEP0164: `process.exit([code])` coercion to integer
+### DEP0164: `process.exit(code)`, `process.exitCode` coercion to integer
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44714
+    description: Documentation-only deprecation of `process.exitCode` integer
+                 coercion.
   - version:
     - v18.7.0
     - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43738
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation of `process.exit(code)` integer
+                 coercion.
 -->
 
 Type: Documentation-only
 
-`code` values other than `undefined`, `null`, integer numbers and integer
-strings (e.g., '1') are deprecated as parameter in [`process.exit()`][].
+Values other than `undefined`, `null`, integer numbers, and integer strings
+(e.g., `'1'`) are deprecated as value for the `code` parameter in
+[`process.exit()`][] and as value to assign to [`process.exitCode`][].
 
 ### DEP0165: `--trace-atomics-wait`
 
@@ -3341,6 +3347,7 @@ Node-API callbacks.
 [`os.tmpdir()`]: os.md#ostmpdir
 [`process.env`]: process.md#processenv
 [`process.exit()`]: process.md#processexitcode
+[`process.exitCode`]: process.md#processexitcode_1
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
