@@ -1033,7 +1033,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44631
-    description: add support for default values in input `config`.
+    description: Add support for default values in input `config`.
   - version:
     - v18.7.0
     - v16.17.0
