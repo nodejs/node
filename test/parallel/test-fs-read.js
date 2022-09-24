@@ -79,11 +79,7 @@ assert.throws(
 
 assert.throws(
   () => fs.read(fd, { buffer: null }, common.mustNotCall()),
-  {
-    name: 'TypeError',
-    message: 'The "buffer" argument must be an instance of Buffer, ' +
-    'TypedArray, or DataView. Received null',
-  },
+  { code: 'ERR_INVALID_ARG_TYPE' },
   'throws when options.buffer is null'
 );
 
