@@ -833,6 +833,19 @@ test('default must be a boolean when option type is boolean', () => {
   );
 });
 
+test('default must accept undefined value', () => {
+  const args = [];
+  const options = { alpha: { type: 'boolean', default: undefined } };
+  const result = parseArgs({ args, options });
+  const expected = {
+    values: {
+      __proto__: null,
+    },
+    positionals: []
+  };
+  assert.deepStrictEqual(result, expected);
+});
+
 test('default must be a boolean array when option type is boolean and multiple', () => {
   const args = [];
   const options = { alpha: { type: 'boolean', multiple: true, default: 'not an array' } };
