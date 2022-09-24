@@ -79,7 +79,11 @@ assert.throws(
 
 assert.throws(
   () => fs.read(fd, { buffer: null }, common.mustNotCall()),
-  /TypeError: Cannot read properties of null \(reading 'byteLength'\)/,
+  {
+    name: 'TypeError',
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+    'TypedArray, or DataView. Received null',
+  },
   'throws when options.buffer is null'
 );
 
