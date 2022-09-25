@@ -5,6 +5,7 @@ import { path } from '../common/fixtures.mjs';
 import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
+
 const script = path('debugger', 'three-lines.js');
 const cli = startCLI([script]);
 try {
