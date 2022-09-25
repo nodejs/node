@@ -31,6 +31,7 @@
 
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
