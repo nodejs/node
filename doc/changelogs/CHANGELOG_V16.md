@@ -69,6 +69,8 @@
 
 ## 2022-09-23, Version 16.17.1 'Gallium' (LTS), @ruyadorno
 
+This is a security release.
+
 ### Notable changes
 
 The following CVEs are fixed in this release:
