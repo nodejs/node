@@ -12179,35 +12179,35 @@ TEST(peek_poke_unaligned) {
   //    x0-x6 should be unchanged.
   //    w10-w12 should contain the lower words of x0-x2.
   __ Poke(x0, 1);
-  Clobber(&masm, {x0});
+  Clobber(&masm, RegList{x0});
   __ Peek(x0, 1);
   __ Poke(x1, 2);
-  Clobber(&masm, {x1});
+  Clobber(&masm, RegList{x1});
   __ Peek(x1, 2);
   __ Poke(x2, 3);
-  Clobber(&masm, {x2});
+  Clobber(&masm, RegList{x2});
   __ Peek(x2, 3);
   __ Poke(x3, 4);
-  Clobber(&masm, {x3});
+  Clobber(&masm, RegList{x3});
   __ Peek(x3, 4);
   __ Poke(x4, 5);
-  Clobber(&masm, {x4});
+  Clobber(&masm, RegList{x4});
   __ Peek(x4, 5);
   __ Poke(x5, 6);
-  Clobber(&masm, {x5});
+  Clobber(&masm, RegList{x5});
   __ Peek(x5, 6);
   __ Poke(x6, 7);
-  Clobber(&masm, {x6});
+  Clobber(&masm, RegList{x6});
   __ Peek(x6, 7);
 
   __ Poke(w0, 1);
-  Clobber(&masm, {w10});
+  Clobber(&masm, RegList{w10});
   __ Peek(w10, 1);
   __ Poke(w1, 2);
-  Clobber(&masm, {w11});
+  Clobber(&masm, RegList{w11});
   __ Peek(w11, 2);
   __ Poke(w2, 3);
-  Clobber(&masm, {w12});
+  Clobber(&masm, RegList{w12});
   __ Peek(w12, 3);
 
   __ Drop(4);
