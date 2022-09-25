@@ -89,21 +89,29 @@ inline uintptr_t slow_search(T* array, uintptr_t array_len, uintptr_t index,
 //   max(v & mask) = 4
 //   index of the first match = 4-max = 4-4 = 0
 //
-template <typename T>
-inline int extract_first_nonzero_index(T v) {
-  UNREACHABLE();
-}
 
-template <>
-V8_ALLOW_UNUSED inline int extract_first_nonzero_index(uint32x4_t v) {
-  uint32x4_t mask = {4, 3, 2, 1};
+// With MSVC, uint32x4_t and uint64x2_t typedef to a union, where first member
+// is uint64_t[2], and not uint32_t[4].
+// C++ standard dictates that a union can only be initialized through its first
+// member, which forces us to have uint64_t[2] for definition.
+#if defined(_MSC_VER)
+#define PACK32x4(w, x, y, z) \
+  { ((w) + (uint64_t(x) << 32)), ((y) + (uint64_t(z) << 32)) }
+#else
+#define PACK32x4(w, x, y, z) \
+  { (w), (x), (y), (z) }
+#endif  // MSVC workaround
+
+V8_ALLOW_UNUSED inline int extract_first_nonzero_index_uint32x4_t(
+    uint32x4_t v) {
+  uint32x4_t mask = PACK32x4(4, 3, 2, 1);
   mask = vandq_u32(mask, v);
   return 4 - vmaxvq_u32(mask);
 }
 
-template <>
-inline int extract_first_nonzero_index(uint64x2_t v) {
-  uint32x4_t mask = {2, 0, 1, 0};  // Could also be {2,2,1,1} or {0,2,0,1}
+inline int extract_first_nonzero_index_uint64x2_t(uint64x2_t v) {
+  uint32x4_t mask =
+      PACK32x4(2, 0, 1, 0);  // Could also be {2,2,1,1} or {0,2,0,1}
   mask = vandq_u32(mask, vreinterpretq_u32_u64(v));
   return 2 - vmaxvq_u32(mask);
 }
@@ -122,7 +130,7 @@ inline int32_t reinterpret_vmaxvq_u64(uint64x2_t v) {
       type_load vector = *reinterpret_cast<type_load*>(&array[index]);       \
       type_eq eq = cmp(vector, search_element_vec);                          \
       if (movemask(eq)) {                                                    \
-        return index + extract_first_nonzero_index(eq);                      \
+        return index + extract_first_nonzero_index_##type_eq(eq);            \
       }                                                                      \
     }                                                                        \
   }
