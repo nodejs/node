@@ -11,6 +11,17 @@
 #define SYMBOL(name) #name
 #endif  // !V8_OS_DARWIN
 
+#if defined(_MSC_VER) && !defined(__clang__)
+// MSVC does not accept inline assembly
+#include <intrin.h>
+extern "C" uintptr_t ProbeMemory(uintptr_t address, uintptr_t pc) {
+  // @pc parameter is unused.
+  // This intrinsic guarantees that a load from address will be done.
+  __iso_volatile_load8(reinterpret_cast<char*>(address));
+  return 0;
+}
+extern "C" void v8_probe_memory_continuation() {}
+#else
 // Define the ProbeMemory function declared in trap-handler-simulators.h.
 asm(
     ".globl " SYMBOL(ProbeMemory) "                 \n"
@@ -35,3 +46,4 @@ asm(
     SYMBOL(v8_probe_memory_continuation) ":         \n"
     // If the trap handler continues here, it wrote the landing pad in %rax.
     "  ret                                          \n");
+#endif
