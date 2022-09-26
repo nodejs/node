@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <immintrin.h>
 #include <cmath>
 #include <cstring>
 #include <locale>
@@ -213,14 +214,259 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-void SwapBytes16(char* data, size_t nbytes) {
+// simd swapping only works for X86
+#if (__x86_64__ || __i386__ || _M_X86 || _M_X64)
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#define __cpuid_count(__level, __count, __eax, __ebx, __ecx, __edx)            \
+  {                                                                            \
+    int info[4];                                                               \
+    __cpuidex(info, __level, __count);                                         \
+    __eax = info[0];                                                           \
+    __ebx = info[1];                                                           \
+    __ecx = info[2];                                                           \
+    __edx = info[3];                                                           \
+  }
+#define __cpuid(__level, __eax, __ebx, __ecx, __edx)                           \
+  __cpuid_count(__level, 0, __eax, __ebx, __ecx, __edx)
+#else
+#include <cpuid.h>
+#endif
+
+#define XSAVE_XRSTORE_bit (1 << 27)
+#define AVX512VBMI_bit (1 << 1)
+#define SSSE3_bit (1 << 9)
+#define SSE41_bit (1 << 19)
+#define SSE42_bit (1 << 20)
+
+#ifndef __GNUC__
+#define __attribute__()
+#endif
+
+// This static variable is initialized once when the library is first
+// used, and not changed in the remaining lifetime of the program.
+inline static int simd_level = 0;
+
+__attribute__((target("avx512vbmi"))) inline static void set_simd_level() {
+  // fast return if simd_level already judged
+  if (simd_level != 0) {
+    return;
+  } else {
+    unsigned int eax, ebx = 0, ecx = 0, edx;
+    unsigned int max_level;
+
+#ifdef _MSC_VER
+    int info[4];
+    __cpuidex(info, 0, 0);
+    max_level = info[0];
+#else
+    max_level = __get_cpuid_max(0, nullptr);
+#endif
+
+    // Try to find AVX512vbmi as the fasted path:
+    // 1) CPUID indicates that the OS uses XSAVE and XRSTORE instructions
+    //    (allowing saving YMM registers on context switch)
+    // 2) CPUID indicates support for AVX512VBMI
+    // 3) XGETBV indicates the AVX registers will be saved and restored on
+    //    context switch
+    if (max_level >= 1) {
+      __cpuid_count(1, 0, eax, ebx, ecx, edx);
+      if (ecx & XSAVE_XRSTORE_bit) {
+        uint64_t xcr_mask;
+        xcr_mask = _xgetbv(0);
+        if (xcr_mask & 0x6) {
+          if (max_level >= 7) {
+            __cpuid_count(7, 0, eax, ebx, ecx, edx);
+            if (ecx & AVX512VBMI_bit) {
+              simd_level = 1;
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // Fall into SSE path, expected supported by almost all systems
+    if (max_level >= 1) {
+      __cpuid(1, eax, ebx, ecx, edx);
+      if ((ecx & SSSE3_bit) | (ecx & SSE41_bit) | (ecx & SSE42_bit)) {
+        simd_level = 2;
+        return;
+      }
+    }
+
+    // Fall into legacy bit operations which is slowest
+    simd_level = 3;
+    return;
+  }
+}
+
+__attribute__((target("avx512vbmi"))) inline static size_t swap16_avx(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m512i shuffle_input = _mm512_set_epi64(0x3e3f3c3d3a3b3839,
+                                           0x3637343532333031,
+                                           0x2e2f2c2d2a2b2829,
+                                           0x2627242522232021,
+                                           0x1e1f1c1d1a1b1819,
+                                           0x1617141512131011,
+                                           0x0e0f0c0d0a0b0809,
+                                           0x0607040502030001);
+  while (nbytes >= 64) {
+    __m512i v = _mm512_loadu_si512(data);
+    __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
+    _mm512_storeu_si512(data, in);
+    data += 64;
+    nbytes -= 64;
+    processed += 64;
+  }
+  return processed;
+}
+
+__attribute__((target("avx512vbmi"))) inline static size_t swap32_avx(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m512i shuffle_input = _mm512_set_epi64(0x3c3d3e3f38393a3b,
+                                           0x3435363730313233,
+                                           0x2c2d2e2f28292a2b,
+                                           0x2425262720212223,
+                                           0x1c1d1e1f18191a1b,
+                                           0x1415161710111213,
+                                           0x0c0d0e0f08090a0b,
+                                           0x0405060700010203);
+  while (nbytes >= 64) {
+    __m512i v = _mm512_loadu_si512(data);
+    __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
+    _mm512_storeu_si512(data, in);
+
+    data += 64;
+    nbytes -= 64;
+    processed += 64;
+  }
+  return processed;
+}
+
+__attribute__((target("avx512vbmi"))) inline static size_t swap64_avx(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m512i shuffle_input = _mm512_set_epi64(0x38393a3b3c3d3e3f,
+                                           0x3031323334353637,
+                                           0x28292a2b2c2d2e2f,
+                                           0x2021222324252627,
+                                           0x18191a1b1c1d1e1f,
+                                           0x1011121314151617,
+                                           0x08090a0b0c0d0e0f,
+                                           0x0001020304050607);
+  while (nbytes >= 64) {
+    __m512i v = _mm512_loadu_si512(data);
+    __m512i in = _mm512_permutexvar_epi8(shuffle_input, v);
+    _mm512_storeu_si512(data, in);
+    data += 64;
+    nbytes -= 64;
+    processed += 64;
+  }
+  return processed;
+}
+
+__attribute__((target("ssse3"))) inline static size_t swap16_sse(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m128i shuffle_input =
+      _mm_set_epi64x(0x0e0f0c0d0a0b0809, 0x0607040502030001);
+  while (nbytes >= 16) {
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>(data));
+    __m128i in = _mm_shuffle_epi8(v, shuffle_input);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(data), in);
+    data += 16;
+    nbytes -= 16;
+    processed += 16;
+  }
+  return processed;
+}
+
+__attribute__((target("ssse3"))) inline static size_t swap32_sse(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m128i shuffle_input =
+      _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
+  while (nbytes >= 16) {
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>(data));
+    __m128i in = _mm_shuffle_epi8(v, shuffle_input);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(data), in);
+    data += 16;
+    nbytes -= 16;
+    processed += 16;
+  }
+  return processed;
+}
+
+__attribute__((target("ssse3"))) inline static size_t swap64_sse(
+    char* data, size_t nbytes) {
+  size_t processed = 0;
+  __m128i shuffle_input =
+      _mm_set_epi64x(0x08090a0b0c0d0e0f, 0x0001020304050607);
+  while (nbytes >= 16) {
+    __m128i v = _mm_loadu_si128(reinterpret_cast<__m128i*>(data));
+    __m128i in = _mm_shuffle_epi8(v, shuffle_input);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(data), in);
+    data += 16;
+    nbytes -= 16;
+    processed += 16;
+  }
+  return processed;
+}
+
+__attribute__((target("avx512vbmi"))) inline static size_t swap_simd(
+    char* data, size_t nbytes, size_t size) {
+  size_t processed = 0;
+  // early return if level equals to 3 means no simd support
+  set_simd_level();
+  if (simd_level == 1) {
+    switch (size) {
+      case 16:
+        processed = swap16_avx(data, nbytes);
+        break;
+      case 32:
+        processed = swap32_avx(data, nbytes);
+        break;
+      case 64:
+        processed = swap64_avx(data, nbytes);
+        break;
+    }
+  } else if (simd_level == 2) {
+    switch (size) {
+      case 16:
+        processed = swap16_sse(data, nbytes);
+        break;
+      case 32:
+        processed = swap32_sse(data, nbytes);
+        break;
+      case 64:
+        processed = swap64_sse(data, nbytes);
+        break;
+    }
+  }
+  return processed;
+}
+
+#else
+inline static size_t swap_simd(char* data, size_t* nbytes, size_t size) {
+  return 0;
+}
+#endif
+
+__attribute__((target("avx512vbmi"))) void SwapBytes16(char* data,
+                                                       size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
+  size_t processed = swap_simd(data, nbytes, 16);
+  data += processed;
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint16_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
-    size_t len16 = nbytes / sizeof(*data16);
+    size_t len16 = (nbytes - processed) / sizeof(*data16);
     for (size_t i = 0; i < len16; i++) {
       data16[i] = BSWAP_2(data16[i]);
     }
@@ -229,21 +475,23 @@ void SwapBytes16(char* data, size_t nbytes) {
 #endif
 
   uint16_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+  for (size_t i = 0; i < nbytes - processed; i += sizeof(temp)) {
     memcpy(&temp, &data[i], sizeof(temp));
     temp = BSWAP_2(temp);
     memcpy(&data[i], &temp, sizeof(temp));
   }
 }
-
-void SwapBytes32(char* data, size_t nbytes) {
+__attribute__((target("avx512vbmi"))) void SwapBytes32(char* data,
+                                                       size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
+  size_t processed = swap_simd(data, nbytes, 32);
+  data += processed;
 
 #if defined(_MSC_VER)
   // MSVC has no strict aliasing, and is able to highly optimize this case.
   if (AlignUp(data, sizeof(uint32_t)) == data) {
     uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
-    size_t len32 = nbytes / sizeof(*data32);
+    size_t len32 = (nbytes - processed) / sizeof(*data32);
     for (size_t i = 0; i < len32; i++) {
       data32[i] = BSWAP_4(data32[i]);
     }
@@ -252,21 +500,24 @@ void SwapBytes32(char* data, size_t nbytes) {
 #endif
 
   uint32_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+  for (size_t i = 0; i < nbytes - processed; i += sizeof(temp)) {
     memcpy(&temp, &data[i], sizeof(temp));
     temp = BSWAP_4(temp);
     memcpy(&data[i], &temp, sizeof(temp));
   }
 }
-
-void SwapBytes64(char* data, size_t nbytes) {
+__attribute__((target("avx512vbmi"))) void SwapBytes64(char* data,
+                                                       size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
+  // process n*64 bits data in batch using simd swap
+  size_t processed = swap_simd(data, nbytes, 64);
+  data += processed;
 
 #if defined(_MSC_VER)
   if (AlignUp(data, sizeof(uint64_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
-    size_t len64 = nbytes / sizeof(*data64);
+    size_t len64 = (nbytes - processed) / sizeof(*data64);
     for (size_t i = 0; i < len64; i++) {
       data64[i] = BSWAP_8(data64[i]);
     }
@@ -275,7 +526,7 @@ void SwapBytes64(char* data, size_t nbytes) {
 #endif
 
   uint64_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
+  for (size_t i = 0; i < nbytes - processed; i += sizeof(temp)) {
     memcpy(&temp, &data[i], sizeof(temp));
     temp = BSWAP_8(temp);
     memcpy(&data[i], &temp, sizeof(temp));
