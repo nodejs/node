@@ -73,13 +73,23 @@ Realm* BaseObject::realm() const {
   return realm_;
 }
 
+void BaseObject::TagNodeObject(v8::Local<v8::Object> object) {
+  DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
+                                           &kNodeEmbedderId);
+}
+
+void BaseObject::SetInternalFields(v8::Local<v8::Object> object, void* slot) {
+  TagNodeObject(object);
+  object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
+}
+
 BaseObject* BaseObject::FromJSObject(v8::Local<v8::Value> value) {
   v8::Local<v8::Object> obj = value.As<v8::Object>();
-  DCHECK_GE(obj->InternalFieldCount(), BaseObject::kSlot);
+  DCHECK_GE(obj->InternalFieldCount(), BaseObject::kInternalFieldCount);
   return static_cast<BaseObject*>(
       obj->GetAlignedPointerFromInternalField(BaseObject::kSlot));
 }
-
 
 template <typename T>
 T* BaseObject::FromJSObject(v8::Local<v8::Value> object) {
