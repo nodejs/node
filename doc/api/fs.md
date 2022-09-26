@@ -1064,7 +1064,7 @@ import { mkdir } from 'node:fs/promises';
 
 try {
   const projectFolder = new URL('./test/project/', import.meta.url);
-  const createDir = await mkdir(path, { recursive: true });
+  const createDir = await mkdir(projectFolder, { recursive: true });
 
   console.log(`created ${createDir}`);
 } catch (err) {
