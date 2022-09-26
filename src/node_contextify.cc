@@ -843,12 +843,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   Context::Scope scope(parsing_context);
 
-  MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
-      isolate,
-      &source,
-      compile_options);
+  MaybeLocal<UnboundScript> maybe_v8_script =
+      ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
 
-  if (v8_script.IsEmpty()) {
+  Local<UnboundScript> v8_script;
+  if (!maybe_v8_script.ToLocal(&v8_script)) {
     errors::DecorateErrorStack(env, try_catch);
     no_abort_scope.Close();
     if (!try_catch.HasTerminated())
@@ -857,7 +856,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                      "ContextifyScript::New");
     return;
   }
-  contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
+  contextify_script->script_.Reset(isolate, v8_script);
 
   Local<Context> env_context = env->context();
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
@@ -866,8 +865,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         env->cached_data_rejected_string(),
         Boolean::New(isolate, source.GetCachedData()->rejected)).Check();
   } else if (produce_cached_data) {
-    std::unique_ptr<ScriptCompiler::CachedData> cached_data {
-      ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked()) };
+    std::unique_ptr<ScriptCompiler::CachedData> cached_data{
+        ScriptCompiler::CreateCodeCache(v8_script)};
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
@@ -883,6 +882,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         env->cached_data_produced_string(),
         Boolean::New(isolate, cached_data_produced)).Check();
   }
+
+  args.This()
+      ->Set(env_context,
+            env->source_map_url_string(),
+            v8_script->GetSourceMappingURL())
+      .Check();
+
   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
 }
 
@@ -1228,6 +1234,12 @@ void ContextifyContext::CompileFunction(
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
     return;
   if (result->Set(parsing_context, env->cache_key_string(), cache_key)
+          .IsNothing())
+    return;
+  if (result
+          ->Set(parsing_context,
+                env->source_map_url_string(),
+                fn->GetScriptOrigin().SourceMapUrl())
           .IsNothing())
     return;
 

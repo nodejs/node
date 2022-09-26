@@ -148,6 +148,7 @@ const expectedModules = new Set([
   'NativeModule internal/util/parse_args/parse_args',
   'NativeModule internal/util/types',
   'NativeModule internal/validators',
+  'NativeModule internal/vm',
   'NativeModule internal/vm/module',
   'NativeModule internal/wasm_web_api',
   'NativeModule internal/webidl',

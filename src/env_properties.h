@@ -275,6 +275,7 @@
   V(sni_context_err_string, "Invalid SNI context")                             \
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
+  V(source_map_url_string, "sourceMapURL")                                     \
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
