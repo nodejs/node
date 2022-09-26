@@ -41,33 +41,36 @@ struct ContextOptions {
   BaseObjectPtr<MicrotaskQueueWrap> microtask_queue_wrap;
 };
 
-class ContextifyContext {
+class ContextifyContext : public BaseObject {
  public:
   ContextifyContext(Environment* env,
-                    v8::Local<v8::Object> sandbox_obj,
+                    v8::Local<v8::Object> wrapper,
+                    v8::Local<v8::Context> v8_context,
                     const ContextOptions& options);
   ~ContextifyContext();
-  static void CleanupHook(void* arg);
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ContextifyContext)
+  SET_SELF_SIZE(ContextifyContext)
+
+  static BaseObjectPtr<ContextifyContext> New(Environment* env,
+                                              v8::Local<v8::Object> sandbox_obj,
+                                              const ContextOptions& options);
   static v8::MaybeLocal<v8::Context> CreateV8Context(
       v8::Isolate* isolate,
       v8::Local<v8::ObjectTemplate> object_template,
       const SnapshotData* snapshot_data,
       v8::MicrotaskQueue* queue);
-  bool InitializeContext(v8::Local<v8::Context> ctx,
-                         Environment* env,
-                         v8::Local<v8::Object> sandbox_obj,
-                         const ContextOptions& options);
+  static bool InitializeContext(v8::Local<v8::Context> ctx,
+                                Environment* env,
+                                v8::Local<v8::Object> sandbox_obj,
+                                const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
       Environment* env,
       const v8::Local<v8::Object>& sandbox);
-
-  inline Environment* env() const {
-    return env_;
-  }
 
   inline v8::Local<v8::Context> context() const {
     return PersistentToLocal::Default(env()->isolate(), context_);
@@ -89,9 +92,9 @@ class ContextifyContext {
 
   template <typename T>
   static ContextifyContext* Get(const v8::PropertyCallbackInfo<T>& args);
+  static ContextifyContext* Get(v8::Local<v8::Object> object);
 
-  static v8::Local<v8::ObjectTemplate> CreateGlobalTemplate(
-      v8::Isolate* isolate);
+  static void InitializeGlobalTemplates(IsolateData* isolate_data);
 
  private:
   static bool IsStillInitializing(const ContextifyContext* ctx);
@@ -137,7 +140,7 @@ class ContextifyContext {
   static void IndexedPropertyDeleterCallback(
       uint32_t index,
       const v8::PropertyCallbackInfo<v8::Boolean>& args);
-  Environment* const env_;
+
   v8::Global<v8::Context> context_;
   BaseObjectPtr<MicrotaskQueueWrap> microtask_queue_wrap_;
 };
