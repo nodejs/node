@@ -4733,8 +4733,8 @@ napi_status napi_get_cb_info(napi_env env,
   provided than claimed, the rest of `argv` is filled with `napi_value` values
   that represent `undefined`. `argv` can optionally be ignored by
   passing `NULL`.
-* `[out] this`: Receives the JavaScript `this` argument for the call. `this`
-  can optionally be ignored by passing `NULL`.
+* `[out] thisArg`: Receives the JavaScript `this` argument for the call.
+  `thisArg` can optionally be ignored by passing `NULL`.
 * `[out] data`: Receives the data pointer for the callback. `data` can
   optionally be ignored by passing `NULL`.
 
