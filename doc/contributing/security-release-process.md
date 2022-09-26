@@ -20,7 +20,7 @@ The current security stewards are documented in the main Node.js
 [README.md](https://github.com/nodejs/node#security-release-stewards).
 
 | Company    | Person          | Release Date |
-| ---------- | --------------- |--------------|
+| ---------- | --------------- | ------------ |
 | NearForm   | Matteo          | 2021-Oct-12  |
 | Datadog    | Bryan           | 2022-Jan-10  |
 | RH and IBM | Joe             | 2022-Mar-18  |
