@@ -332,6 +332,7 @@
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \
   V(contextify_global_template, v8::ObjectTemplate)                            \
+  V(contextify_wrapper_template, v8::ObjectTemplate)                           \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \

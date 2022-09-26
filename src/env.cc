@@ -451,8 +451,7 @@ void IsolateData::CreateProperties() {
   templ->Inherit(BaseObject::GetConstructorTemplate(this));
   set_binding_data_ctor_template(templ);
 
-  set_contextify_global_template(
-      contextify::ContextifyContext::CreateGlobalTemplate(isolate_));
+  contextify::ContextifyContext::InitializeGlobalTemplates(this);
 }
 
 IsolateData::IsolateData(Isolate* isolate,
