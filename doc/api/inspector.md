@@ -20,7 +20,7 @@ const inspector = require('node:inspector');
 <!-- YAML
 added: v9.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44489
     description: The API is exposed in the worker threads.
 -->

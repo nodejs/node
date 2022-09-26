@@ -2889,7 +2889,7 @@ Prefer [`message.socket`][] over [`message.connection`][].
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/43627
     description: End-of-Life.
   - version: v16.0.0
@@ -3131,7 +3131,7 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: End-of-Life.
   - version: v18.0.0
@@ -3175,7 +3175,7 @@ thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44714
     description: Documentation-only deprecation of `process.exitCode` integer
                  coercion.
@@ -3210,10 +3210,10 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44495
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44477
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
@@ -3230,7 +3230,7 @@ starting or ending in a slash.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44588
     description: Documentation-only deprecation.
 -->
