@@ -48,8 +48,9 @@ class OverrunGuardedBuffer {
  public:
   OverrunGuardedBuffer() {
 #if defined(USE_MPROTECT) || defined(USE_VIRTUALPROTECT)
-    size_t page = GetPageSize();
-    EXPECT_GE(page, N);
+    int page_size_int = GetPageSize();
+    EXPECT_GE(page_size_int, N);
+    size_t page = page_size_int;
 #endif
 #ifdef USE_MPROTECT
     // Place the packet right before a guard page, which, when accessed, causes
