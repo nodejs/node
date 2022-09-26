@@ -73,6 +73,9 @@ class BaseObject : public MemoryRetainer {
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
+  static inline void SetInternalFields(v8::Local<v8::Object> object,
+                                       void* slot);
+  static inline void TagNodeObject(v8::Local<v8::Object> object);
   static void LazilyInitializedJSTemplateConstructor(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
@@ -96,7 +99,8 @@ class BaseObject : public MemoryRetainer {
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
-  // TODO(legendecas): Disentangle template with env.
+  static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      IsolateData* isolate);
   static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
       Environment* env);
 
