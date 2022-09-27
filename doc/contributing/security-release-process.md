@@ -196,6 +196,27 @@ out a better way, forward the email you receive to
   [Security release stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards).
   If necessary add the next rotation of the steward rotation.
 
+## When things go wrong
+
+### Incomplete fixes
+
+When a CVE is reported as fixed in a security release and it turns out that the
+fix was incomplete, a new CVE should be used to cover subsequent fix. This
+is best practice and avoids confusion that might occur if people believe
+they have patched the original CVE by updating their Node.js version and
+then we later change the `fixed in` value for the CVE.
+
+### Updating CVEs
+
+The steps to correct CVE information are:
+
+* Go to the “CVE IDs” section in your program
+  sections (<https://hackerone.com/nodejs/cve_requests>)
+* Click the “Request a CVE ID” button
+* Enter the CVE ID that needs to be updated
+* Include all the details that need updating within the form
+* Submit the request
+
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
