@@ -62,7 +62,7 @@ example, `path.resolve('C:\\')` can potentially return a different result than
 `path.resolve('C:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
-## `path.basename(path[, ext])`
+## `path.basename(path[, suffix])`
 
 <!-- YAML
 added: v0.1.25
@@ -73,12 +73,12 @@ changes:
 -->
 
 * `path` {string}
-* `ext` {string} An optional file extension
+* `suffix` {string} An optional suffix to remove
 * Returns: {string}
 
 The `path.basename()` method returns the last portion of a `path`, similar to
-the Unix `basename` command. Trailing directory separators are ignored, see
-[`path.sep`][].
+the Unix `basename` command. Trailing [directory separators][`path.sep`] are
+ignored.
 
 ```js
 path.basename('/foo/bar/baz/asdf/quux.html');
@@ -101,7 +101,7 @@ path.win32.basename('C:\\foo.HTML', '.html');
 // Returns: 'foo.HTML'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
+A [`TypeError`][] is thrown if `path` is not a string or if `suffix` is given
 and is not a string.
 
 ## `path.delimiter`
