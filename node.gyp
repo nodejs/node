@@ -465,6 +465,7 @@
         'src/api/hooks.cc',
         'src/api/utils.cc',
         'src/async_wrap.cc',
+        'src/base_object.cc',
         'src/cares_wrap.cc',
         'src/cleanup_queue.cc',
         'src/connect_wrap.cc',

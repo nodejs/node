@@ -32,6 +32,7 @@ namespace node {
 
 class Environment;
 class IsolateData;
+class Realm;
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl;
 
@@ -47,7 +48,10 @@ class BaseObject : public MemoryRetainer {
 
   // Associates this object with `object`. It uses the 1st internal field for
   // that, and in particular aborts if there is no such field.
-  BaseObject(Environment* env, v8::Local<v8::Object> object);
+  // This is the designated constructor.
+  BaseObject(Realm* realm, v8::Local<v8::Object> object);
+  // Convenient constructor for constructing BaseObject in the principal realm.
+  inline BaseObject(Environment* env, v8::Local<v8::Object> object);
   ~BaseObject() override;
 
   BaseObject() = delete;
@@ -63,6 +67,7 @@ class BaseObject : public MemoryRetainer {
   inline v8::Global<v8::Object>& persistent();
 
   inline Environment* env() const;
+  inline Realm* realm() const;
 
   // Get a BaseObject* pointer, or subclass pointer, for the JS object that
   // was also passed to the `BaseObject()` constructor initially.
@@ -91,6 +96,7 @@ class BaseObject : public MemoryRetainer {
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
+  // TODO(legendecas): Disentangle template with env.
   static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
       Environment* env);
 
@@ -213,7 +219,7 @@ class BaseObject : public MemoryRetainer {
   void decrease_refcount();
   void increase_refcount();
 
-  Environment* env_;
+  Realm* realm_;
   PointerData* pointer_data_ = nullptr;
 };
 
