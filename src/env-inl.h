@@ -745,6 +745,12 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
+template <typename T>
+inline void Environment::ForEachRealm(T&& iterator) const {
+  // TODO(legendecas): iterate over more realms bound to the environment.
+  iterator(principal_realm());
+}
+
 inline void Environment::ThrowError(const char* errmsg) {
   ThrowError(v8::Exception::Error, errmsg);
 }
@@ -787,27 +793,6 @@ void Environment::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {
 
 void Environment::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
   cleanup_queue_.Remove(fn, arg);
-}
-
-template <typename T>
-void Environment::ForEachBaseObject(T&& iterator) {
-  cleanup_queue_.ForEachBaseObject(std::forward<T>(iterator));
-}
-
-void Environment::modify_base_object_count(int64_t delta) {
-  base_object_count_ += delta;
-}
-
-int64_t Environment::base_object_count() const {
-  return base_object_count_;
-}
-
-inline void Environment::set_base_object_created_by_bootstrap(int64_t count) {
-  base_object_created_by_bootstrap_ = base_object_count_;
-}
-
-int64_t Environment::base_object_created_after_bootstrap() const {
-  return base_object_count_ - base_object_created_by_bootstrap_;
 }
 
 void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {

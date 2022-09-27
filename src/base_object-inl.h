@@ -32,6 +32,9 @@
 
 namespace node {
 
+BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
+    : BaseObject(env->principal_realm(), object) {}
+
 // static
 v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
     Environment* env) {
@@ -63,7 +66,11 @@ v8::Local<v8::Object> BaseObject::object(v8::Isolate* isolate) const {
 }
 
 Environment* BaseObject::env() const {
-  return env_;
+  return realm_->env();
+}
+
+Realm* BaseObject::realm() const {
+  return realm_;
 }
 
 BaseObject* BaseObject::FromJSObject(v8::Local<v8::Value> value) {

@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "cleanup_queue-inl.h"
 #include "node_realm.h"
 
 namespace node {
@@ -41,6 +42,23 @@ inline bool Realm::has_run_bootstrapping_code() const {
   return has_run_bootstrapping_code_;
 }
 
+template <typename T>
+void Realm::ForEachBaseObject(T&& iterator) const {
+  cleanup_queue_.ForEachBaseObject(std::forward<T>(iterator));
+}
+
+void Realm::modify_base_object_count(int64_t delta) {
+  base_object_count_ += delta;
+}
+
+int64_t Realm::base_object_created_after_bootstrap() const {
+  return base_object_count_ - base_object_created_by_bootstrap_;
+}
+
+int64_t Realm::base_object_count() const {
+  return base_object_count_;
+}
+
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> Realm::PropertyName() const {                     \
     return PersistentToLocal::Strong(PropertyName##_);                         \
@@ -53,6 +71,18 @@ PER_REALM_STRONG_PERSISTENT_VALUES(V)
 
 v8::Local<v8::Context> Realm::context() const {
   return PersistentToLocal::Strong(context_);
+}
+
+void Realm::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Add(fn, arg);
+}
+
+void Realm::RemoveCleanupHook(CleanupQueue::Callback fn, void* arg) {
+  cleanup_queue_.Remove(fn, arg);
+}
+
+bool Realm::HasCleanupHooks() const {
+  return !cleanup_queue_.empty();
 }
 
 }  // namespace node

@@ -508,7 +508,6 @@ struct DeserializeRequest {
 };
 
 struct EnvSerializeInfo {
-  std::vector<PropInfo> native_objects;
   std::vector<std::string> builtins;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
@@ -600,8 +599,6 @@ class Environment : public MemoryRetainer {
   void DeserializeProperties(const EnvSerializeInfo* info);
 
   void PrintInfoForSnapshotIfDebug();
-  void PrintAllBaseObjects();
-  void VerifyNoStrongBaseObjects();
   void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                  v8::Local<v8::Object> holder,
                                  int index,
@@ -973,19 +970,6 @@ class Environment : public MemoryRetainer {
   inline std::shared_ptr<EnvironmentOptions> options();
   inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
 
-  // The BaseObject count is a debugging helper that makes sure that there are
-  // no memory leaks caused by BaseObjects staying alive longer than expected
-  // (in particular, no circular BaseObjectPtr references).
-  inline void modify_base_object_count(int64_t delta);
-  inline int64_t base_object_count() const;
-
-  // Base object count created in bootstrap of the principal realm.
-  // This adjusts the return value of base_object_created_after_bootstrap() so
-  // that tests that check the count do not have to account for internally
-  // created BaseObjects.
-  inline void set_base_object_created_by_bootstrap(int64_t count);
-  inline int64_t base_object_created_after_bootstrap() const;
-
   inline int32_t stack_trace_limit() const { return 10; }
 
 #if HAVE_INSPECTOR
@@ -1038,7 +1022,7 @@ class Environment : public MemoryRetainer {
   void RemoveUnmanagedFd(int fd);
 
   template <typename T>
-  void ForEachBaseObject(T&& iterator);
+  void ForEachRealm(T&& iterator) const;
 
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
   inline bool is_in_heapsnapshot_heap_limit_callback() const;
@@ -1188,8 +1172,6 @@ class Environment : public MemoryRetainer {
   CleanupQueue cleanup_queue_;
   bool started_cleanup_ = false;
 
-  int64_t base_object_count_ = 0;
-  int64_t base_object_created_by_bootstrap_ = 0;
   std::atomic_bool is_stopping_ { false };
 
   std::unordered_set<int> unmanaged_fds_;

@@ -10,7 +10,7 @@
 namespace node {
 
 class Environment;
-struct EnvSerializeInfo;
+struct RealmSerializeInfo;
 struct SnapshotData;
 class ExternalReferenceRegistry;
 
@@ -131,9 +131,9 @@ void DeserializeNodeInternalFields(v8::Local<v8::Object> holder,
                                    int index,
                                    v8::StartupData payload,
                                    void* env);
-void SerializeSnapshotableObjects(Environment* env,
+void SerializeSnapshotableObjects(Realm* realm,
                                   v8::SnapshotCreator* creator,
-                                  EnvSerializeInfo* info);
+                                  RealmSerializeInfo* info);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

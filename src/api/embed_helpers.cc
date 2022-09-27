@@ -68,7 +68,7 @@ Maybe<int> SpinEventLoop(Environment* env) {
   env->set_snapshot_serialize_callback(Local<Function>());
 
   env->PrintInfoForSnapshotIfDebug();
-  env->VerifyNoStrongBaseObjects();
+  env->ForEachRealm([](Realm* realm) { realm->VerifyNoStrongBaseObjects(); });
   return EmitProcessExit(env);
 }
 

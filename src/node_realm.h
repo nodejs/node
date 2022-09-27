@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <v8.h>
+#include "cleanup_queue.h"
 #include "env_properties.h"
 #include "memory_tracker.h"
 #include "node_snapshotable.h"
@@ -12,6 +13,7 @@ namespace node {
 
 struct RealmSerializeInfo {
   std::vector<PropInfo> persistent_values;
+  std::vector<PropInfo> native_objects;
 
   SnapshotIndex context;
   friend std::ostream& operator<<(std::ostream& o, const RealmSerializeInfo& i);
@@ -45,7 +47,7 @@ class Realm : public MemoryRetainer {
   Realm(Environment* env,
         v8::Local<v8::Context> context,
         const RealmSerializeInfo* realm_info);
-  ~Realm() = default;
+  ~Realm();
 
   Realm(const Realm&) = delete;
   Realm& operator=(const Realm&) = delete;
@@ -65,10 +67,31 @@ class Realm : public MemoryRetainer {
   v8::MaybeLocal<v8::Value> BootstrapNode();
   v8::MaybeLocal<v8::Value> RunBootstrapping();
 
+  inline void AddCleanupHook(CleanupQueue::Callback cb, void* arg);
+  inline void RemoveCleanupHook(CleanupQueue::Callback cb, void* arg);
+  inline bool HasCleanupHooks() const;
+  void RunCleanup();
+
+  template <typename T>
+  void ForEachBaseObject(T&& iterator) const;
+
+  void PrintInfoForSnapshot();
+  void VerifyNoStrongBaseObjects();
+
+  inline IsolateData* isolate_data() const;
   inline Environment* env() const;
   inline v8::Isolate* isolate() const;
   inline v8::Local<v8::Context> context() const;
   inline bool has_run_bootstrapping_code() const;
+
+  // The BaseObject count is a debugging helper that makes sure that there are
+  // no memory leaks caused by BaseObjects staying alive longer than expected
+  // (in particular, no circular BaseObjectPtr references).
+  inline void modify_base_object_count(int64_t delta);
+  inline int64_t base_object_count() const;
+
+  // Base object count created after the bootstrap of the realm.
+  inline int64_t base_object_created_after_bootstrap() const;
 
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> PropertyName() const;                             \
@@ -86,6 +109,11 @@ class Realm : public MemoryRetainer {
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;
   bool has_run_bootstrapping_code_ = false;
+
+  int64_t base_object_count_ = 0;
+  int64_t base_object_created_by_bootstrap_ = 0;
+
+  CleanupQueue cleanup_queue_;
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName##_;
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
