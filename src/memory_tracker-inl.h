@@ -31,6 +31,7 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
 
     name_ = retainer_->MemoryInfoName();
     size_ = retainer_->SelfSize();
+    detachedness_ = retainer_->GetDetachedness();
   }
 
   inline MemoryRetainerNode(MemoryTracker* tracker,
@@ -57,6 +58,9 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     }
     return is_root_node_;
   }
+  v8::EmbedderGraph::Node::Detachedness GetDetachedness() override {
+    return detachedness_;
+  }
 
  private:
   friend class MemoryTracker;
@@ -73,6 +77,8 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
   bool is_root_node_ = false;
   std::string name_;
   size_t size_ = 0;
+  v8::EmbedderGraph::Node::Detachedness detachedness_ =
+      v8::EmbedderGraph::Node::Detachedness::kUnknown;
 };
 
 void MemoryTracker::TrackFieldWithSize(const char* edge_name,

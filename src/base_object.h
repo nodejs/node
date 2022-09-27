@@ -88,6 +88,9 @@ class BaseObject : public MemoryRetainer {
   // to it anymore.
   inline bool IsWeakOrDetached() const;
 
+  inline virtual v8::EmbedderGraph::Node::Detachedness GetDetachedness()
+      const override;
+
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
