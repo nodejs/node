@@ -992,7 +992,7 @@ var QUERIES = {
     matches: [],
     regexp: /^(firefox|ff|fx)\s+esr$/i,
     select: function () {
-      return ['firefox 91', 'firefox 102']
+      return ['firefox 102']
     }
   },
   opera_mini_all: {
