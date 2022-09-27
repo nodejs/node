@@ -72,6 +72,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "lines-around-comment": () => require("./lines-around-comment"),
     "lines-around-directive": () => require("./lines-around-directive"),
     "lines-between-class-members": () => require("./lines-between-class-members"),
+    "logical-assignment-operators": () => require("./logical-assignment-operators"),
     "max-classes-per-file": () => require("./max-classes-per-file"),
     "max-depth": () => require("./max-depth"),
     "max-len": () => require("./max-len"),

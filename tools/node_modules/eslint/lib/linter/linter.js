@@ -1601,12 +1601,18 @@ class Linter {
             languageOptions.ecmaVersion
         );
 
-        // add configured globals and language globals
-        const configuredGlobals = {
-            ...(getGlobalsForEcmaVersion(languageOptions.ecmaVersion)),
-            ...(languageOptions.sourceType === "commonjs" ? globals.commonjs : void 0),
-            ...languageOptions.globals
-        };
+        /*
+         * add configured globals and language globals
+         *
+         * using Object.assign instead of object spread for performance reasons
+         * https://github.com/eslint/eslint/issues/16302
+         */
+        const configuredGlobals = Object.assign(
+            {},
+            getGlobalsForEcmaVersion(languageOptions.ecmaVersion),
+            languageOptions.sourceType === "commonjs" ? globals.commonjs : void 0,
+            languageOptions.globals
+        );
 
         // double check that there is a parser to avoid mysterious error messages
         if (!languageOptions.parser) {
