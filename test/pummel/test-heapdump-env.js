@@ -21,10 +21,15 @@ validateSnapshotNodes('Node / Environment', [{
   ]
 }]);
 
-validateSnapshotNodes('Node / CleanupQueue', [{
-  children: [
-    { node_name: 'Node / ContextifyScript' },
-  ]
-}]);
+validateSnapshotNodes('Node / CleanupQueue', [
+  // The first one is the cleanup_queue of the Environment.
+  {},
+  // The second one is the cleanup_queue of the principal realm.
+  {
+    children: [
+      { node_name: 'Node / ContextifyScript' },
+    ]
+  },
+]);
 
 console.log(context);  // Make sure it's not GC'ed

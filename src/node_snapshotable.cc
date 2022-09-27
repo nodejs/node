@@ -102,6 +102,9 @@ std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
          << "// -- persistent_values begins --\n"
          << i.persistent_values << ",\n"
          << "// -- persistent_values ends --\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
          << i.context << ",  // context\n"
          << "}";
   return output;
@@ -109,9 +112,6 @@ std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
 
 std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   output << "{\n"
-         << "// -- native_objects begins --\n"
-         << i.native_objects << ",\n"
-         << "// -- native_objects ends --\n"
          << "// -- builtins begins --\n"
          << i.builtins << ",\n"
          << "// -- builtins ends --\n"
@@ -705,6 +705,7 @@ RealmSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<RealmSerializeInfo>()\n");
   RealmSerializeInfo result;
   result.persistent_values = ReadVector<PropInfo>();
+  result.native_objects = ReadVector<PropInfo>();
   result.context = Read<SnapshotIndex>();
   return result;
 }
@@ -718,6 +719,7 @@ size_t FileWriter::Write(const RealmSerializeInfo& data) {
 
   // Use += here to ensure order of evaluation.
   size_t written_total = WriteVector<PropInfo>(data.persistent_values);
+  written_total += WriteVector<PropInfo>(data.native_objects);
   written_total += Write<SnapshotIndex>(data.context);
 
   Debug("Write<RealmSerializeInfo>() wrote %d bytes\n", written_total);
@@ -728,7 +730,6 @@ template <>
 EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
-  result.native_objects = ReadVector<PropInfo>();
   result.builtins = ReadVector<std::string>();
   result.async_hooks = Read<AsyncHooks::SerializeInfo>();
   result.tick_info = Read<TickInfo::SerializeInfo>();
@@ -750,8 +751,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   }
 
   // Use += here to ensure order of evaluation.
-  size_t written_total = WriteVector<PropInfo>(data.native_objects);
-  written_total += WriteVector<std::string>(data.builtins);
+  size_t written_total = WriteVector<std::string>(data.builtins);
   written_total += Write<AsyncHooks::SerializeInfo>(data.async_hooks);
   written_total += Write<TickInfo::SerializeInfo>(data.tick_info);
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
@@ -1194,7 +1194,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
-        env->PrintAllBaseObjects();
+        env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
         printf("Environment = %p\n", env);
       }
 
@@ -1400,11 +1400,13 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                      static_cast<int>(info->length)};
 }
 
-void SerializeSnapshotableObjects(Environment* env,
+void SerializeSnapshotableObjects(Realm* realm,
                                   SnapshotCreator* creator,
-                                  EnvSerializeInfo* info) {
+                                  RealmSerializeInfo* info) {
+  HandleScope scope(realm->isolate());
+  Local<Context> context = realm->context();
   uint32_t i = 0;
-  env->ForEachBaseObject([&](BaseObject* obj) {
+  realm->ForEachBaseObject([&](BaseObject* obj) {
     // If there are any BaseObjects that are not snapshotable left
     // during context serialization, V8 would crash due to unregistered
     // global handles and print detailed information about them.
@@ -1422,8 +1424,8 @@ void SerializeSnapshotableObjects(Environment* env,
                        *(ptr->object()),
                        type_name);
 
-    if (ptr->PrepareForSerialization(env->context(), creator)) {
-      SnapshotIndex index = creator->AddData(env->context(), obj->object());
+    if (ptr->PrepareForSerialization(context, creator)) {
+      SnapshotIndex index = creator->AddData(context, obj->object());
       per_process::Debug(DebugCategory::MKSNAPSHOT,
                          "Serialized with index=%d\n",
                          static_cast<int>(index));
