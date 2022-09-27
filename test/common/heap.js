@@ -142,6 +142,22 @@ class State {
           }
         }
       }
+
+      if (expectation.detachedness !== undefined) {
+        const matchedNodes = rootNodes.filter(
+          (node) => node.detachedness === expectation.detachedness);
+        if (loose) {
+          assert(matchedNodes.length >= rootNodes.length,
+                 `Expect to find at least ${rootNodes.length} with ` +
+                `detachedness ${expectation.detachedness}, ` +
+                `found ${matchedNodes.length}`);
+        } else {
+          assert.strictEqual(
+            matchedNodes.length, rootNodes.length,
+            `Expect to find ${rootNodes.length} with detachedness ` +
+            `${expectation.detachedness},  found ${matchedNodes.length}`);
+        }
+      }
     }
   }
 
