@@ -34,5 +34,5 @@ const path = require('path');
     }
   }
 
-  onWaitForInitialBreak();
+  runTest();
 }
