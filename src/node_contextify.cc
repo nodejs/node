@@ -131,81 +131,7 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     // Allocation failure, maximum call stack size reached, termination, etc.
     return BaseObjectPtr<ContextifyContext>();
   }
-
-  // This only initializes part of the context. The primordials are
-  // only initilaized when needed because even deserializing them slows
-  // things down significantly and they are only needed in rare occasions
-  // in the vm contexts.
-  if (InitializeContextRuntime(v8_context).IsNothing()) {
-    return BaseObjectPtr<ContextifyContext>();
-  }
-
-  Local<Context> main_context = env->context();
-  Local<Object> new_context_global = v8_context->Global();
-  v8_context->SetSecurityToken(main_context->GetSecurityToken());
-
-  // We need to tie the lifetime of the sandbox object with the lifetime of
-  // newly created context. We do this by making them hold references to each
-  // other. The context can directly hold a reference to the sandbox as an
-  // embedder data field. The sandbox uses a private symbol to hold a reference
-  // to the ContextifyContext wrapper which in turn internally references
-  // the context from its constructor.
-  v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
-                              sandbox_obj);
-
-  // Delegate the code generation validation to
-  // node::ModifyCodeGenerationFromStrings.
-  v8_context->AllowCodeGenerationFromStrings(false);
-  v8_context->SetEmbedderData(
-      ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
-      options.allow_code_gen_strings);
-  v8_context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
-                              options.allow_code_gen_wasm);
-
-  Utf8Value name_val(env->isolate(), options.name);
-  ContextInfo info(*name_val);
-  if (!options.origin.IsEmpty()) {
-    Utf8Value origin_val(env->isolate(), options.origin);
-    info.origin = *origin_val;
-  }
-
-  BaseObjectPtr<ContextifyContext> result;
-  Local<Object> wrapper;
-  {
-    Context::Scope context_scope(v8_context);
-    Local<String> ctor_name = sandbox_obj->GetConstructorName();
-    if (!ctor_name->Equals(v8_context, env->object_string()).FromMaybe(false) &&
-        new_context_global
-            ->DefineOwnProperty(
-                v8_context,
-                v8::Symbol::GetToStringTag(env->isolate()),
-                ctor_name,
-                static_cast<v8::PropertyAttribute>(v8::DontEnum))
-            .IsNothing()) {
-      return BaseObjectPtr<ContextifyContext>();
-    }
-    env->AssignToContext(v8_context, nullptr, info);
-
-    if (!env->contextify_wrapper_template()
-             ->NewInstance(v8_context)
-             .ToLocal(&wrapper)) {
-      return BaseObjectPtr<ContextifyContext>();
-    }
-
-    result =
-        MakeBaseObject<ContextifyContext>(env, wrapper, v8_context, options);
-    // The only strong reference to the wrapper will come from the sandbox.
-    result->MakeWeak();
-  }
-
-  if (sandbox_obj
-          ->SetPrivate(
-              v8_context, env->contextify_context_private_symbol(), wrapper)
-          .IsNothing()) {
-    return BaseObjectPtr<ContextifyContext>();
-  }
-
-  return result;
+  return New(v8_context, env, sandbox_obj, options);
 }
 
 void ContextifyContext::MemoryInfo(MemoryTracker* tracker) const {
@@ -316,6 +242,89 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
   return scope.Escape(ctx);
 }
 
+
+BaseObjectPtr<ContextifyContext> ContextifyContext::New(
+    Local<Context> v8_context,
+    Environment* env,
+    Local<Object> sandbox_obj,
+    const ContextOptions& options) {
+  HandleScope scope(env->isolate());
+  // This only initializes part of the context. The primordials are
+  // only initilaized when needed because even deserializing them slows
+  // things down significantly and they are only needed in rare occasions
+  // in the vm contexts.
+  if (InitializeContextRuntime(v8_context).IsNothing()) {
+    return BaseObjectPtr<ContextifyContext>();
+  }
+
+  Local<Context> main_context = env->context();
+  Local<Object> new_context_global = v8_context->Global();
+  v8_context->SetSecurityToken(main_context->GetSecurityToken());
+
+  // We need to tie the lifetime of the sandbox object with the lifetime of
+  // newly created context. We do this by making them hold references to each
+  // other. The context can directly hold a reference to the sandbox as an
+  // embedder data field. The sandbox uses a private symbol to hold a reference
+  // to the ContextifyContext wrapper which in turn internally references
+  // the context from its constructor.
+  v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
+                              sandbox_obj);
+
+  // Delegate the code generation validation to
+  // node::ModifyCodeGenerationFromStrings.
+  v8_context->AllowCodeGenerationFromStrings(false);
+  v8_context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
+      options.allow_code_gen_strings);
+  v8_context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
+                              options.allow_code_gen_wasm);
+
+  Utf8Value name_val(env->isolate(), options.name);
+  ContextInfo info(*name_val);
+  if (!options.origin.IsEmpty()) {
+    Utf8Value origin_val(env->isolate(), options.origin);
+    info.origin = *origin_val;
+  }
+
+  BaseObjectPtr<ContextifyContext> result;
+  Local<Object> wrapper;
+  {
+    Context::Scope context_scope(v8_context);
+    Local<String> ctor_name = sandbox_obj->GetConstructorName();
+    if (!ctor_name->Equals(v8_context, env->object_string()).FromMaybe(false) &&
+        new_context_global
+            ->DefineOwnProperty(
+                v8_context,
+                v8::Symbol::GetToStringTag(env->isolate()),
+                ctor_name,
+                static_cast<v8::PropertyAttribute>(v8::DontEnum))
+            .IsNothing()) {
+      return BaseObjectPtr<ContextifyContext>();
+    }
+    env->AssignToContext(v8_context, nullptr, info);
+
+    if (!env->contextify_wrapper_template()
+             ->NewInstance(v8_context)
+             .ToLocal(&wrapper)) {
+      return BaseObjectPtr<ContextifyContext>();
+    }
+
+    result =
+        MakeBaseObject<ContextifyContext>(env, wrapper, v8_context, options);
+    // The only strong reference to the wrapper will come from the sandbox.
+    result->MakeWeak();
+  }
+
+  if (sandbox_obj
+          ->SetPrivate(
+              v8_context, env->contextify_context_private_symbol(), wrapper)
+          .IsNothing()) {
+    return BaseObjectPtr<ContextifyContext>();
+  }
+
+  return result;
+}
+
 void ContextifyContext::Init(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   SetMethod(context, target, "makeContext", MakeContext);
@@ -387,12 +396,6 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
       try_catch.ReThrow();
     return;
   }
-
-  if (context_ptr.get() == nullptr) {
-    return;
-  }
-  Local<Context> new_context = context_ptr->context();
-  if (new_context.IsEmpty()) return;
 }
 
 

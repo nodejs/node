@@ -53,18 +53,11 @@ class ContextifyContext : public BaseObject {
   SET_MEMORY_INFO_NAME(ContextifyContext)
   SET_SELF_SIZE(ContextifyContext)
 
-  static BaseObjectPtr<ContextifyContext> New(Environment* env,
-                                              v8::Local<v8::Object> sandbox_obj,
-                                              const ContextOptions& options);
   static v8::MaybeLocal<v8::Context> CreateV8Context(
       v8::Isolate* isolate,
       v8::Local<v8::ObjectTemplate> object_template,
       const SnapshotData* snapshot_data,
       v8::MicrotaskQueue* queue);
-  static bool InitializeContext(v8::Local<v8::Context> ctx,
-                                Environment* env,
-                                v8::Local<v8::Object> sandbox_obj,
-                                const ContextOptions& options);
   static void Init(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
@@ -97,6 +90,15 @@ class ContextifyContext : public BaseObject {
   static void InitializeGlobalTemplates(IsolateData* isolate_data);
 
  private:
+  static BaseObjectPtr<ContextifyContext> New(Environment* env,
+                                              v8::Local<v8::Object> sandbox_obj,
+                                              const ContextOptions& options);
+  // Initialize a context created from CreateV8Context()
+  static BaseObjectPtr<ContextifyContext> New(v8::Local<v8::Context> ctx,
+                                              Environment* env,
+                                              v8::Local<v8::Object> sandbox_obj,
+                                              const ContextOptions& options);
+
   static bool IsStillInitializing(const ContextifyContext* ctx);
   static void MakeContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
