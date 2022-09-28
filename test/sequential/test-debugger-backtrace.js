@@ -15,8 +15,6 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-  function onFatal(error) {
-    cli.quit();
 }
 
   async function runTest() {
