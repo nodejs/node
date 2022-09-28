@@ -15,8 +15,6 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-}
-
   async function runTest() {
     try {
       await cli.waitForInitialBreak();
