@@ -24,7 +24,7 @@ const path = require('path');
       assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
       await cli.command('backtrace');
       assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
-  } finally {
+    } finally {
       await cli.quit()
     }
   }
