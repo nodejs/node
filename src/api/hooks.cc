@@ -53,7 +53,7 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
       Nothing<bool>() : Just(true);
 }
 
-ExitCode EmitExitInternal(Environment* env) {
+static ExitCode EmitExitInternal(Environment* env) {
   return EmitProcessExitInternal(env).FromMaybe(ExitCode::kGenericUserError);
 }
 

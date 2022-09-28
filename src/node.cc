@@ -626,10 +626,10 @@ void ResetStdio() {
 #endif  // __POSIX__
 }
 
-ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
-                                   std::vector<std::string>* exec_args,
-                                   std::vector<std::string>* errors,
-                                   OptionEnvvarSettings settings) {
+static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
+                                          std::vector<std::string>* exec_args,
+                                          std::vector<std::string>* errors,
+                                          OptionEnvvarSettings settings) {
   // Parse a few arguments which are specific to Node.
   std::vector<std::string> v8_args;
 
@@ -717,7 +717,7 @@ static std::atomic_bool init_called{false};
 
 // TODO(addaleax): Turn this into a wrapper around InitializeOncePerProcess()
 // (with the corresponding additional flags set), then eventually remove this.
-ExitCode InitializeNodeWithArgsInternal(
+static ExitCode InitializeNodeWithArgsInternal(
     std::vector<std::string>* argv,
     std::vector<std::string>* exec_argv,
     std::vector<std::string>* errors,
@@ -839,10 +839,10 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       InitializeNodeWithArgsInternal(argv, exec_argv, errors, flags));
 }
 
-std::unique_ptr<InitializationResultImpl> InitializeOncePerProcessInternal(
-    const std::vector<std::string>& args,
-    ProcessInitializationFlags::Flags flags =
-        ProcessInitializationFlags::kNoFlags) {
+static std::unique_ptr<InitializationResultImpl>
+InitializeOncePerProcessInternal(const std::vector<std::string>& args,
+                                 ProcessInitializationFlags::Flags flags =
+                                     ProcessInitializationFlags::kNoFlags) {
   auto result = std::make_unique<InitializationResultImpl>();
   result->args_ = args;
 
@@ -1165,7 +1165,7 @@ ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
   return exit_code;
 }
 
-ExitCode StartInternal(int argc, char** argv) {
+static ExitCode StartInternal(int argc, char** argv) {
   CHECK_GT(argc, 0);
 
   // Hack around with the argv pointer. Used for process.title = "blah".
