@@ -19,7 +19,7 @@ const path = require('path');
     cli.quit();
 }
 
-  async function onWaitForInitialBreak() {
+  async function runTest() {
     try {
       await cli.waitForInitialBreak();
       await cli.waitForPrompt();
