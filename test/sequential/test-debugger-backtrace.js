@@ -17,8 +17,7 @@ const path = require('path');
 
   function onFatal(error) {
     cli.quit();
-    throw error;
-  }
+}
 
   async function onWaitForInitialBreak() {
     try {
