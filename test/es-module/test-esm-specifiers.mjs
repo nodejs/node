@@ -14,14 +14,17 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
       '--eval',
       [
         'import { strictEqual } from "node:assert";',
-        // commonJS index.js
+        // CommonJS index.js
         `import commonjs from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-commonjs'))};`,
-        // esm index.js
+        // ESM index.js
         `import module from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-module'))};`,
+        // Directory entry with main.js
+        `import main from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/dir-with-main'))};`,
         // Notice the trailing slash
         `import success, { explicit, implicit, implicitModule } from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/'))};`,
         'strictEqual(commonjs, "commonjs");',
         'strictEqual(module, "module");',
+        'strictEqual(main, "main");',
         'strictEqual(success, "success");',
         'strictEqual(explicit, "esm");',
         'strictEqual(implicit, "cjs");',
