@@ -1533,28 +1533,18 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
-using ParseIPResult =
-    decltype(static_cast<ares_addr_port_node*>(nullptr)->addr);
-
-int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
-  ParseIPResult tmp;
-  if (result == nullptr) result = &tmp;
-  if (0 == uv_inet_pton(AF_INET, ip, result)) return 4;
-  if (0 == uv_inet_pton(AF_INET6, ip, result)) return 6;
-  return 0;
-}
-
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
 
-  ParseIPResult result;
-  const int rc = ParseIP(*ip, &result);
-  if (rc == 0) return;
+  int af;
+  unsigned char result[sizeof(ares_addr_port_node::addr)];
+  if (uv_inet_pton(af = AF_INET, *ip, result) != 0 &&
+      uv_inet_pton(af = AF_INET6, *ip, result) != 0)
+    return;
 
   char canonical_ip[INET6_ADDRSTRLEN];
-  const int af = (rc == 4 ? AF_INET : AF_INET6);
-  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
+  CHECK_EQ(0, uv_inet_ntop(af, result, canonical_ip, sizeof(canonical_ip)));
   Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
       .ToLocalChecked();
   args.GetReturnValue().Set(val);
