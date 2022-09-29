@@ -135,12 +135,62 @@ const testResBody = 'response content\n';
 }
 
 {
-  // Happy flow - object argument
+  // Happy flow - object argument with string
 
   const server = http.createServer(common.mustCall((req, res) => {
     debug('Server sending early hints...');
     res.writeEarlyHints({
       'link': '</styles.css>; rel=preload; as=style',
+      'x-trace-id': 'id for diagnostics'
+    });
+
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port, path: '/'
+    });
+    debug('Client sending request...');
+
+    req.on('information', common.mustCall((res) => {
+      assert.strictEqual(
+        res.headers.link,
+        '</styles.css>; rel=preload; as=style'
+      );
+    }));
+
+    req.on('response', common.mustCall((res) => {
+      let body = '';
+
+      assert.strictEqual(res.statusCode, 200, `Final status code was ${res.statusCode}, not 200.`);
+
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+
+      res.on('end', common.mustCall(() => {
+        debug('Got full response.');
+        assert.strictEqual(body, testResBody);
+        server.close();
+      }));
+    }));
+
+    req.end();
+  }));
+}
+
+{
+  // Happy flow - object argument with array of strings
+
+  const server = http.createServer(common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints({
+      'link': [
+        '</styles.css>; rel=preload; as=style',
+        '</scripts.js>; rel=preload; as=script',
+      ],
       'x-trace-id': 'id for diagnostics'
     });
 
