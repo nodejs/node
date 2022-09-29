@@ -1311,8 +1311,9 @@ type other than {net.Socket}.
 
 Default behavior is to try close the socket with a HTTP '400 Bad Request',
 or a HTTP '431 Request Header Fields Too Large' in the case of a
-[`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable or has already
-written data it is immediately destroyed.
+[`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable or headers
+of the current attached [`http.ServerResponse`][] has been sent, it is
+immediately destroyed.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
