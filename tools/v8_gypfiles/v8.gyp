@@ -621,8 +621,7 @@
                       '<(V8_ROOT)/src/trap-handler/handler-inside-posix.h',
                     ],
                   }],
-                  # TODO(targos): Replace False with OS=="win" if handler-outside-simulator.cc becomes compatible with MSVC.
-                  ['_toolset=="host" and host_arch=="x64" and (OS=="linux" or OS=="mac" or False)', {
+                  ['_toolset=="host" and host_arch=="x64" and (OS=="linux" or OS=="mac" or OS=="win")', {
                     'sources': [
                       '<(V8_ROOT)/src/trap-handler/trap-handler-simulator.h',
                     ],
@@ -858,16 +857,14 @@
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
                   ],
                 }],
-                # TODO(targos): Replace False with OS=="win" if handler-outside-simulator.cc becomes compatible with MSVC.
-                ['_toolset=="host" and host_arch=="x64" and False', {
+                ['_toolset=="host" and host_arch=="x64" and OS=="win"', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-win.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-win.cc',
                   ],
                 }],
-                # TODO(targos): Replace False with OS=="win" if handler-outside-simulator.cc becomes compatible with MSVC.
                 ['_toolset=="host" and host_arch=="x64" and '
-                 '(host_os=="linux" or host_os=="mac" or False)', {
+                 '(host_os=="linux" or host_os=="mac" or OS=="win")', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
                   ],
