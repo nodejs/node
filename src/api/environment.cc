@@ -787,10 +787,12 @@ void SetProcessExitHandler(
     Environment* env, std::function<void(Environment*, ExitCode)>&& handler) {
   env->set_process_exit_handler(std::move(handler));
 }
+
 void SetProcessExitHandler(Environment* env,
                            std::function<void(Environment*, int)>&& handler) {
-  env->set_process_exit_handler([&](Environment* env, ExitCode exit_code) {
-    handler(env, static_cast<int>(exit_code));
+  auto movedHandler = std::move(handler);
+  env->set_process_exit_handler([=](Environment* env, ExitCode exit_code) {
+    movedHandler(env, static_cast<int>(exit_code));
   });
 }
 

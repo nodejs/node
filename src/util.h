@@ -27,6 +27,7 @@
 #include "v8.h"
 
 #include "node.h"
+#include "node_exit_code.h"
 
 #include <climits>
 #include <cstddef>
