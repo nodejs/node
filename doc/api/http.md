@@ -2143,7 +2143,7 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 added: REPLACEME
 -->
 
-* `links` {string|Array}
+* `links` {string|Array|Object}
 * `callback` {Function}
 
 Sends an HTTP/1.1 103 Early Hints message to the client with a Link header,
@@ -2151,6 +2151,9 @@ indicating that the user agent can preload/preconnect the linked resources.
 The `links` can be a string or an array of strings containing the values
 of the `Link` header. The optional `callback` argument will be called when
 the response message has been written.
+
+When links are of type object, the `link` key will be used to set the values
+of the `Link` header. Any additional attributes will be used as a header.
 
 **Example**
 
