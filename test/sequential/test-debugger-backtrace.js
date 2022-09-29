@@ -15,22 +15,19 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-  function onFatal(error) {
-    cli.quit();
-    throw error;
+  async function runTest() {
+    try {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.stepCommand('c');
+      await cli.command('bt');
+      assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
+      await cli.command('backtrace');
+      assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
+    } finally {
+      await cli.quit();
+    }
   }
 
-  return cli.waitForInitialBreak()
-    .then(() => cli.waitForPrompt())
-    .then(() => cli.stepCommand('c'))
-    .then(() => cli.command('bt'))
-    .then(() => {
-      assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
-    })
-    .then(() => cli.command('backtrace'))
-    .then(() => {
-      assert.ok(cli.output.includes(`#0 topFn ${script}:7:2`));
-    })
-    .then(() => cli.quit())
-    .then(null, onFatal);
+  runTest();
 }
