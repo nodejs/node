@@ -38,5 +38,5 @@ const assert = require('assert');
     } finally {
       await cli.quit();
     }
-  })().then(common.mustCall);
+  })().then(common.mustCall());
 }
