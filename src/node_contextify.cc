@@ -42,7 +42,6 @@ using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -241,7 +240,6 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
   return scope.Escape(ctx);
 }
-
 
 BaseObjectPtr<ContextifyContext> ContextifyContext::New(
     Local<Context> v8_context,
