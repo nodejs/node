@@ -159,6 +159,7 @@ const testResBody = 'response content\n';
         res.headers.link,
         '</styles.css>; rel=preload; as=style'
       );
+      assert.strictEqual(res.headers['x-trace-id'], 'id for diagnostics');
     }));
 
     req.on('response', common.mustCall((res) => {
@@ -209,6 +210,7 @@ const testResBody = 'response content\n';
         res.headers.link,
         '</styles.css>; rel=preload; as=style, </scripts.js>; rel=preload; as=script'
       );
+      assert.strictEqual(res.headers['x-trace-id'], 'id for diagnostics');
     }));
 
     req.on('response', common.mustCall((res) => {
