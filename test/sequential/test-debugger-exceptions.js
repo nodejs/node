@@ -15,57 +15,44 @@ const path = require('path');
   const script = path.relative(process.cwd(), scriptFullPath);
   const cli = startCLI([script]);
 
-  function onFatal(error) {
-    cli.quit();
-    throw error;
-  }
-
-  cli.waitForInitialBreak()
-    .then(() => cli.waitForPrompt())
-    .then(() => {
+  (async () => {
+    try {
+      await cli.waitForInitialBreak();
+      await cli.waitForPrompt();
+      await cli.waitForPrompt();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
-    })
-    // Making sure it will die by default:
-    .then(() => cli.command('c'))
-    .then(() => cli.waitFor(/disconnect/))
 
-    // Next run: With `breakOnException` it pauses in both places.
-    .then(() => cli.stepCommand('r'))
-    .then(() => cli.waitForInitialBreak())
-    .then(() => {
+      // Making sure it will die by default:
+      await cli.command('c');
+      await cli.waitFor(/disconnect/);
+
+      // Next run: With `breakOnException` it pauses in both places.
+      await cli.stepCommand('r');
+      await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
-    })
-    .then(() => cli.command('breakOnException'))
-    .then(() => cli.stepCommand('c'))
-    .then(() => {
+      await cli.command('breakOnException');
+      await cli.stepCommand('c');
       assert.ok(cli.output.includes(`exception in ${script}:3`));
-    })
-    .then(() => cli.stepCommand('c'))
-    .then(() => {
+      await cli.stepCommand('c');
       assert.ok(cli.output.includes(`exception in ${script}:9`));
-    })
 
-    // Next run: With `breakOnUncaught` it only pauses on the 2nd exception.
-    .then(() => cli.command('breakOnUncaught'))
-    .then(() => cli.stepCommand('r')) // Also, the setting survives the restart.
-    .then(() => cli.waitForInitialBreak())
-    .then(() => {
+      // Next run: With `breakOnUncaught` it only pauses on the 2nd exception.
+      await cli.command('breakOnUncaught');
+      await cli.stepCommand('r'); // Also, the setting survives the restart.
+      await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
-    })
-    .then(() => cli.stepCommand('c'))
-    .then(() => {
+      await cli.stepCommand('c');
       assert.ok(cli.output.includes(`exception in ${script}:9`));
-    })
 
-    // Next run: Back to the initial state! It should die again.
-    .then(() => cli.command('breakOnNone'))
-    .then(() => cli.stepCommand('r'))
-    .then(() => cli.waitForInitialBreak())
-    .then(() => {
+      // Next run: Back to the initial state! It should die again.
+      await cli.command('breakOnNone');
+      await cli.stepCommand('r');
+      await cli.waitForInitialBreak();
       assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
-    })
-    .then(() => cli.command('c'))
-    .then(() => cli.waitFor(/disconnect/))
-    .then(() => cli.quit())
-    .then(null, onFatal);
+      await cli.command('c');
+      await cli.waitFor(/disconnect/);
+    } finally {
+      cli.quit();
+    }
+  })().then(common.mustCall());
 }
