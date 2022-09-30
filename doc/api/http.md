@@ -2141,6 +2141,10 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 
 <!-- YAML
 added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44820
+    description: Allow passing hints as an object.
 -->
 
 * `links` {string|Array|Object}
