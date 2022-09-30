@@ -42,8 +42,6 @@ fs.open(__filename, common.mustSucceed());
 
 fs.open(__filename, 'r', common.mustSucceed());
 
-fs.open(__filename, 'rs', common.mustSucceed());
-
 fs.open(__filename, 'r', 0, common.mustSucceed());
 
 fs.open(__filename, 'r', null, common.mustSucceed());
