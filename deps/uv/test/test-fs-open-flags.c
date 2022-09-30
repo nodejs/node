@@ -283,6 +283,16 @@ static void fs_open_flags(int add_flags) {
   writeFail(empty_dir, UV_EBADF);
   readFail(empty_dir, UV_EISDIR);
 
+  /* rs */
+  flags = add_flags | UV_FS_O_RDONLY | UV_FS_O_SYNC;
+  openFail(absent_file, UV_ENOENT);
+  writeFail(empty_file, UV_EBADF);
+  readExpect(empty_file, "", 0);
+  writeFail(dummy_file, UV_EBADF);
+  readExpect(dummy_file, "a", 1);
+  writeFail(empty_dir, UV_EBADF);
+  readFail(empty_dir, UV_EISDIR);
+
   /* r+ */
   flags = add_flags | UV_FS_O_RDWR;
   openFail(absent_file, UV_ENOENT);
