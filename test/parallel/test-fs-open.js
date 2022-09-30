@@ -82,7 +82,7 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     }
   );
   assert.throws(
-    () => fs.openSync(i, 'r', common.mustNotCall()),
+    () => fs.openSync(i, 'r'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError'
@@ -106,7 +106,7 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     }
   );
   assert.throws(
-    () => fs.openSync(__filename, 'r', mode, common.mustNotCall()),
+    () => fs.openSync(__filename, 'r', mode),
     {
       code: 'ERR_INVALID_ARG_TYPE'
     }
