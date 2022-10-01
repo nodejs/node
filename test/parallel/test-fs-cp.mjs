@@ -336,6 +336,24 @@ if (!isWindows) {
   }, { code: 'ERR_INVALID_RETURN_VALUE' });
 }
 
+// It should not throw exception if child folder
+// does not pass filter function
+{
+  // Create a file in dest with the same name as a child folder in src
+  // expect: this shouldn't throw error since filtered out by filter function
+  const src = nextdir();
+  mkdirSync(join(src, 'foo'), mustNotMutateObjectDeep({ recursive: true }));
+
+  const dest = nextdir();
+  mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(join(dest, 'foo'), 'foo-content', mustNotMutateObjectDeep({ mode: 0o444 }));
+
+  cpSync(src, dest, {
+    filter: (path) => !path.includes('foo'),
+    recursive: true,
+  });
+}
+
 // It throws error if errorOnExist is true, force is false, and file or folder
 // copied over.
 {
