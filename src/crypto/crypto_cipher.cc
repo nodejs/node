@@ -987,17 +987,7 @@ bool PublicKeyCipher::Cipher(
       return false;
   }
 
-  if (oaep_label.size() != 0) {
-    // OpenSSL takes ownership of the label, so we need to create a copy.
-    void* label = OPENSSL_memdup(oaep_label.data(), oaep_label.size());
-    CHECK_NOT_NULL(label);
-    if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(),
-                     static_cast<unsigned char*>(label),
-                                      oaep_label.size())) {
-      OPENSSL_free(label);
-      return false;
-    }
-  }
+  if (!SetRsaOaepLabel(ctx, oaep_label.ToByteSource())) return false;
 
   size_t out_len = 0;
   if (EVP_PKEY_cipher(
