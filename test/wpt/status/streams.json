@@ -12,17 +12,6 @@
       ]
     }
   },
-  "readable-byte-streams/general.any.js": {
-    "fail": {
-      "expected": [
-        "ReadableStream with byte source: enqueue() discards auto-allocated BYOB request",
-        "ReadableStream with byte source: releaseLock() with pending read(view), read(view) on second reader, enqueue()",
-        "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read() on second reader, enqueue()",
-        "ReadableStream with byte source: autoAllocateChunkSize, releaseLock() with pending read(), read(view) on second reader, enqueue()",
-        "ReadableStream with byte source: read(view) with 1 element Uint16Array, respond(1), releaseLock(), read() on second reader, enqueue()"
-      ]
-    }
-  },
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
