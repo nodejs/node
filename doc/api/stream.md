@@ -2363,6 +2363,7 @@ changes:
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
+
 * `options` {Object}
   * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
     not treated as finished. **Default:** `true`.

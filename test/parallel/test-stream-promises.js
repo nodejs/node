@@ -3,13 +3,10 @@
 const common = require('../common');
 const stream = require('stream');
 const {
-  Readable,
-  Writable,
-  promises,
+  Readable, Writable, promises,
 } = stream;
 const {
-  finished,
-  pipeline,
+  finished, pipeline,
 } = require('stream/promises');
 const fs = require('fs');
 const assert = require('assert');
@@ -24,14 +21,11 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   let finished = false;
   const processed = [];
-  const expected = [
-    Buffer.from('a'),
-    Buffer.from('b'),
-    Buffer.from('c'),
-  ];
+  const expected = [Buffer.from('a'), Buffer.from('b'), Buffer.from('c')];
 
   const read = new Readable({
-    read() { }
+    read() {
+    }
   });
 
   const write = new Writable({
@@ -59,7 +53,8 @@ assert.strictEqual(finished, promisify(stream.finished));
 // pipeline error
 {
   const read = new Readable({
-    read() { }
+    read() {
+    }
   });
 
   const write = new Writable({
@@ -104,50 +99,47 @@ assert.strictEqual(finished, promisify(stream.finished));
 
 {
   const streamObj = new Readable();
-  assert.throws(
-    () => {
-      // Passing autoCleanup option not as boolean
-      // should throw error
-      finished(streamObj, {autoCleanup: 2});
-    },
-    {code: 'ERR_INVALID_ARG_TYPE'}
-  );
+  assert.throws(() => {
+    // Passing autoCleanup option not as boolean
+    // should throw error
+    finished(streamObj, { autoCleanup: 2 });
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
 // Below code should not throw any errors as the
 // streamObj is `Stream` and autoCleanup is boolean
 {
   const streamObj = new Readable();
-  finished(streamObj, {autoCleanup: true})
+  finished(streamObj, { autoCleanup: true });
 }
 
 
-// cleanup function should not be called when autoCleanup is set to false
+// Cleanup function should not be called when autoCleanup is set to false
 // listenerCount should be 1 after calling finish
 {
   const streamObj = new Writable();
-  assert(streamObj.listenerCount('end') === 0);
-  finished(streamObj, {autoCleanup: false}).then(() => {
-    assert(streamObj.listenerCount('end') === 1);
-  })
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
+  finished(streamObj, { autoCleanup: false }).then(() => {
+    assert.strictEqual(streamObj.listenerCount('end'), 1);
+  });
 }
 
-// cleanup function should  be called when autoCleanup is set to true
+// Cleanup function should be called when autoCleanup is set to true
 // listenerCount should be 0 after calling finish
 {
   const streamObj = new Writable();
-  assert(streamObj.listenerCount('end') === 0);
-  finished(streamObj, {autoCleanup: true}).then(() => {
-    assert(streamObj.listenerCount('end') === 0);
-  })
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
+  finished(streamObj, { autoCleanup: true }).then(() => {
+    assert.strictEqual(streamObj.listenerCount('end'), 0);
+  });
 }
 
-// cleanup function should not be called when autoCleanup has not been set
+// Cleanup function should not be called when autoCleanup has not been set
 // listenerCount should be 1 after calling finish
 {
   const streamObj = new Writable();
-  assert(streamObj.listenerCount('end') === 0);
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
   finished(streamObj).then(() => {
-    assert(streamObj.listenerCount('end') === 1);
-  })
+    assert.strictEqual(streamObj.listenerCount('end'), 1);
+  });
 }
