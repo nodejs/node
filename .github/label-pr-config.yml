@@ -99,10 +99,11 @@ subSystemLabels:
   /^lib\/\w+\/streams$/: stream
   /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
+  /^lib\/test.js$/: test_runner, dont-land-on-v14.x
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/webstreams/: web streams
-  /^lib\/internal\/test_runner/: dont-land-on-v14.x
+  /^lib\/internal\/test_runner/: test_runner, dont-land-on-v14.x
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -140,6 +141,8 @@ exlusiveLabels:
   /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
   # Add worker label to PRs that affect doc/api/worker_threads.md
   /^doc\/api\/worker_threads.md$/: doc, worker
+  # test runner documentation
+  /^doc\/api\/test.md$/: doc, test_runner, dont-land-on-v14.x
   # Automatically tag JS subsystem-specific API doc changes
   /^doc\/api\/(\w+)\.md$/: doc, $1
   # Add deprecations label to PRs that affect doc/api/deprecations.md
