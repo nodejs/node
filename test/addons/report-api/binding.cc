@@ -35,8 +35,6 @@ void TriggerReportEnv(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TriggerReportNoEnv(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-
   node::TriggerNodeReport(static_cast<node::Environment*>(nullptr),
                           "FooMessage",
                           "BarTrigger",
