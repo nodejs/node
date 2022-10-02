@@ -23,7 +23,18 @@ const server = spawn(common.opensslCli, [
   '-psk_hint', IDENTITY,
   '-nocert',
   '-rev',
-]);
+], { encoding: 'utf8' });
+let serverErr = '';
+let serverOut = '';
+server.stderr.on('data', (data) => serverErr += data);
+server.stdout.on('data', (data) => serverOut += data);
+server.on('error', common.mustNotCall());
+server.on('exit', (code, signal) => {
+  // Server is expected to be terminated by cleanUp().
+  assert.strictEqual(code, null,
+                     `'${server.spawnfile} ${server.spawnargs.join(' ')}' unexpected exited with output:\n${serverOut}\n${serverErr}`);
+  assert.strictEqual(signal, 'SIGTERM');
+});
 
 const cleanUp = (err) => {
   clearTimeout(timeout);
