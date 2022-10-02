@@ -989,7 +989,7 @@ however, for backward compatibility with older Node.js versions.
 `--preserve-symlinks` when it is not desirable to follow symlinks before
 resolving relative paths.
 
-See `--preserve-symlinks` for more information.
+See [`--preserve-symlinks`][] for more information.
 
 ### `--prof`
 
@@ -2289,6 +2289,7 @@ done
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--openssl-config`]: #--openssl-configfile
+[`--preserve-symlinks`]: #--preserve-symlinks
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
