@@ -89,12 +89,6 @@ void LogSecret(
   keylog_cb(ssl.get(), line.c_str());
 }
 
-bool SetALPN(const SSLPointer& ssl, std::string_view alpn) {
-  return SSL_set_alpn_protos(ssl.get(),
-                             reinterpret_cast<const uint8_t*>(alpn.data()),
-                             alpn.length()) == 0;
-}
-
 MaybeLocal<Value> GetSSLOCSPResponse(
     Environment* env,
     SSL* ssl,
