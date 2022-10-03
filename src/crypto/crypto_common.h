@@ -33,9 +33,6 @@ void LogSecret(
     const unsigned char* secret,
     size_t secretlen);
 
-// TODO(tniessen): use std::u8string_view when we switch to C++20.
-bool SetALPN(const SSLPointer& ssl, std::string_view alpn);
-
 v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
     Environment* env,
     SSL* ssl,
