@@ -1529,9 +1529,10 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
+  SSL* ssl = w->ssl_.get();
   if (w->is_client()) {
-    ArrayBufferViewContents<char> protos(args[0].As<ArrayBufferView>());
-    CHECK(SetALPN(w->ssl_, {protos.data(), protos.length()}));
+    ArrayBufferViewContents<uint8_t> protos(args[0].As<ArrayBufferView>());
+    CHECK_EQ(0, SSL_set_alpn_protos(ssl, protos.data(), protos.length()));
   } else {
     CHECK(
         w->object()->SetPrivate(
@@ -1539,7 +1540,7 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
             env->alpn_buffer_private_symbol(),
             args[0]).FromJust());
     // Server should select ALPN protocol from list of advertised by client
-    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(w->ssl_.get()),
+    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(ssl),
                                SelectALPNCallback,
                                nullptr);
   }
