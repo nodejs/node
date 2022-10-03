@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "September 2022" "" ""
+.TH "SCRIPTS" "7" "October 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -44,16 +44,12 @@ situations\. These scripts happen in addition to the \fBpre<event>\fP, \fBpost<e
 \fBprepare\fR (since \fBnpm@4\.0\.0\fP)
 .RS 0
 .IP \(bu 2
-Runs any time before the package is packed, i\.e\. during \fBnpm publish\fP
+Runs BEFORE the package is packed, i\.e\. during \fBnpm publish\fP
   and \fBnpm pack\fP
-.IP \(bu 2
-Runs BEFORE the package is packed
-.IP \(bu 2
-Runs BEFORE the package is published
 .IP \(bu 2
 Runs on local \fBnpm install\fP without any arguments
 .IP \(bu 2
-Run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP
+Runs AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP
 .IP \(bu 2
 NOTE: If a package being installed through git contains a \fBprepare\fP
 script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and

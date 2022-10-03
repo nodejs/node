@@ -12,8 +12,7 @@ The `npm` CLI has various mechanisms for showing different levels of information
 
 All logs are written to a debug log, with the path to that file printed if the execution of a command fails.
 
-The default location of the logs directory is a directory named `_logs` inside the npm cache. This can be changed
-with the `logs-dir` config option.
+The default location of the logs directory is a directory named `_logs` inside the npm cache. This can be changed with the `logs-dir` config option.
 
 Log files will be removed from the `logs-dir` when the number of log files exceeds `logs-max`, with the oldest logs being deleted first.
 
@@ -58,12 +57,14 @@ The `npm` CLI began hiding the output of lifecycle scripts for `npm install` as 
 
 ### Timing Information
 
-The `--timing` config can be set which does two things:
+The [`--timing` config](/using-npm/config#timing) can be set which does two
+things:
 
 1. Always shows the full path to the debug log regardless of command exit status
-1. Write timing information to a timing file in the cache or `logs-dir`
+1. Write timing information to a process specific timing file in the cache or `logs-dir`
 
-This file is a newline delimited list of JSON  objects that can be inspected to see timing data for each task in a `npm` CLI run.
+This file contains a `timers` object where the keys are an identifier for the
+portion of the process being timed and the value is the number of milliseconds it took to complete.
 
 ### Registry Response Headers
 

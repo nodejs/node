@@ -11,10 +11,10 @@ exports[`test/lib/utils/tar.js TAP should log tarball contents > must match snap
 package: my-cool-pkg@1.0.0
 === Tarball Contents ===
 
-4B  cat         
-4B  chai        
-4B  dog         
-97B package.json
+4B   cat
+4B   chai
+4B   dog
+114B package.json
 === Bundled Dependencies ===
 
 bundle-dep
@@ -23,10 +23,10 @@ bundle-dep
 name:          my-cool-pkg                             
 version:       1.0.0                                   
 filename:      my-cool-pkg-1.0.0.tgz                   
-package size:  274 B                                   
-unpacked size: 113 B                                   
-shasum:        cd0dfccff77dff944eb761854bc0b0497d974f67
-integrity:     sha512-qeFip1jH05vkW[...]zHSdMdPpYogMA==
+package size:  271 B
+unpacked size: 126 B
+shasum:        23e31c8ad422f96301c07730e61ff403b10306f1
+integrity:     sha512-/Lg5tEGQv5A5y[...]gq8T9D5+Wat1A==
 bundled deps:  1                                       
 bundled files: 0                                       
 own files:     5                                       

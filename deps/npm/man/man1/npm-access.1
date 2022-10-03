@@ -1,19 +1,17 @@
-.TH "NPM\-ACCESS" "1" "September 2022" "" ""
+.TH "NPM\-ACCESS" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-access\fR \- Set access level on published packages
 .SS Synopsis
 .P
 .RS 2
 .nf
-npm access public [<package>]
-npm access restricted [<package>]
+npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list collaborators [<package> [<user>]]
+npm access get status [<package>]
+npm access set status=public|private [<package>]
+npm access set mfa=none|publish|automation [<package>]
 npm access grant <read\-only|read\-write> <scope:team> [<package>]
 npm access revoke <scope:team> [<package>]
-npm access 2fa\-required [<package>]
-npm access 2fa\-not\-required [<package>]
-npm access ls\-packages [<user>|<scope>|<scope:team>]
-npm access ls\-collaborators [<package> [<user>]]
-npm access edit [<package>]
 .fi
 .RE
 .SS Description
@@ -82,16 +80,24 @@ fail with an HTTP 402 status code (logically enough), unless you use
 .P
 Management of teams and team memberships is done with the \fBnpm team\fP command\.
 .SS Configuration
-.SS \fBregistry\fP
+.SS \fBjson\fP
 .RS 0
 .IP \(bu 2
-Default: "https://registry\.npmjs\.org/"
+Default: false
 .IP \(bu 2
-Type: URL
+Type: Boolean
 
 .RE
 .P
-The base URL of the npm registry\.
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
 .SS \fBotp\fP
 .RS 0
 .IP \(bu 2
@@ -106,6 +112,16 @@ when publishing or changing package permissions with \fBnpm access\fP\|\.
 .P
 If not set, and a registry response fails with a challenge for a one\-time
 password, npm will prompt on the command line for one\.
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
 .SS See Also
 .RS 0
 .IP \(bu 2

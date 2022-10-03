@@ -97,7 +97,6 @@ class RegistryFetcher extends Fetcher {
         integrity: null,
       })
       const packument = await res.json()
-      packument._cached = res.headers.has('x-local-cache')
       packument._contentLength = +res.headers.get('content-length')
       if (this.packumentCache) {
         this.packumentCache.set(this.packumentUrl, packument)

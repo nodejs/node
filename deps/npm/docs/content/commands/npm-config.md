@@ -35,7 +35,7 @@ variables, `npmrc` files, and in some cases, the `package.json` file.
 See [npmrc](/configuring-npm/npmrc) for more information about the npmrc
 files.
 
-See [config(7)](/using-npm/config) for a more thorough explanation of the
+See [config](/using-npm/config) for a more thorough explanation of the
 mechanisms involved, and a full list of config options available.
 
 The `npm config` command can be used to update and edit the contents

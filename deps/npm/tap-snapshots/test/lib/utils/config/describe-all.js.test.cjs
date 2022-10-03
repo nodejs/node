@@ -24,19 +24,19 @@ safer to use a registry-provided authentication bearer token stored in the
 
 #### \`access\`
 
-* Default: 'restricted' for scoped packages, 'public' for unscoped packages
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
 * Type: null, "restricted", or "public"
 
-When publishing scoped packages, the access level defaults to \`restricted\`.
-If you want your scoped package to be publicly viewable (and installable)
-set \`--access=public\`. The only valid values for \`access\` are \`public\` and
-\`restricted\`. Unscoped packages _always_ have an access level of \`public\`.
+If do not want your scoped package to be publicly viewable (and installable)
+set \`--access=restricted\`.
 
-Note: Using the \`--access\` flag on the \`npm publish\` command will only set
-the package access level on the initial publish of the package. Any
-subsequent \`npm publish\` commands using the \`--access\` flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use \`npm access\`.
+Unscoped packages can not be set to \`restricted\`.
+
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of \`restricted\` or \`public\` during publish will
+change the access for an existing package the same way that \`npm access set
+status\` would.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -90,11 +90,8 @@ exit code.
 
 #### \`auth-type\`
 
-* Default: "legacy"
-* Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
-
-NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version.
+* Default: "web"
+* Type: "legacy" or "web"
 
 What authentication strategy to use with \`login\`.
 
@@ -783,7 +780,7 @@ number, if not already set in package.json.
 
 #### \`install-links\`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
 When set file: protocol dependencies that exist outside of the project root
@@ -1583,12 +1580,11 @@ particular, use care when overriding this setting for public packages.
 * Default: false
 * Type: Boolean
 
-If true, writes a debug log to \`logs-dir\` and timing information to
-\`_timing.json\` in the cache, even if the command completes successfully.
-\`_timing.json\` is a newline delimited list of JSON objects.
+If true, writes timing information to a process specific json file in the
+cache or \`logs-dir\`. The file name ends with \`-timing.json\`.
 
 You can quickly view it with this [json](https://npm.im/json) command line:
-\`npm exec -- json -g < ~/.npm/_timing.json\`.
+\`cat ~/.npm/_logs/*-timing.json | npm exec -- json -g\`.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -1953,31 +1949,6 @@ Alias for \`--omit=dev\`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### \`sso-poll-frequency\`
-
-* Default: 500
-* Type: Number
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-When used with SSO-enabled \`auth-type\`s, configures how regularly the
-registry should be polled while the user is completing authentication.
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### \`sso-type\`
-
-* Default: "oauth"
-* Type: null, "oauth", or "saml"
-* DEPRECATED: The --auth-type method of SSO/SAML/OAuth will be removed in a
-  future version of npm in favor of web-based login.
-
-If \`--auth-type=sso\`, the type of SSO type to use.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

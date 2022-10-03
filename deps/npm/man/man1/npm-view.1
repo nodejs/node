@@ -1,4 +1,4 @@
-.TH "NPM\-VIEW" "1" "September 2022" "" ""
+.TH "NPM\-VIEW" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SS Synopsis
@@ -70,6 +70,14 @@ contributor in the list, you can run:
 .RS 2
 .nf
 npm view express contributors[0]\.email
+.fi
+.RE
+.P
+If the field value you are querying for is a property of an object, you should run:
+.P
+.RS 2
+.nf
+npm view express time'[4\.8\.0]'
 .fi
 .RE
 .P

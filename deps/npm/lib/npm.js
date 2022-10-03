@@ -32,6 +32,7 @@ class Npm extends EventEmitter {
   loadErr = null
   argv = []
 
+  #runId = new Date().toISOString().replace(/[.:]/g, '_')
   #loadPromise = null
   #tmpFolder = null
   #title = 'npm'
@@ -206,11 +207,8 @@ class Npm extends EventEmitter {
 
   writeTimingFile () {
     this.#timers.writeFile({
+      id: this.#runId,
       command: this.#argvClean,
-      // We used to only ever report a single log file
-      // so to be backwards compatible report the last logfile
-      // XXX: remove this in npm 9 or just keep it forever
-      logfile: this.logFiles[this.logFiles.length - 1],
       logfiles: this.logFiles,
       version: this.version,
     })
@@ -290,7 +288,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:logFile', () => {
       this.#logFile.load({
-        dir: this.logsDir,
+        path: this.logPath,
         logsMax: this.config.get('logs-max'),
       })
       log.verbose('logfile', this.#logFile.files[0] || 'no logfile created')
@@ -298,7 +296,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:timers', () =>
       this.#timers.load({
-        dir: this.config.get('timing') ? this.timingDir : null,
+        path: this.config.get('timing') ? this.logPath : null,
       })
     )
 
@@ -372,13 +370,12 @@ class Npm extends EventEmitter {
     return this.config.get('logs-dir') || join(this.cache, '_logs')
   }
 
-  get timingFile () {
-    return this.#timers.file
+  get logPath () {
+    return resolve(this.logsDir, `${this.#runId}-`)
   }
 
-  get timingDir () {
-    // XXX(npm9): make this always in logs-dir
-    return this.config.get('logs-dir') || this.cache
+  get timingFile () {
+    return this.#timers.file
   }
 
   get cache () {

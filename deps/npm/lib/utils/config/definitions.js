@@ -3,7 +3,6 @@ module.exports = definitions
 
 const Definition = require('./definition.js')
 
-const log = require('../log-shim')
 const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
@@ -161,21 +160,19 @@ define('_auth', {
 define('access', {
   default: null,
   defaultDescription: `
-    'restricted' for scoped packages, 'public' for unscoped packages
+    'public' for new packages, existing packages it will not change the current level
   `,
   type: [null, 'restricted', 'public'],
   description: `
-    When publishing scoped packages, the access level defaults to
-    \`restricted\`.  If you want your scoped package to be publicly viewable
-    (and installable) set \`--access=public\`. The only valid values for
-    \`access\` are \`public\` and \`restricted\`. Unscoped packages _always_
-    have an access level of \`public\`.
+    If do not want your scoped package to be publicly viewable (and
+    installable) set \`--access=restricted\`.
 
-    Note: Using the \`--access\` flag on the \`npm publish\` command will only
-    set the package access level on the initial publish of the package. Any
-    subsequent \`npm publish\` commands using the \`--access\` flag will not
-    have an effect to the access level.  To make changes to the access level
-    after the initial publish use \`npm access\`.
+    Unscoped packages can not be set to \`restricted\`.
+
+    Note: This defaults to not changing the current access level for existing
+    packages.  Specifying a value of \`restricted\` or \`public\` during
+    publish will change the access for an existing package the same way that
+    \`npm access set status\` would.
   `,
   flatten,
 })
@@ -238,25 +235,12 @@ define('audit-level', {
 })
 
 define('auth-type', {
-  default: 'legacy',
-  type: ['legacy', 'web', 'sso', 'saml', 'oauth', 'webauthn'],
-  // deprecation in description rather than field, because not every value
-  // is deprecated
+  default: 'web',
+  type: ['legacy', 'web'],
   description: `
-    NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
-    removed in a future version.
-
     What authentication strategy to use with \`login\`.
   `,
-  flatten (key, obj, flatOptions) {
-    flatOptions.authType = obj[key]
-    if (obj[key] === 'sso') {
-      // no need to deprecate saml/oauth here, as sso-type will be set by these in
-      // lib/auth/ and is deprecated already
-      log.warn('config',
-        '--auth-type=sso is will be removed in a future version.')
-    }
-  },
+  flatten,
 })
 
 define('before', {
@@ -1083,7 +1067,7 @@ define('init.version', {
 })
 
 define('install-links', {
-  default: false,
+  default: true,
   type: Boolean,
   description: `
     When set file: protocol dependencies that exist outside of the project root
@@ -2004,33 +1988,6 @@ define('sign-git-tag', {
   flatten,
 })
 
-define('sso-poll-frequency', {
-  default: 500,
-  type: Number,
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    When used with SSO-enabled \`auth-type\`s, configures how regularly the
-    registry should be polled while the user is completing authentication.
-  `,
-  flatten,
-})
-
-define('sso-type', {
-  default: 'oauth',
-  type: [null, 'oauth', 'saml'],
-  deprecated: `
-    The --auth-type method of SSO/SAML/OAuth will be removed in a future
-    version of npm in favor of web-based login.
-  `,
-  description: `
-    If \`--auth-type=sso\`, the type of SSO type to use.
-  `,
-  flatten,
-})
-
 define('strict-peer-deps', {
   default: false,
   type: Boolean,
@@ -2103,13 +2060,11 @@ define('timing', {
   default: false,
   type: Boolean,
   description: `
-    If true, writes a debug log to \`logs-dir\` and timing information
-    to \`_timing.json\` in the cache, even if the command completes
-    successfully.  \`_timing.json\` is a newline delimited list of JSON
-    objects.
+    If true, writes timing information to a process specific json file in
+    the cache or \`logs-dir\`. The file name ends with \`-timing.json\`.
 
     You can quickly view it with this [json](https://npm.im/json) command
-    line: \`npm exec -- json -g < ~/.npm/_timing.json\`.
+    line: \`cat ~/.npm/_logs/*-timing.json | npm exec -- json -g\`.
   `,
 })
 

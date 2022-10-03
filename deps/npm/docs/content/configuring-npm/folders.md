@@ -22,10 +22,10 @@ This document will tell you what it puts where.
 
 #### prefix Configuration
 
-The `prefix` config defaults to the location where node is installed.
-On most systems, this is `/usr/local`. On Windows, it's `%AppData%\npm`.
-On Unix systems, it's one level up, since node is typically installed at
-`{prefix}/bin/node` rather than `{prefix}/node.exe`.
+The [`prefix` config](/using-npm/config#prefix) defaults to the location where
+node is installed. On most systems, this is `/usr/local`. On Windows, it's
+`%AppData%\npm`. On Unix systems, it's one level up, since node is typically
+installed at `{prefix}/bin/node` rather than `{prefix}/node.exe`.
 
 When the `global` flag is set, npm installs things into this prefix.
 When it is not set, it uses the root of the current package, or the
@@ -74,13 +74,13 @@ Man pages are not installed on Windows systems.
 See [`npm cache`](/commands/npm-cache).  Cache files are stored in `~/.npm` on Posix, or
 `%AppData%/npm-cache` on Windows.
 
-This is controlled by the `cache` configuration param.
+This is controlled by the [`cache` config](/using-npm/config#cache) param.
 
 #### Temp Files
 
 Temporary files are stored by default in the folder specified by the
-`tmp` config, which defaults to the TMPDIR, TMP, or TEMP environment
-variables, or `/tmp` on Unix and `c:\windows\temp` on Windows.
+[`tmp` config](/using-npm/config#tmp), which defaults to the TMPDIR, TMP, or
+TEMP environment variables, or `/tmp` on Unix and `c:\windows\temp` on Windows.
 
 Temp files are given a unique folder under this root for each run of the
 program, and are deleted upon successful exit.
@@ -111,7 +111,7 @@ be found by npm scripts when necessary.
 
 #### Global Installation
 
-If the `global` configuration is set to true, then npm will
+If the [`global` config](/using-npm/config#global) is set to true, then npm will
 install packages "globally".
 
 For global installation, packages are installed roughly the same way,

@@ -1,5 +1,7 @@
 const t = require('tap')
 const os = require('os')
+const fs = require('@npmcli/fs')
+const { join } = require('path')
 const EventEmitter = require('events')
 const { format } = require('../../../lib/utils/log-file')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
@@ -45,7 +47,7 @@ mockGlobals(t, {
   }),
 }, { replace: true })
 
-const mockExitHandler = async (t, { init, load, testdir, config, globals, mocks } = {}) => {
+const mockExitHandler = async (t, { init, load, testdir, config, mocks, files } = {}) => {
   const errors = []
 
   const { npm, logMocks, ...rest } = await loadMockNpm(t, {
@@ -69,9 +71,9 @@ const mockExitHandler = async (t, { init, load, testdir, config, globals, mocks 
 
   const exitHandler = t.mock('../../../lib/utils/exit-handler.js', {
     '../../../lib/utils/error-message.js': (err) => ({
-      ...err,
       summary: [['ERR SUMMARY', err.message]],
       detail: [['ERR DETAIL', err.message]],
+      ...(files ? { files } : {}),
     }),
     os: {
       type: () => 'Foo',
@@ -311,6 +313,53 @@ t.test('log file error', async (t) => {
   t.match(logs.error.filter(([t]) => t === ''), [['', `error writing to the directory`]])
 })
 
+t.test('files from error message', async (t) => {
+  const { exitHandler, logs, cache } = await mockExitHandler(t, {
+    files: [
+      ['error-file.txt', '# error file content'],
+    ],
+  })
+
+  await exitHandler(err('Error message'))
+
+  const logFiles = fs.readdirSync(join(cache, '_logs'))
+  const errorFileName = logFiles.find(f => f.endsWith('error-file.txt'))
+  const errorFile = fs.readFileSync(join(cache, '_logs', errorFileName)).toString()
+
+  const [log] = logs.error.filter(([t]) => t === '')
+
+  t.match(log[1], /For a full report see:\n.*-error-file\.txt/)
+  t.match(errorFile, '# error file content')
+  t.match(errorFile, 'Log files:')
+})
+
+t.test('files from error message with error', async (t) => {
+  const { exitHandler, logs } = await mockExitHandler(t, {
+    config: {
+      'logs-dir': 'LOGS_DIR',
+    },
+    files: [
+      ['error-file.txt', '# error file content'],
+    ],
+    mocks: {
+      '@npmcli/fs': {
+        ...fs,
+        writeFileSync: (dir) => {
+          if (dir.includes('LOGS_DIR') && dir.endsWith('error-file.txt')) {
+            throw new Error('err')
+          }
+        },
+      },
+    },
+  })
+
+  await exitHandler(err('Error message'))
+
+  const [log] = logs.warn.filter(([t]) => t === '')
+
+  t.match(log[1], /Could not write error message to.*error-file\.txt.*err/)
+})
+
 t.test('timing with no error', async (t) => {
   const { exitHandler, timingFile, npm, logs } = await mockExitHandler(t, {
     config: { timing: true },
@@ -326,7 +375,7 @@ t.test('timing with no error', async (t) => {
   t.match(msg, /Timing info written to:/)
 
   t.match(
-    timingFileData,
+    timingFileData.timers,
     Object.keys(npm.finishedTimers).reduce((acc, k) => {
       acc[k] = Number
       return acc
@@ -334,11 +383,14 @@ t.test('timing with no error', async (t) => {
   )
   t.strictSame(npm.unfinishedTimers, new Map())
   t.match(timingFileData, {
-    command: [],
-    version: '1.0.0',
-    npm: Number,
-    logfile: String,
-    logfiles: [String],
+    metadata: {
+      command: [],
+      version: '1.0.0',
+      logfiles: [String],
+    },
+    timers: {
+      npm: Number,
+    },
   })
 })
 
@@ -356,12 +408,15 @@ t.test('unfinished timers', async (t) => {
   t.equal(process.exitCode, 0)
   t.match(npm.unfinishedTimers, new Map([['foo', Number], ['bar', Number]]))
   t.match(timingFileData, {
-    command: [],
-    version: '1.0.0',
-    npm: Number,
-    logfile: String,
-    logfiles: [String],
-    unfinished: {
+    metadata: {
+      command: [],
+      version: '1.0.0',
+      logfiles: [String],
+    },
+    timers: {
+      npm: Number,
+    },
+    unfinishedTimers: {
       foo: [Number, Number],
       bar: [Number, Number],
     },

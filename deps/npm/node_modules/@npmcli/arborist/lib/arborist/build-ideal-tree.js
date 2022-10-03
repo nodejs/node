@@ -833,6 +833,7 @@ This is a one-time fix-up, please be patient...
       await cacache.tmp.withTmp(this.cache, opt, async path => {
         await pacote.extract(node.resolved, path, {
           ...opt,
+          Arborist,
           resolved: node.resolved,
           integrity: node.integrity,
         })

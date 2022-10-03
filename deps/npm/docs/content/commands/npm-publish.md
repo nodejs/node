@@ -118,19 +118,19 @@ tarball that will be compared with the local files by default.
 
 #### `access`
 
-* Default: 'restricted' for scoped packages, 'public' for unscoped packages
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
 * Type: null, "restricted", or "public"
 
-When publishing scoped packages, the access level defaults to `restricted`.
-If you want your scoped package to be publicly viewable (and installable)
-set `--access=public`. The only valid values for `access` are `public` and
-`restricted`. Unscoped packages _always_ have an access level of `public`.
+If do not want your scoped package to be publicly viewable (and installable)
+set `--access=restricted`.
 
-Note: Using the `--access` flag on the `npm publish` command will only set
-the package access level on the initial publish of the package. Any
-subsequent `npm publish` commands using the `--access` flag will not have an
-effect to the access level. To make changes to the access level after the
-initial publish use `npm access`.
+Unscoped packages can not be set to `restricted`.
+
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of `restricted` or `public` during publish will
+change the access for an existing package the same way that `npm access set
+status` would.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

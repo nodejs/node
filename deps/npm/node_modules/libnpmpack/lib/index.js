@@ -5,6 +5,7 @@ const npa = require('npm-package-arg')
 const runScript = require('@npmcli/run-script')
 const path = require('path')
 const util = require('util')
+const Arborist = require('@npmcli/arborist')
 const writeFile = util.promisify(require('fs').writeFile)
 
 module.exports = pack
@@ -33,6 +34,7 @@ async function pack (spec = 'file:.', opts = {}) {
   // packs tarball
   const tarball = await pacote.tarball(manifest._resolved, {
     ...opts,
+    Arborist,
     integrity: manifest._integrity,
   })
 

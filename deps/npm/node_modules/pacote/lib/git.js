@@ -61,6 +61,8 @@ class GitFetcher extends Fetcher {
     } else {
       this.resolvedSha = ''
     }
+
+    this.Arborist = opts.Arborist || null
   }
 
   // just exposed to make it easier to test all the combinations
@@ -206,8 +208,12 @@ class GitFetcher extends Fetcher {
     // check it out and then shell out to the DirFetcher tarball packer
     this[_clone](dir => this[_prepareDir](dir)
       .then(() => new Promise((res, rej) => {
+        if (!this.Arborist) {
+          throw new Error('GitFetcher requires an Arborist constructor to pack a tarball')
+        }
         const df = new DirFetcher(`file:${dir}`, {
           ...this.opts,
+          Arborist: this.Arborist,
           resolved: null,
           integrity: null,
         })

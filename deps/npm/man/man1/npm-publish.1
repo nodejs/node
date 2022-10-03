@@ -1,4 +1,4 @@
-.TH "NPM\-PUBLISH" "1" "September 2022" "" ""
+.TH "NPM\-PUBLISH" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SS Synopsis
@@ -111,22 +111,22 @@ tarball that will be compared with the local files by default\.
 .SS \fBaccess\fP
 .RS 0
 .IP \(bu 2
-Default: 'restricted' for scoped packages, 'public' for unscoped packages
+Default: 'public' for new packages, existing packages it will not change the
+current level
 .IP \(bu 2
 Type: null, "restricted", or "public"
 
 .RE
 .P
-When publishing scoped packages, the access level defaults to \fBrestricted\fP\|\.
-If you want your scoped package to be publicly viewable (and installable)
-set \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
-\fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+If do not want your scoped package to be publicly viewable (and installable)
+set \fB\-\-access=restricted\fP\|\.
 .P
-Note: Using the \fB\-\-access\fP flag on the \fBnpm publish\fP command will only set
-the package access level on the initial publish of the package\. Any
-subsequent \fBnpm publish\fP commands using the \fB\-\-access\fP flag will not have an
-effect to the access level\. To make changes to the access level after the
-initial publish use \fBnpm access\fP\|\.
+Unscoped packages can not be set to \fBrestricted\fP\|\.
+.P
+Note: This defaults to not changing the current access level for existing
+packages\. Specifying a value of \fBrestricted\fP or \fBpublic\fP during publish will
+change the access for an existing package the same way that \fBnpm access set
+status\fP would\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2

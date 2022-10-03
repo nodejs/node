@@ -127,7 +127,7 @@ into a tarball (b).
 * `npm install [<@scope>/]<name>`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    [`config`](/using-npm/config). The config's default value is `latest`.)
+    [`config`](/using-npm/config#tag). The config's default value is `latest`.)
 
     In most cases, this will install the version of the modules tagged as
     `latest` on the npm registry.
@@ -698,7 +698,7 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
 When set file: protocol dependencies that exist outside of the project root

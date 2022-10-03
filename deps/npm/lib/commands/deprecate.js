@@ -23,10 +23,10 @@ class Deprecate extends BaseCommand {
     }
 
     const username = await getIdentity(this.npm, this.npm.flatOptions)
-    const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
+    const packages = await libaccess.getPackages(username, this.npm.flatOptions)
     return Object.keys(packages)
       .filter((name) =>
-        packages[name] === 'read-write' &&
+        packages[name] === 'write' &&
         (opts.conf.argv.remain.length === 0 ||
           name.startsWith(opts.conf.argv.remain[0])))
   }
