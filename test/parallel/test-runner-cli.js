@@ -104,12 +104,6 @@ const testFixtures = fixtures.path('test-runner');
     ['--print', 'console.log("should not print")', '--test'],
   ];
 
-  if (process.features.inspector) {
-    flags.push(
-      ['--inspect', '--test'],
-      ['--inspect-brk', '--test'],
-    );
-  }
 
   flags.forEach((args) => {
     const child = spawnSync(process.execPath, args);
