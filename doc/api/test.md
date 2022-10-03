@@ -1042,7 +1042,7 @@ Emitted when [`context.diagnostic`][] is called.
 ### Event: `'test:fail'`
 
 * `data` {Object}
-  * `details` {Object} additional execution metadata.
+  * `details` {Object} Additional execution metadata.
   * `name` {string} The test name.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|undefined} Present if [`context.todo`][] is called
