@@ -1,6 +1,5 @@
 {
   "imports": {
-    "#test": "./test.js",
     "#branch": {
       "import": "./importbranch.js",
       "require": "./requirebranch.js"
@@ -26,6 +25,7 @@
     },
     "#subpath/nullshadow/*": [null],
     "#": "./test.js",
+    "#*est": "./*est.js",
     "#/initialslash": "./test.js",
     "#notfound": "./notfound.js",
     "#encodedslash": "./..%2F/x.js",
