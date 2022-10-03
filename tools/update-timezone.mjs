@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Usage: tools/update-timezone.mjs
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { renameSync, readdirSync, rmSync } from 'node:fs';
 import { exit } from 'node:process';
 
@@ -26,13 +26,7 @@ if (latestVersion === currentVersion) {
 execSync('bzip2 -d deps/icu-small/source/data/in/icudt*.dat.bz2');
 fileNames.forEach((file) => {
   renameSync(`icu-data/tzdata/icunew/${latestVersion}/44/le/${file}`, `deps/icu-small/source/data/in/${file}`);
-  spawnSync(
-    'icupkg', [
-      '-a',
-      file,
-      'icudt*.dat',
-    ], { cwd: 'deps/icu-small/source/data/in/' }
-  );
+  execSync(`icupkg -a ${file} icudt*.dat`, { cwd: 'deps/icu-small/source/data/in/' });
   rmSync(`deps/icu-small/source/data/in/${file}`);
 });
 execSync('bzip2 -z deps/icu-small/source/data/in/icudt*.dat');
