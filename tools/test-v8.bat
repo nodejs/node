@@ -20,18 +20,21 @@ if errorlevel 1 set ERROR_STATUS=1&goto test-v8-exit
 set path=%savedpath%
 
 if not defined test_v8 goto test-v8-intl
-echo running 'python tools\run-tests.py %common_v8_test_options% %v8_test_options% --junitout ./v8-tap.xml'
-call python tools\run-tests.py %common_v8_test_options% %v8_test_options% --junitout ./v8-tap.xml
+echo running 'python tools\run-tests.py %common_v8_test_options% %v8_test_options% --slow-tests-cutoff 1000000 --json-test-results v8-tap.xml'
+call python tools\run-tests.py %common_v8_test_options% %v8_test_options% --slow-tests-cutoff 1000000 --json-test-results v8-tap.xml
+call python ..\..\tools\v8-json-to-junit.py < v8-tap.xml > v8-tap.json
 
 :test-v8-intl
 if not defined test_v8_intl goto test-v8-benchmarks
-echo running 'python tools\run-tests.py %common_v8_test_options% intl --junitout ./v8-intl-tap.xml'
-call python tools\run-tests.py %common_v8_test_options% intl --junitout ./v8-intl-tap.xml
+echo running 'python tools\run-tests.py %common_v8_test_options% intl --slow-tests-cutoff 1000000 --json-test-results v8-intl-tap.xml'
+call python tools\run-tests.py %common_v8_test_options% intl --slow-tests-cutoff 1000000 --json-test-results ./v8-intl-tap.xml
+call python ..\..\tools\v8-json-to-junit.py < v8-intl-tap.xml > v8-intl-tap.json
 
 :test-v8-benchmarks
 if not defined test_v8_benchmarks goto test-v8-exit
-echo running 'python tools\run-tests.py %common_v8_test_options% benchmarks --junitout ./v8-benchmarks-tap.xml'
-call python tools\run-tests.py %common_v8_test_options% benchmarks --junitout ./v8-benchmarks-tap.xml
+echo running 'python tools\run-tests.py %common_v8_test_options% benchmarks --slow-tests-cutoff 1000000 --json-test-results v8-benchmarks-tap.xml'
+call python tools\run-tests.py %common_v8_test_options% benchmarks --slow-tests-cutoff 1000000 --json-test-results ./v8-benchmarks-tap.xml
+call python ..\..\tools\v8-json-to-junit.py < v8-benchmarks-tap.xml > v8-benchmarks-tap.json
 goto test-v8-exit
 
 :test-v8-exit
