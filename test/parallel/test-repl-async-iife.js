@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 require('../common');
 
 // Note: This test ensures that async IIFE doesn't crash
@@ -8,4 +8,3 @@ const repl = require('repl').start({ terminal: true });
 
 repl.write('(async() => { })()\n');
 repl.write('.exit\n');
-
