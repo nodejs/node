@@ -6,7 +6,7 @@
 namespace node {
 #define EXIT_CODE_LIST(V)                                                      \
   V(NoFailure, 0)                                                              \
-  /* This was intended for uncaught JS exceptions from the user land but we */ \
+  /* 1 was intended for uncaught JS exceptions from the user land but we */    \
   /* actually use this for all kinds of generic errors. */                     \
   V(GenericUserError, 1)                                                       \
   /* 2 is unused */                                                            \
@@ -28,11 +28,12 @@ namespace node {
   /* just a duplicate of InvalidCommandLineArgument */                         \
   V(InvalidCommandLineArgument2, 12)                                           \
   V(UnfinishedTopLevelAwait, 13)                                               \
-  V(StartupSnapshotFailure, 14)
-
-// If the process exits from unhandled signals e.g. SIGABRT, SIGTRAP, typically
-// the exit codes are 128 + signal number. We also exit with certain error
-// codes directly for legacy reasons.
+  V(StartupSnapshotFailure, 14)                                                \
+  /* If the process exits from unhandled signals e.g. SIGABRT, SIGTRAP, */     \
+  /* typically the exit codes are 128 + signal number. We also exit with */    \
+  /* certain error codes directly for legacy reasons. Here we define those */  \
+  /* that are used to normalize the exit code on Windows. */                   \
+  V(Abort, 134)
 
 // TODO(joyeecheung): expose this to user land when the codes are stable.
 // The underlying type should be an int, or we can get undefined behavior when
