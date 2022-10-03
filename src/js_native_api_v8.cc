@@ -2387,10 +2387,12 @@ napi_status NAPI_CDECL napi_create_external(napi_env env,
 
   v8::Local<v8::Value> external_value = v8::External::New(isolate, data);
 
-  // The Reference object will delete itself after invoking the finalizer
-  // callback.
-  v8impl::Reference::New(
-      env, external_value, 0, true, finalize_cb, data, finalize_hint);
+  if (finalize_cb) {
+    // The Reference object will delete itself after invoking the finalizer
+    // callback.
+    v8impl::Reference::New(
+        env, external_value, 0, true, finalize_cb, data, finalize_hint);
+  }
 
   *result = v8impl::JsValueFromV8LocalValue(external_value);
 
