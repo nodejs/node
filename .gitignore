@@ -117,6 +117,7 @@ tools/*/*.i.tmp
 # === Rules for test artifacts ===
 /*.tap
 /*.xml
+/v8*-tap.json
 /node_trace.*.log
 # coverage related
 /gcovr
