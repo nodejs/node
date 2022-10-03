@@ -22,6 +22,10 @@ const { requireImport, importImport } = importer;
     ['#external/subpath/asdf.js', { default: 'asdf' }],
     // Trailing pattern imports
     ['#subpath/asdf.asdf', { default: 'test' }],
+    // Leading slash
+    ['#subpath//asdf.asdf', { default: 'test' }],
+    // Double slash
+    ['#subpath/as//df.asdf', { default: 'test' }],
   ]);
 
   for (const [validSpecifier, expected] of internalImports) {
