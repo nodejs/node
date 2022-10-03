@@ -597,6 +597,8 @@ containing the generated data.
 The algorithms currently supported include:
 
 * `'ECDH'`
+* `'X25519'`[^1]
+* `'X448'`[^1]
 * `'HKDF'`
 * `'PBKDF2'`
 
@@ -635,6 +637,8 @@ generate raw keying material, then passing the result into the
 The algorithms currently supported include:
 
 * `'ECDH'`
+* `'X25519'`[^1]
+* `'X448'`[^1]
 * `'HKDF'`
 * `'PBKDF2'`
 
@@ -910,7 +914,11 @@ The unwrapped key algorithms supported include:
 * `'RSA-PSS'`
 * `'RSA-OAEP'`
 * `'ECDSA'`
+* `'Ed25519'`[^1]
+* `'Ed448'`[^1]
 * `'ECDH'`
+* `'X25519'`[^1]
+* `'X448'`[^1]
 * `'HMAC'`
 * `'AES-CTR'`
 * `'AES-CBC'`
