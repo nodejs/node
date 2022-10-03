@@ -2,7 +2,6 @@
 // Usage: tools/update-timezone.mjs
 import { execSync } from 'node:child_process';
 import { renameSync, readdirSync, rmSync } from 'node:fs';
-import { exit } from 'node:process';
 
 const fileNames = [
   'zoneinfo64.res',
@@ -15,13 +14,7 @@ const availableVersions = readdirSync('icu-data/tzdata/icunew', { withFileTypes:
 .filter((dirent) => dirent.isDirectory())
 .map((dirent) => dirent.name);
 
-const currentVersion = process.versions.tz;
 const latestVersion = availableVersions.sort().at(-1);
-
-if (latestVersion === currentVersion) {
-  console.log(`Terminating early, tz version is latest @ ${currentVersion}`);
-  exit();
-}
 
 execSync('bzip2 -d deps/icu-small/source/data/in/icudt*.dat.bz2');
 fileNames.forEach((file) => {
