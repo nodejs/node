@@ -1053,7 +1053,7 @@ Emitted when a test fails.
 ### Event: `'test:pass'`
 
 * `data` {Object}
-  * `details` {Object} additional execution metadata.
+  * `details` {Object} Additional execution metadata.
   * `name` {string} The test name.
   * `testNumber` {number} The ordinal number of the test.
   * `todo` {string|undefined} Present if [`context.todo`][] is called
