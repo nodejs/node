@@ -9,15 +9,15 @@ const { TapChecker } = require('internal/test_runner/tap_checker');
 
 function TAPChecker(input) {
   // parse
-  const parser = new TapParser(input, { specs: TapChecker.TAP14 });
-  parser.parse();
+  const parser = new TapParser({ specs: TapChecker.TAP14 });
+  parser.parseSync(input);
   parser.check();
 }
 
 {
   assert.throws(() => TAPChecker('TAP version 14'), {
     name: 'TAPValidationError',
-    message: 'Missing Plan',
+    message: 'missing Plan',
   });
 }
 
@@ -30,7 +30,7 @@ TAP version 14
 `),
     {
       name: 'TAPValidationError',
-      message: 'Missing Test Points',
+      message: 'missing Test Points',
     }
   );
 }
@@ -55,7 +55,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: 'Test 2 is out of Plan range 1..1',
+      message: 'test 2 is out of Plan range 1..1',
     }
   );
 }
@@ -70,7 +70,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: 'Plan start 3 is greater than Plan end 1',
+      message: 'plan start 3 is greater than Plan end 1',
     }
   );
 }
@@ -87,7 +87,7 @@ ok 3
 `),
     {
       name: 'TAPValidationError',
-      message: 'Test 1 is out of Plan range 2..3',
+      message: 'test 1 is out of Plan range 2..3',
     }
   );
 }

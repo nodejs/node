@@ -8,7 +8,14 @@ const { TapLexer, TokenKind } = require('internal/test_runner/tap_lexer');
 
 function TAPLexer(input) {
   const lexer = new TapLexer(input);
-  return [...lexer.scan()];
+  return lexer.scan().flat();
+}
+
+{
+  const tokens = TAPLexer('');
+  assert.strictEqual(tokens.length, 1);
+  assert.strictEqual(tokens[0].kind, TokenKind.EOF);
+  assert.strictEqual(tokens[0].value, 'EOF');
 }
 
 {

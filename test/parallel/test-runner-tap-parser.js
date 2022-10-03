@@ -8,8 +8,16 @@ const { TapParser } = require('internal/test_runner/tap_parser');
 
 function TAPParser(input) {
   const parser = new TapParser();
-  const ast = parser.parse(input);
-  return ast;
+  return parser.parseSync(input);
+}
+
+// Empty input
+
+{
+  const ast = TAPParser('');
+  assert.deepStrictEqual(ast, {
+    root: {},
+  });
 }
 
 // TAP version
@@ -28,19 +36,21 @@ function TAPParser(input) {
 }
 
 {
-  // assert.throws(() => TAPParser('TAP version'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected a version number, received "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
-  // });
+  assert.throws(() => TAPParser('TAP version'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected a version number, received "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
+  });
 }
 
 {
-  // assert.throws(() => TAPParser('TAP'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected "version" keyword, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
-  // });
+  assert.throws(() => TAPParser('TAP'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected "version" keyword, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+  });
 }
 
 // Test plan
@@ -74,35 +84,39 @@ function TAPParser(input) {
 }
 
 {
-  // assert.throws(() => TAPParser('1..'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
-  // });
+  assert.throws(() => TAPParser('1..'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+  });
 }
 
 {
-  // assert.throws(() => TAPParser('1..abc'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
-  // });
+  assert.throws(() => TAPParser('1..abc'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
+  });
 }
 
 {
-  // assert.throws(() => TAPParser('1..-1'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
-  // });
+  assert.throws(() => TAPParser('1..-1'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
+  });
 }
 
 {
-  // assert.throws(() => TAPParser('1.1'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
-  // });
+  assert.throws(() => TAPParser('1.1'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
+  });
 }
 
 // Test point
@@ -590,13 +604,7 @@ ok 1
 {
   const ast = TAPParser('#');
   assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          comments: [''],
-        },
-      ],
-    },
+    root: {},
   });
 }
 
@@ -707,119 +715,125 @@ ok 1
 }
 
 {
-//   assert.throws(
-//     () =>
-//       TAPParser(
-//         `
-//   message: 'description'
-//   property: 'value'
-//   ...
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
-//     }
-//   );
+  assert.throws(
+    () =>
+      TAPParser(
+        `
+    message: 'description'
+    property: 'value'
+    ...
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
+    }
+  );
 }
 
 {
-//   assert.throws(
-//     () =>
-//       TAPParser(
-//         `
-//   ---
-//   message: 'description'
-//   property: 'value'
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
-//     }
-//   );
+  assert.throws(
+    () =>
+      TAPParser(
+        `
+    ---
+    message: 'description'
+    property: 'value'
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
+    }
+  );
 }
 
 {
-//   assert.throws(
-//     () =>
-//       // Note the leading 3 spaces before ---
-//       TAPParser(
-//         `
-//    ---
-//   message: 'description'
-//   property: 'value'
-//   ...
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Expected valid YAML indentation (2 spaces), received 3 spaces at line 2, column 3 (start 3, end 3)',
-//     }
-//   );
+  assert.throws(
+    () =>
+    // Note the leading 3 spaces before ---
+      TAPParser(
+        `
+     ---
+    message: 'description'
+    property: 'value'
+    ...
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Expected valid YAML indentation (2 spaces), received 3 spaces at line 2, column 3 (start 3, end 3)',
+    }
+  );
 }
 
 {
-//   assert.throws(
-//     () =>
-//       // Note the leading 5 spaces before ---
-//       TAPParser(
-//         `
-//      ---
-//   message: 'description'
-//   property: 'value'
-//   ...
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Expected valid YAML indentation (2 spaces), received 5 spaces at line 2, column 5 (start 5, end 5)',
-//     }
-//   );
+  assert.throws(
+    () =>
+    // Note the leading 5 spaces before ---
+      TAPParser(
+        `
+       ---
+    message: 'description'
+    property: 'value'
+    ...
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Expected valid YAML indentation (2 spaces), received 5 spaces at line 2, column 5 (start 5, end 5)',
+    }
+  );
 }
 
 {
-//   assert.throws(
-//     () =>
-//       // Note the leading 4 spaces before ---
-//       TAPParser(
-//         `
-//     ---
-//   message: 'description'
-//   property: 'value'
-//   ...
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
-//     }
-//   );
+  assert.throws(
+    () =>
+    // Note the leading 4 spaces before ---
+      TAPParser(
+        `
+      ---
+    message: 'description'
+    property: 'value'
+    ...
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
+    }
+  );
 }
 
 {
-//   assert.throws(
-//     () =>
-//       // Note the leading 4 spaces before ...
-//       TAPParser(
-//         `
-//   ---
-//   message: 'description'
-//   property: 'value'
-//     ...
-// `
-//       ),
-//     {
-//       name: 'SyntaxError',
-//       message:
-//         'Expected end of YAML block, received "..." (YamlEndKeyword) at line 5, column 5 (start 56, end 58)',
-//     }
-//   );
+  assert.throws(
+    () =>
+    // Note the leading 4 spaces before ...
+      TAPParser(
+        `
+    ---
+    message: 'description'
+    property: 'value'
+      ...
+  `
+      ),
+    {
+      name: 'SyntaxError',
+      code: 'ERR_TAP_PARSER_ERROR',
+      // message:
+      //   'Expected end of YAML block, received "..." (YamlEndKeyword) at line 5, column 5 (start 56, end 58)',
+    }
+  );
 }
 
 // Pragma
@@ -858,17 +872,19 @@ ok 1
 // Non-recognized
 
 {
-  // assert.throws(() => TAPParser('abc'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
-  // });
+  assert.throws(() => TAPParser('abc'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
+  });
 }
 
 {
-  // assert.throws(() => TAPParser('    abc'), {
-  //   name: 'SyntaxError',
-  //   message:
-  //     'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
-  // });
+  assert.throws(() => TAPParser('    abc'), {
+    name: 'SyntaxError',
+    code: 'ERR_TAP_PARSER_ERROR',
+    // message:
+    //   'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
+  });
 }
