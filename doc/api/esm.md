@@ -1518,31 +1518,9 @@ _isImports_, _conditions_)
 
 ### Customizing ESM specifier resolution algorithm
 
-> Stability: 1 - Experimental
-
-> Do not rely on this flag. We plan to remove it once the
-> [Loaders API][] has advanced to the point that equivalent functionality can
-> be achieved via custom loaders.
-
-The current specifier resolution does not support all default behavior of
-the CommonJS loader. One of the behavior differences is automatic resolution
-of file extensions and the ability to import directories that have an index
-file.
-
-The `--experimental-specifier-resolution=[mode]` flag can be used to customize
-the extension resolution algorithm. The default mode is `explicit`, which
-requires the full path to a module be provided to the loader. To enable the
-automatic extension resolution and importing from directories that include an
-index file use the `node` mode.
-
-```console
-$ node index.mjs
-success!
-$ node index # Failure!
-Error: Cannot find module
-$ node --experimental-specifier-resolution=node index
-success!
-```
+The [Loaders API][] provides a mechanism for customizing the ESM specifier
+resolution algorithm. An example loader that provides CommonJS-style resolution
+for ESM specifiers is [commonjs-extension-resolution-loader][].
 
 <!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
 
@@ -1583,6 +1561,7 @@ success!
 [`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
+[commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: #https-loader
 [load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls

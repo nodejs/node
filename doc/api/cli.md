@@ -427,23 +427,6 @@ added: REPLACEME
 
 Use this flag to enable [ShadowRealm][] support.
 
-### `--experimental-specifier-resolution=mode`
-
-<!-- YAML
-added:
- - v13.4.0
- - v12.16.0
--->
-
-Sets the resolution algorithm for resolving ES module specifiers. Valid options
-are `explicit` and `node`.
-
-The default is `explicit`, which requires providing the full path to a
-module. The `node` mode enables support for optional file extensions and
-the ability to import a directory that has an index file.
-
-See [customizing ESM specifier resolution][] for example usage.
-
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -2312,7 +2295,6 @@ done
 [`worker_threads.threadId`]: worker_threads.md#workerthreadid
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
-[customizing ESM specifier resolution]: esm.md#customizing-esm-specifier-resolution-algorithm
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.md#processemitwarningwarning-options
