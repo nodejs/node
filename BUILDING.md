@@ -660,7 +660,7 @@ Be sure you have downloaded and extracted
 a folder. Then run:
 
 ```console
-$ source ./android-configure /path/to/your/android-ndk target_arch android_sdk_version
+$ ./android-configure <path to the Android NDK> <Android SDK version> <target architecture>
 $ make -j4
 ```
 
