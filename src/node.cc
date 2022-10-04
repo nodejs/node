@@ -1181,7 +1181,7 @@ static ExitCode StartInternal(int argc, char** argv) {
     return result->exit_code_enum();
   }
 
-  DCHECK_EQ(result->exit_code(), ExitCode::kNoFailure);
+  DCHECK_EQ(result->exit_code_enum(), ExitCode::kNoFailure);
   const SnapshotData* snapshot_data = nullptr;
 
   auto cleanup_process = OnScopeLeave([&]() {
