@@ -484,7 +484,7 @@ same as [`it([name], { skip: true }[, fn])`][it options].
 Shorthand for marking a test as `TODO`,
 same as [`it([name], { todo: true }[, fn])`][it options].
 
-## `before([, fn][, options])`
+## `before([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -512,7 +512,7 @@ describe('tests', async () => {
 });
 ```
 
-## `after([, fn][, options])`
+## `after([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -540,7 +540,7 @@ describe('tests', async () => {
 });
 ```
 
-## `beforeEach([, fn][, options])`
+## `beforeEach([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -569,7 +569,7 @@ describe('tests', async () => {
 });
 ```
 
-## `afterEach([, fn][, options])`
+## `afterEach([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -651,7 +651,7 @@ An instance of `TestContext` is passed to each test function in order to
 interact with the test runner. However, the `TestContext` constructor is not
 exposed as part of the API.
 
-### `context.beforeEach([, fn][, options])`
+### `context.beforeEach([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
@@ -683,7 +683,7 @@ test('top level test', async (t) => {
 });
 ```
 
-### `context.afterEach([, fn][, options])`
+### `context.afterEach([fn][, options])`
 
 <!-- YAML
 added: v18.8.0
