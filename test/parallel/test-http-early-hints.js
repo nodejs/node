@@ -11,7 +11,9 @@ const testResBody = 'response content\n';
 
   const server = http.createServer(common.mustCall((req, res) => {
     debug('Server sending early hints...');
-    res.writeEarlyHints('</styles.css>; rel=preload; as=style');
+    res.writeEarlyHints({
+      link: '</styles.css>; rel=preload; as=style'
+    });
 
     debug('Server sending full response...');
     res.end(testResBody);
@@ -53,10 +55,12 @@ const testResBody = 'response content\n';
 
   const server = http.createServer(common.mustCall((req, res) => {
     debug('Server sending early hints...');
-    res.writeEarlyHints([
-      '</styles.css>; rel=preload; as=style',
-      '</scripts.js>; rel=preload; as=script',
-    ]);
+    res.writeEarlyHints({
+      link: [
+        '</styles.css>; rel=preload; as=style',
+        '</scripts.js>; rel=preload; as=script',
+      ]
+    });
 
     debug('Server sending full response...');
     res.end(testResBody);
@@ -100,7 +104,9 @@ const testResBody = 'response content\n';
 
   const server = http.createServer(common.mustCall((req, res) => {
     debug('Server sending early hints...');
-    res.writeEarlyHints([]);
+    res.writeEarlyHints({
+      link: []
+    });
 
     debug('Server sending full response...');
     res.end(testResBody);
