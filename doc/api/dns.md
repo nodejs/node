@@ -1447,8 +1447,8 @@ use libuv's threadpool.
 As a result, these functions cannot have the same negative impact on other
 processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 
-They do not use the same set of configuration files than what [`dns.lookup()`][]
-uses. For instance, _they do not use the configuration from `/etc/hosts`_.
+They do not use the same set of configuration files that [`dns.lookup()`][]
+uses. For instance, they do not use the configuration from `/etc/hosts`.
 
 [DNS error codes]: #error-codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
