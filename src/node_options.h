@@ -112,7 +112,6 @@ class EnvironmentOptions : public Options {
   bool experimental_global_customevent = false;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
-  std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
