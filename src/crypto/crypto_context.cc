@@ -699,15 +699,14 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     return;
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  while (X509* x509 = PEM_read_bio_X509_AUX(
-      bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
+             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
     if (cert_store == root_cert_store) {
       cert_store = NewRootCertStore();
       SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
     }
-    X509_STORE_add_cert(cert_store, x509);
-    SSL_CTX_add_client_CA(sc->ctx_.get(), x509);
-    X509_free(x509);
+    X509_STORE_add_cert(cert_store, x509.get());
+    SSL_CTX_add_client_CA(sc->ctx_.get(), x509.get());
   }
 }
 
@@ -1311,10 +1310,9 @@ unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   if (!bio)
     return ERR_get_error();
 
-  while (X509* x509 =
-      PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
-    X509_STORE_add_cert(store, x509);
-    X509_free(x509);
+  while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509(
+             bio.get(), nullptr, NoPasswordCallback, nullptr))) {
+    X509_STORE_add_cert(store, x509.get());
   }
 
   unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
