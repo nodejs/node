@@ -858,6 +858,7 @@ against FIPS-enabled OpenSSL.
 added:
   - v18.5.0
   - v16.17.0
+  - v14.21.0
 -->
 
 Enable OpenSSL default configuration section, `openssl_conf` to be read from
