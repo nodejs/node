@@ -17,7 +17,7 @@ function TAPChecker(input) {
 {
   assert.throws(() => TAPChecker('TAP version 14'), {
     name: 'TAPValidationError',
-    message: 'missing Plan',
+    message: 'missing TAP plan',
   });
 }
 
@@ -55,7 +55,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: 'test 2 is out of Plan range 1..1',
+      message: 'test 2 is out of plan range 1..1',
     }
   );
 }
@@ -70,7 +70,7 @@ ok 2
 `),
     {
       name: 'TAPValidationError',
-      message: 'plan start 3 is greater than Plan end 1',
+      message: 'plan start 3 is greater than plan end 1',
     }
   );
 }
@@ -87,7 +87,7 @@ ok 3
 `),
     {
       name: 'TAPValidationError',
-      message: 'test 1 is out of Plan range 2..3',
+      message: 'test 1 is out of plan range 2..3',
     }
   );
 }

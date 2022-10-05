@@ -8,31 +8,65 @@ const { TapParser } = require('internal/test_runner/tap_parser');
 
 function TAPParser(input) {
   const parser = new TapParser();
-  return parser.parseSync(input);
+  const ast = parser.parseSync(input);
+  return ast;
+}
+
+// Comment
+
+{
+  const ast = TAPParser('# comment');
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'comment' },
+    },
+  ]);
+}
+
+{
+  const ast = TAPParser('#');
+  assert.deepEqual(ast, [
+    {
+      kind: 'Comment',
+      nesting: 0,
+      node: {
+        comment: '',
+      },
+    },
+  ]);
+}
+
+{
+  const ast = TAPParser('####');
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: '###' },
+    },
+  ]);
 }
 
 // Empty input
 
 {
   const ast = TAPParser('');
-  assert.deepStrictEqual(ast, {
-    root: {},
-  });
+  assert.deepEqual(ast, []);
 }
 
 // TAP version
 
 {
   const ast = TAPParser('TAP version 14');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          version: '14',
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'VersionKeyword',
+      node: { version: '14' },
     },
-  });
+  ]);
 }
 
 {
@@ -57,30 +91,32 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('1..5 # reason');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [{ plan: { start: '1', end: '5', reason: 'reason' } }],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'PlanKeyword',
+      node: { plan: { start: '1', end: '5', reason: 'reason' } },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser(
     '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~'
   );
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          plan: {
-            start: '1',
-            end: '5',
-            reason: 'reason " !"\\#$%&\'()*+,-./:;<=>?@[]^_`{|}~',
-          },
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'PlanKeyword',
+      node: {
+        plan: {
+          start: '1',
+          end: '5',
+          reason: 'reason " !"\\#$%&\'()*+,-./:;<=>?@[]^_`{|}~',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
@@ -123,502 +159,631 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('ok');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '',
+          description: '',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('not ok');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '',
-              status: {
-                pass: false,
-                fail: true,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestNotOkKeyword',
+      node: {
+        test: {
+          status: { fail: true, pass: false, todo: false, skip: false },
+          id: '',
+          description: '',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: '',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser(`
-ok 1
-not ok 2
+ok 111
+not ok 222
 `);
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-            {
-              id: '2',
-              status: {
-                pass: false,
-                fail: true,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '111',
+          description: '',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+    {
+      nesting: 0,
+      kind: 'TestNotOkKeyword',
+      node: {
+        test: {
+          status: { fail: true, pass: false, todo: false, skip: false },
+          id: '222',
+          description: '',
+          reason: '',
+        },
+      },
+    },
+  ]);
 }
 
 {
-  // A subtest is indented by 4 spaces
+  // Nested tests
   const ast = TAPParser(`
-ok 1
+ok 1 - parent
+    ok 2 - child
+`);
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'parent',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '2',
+          description: 'child',
+          reason: '',
+        },
+      },
+    },
+  ]);
+}
+
+{
+  const ast = TAPParser(`
+# Subtest: nested1
     ok 1
+
+    # Subtest: nested2
+    ok 1 - nested2
+
+    # Subtest: nested3
+    ok 1 - nested3
+
+    # Subtest: nested4
+    ok 1 - nested4
+
+ok 1 - nested1
 `);
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: '',
-              reason: '',
-            },
-          ],
-          documents: [
-            {
-              tests: [
-                {
-                  id: '1',
-                  status: {
-                    pass: true,
-                    fail: false,
-                    skip: false,
-                    todo: false,
-                  },
-                  description: '',
-                  reason: '',
-                },
-              ],
-            },
-          ],
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested1' },
     },
-  });
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: '',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested2' },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'nested2',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested3' },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'nested3',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested4' },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'nested4',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'nested1',
+          reason: '',
+        },
+      },
+    },
+  ]);
+}
+
+// Nested tests as comment
+
+{
+  const ast = TAPParser(`
+# Subtest: nested1
+    ok 1 - test nested1
+
+    # Subtest: nested2
+        ok 2 - test nested2
+
+    ok 3 - nested2
+
+ok 4 - nested1
+`);
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested1' },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'test nested1',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested2' },
+    },
+    {
+      nesting: 2,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '2',
+          description: 'test nested2',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '3',
+          description: 'nested2',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '4',
+          description: 'nested1',
+          reason: '',
+        },
+      },
+    },
+  ]);
+}
+
+// Multiple nested tests as comment
+
+{
+  const ast = TAPParser(`
+# Subtest: nested1
+    ok 1 - test nested1
+
+    # Subtest: nested2a
+        ok 2 - test nested2a
+
+    ok 3 - nested2a
+
+    # Subtest: nested2b
+        ok 4 - test nested2b
+
+    ok 5 - nested2b
+
+ok 6 - nested1
+`);
+  console.log(JSON.stringify(ast, null, 2));
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested1' },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'test nested1',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested2a' },
+    },
+    {
+      nesting: 2,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '2',
+          description: 'test nested2a',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '3',
+          description: 'nested2a',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'nested2b' },
+    },
+    {
+      nesting: 2,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '4',
+          description: 'test nested2b',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '5',
+          description: 'nested2b',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '6',
+          description: 'nested1',
+          reason: '',
+        },
+      },
+    },
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 description');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'description',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'description',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 - description');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'description',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'description',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 - description # todo');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: true,
-              },
-              description: 'description',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: true, skip: false },
+          id: '1',
+          description: 'description',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 - description \\# todo');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'description # todo',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'description # todo',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 - description \\ # todo');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: true,
-              },
-              description: 'description',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: true, skip: false },
+          id: '1',
+          description: 'description',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser(
     'ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\'
   );
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: true,
-              },
-              description: 'description # \\ world',
-              reason: 'escape # characters with \\',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: true, skip: false },
+          id: '1',
+          description: 'description # \\ world',
+          reason: 'escape # characters with \\',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1 - description # ##');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'description',
-              reason: '##',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'description',
+          reason: '##',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser(
     'ok 2 not skipped: https://example.com/page.html#skip is a url'
   );
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '2',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description:
-                'not skipped: https://example.com/page.html#skip is a url',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '2',
+          description:
+            'not skipped: https://example.com/page.html#skip is a url',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 3 - #SkIp case insensitive, so this is skipped');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '3',
-              status: {
-                pass: true,
-                fail: false,
-                skip: true,
-                todo: false,
-              },
-              reason: 'case insensitive, so this is skipped',
-              description: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: true },
+          id: '3',
+          description: '',
+          reason: 'case insensitive, so this is skipped',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok ok ok');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'ok ok',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '',
+          description: 'ok ok',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok not ok');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: 'not ok',
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '',
+          description: 'not ok',
+          reason: '',
         },
-      ],
+      },
     },
-  });
+  ]);
 }
 
 {
   const ast = TAPParser('ok 1..1');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              id: '1',
-              status: {
-                pass: true,
-                fail: false,
-                skip: false,
-                todo: false,
-              },
-              description: '', // This looks like an edge case
-              reason: '',
-            },
-          ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: '',
+          reason: '',
         },
-      ],
+      },
     },
-  });
-}
-
-// Comment
-
-{
-  const ast = TAPParser('# comment');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          comments: ['comment'],
-        },
-      ],
-    },
-  });
-}
-
-{
-  const ast = TAPParser('#');
-  assert.deepStrictEqual(ast, {
-    root: {},
-  });
-}
-
-{
-  const ast = TAPParser('####');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          comments: ['###'],
-        },
-      ],
-    },
-  });
+  ]);
 }
 
 // Diagnostic
@@ -631,19 +796,15 @@ ok 1
   property: 'value'
   ...
 `);
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              diagnostics: ["message: 'description'", "property: 'value'"],
-            },
-          ],
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'YamlEndKeyword',
+      node: {
+        diagnostics: ["message: 'description'", "property: 'value'"],
+      },
     },
-  });
+  ]);
 }
 
 {
@@ -665,33 +826,29 @@ ok 1
       - '        G     R     G        '
   ...
 `);
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              diagnostics: [
-                'message: "Board layout"',
-                'severity: comment',
-                'dump:',
-                '  board:',
-                "    - '      16G         05C        '",
-                "    - '      G N C       C C G      '",
-                "    - '        G           C  +     '",
-                "    - '10C   01G         03C        '",
-                "    - 'R N G G A G       C C C      '",
-                "    - '  R     G           C  +     '",
-                "    - '      01G   17C   00C        '",
-                "    - '      G A G G N R R N R      '",
-                "    - '        G     R     G        '",
-              ],
-            },
-          ],
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'YamlEndKeyword',
+      node: {
+        diagnostics: [
+          'message: "Board layout"',
+          'severity: comment',
+          'dump:',
+          '  board:',
+          "    - '      16G         05C        '",
+          "    - '      G N C       C C G      '",
+          "    - '        G           C  +     '",
+          "    - '10C   01G         03C        '",
+          "    - 'R N G G A G       C C C      '",
+          "    - '  R     G           C  +     '",
+          "    - '      01G   17C   00C        '",
+          "    - '      G A G G N R R N R      '",
+          "    - '        G     R     G        '",
+        ],
+      },
     },
-  });
+  ]);
 }
 
 {
@@ -699,19 +856,13 @@ ok 1
   ---
   ...
 `);
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          tests: [
-            {
-              diagnostics: [],
-            },
-          ],
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'YamlEndKeyword',
+      node: { diagnostics: [] },
     },
-  });
+  ]);
 }
 
 {
@@ -755,7 +906,7 @@ ok 1
 {
   assert.throws(
     () =>
-    // Note the leading 3 spaces before ---
+      // Note the leading 3 spaces before ---
       TAPParser(
         `
      ---
@@ -776,7 +927,7 @@ ok 1
 {
   assert.throws(
     () =>
-    // Note the leading 5 spaces before ---
+      // Note the leading 5 spaces before ---
       TAPParser(
         `
        ---
@@ -797,7 +948,7 @@ ok 1
 {
   assert.throws(
     () =>
-    // Note the leading 4 spaces before ---
+      // Note the leading 4 spaces before ---
       TAPParser(
         `
       ---
@@ -818,7 +969,7 @@ ok 1
 {
   assert.throws(
     () =>
-    // Note the leading 4 spaces before ...
+      // Note the leading 4 spaces before ...
       TAPParser(
         `
     ---
@@ -840,33 +991,28 @@ ok 1
 
 {
   const ast = TAPParser('pragma +strict, -warnings');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          pragmas: {
-            strict: true,
-            warnings: false,
-          },
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'PragmaKeyword',
+      node: {
+        pragmas: { strict: true, warnings: false },
+      },
     },
-  });
+  ]);
 }
 
 // Bail out
 
 {
   const ast = TAPParser('Bail out! Error');
-  assert.deepStrictEqual(ast, {
-    root: {
-      documents: [
-        {
-          bailout: 'Error',
-        },
-      ],
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'BailOutKeyword',
+      node: { bailout: true, reason: 'Error' },
     },
-  });
+  ]);
 }
 
 // Non-recognized
@@ -887,4 +1033,200 @@ ok 1
     // message:
     //   'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
   });
+}
+
+// TAP document (with diagnostics)
+
+{
+  const ast = TAPParser(`
+TAP version 13
+# Subtest: /test.js
+    # Subtest: level 0a
+        # Subtest: level 1a
+            ok 1 - level 1a
+              ---
+              duration_ms: 1.676996
+              ...
+            1..1
+        not ok 1 - level 1a
+          ---
+          duration_ms: 0.122839
+          failureType: 'testCodeFailure'
+          error: 'level 0b error'
+          code: 'ERR_TEST_FAILURE'
+          stack: |-
+            TestContext.<anonymous> (/test.js:23:9)
+          ...
+        1..1
+    not ok 1 - level 0a
+      ---
+      duration_ms: 84.920487
+      failureType: 'subtestsFailed'
+      exitCode: 1
+      error: '3 subtests failed'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..1
+not ok 1 - /test.js
+# tests 1
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 87.077507
+  `);
+
+  assert.deepEqual(ast, [
+    {
+      nesting: 0,
+      kind: 'VersionKeyword',
+      node: { version: '13' },
+    },
+    {
+      nesting: 0,
+      kind: 'SubTestPointKeyword',
+      node: { name: '/test.js' },
+    },
+    {
+      nesting: 1,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'level 0a' },
+    },
+    {
+      nesting: 2,
+      kind: 'SubTestPointKeyword',
+      node: { name: 'level 1a' },
+    },
+    {
+      nesting: 3,
+      kind: 'TestOkKeyword',
+      node: {
+        test: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'level 1a',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 3,
+      kind: 'YamlEndKeyword',
+      node: { diagnostics: ['duration_ms: 1.676996'] },
+    },
+    {
+      nesting: 3,
+      kind: 'PlanKeyword',
+      node: { plan: { start: '1', end: '1' } },
+    },
+    {
+      nesting: 2,
+      kind: 'TestNotOkKeyword',
+      node: {
+        test: {
+          status: { fail: true, pass: false, todo: false, skip: false },
+          id: '1',
+          description: 'level 1a',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 2,
+      kind: 'YamlEndKeyword',
+      node: {
+        diagnostics: [
+          'duration_ms: 0.122839',
+          "failureType: 'testCodeFailure'",
+          "error: 'level 0b error'",
+          "code: 'ERR_TEST_FAILURE'",
+          'stack: |-',
+          '  TestContext.<anonymous> (/test.js:23:9)',
+        ],
+      },
+    },
+    {
+      nesting: 2,
+      kind: 'PlanKeyword',
+      node: { plan: { start: '1', end: '1' } },
+    },
+    {
+      nesting: 1,
+      kind: 'TestNotOkKeyword',
+      node: {
+        test: {
+          status: { fail: true, pass: false, todo: false, skip: false },
+          id: '1',
+          description: 'level 0a',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'YamlEndKeyword',
+      node: {
+        diagnostics: [
+          'duration_ms: 84.920487',
+          "failureType: 'subtestsFailed'",
+          'exitCode: 1',
+          "error: '3 subtests failed'",
+          "code: 'ERR_TEST_FAILURE'",
+        ],
+      },
+    },
+    {
+      nesting: 1,
+      kind: 'PlanKeyword',
+      node: { plan: { start: '1', end: '1' } },
+    },
+    {
+      nesting: 0,
+      kind: 'TestNotOkKeyword',
+      node: {
+        test: {
+          status: { fail: true, pass: false, todo: false, skip: false },
+          id: '1',
+          description: '/test.js',
+          reason: '',
+        },
+      },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'tests 1' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'pass 0' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'fail 1' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'cancelled 0' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'skipped 0' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'todo 0' },
+    },
+    {
+      nesting: 0,
+      kind: 'Comment',
+      node: { comment: 'duration_ms 87.077507' },
+    },
+  ]);
 }
