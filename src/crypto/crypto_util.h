@@ -791,6 +791,8 @@ v8::Maybe<bool> SetEncodedValue(
     const BIGNUM* bn,
     int size = 0);
 
+bool SetRsaOaepLabel(const EVPKeyCtxPointer& rsa, const ByteSource& label);
+
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
