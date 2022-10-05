@@ -221,18 +221,7 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  size_t label_len = params.label.size();
-  if (label_len > 0) {
-    void* label = OPENSSL_memdup(params.label.data<char>(), label_len);
-    CHECK_NOT_NULL(label);
-    if (EVP_PKEY_CTX_set0_rsa_oaep_label(
-      ctx.get(),
-      static_cast<unsigned char*>(label),
-      label_len) <= 0) {
-      OPENSSL_free(label);
-      return WebCryptoCipherStatus::FAILED;
-    }
-  }
+  if (!SetRsaOaepLabel(ctx, params.label)) return WebCryptoCipherStatus::FAILED;
 
   size_t out_len = 0;
   if (cipher(
