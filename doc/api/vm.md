@@ -355,7 +355,19 @@ added: REPLACEME
 When the script is compiled from a source that contains a source map magic
 comment, this property will be set to the URL of the source map.
 
-```js
+```mjs
+import vm from 'node:vm';
+
+const script = new vm.Script(`
+function myFunc() {}
+//# sourceMappingURL=sourcemap.json
+`);
+
+console.log(script.sourceMapURL);
+// Prints: sourcemap.json
+```
+
+```cjs
 const vm = require('node:vm');
 
 const script = new vm.Script(`
