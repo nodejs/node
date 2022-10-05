@@ -16,7 +16,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('# comment');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'Comment',
@@ -27,7 +27,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('#');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       kind: 'Comment',
       nesting: 0,
@@ -40,7 +40,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('####');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'Comment',
@@ -53,14 +53,14 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('');
-  assert.deepEqual(ast, []);
+  assert.deepStrictEqual(ast, []);
 }
 
 // TAP version
 
 {
   const ast = TAPParser('TAP version 14');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'VersionKeyword',
@@ -91,7 +91,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('1..5 # reason');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'PlanKeyword',
@@ -104,7 +104,7 @@ function TAPParser(input) {
   const ast = TAPParser(
     '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~'
   );
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'PlanKeyword',
@@ -159,7 +159,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('ok');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -177,7 +177,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('not ok');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestNotOkKeyword',
@@ -195,7 +195,7 @@ function TAPParser(input) {
 
 {
   const ast = TAPParser('ok 1');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -216,7 +216,7 @@ function TAPParser(input) {
 ok 111
 not ok 222
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -250,7 +250,7 @@ not ok 222
 ok 1 - parent
     ok 2 - child
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -294,7 +294,7 @@ ok 1 - parent
 
 ok 1 - nested1
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'SubTestPointKeyword',
@@ -392,7 +392,7 @@ ok 1 - nested1
 
 ok 4 - nested1
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'SubTestPointKeyword',
@@ -474,7 +474,7 @@ ok 4 - nested1
 ok 6 - nested1
 `);
   console.log(JSON.stringify(ast, null, 2));
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'SubTestPointKeyword',
@@ -567,7 +567,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 description');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -585,7 +585,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 - description');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -603,7 +603,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 - description # todo');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -621,7 +621,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 - description \\# todo');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -639,7 +639,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 - description \\ # todo');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -659,7 +659,7 @@ ok 6 - nested1
   const ast = TAPParser(
     'ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\'
   );
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -677,7 +677,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1 - description # ##');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -697,7 +697,7 @@ ok 6 - nested1
   const ast = TAPParser(
     'ok 2 not skipped: https://example.com/page.html#skip is a url'
   );
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -716,7 +716,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 3 - #SkIp case insensitive, so this is skipped');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -734,7 +734,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok ok ok');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -752,7 +752,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok not ok');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -770,7 +770,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('ok 1..1');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'TestOkKeyword',
@@ -796,7 +796,7 @@ ok 6 - nested1
   property: 'value'
   ...
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'YamlEndKeyword',
@@ -826,7 +826,7 @@ ok 6 - nested1
       - '        G     R     G        '
   ...
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'YamlEndKeyword',
@@ -856,7 +856,7 @@ ok 6 - nested1
   ---
   ...
 `);
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'YamlEndKeyword',
@@ -991,7 +991,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('pragma +strict, -warnings');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'PragmaKeyword',
@@ -1006,7 +1006,7 @@ ok 6 - nested1
 
 {
   const ast = TAPParser('Bail out! Error');
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'BailOutKeyword',
@@ -1077,7 +1077,7 @@ not ok 1 - /test.js
 # duration_ms 87.077507
   `);
 
-  assert.deepEqual(ast, [
+  assert.deepStrictEqual(ast, [
     {
       nesting: 0,
       kind: 'VersionKeyword',
