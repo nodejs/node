@@ -704,20 +704,21 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
     }
 
     case UCS2: {
+      size_t str_len = buflen / 2;
       if (IsBigEndian()) {
-        uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen / 2);
-        if (dst == nullptr) {
+        uint16_t* dst = node::UncheckedMalloc<uint16_t>(str_len);
+        if (str_len != 0 && dst == nullptr) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
           return MaybeLocal<Value>();
         }
-        for (size_t i = 0, k = 0; k < buflen / 2; i += 2, k += 1) {
+        for (size_t i = 0, k = 0; k < str_len; i += 2, k += 1) {
           // The input is in *little endian*, because that's what Node.js
           // expects, so the high byte comes after the low byte.
           const uint8_t hi = static_cast<uint8_t>(buf[i + 1]);
           const uint8_t lo = static_cast<uint8_t>(buf[i + 0]);
           dst[k] = static_cast<uint16_t>(hi) << 8 | lo;
         }
-        return ExternTwoByteString::New(isolate, dst, buflen / 2, error);
+        return ExternTwoByteString::New(isolate, dst, str_len, error);
       }
       if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
         // Unaligned data still means we can't directly pass it to V8.
@@ -728,10 +729,10 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         }
         memcpy(dst, buf, buflen);
         return ExternTwoByteString::New(
-            isolate, reinterpret_cast<uint16_t*>(dst), buflen / 2, error);
+            isolate, reinterpret_cast<uint16_t*>(dst), str_len, error);
       }
       return ExternTwoByteString::NewFromCopy(
-          isolate, reinterpret_cast<const uint16_t*>(buf), buflen / 2, error);
+          isolate, reinterpret_cast<const uint16_t*>(buf), str_len, error);
     }
 
     default:
@@ -747,6 +748,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const uint16_t* buf,
                                       size_t buflen,
                                       Local<Value>* error) {
+  if (buflen == 0) return String::Empty(isolate);
   CHECK_BUFLEN_IN_RANGE(buflen);
 
   // Node's "ucs2" encoding expects LE character data inside a

@@ -97,39 +97,39 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('A'));
 }
 
-#define TEST_AND_FREE(expression)                                             \
-  do {                                                                        \
-    auto pointer = expression;                                                \
-    EXPECT_NE(nullptr, pointer);                                              \
-    free(pointer);                                                            \
+#define TEST_AND_FREE(expression, size)                                        \
+  do {                                                                         \
+    auto pointer = expression(size);                                           \
+    EXPECT_EQ(pointer == nullptr, size == 0);                                  \
+    free(pointer);                                                             \
   } while (0)
 
 TEST(UtilTest, Malloc) {
-  TEST_AND_FREE(Malloc<char>(0));
-  TEST_AND_FREE(Malloc<char>(1));
-  TEST_AND_FREE(Malloc(0));
-  TEST_AND_FREE(Malloc(1));
+  TEST_AND_FREE(Malloc<char>, 0);
+  TEST_AND_FREE(Malloc<char>, 1);
+  TEST_AND_FREE(Malloc, 0);
+  TEST_AND_FREE(Malloc, 1);
 }
 
 TEST(UtilTest, Calloc) {
-  TEST_AND_FREE(Calloc<char>(0));
-  TEST_AND_FREE(Calloc<char>(1));
-  TEST_AND_FREE(Calloc(0));
-  TEST_AND_FREE(Calloc(1));
+  TEST_AND_FREE(Calloc<char>, 0);
+  TEST_AND_FREE(Calloc<char>, 1);
+  TEST_AND_FREE(Calloc, 0);
+  TEST_AND_FREE(Calloc, 1);
 }
 
 TEST(UtilTest, UncheckedMalloc) {
-  TEST_AND_FREE(UncheckedMalloc<char>(0));
-  TEST_AND_FREE(UncheckedMalloc<char>(1));
-  TEST_AND_FREE(UncheckedMalloc(0));
-  TEST_AND_FREE(UncheckedMalloc(1));
+  TEST_AND_FREE(UncheckedMalloc<char>, 0);
+  TEST_AND_FREE(UncheckedMalloc<char>, 1);
+  TEST_AND_FREE(UncheckedMalloc, 0);
+  TEST_AND_FREE(UncheckedMalloc, 1);
 }
 
 TEST(UtilTest, UncheckedCalloc) {
-  TEST_AND_FREE(UncheckedCalloc<char>(0));
-  TEST_AND_FREE(UncheckedCalloc<char>(1));
-  TEST_AND_FREE(UncheckedCalloc(0));
-  TEST_AND_FREE(UncheckedCalloc(1));
+  TEST_AND_FREE(UncheckedCalloc<char>, 0);
+  TEST_AND_FREE(UncheckedCalloc<char>, 1);
+  TEST_AND_FREE(UncheckedCalloc, 0);
+  TEST_AND_FREE(UncheckedCalloc, 1);
 }
 
 template <typename T>
