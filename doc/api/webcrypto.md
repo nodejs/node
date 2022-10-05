@@ -2,6 +2,10 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44897
+    description: No longer experimental except for the `Ed25519`, `Ed448`,
+      `X25519`, and `X448` algorithms.
   - version:
     - v18.4.0
     - v16.17.0
@@ -35,7 +39,7 @@ changes:
 
 <!-- introduced_in=v15.0.0 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Node.js provides an implementation of the standard [Web Crypto API][].
 
