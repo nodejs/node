@@ -337,7 +337,7 @@ if (!isWindows) {
 }
 
 // It should not throw exception if child folder
-// does not pass filter function
+// is filtered out.
 {
   // Create a file in dest with the same name as a child folder in src
   // expect: this shouldn't throw error since filtered out by filter function
