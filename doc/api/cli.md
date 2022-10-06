@@ -1529,6 +1529,14 @@ environment variables.
 
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
+### `--node-use-system-ca`
+
+Node.js uses the trusted CA certificates present in the system store along with
+the `--use-bundled-ca`, `--use-openssl-ca` options.
+
+Note, Only current user certificates are accessible using this method, not the
+local machine store. This option is available to Windows only.
+
 ### `--use-largepages=mode`
 
 <!-- YAML
