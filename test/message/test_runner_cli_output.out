@@ -1,21 +1,21 @@
 TAP version 13
-# Subtest: /Users/mosheatlow/repos/node/test/fixtures/test-runner/index.test.js
+# Subtest: test/fixtures/test-runner/index.test.js
     # Subtest: this should pass
     ok 1 - this should pass
       ---
       duration_ms: *
       ...
-ok 1 - /Users/mosheatlow/repos/node/test/fixtures/test-runner/index.test.js
+ok 1 - test/fixtures/test-runner/index.test.js
   ---
   duration_ms: *
   ...
-# Subtest: /Users/mosheatlow/repos/node/test/fixtures/test-runner/invalid_tap.js
+# Subtest: test/fixtures/test-runner/invalid_tap.js
     # invalid tap output
-ok 2 - /Users/mosheatlow/repos/node/test/fixtures/test-runner/invalid_tap.js
+ok 2 - test/fixtures/test-runner/invalid_tap.js
   ---
   duration_ms: *
   ...
-# Subtest: /Users/mosheatlow/repos/node/test/fixtures/test-runner/nested.js
+# Subtest: test/fixtures/test-runner/nested.js
     # Subtest: level 0a
         # Subtest: level 1a
         ok 1 - level 1a
@@ -77,7 +77,7 @@ ok 2 - /Users/mosheatlow/repos/node/test/fixtures/test-runner/invalid_tap.js
         *
       ...
     1..2
-not ok 3 - /Users/mosheatlow/repos/node/test/fixtures/test-runner/nested.js
+not ok 3 - test/fixtures/test-runner/nested.js
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
