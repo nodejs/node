@@ -45,6 +45,7 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
@@ -442,7 +443,11 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   RunAtExit(env);
-  int code = args[0]->Int32Value(env->context()).FromMaybe(0);
+  ExitCode code = ExitCode::kNoFailure;
+  Maybe<int32_t> code_int = args[0]->Int32Value(env->context());
+  if (!code_int.IsNothing()) {
+    code = static_cast<ExitCode>(code_int.FromJust());
+  }
   env->Exit(code);
 }
 
