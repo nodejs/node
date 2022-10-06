@@ -616,6 +616,15 @@ hr {
   border-radius: 3px;
 }
 
+.experimental-inline::after {
+  background-color: var(--red3);
+  color: var(--white);
+  content: "experimental";
+  margin-left: .25rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
 #apicontent li {
   margin-bottom: .5rem;
 }
