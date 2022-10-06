@@ -8,7 +8,7 @@ const testResBody = 'response content\n';
 
 const server = http.createServer(common.mustCall((req, res) => {
   debug('Server sending early hints...');
-  res.writeEarlyHints('bad argument value');
+  res.writeEarlyHints('bad argument type');
 
   debug('Server sending full response...');
   res.end(testResBody);
@@ -27,7 +27,7 @@ server.listen(0, common.mustCall(() => {
   process.on('uncaughtException', (err) => {
     debug(`Caught an exception: ${JSON.stringify(err)}`);
     if (err.name === 'AssertionError') throw err;
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
+    assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
     process.exit(0);
   });
 }));

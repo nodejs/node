@@ -10,13 +10,13 @@ const debug = require('node:util').debuglog('test');
 const testResBody = 'response content';
 
 {
-  // Invalid object value
+  // Invalid link header value
 
   const server = http2.createServer();
 
   server.on('request', common.mustCall((req, res) => {
     debug('Server sending early hints...');
-    res.writeEarlyHints('this should not be here');
+    res.writeEarlyHints({ link: BigInt(100) });
 
     debug('Server sending full response...');
     res.end(testResBody);
@@ -35,7 +35,7 @@ const testResBody = 'response content';
     process.on('uncaughtException', (err) => {
       debug(`Caught an exception: ${JSON.stringify(err)}`);
       if (err.name === 'AssertionError') throw err;
-      assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+      assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
       process.exit(0);
     });
   }));
