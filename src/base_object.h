@@ -247,7 +247,9 @@ inline T* Unwrap(v8::Local<v8::Value> obj) {
 // circumstances such as the GC or Environment cleanup.
 // If weak, destruction behaviour is not affected, but the pointer will be
 // reset to nullptr once the BaseObject is destroyed.
-// The API matches std::shared_ptr closely.
+// The API matches std::shared_ptr closely. However, this class is not thread
+// safe, that is, we can't have different BaseObjectPtrImpl instances in
+// different threads refering to the same BaseObject instance.
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl final {
  public:
