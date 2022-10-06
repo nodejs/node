@@ -72,6 +72,7 @@ const expectedModules = new Set([
   'NativeModule internal/histogram',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
+  'NativeModule internal/mime',
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
   'NativeModule internal/modules/esm/assert',

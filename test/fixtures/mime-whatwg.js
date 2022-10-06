@@ -1,5 +1,7 @@
 'use strict';
 
+// TODO: Incorporate this with the other WPT tests if it makes sense to do that.
+
 /* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/88b75886e/url/urltestdata.json

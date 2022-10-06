@@ -3133,7 +3133,7 @@ util.log('Timestamped message.');
 [`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`MIMEparams`]: #util_class_util_mimeparams
+[`MIMEparams`]: #class-utilmimeparams
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
@@ -3151,10 +3151,10 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
-[`mime.toJSON()`]: #util_mime_tojson
-[`mime.toString()`]: #util_mime_tostring
-[`mimeParams.entries()`]: #util_mimeparams_entries
-[`mimeParams@@iterator()`]: #util_mimeparams_iterator
+[`mime.toJSON()`]: #mimetojson
+[`mime.toString()`]: #mimetostring
+[`mimeParams.entries()`]: #mimeparamsentries
+[`mimeParams@@iterator()`]: #mimeparamsiterator
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
