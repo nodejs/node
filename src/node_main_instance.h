@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "node.h"
+#include "node_exit_code.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -57,13 +58,13 @@ class NodeMainInstance {
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
-  int Run();
-  void Run(int* exit_code, Environment* env);
+  ExitCode Run();
+  void Run(ExitCode* exit_code, Environment* env);
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
-      int* exit_code);
+      ExitCode* exit_code);
 
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;

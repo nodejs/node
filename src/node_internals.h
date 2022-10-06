@@ -312,14 +312,15 @@ void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 class InitializationResultImpl final : public InitializationResult {
  public:
   ~InitializationResultImpl();
-  int exit_code() const { return exit_code_; }
+  int exit_code() const { return static_cast<int>(exit_code_enum()); }
+  ExitCode exit_code_enum() const { return exit_code_; }
   bool early_return() const { return early_return_; }
   const std::vector<std::string>& args() const { return args_; }
   const std::vector<std::string>& exec_args() const { return exec_args_; }
   const std::vector<std::string>& errors() const { return errors_; }
   MultiIsolatePlatform* platform() const { return platform_; }
 
-  int exit_code_ = 0;
+  ExitCode exit_code_ = ExitCode::kNoFailure;
   std::vector<std::string> args_;
   std::vector<std::string> exec_args_;
   std::vector<std::string> errors_;

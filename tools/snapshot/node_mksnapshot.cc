@@ -84,18 +84,18 @@ int BuildSnapshot(int argc, char* argv[]) {
     return 1;
   }
 
-  int exit_code = 0;
+  node::ExitCode exit_code = node::ExitCode::kNoFailure;
   {
     exit_code = node::SnapshotBuilder::Generate(
         out, result->args(), result->exec_args());
-    if (exit_code == 0) {
+    if (exit_code == node::ExitCode::kNoFailure) {
       if (!out) {
         std::cerr << "Failed to write " << out_path << "\n";
-        exit_code = 1;
+        exit_code = node::ExitCode::kGenericUserError;
       }
     }
   }
 
   node::TearDownOncePerProcess();
-  return exit_code;
+  return static_cast<int>(exit_code);
 }

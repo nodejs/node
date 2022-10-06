@@ -37,6 +37,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_builtins.h"
+#include "node_exit_code.h"
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
@@ -577,6 +578,10 @@ struct SnapshotData {
   SnapshotData() = default;
 };
 
+void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code);
+v8::Maybe<ExitCode> SpinEventLoopInternal(Environment* env);
+v8::Maybe<ExitCode> EmitProcessExitInternal(Environment* env);
+
 /**
  * Environment is a per-isolate data structure that represents an execution
  * environment. Each environment has a principal realm. An environment can
@@ -612,7 +617,7 @@ class Environment : public MemoryRetainer {
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
-  int InitializeInspector(
+  ExitCode InitializeInspector(
       std::unique_ptr<inspector::ParentInspectorHandle> parent_handle);
 #endif
 
@@ -685,7 +690,7 @@ class Environment : public MemoryRetainer {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
-  void Exit(int code);
+  void Exit(ExitCode code);
   void ExitEnv();
 
   // Register clean-up cb to be called on environment destruction.
@@ -1010,7 +1015,7 @@ class Environment : public MemoryRetainer {
 
   inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
   inline void set_process_exit_handler(
-      std::function<void(Environment*, int)>&& handler);
+      std::function<void(Environment*, ExitCode)>&& handler);
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
@@ -1176,8 +1181,8 @@ class Environment : public MemoryRetainer {
 
   std::unordered_set<int> unmanaged_fds_;
 
-  std::function<void(Environment*, int)> process_exit_handler_ {
-      DefaultProcessExitHandler };
+  std::function<void(Environment*, ExitCode)> process_exit_handler_{
+      DefaultProcessExitHandlerInternal};
 
   std::unique_ptr<Realm> principal_realm_ = nullptr;
 

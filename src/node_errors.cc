@@ -569,7 +569,7 @@ TryCatchScope::~TryCatchScope() {
     if (message.IsEmpty())
       message = Exception::CreateMessage(env_->isolate(), exception);
     ReportFatalException(env_, exception, message, enhance);
-    env_->Exit(7);
+    env_->Exit(ExitCode::kExceptionInFatalExceptionHandler);
   }
 }
 
@@ -1019,6 +1019,17 @@ void Initialize(Local<Object> target,
       context, target, "noSideEffectsToString", NoSideEffectsToString);
   SetMethod(
       context, target, "triggerUncaughtException", TriggerUncaughtException);
+
+  Isolate* isolate = context->GetIsolate();
+  Local<Object> exit_codes = Object::New(isolate);
+  READONLY_PROPERTY(target, "exitCodes", exit_codes);
+
+#define V(Name, Code)                                                          \
+  constexpr int k##Name = static_cast<int>(ExitCode::k##Name);                 \
+  NODE_DEFINE_CONSTANT(exit_codes, k##Name);
+
+  EXIT_CODE_LIST(V)
+#undef V
 }
 
 void DecorateErrorStack(Environment* env,
@@ -1094,7 +1105,7 @@ void TriggerUncaughtException(Isolate* isolate,
   if (!fatal_exception_function->IsFunction()) {
     ReportFatalException(
         env, error, message, EnhanceFatalException::kDontEnhance);
-    env->Exit(6);
+    env->Exit(ExitCode::kInvalidFatalExceptionMonkeyPatching);
     return;
   }
 
@@ -1145,9 +1156,9 @@ void TriggerUncaughtException(Isolate* isolate,
   Local<Value> code;
   if (process_object->Get(env->context(), exit_code).ToLocal(&code) &&
       code->IsInt32()) {
-    env->Exit(code.As<Int32>()->Value());
+    env->Exit(static_cast<ExitCode>(code.As<Int32>()->Value()));
   } else {
-    env->Exit(1);
+    env->Exit(ExitCode::kGenericUserError);
   }
 }
 

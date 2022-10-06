@@ -137,7 +137,8 @@ class WorkerThreadData {
     if (ret != 0) {
       char err_buf[128];
       uv_err_name_r(ret, err_buf, sizeof(err_buf));
-      w->Exit(1, "ERR_WORKER_INIT_FAILED", err_buf);
+      // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
+      w->Exit(ExitCode::kGenericUserError, "ERR_WORKER_INIT_FAILED", err_buf);
       return;
     }
     loop_init_failed_ = false;
@@ -156,7 +157,10 @@ class WorkerThreadData {
 
     Isolate* isolate = Isolate::Allocate();
     if (isolate == nullptr) {
-      w->Exit(1, "ERR_WORKER_INIT_FAILED", "Failed to create new Isolate");
+      // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
+      w->Exit(ExitCode::kGenericUserError,
+              "ERR_WORKER_INIT_FAILED",
+              "Failed to create new Isolate");
       return;
     }
 
@@ -257,7 +261,10 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
           "new_limit=%" PRIu64 "\n",
           static_cast<uint64_t>(new_limit));
   }
-  worker->Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "JS heap out of memory");
+  // TODO(joyeecheung): maybe this should be kV8FatalError instead?
+  worker->Exit(ExitCode::kGenericUserError,
+               "ERR_WORKER_OUT_OF_MEMORY",
+               "JS heap out of memory");
   return new_limit;
 }
 
@@ -322,7 +329,10 @@ void Worker::Run() {
           context = NewContext(isolate_);
         }
         if (context.IsEmpty()) {
-          Exit(1, "ERR_WORKER_INIT_FAILED", "Failed to create new Context");
+          // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
+          Exit(ExitCode::kGenericUserError,
+               "ERR_WORKER_INIT_FAILED",
+               "Failed to create new Context");
           return;
         }
       }
@@ -343,7 +353,7 @@ void Worker::Run() {
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
         SetProcessExitHandler(env_.get(), [this](Environment*, int exit_code) {
-          Exit(exit_code);
+          Exit(static_cast<ExitCode>(exit_code));
         });
       }
       {
@@ -367,14 +377,16 @@ void Worker::Run() {
     }
 
     {
-      Maybe<int> exit_code = SpinEventLoop(env_.get());
+      Maybe<ExitCode> exit_code = SpinEventLoopInternal(env_.get());
       Mutex::ScopedLock lock(mutex_);
-      if (exit_code_ == 0 && exit_code.IsJust()) {
+      if (exit_code_ == ExitCode::kNoFailure && exit_code.IsJust()) {
         exit_code_ = exit_code.FromJust();
       }
 
-      Debug(this, "Exiting thread for worker %llu with exit code %d",
-            thread_id_.id, exit_code_);
+      Debug(this,
+            "Exiting thread for worker %llu with exit code %d",
+            thread_id_.id,
+            static_cast<int>(exit_code_));
     }
   }
 
@@ -419,7 +431,7 @@ void Worker::JoinThread() {
                   Undefined(env()->isolate())).Check();
 
     Local<Value> args[] = {
-        Integer::New(env()->isolate(), exit_code_),
+        Integer::New(env()->isolate(), static_cast<int>(exit_code_)),
         custom_error_ != nullptr
             ? OneByteString(env()->isolate(), custom_error_).As<Value>()
             : Null(env()->isolate()).As<Value>(),
@@ -684,7 +696,7 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
   Debug(w, "Worker %llu is getting stopped by parent", w->thread_id_.id);
-  w->Exit(1);
+  w->Exit(ExitCode::kGenericUserError);
 }
 
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
@@ -724,10 +736,16 @@ Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   return Float64Array::New(ab, 0, kTotalResourceLimitCount);
 }
 
-void Worker::Exit(int code, const char* error_code, const char* error_message) {
+void Worker::Exit(ExitCode code,
+                  const char* error_code,
+                  const char* error_message) {
   Mutex::ScopedLock lock(mutex_);
-  Debug(this, "Worker %llu called Exit(%d, %s, %s)",
-        thread_id_.id, code, error_code, error_message);
+  Debug(this,
+        "Worker %llu called Exit(%d, %s, %s)",
+        thread_id_.id,
+        static_cast<int>(code),
+        error_code,
+        error_message);
 
   if (error_code != nullptr) {
     custom_error_ = error_code;

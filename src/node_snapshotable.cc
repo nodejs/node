@@ -1067,14 +1067,9 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-// TODO(joyeecheung): share these exit code constants across the code base.
-constexpr int UNCAUGHT_EXCEPTION_ERROR = 1;
-constexpr int BOOTSTRAP_ERROR = 10;
-constexpr int SNAPSHOT_ERROR = 14;
-
-int SnapshotBuilder::Generate(SnapshotData* out,
-                              const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(SnapshotData* out,
+                                   const std::vector<std::string> args,
+                                   const std::vector<std::string> exec_args) {
   const std::vector<intptr_t>& external_references =
       CollectExternalReferences();
   Isolate* isolate = Isolate::Allocate();
@@ -1137,7 +1132,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       if (!contextify::ContextifyContext::CreateV8Context(
                isolate, global_template, nullptr, nullptr)
                .ToLocal(&vm_context)) {
-        return SNAPSHOT_ERROR;
+        return ExitCode::kStartupSnapshotFailure;
       }
     }
 
@@ -1146,13 +1141,13 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // without breaking compatibility.
     Local<Context> base_context = NewContext(isolate);
     if (base_context.IsEmpty()) {
-      return BOOTSTRAP_ERROR;
+      return ExitCode::kBootstrapFailure;
     }
     ResetContextSettingsBeforeSnapshot(base_context);
 
     Local<Context> main_context = NewContext(isolate);
     if (main_context.IsEmpty()) {
-      return BOOTSTRAP_ERROR;
+      return ExitCode::kBootstrapFailure;
     }
     // Initialize the main instance context.
     {
@@ -1169,7 +1164,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
       // Run scripts in lib/internal/bootstrap/
       if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
-        return BOOTSTRAP_ERROR;
+        return ExitCode::kBootstrapFailure;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
       // loaded via LoadEnvironment() to execute process.argv[1] as the entry
@@ -1178,17 +1173,19 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
-        // TODO(joyeecheung): move this before RunBootstrapping().
+        // TODO(joyeecheung): handle the exit code returned by
+        // InitializeInspector().
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
-          return UNCAUGHT_EXCEPTION_ERROR;
+          return ExitCode::kGenericUserError;
         }
         // FIXME(joyeecheung): right now running the loop in the snapshot
         // builder seems to introduces inconsistencies in JS land that need to
         // be synchronized again after snapshot restoration.
-        int exit_code = SpinEventLoop(env).FromMaybe(UNCAUGHT_EXCEPTION_ERROR);
-        if (exit_code != 0) {
+        ExitCode exit_code =
+            SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
+        if (exit_code != ExitCode::kNoFailure) {
           return exit_code;
         }
       }
@@ -1206,7 +1203,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
       if (!builtins::BuiltinLoader::CompileAllBuiltins(main_context)) {
-        return UNCAUGHT_EXCEPTION_ERROR;
+        return ExitCode::kGenericUserError;
       }
       builtins::BuiltinLoader::CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
@@ -1241,7 +1238,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
   if (!out->v8_snapshot_blob_data.CanBeRehashed()) {
-    return SNAPSHOT_ERROR;
+    return ExitCode::kStartupSnapshotFailure;
   }
 
   out->metadata = SnapshotMetadata{snapshot_type,
@@ -1260,17 +1257,17 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     PrintLibuvHandleInformation(env->event_loop(), stderr);
   }
   if (!queues_are_empty) {
-    return SNAPSHOT_ERROR;
+    return ExitCode::kStartupSnapshotFailure;
   }
-  return 0;
+  return ExitCode::kNoFailure;
 }
 
-int SnapshotBuilder::Generate(std::ostream& out,
-                              const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(std::ostream& out,
+                                   const std::vector<std::string> args,
+                                   const std::vector<std::string> exec_args) {
   SnapshotData data;
-  int exit_code = Generate(&data, args, exec_args);
-  if (exit_code != 0) {
+  ExitCode exit_code = Generate(&data, args, exec_args);
+  if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
   FormatBlob(out, &data);

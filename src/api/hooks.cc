@@ -53,11 +53,15 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
       Nothing<bool>() : Just(true);
 }
 
-int EmitExit(Environment* env) {
-  return EmitProcessExit(env).FromMaybe(1);
+static ExitCode EmitExitInternal(Environment* env) {
+  return EmitProcessExitInternal(env).FromMaybe(ExitCode::kGenericUserError);
 }
 
-Maybe<int> EmitProcessExit(Environment* env) {
+int EmitExit(Environment* env) {
+  return static_cast<int>(EmitExitInternal(env));
+}
+
+Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
   // process.emit('exit')
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
@@ -80,10 +84,18 @@ Maybe<int> EmitProcessExit(Environment* env) {
       // Reload exit code, it may be changed by `emit('exit')`
       !process_object->Get(context, exit_code).ToLocal(&code_v) ||
       !code_v->Int32Value(context).To(&code)) {
-    return Nothing<int>();
+    return Nothing<ExitCode>();
   }
 
-  return Just(code);
+  return Just(static_cast<ExitCode>(code));
+}
+
+Maybe<int> EmitProcessExit(Environment* env) {
+  Maybe<ExitCode> result = EmitProcessExitInternal(env);
+  if (result.IsNothing()) {
+    return Nothing<int>();
+  }
+  return Just(static_cast<int>(result.FromJust()));
 }
 
 typedef void (*CleanupHook)(void* arg);

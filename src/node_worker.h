@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <unordered_map>
+#include "node_exit_code.h"
 #include "node_messaging.h"
 #include "uv.h"
 
@@ -41,7 +42,7 @@ class Worker : public AsyncWrap {
   // Forcibly exit the thread with a specified exit code. This may be called
   // from any thread. `error_code` and `error_message` can be used to create
   // a custom `'error'` event before emitting `'exit'`.
-  void Exit(int code,
+  void Exit(ExitCode code,
             const char* error_code = nullptr,
             const char* error_message = nullptr);
 
@@ -95,7 +96,7 @@ class Worker : public AsyncWrap {
 
   const char* custom_error_ = nullptr;
   std::string custom_error_str_;
-  int exit_code_ = 0;
+  ExitCode exit_code_ = ExitCode::kNoFailure;
   ThreadId thread_id_;
   uintptr_t stack_base_ = 0;
 
