@@ -273,6 +273,7 @@ class PerProcessOptions : public Options {
 #else
   bool ssl_openssl_cert_store = false;
 #endif
+  bool node_use_system_ca = false;
   bool use_openssl_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;

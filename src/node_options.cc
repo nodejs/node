@@ -866,6 +866,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "use an alternative default TLS cipher list",
             &PerProcessOptions::tls_cipher_list,
             kAllowedInEnvvar);
+  AddOption("--node-use-system-ca",
+            "use system's store CA",
+            &PerProcessOptions::node_use_system_ca,
+            kAllowedInEnvvar);
   AddOption("--use-openssl-ca",
             "use OpenSSL's default CA store"
 #if defined(NODE_OPENSSL_CERT_STORE)
