@@ -15,9 +15,9 @@ query strings. It can be accessed using:
 const querystring = require('node:querystring');
 ```
 
-`querystring` is more performant than {URLSearchParams} but is not a standard
-API. Use {URLSearchParams} when performance is not critical or when
-compatibility with browser code is desirable.
+`querystring` is more performant than {URLSearchParams} but is not a
+standardized API. Use {URLSearchParams} when performance is not critical or
+when compatibility with browser code is desirable.
 
 ## `querystring.decode()`
 
