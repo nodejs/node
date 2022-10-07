@@ -1024,6 +1024,9 @@ equality.
 <!-- YAML
 added: v16.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44631
+    description: Add support for default values in input `config`.
   - version: v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43459
     description: add support for returning detailed parse information
@@ -1044,6 +1047,9 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
+    * `default` {string | boolean | string\[] | boolean\[]} The default option
+      value when it is not set by args. It must be of the same type as the
+      the `type` property. When `multiple` is `true`, it must be an array.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
