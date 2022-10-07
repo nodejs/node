@@ -126,7 +126,9 @@ const isPi = (() => {
     // the contents of `/sys/firmware/devicetree/base/model` but that doesn't
     // work inside a container. Match the chipset model number instead.
     const cpuinfo = fs.readFileSync('/proc/cpuinfo', { encoding: 'utf8' });
-    return /^Hardware\s*:\s*(.*)$/im.exec(cpuinfo)?.[1] === 'BCM2835';
+    const ok = /^Hardware\s*:\s*(.*)$/im.exec(cpuinfo)?.[1] === 'BCM2835';
+    /^/.test('');  // Clear RegExp.$_, some tests expect it to be empty.
+    return ok;
   } catch {
     return false;
   }
