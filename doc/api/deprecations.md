@@ -3175,6 +3175,9 @@ thing instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44711
+    description: Runtime deprecation.
   - version: v18.10.0
     pr-url: https://github.com/nodejs/node/pull/44714
     description: Documentation-only deprecation of `process.exitCode` integer
@@ -3187,7 +3190,7 @@ changes:
                  coercion.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Values other than `undefined`, `null`, integer numbers, and integer strings
 (e.g., `'1'`) are deprecated as value for the `code` parameter in
