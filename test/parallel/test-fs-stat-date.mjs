@@ -31,6 +31,14 @@ function closeEnough(actual, expected, margin) {
   if (process.arch === 'ppc64') {
     margin += 1000;
   }
+
+  // Filesystems without support for timestamps before 1970-01-01, such as NFSv3,
+  // should return 0 for negative numbers. Do not treat it as error.
+  if (actual === 0 && expected < 0) {
+    console.log(`ignored 0 while expecting ${expected}`);
+    return;
+  }
+
   assert.ok(Math.abs(Number(actual - expected)) < margin,
             `expected ${expected} ± ${margin}, got ${actual}`);
 }
