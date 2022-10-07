@@ -15,7 +15,7 @@ exports[`test/lib/utils/exit-handler.js TAP handles unknown error with logs and 
 20 verbose argv
 21 timing npm:load:setTitle Completed in {TIME}ms
 23 timing npm:load:display Completed in {TIME}ms
-24 verbose logfile logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs
+24 verbose logfile logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs/{DATE}-
 25 verbose logfile {CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs/{DATE}-debug-0.log
 26 timing npm:load:logFile Completed in {TIME}ms
 27 timing npm:load:timers Completed in {TIME}ms
@@ -47,7 +47,7 @@ verbose title npm
 verbose argv
 timing npm:load:setTitle Completed in {TIME}ms
 timing npm:load:display Completed in {TIME}ms
-verbose logfile logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs
+verbose logfile logs-max:10 dir:{CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs/{DATE}-
 verbose logfile {CWD}/test/lib/utils/tap-testdir-exit-handler-handles-unknown-error-with-logs-and-debug-file/cache/_logs/{DATE}-debug-0.log
 timing npm:load:logFile Completed in {TIME}ms
 timing npm:load:timers Completed in {TIME}ms

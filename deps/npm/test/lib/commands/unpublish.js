@@ -424,7 +424,7 @@ t.test('completion', async t => {
     })
     await registry.package({ manifest, query: { write: true } })
     registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
+    registry.getPackages({ team: user, packages: { [pkg]: 'write' } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -446,7 +446,7 @@ t.test('completion', async t => {
     manifest.versions = {}
     await registry.package({ manifest, query: { write: true } })
     registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
+    registry.getPackages({ team: user, packages: { [pkg]: 'write' } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -465,11 +465,12 @@ t.test('completion', async t => {
       authorization: 'test-auth-token',
     })
     registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {
-      [pkg]: 'write',
-      [`${pkg}a`]: 'write',
-      [`${pkg}b`]: 'write',
-    })
+    registry.getPackages({ team: user,
+      packages: {
+        [pkg]: 'write',
+        [`${pkg}a`]: 'write',
+        [`${pkg}b`]: 'write',
+      } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -489,7 +490,7 @@ t.test('completion', async t => {
       authorization: 'test-auth-token',
     })
     registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {})
+    registry.getPackages({ team: user, packages: {} })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -506,33 +507,17 @@ t.test('completion', async t => {
       authorization: 'test-auth-token',
     })
     registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {
-      [pkg]: 'write',
-      [`${pkg}a`]: 'write',
-    })
+    registry.getPackages({ team: user,
+      packages: {
+        [pkg]: 'write',
+        [`${pkg}a`]: 'write',
+      } })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
       partialWord: undefined,
       expect: [pkg, `${pkg}a`],
       title: 'should autocomplete with available package names from user',
-    })
-  })
-
-  t.test('no pkg names retrieved from user account', async t => {
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
-      authorization: 'test-auth-token',
-    })
-    registry.whoami({ username: user })
-    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, null)
-
-    await testComp(t, {
-      argv: ['npm', 'unpublish'],
-      partialWord: pkg,
-      expect: [],
-      title: 'should have no autocomplete',
     })
   })
 

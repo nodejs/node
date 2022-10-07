@@ -10,7 +10,7 @@
 // definitely not before npm v8.
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const defaultLockfileVersion = 2
+const defaultLockfileVersion = 3
 
 // for comparing nodes to yarn.lock entries
 const mismatch = (a, b) => a && b && a !== b
@@ -60,7 +60,7 @@ const readdir = async (path, opt) => {
   return ents
 }
 
-const { resolve, basename } = require('path')
+const { resolve, basename, relative } = require('path')
 const specFromLock = require('./spec-from-lock.js')
 const versionFromTgz = require('./version-from-tgz.js')
 const npa = require('npm-package-arg')
@@ -224,6 +224,7 @@ const _buildLegacyLockfile = Symbol('_buildLegacyLockfile')
 const _filenameSet = Symbol('_filenameSet')
 const _maybeRead = Symbol('_maybeRead')
 const _maybeStat = Symbol('_maybeStat')
+
 class Shrinkwrap {
   static get defaultLockfileVersion () {
     return defaultLockfileVersion
@@ -251,17 +252,6 @@ class Shrinkwrap {
       : 'package-lock') + '.json')
     s.loadedFromDisk = !!(sw || lock)
     s.type = basename(s.filename)
-
-    try {
-      if (s.loadedFromDisk && !s.lockfileVersion) {
-        const json = parseJSON(await maybeReadFile(s.filename))
-        if (json.lockfileVersion > defaultLockfileVersion) {
-          s.lockfileVersion = json.lockfileVersion
-        }
-      }
-    } catch {
-      // ignore errors
-    }
 
     return s
   }
@@ -342,6 +332,7 @@ class Shrinkwrap {
     this.lockfileVersion = hiddenLockfile ? 3
       : lockfileVersion ? parseInt(lockfileVersion, 10)
       : null
+
     this[_awaitingUpdate] = new Map()
     this.tree = null
     this.path = resolve(path || '.')
@@ -398,6 +389,7 @@ class Shrinkwrap {
     this[_awaitingUpdate] = new Map()
     const lockfileVersion = this.lockfileVersion || defaultLockfileVersion
     this.originalLockfileVersion = lockfileVersion
+
     this.data = {
       lockfileVersion,
       requires: true,
@@ -496,8 +488,14 @@ class Shrinkwrap {
       this.ancientLockfile = false
       return {}
     }).then(lock => {
-      const lockfileVersion = this.lockfileVersion ? this.lockfileVersion
-        : Math.max(lock.lockfileVersion || 0, defaultLockfileVersion)
+      // auto convert v1 lockfiles to v3
+      // leave v2 in place unless configured
+      // v3 by default
+      const lockfileVersion =
+        this.lockfileVersion ? this.lockfileVersion
+        : lock.lockfileVersion === 1 ? defaultLockfileVersion
+        : lock.lockfileVersion || defaultLockfileVersion
+
       this.data = {
         ...lock,
         lockfileVersion: lockfileVersion,
@@ -507,6 +505,7 @@ class Shrinkwrap {
       }
 
       this.originalLockfileVersion = lock.lockfileVersion
+
       // use default if it wasn't explicitly set, and the current file is
       // less than our default.  otherwise, keep whatever is in the file,
       // unless we had an explicit setting already.
@@ -1135,7 +1134,17 @@ class Shrinkwrap {
     if (!this.data) {
       throw new Error('run load() before saving data')
     }
+
     const json = this.toString(options)
+    if (
+      !this.hiddenLockfile
+      && this.originalLockfileVersion !== undefined
+      && this.originalLockfileVersion !== this.lockfileVersion
+    ) {
+      log.warn(
+      `Converting lock file (${relative(process.cwd(), this.filename)}) from v${this.originalLockfileVersion} -> v${this.lockfileVersion}`
+      )
+    }
     return Promise.all([
       writeFile(this.filename, json).catch(er => {
         if (this.hiddenLockfile) {

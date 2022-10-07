@@ -101,6 +101,6 @@ Examples:
 
 ### See also
 
-[npm-package-arg](https://npm.im/npm-package-arg)
-[scope](/using-npm/scope)
-[config](/using-npm/config)
+* [npm-package-arg](https://npm.im/npm-package-arg)
+* [scope](/using-npm/scope)
+* [config](/using-npm/config)

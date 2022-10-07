@@ -1,4 +1,5 @@
 const os = require('os')
+const fs = require('@npmcli/fs')
 
 const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
@@ -18,11 +19,10 @@ process.on('exit', code => {
   // unfinished timer check below
   process.emit('timeEnd', 'npm')
 
-  const hasNpm = !!npm
-  const hasLoadedNpm = hasNpm && npm.config.loaded
+  const hasLoadedNpm = npm?.config.loaded
 
   // Unfinished timers can be read before config load
-  if (hasNpm) {
+  if (npm) {
     for (const [name, timer] of npm.unfinishedTimers) {
       log.verbose('unfinished npm timer', name, timer)
     }
@@ -111,10 +111,9 @@ const exitHandler = err => {
 
   log.disableProgress()
 
-  const hasNpm = !!npm
-  const hasLoadedNpm = hasNpm && npm.config.loaded
+  const hasLoadedNpm = npm?.config.loaded
 
-  if (!hasNpm) {
+  if (!npm) {
     err = err || new Error('Exit prior to setting npm in exit handler')
     // eslint-disable-next-line no-console
     console.error(err.stack || err.message)
@@ -181,8 +180,24 @@ const exitHandler = err => {
         }
       }
 
-      const msg = errorMessage(err, npm)
-      for (const errline of [...msg.summary, ...msg.detail]) {
+      const { summary, detail, files = [] } = errorMessage(err, npm)
+
+      for (let [file, content] of files) {
+        file = `${npm.logPath}${file}`
+        content = `'Log files:\n${npm.logFiles.join('\n')}\n\n${content.trim()}\n`
+        try {
+          fs.withOwnerSync(
+            file,
+            () => fs.writeFileSync(file, content),
+            { owner: 'inherit' }
+          )
+          detail.push(['', `\n\nFor a full report see:\n${file}`])
+        } catch (err) {
+          log.warn('', `Could not write error message to ${file} due to ${err}`)
+        }
+      }
+
+      for (const errline of [...summary, ...detail]) {
         log.error(...errline)
       }
 
@@ -190,8 +205,8 @@ const exitHandler = err => {
         const error = {
           error: {
             code: err.code,
-            summary: messageText(msg.summary),
-            detail: messageText(msg.detail),
+            summary: messageText(summary),
+            detail: messageText(detail),
           },
         }
         npm.outputError(JSON.stringify(error, null, 2))

@@ -158,9 +158,9 @@ aliases: up, upgrade, udpate
 <!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command will update all the packages listed to the latest version
-(specified by the <code>tag</code> config), respecting the semver constraints of
-both your package and its dependencies (if they also require the same
-package).</p>
+(specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver
+constraints of both your package and its dependencies (if they also require the
+same package).</p>
 <p>It will also install missing packages.</p>
 <p>If the <code>-g</code> flag is specified, this command will update globally installed
 packages.</p>
@@ -477,12 +477,12 @@ the specified workspaces, and not on the root project.</p>
 <!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

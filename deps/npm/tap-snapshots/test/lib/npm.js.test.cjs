@@ -21,15 +21,15 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bin, bugs, cache, ci, completion,
+    access, adduser, audit, bugs, cache, ci, completion,
     config, dedupe, deprecate, diff, dist-tag, docs, doctor,
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
     pkg, prefix, profile, prune, publish, query, rebuild, repo,
-    restart, root, run-script, search, set, set-script,
-    shrinkwrap, star, stars, start, stop, team, test, token,
-    uninstall, unpublish, unstar, update, version, view, whoami
+    restart, root, run-script, search, set, shrinkwrap, star,
+    stars, start, stop, team, test, token, uninstall, unpublish,
+    unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -57,15 +57,15 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bin, bugs, cache, ci, completion,
+    access, adduser, audit, bugs, cache, ci, completion,
     config, dedupe, deprecate, diff, dist-tag, docs, doctor,
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
     pkg, prefix, profile, prune, publish, query, rebuild, repo,
-    restart, root, run-script, search, set, set-script,
-    shrinkwrap, star, stars, start, stop, team, test, token,
-    uninstall, unpublish, unstar, update, version, view, whoami
+    restart, root, run-script, search, set, shrinkwrap, star,
+    stars, start, stop, team, test, token, uninstall, unpublish,
+    unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -93,15 +93,15 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bin, bugs, cache, ci, completion,
+    access, adduser, audit, bugs, cache, ci, completion,
     config, dedupe, deprecate, diff, dist-tag, docs, doctor,
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
     pkg, prefix, profile, prune, publish, query, rebuild, repo,
-    restart, root, run-script, search, set, set-script,
-    shrinkwrap, star, stars, start, stop, team, test, token,
-    uninstall, unpublish, unstar, update, version, view, whoami
+    restart, root, run-script, search, set, shrinkwrap, star,
+    stars, start, stop, team, test, token, uninstall, unpublish,
+    unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -129,15 +129,15 @@ npm help npm       more involved overview (in a browser)
 
 All commands:
 
-    access, adduser, audit, bin, bugs, cache, ci, completion,
+    access, adduser, audit, bugs, cache, ci, completion,
     config, dedupe, deprecate, diff, dist-tag, docs, doctor,
     edit, exec, explain, explore, find-dupes, fund, get, help,
     hook, init, install, install-ci-test, install-test, link,
     ll, login, logout, ls, org, outdated, owner, pack, ping,
     pkg, prefix, profile, prune, publish, query, rebuild, repo,
-    restart, root, run-script, search, set, set-script,
-    shrinkwrap, star, stars, start, stop, team, test, token,
-    uninstall, unpublish, unstar, update, version, view, whoami
+    restart, root, run-script, search, set, shrinkwrap, star,
+    stars, start, stop, team, test, token, uninstall, unpublish,
+    unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc
@@ -168,18 +168,16 @@ All commands:
     access          Set access level on published packages
 
                     Usage:
-                    npm access public [<package>]
-                    npm access restricted [<package>]
+                    npm access list packages [<user>|<scope>|<scope:team> [<package>]
+                    npm access list collaborators [<package> [<user>]]
+                    npm access get status [<package>]
+                    npm access set status=public|private [<package>]
+                    npm access set mfa=none|publish|automation [<package>]
                     npm access grant <read-only|read-write> <scope:team> [<package>]
                     npm access revoke <scope:team> [<package>]
-                    npm access 2fa-required [<package>]
-                    npm access 2fa-not-required [<package>]
-                    npm access ls-packages [<user>|<scope>|<scope:team>]
-                    npm access ls-collaborators [<package> [<user>]]
-                    npm access edit [<package>]
 
                     Options:
-                    [--registry <registry>] [--otp <otp>]
+                    [--json] [--otp <otp>] [--registry <registry>]
 
                     Run "npm help access" for more info
 
@@ -189,10 +187,9 @@ All commands:
                     npm adduser
 
                     Options:
-                    [--registry <registry>] [--scope <@scope>]
-                    [--auth-type <legacy|web|sso|saml|oauth|webauthn>]
+                    [--registry <registry>] [--scope <@scope>] [--auth-type <legacy|web>]
 
-                    aliases: login, add-user
+                    alias: add-user
 
                     Run "npm help adduser" for more info
 
@@ -207,19 +204,9 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
                     [--foreground-scripts] [--ignore-scripts]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     Run "npm help audit" for more info
-
-    bin             Display npm bin folder
-
-                    Usage:
-                    npm bin
-
-                    Options:
-                    [-g|--global]
-
-                    Run "npm help bin" for more info
 
     bugs            Report bugs for a package in a web browser
 
@@ -260,7 +247,7 @@ All commands:
                     [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
                     [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -300,7 +287,7 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
                     [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: ddp
 
@@ -429,7 +416,7 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
                     [--no-audit] [--no-bin-links] [--no-fund]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     Run "npm help find-dupes" for more info
 
@@ -504,7 +491,7 @@ All commands:
                     [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
                     [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 
@@ -522,7 +509,7 @@ All commands:
                     [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
                     [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: cit
 
@@ -540,7 +527,7 @@ All commands:
                     [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
                     [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: it
 
@@ -558,7 +545,7 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
                     [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: ln
 
@@ -574,24 +561,21 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
                     [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: la
 
                     Run "npm help ll" for more info
 
-    login           Add a registry user account
+    login           Login to a registry user account
 
                     Usage:
-                    npm adduser
+                    npm login
 
                     Options:
-                    [--registry <registry>] [--scope <@scope>]
-                    [--auth-type <legacy|web|sso|saml|oauth|webauthn>]
+                    [--registry <registry>] [--scope <@scope>] [--auth-type <legacy|web>]
 
-                    aliases: login, add-user
-
-                    Run "npm help adduser" for more info
+                    Run "npm help login" for more info
 
     logout          Log out of the registry
 
@@ -613,7 +597,7 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--link]
                     [--package-lock-only] [--unicode]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: list
 
@@ -730,7 +714,7 @@ All commands:
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--dry-run]
                     [--json] [--foreground-scripts] [--ignore-scripts]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     Run "npm help prune" for more info
 
@@ -766,7 +750,7 @@ All commands:
                     Options:
                     [-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     alias: rb
 
@@ -838,17 +822,6 @@ All commands:
                     npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
 
                     Run "npm help set" for more info
-
-    set-script      Set tasks in the scripts section of package.json, deprecated
-
-                    Usage:
-                    npm set-script [<script>] [<command>]
-
-                    Options:
-                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root]
-
-                    Run "npm help set-script" for more info
 
     shrinkwrap      Lock down dependency versions for publication
 
@@ -944,7 +917,7 @@ All commands:
                     Options:
                     [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     aliases: unlink, remove, rm, r, un
 
@@ -984,7 +957,7 @@ All commands:
                     [--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
                     [--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root] [--install-links]
+                    [-ws|--workspaces] [--include-workspace-root] [--no-install-links]
 
                     aliases: up, upgrade, udpate
 

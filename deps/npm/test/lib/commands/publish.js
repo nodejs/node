@@ -2,6 +2,7 @@ const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const MockRegistry = require('../../fixtures/mock-registry.js')
 const pacote = require('pacote')
+const Arborist = require('@npmcli/arborist')
 const path = require('path')
 const fs = require('@npmcli/fs')
 const npa = require('npm-package-arg')
@@ -28,7 +29,7 @@ t.cleanSnapshot = data => {
 t.test('respects publishConfig.registry, runs appropriate scripts', async t => {
   const { npm, joinedOutput, prefix } = await loadMockNpm(t, {
     config: {
-      loglevel: 'silent', // prevent scripts from leaking to stdout during the test
+      loglevel: 'silent',
       [`${alternateRegistry.slice(6)}/:_authToken`]: 'test-other-token',
     },
     prefixDir: {
@@ -227,7 +228,7 @@ t.test('tarball', async t => {
       'index.js': 'console.log("hello world"}',
     },
   })
-  const tarball = await pacote.tarball(home)
+  const tarball = await pacote.tarball(home, { Arborist })
   const tarFilename = path.join(home, 'tarball.tgz')
   await fs.writeFile(tarFilename, tarball)
   const registry = new MockRegistry({
@@ -729,4 +730,66 @@ t.test('scoped _auth config scoped registry', async t => {
   registry.nock.put(`/${spec.escapedName}`).reply(200, {})
   await npm.exec('publish', [])
   t.matchSnapshot(joinedOutput(), 'new package version')
+})
+
+t.test('restricted access', async t => {
+  const spec = npa('@npm/test-package')
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      access: 'restricted',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npm/test-package',
+        version: '1.0.0',
+      }, null, 2),
+    },
+    globals: ({ prefix }) => ({
+      'process.cwd': () => prefix,
+    }),
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
+  })
+  registry.nock.put(`/${spec.escapedName}`, body => {
+    t.equal(body.access, 'restricted', 'access is explicitly set to restricted')
+    return true
+  }).reply(200, {})
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+  t.matchSnapshot(logs.notice)
+})
+
+t.test('public access', async t => {
+  const spec = npa('@npm/test-package')
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      access: 'public',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npm/test-package',
+        version: '1.0.0',
+      }, null, 2),
+    },
+    globals: ({ prefix }) => ({
+      'process.cwd': () => prefix,
+    }),
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: token,
+  })
+  registry.nock.put(`/${spec.escapedName}`, body => {
+    t.equal(body.access, 'public', 'access is explicitly set to public')
+    return true
+  }).reply(200, {})
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+  t.matchSnapshot(logs.notice)
 })

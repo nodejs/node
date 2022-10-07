@@ -87,8 +87,7 @@ verify`.
 * Default: Windows: `%LocalAppData%\npm-cache`, Posix: `~/.npm`
 * Type: Path
 
-The location of npm's cache directory. See [`npm
-cache`](/commands/npm-cache)
+The location of npm's cache directory.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

@@ -24,9 +24,9 @@ aliases: up, upgrade, udpate
 ### Description
 
 This command will update all the packages listed to the latest version
-(specified by the `tag` config), respecting the semver constraints of
-both your package and its dependencies (if they also require the same
-package).
+(specified by the [`tag` config](/using-npm/config#tag)), respecting the semver
+constraints of both your package and its dependencies (if they also require the
+same package).
 
 It will also install missing packages.
 
@@ -435,12 +435,12 @@ This value is not exported to the environment for child processes.
 
 #### `install-links`
 
-* Default: false
+* Default: true
 * Type: Boolean
 
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

@@ -188,7 +188,8 @@ provided by locally-installed dependencies can be used without the
 on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
 <code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
-You can customize the shell with the <code>script-shell</code> configuration.</p>
+You can customize the shell with the
+<a href="../using-npm/config#script-shell.html"><code>script-shell</code> config</a>.</p>
 <p>Scripts are run from the root of the package folder, regardless of what the
 current working directory is when <code>npm run</code> is called. If you want your
 script to use different behavior based on what subdirectory you're in, you
@@ -200,7 +201,8 @@ with which <code>npm</code> is executed.</p>
 fails, you will be given a warning to run <code>npm install</code>, just in case you've
 forgotten.</p>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>You may use the <code>workspace</code> or <code>workspaces</code> configs in order to run an
+<p>You may use the <a href="../using-npm/config#workspace.html"><code>workspace</code></a> or
+<a href="../using-npm/config#workspaces.html"><code>workspaces</code></a> configs in order to run an
 arbitrary command from a package's <code>"scripts"</code> object in the context of the
 specified workspaces. If no <code>"command"</code> is provided, it will list the available
 scripts for each of these configured workspaces.</p>
@@ -222,7 +224,8 @@ scripts for each of these configured workspaces.</p>
 }
 </code></pre>
 <p>And that each of the configured workspaces has a configured <code>test</code> script,
-we can run tests in all of them using the <code>workspaces</code> config:</p>
+we can run tests in all of them using the
+<a href="../using-npm/config#workspaces.html"><code>workspaces</code> config</a>:</p>
 <pre><code>npm test --workspaces
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>

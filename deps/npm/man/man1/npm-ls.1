@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "September 2022" "" ""
+.TH "NPM\-LS" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SS Synopsis
@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@8\.19\.2 /path/to/npm
+npm@9\.0\.0\-pre\.4 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -289,15 +289,15 @@ This value is not exported to the environment for child processes\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink\. This option has no effect on workspaces\.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink\. This option has no effect on
+workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2

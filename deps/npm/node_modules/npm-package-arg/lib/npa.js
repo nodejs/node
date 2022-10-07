@@ -241,8 +241,10 @@ function fromFile (res, where) {
       rawNoPrefix = rawSpec.replace(/^file:/, '')
     }
     // turn file:/../foo into file:../foo
-    if (/^\/\.\.?(\/|$)/.test(rawNoPrefix)) {
-      const rawSpec = res.rawSpec.replace(/^file:\//, 'file:')
+    // for 1, 2 or 3 leading slashes since we attempted
+    // in the previous step to make it a file protocol url with a leading slash
+    if (/^\/{1,3}\.\.?(\/|$)/.test(rawNoPrefix)) {
+      const rawSpec = res.rawSpec.replace(/^file:\/{1,3}/, 'file:')
       resolvedUrl = new url.URL(rawSpec, `file://${path.resolve(where)}/`)
       specUrl = new url.URL(rawSpec)
       rawNoPrefix = rawSpec.replace(/^file:/, '')

@@ -1,5 +1,5 @@
 {
-  "version": "8.19.2",
+  "version": "9.0.0-pre.4",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -8,11 +8,11 @@
     "workspaces/*"
   ],
   "files": [
+    "bin/",
+    "lib/",
     "index.js",
-    "bin",
     "docs/content/**/*.md",
     "docs/output/**/*.html",
-    "lib",
     "man"
   ],
   "keywords": [
@@ -26,10 +26,10 @@
     "publishtest": false
   },
   "homepage": "https://docs.npmjs.com/",
-  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
+  "author": "GitHub Inc.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/cli"
+    "url": "https://github.com/npm/cli.git"
   },
   "bugs": {
     "url": "https://github.com/npm/cli/issues"
@@ -56,8 +56,8 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^5.6.2",
-    "@npmcli/ci-detect": "^2.0.0",
+    "@npmcli/arborist": "^6.0.0-pre.4",
+    "@npmcli/ci-detect": "^3.0.0",
     "@npmcli/config": "^4.2.1",
     "@npmcli/fs": "^2.1.0",
     "@npmcli/map-workspaces": "^2.0.3",
@@ -72,6 +72,7 @@
     "cli-table3": "^0.6.2",
     "columnify": "^1.6.0",
     "fastest-levenshtein": "^1.0.12",
+    "fs-minipass": "^2.1.0",
     "glob": "^8.0.1",
     "graceful-fs": "^4.2.10",
     "hosted-git-info": "^5.1.0",
@@ -79,18 +80,19 @@
     "init-package-json": "^3.0.2",
     "is-cidr": "^4.0.2",
     "json-parse-even-better-errors": "^2.3.1",
-    "libnpmaccess": "^6.0.4",
-    "libnpmdiff": "^4.0.5",
-    "libnpmexec": "^4.0.13",
-    "libnpmfund": "^3.0.4",
-    "libnpmhook": "^8.0.4",
-    "libnpmorg": "^4.0.4",
-    "libnpmpack": "^4.1.3",
-    "libnpmpublish": "^6.0.5",
-    "libnpmsearch": "^5.0.4",
-    "libnpmteam": "^4.0.4",
-    "libnpmversion": "^3.0.7",
+    "libnpmaccess": "^7.0.0-pre.1",
+    "libnpmdiff": "^5.0.0-pre.2",
+    "libnpmexec": "^5.0.0-pre.4",
+    "libnpmfund": "^4.0.0-pre.4",
+    "libnpmhook": "^9.0.0-pre.0",
+    "libnpmorg": "^5.0.0-pre.0",
+    "libnpmpack": "^5.0.0-pre.2",
+    "libnpmpublish": "^7.0.0-pre.2",
+    "libnpmsearch": "^6.0.0-pre.0",
+    "libnpmteam": "^5.0.0-pre.0",
+    "libnpmversion": "^4.0.0-pre.0",
     "make-fetch-happen": "^10.2.0",
+    "minimatch": "^5.1.0",
     "minipass": "^3.1.6",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",
@@ -100,15 +102,15 @@
     "nopt": "^6.0.0",
     "npm-audit-report": "^3.0.0",
     "npm-install-checks": "^5.0.0",
-    "npm-package-arg": "^9.1.0",
+    "npm-package-arg": "^9.1.2",
     "npm-pick-manifest": "^7.0.2",
-    "npm-profile": "^6.2.0",
+    "npm-profile": "^7.0.0",
     "npm-registry-fetch": "^13.3.1",
     "npm-user-validate": "^1.0.1",
     "npmlog": "^6.0.2",
     "opener": "^1.5.2",
     "p-map": "^4.0.0",
-    "pacote": "^13.6.2",
+    "pacote": "^14.0.0",
     "parse-conflict-json": "^2.0.2",
     "proc-log": "^2.0.1",
     "qrcode-terminal": "^0.12.0",
@@ -117,7 +119,7 @@
     "read-package-json-fast": "^2.0.3",
     "readdir-scoped-modules": "^1.1.0",
     "rimraf": "^3.0.2",
-    "semver": "^7.3.7",
+    "semver": "^7.3.8",
     "ssri": "^9.0.1",
     "tar": "^6.1.11",
     "text-table": "~0.2.0",
@@ -135,7 +137,6 @@
     "@npmcli/fs",
     "@npmcli/map-workspaces",
     "@npmcli/package-json",
-    "@npmcli/promise-spawn",
     "@npmcli/run-script",
     "abbrev",
     "archy",
@@ -205,12 +206,12 @@
   ],
   "devDependencies": {
     "@npmcli/eslint-config": "^3.1.0",
+    "@npmcli/git": "^3.0.2",
     "@npmcli/promise-spawn": "^3.0.0",
-    "@npmcli/template-oss": "4.1.1",
-    "fs-minipass": "^2.1.0",
+    "@npmcli/template-oss": "4.5.0",
     "licensee": "^8.2.0",
-    "minimatch": "^5.1.0",
     "nock": "^13.2.4",
+    "npm-packlist": "^7.0.0",
     "spawk": "^1.7.1",
     "tap": "^16.0.1"
   },
@@ -220,19 +221,21 @@
     "authors": "bash scripts/update-authors.sh",
     "licenses": "licensee --production --errors-only",
     "test": "tap",
-    "test-all": "npm run test --if-present --workspaces --include-workspace-root",
+    "test-all": "node . run test -ws -iwr --if-present",
     "snap": "tap",
     "postsnap": "make -s docs",
-    "test:nocleanup": "NO_TEST_CLEANUP=1 npm run test --",
-    "sudotest": "sudo npm run test --",
-    "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
-    "posttest": "npm run lint",
+    "test:nocleanup": "NO_TEST_CLEANUP=1 node . run test --",
+    "sudotest": "sudo node . run run test --",
+    "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 node . run test --",
+    "posttest": "node . run lint",
     "lint": "eslint \"**/*.js\"",
-    "lintfix": "npm run lint -- --fix",
-    "lint-all": "npm run lint --if-present --workspaces --include-workspace-root",
+    "lintfix": "node . run lint -- --fix",
+    "lint-all": "node . run lint -ws -iwr --if-present",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",
-    "rp-pull-request": "npm run resetdeps && npm run authors"
+    "rp-pull-request": "node . run authors",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
   },
   "tap": {
     "test-env": [
@@ -243,30 +246,23 @@
     "timeout": 600,
     "nyc-arg": [
       "--exclude",
+      "docs/**",
+      "--exclude",
+      "smoke-tests/**",
+      "--exclude",
       "workspaces/**",
       "--exclude",
       "tap-snapshots/**"
-    ]
+    ],
+    "test-ignore": "^(docs|smoke-tests|workspaces)/"
   },
   "templateOSS": {
-    "rootRepo": false,
-    "rootModule": false,
-    "version": "4.1.1",
-    "releaseTest": "release.yml",
-    "ciVersions": [
-      "12.13.0",
-      "12.x",
-      "14.15.0",
-      "14.x",
-      "16.0.0",
-      "16.x"
-    ],
-    "releaseBranches": [
-      "v8"
-    ]
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.5.0",
+    "content": "./scripts/template-oss/root.js"
   },
   "license": "Artistic-2.0",
   "engines": {
-    "node": "^12.13.0 || ^14.15.0 || >=16"
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
   }
 }
