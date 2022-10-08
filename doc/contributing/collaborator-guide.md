@@ -444,7 +444,7 @@ documentation must state the deprecation status.
   * Backward-incompatible changes including complete removal of such APIs can
     occur at any time.
 
-Apply the `notable change` label to all pull requests that introduce
+Apply the `notable-change` label to all pull requests that introduce
 Documentation-Only Deprecations. Such deprecations have no impact on code
 execution. Thus, they are not breaking changes (`semver-major`).
 
