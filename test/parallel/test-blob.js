@@ -195,7 +195,7 @@ assert.throws(() => new Blob({}), {
     'slice',
     'stream',
     'text',
-    'arrayBuffer'
+    'arrayBuffer',
   ];
 
   for (const prop of enumerable) {

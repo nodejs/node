@@ -108,9 +108,9 @@ function testAccessor(target, name, readonly = false) {
 
 function testStaticAccessor(target, name) {
   const desc = Object.getOwnPropertyDescriptor(target, name);
-  assert.notDeepStrictEqual(desc, undefined);
+  assert.notStrictEqual(desc, undefined);
 
-  assert.deepStrictEqual(desc.configurable, true);
-  assert.deepStrictEqual(desc.enumerable, true);
-  assert.deepStrictEqual(desc.writable, true);
+  assert.strictEqual(desc.configurable, true);
+  assert.strictEqual(desc.enumerable, true);
+  assert.strictEqual(desc.writable, true);
 }
