@@ -245,22 +245,18 @@ class StreamResource {
   // Return 0 for success and a libuv error code for failures.
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
   // Initiate a write of data.
-  //
-  // On an immediate failure, a libuv error code is returned,
-  // req_wrap->Done() will never be called and caller should free `bufs`.
-  //
-  // Otherwise, 0 is returned and req_wrap->Done(status) will be called
+  // Upon an immediate failure, a libuv error code is returned,
+  // w->Done() will never be called and caller should free `bufs`.
+  // Otherwise, 0 is returned and w->Done(status) will be called
   // with status set to either
   //  (1) 0 after all data are written, or
   //  (2) a libuv error code when an error occurs
-  // in either case, req_wrap->Done() will never be called before DoWrite()
-  // returns.
-  //
+  // in either case, w->Done() will never be called before DoWrite() returns.
   // When 0 is returned:
   //  (1) memory specified by `bufs` and `count` must remain valid until
-  //      req_wrap->Done() gets called.
+  //      w->Done() gets called.
   //  (2) `bufs` might or might not be changed, caller should not rely on this.
-  //  (3) `bufs` should be freed after req_wrap->Done() gets called.
+  //  (3) `bufs` should be freed after w->Done() gets called.
   virtual int DoWrite(WriteWrap* w,
                       uv_buf_t* bufs,
                       size_t count,
