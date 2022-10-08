@@ -3258,7 +3258,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime.
+Type: Runtime
 
 The implicit suppression of uncaught exceptions in Node-API callbacks is now
 deprecated.
@@ -3266,6 +3266,21 @@ deprecated.
 Set the flag [`--force-node-api-uncaught-exceptions-policy`][] to force Node.js
 to emit an [`'uncaughtException'`][] event if the exception is not handled in
 Node-API callbacks.
+
+### DEP0169: Insecure url.parse()
+
+<!-- YAML
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44918
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`url.parse()`][] behavior is not standardized and prone to errors that
+have security implications. Use the [WHATWG URL API][] instead.
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
