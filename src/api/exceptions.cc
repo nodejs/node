@@ -7,6 +7,7 @@
 #include "uv.h"
 #include "v8.h"
 
+
 #include <cstring>
 
 namespace node {
@@ -59,10 +60,8 @@ Local<Value> ErrnoException(Isolate* isolate,
            Integer::New(isolate, errorno)).Check();
   obj->Set(context, env->code_string(), estring).Check();
 
-  if (path_string.IsEmpty() == false) {
-    obj->Set(context, env->path_string(), path_string).Check();
-  }
-
+  if (path_string.IsEmpty() == false) obj->Set(context, env->path_string(), path_string).Check();
+  
   if (syscall != nullptr) {
     obj->Set(context,
              env->syscall_string(),
@@ -97,8 +96,7 @@ Local<Value> UVException(Isolate* isolate,
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
 
-  if (!msg || !msg[0])
-    msg = uv_strerror(errorno);
+  if (!msg || !msg[0]) msg = uv_strerror(errorno);
 
   Local<String> js_code = OneByteString(isolate, uv_err_name(errorno));
   Local<String> js_syscall = OneByteString(isolate, syscall);
