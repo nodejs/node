@@ -55,28 +55,32 @@ ModuleWrap::ModuleWrap(Environment* env,
                        Local<Object> object,
                        Local<Module> module,
                        Local<String> url)
-  : BaseObject(env, object),
-    module_(env->isolate(), module),
-    id_(env->get_next_module_id()) {
-  env->id_to_module_map.emplace(id_, this);
-
+    : BaseObject(env, object),
+      module_(env->isolate(), module),
+      identity_hash_(module->GetIdentityHash()) {
   Local<Value> undefined = Undefined(env->isolate());
   object->SetInternalField(kURLSlot, url);
   object->SetInternalField(kSyntheticEvaluationStepsSlot, undefined);
   object->SetInternalField(kContextObjectSlot, undefined);
+
+  module_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
 }
 
 ModuleWrap::~ModuleWrap() {
   HandleScope scope(env()->isolate());
-  Local<Module> module = module_.Get(env()->isolate());
-  env()->id_to_module_map.erase(id_);
-  auto range = env()->hash_to_module_map.equal_range(module->GetIdentityHash());
+  auto range = env()->hash_to_module_map.equal_range(identity_hash_);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == this) {
       env()->hash_to_module_map.erase(it);
       break;
     }
   }
+}
+
+// static
+void ModuleWrap::WeakCallback(const v8::WeakCallbackInfo<ModuleWrap>& data) {
+  ModuleWrap* wrap = data.GetParameter();
+  delete wrap;
 }
 
 Local<Context> ModuleWrap::context() const {
@@ -94,14 +98,6 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
     }
   }
   return nullptr;
-}
-
-ModuleWrap* ModuleWrap::GetFromID(Environment* env, uint32_t id) {
-  auto module_wrap_it = env->id_to_module_map.find(id);
-  if (module_wrap_it == env->id_to_module_map.end()) {
-    return nullptr;
-  }
-  return module_wrap_it->second;
 }
 
 // new ModuleWrap(url, context, source, lineOffset, columnOffset)
@@ -146,11 +142,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     column_offset = args[4].As<Int32>()->Value();
   }
 
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
-  host_defined_options->Set(isolate, HostDefinedOptions::kType,
-                            Number::New(isolate, ScriptType::kModule));
-
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatchScope try_catch(env);
 
@@ -186,17 +177,16 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       Local<String> source_text = args[2].As<String>();
-      ScriptOrigin origin(isolate,
-                          url,
+      ScriptOrigin origin(url,
                           line_offset,
                           column_offset,
-                          true,                             // is cross origin
-                          -1,                               // script id
-                          Local<Value>(),                   // source map URL
-                          false,                            // is opaque (?)
-                          false,                            // is WASM
-                          true,                             // is ES Module
-                          host_defined_options);
+                          true,            // is cross origin
+                          -1,              // script id
+                          Local<Value>(),  // source map URL
+                          false,           // is opaque (?)
+                          false,           // is WASM
+                          true,            // is ES Module
+                          that);           // host defined options
       ScriptCompiler::Source source(source_text, origin, cached_data);
       ScriptCompiler::CompileOptions options;
       if (source.GetCachedData() == nullptr) {
@@ -245,9 +235,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
 
-  host_defined_options->Set(isolate, HostDefinedOptions::kID,
-                            Number::New(isolate, obj->id()));
-
+  that->Set(context, env->module_meta_symbol(), Object::New(isolate))
+      .FromJust();
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);
 }
@@ -568,40 +557,19 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   Local<Function> import_callback =
     env->host_import_module_dynamically_callback();
 
-  Local<FixedArray> options = host_defined_options.As<FixedArray>();
-  if (options->Length() != HostDefinedOptions::kLength) {
+  Local<Value> object;
+  if (host_defined_options->IsValue()) {
+    object = host_defined_options.As<Value>();
+  } else {
     Local<Promise::Resolver> resolver;
     if (!Promise::Resolver::New(context).ToLocal(&resolver)) return {};
     resolver
-        ->Reject(context,
-                 v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
-                     context->GetIsolate(), "Invalid host defined options")))
+        ->Reject(
+            context,
+            ERR_INVALID_SCRIPT_CONTEXT(
+                isolate, "Invalid script context initiating dynamic import"))
         .ToChecked();
     return handle_scope.Escape(resolver->GetPromise());
-  }
-
-  Local<Value> object;
-
-  int type = options->Get(context, HostDefinedOptions::kType)
-                 .As<Number>()
-                 ->Int32Value(context)
-                 .ToChecked();
-  uint32_t id = options->Get(context, HostDefinedOptions::kID)
-                    .As<Number>()
-                    ->Uint32Value(context)
-                    .ToChecked();
-  if (type == ScriptType::kScript) {
-    contextify::ContextifyScript* wrap = env->id_to_script_map.find(id)->second;
-    object = wrap->object();
-  } else if (type == ScriptType::kModule) {
-    ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
-    object = wrap->object();
-  } else if (type == ScriptType::kFunction) {
-    auto it = env->id_to_function_map.find(id);
-    CHECK_NE(it, env->id_to_function_map.end());
-    object = it->second->object();
-  } else {
-    UNREACHABLE();
   }
 
   Local<Object> assertions =
@@ -809,6 +777,12 @@ void ModuleWrap::Initialize(Local<Object> target,
     V(kEvaluated);
     V(kErrored);
 #undef V
+
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "moduleMetaSym"),
+              env->module_meta_symbol())
+        .FromJust();
 }
 
 }  // namespace loader

@@ -169,13 +169,11 @@ class ContextifyScript : public BaseObject {
                           const bool break_on_sigint,
                           const bool break_on_first_line,
                           std::shared_ptr<v8::MicrotaskQueue> microtask_queue,
-                          const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  inline uint32_t id() { return id_; }
+                          const v8::FunctionCallbackInfo<v8::Value>& args,
+                          v8::Local<v8::Data> host_defined_options);
 
  private:
   v8::Global<v8::UnboundScript> script_;
-  uint32_t id_;
 };
 
 class CompiledFnEntry final : public BaseObject {
@@ -186,14 +184,12 @@ class CompiledFnEntry final : public BaseObject {
 
   CompiledFnEntry(Environment* env,
                   v8::Local<v8::Object> object,
-                  uint32_t id,
                   v8::Local<v8::Function> fn);
   ~CompiledFnEntry();
 
   bool IsNotIndicativeOfMemoryLeakAtExit() const override { return true; }
 
  private:
-  uint32_t id_;
   v8::Global<v8::Function> fn_;
 
   static void WeakCallback(const v8::WeakCallbackInfo<CompiledFnEntry>& data);

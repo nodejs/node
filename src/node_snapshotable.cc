@@ -1438,7 +1438,7 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   Local<String> source = args[1].As<String>();
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  ScriptOrigin origin(isolate, filename, 0, 0, true);
+  ScriptOrigin origin(filename, 0, 0, true);
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
   std::vector<Local<String>> parameters = {

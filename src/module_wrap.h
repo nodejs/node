@@ -53,9 +53,7 @@ class ModuleWrap : public BaseObject {
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
 
-  inline uint32_t id() { return id_; }
   v8::Local<v8::Context> context() const;
-  static ModuleWrap* GetFromID(node::Environment*, uint32_t id);
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
@@ -100,12 +98,14 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
+  static void WeakCallback(const v8::WeakCallbackInfo<ModuleWrap>& data);
+
   v8::Global<v8::Module> module_;
+  int identity_hash_;
   std::unordered_map<std::string, v8::Global<v8::Promise>> resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   bool linked_ = false;
-  uint32_t id_;
 };
 
 }  // namespace loader

@@ -42,6 +42,7 @@ using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::FixedArray;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -813,24 +814,15 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  host_defined_options->Set(isolate, loader::HostDefinedOptions::kType,
-                            Number::New(isolate, loader::ScriptType::kScript));
-  host_defined_options->Set(isolate, loader::HostDefinedOptions::kID,
-                            Number::New(isolate, contextify_script->id()));
-
-  ScriptOrigin origin(isolate,
-                      filename,
-                      line_offset,                          // line offset
-                      column_offset,                        // column offset
-                      true,                                 // is cross origin
-                      -1,                                   // script id
-                      Local<Value>(),                       // source map URL
-                      false,                                // is opaque (?)
-                      false,                                // is WASM
-                      false,                                // is ES Module
-                      host_defined_options);
+  ScriptOrigin origin(filename,
+                      line_offset,     // line offset
+                      column_offset,   // column offset
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      false);          // is ES Module
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions compile_options =
       ScriptCompiler::kNoCompileOptions;
@@ -967,7 +959,8 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
               break_on_sigint,
               break_on_first_line,
               microtask_queue,
-              args);
+              args,
+              args.Holder());
 }
 
 bool ContextifyScript::EvalMachine(Local<Context> context,
@@ -977,7 +970,8 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
                                    const bool break_on_sigint,
                                    const bool break_on_first_line,
                                    std::shared_ptr<MicrotaskQueue> mtask_queue,
-                                   const FunctionCallbackInfo<Value>& args) {
+                                   const FunctionCallbackInfo<Value>& args,
+                                   v8::Local<v8::Data> host_defined_options) {
   Context::Scope context_scope(context);
 
   if (!env->can_call_into_js())
@@ -1007,7 +1001,7 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
   bool timed_out = false;
   bool received_signal = false;
   auto run = [&]() {
-    MaybeLocal<Value> result = script->Run(context);
+    MaybeLocal<Value> result = script->Run(context, host_defined_options);
     if (!result.IsEmpty() && mtask_queue)
       mtask_queue->PerformCheckpoint(env->isolate());
     return result;
@@ -1062,19 +1056,12 @@ bool ContextifyScript::EvalMachine(Local<Context> context,
   return true;
 }
 
-
 ContextifyScript::ContextifyScript(Environment* env, Local<Object> object)
-    : BaseObject(env, object),
-      id_(env->get_next_script_id()) {
+    : BaseObject(env, object) {
   MakeWeak();
-  env->id_to_script_map.emplace(id_, this);
 }
 
-
-ContextifyScript::~ContextifyScript() {
-  env()->id_to_script_map.erase(id_);
-}
-
+ContextifyScript::~ContextifyScript() {}
 
 void ContextifyContext::CompileFunction(
     const FunctionCallbackInfo<Value>& args) {
@@ -1144,30 +1131,22 @@ void ContextifyContext::CompileFunction(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
 
-  // Get the function id
-  uint32_t id = env->get_next_function_id();
+  Local<Object> cache_key;
+  if (!env->compiled_fn_entry_template()->NewInstance(context).ToLocal(
+          &cache_key)) {
+    return;
+  }
 
-  // Set host_defined_options
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  host_defined_options->Set(
-      isolate,
-      loader::HostDefinedOptions::kType,
-      Number::New(isolate, loader::ScriptType::kFunction));
-  host_defined_options->Set(
-      isolate, loader::HostDefinedOptions::kID, Number::New(isolate, id));
-
-  ScriptOrigin origin(isolate,
-                      filename,
-                      line_offset,       // line offset
-                      column_offset,     // column offset
-                      true,              // is cross origin
-                      -1,                // script id
-                      Local<Value>(),    // source map URL
-                      false,             // is opaque (?)
-                      false,             // is WASM
-                      false,             // is ES Module
-                      host_defined_options);
+  ScriptOrigin origin(filename,
+                      line_offset,     // line offset
+                      column_offset,   // column offset
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      false,           // is ES Module
+                      cache_key);      // host defined options
 
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions options;
@@ -1221,13 +1200,8 @@ void ContextifyContext::CompileFunction(
     return;
   }
 
-  Local<Object> cache_key;
-  if (!env->compiled_fn_entry_template()->NewInstance(
-           context).ToLocal(&cache_key)) {
-    return;
-  }
-  CompiledFnEntry* entry = new CompiledFnEntry(env, cache_key, id, fn);
-  env->id_to_function_map.emplace(id, entry);
+  // CompiledFnEntry is bound to the fn.
+  USE(new CompiledFnEntry(env, cache_key, fn));
 
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
@@ -1277,14 +1251,12 @@ void CompiledFnEntry::WeakCallback(
 
 CompiledFnEntry::CompiledFnEntry(Environment* env,
                                  Local<Object> object,
-                                 uint32_t id,
                                  Local<Function> fn)
-    : BaseObject(env, object), id_(id), fn_(env->isolate(), fn) {
+    : BaseObject(env, object), fn_(env->isolate(), fn) {
   fn_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
 }
 
 CompiledFnEntry::~CompiledFnEntry() {
-  env()->id_to_function_map.erase(id_);
   fn_.ClearWeak();
 }
 

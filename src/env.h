@@ -723,14 +723,6 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> builtins_in_snapshot;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
-  std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
-  std::unordered_map<uint32_t, contextify::ContextifyScript*>
-      id_to_script_map;
-  std::unordered_map<uint32_t, contextify::CompiledFnEntry*> id_to_function_map;
-
-  inline uint32_t get_next_module_id();
-  inline uint32_t get_next_script_id();
-  inline uint32_t get_next_function_id();
 
   EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
@@ -1053,10 +1045,6 @@ class Environment : public MemoryRetainer {
   uint32_t heap_limit_snapshot_taken_ = 0;
   uint32_t heap_snapshot_near_heap_limit_ = 0;
   bool heapsnapshot_near_heap_limit_callback_added_ = false;
-
-  uint32_t module_id_counter_ = 0;
-  uint32_t script_id_counter_ = 0;
-  uint32_t function_id_counter_ = 0;
 
   AliasedInt32Array exit_info_;
 
