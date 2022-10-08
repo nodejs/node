@@ -29,6 +29,13 @@ const { URL, URLSearchParams } = require('url');
 });
 
 [
+  { name: 'createObjectURL' },
+  { name: 'revokeObjectURL' },
+].forEach(({ name }) => {
+  testStaticAccessor(URL, name);
+});
+
+[
   { name: 'append' },
   { name: 'delete' },
   { name: 'get' },
@@ -97,4 +104,13 @@ function testAccessor(target, name, readonly = false) {
       false,
     );
   }
+}
+
+function testStaticAccessor(target, name) {
+  const desc = Object.getOwnPropertyDescriptor(target, name);
+  assert.notDeepStrictEqual(desc, undefined);
+
+  assert.deepStrictEqual(desc.configurable, true);
+  assert.deepStrictEqual(desc.enumerable, true);
+  assert.deepStrictEqual(desc.writable, true);
 }
