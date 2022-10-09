@@ -1,6 +1,7 @@
 import { URL } from 'url'
 import Dispatcher = require('./dispatcher')
 import Pool = require('./pool')
+import {DispatchInterceptor} from "./dispatcher";
 
 export = Agent
 
@@ -20,6 +21,8 @@ declare namespace Agent {
     factory?(origin: URL, opts: Object): Dispatcher;
     /** Integer. Default: `0` */
     maxRedirections?: number;
+
+    interceptors?: { Agent?: readonly DispatchInterceptor[] } & Pool.Options["interceptors"]
   }
 
   export interface DispatchOptions extends Dispatcher.DispatchOptions {

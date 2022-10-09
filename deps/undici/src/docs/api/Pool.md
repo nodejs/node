@@ -19,6 +19,7 @@ Extends: [`ClientOptions`](Client.md#parameter-clientoptions)
 
 * **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Client(origin, opts)`
 * **connections** `number | null` (optional) - Default: `null` - The number of `Client` instances to create. When set to `null`, the `Pool` instance will create an unlimited amount of `Client` instances.
+* **interceptors** `{ Pool: DispatchInterceptor[] } }` - Default: `{ Pool: [] }` - A list of interceptors that are applied to the dispatch method. Additional logic can be applied (such as, but not limited to: 302 status code handling, authentication, cookies, compression and caching).
 
 ## Instance Properties
 
