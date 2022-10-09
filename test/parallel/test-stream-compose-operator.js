@@ -5,16 +5,15 @@ const {
   Readable, Transform,
 } = require('stream');
 const assert = require('assert');
-const { once } = require('events');
 
 {
-  // compose operator with async generator
+  // with async generator
   const stream = Readable.from(['a', 'b', 'c', 'd']).compose(async function *(stream) {
     let str = '';
     for await (const chunk of stream) {
       str += chunk;
 
-      if(str.length === 2) {
+      if (str.length === 2) {
         yield str;
         str = '';
       }
@@ -29,12 +28,12 @@ const { once } = require('events');
 }
 
 {
-  // compose operator with Transformer
+  // With Transformer
   const stream = Readable.from(['a', 'b', 'c', 'd']).compose(new Transform({
     objectMode: true,
     transform: common.mustCall((chunk, encoding, callback) => {
       callback(null, chunk);
-    })
+    }, 4)
   }));
   const result = ['a', 'b', 'c', 'd'];
   (async () => {
@@ -46,7 +45,8 @@ const { once } = require('events');
 
 {
   // Throwing an error during `compose` (before waiting for data)
-  const stream = Readable.from([1, 2, 3, 4, 5]).compose(async function *(stream) {
+  const stream = Readable.from([1, 2, 3, 4, 5]).compose(async function *(stream) { // eslint-disable-line require-yield
+
     throw new Error('boom');
   });
 
@@ -76,7 +76,9 @@ const { once } = require('events');
 
 {
   // Throwing an error during `compose` (after finishing all readable data)
-  const stream = Readable.from([1, 2, 3, 4, 5]).compose(async function *(stream) {
+  const stream = Readable.from([1, 2, 3, 4, 5]).compose(async function *(stream) { // eslint-disable-line require-yield
+
+    // eslint-disable-next-line no-unused-vars,no-empty
     for await (const chunk of stream) {
     }
 
@@ -88,4 +90,27 @@ const { once } = require('events');
   ).then(common.mustCall());
 }
 
-// TODO - add here tests for abort signal and argument validation
+{
+  // AbortSignal
+  const ac = new AbortController();
+  const stream = Readable.from([1, 2, 3, 4, 5])
+    .compose(async function *(source) {
+      // Should not reach here
+      for await (const chunk of source) {
+        yield chunk;
+      }
+    }, { signal: ac.signal });
+
+  ac.abort();
+
+  assert.rejects(async () => {
+    for await (const item of stream) {
+      assert.fail('should not reach here, got ' + item);
+    }
+  }, {
+    name: 'AbortError',
+  }).then(common.mustCall());
+}
+
+
+// TODO - add tests for argument validation
