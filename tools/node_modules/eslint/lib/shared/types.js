@@ -191,9 +191,22 @@ module.exports = {};
  */
 
 /**
+ * Information provided when the maximum warning threshold is exceeded.
+ * @typedef {Object} MaxWarningsExceeded
+ * @property {number} maxWarnings Number of warnings to trigger nonzero exit code.
+ * @property {number} foundWarnings Number of warnings found while linting.
+ */
+
+/**
+ * Metadata about results for formatters.
+ * @typedef {Object} ResultsMeta
+ * @property {MaxWarningsExceeded} [maxWarningsExceeded] Present if the maxWarnings threshold was exceeded.
+ */
+
+/**
  * A formatter function.
  * @callback FormatterFunction
  * @param {LintResult[]} results The list of linting results.
- * @param {{cwd: string, rulesMeta: Record<string, RuleMeta>}} [context] A context object.
+ * @param {{cwd: string, maxWarningsExceeded?: MaxWarningsExceeded, rulesMeta: Record<string, RuleMeta>}} [context] A context object.
  * @returns {string | Promise<string>} Formatted text.
  */

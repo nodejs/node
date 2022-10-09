@@ -15,7 +15,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 /**
- * Return an array with with any line numbers that are empty.
+ * Return an array with any line numbers that are empty.
  * @param {Array} lines An array of each line of the file.
  * @returns {Array} An array of line numbers.
  */
@@ -29,7 +29,7 @@ function getEmptyLineNums(lines) {
 }
 
 /**
- * Return an array with with any line numbers that contain comments.
+ * Return an array with any line numbers that contain comments.
  * @param {Array} comments An array of comment tokens.
  * @returns {Array} An array of line numbers.
  */
