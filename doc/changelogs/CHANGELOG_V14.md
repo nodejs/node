@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.20.1">14.20.1</a><br/>
+<a href="#14.20.0">14.20.0</a><br/>
 <a href="#14.19.3">14.19.3</a><br/>
 <a href="#14.19.2">14.19.2</a><br/>
 <a href="#14.19.1">14.19.1</a><br/>
@@ -74,6 +76,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.20.1"></a>
+
+## 2022-09-23, Version 14.20.1 'Fermium' (LTS), @bengl
+
+This is a security release.
+
+### Notable changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-32212](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32212)**: DNS rebinding in --inspect on macOS (High)
+* **[CVE-2022-32213](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-32213)**: bypass via obs-fold mechanic (Medium)
+* **[CVE-2022-35256](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-35256)**: HTTP Request Smuggling Due to Incorrect Parsing of Header Fields (Medium)
+
+More detailed information on each of the vulnerabilities can be found in [September 22nd 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/september-2022-security-releases/) blog post.
+
+### Commits
+
+* \[[`a9f1146b88`](https://github.com/nodejs/node/commit/a9f1146b88)] - **http**: disable chunked encoding when OBS fold is used (Paolo Insogna) [nodejs-private/node-private#341](https://github.com/nodejs-private/node-private/pull/341)
+* \[[`a1121b456c`](https://github.com/nodejs/node/commit/a1121b456c)] - **src**: fix IPv4 non routable validation (RafaelGSS) [nodejs-private/node-private#337](https://github.com/nodejs-private/node-private/pull/337)
+* \[[`de80707870`](https://github.com/nodejs/node/commit/de80707870)] - **src**: fix IS\_LTS and IS\_RELEASE flags (Richard Lau) [#43761](https://github.com/nodejs/node/pull/43761)
 
 <a id="14.20.0"></a>
 

@@ -102,6 +102,9 @@ std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
          << "// -- persistent_values begins --\n"
          << i.persistent_values << ",\n"
          << "// -- persistent_values ends --\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
          << i.context << ",  // context\n"
          << "}";
   return output;
@@ -109,9 +112,6 @@ std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
 
 std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   output << "{\n"
-         << "// -- native_objects begins --\n"
-         << i.native_objects << ",\n"
-         << "// -- native_objects ends --\n"
          << "// -- builtins begins --\n"
          << i.builtins << ",\n"
          << "// -- builtins ends --\n"
@@ -705,6 +705,7 @@ RealmSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<RealmSerializeInfo>()\n");
   RealmSerializeInfo result;
   result.persistent_values = ReadVector<PropInfo>();
+  result.native_objects = ReadVector<PropInfo>();
   result.context = Read<SnapshotIndex>();
   return result;
 }
@@ -718,6 +719,7 @@ size_t FileWriter::Write(const RealmSerializeInfo& data) {
 
   // Use += here to ensure order of evaluation.
   size_t written_total = WriteVector<PropInfo>(data.persistent_values);
+  written_total += WriteVector<PropInfo>(data.native_objects);
   written_total += Write<SnapshotIndex>(data.context);
 
   Debug("Write<RealmSerializeInfo>() wrote %d bytes\n", written_total);
@@ -728,7 +730,6 @@ template <>
 EnvSerializeInfo FileReader::Read() {
   per_process::Debug(DebugCategory::MKSNAPSHOT, "Read<EnvSerializeInfo>()\n");
   EnvSerializeInfo result;
-  result.native_objects = ReadVector<PropInfo>();
   result.builtins = ReadVector<std::string>();
   result.async_hooks = Read<AsyncHooks::SerializeInfo>();
   result.tick_info = Read<TickInfo::SerializeInfo>();
@@ -750,8 +751,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   }
 
   // Use += here to ensure order of evaluation.
-  size_t written_total = WriteVector<PropInfo>(data.native_objects);
-  written_total += WriteVector<std::string>(data.builtins);
+  size_t written_total = WriteVector<std::string>(data.builtins);
   written_total += Write<AsyncHooks::SerializeInfo>(data.async_hooks);
   written_total += Write<TickInfo::SerializeInfo>(data.tick_info);
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
@@ -1067,14 +1067,9 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-// TODO(joyeecheung): share these exit code constants across the code base.
-constexpr int UNCAUGHT_EXCEPTION_ERROR = 1;
-constexpr int BOOTSTRAP_ERROR = 10;
-constexpr int SNAPSHOT_ERROR = 14;
-
-int SnapshotBuilder::Generate(SnapshotData* out,
-                              const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(SnapshotData* out,
+                                   const std::vector<std::string> args,
+                                   const std::vector<std::string> exec_args) {
   const std::vector<intptr_t>& external_references =
       CollectExternalReferences();
   Isolate* isolate = Isolate::Allocate();
@@ -1137,7 +1132,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       if (!contextify::ContextifyContext::CreateV8Context(
                isolate, global_template, nullptr, nullptr)
                .ToLocal(&vm_context)) {
-        return SNAPSHOT_ERROR;
+        return ExitCode::kStartupSnapshotFailure;
       }
     }
 
@@ -1146,13 +1141,13 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     // without breaking compatibility.
     Local<Context> base_context = NewContext(isolate);
     if (base_context.IsEmpty()) {
-      return BOOTSTRAP_ERROR;
+      return ExitCode::kBootstrapFailure;
     }
     ResetContextSettingsBeforeSnapshot(base_context);
 
     Local<Context> main_context = NewContext(isolate);
     if (main_context.IsEmpty()) {
-      return BOOTSTRAP_ERROR;
+      return ExitCode::kBootstrapFailure;
     }
     // Initialize the main instance context.
     {
@@ -1169,7 +1164,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 
       // Run scripts in lib/internal/bootstrap/
       if (env->principal_realm()->RunBootstrapping().IsEmpty()) {
-        return BOOTSTRAP_ERROR;
+        return ExitCode::kBootstrapFailure;
       }
       // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
       // loaded via LoadEnvironment() to execute process.argv[1] as the entry
@@ -1178,23 +1173,25 @@ int SnapshotBuilder::Generate(SnapshotData* out,
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
-        // TODO(joyeecheung): move this before RunBootstrapping().
+        // TODO(joyeecheung): handle the exit code returned by
+        // InitializeInspector().
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
-          return UNCAUGHT_EXCEPTION_ERROR;
+          return ExitCode::kGenericUserError;
         }
         // FIXME(joyeecheung): right now running the loop in the snapshot
         // builder seems to introduces inconsistencies in JS land that need to
         // be synchronized again after snapshot restoration.
-        int exit_code = SpinEventLoop(env).FromMaybe(UNCAUGHT_EXCEPTION_ERROR);
-        if (exit_code != 0) {
+        ExitCode exit_code =
+            SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
+        if (exit_code != ExitCode::kNoFailure) {
           return exit_code;
         }
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
-        env->PrintAllBaseObjects();
+        env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
         printf("Environment = %p\n", env);
       }
 
@@ -1206,7 +1203,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
 #ifdef NODE_USE_NODE_CODE_CACHE
       // Regenerate all the code cache.
       if (!builtins::BuiltinLoader::CompileAllBuiltins(main_context)) {
-        return UNCAUGHT_EXCEPTION_ERROR;
+        return ExitCode::kGenericUserError;
       }
       builtins::BuiltinLoader::CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
@@ -1241,7 +1238,7 @@ int SnapshotBuilder::Generate(SnapshotData* out,
   // We must be able to rehash the blob when we restore it or otherwise
   // the hash seed would be fixed by V8, introducing a vulnerability.
   if (!out->v8_snapshot_blob_data.CanBeRehashed()) {
-    return SNAPSHOT_ERROR;
+    return ExitCode::kStartupSnapshotFailure;
   }
 
   out->metadata = SnapshotMetadata{snapshot_type,
@@ -1260,17 +1257,17 @@ int SnapshotBuilder::Generate(SnapshotData* out,
     PrintLibuvHandleInformation(env->event_loop(), stderr);
   }
   if (!queues_are_empty) {
-    return SNAPSHOT_ERROR;
+    return ExitCode::kStartupSnapshotFailure;
   }
-  return 0;
+  return ExitCode::kNoFailure;
 }
 
-int SnapshotBuilder::Generate(std::ostream& out,
-                              const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(std::ostream& out,
+                                   const std::vector<std::string> args,
+                                   const std::vector<std::string> exec_args) {
   SnapshotData data;
-  int exit_code = Generate(&data, args, exec_args);
-  if (exit_code != 0) {
+  ExitCode exit_code = Generate(&data, args, exec_args);
+  if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
   FormatBlob(out, &data);
@@ -1400,11 +1397,13 @@ StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                      static_cast<int>(info->length)};
 }
 
-void SerializeSnapshotableObjects(Environment* env,
+void SerializeSnapshotableObjects(Realm* realm,
                                   SnapshotCreator* creator,
-                                  EnvSerializeInfo* info) {
+                                  RealmSerializeInfo* info) {
+  HandleScope scope(realm->isolate());
+  Local<Context> context = realm->context();
   uint32_t i = 0;
-  env->ForEachBaseObject([&](BaseObject* obj) {
+  realm->ForEachBaseObject([&](BaseObject* obj) {
     // If there are any BaseObjects that are not snapshotable left
     // during context serialization, V8 would crash due to unregistered
     // global handles and print detailed information about them.
@@ -1422,8 +1421,8 @@ void SerializeSnapshotableObjects(Environment* env,
                        *(ptr->object()),
                        type_name);
 
-    if (ptr->PrepareForSerialization(env->context(), creator)) {
-      SnapshotIndex index = creator->AddData(env->context(), obj->object());
+    if (ptr->PrepareForSerialization(context, creator)) {
+      SnapshotIndex index = creator->AddData(context, obj->object());
       per_process::Debug(DebugCategory::MKSNAPSHOT,
                          "Serialized with index=%d\n",
                          static_cast<int>(index));

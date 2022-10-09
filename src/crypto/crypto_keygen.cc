@@ -80,7 +80,8 @@ KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
     SecretKeyGenConfig* params) {
   CHECK_LE(params->length, INT_MAX);
   ByteSource::Builder bytes(params->length);
-  EntropySource(bytes.data<unsigned char>(), params->length);
+  if (CSPRNG(bytes.data<unsigned char>(), params->length).is_err())
+    return KeyGenJobStatus::FAILED;
   params->out = std::move(bytes).release();
   return KeyGenJobStatus::OK;
 }

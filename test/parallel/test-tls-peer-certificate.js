@@ -53,39 +53,39 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, 'ECC9B856270DA9A8');
+  assert.strictEqual(peerCert.serialNumber, '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
   assert.strictEqual(peerCert.exponent, '0x10001');
-  assert.strictEqual(peerCert.bits, 1024);
+  assert.strictEqual(peerCert.bits, 2048);
   // The conversion to bits is odd because modulus isn't a buffer, its a hex
   // string. There are two hex chars for every byte of modulus, and 8 bits per
   // byte.
   assert.strictEqual(peerCert.modulus.length / 2 * 8, peerCert.bits);
   assert.strictEqual(
     peerCert.fingerprint,
-    'D7:FD:F6:42:92:A8:83:51:8E:80:48:62:66:DA:85:C2:EE:A6:A1:CD'
+    '8B:89:16:C4:99:87:D2:13:1A:64:94:36:38:A5:32:01:F0:95:3B:53'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    'B0:BE:46:49:B8:29:63:E0:6F:63:C8:8A:57:9C:3F:9B:72:C6:F5:89:E3:0D:84:AC:' +
-    '5B:08:9A:20:89:B6:8F:D6'
+    '2C:62:59:16:91:89:AB:90:6A:3E:98:88:A6:D3:C5:58:58:6C:AE:FF:9C:33:' +
+    '22:7C:B6:77:D3:34:E7:53:4B:05',
   );
   assert.strictEqual(
     peerCert.fingerprint512,
-    'D0:05:01:82:2C:D8:09:BE:27:94:E7:83:F1:88:BC:7A:8B:D0:39:97:54:B6:' +
-    'D0:B4:46:5B:DE:13:5B:68:86:B6:F2:A8:95:22:D5:6E:8B:35:DA:89:29:CA:' +
-    'A3:06:C5:CE:43:C1:7F:2D:7E:5F:44:A5:EE:A3:CB:97:05:A3:E3:68'
+    '0B:6F:D0:4D:6B:22:53:99:66:62:51:2D:2C:96:F2:58:3F:95:1C:CC:4C:44:' +
+    '9D:B5:59:AA:AD:A8:F6:2A:24:8A:BB:06:A5:26:42:52:30:A3:37:61:30:A9:' +
+    '5A:42:63:E0:21:2F:D6:70:63:07:96:6F:27:A7:78:12:08:02:7A:8B'
   );
 
   // SHA256 fingerprint of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('hex'),
-    '221fcc8593146e9eee65b2f7f9c1504993ece8de014657a4a1cde55c5e35d06e'
+    '490f8da0889339df5164d500b406de0af3249c174c2b60152528940fa116e9cc'
   );
 
   // HPKP / RFC7469 "pin-sha256" of the public key
   assert.strictEqual(
     sha256(peerCert.pubkey).digest('base64'),
-    'Ih/MhZMUbp7uZbL3+cFQSZPs6N4BRlekoc3lXF410G4='
+    'SQ+NoIiTOd9RZNUAtAbeCvMknBdMK2AVJSiUD6EW6cw='
   );
 
   assert.deepStrictEqual(peerCert.infoAccess['OCSP - URI'],
@@ -93,7 +93,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, 'CB153AE212609FC6');
+  assert.strictEqual(issuer.serialNumber, '4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229');
 
   return cleanup();
 });
@@ -112,24 +112,24 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, 'C1EA7B03D5956D52');
+  assert.strictEqual(peerCert.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
   assert.strictEqual(peerCert.exponent, undefined);
   assert.strictEqual(peerCert.pubKey, undefined);
   assert.strictEqual(peerCert.modulus, undefined);
   assert.strictEqual(
     peerCert.fingerprint,
-    'DF:F0:D3:6B:C3:E7:74:7C:C7:F3:FB:1E:33:12:AE:6C:8D:53:5F:74'
+    '31:EB:2C:7B:AA:39:E8:E8:F5:43:62:05:CD:64:B3:66:1E:EA:44:A3'
   );
   assert.strictEqual(
     peerCert.fingerprint256,
-    'AB:08:3C:40:C7:07:D7:D1:79:32:92:3B:96:52:D0:38:4C:22:ED:CD:23:51:D0:A1:' +
-    '67:AA:33:A0:D5:26:5C:41'
+    'B9:27:E4:8F:C0:F5:E3:FD:A6:E5:96:11:DB:69:B8:80:94:8B:0F:6A:4C:D6:80:4F:' +
+    '87:31:3C:A3:77:6C:4C:0A'
   );
   assert.strictEqual(
     peerCert.fingerprint512,
-    '52:F4:86:64:69:0F:94:6F:78:DE:17:7A:5C:92:CA:0F:05:2E:6A:EE:4A:FF:8B:39:' +
-    'D6:5E:7A:B8:08:77:B3:80:FC:40:A1:F4:58:CC:7A:DF:BB:3D:38:F9:02:77:50:2B:' +
-    '9A:0B:FB:79:B4:BD:E9:F5:9C:44:C8:5D:D5:F0:E2:BC'
+    '45:E3:ED:6E:22:1C:3C:DD:D7:E1:65:A9:30:6E:79:0C:9F:98:B8:BC:24:BB:BA:32:' +
+    '54:4D:70:4E:78:4F:1B:97:3C:A7:F5:DB:06:F1:36:E9:53:4C:0A:D2:86:83:79:8A:' +
+    '72:2B:81:55:5D:6F:BC:A6:5B:61:85:26:6B:9D:3E:E8'
   );
 
   assert.strictEqual(
@@ -144,7 +144,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, 'C1EA7B03D5956D52');
+  assert.strictEqual(issuer.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
 
   return cleanup();
 });

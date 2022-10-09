@@ -33,6 +33,27 @@ ifdef ENABLE_V8_TAP
 	TAP_V8 := --junitout $(PWD)/v8-tap.xml
 	TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
 	TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
+define convert_to_junit
+	@true
+endef
+endif
+
+ifdef ENABLE_CONVERT_V8_JSON_TO_XML
+	TAP_V8_JSON := $(PWD)/v8-tap.json
+	TAP_V8_INTL_JSON := $(PWD)/v8-intl-tap.json
+	TAP_V8_BENCHMARKS_JSON := $(PWD)/v8-benchmarks-tap.json
+
+	# By default, the V8's JSON test output only includes the tests which have
+	# failed. We use --slow-tests-cutoff to ensure that all tests are present
+	# in the output, including those which pass.
+	TAP_V8 := --json-test-results $(TAP_V8_JSON) --slow-tests-cutoff 1000000
+	TAP_V8_INTL := --json-test-results $(TAP_V8_INTL_JSON) --slow-tests-cutoff 1000000
+	TAP_V8_BENCHMARKS := --json-test-results $(TAP_V8_BENCHMARKS_JSON) --slow-tests-cutoff 1000000
+
+define convert_to_junit
+	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
+		$(PYTHON) tools/v8-json-to-junit.py < $(1) > $(1:.json=.xml)
+endef
 endif
 
 V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
@@ -683,6 +704,7 @@ test-v8: v8  ## Runs the V8 test suite on deps/v8.
 		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
+	$(call convert_to_junit,$(TAP_V8_JSON))
 	$(info Testing hash seed)
 	$(MAKE) test-hash-seed
 
@@ -691,12 +713,14 @@ test-v8-intl: v8
 		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				intl \
 				$(TAP_V8_INTL)
+	$(call convert_to_junit,$(TAP_V8_INTL_JSON))
 
 test-v8-benchmarks: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
+	$(call convert_to_junit,$(TAP_V8_BENCHMARKS_JSON))
 
 test-v8-updates:
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates

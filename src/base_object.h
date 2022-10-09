@@ -32,6 +32,7 @@ namespace node {
 
 class Environment;
 class IsolateData;
+class Realm;
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl;
 
@@ -47,7 +48,10 @@ class BaseObject : public MemoryRetainer {
 
   // Associates this object with `object`. It uses the 1st internal field for
   // that, and in particular aborts if there is no such field.
-  BaseObject(Environment* env, v8::Local<v8::Object> object);
+  // This is the designated constructor.
+  BaseObject(Realm* realm, v8::Local<v8::Object> object);
+  // Convenient constructor for constructing BaseObject in the principal realm.
+  inline BaseObject(Environment* env, v8::Local<v8::Object> object);
   ~BaseObject() override;
 
   BaseObject() = delete;
@@ -63,11 +67,15 @@ class BaseObject : public MemoryRetainer {
   inline v8::Global<v8::Object>& persistent();
 
   inline Environment* env() const;
+  inline Realm* realm() const;
 
   // Get a BaseObject* pointer, or subclass pointer, for the JS object that
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
+  static inline void SetInternalFields(v8::Local<v8::Object> object,
+                                       void* slot);
+  static inline void TagNodeObject(v8::Local<v8::Object> object);
   static void LazilyInitializedJSTemplateConstructor(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
@@ -88,9 +96,13 @@ class BaseObject : public MemoryRetainer {
   // to it anymore.
   inline bool IsWeakOrDetached() const;
 
+  inline v8::EmbedderGraph::Node::Detachedness GetDetachedness() const override;
+
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
+  static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      IsolateData* isolate);
   static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
       Environment* env);
 
@@ -213,7 +225,7 @@ class BaseObject : public MemoryRetainer {
   void decrease_refcount();
   void increase_refcount();
 
-  Environment* env_;
+  Realm* realm_;
   PointerData* pointer_data_ = nullptr;
 };
 
@@ -235,7 +247,9 @@ inline T* Unwrap(v8::Local<v8::Value> obj) {
 // circumstances such as the GC or Environment cleanup.
 // If weak, destruction behaviour is not affected, but the pointer will be
 // reset to nullptr once the BaseObject is destroyed.
-// The API matches std::shared_ptr closely.
+// The API matches std::shared_ptr closely. However, this class is not thread
+// safe, that is, we can't have different BaseObjectPtrImpl instances in
+// different threads refering to the same BaseObject instance.
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl final {
  public:

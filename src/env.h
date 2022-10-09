@@ -37,6 +37,7 @@
 #include "node.h"
 #include "node_binding.h"
 #include "node_builtins.h"
+#include "node_exit_code.h"
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
@@ -508,7 +509,6 @@ struct DeserializeRequest {
 };
 
 struct EnvSerializeInfo {
-  std::vector<PropInfo> native_objects;
   std::vector<std::string> builtins;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
@@ -578,6 +578,10 @@ struct SnapshotData {
   SnapshotData() = default;
 };
 
+void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code);
+v8::Maybe<ExitCode> SpinEventLoopInternal(Environment* env);
+v8::Maybe<ExitCode> EmitProcessExitInternal(Environment* env);
+
 /**
  * Environment is a per-isolate data structure that represents an execution
  * environment. Each environment has a principal realm. An environment can
@@ -600,8 +604,6 @@ class Environment : public MemoryRetainer {
   void DeserializeProperties(const EnvSerializeInfo* info);
 
   void PrintInfoForSnapshotIfDebug();
-  void PrintAllBaseObjects();
-  void VerifyNoStrongBaseObjects();
   void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                  v8::Local<v8::Object> holder,
                                  int index,
@@ -615,7 +617,7 @@ class Environment : public MemoryRetainer {
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
-  int InitializeInspector(
+  ExitCode InitializeInspector(
       std::unique_ptr<inspector::ParentInspectorHandle> parent_handle);
 #endif
 
@@ -688,7 +690,7 @@ class Environment : public MemoryRetainer {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
-  void Exit(int code);
+  void Exit(ExitCode code);
   void ExitEnv();
 
   // Register clean-up cb to be called on environment destruction.
@@ -973,19 +975,6 @@ class Environment : public MemoryRetainer {
   inline std::shared_ptr<EnvironmentOptions> options();
   inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
 
-  // The BaseObject count is a debugging helper that makes sure that there are
-  // no memory leaks caused by BaseObjects staying alive longer than expected
-  // (in particular, no circular BaseObjectPtr references).
-  inline void modify_base_object_count(int64_t delta);
-  inline int64_t base_object_count() const;
-
-  // Base object count created in bootstrap of the principal realm.
-  // This adjusts the return value of base_object_created_after_bootstrap() so
-  // that tests that check the count do not have to account for internally
-  // created BaseObjects.
-  inline void set_base_object_created_by_bootstrap(int64_t count);
-  inline int64_t base_object_created_after_bootstrap() const;
-
   inline int32_t stack_trace_limit() const { return 10; }
 
 #if HAVE_INSPECTOR
@@ -1026,7 +1015,7 @@ class Environment : public MemoryRetainer {
 
   inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
   inline void set_process_exit_handler(
-      std::function<void(Environment*, int)>&& handler);
+      std::function<void(Environment*, ExitCode)>&& handler);
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
@@ -1038,7 +1027,7 @@ class Environment : public MemoryRetainer {
   void RemoveUnmanagedFd(int fd);
 
   template <typename T>
-  void ForEachBaseObject(T&& iterator);
+  void ForEachRealm(T&& iterator) const;
 
   inline void set_heap_snapshot_near_heap_limit(uint32_t limit);
   inline bool is_in_heapsnapshot_heap_limit_callback() const;
@@ -1188,14 +1177,12 @@ class Environment : public MemoryRetainer {
   CleanupQueue cleanup_queue_;
   bool started_cleanup_ = false;
 
-  int64_t base_object_count_ = 0;
-  int64_t base_object_created_by_bootstrap_ = 0;
   std::atomic_bool is_stopping_ { false };
 
   std::unordered_set<int> unmanaged_fds_;
 
-  std::function<void(Environment*, int)> process_exit_handler_ {
-      DefaultProcessExitHandler };
+  std::function<void(Environment*, ExitCode)> process_exit_handler_{
+      DefaultProcessExitHandlerInternal};
 
   std::unique_ptr<Realm> principal_realm_ = nullptr;
 

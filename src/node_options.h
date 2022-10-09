@@ -112,7 +112,6 @@ class EnvironmentOptions : public Options {
   bool experimental_global_customevent = false;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
-  std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
@@ -153,6 +152,7 @@ class EnvironmentOptions : public Options {
   std::string redirect_warnings;
   std::string diagnostic_dir;
   bool test_runner = false;
+  std::vector<std::string> test_name_pattern;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;

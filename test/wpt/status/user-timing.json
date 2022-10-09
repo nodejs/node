@@ -4,8 +4,5 @@
   },
   "performance-measure-invalid.worker.js": {
     "skip": "importScripts not supported"
-  },
-  "idlharness.any.js": {
-    "skip": "idlharness cannot recognize Node.js environment"
   }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Usage: tools/update-author.mjs [--dry]
+// Usage: tools/update-authors.mjs [--dry]
 // Passing --dry will redirect output to stdout rather than write to 'AUTHORS'.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';

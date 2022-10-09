@@ -62,6 +62,7 @@ class ExternalReferenceRegistry {
   V(blob)                                                                      \
   V(buffer)                                                                    \
   V(builtins)                                                                  \
+  V(cares_wrap)                                                                \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(env_var)                                                                   \

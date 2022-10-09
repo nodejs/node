@@ -9,30 +9,34 @@ const debug = require('node:util').debuglog('test');
 
 const testResBody = 'response content';
 
-const server = http2.createServer();
+{
+  // Invalid object value
 
-server.on('request', common.mustCall((req, res) => {
-  debug('Server sending early hints...');
-  res.writeEarlyHints({ links: 'bad argument object' });
+  const server = http2.createServer();
 
-  debug('Server sending full response...');
-  res.end(testResBody);
-}));
+  server.on('request', common.mustCall((req, res) => {
+    debug('Server sending early hints...');
+    res.writeEarlyHints('this should not be here');
 
-server.listen(0);
+    debug('Server sending full response...');
+    res.end(testResBody);
+  }));
 
-server.on('listening', common.mustCall(() => {
-  const client = http2.connect(`http://localhost:${server.address().port}`);
-  const req = client.request();
+  server.listen(0);
 
-  debug('Client sending request...');
+  server.on('listening', common.mustCall(() => {
+    const client = http2.connect(`http://localhost:${server.address().port}`);
+    const req = client.request();
 
-  req.on('headers', common.mustNotCall());
+    debug('Client sending request...');
 
-  process.on('uncaughtException', (err) => {
-    debug(`Caught an exception: ${JSON.stringify(err)}`);
-    if (err.name === 'AssertionError') throw err;
-    assert.strictEqual(err.code, 'ERR_INVALID_ARG_VALUE');
-    process.exit(0);
-  });
-}));
+    req.on('headers', common.mustNotCall());
+
+    process.on('uncaughtException', (err) => {
+      debug(`Caught an exception: ${JSON.stringify(err)}`);
+      if (err.name === 'AssertionError') throw err;
+      assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+      process.exit(0);
+    });
+  }));
+}

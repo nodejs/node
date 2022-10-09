@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
-#include "base64-inl.h"
 #include "cares_wrap.h"
+#include "async_wrap-inl.h"
+#include "base64-inl.h"
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <cerrno>
 #include <cstring>
@@ -1532,28 +1533,18 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
-using ParseIPResult =
-    decltype(static_cast<ares_addr_port_node*>(nullptr)->addr);
-
-int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
-  ParseIPResult tmp;
-  if (result == nullptr) result = &tmp;
-  if (0 == uv_inet_pton(AF_INET, ip, result)) return 4;
-  if (0 == uv_inet_pton(AF_INET6, ip, result)) return 6;
-  return 0;
-}
-
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
 
-  ParseIPResult result;
-  const int rc = ParseIP(*ip, &result);
-  if (rc == 0) return;
+  int af;
+  unsigned char result[sizeof(ares_addr_port_node::addr)];
+  if (uv_inet_pton(af = AF_INET, *ip, result) != 0 &&
+      uv_inet_pton(af = AF_INET6, *ip, result) != 0)
+    return;
 
   char canonical_ip[INET6_ADDRSTRLEN];
-  const int af = (rc == 4 ? AF_INET : AF_INET6);
-  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
+  CHECK_EQ(0, uv_inet_ntop(af, result, canonical_ip, sizeof(canonical_ip)));
   Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
       .ToLocalChecked();
   args.GetReturnValue().Set(val);
@@ -1955,7 +1946,36 @@ void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetAddrInfo);
+  registry->Register(GetNameInfo);
+  registry->Register(CanonicalizeIP);
+  registry->Register(StrError);
+  registry->Register(ChannelWrap::New);
+
+  registry->Register(Query<QueryAnyWrap>);
+  registry->Register(Query<QueryAWrap>);
+  registry->Register(Query<QueryAaaaWrap>);
+  registry->Register(Query<QueryCaaWrap>);
+  registry->Register(Query<QueryCnameWrap>);
+  registry->Register(Query<QueryMxWrap>);
+  registry->Register(Query<QueryNsWrap>);
+  registry->Register(Query<QueryTxtWrap>);
+  registry->Register(Query<QuerySrvWrap>);
+  registry->Register(Query<QueryPtrWrap>);
+  registry->Register(Query<QueryNaptrWrap>);
+  registry->Register(Query<QuerySoaWrap>);
+  registry->Register(Query<GetHostByAddrWrap>);
+
+  registry->Register(GetServers);
+  registry->Register(SetServers);
+  registry->Register(SetLocalAddress);
+  registry->Register(Cancel);
+}
+
 }  // namespace cares_wrap
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(cares_wrap,
+                               node::cares_wrap::RegisterExternalReferences)

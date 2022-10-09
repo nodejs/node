@@ -226,7 +226,7 @@
             },
           },
           'conditions': [
-            ['OS != "aix" and OS != "mac"', {
+            ['OS != "aix" and OS != "mac" and OS != "ios"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
@@ -465,6 +465,7 @@
         'src/api/hooks.cc',
         'src/api/utils.cc',
         'src/async_wrap.cc',
+        'src/base_object.cc',
         'src/cares_wrap.cc',
         'src/cleanup_queue.cc',
         'src/connect_wrap.cc',
@@ -599,6 +600,7 @@
         'src/node_contextify.h',
         'src/node_dir.h',
         'src/node_errors.h',
+        'src/node_exit_code.h',
         'src/node_external_reference.h',
         'src/node_file.h',
         'src/node_file-inl.h',
@@ -680,6 +682,8 @@
         'openssl_system_ca_path%': '',
         'openssl_default_cipher_list%': '',
       },
+
+      'cflags': ['-Werror=unused-result'],
 
       'defines': [
         'NODE_ARCH="<(target_arch)"',

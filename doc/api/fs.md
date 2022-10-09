@@ -1064,7 +1064,7 @@ import { mkdir } from 'node:fs/promises';
 
 try {
   const projectFolder = new URL('./test/project/', import.meta.url);
-  const createDir = await mkdir(path, { recursive: true });
+  const createDir = await mkdir(projectFolder, { recursive: true });
 
   console.log(`created ${createDir}`);
 } catch (err) {
@@ -1463,18 +1463,27 @@ changes:
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42894
+    description: If the `type` argument is `null` or omitted, Node.js will
+                 autodetect `target` type and automatically
+                 select `dir` or `file`.
+
 -->
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string} **Default:** `'file'`
+* `type` {string|null} **Default:** `null`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Creates a symbolic link.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
-`'file'`, or `'junction'`. Windows junction points require the destination path
-to be absolute. When using `'junction'`, the `target` argument will
+`'file'`, or `'junction'`. If the `type` argument is not a string, Node.js will
+autodetect `target` type and use `'file'` or `'dir'`. If the `target` does not
+exist, `'file'` will be used. Windows junction points require the destination
+path to be absolute. When using `'junction'`, the `target` argument will
 automatically be normalized to absolute path.
 
 ### `fsPromises.truncate(path[, len])`
@@ -7553,7 +7562,7 @@ try {
 
 ### Threadpool usage
 
-All callback and promise-based file system APIs ( with the exception of
+All callback and promise-based file system APIs (with the exception of
 `fs.FSWatcher()`) use libuv's threadpool. This can have surprising and negative
 performance implications for some applications. See the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.

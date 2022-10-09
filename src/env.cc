@@ -37,7 +37,6 @@ using v8::Context;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapSpaceStatistics;
@@ -58,8 +57,6 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
-using v8::WeakCallbackInfo;
-using v8::WeakCallbackType;
 using worker::Worker;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
@@ -163,14 +160,17 @@ bool AsyncHooks::pop_async_context(double async_id) {
 }
 
 void AsyncHooks::clear_async_id_stack() {
-  Isolate* isolate = env()->isolate();
-  HandleScope handle_scope(isolate);
-  if (!js_execution_async_resources_.IsEmpty()) {
-    USE(PersistentToLocal::Strong(js_execution_async_resources_)
-            ->Set(env()->context(),
-                  env()->length_string(),
-                  Integer::NewFromUnsigned(isolate, 0)));
+  if (env()->can_call_into_js()) {
+    Isolate* isolate = env()->isolate();
+    HandleScope handle_scope(isolate);
+    if (!js_execution_async_resources_.IsEmpty()) {
+      USE(PersistentToLocal::Strong(js_execution_async_resources_)
+              ->Set(env()->context(),
+                    env()->length_string(),
+                    Integer::NewFromUnsigned(isolate, 0)));
+    }
   }
+
   native_execution_async_resources_.clear();
   native_execution_async_resources_.shrink_to_fit();
 
@@ -451,8 +451,7 @@ void IsolateData::CreateProperties() {
   templ->Inherit(BaseObject::GetConstructorTemplate(this));
   set_binding_data_ctor_template(templ);
 
-  set_contextify_global_template(
-      contextify::ContextifyContext::CreateGlobalTemplate(isolate_));
+  contextify::ContextifyContext::InitializeGlobalTemplates(this);
 }
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -838,8 +837,6 @@ Environment::~Environment() {
       addon.Close();
     }
   }
-
-  CHECK_EQ(base_object_count_, 0);
 }
 
 void Environment::InitializeLibuv() {
@@ -1000,11 +997,16 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");
   bindings_.clear();
+  // Only BaseObject's cleanups are registered as per-realm cleanup hooks now.
+  // Defer the BaseObject cleanup after handles are cleaned up.
   CleanupHandles();
 
-  while (!cleanup_queue_.empty() || native_immediates_.size() > 0 ||
+  while (!cleanup_queue_.empty() || principal_realm_->HasCleanupHooks() ||
+         native_immediates_.size() > 0 ||
          native_immediates_threadsafe_.size() > 0 ||
          native_immediates_interrupts_.size() > 0) {
+    // TODO(legendecas): cleanup handles in per-realm cleanup hooks as well.
+    principal_realm_->RunCleanup();
     cleanup_queue_.Drain();
     CleanupHandles();
   }
@@ -1046,7 +1048,13 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment),
                "RunAndClearNativeImmediates");
   HandleScope handle_scope(isolate_);
-  InternalCallbackScope cb_scope(this, Object::New(isolate_), { 0, 0 });
+  // In case the Isolate is no longer accessible just use an empty Local. This
+  // is not an issue for InternalCallbackScope as this case is already handled
+  // in its constructor but we avoid calls into v8 which can crash the process
+  // in debug builds.
+  Local<Object> obj =
+      can_call_into_js() ? Object::New(isolate_) : Local<Object>();
+  InternalCallbackScope cb_scope(this, obj, {0, 0});
 
   size_t ref_count = 0;
 
@@ -1492,14 +1500,14 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
           expected_async_id);
   DumpBacktrace(stderr);
   fflush(stderr);
-  if (!env()->abort_on_uncaught_exception())
-    exit(1);
+  // TODO(joyeecheung): should this exit code be more specific?
+  if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);
   fprintf(stderr, "\n");
   fflush(stderr);
   ABORT_NO_BACKTRACE();
 }
 
-void Environment::Exit(int exit_code) {
+void Environment::Exit(ExitCode exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
     Isolate::DisallowJavascriptExecutionScope disallow_js(
@@ -1512,8 +1520,9 @@ void Environment::Exit(int exit_code) {
               uv_os_getpid(), thread_id());
     }
 
-    fprintf(
-        stderr, "WARNING: Exited the environment with code %d\n", exit_code);
+    fprintf(stderr,
+            "WARNING: Exited the environment with code %d\n",
+            static_cast<int>(exit_code));
     PrintStackTrace(isolate(),
                     StackTrace::CurrentStackTrace(
                         isolate(), stack_trace_limit(), StackTrace::kDetailed));
@@ -1527,7 +1536,7 @@ void Environment::stop_sub_worker_contexts() {
   while (!sub_worker_contexts_.empty()) {
     Worker* w = *sub_worker_contexts_.begin();
     remove_sub_worker_context(w);
-    w->Exit(1);
+    w->Exit(ExitCode::kGenericUserError);
     w->JoinThread();
   }
 }
@@ -1557,8 +1566,8 @@ void Environment::RemoveUnmanagedFd(int fd) {
 
 void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
-    PrintAllBaseObjects();
+    fprintf(stderr, "At the exit of the Environment:\n");
+    principal_realm()->PrintInfoForSnapshot();
     fprintf(stderr, "\nNative modules without cache:\n");
     for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
@@ -1572,45 +1581,6 @@ void Environment::PrintInfoForSnapshotIfDebug() {
       fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
     }
   }
-}
-
-void Environment::PrintAllBaseObjects() {
-  size_t i = 0;
-  std::cout << "BaseObjects\n";
-  ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " <<
-      obj->MemoryInfoName() << "\n";
-  });
-}
-
-void Environment::VerifyNoStrongBaseObjects() {
-  // When a process exits cleanly, i.e. because the event loop ends up without
-  // things to wait for, the Node.js objects that are left on the heap should
-  // be:
-  //
-  //   1. weak, i.e. ready for garbage collection once no longer referenced, or
-  //   2. detached, i.e. scheduled for destruction once no longer referenced, or
-  //   3. an unrefed libuv handle, i.e. does not keep the event loop alive, or
-  //   4. an inactive libuv handle (essentially the same here)
-  //
-  // There are a few exceptions to this rule, but generally, if there are
-  // C++-backed Node.js objects on the heap that do not fall into the above
-  // categories, we may be looking at a potential memory leak. Most likely,
-  // the cause is a missing MakeWeak() call on the corresponding object.
-  //
-  // In order to avoid this kind of problem, we check the list of BaseObjects
-  // for these criteria. Currently, we only do so when explicitly instructed to
-  // or when in debug mode (where --verify-base-objects is always-on).
-
-  if (!options()->verify_base_objects) return;
-
-  ForEachBaseObject([](BaseObject* obj) {
-    if (obj->IsNotIndicativeOfMemoryLeakAtExit()) return;
-    fprintf(stderr, "Found bad BaseObject during clean exit: %s\n",
-            obj->MemoryInfoName().c_str());
-    fflush(stderr);
-    ABORT();
-  });
 }
 
 EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
@@ -1630,10 +1600,6 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
-
-  // Do this after other creator->AddData() calls so that Snapshotable objects
-  // can use 0 to indicate that a SnapshotIndex is invalid.
-  SerializeSnapshotableObjects(this, creator, &info);
 
   info.principal_realm = principal_realm_->Serialize(creator);
   return info;
@@ -1708,6 +1674,7 @@ void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
+  // Start traversing embedder objects from the root Environment object.
   tracker.Track(env);
 }
 
@@ -1882,153 +1849,4 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
-
-// Not really any better place than env.cc at this moment.
-BaseObject::BaseObject(Environment* env, Local<Object> object)
-    : persistent_handle_(env->isolate(), object), env_(env) {
-  CHECK_EQ(false, object.IsEmpty());
-  CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
-                                           &kNodeEmbedderId);
-  object->SetAlignedPointerInInternalField(BaseObject::kSlot,
-                                           static_cast<void*>(this));
-  env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
-  env->modify_base_object_count(1);
-}
-
-BaseObject::~BaseObject() {
-  env()->modify_base_object_count(-1);
-  env()->RemoveCleanupHook(DeleteMe, static_cast<void*>(this));
-
-  if (UNLIKELY(has_pointer_data())) {
-    PointerData* metadata = pointer_data();
-    CHECK_EQ(metadata->strong_ptr_count, 0);
-    metadata->self = nullptr;
-    if (metadata->weak_ptr_count == 0) delete metadata;
-  }
-
-  if (persistent_handle_.IsEmpty()) {
-    // This most likely happened because the weak callback below cleared it.
-    return;
-  }
-
-  {
-    HandleScope handle_scope(env()->isolate());
-    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
-  }
-}
-
-void BaseObject::MakeWeak() {
-  if (has_pointer_data()) {
-    pointer_data()->wants_weak_jsobj = true;
-    if (pointer_data()->strong_ptr_count > 0) return;
-  }
-
-  persistent_handle_.SetWeak(
-      this,
-      [](const WeakCallbackInfo<BaseObject>& data) {
-        BaseObject* obj = data.GetParameter();
-        // Clear the persistent handle so that ~BaseObject() doesn't attempt
-        // to mess with internal fields, since the JS object may have
-        // transitioned into an invalid state.
-        // Refs: https://github.com/nodejs/node/issues/18897
-        obj->persistent_handle_.Reset();
-        CHECK_IMPLIES(obj->has_pointer_data(),
-                      obj->pointer_data()->strong_ptr_count == 0);
-        obj->OnGCCollect();
-      },
-      WeakCallbackType::kParameter);
-}
-
-// This just has to be different from the Chromium ones:
-// https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
-// Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
-// misinterpret the data stored in the embedder fields and try to garbage
-// collect them.
-uint16_t kNodeEmbedderId = 0x90de;
-
-void BaseObject::LazilyInitializedJSTemplateConstructor(
-    const FunctionCallbackInfo<Value>& args) {
-  DCHECK(args.IsConstructCall());
-  CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  args.This()->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
-                                                &kNodeEmbedderId);
-  args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
-}
-
-Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
-    Environment* env) {
-  Local<FunctionTemplate> t = NewFunctionTemplate(
-      env->isolate(), LazilyInitializedJSTemplateConstructor);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
-  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
-  return t;
-}
-
-BaseObject::PointerData* BaseObject::pointer_data() {
-  if (!has_pointer_data()) {
-    PointerData* metadata = new PointerData();
-    metadata->wants_weak_jsobj = persistent_handle_.IsWeak();
-    metadata->self = this;
-    pointer_data_ = metadata;
-  }
-  CHECK(has_pointer_data());
-  return pointer_data_;
-}
-
-void BaseObject::decrease_refcount() {
-  CHECK(has_pointer_data());
-  PointerData* metadata = pointer_data();
-  CHECK_GT(metadata->strong_ptr_count, 0);
-  unsigned int new_refcount = --metadata->strong_ptr_count;
-  if (new_refcount == 0) {
-    if (metadata->is_detached) {
-      OnGCCollect();
-    } else if (metadata->wants_weak_jsobj && !persistent_handle_.IsEmpty()) {
-      MakeWeak();
-    }
-  }
-}
-
-void BaseObject::increase_refcount() {
-  unsigned int prev_refcount = pointer_data()->strong_ptr_count++;
-  if (prev_refcount == 0 && !persistent_handle_.IsEmpty())
-    persistent_handle_.ClearWeak();
-}
-
-void BaseObject::DeleteMe(void* data) {
-  BaseObject* self = static_cast<BaseObject*>(data);
-  if (self->has_pointer_data() &&
-      self->pointer_data()->strong_ptr_count > 0) {
-    return self->Detach();
-  }
-  delete self;
-}
-
-bool BaseObject::IsDoneInitializing() const { return true; }
-
-Local<Object> BaseObject::WrappedObject() const {
-  return object();
-}
-
-bool BaseObject::IsRootNode() const {
-  return !persistent_handle_.IsWeak();
-}
-
-Local<FunctionTemplate> BaseObject::GetConstructorTemplate(
-    IsolateData* isolate_data) {
-  Local<FunctionTemplate> tmpl = isolate_data->base_object_ctor_template();
-  if (tmpl.IsEmpty()) {
-    tmpl = NewFunctionTemplate(isolate_data->isolate(), nullptr);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "BaseObject"));
-    isolate_data->set_base_object_ctor_template(tmpl);
-  }
-  return tmpl;
-}
-
-bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
-  return IsWeakOrDetached();
-}
-
 }  // namespace node
