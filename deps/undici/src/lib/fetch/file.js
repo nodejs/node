@@ -312,4 +312,16 @@ function convertLineEndingsNative (s) {
   return s.replace(/\r?\n/g, nativeLineEnding)
 }
 
-module.exports = { File, FileLike }
+// If this function is moved to ./util.js, some tools (such as
+// rollup) will warn about circular dependencies. See:
+// https://github.com/nodejs/undici/issues/1629
+function isFileLike (object) {
+  return object instanceof File || (
+    object &&
+    (typeof object.stream === 'function' ||
+     typeof object.arrayBuffer === 'function') &&
+     object[Symbol.toStringTag] === 'File'
+  )
+}
+
+module.exports = { File, FileLike, isFileLike }

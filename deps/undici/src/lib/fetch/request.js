@@ -23,6 +23,7 @@ const {
 const { kEnumerableProperty } = util
 const { kHeaders, kSignal, kState, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
+const { getGlobalOrigin } = require('./global')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 
@@ -52,7 +53,11 @@ class Request {
     init = webidl.converters.RequestInit(init)
 
     // TODO
-    this[kRealm] = { settingsObject: {} }
+    this[kRealm] = {
+      settingsObject: {
+        baseUrl: getGlobalOrigin()
+      }
+    }
 
     // 1. Let request be null.
     let request = null

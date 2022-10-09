@@ -1,8 +1,8 @@
 import { URL } from 'url'
 import { TlsOptions } from 'tls'
 import Dispatcher = require('./dispatcher')
-import { DispatchOptions, RequestOptions } from './dispatcher'
-import buildConnector = require('./connector')
+import {DispatchInterceptor} from './dispatcher'
+import buildConnector, {connector} from "./connector";
 
 export = Client
 
@@ -28,7 +28,7 @@ declare namespace Client {
     /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
     pipelining?: number | null;
     /** **/
-    connect?: buildConnector.BuildOptions | Function | null;
+    connect?: buildConnector.BuildOptions | connector | null;
     /** The maximum length of request headers in bytes. Default: `16384` (16KiB). */
     maxHeaderSize?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `30e3` milliseconds (30s). */
@@ -41,6 +41,8 @@ declare namespace Client {
     tls?: TlsOptions | null;
     /** */
     maxRequestsPerClient?: number;
+
+    interceptors?: {Client: readonly DispatchInterceptor[] | undefined}
   }
 
   export interface SocketInfo {
@@ -53,4 +55,6 @@ declare namespace Client {
     bytesWritten?: number
     bytesRead?: number
   }
+
+
 }

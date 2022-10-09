@@ -7,7 +7,6 @@ const net = require('net')
 const util = require('./core/util')
 const Request = require('./core/request')
 const DispatcherBase = require('./dispatcher-base')
-const RedirectHandler = require('./handler/redirect')
 const {
   RequestContentLengthMismatchError,
   ResponseContentLengthMismatchError,
@@ -60,7 +59,8 @@ const {
   kCounter,
   kClose,
   kDestroy,
-  kDispatch
+  kDispatch,
+  kInterceptors
 } = require('./core/symbols')
 
 const kClosedResolve = Symbol('kClosedResolve')
@@ -82,6 +82,7 @@ try {
 
 class Client extends DispatcherBase {
   constructor (url, {
+    interceptors,
     maxHeaderSize,
     headersTimeout,
     socketTimeout,
@@ -179,6 +180,9 @@ class Client extends DispatcherBase {
       })
     }
 
+    this[kInterceptors] = interceptors && interceptors.Client && Array.isArray(interceptors.Client)
+      ? interceptors.Client
+      : [createRedirectInterceptor({ maxRedirections })]
     this[kUrl] = util.parseOrigin(url)
     this[kConnector] = connect
     this[kSocket] = null
@@ -254,11 +258,6 @@ class Client extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    const { maxRedirections = this[kMaxRedirections] } = opts
-    if (maxRedirections) {
-      handler = new RedirectHandler(this, maxRedirections, opts, handler)
-    }
-
     const origin = opts.origin || this[kUrl].origin
 
     const request = new Request(origin, opts, handler)
@@ -319,6 +318,7 @@ class Client extends DispatcherBase {
 }
 
 const constants = require('./llhttp/constants')
+const createRedirectInterceptor = require('./interceptor/redirectInterceptor')
 const EMPTY_BUF = Buffer.alloc(0)
 
 async function lazyllhttp () {

@@ -13,7 +13,7 @@ const {
   kGetDispatcher
 } = require('./pool-base')
 const Pool = require('./pool')
-const { kUrl } = require('./core/symbols')
+const { kUrl, kInterceptors } = require('./core/symbols')
 const { parseOrigin } = require('./core/util')
 const kFactory = Symbol('factory')
 
@@ -53,6 +53,9 @@ class BalancedPool extends PoolBase {
       throw new InvalidArgumentError('factory must be a function.')
     }
 
+    this[kInterceptors] = opts.interceptors && opts.interceptors.BalancedPool && Array.isArray(opts.interceptors.BalancedPool)
+      ? opts.interceptors.BalancedPool
+      : []
     this[kFactory] = factory
 
     for (const upstream of upstreams) {

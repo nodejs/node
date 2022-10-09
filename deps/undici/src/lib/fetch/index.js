@@ -52,7 +52,7 @@ const { kHeadersList } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
 const { isErrored, isReadable } = require('../core/util')
-const { dataURLProcessor } = require('./dataURL')
+const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
 
 /** @type {import('buffer').resolveObjectURL} */
@@ -832,25 +832,7 @@ async function schemeFetch (fetchParams) {
       }
 
       // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
-      const { mimeType } = dataURLStruct
-
-      /** @type {string} */
-      let contentType = `${mimeType.type}/${mimeType.subtype}`
-      const contentTypeParams = []
-
-      if (mimeType.parameters.size > 0) {
-        contentType += ';'
-      }
-
-      for (const [key, value] of mimeType.parameters) {
-        if (value.length > 0) {
-          contentTypeParams.push(`${key}=${value}`)
-        } else {
-          contentTypeParams.push(key)
-        }
-      }
-
-      contentType += contentTypeParams.join(',')
+      const mimeType = serializeAMimeType(dataURLStruct.mimeType)
 
       // 4. Return a response whose status message is `OK`,
       //    header list is « (`Content-Type`, mimeType) »,
@@ -858,7 +840,7 @@ async function schemeFetch (fetchParams) {
       return makeResponse({
         statusText: 'OK',
         headersList: [
-          ['content-type', contentType]
+          ['content-type', mimeType]
         ],
         body: extractBody(dataURLStruct.body)[0]
       })
@@ -1048,7 +1030,9 @@ async function httpFetch (fetchParams) {
     // and the connection uses HTTP/2, then user agents may, and are even
     // encouraged to, transmit an RST_STREAM frame.
     // See, https://github.com/whatwg/fetch/issues/1288
-    fetchParams.controller.connection.destroy()
+    if (request.redirect !== 'manual') {
+      fetchParams.controller.connection.destroy()
+    }
 
     // 2. Switch on request’s redirect mode:
     if (request.redirect === 'error') {
@@ -1956,8 +1940,12 @@ async function httpNetworkFetch (
 
           const decoders = []
 
+          const willFollow = request.redirect === 'follow' &&
+            location &&
+            redirectStatus.includes(status)
+
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !(request.redirect === 'follow' && location)) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
             for (const coding of codings) {
               if (/(x-)?gzip/.test(coding)) {
                 decoders.push(zlib.createGunzip())
@@ -2033,4 +2021,9 @@ async function httpNetworkFetch (
   }
 }
 
-module.exports = fetch
+module.exports = {
+  fetch,
+  Fetch,
+  fetching,
+  finalizeAndReportTiming
+}

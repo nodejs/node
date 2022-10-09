@@ -1,8 +1,9 @@
 'use strict'
 
-const { kClose, kDestroy } = require('./core/symbols')
-const Client = require('./agent')
+const { kProxy, kClose, kDestroy, kInterceptors } = require('./core/symbols')
+const { URL } = require('url')
 const Agent = require('./agent')
+const Client = require('./client')
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError, RequestAbortedError } = require('./core/errors')
 const buildConnector = require('./core/connect')
@@ -18,9 +19,29 @@ function defaultProtocolPort (protocol) {
   return protocol === 'https:' ? 443 : 80
 }
 
+function buildProxyOptions (opts) {
+  if (typeof opts === 'string') {
+    opts = { uri: opts }
+  }
+
+  if (!opts || !opts.uri) {
+    throw new InvalidArgumentError('Proxy opts.uri is mandatory')
+  }
+
+  return {
+    uri: opts.uri,
+    protocol: opts.protocol || 'https'
+  }
+}
+
 class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
+    this[kProxy] = buildProxyOptions(opts)
+    this[kAgent] = new Agent(opts)
+    this[kInterceptors] = opts.interceptors && opts.interceptors.ProxyAgent && Array.isArray(opts.interceptors.ProxyAgent)
+      ? opts.interceptors.ProxyAgent
+      : []
 
     if (typeof opts === 'string') {
       opts = { uri: opts }
@@ -38,11 +59,12 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${opts.auth}`
     }
 
-    const { origin, port } = new URL(opts.uri)
+    const resolvedUrl = new URL(opts.uri)
+    const { origin, port, host } = resolvedUrl
 
     const connect = buildConnector({ ...opts.proxyTls })
     this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
-    this[kClient] = new Client({ origin: opts.origin, connect })
+    this[kClient] = new Client(resolvedUrl, { connect })
     this[kAgent] = new Agent({
       ...opts,
       connect: async (opts, callback) => {
@@ -58,7 +80,7 @@ class ProxyAgent extends DispatcherBase {
             signal: opts.signal,
             headers: {
               ...this[kProxyHeaders],
-              host: opts.host
+              host
             }
           })
           if (statusCode !== 200) {

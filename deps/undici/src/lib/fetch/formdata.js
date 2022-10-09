@@ -1,8 +1,8 @@
 'use strict'
 
-const { isBlobLike, isFileLike, toUSVString, makeIterator } = require('./util')
+const { isBlobLike, toUSVString, makeIterator } = require('./util')
 const { kState } = require('./symbols')
-const { File, FileLike } = require('./file')
+const { File, FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
 const { Blob } = require('buffer')
 

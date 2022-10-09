@@ -25,7 +25,7 @@ declare namespace DiagnosticsChannel {
     port: URL["port"];
     servername: string | null;
   }
-  type Connector = typeof connector;
+  type Connector = connector;
   export interface RequestCreateMessage {
     request: Request;
   }

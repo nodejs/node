@@ -24,14 +24,14 @@ class BodyAsyncIterable {
 }
 
 class RedirectHandler {
-  constructor (dispatcher, maxRedirections, opts, handler) {
+  constructor (dispatch, maxRedirections, opts, handler) {
     if (maxRedirections != null && (!Number.isInteger(maxRedirections) || maxRedirections < 0)) {
       throw new InvalidArgumentError('maxRedirections must be a positive number')
     }
 
     util.validateHandler(handler, opts.method, opts.upgrade)
 
-    this.dispatcher = dispatcher
+    this.dispatch = dispatch
     this.location = null
     this.abort = null
     this.opts = { ...opts, maxRedirections: 0 } // opts must be a copy
@@ -156,7 +156,7 @@ class RedirectHandler {
       this.location = null
       this.abort = null
 
-      this.dispatcher.dispatch(this.opts, this)
+      this.dispatch(this.opts, this)
     } else {
       this.handler.onComplete(trailers)
     }

@@ -1,5 +1,6 @@
 const assert = require('assert')
 const { atob } = require('buffer')
+const { isValidHTTPToken } = require('./util')
 
 const encoder = new TextEncoder()
 
@@ -376,9 +377,7 @@ function parseMIMEType (input) {
       // 1. Set parameterValue to the result of collecting
       // an HTTP quoted string from input, given position
       // and the extract-value flag.
-      // Undici implementation note: extract-value is never
-      // defined or mentioned anywhere.
-      parameterValue = collectAnHTTPQuotedString(input, position/*, extractValue */)
+      parameterValue = collectAnHTTPQuotedString(input, position, true)
 
       // 2. Collect a sequence of code points that are not
       // U+003B (;) from input, given position.
@@ -400,7 +399,8 @@ function parseMIMEType (input) {
       )
 
       // 2. Remove any trailing HTTP whitespace from parameterValue.
-      parameterValue = parameterValue.trim()
+      // Note: it says "trailing" whitespace; leading is fine.
+      parameterValue = parameterValue.trimEnd()
 
       // 3. If parameterValue is the empty string, then continue.
       if (parameterValue.length === 0) {
@@ -547,11 +547,56 @@ function collectAnHTTPQuotedString (input, position, extractValue) {
   return input.slice(positionStart, position.position)
 }
 
+/**
+ * @see https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
+ */
+function serializeAMimeType (mimeType) {
+  assert(mimeType !== 'failure')
+  const { type, subtype, parameters } = mimeType
+
+  // 1. Let serialization be the concatenation of mimeType’s
+  //    type, U+002F (/), and mimeType’s subtype.
+  let serialization = `${type}/${subtype}`
+
+  // 2. For each name → value of mimeType’s parameters:
+  for (let [name, value] of parameters.entries()) {
+    // 1. Append U+003B (;) to serialization.
+    serialization += ';'
+
+    // 2. Append name to serialization.
+    serialization += name
+
+    // 3. Append U+003D (=) to serialization.
+    serialization += '='
+
+    // 4. If value does not solely contain HTTP token code
+    //    points or value is the empty string, then:
+    if (!isValidHTTPToken(value)) {
+      // 1. Precede each occurence of U+0022 (") or
+      //    U+005C (\) in value with U+005C (\).
+      value = value.replace(/(\\|")/g, '\\$1')
+
+      // 2. Prepend U+0022 (") to value.
+      value = '"' + value
+
+      // 3. Append U+0022 (") to value.
+      value += '"'
+    }
+
+    // 5. Append value to serialization.
+    serialization += value
+  }
+
+  // 3. Return serialization.
+  return serialization
+}
+
 module.exports = {
   dataURLProcessor,
   URLSerializer,
   collectASequenceOfCodePoints,
   stringPercentDecode,
   parseMIMEType,
-  collectAnHTTPQuotedString
+  collectAnHTTPQuotedString,
+  serializeAMimeType
 }

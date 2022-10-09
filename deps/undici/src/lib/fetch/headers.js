@@ -402,7 +402,9 @@ class Headers {
   }
 
   get [kHeadersSortedMap] () {
-    this[kHeadersList][kHeadersSortedMap] ??= new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1))
+    if (!this[kHeadersList][kHeadersSortedMap]) {
+      this[kHeadersList][kHeadersSortedMap] = new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1))
+    }
     return this[kHeadersList][kHeadersSortedMap]
   }
 
