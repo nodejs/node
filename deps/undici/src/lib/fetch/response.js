@@ -21,6 +21,7 @@ const {
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
+const { getGlobalOrigin } = require('./global')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 const { types } = require('util')
@@ -100,7 +101,7 @@ class Response {
     // TODO: base-URL?
     let parsedURL
     try {
-      parsedURL = new URL(url)
+      parsedURL = new URL(url, getGlobalOrigin())
     } catch (err) {
       throw Object.assign(new TypeError('Failed to parse URL from ' + url), {
         cause: err
@@ -518,7 +519,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V) {
   }
 
   if (isBlobLike(V)) {
-    return webidl.converters.Blob(V)
+    return webidl.converters.Blob(V, { strict: false })
   }
 
   if (
@@ -529,8 +530,8 @@ webidl.converters.XMLHttpRequestBodyInit = function (V) {
     return webidl.converters.BufferSource(V)
   }
 
-  if (V instanceof FormData) {
-    return webidl.converters.FormData(V)
+  if (util.isFormDataLike(V)) {
+    return webidl.converters.FormData(V, { strict: false })
   }
 
   if (V instanceof URLSearchParams) {

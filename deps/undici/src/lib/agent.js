@@ -1,12 +1,12 @@
 'use strict'
 
 const { InvalidArgumentError } = require('./core/errors')
-const { kClients, kRunning, kClose, kDestroy, kDispatch } = require('./core/symbols')
+const { kClients, kRunning, kClose, kDestroy, kDispatch, kInterceptors } = require('./core/symbols')
 const DispatcherBase = require('./dispatcher-base')
 const Pool = require('./pool')
 const Client = require('./client')
 const util = require('./core/util')
-const RedirectHandler = require('./handler/redirect')
+const createRedirectInterceptor = require('./interceptor/redirectInterceptor')
 const { WeakRef, FinalizationRegistry } = require('./compat/dispatcher-weakref')()
 
 const kOnConnect = Symbol('onConnect')
@@ -44,7 +44,14 @@ class Agent extends DispatcherBase {
       connect = { ...connect }
     }
 
+    this[kInterceptors] = options.interceptors && options.interceptors.Agent && Array.isArray(options.interceptors.Agent)
+      ? options.interceptors.Agent
+      : [createRedirectInterceptor({ maxRedirections })]
+
     this[kOptions] = { ...util.deepClone(options), connect }
+    this[kOptions].interceptors = options.interceptors
+      ? { ...options.interceptors }
+      : undefined
     this[kMaxRedirections] = maxRedirections
     this[kFactory] = factory
     this[kClients] = new Map()
@@ -106,12 +113,6 @@ class Agent extends DispatcherBase {
 
       this[kClients].set(key, new WeakRef(dispatcher))
       this[kFinalizer].register(dispatcher, key)
-    }
-
-    const { maxRedirections = this[kMaxRedirections] } = opts
-    if (maxRedirections != null && maxRedirections !== 0) {
-      opts = { ...opts, maxRedirections: 0 } // Stop sub dispatcher from also redirecting.
-      handler = new RedirectHandler(this, maxRedirections, opts, handler)
     }
 
     return dispatcher.dispatch(opts, handler)
