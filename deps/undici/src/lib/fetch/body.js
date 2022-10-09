@@ -1,16 +1,18 @@
 'use strict'
 
+const Busboy = require('busboy')
 const util = require('../core/util')
 const { ReadableStreamFrom, toUSVString, isBlobLike } = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
+const { DOMException } = require('./constants')
 const { Blob } = require('buffer')
 const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
-const { NotSupportedError } = require('../core/errors')
 const { isErrored } = require('../core/util')
 const { isUint8Array, isArrayBuffer } = require('util/types')
+const { File } = require('./file')
 
 let ReadableStream
 
@@ -230,9 +232,9 @@ function safelyExtractBody (object, keepalive = false) {
   if (object instanceof ReadableStream) {
     // Assert: object is neither disturbed nor locked.
     // istanbul ignore next
-    assert(!util.isDisturbed(object), 'disturbed')
+    assert(!util.isDisturbed(object), 'The body has already been consumed.')
     // istanbul ignore next
-    assert(!object.locked, 'locked')
+    assert(!object.locked, 'The stream is locked.')
   }
 
   // 2. Return the results of extracting object.
@@ -266,11 +268,11 @@ async function * consumeBody (body) {
       const stream = body.stream
 
       if (util.isDisturbed(stream)) {
-        throw new TypeError('disturbed')
+        throw new TypeError('The body has already been consumed.')
       }
 
       if (stream.locked) {
-        throw new TypeError('locked')
+        throw new TypeError('The stream is locked.')
       }
 
       // Compat.
@@ -281,12 +283,20 @@ async function * consumeBody (body) {
   }
 }
 
+function throwIfAborted (state) {
+  if (state.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+}
+
 function bodyMixinMethods (instance) {
   const methods = {
     async blob () {
       if (!(this instanceof instance)) {
         throw new TypeError('Illegal invocation')
       }
+
+      throwIfAborted(this[kState])
 
       const chunks = []
 
@@ -307,6 +317,8 @@ function bodyMixinMethods (instance) {
       if (!(this instanceof instance)) {
         throw new TypeError('Illegal invocation')
       }
+
+      throwIfAborted(this[kState])
 
       const contentLength = this.headers.get('content-length')
       const encoded = this.headers.has('content-encoding')
@@ -363,6 +375,8 @@ function bodyMixinMethods (instance) {
         throw new TypeError('Illegal invocation')
       }
 
+      throwIfAborted(this[kState])
+
       let result = ''
       const textDecoder = new TextDecoder()
 
@@ -385,6 +399,8 @@ function bodyMixinMethods (instance) {
         throw new TypeError('Illegal invocation')
       }
 
+      throwIfAborted(this[kState])
+
       return JSON.parse(await this.text())
     },
 
@@ -393,11 +409,68 @@ function bodyMixinMethods (instance) {
         throw new TypeError('Illegal invocation')
       }
 
+      throwIfAborted(this[kState])
+
       const contentType = this.headers.get('Content-Type')
 
       // If mimeType’s essence is "multipart/form-data", then:
       if (/multipart\/form-data/.test(contentType)) {
-        throw new NotSupportedError('multipart/form-data not supported')
+        const headers = {}
+        for (const [key, value] of this.headers) headers[key.toLowerCase()] = value
+
+        const responseFormData = new FormData()
+
+        let busboy
+
+        try {
+          busboy = Busboy({ headers })
+        } catch (err) {
+          // Error due to headers:
+          throw Object.assign(new TypeError(), { cause: err })
+        }
+
+        busboy.on('field', (name, value) => {
+          responseFormData.append(name, value)
+        })
+        busboy.on('file', (name, value, info) => {
+          const { filename, encoding, mimeType } = info
+          const chunks = []
+
+          if (encoding.toLowerCase() === 'base64') {
+            let base64chunk = ''
+
+            value.on('data', (chunk) => {
+              base64chunk += chunk.toString().replace(/[\r\n]/gm, '')
+
+              const end = base64chunk.length - base64chunk.length % 4
+              chunks.push(Buffer.from(base64chunk.slice(0, end), 'base64'))
+
+              base64chunk = base64chunk.slice(end)
+            })
+            value.on('end', () => {
+              chunks.push(Buffer.from(base64chunk, 'base64'))
+              responseFormData.append(name, new File(chunks, filename, { type: mimeType }))
+            })
+          } else {
+            value.on('data', (chunk) => {
+              chunks.push(chunk)
+            })
+            value.on('end', () => {
+              responseFormData.append(name, new File(chunks, filename, { type: mimeType }))
+            })
+          }
+        })
+
+        const busboyResolve = new Promise((resolve, reject) => {
+          busboy.on('finish', resolve)
+          busboy.on('error', (err) => reject(err))
+        })
+
+        if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk)
+        busboy.end()
+        await busboyResolve
+
+        return responseFormData
       } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
         // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
 
@@ -429,10 +502,16 @@ function bodyMixinMethods (instance) {
         }
         return formData
       } else {
+        // Wait a tick before checking if the request has been aborted.
+        // Otherwise, a TypeError can be thrown when an AbortError should.
+        await Promise.resolve()
+
+        throwIfAborted(this[kState])
+
         // Otherwise, throw a TypeError.
         webidl.errors.exception({
           header: `${instance.name}.formData`,
-          value: 'Could not parse content as FormData.'
+          message: 'Could not parse content as FormData.'
         })
       }
     }

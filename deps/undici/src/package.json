@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.10.0",
+  "version": "5.11.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -46,13 +46,14 @@
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
     "lint:fix": "standard --fix | snazzy",
-    "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:jest && tsd",
+    "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:wpt && npm run test:jest && tsd",
     "test:node-fetch": "node scripts/verifyVersion.js 16 || mocha test/node-fetch",
     "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap test/fetch/*.js && tap test/webidl/*.js)",
-    "test:jest": "jest",
+    "test:jest": "node scripts/verifyVersion.js 14 || jest",
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
     "test:typescript": "tsd",
+    "test:wpt": "node scripts/verifyVersion 18 || node test/wpt/runner/start.mjs",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
     "bench": "PORT=3042 concurrently -k -s first npm:bench:server npm:bench:run",
@@ -65,10 +66,9 @@
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "^9.1.2",
-    "@types/node": "^17.0.29",
+    "@types/node": "^17.0.45",
     "abort-controller": "^3.0.0",
     "atomic-sleep": "^1.0.0",
-    "busboy": "^1.6.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "chai-iterator": "^3.0.2",
@@ -81,7 +81,7 @@
     "https-pem": "^3.0.0",
     "husky": "^8.0.1",
     "import-fresh": "^3.3.0",
-    "jest": "^28.0.1",
+    "jest": "^29.0.2",
     "jsfuzz": "^1.0.15",
     "mocha": "^10.0.0",
     "p-timeout": "^3.2.0",
@@ -94,7 +94,7 @@
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.22.0",
+    "tsd": "^0.24.1",
     "wait-on": "^6.0.0"
   },
   "engines": {
@@ -106,7 +106,9 @@
     ],
     "ignore": [
       "lib/llhttp/constants.js",
-      "lib/llhttp/utils.js"
+      "lib/llhttp/utils.js",
+      "test/wpt/tests",
+      "test/wpt/runner/resources"
     ]
   },
   "tsd": {
@@ -122,5 +124,8 @@
     "testMatch": [
       "<rootDir>/test/jest/**"
     ]
+  },
+  "dependencies": {
+    "busboy": "^1.6.0"
   }
 }
