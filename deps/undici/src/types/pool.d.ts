@@ -2,6 +2,7 @@ import Client = require('./client')
 import Dispatcher = require('./dispatcher')
 import TPoolStats = require('./pool-stats')
 import { URL } from 'url'
+import {DispatchInterceptor} from "./dispatcher";
 
 export = Pool
 
@@ -22,5 +23,7 @@ declare namespace Pool {
     factory?(origin: URL, opts: object): Dispatcher;
     /** The max number of clients to create. `null` if no limit. Default `null`. */
     connections?: number | null;
+
+    interceptors?: { Pool?: readonly DispatchInterceptor[] } & Client.Options["interceptors"]
   }
 }

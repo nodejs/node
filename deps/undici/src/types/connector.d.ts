@@ -2,7 +2,7 @@ import {TLSSocket, ConnectionOptions} from 'tls'
 import {IpcNetConnectOpts, Socket, TcpNetConnectOpts} from 'net'
 
 export = buildConnector
-declare function buildConnector (options?: buildConnector.BuildOptions): typeof buildConnector.connector
+declare function buildConnector (options?: buildConnector.BuildOptions): buildConnector.connector
 
 declare namespace buildConnector {
   export type BuildOptions = (ConnectionOptions | TcpNetConnectOpts | IpcNetConnectOpts) & {
@@ -20,7 +20,16 @@ declare namespace buildConnector {
     servername?: string
   }
 
-  export type Callback = (err: Error | null, socket: Socket | TLSSocket | null) => void
+  export type Callback = (...args: CallbackArgs) => void
+  type CallbackArgs = [null, Socket | TLSSocket] | [Error, null]
 
-  export function connector (options: buildConnector.Options, callback: buildConnector.Callback): Socket | TLSSocket;
+  export type connector = connectorAsync | connectorSync
+
+  interface connectorSync {
+    (options: buildConnector.Options): Socket | TLSSocket
+  }
+
+  interface connectorAsync {
+    (options: buildConnector.Options, callback: buildConnector.Callback): void
+  }
 }

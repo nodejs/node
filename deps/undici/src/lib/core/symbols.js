@@ -48,5 +48,6 @@ module.exports = {
   kMaxRedirections: Symbol('maxRedirections'),
   kMaxRequests: Symbol('maxRequestsPerClient'),
   kProxy: Symbol('proxy agent options'),
-  kCounter: Symbol('socket request counter')
+  kCounter: Symbol('socket request counter'),
+  kInterceptors: Symbol('dispatch interceptors')
 }
