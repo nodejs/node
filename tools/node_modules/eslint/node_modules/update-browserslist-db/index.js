@@ -68,6 +68,11 @@ function getLatestInfo(lock) {
       )
     }
   }
+  if (lock.mode === 'pnpm') {
+    return JSON.parse(
+      childProcess.execSync('pnpm info caniuse-lite --json').toString()
+    )
+  }
   return JSON.parse(
     childProcess.execSync('npm show caniuse-lite --json').toString()
   )

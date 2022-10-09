@@ -67,7 +67,7 @@ const optionator = require("optionator");
 /**
  * Creates the CLI options for ESLint.
  * @param {boolean} usingFlatConfig Indicates if flat config is being used.
- * @returns {Object} The opinionator instance.
+ * @returns {Object} The optionator instance.
  */
 module.exports = function(usingFlatConfig) {
 
@@ -126,6 +126,16 @@ module.exports = function(usingFlatConfig) {
             option: "rulesdir",
             type: "[path::String]",
             description: "Load additional rules from this directory. Deprecated: Use rules from plugins"
+        };
+    }
+
+    let ignorePathFlag;
+
+    if (!usingFlatConfig) {
+        ignorePathFlag = {
+            option: "ignore-path",
+            type: "path::String",
+            description: "Specify path of ignore file"
         };
     }
 
@@ -203,11 +213,7 @@ module.exports = function(usingFlatConfig) {
             {
                 heading: "Ignoring files"
             },
-            {
-                option: "ignore-path",
-                type: "path::String",
-                description: "Specify path of ignore file"
-            },
+            ignorePathFlag,
             {
                 option: "ignore",
                 type: "Boolean",
