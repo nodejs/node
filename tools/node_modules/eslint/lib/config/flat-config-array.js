@@ -70,7 +70,7 @@ class FlatConfigArray extends ConfigArray {
         }
 
         /**
-         * The baes config used to build the config array.
+         * The base config used to build the config array.
          * @type {Array<FlatConfig>}
          */
         this[originalBaseConfig] = baseConfig;

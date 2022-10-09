@@ -1,4 +1,11 @@
-import * as definitions from "../../lib/definitions/index.js";
+import {
+  DEPRECATED_KEYS,
+  FLIPPED_ALIAS_KEYS,
+  NODE_FIELDS,
+  PLACEHOLDERS,
+  PLACEHOLDERS_FLIPPED_ALIAS,
+  VISITOR_KEYS,
+} from "../../lib/index.js";
 
 const has = Function.call.bind(Object.prototype.hasOwnProperty);
 
@@ -17,14 +24,11 @@ function addIsHelper(type, aliasKeys, deprecated) {
 
   let placeholderSource = "";
   const placeholderTypes = [];
-  if (
-    definitions.PLACEHOLDERS.includes(type) &&
-    has(definitions.FLIPPED_ALIAS_KEYS, type)
-  ) {
+  if (PLACEHOLDERS.includes(type) && has(FLIPPED_ALIAS_KEYS, type)) {
     placeholderTypes.push(type);
   }
-  if (has(definitions.PLACEHOLDERS_FLIPPED_ALIAS, type)) {
-    placeholderTypes.push(...definitions.PLACEHOLDERS_FLIPPED_ALIAS[type]);
+  if (has(PLACEHOLDERS_FLIPPED_ALIAS, type)) {
+    placeholderTypes.push(...PLACEHOLDERS_FLIPPED_ALIAS[type]);
   }
   if (placeholderTypes.length > 0) {
     placeholderSource =
@@ -37,7 +41,7 @@ function addIsHelper(type, aliasKeys, deprecated) {
   }
 
   const result =
-    definitions.NODE_FIELDS[type] || definitions.FLIPPED_ALIAS_KEYS[type]
+    NODE_FIELDS[type] || FLIPPED_ALIAS_KEYS[type]
       ? `node is t.${type}`
       : "boolean";
 
@@ -69,16 +73,16 @@ export default function generateValidators() {
 import shallowEqual from "../../utils/shallowEqual";
 import type * as t from "../..";\n\n`;
 
-  Object.keys(definitions.VISITOR_KEYS).forEach(type => {
+  Object.keys(VISITOR_KEYS).forEach(type => {
     output += addIsHelper(type);
   });
 
-  Object.keys(definitions.FLIPPED_ALIAS_KEYS).forEach(type => {
-    output += addIsHelper(type, definitions.FLIPPED_ALIAS_KEYS[type]);
+  Object.keys(FLIPPED_ALIAS_KEYS).forEach(type => {
+    output += addIsHelper(type, FLIPPED_ALIAS_KEYS[type]);
   });
 
-  Object.keys(definitions.DEPRECATED_KEYS).forEach(type => {
-    const newType = definitions.DEPRECATED_KEYS[type];
+  Object.keys(DEPRECATED_KEYS).forEach(type => {
+    const newType = DEPRECATED_KEYS[type];
     const deprecated = `console.trace("The node type ${type} has been renamed to ${newType}");`;
     output += addIsHelper(type, null, deprecated);
   });

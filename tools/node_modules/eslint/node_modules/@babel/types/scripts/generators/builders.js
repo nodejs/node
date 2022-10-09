@@ -1,5 +1,9 @@
-import * as t from "../../lib/index.js";
-import * as definitions from "../../lib/definitions/index.js";
+import {
+  BUILDER_KEYS,
+  DEPRECATED_KEYS,
+  NODE_FIELDS,
+  toBindingIdentifierName,
+} from "../../lib/index.js";
 import formatBuilderName from "../utils/formatBuilderName.js";
 import lowerFirst from "../utils/lowerFirst.js";
 import stringifyValidator from "../utils/stringifyValidator.js";
@@ -19,8 +23,8 @@ function isNullable(field) {
 
 function sortFieldNames(fields, type) {
   return fields.sort((fieldA, fieldB) => {
-    const indexA = t.BUILDER_KEYS[type].indexOf(fieldA);
-    const indexB = t.BUILDER_KEYS[type].indexOf(fieldB);
+    const indexA = BUILDER_KEYS[type].indexOf(fieldA);
+    const indexB = BUILDER_KEYS[type].indexOf(fieldB);
     if (indexA === indexB) return fieldA < fieldB ? -1 : 1;
     if (indexA === -1) return 1;
     if (indexB === -1) return -1;
@@ -29,9 +33,9 @@ function sortFieldNames(fields, type) {
 }
 
 function generateBuilderArgs(type) {
-  const fields = t.NODE_FIELDS[type];
-  const fieldNames = sortFieldNames(Object.keys(t.NODE_FIELDS[type]), type);
-  const builderNames = t.BUILDER_KEYS[type];
+  const fields = NODE_FIELDS[type];
+  const fieldNames = sortFieldNames(Object.keys(NODE_FIELDS[type]), type);
+  const builderNames = BUILDER_KEYS[type];
 
   const args = [];
 
@@ -51,9 +55,9 @@ function generateBuilderArgs(type) {
     }
 
     if (builderNames.includes(fieldName)) {
-      const field = definitions.NODE_FIELDS[type][fieldName];
+      const field = NODE_FIELDS[type][fieldName];
       const def = JSON.stringify(field.default);
-      const bindingIdentifierName = t.toBindingIdentifierName(fieldName);
+      const bindingIdentifierName = toBindingIdentifierName(fieldName);
       let arg;
       if (areAllRemainingFieldsNullable(fieldName, builderNames, fields)) {
         arg = `${bindingIdentifierName}${
@@ -90,23 +94,20 @@ import type * as t from "../..";
 `;
 
   const reservedNames = new Set(["super", "import"]);
-  Object.keys(definitions.BUILDER_KEYS).forEach(type => {
+  Object.keys(BUILDER_KEYS).forEach(type => {
     const defArgs = generateBuilderArgs(type);
     const formatedBuilderName = formatBuilderName(type);
     const formatedBuilderNameLocal = reservedNames.has(formatedBuilderName)
       ? `_${formatedBuilderName}`
       : formatedBuilderName;
 
-    const fieldNames = sortFieldNames(
-      Object.keys(definitions.NODE_FIELDS[type]),
-      type
-    );
-    const builderNames = definitions.BUILDER_KEYS[type];
+    const fieldNames = sortFieldNames(Object.keys(NODE_FIELDS[type]), type);
+    const builderNames = BUILDER_KEYS[type];
     const objectFields = [["type", JSON.stringify(type)]];
     fieldNames.forEach(fieldName => {
-      const field = definitions.NODE_FIELDS[type][fieldName];
+      const field = NODE_FIELDS[type][fieldName];
       if (builderNames.includes(fieldName)) {
-        const bindingIdentifierName = t.toBindingIdentifierName(fieldName);
+        const bindingIdentifierName = toBindingIdentifierName(fieldName);
         objectFields.push([fieldName, bindingIdentifierName]);
       } else if (!field.optional) {
         const def = JSON.stringify(field.default);
@@ -143,14 +144,14 @@ import type * as t from "../..";
     }
   });
 
-  Object.keys(definitions.DEPRECATED_KEYS).forEach(type => {
-    const newType = definitions.DEPRECATED_KEYS[type];
+  Object.keys(DEPRECATED_KEYS).forEach(type => {
+    const newType = DEPRECATED_KEYS[type];
     const formatedBuilderName = formatBuilderName(type);
     const formatedNewBuilderName = formatBuilderName(newType);
     output += `/** @deprecated */
 function ${type}(${generateBuilderArgs(newType).join(", ")}) {
   console.trace("The node type ${type} has been renamed to ${newType}");
-  return ${formatedNewBuilderName}(${t.BUILDER_KEYS[newType].join(", ")});
+  return ${formatedNewBuilderName}(${BUILDER_KEYS[newType].join(", ")});
 }
 export { ${type} as ${formatedBuilderName} };\n`;
     // This is needed for backwards compatibility.
@@ -177,12 +178,12 @@ function generateUppercaseBuilders() {
 
  export {\n`;
 
-  Object.keys(definitions.BUILDER_KEYS).forEach(type => {
+  Object.keys(BUILDER_KEYS).forEach(type => {
     const formatedBuilderName = formatBuilderName(type);
     output += `  ${formatedBuilderName} as ${type},\n`;
   });
 
-  Object.keys(definitions.DEPRECATED_KEYS).forEach(type => {
+  Object.keys(DEPRECATED_KEYS).forEach(type => {
     const formatedBuilderName = formatBuilderName(type);
     output += `  ${formatedBuilderName} as ${type},\n`;
   });

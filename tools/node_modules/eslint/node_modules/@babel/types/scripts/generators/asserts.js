@@ -1,8 +1,13 @@
-import * as definitions from "../../lib/definitions/index.js";
+import {
+  DEPRECATED_KEYS,
+  FLIPPED_ALIAS_KEYS,
+  NODE_FIELDS,
+  VISITOR_KEYS,
+} from "../../lib/index.js";
 
 function addAssertHelper(type) {
   const result =
-    definitions.NODE_FIELDS[type] || definitions.FLIPPED_ALIAS_KEYS[type]
+    NODE_FIELDS[type] || FLIPPED_ALIAS_KEYS[type]
       ? `node is t.${type}`
       : "boolean";
 
@@ -30,16 +35,16 @@ function assert(type: string, node: any, opts?: any): void {
   }
 }\n\n`;
 
-  Object.keys(definitions.VISITOR_KEYS).forEach(type => {
+  Object.keys(VISITOR_KEYS).forEach(type => {
     output += addAssertHelper(type);
   });
 
-  Object.keys(definitions.FLIPPED_ALIAS_KEYS).forEach(type => {
+  Object.keys(FLIPPED_ALIAS_KEYS).forEach(type => {
     output += addAssertHelper(type);
   });
 
-  Object.keys(definitions.DEPRECATED_KEYS).forEach(type => {
-    const newType = definitions.DEPRECATED_KEYS[type];
+  Object.keys(DEPRECATED_KEYS).forEach(type => {
+    const newType = DEPRECATED_KEYS[type];
     output += `export function assert${type}(node: any, opts: any): void {
   console.trace("The node type ${type} has been renamed to ${newType}");
   assert("${type}", node, opts);

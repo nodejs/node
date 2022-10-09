@@ -1,6 +1,6 @@
 {
   "name": "update-browserslist-db",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "CLI tool to update caniuse-lite to refresh target browsers from Browserslist config",
   "keywords": [
     "caniuse",

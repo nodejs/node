@@ -250,8 +250,7 @@ class CascadingConfigArrayFactory {
                 configArrayFactory,
                 cwd,
                 rulePaths,
-                loadRules,
-                resolver
+                loadRules
             }),
             baseConfigData,
             cliConfigArray: createCLIConfigArray({

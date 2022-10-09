@@ -105,7 +105,7 @@ module.exports = {
         }
 
         /**
-         * Converts an integer to to an object containing the integer's coefficient and order of magnitude
+         * Converts an integer to an object containing the integer's coefficient and order of magnitude
          * @param {string} stringInteger the string representation of the integer being converted
          * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
@@ -120,7 +120,7 @@ module.exports = {
 
         /**
          *
-         * Converts a float to to an object containing the floats's coefficient and order of magnitude
+         * Converts a float to an object containing the floats's coefficient and order of magnitude
          * @param {string} stringFloat the string representation of the float being converted
          * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
