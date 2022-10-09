@@ -49,7 +49,6 @@ static napi_value DeleteImmediately(napi_env env, napi_callback_info info) {
   napi_value js_obj;
   napi_ref ref;
   napi_valuetype type;
-  napi_value undefined;
 
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, &js_obj, NULL, NULL));
 
@@ -60,8 +59,7 @@ static napi_value DeleteImmediately(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_delete_reference(env, ref));
   NODE_API_CALL(env, napi_remove_wrap(env, js_obj, NULL));
 
-  NODE_API_CALL(env, napi_get_undefined(env, &undefined));
-  return undefined;
+  return NULL;
 }
 
 EXTERN_C_START
