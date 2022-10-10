@@ -1390,6 +1390,7 @@ DEFINE_STRING(expose_gc_as, nullptr,
 DEFINE_IMPLICATION(expose_gc_as, expose_gc)
 DEFINE_BOOL(expose_externalize_string, false,
             "expose externalize string extension")
+DEFINE_BOOL(expose_statistics, false, "expose statistics extension")
 DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
 DEFINE_BOOL(expose_ignition_statistics, false,
             "expose ignition-statistics extension (requires building with "
