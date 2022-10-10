@@ -335,7 +335,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
+  StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj, try_write);
   res.bytes += synchronously_written;
 
   SetWriteResult(res);
