@@ -6,46 +6,57 @@ const invalids = [
   {
     code: '',
     expected: 1,
+    pattern: "Received type string \\(''\\)$",
   },
   {
     code: '1 one',
     expected: 1,
+    pattern: "Received type string \\('1 one'\\)$",
   },
   {
     code: 'two',
     expected: 1,
+    pattern: "Received type string \\('two'\\)$",
   },
   {
     code: {},
     expected: 1,
+    pattern: 'Received an instance of Object$',
   },
   {
     code: [],
     expected: 1,
+    pattern: 'Received an instance of Array$',
   },
   {
     code: true,
     expected: 1,
+    pattern: 'Received type boolean \\(true\\)$',
   },
   {
     code: false,
     expected: 1,
+    pattern: 'Received type boolean \\(false\\)$',
   },
   {
     code: 2n,
     expected: 1,
+    pattern: 'Received type bigint \\(2n\\)$',
   },
   {
     code: 2.1,
     expected: 1,
+    pattern: 'Received 2.1$',
   },
   {
     code: Infinity,
     expected: 1,
+    pattern: 'Received Infinity$',
   },
   {
     code: NaN,
     expected: 1,
+    pattern: 'Received NaN$',
   },
 ];
 const valids = [
@@ -100,7 +111,7 @@ if (process.argv[2] === undefined) {
   // Check process.exitCode
   for (const arg of invalids) {
     debug(`invaild code: ${inspect(arg.code)}`);
-    throws(() => (process.exitCode = arg.code), Error);
+    throws(() => (process.exitCode = arg.code), new RegExp(arg.pattern));
   }
   for (const arg of valids) {
     debug(`vaild code: ${inspect(arg.code)}`);
