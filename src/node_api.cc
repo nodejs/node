@@ -20,8 +20,9 @@
 #include <memory>
 
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
-                                 const std::string& module_filename)
-    : napi_env__(context), filename(module_filename) {
+                                 const std::string& module_filename,
+                                 napi_features* features)
+    : napi_env__(context, features), filename(module_filename) {
   CHECK_NOT_NULL(node_env());
 }
 
@@ -126,10 +127,11 @@ class BufferFinalizer : private Finalizer {
 };
 
 inline napi_env NewEnv(v8::Local<v8::Context> context,
-                       const std::string& module_filename) {
+                       const std::string& module_filename,
+                       napi_features* features) {
   node_napi_env result;
 
-  result = new node_napi_env__(context, module_filename);
+  result = new node_napi_env__(context, module_filename, features);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
   // However, as long as N-API addons using this napi_env are in place,
@@ -586,6 +588,13 @@ class AsyncContext {
 
 }  // end of namespace v8impl
 
+void napi_module_register_by_symbol_with_features(
+    v8::Local<v8::Object> exports,
+    v8::Local<v8::Value> module,
+    v8::Local<v8::Context> context,
+    napi_addon_register_func init,
+    napi_features* features);
+
 // Intercepts the Node-V8 module registration callback. Converts parameters
 // to NAPI equivalents and then calls the registration callback specified
 // by the NAPI module.
@@ -593,17 +602,28 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
                                     void* priv) {
-  napi_module_register_by_symbol(
+  napi_module_register_by_symbol_with_features(
       exports,
       module,
       context,
-      static_cast<const napi_module*>(priv)->nm_register_func);
+      static_cast<const napi_module*>(priv)->nm_register_func,
+      static_cast<const napi_module*>(priv)->nm_features);
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
                                     napi_addon_register_func init) {
+  napi_module_register_by_symbol_with_features(
+      exports, module, context, init, nullptr);
+}
+
+void napi_module_register_by_symbol_with_features(
+    v8::Local<v8::Object> exports,
+    v8::Local<v8::Value> module,
+    v8::Local<v8::Context> context,
+    napi_addon_register_func init,
+    napi_features* features) {
   node::Environment* node_env = node::Environment::GetCurrent(context);
   std::string module_filename = "";
   if (init == nullptr) {
@@ -631,7 +651,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   }
 
   // Create a new napi_env for this specific module.
-  napi_env env = v8impl::NewEnv(context, module_filename);
+  napi_env env = v8impl::NewEnv(context, module_filename, features);
 
   napi_value _exports;
   env->CallIntoModule([&](napi_env env) {

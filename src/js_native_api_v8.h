@@ -50,9 +50,10 @@ class RefTracker {
 }  // end of namespace v8impl
 
 struct napi_env__ {
-  explicit napi_env__(v8::Local<v8::Context> context)
+  explicit napi_env__(v8::Local<v8::Context> context, napi_features* features)
       : isolate(context->GetIsolate()), context_persistent(isolate, context) {
     CHECK_EQ(isolate, context->GetIsolate());
+    SetFeatures(features);
     napi_clear_last_error(this);
   }
 
@@ -89,11 +90,26 @@ struct napi_env__ {
     }
   }
 
-  // This should be overridden to schedule the finalization to a properiate
+  // This should be overridden to schedule the finalization to appropriate
   // timing, like next tick of the event loop.
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
     v8::HandleScope handle_scope(isolate);
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
+  }
+
+  bool IsFeatureEnabled(napi_features feature) {
+    // By comparing results of `&` operation to the feature parameter
+    // we allow to test for multiple feature flags.
+    return (_features & feature) == feature;
+  }
+
+  void SetFeatures(napi_features* features) {
+    if (features == nullptr) {
+      _features = napi_feature_none;
+    } else {
+      const napi_features availableFeatures = napi_default_features;
+      _features = static_cast<napi_features>(availableFeatures & *features);
+    }
   }
 
   virtual void DeleteMe() {
@@ -122,6 +138,7 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+  napi_features _features = napi_feature_none;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
@@ -435,6 +452,7 @@ class Reference : public RefBase {
   v8impl::Persistent<v8::Value> _persistent;
   SecondPassCallParameterRef* _secondPassParameter;
   bool _secondPassScheduled;
+  const bool _canBeWeak;
 
   FRIEND_TEST(JsNativeApiV8Test, Reference);
 };

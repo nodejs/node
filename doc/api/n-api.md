@@ -2046,6 +2046,48 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 
 ### Enum types
 
+#### `napi_features`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+typedef enum {
+  napi_feature_none = 0,
+  napi_feature_reference_all_types = 1 << 0,
+
+  napi_default_experimental_features = napi_feature_reference_all_types,
+
+  napi_default_features = napi_default_experimental_features, // version specific
+} napi_features;
+```
+
+The `napi_features` allow changing internal behavior of existing Node-API
+functions.
+
+We pass a `napi_features` pointer to the `napi_module` struct in the
+`NAPI_MODULE_X` macro. This macro is used for the module registration.
+If the module is initialized without using this macro, then there will be
+no features selected and the module will use the `napi_feature_none`.
+
+Each Node-API version defines its own default set of features.
+For the current version it can be accessed using `napi_default_features`.
+A module can override the set of its enabled features by adding
+`NAPI_CUSTOM_FEATURES` definition to the `.gyp` file and then defining the
+value of the global `napi_module_features` variable.
+To check enabled features use the `napi_is_feature_enabled` function.
+
+For example, to disables `napi_feature_reference_all_types` feature we can
+exclude its bit from the `napi_default_features` set:
+
+```c
+napi_features napi_module_features =
+    napi_default_features & ~napi_feature_reference_all_types;
+```
+
 #### `napi_key_collection_mode`
 
 <!-- YAML
@@ -5699,6 +5741,32 @@ support it:
 * Use the dynamically loaded pointer to invoke the function.
 * If the function is not available, provide an alternate implementation
   that does not use the function.
+
+#### `napi_is_feature_enabled`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+NAPI_EXTERN napi_status napi_is_feature_enabled(napi_env env,
+                                                napi_features feature,
+                                                bool* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] feature`: The feature that we want to test.
+* `[out] result`: Whether the feature or a set of features are enabled.
+
+Returns `napi_ok` if the API succeeded.
+
+The function checks enabled features for the module.
+If `feature` parameter has multiple `napi_features` bit flags, then the
+function returns `true` only when all the requested fatures are enabled.
+
+See [`napi_features`][] for more details about Node-API features.
 
 ## Memory management
 

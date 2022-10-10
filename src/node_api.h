@@ -38,7 +38,12 @@ typedef struct napi_module {
   napi_addon_register_func nm_register_func;
   const char* nm_modname;
   void* nm_priv;
+#ifdef NAPI_EXPERIMENTAL
+  napi_features* nm_features;
+  void* reserved[3];
+#else
   void* reserved[4];
+#endif
 } napi_module;
 
 #define NAPI_MODULE_VERSION 1
@@ -73,8 +78,31 @@ typedef struct napi_module {
   static void fn(void)
 #endif
 
+#ifdef NAPI_EXPERIMENTAL
+#ifdef NAPI_CUSTOM_FEATURES
+
+// Define value of napi_module_features variable in your module when
+// NAPI_CUSTOM_FEATURES is set in gyp file.
+extern napi_features napi_module_features;
+#define NAPI_DEFINE_DEFAULT_FEATURES
+
+#else  // NAPI_CUSTOM_FEATURES
+
+#define NAPI_DEFINE_DEFAULT_FEATURES                                           \
+  static napi_features napi_module_features = napi_default_features;
+
+#endif  // NAPI_CUSTOM_FEATURES
+
+#define NAPI_FEATURES_PTR /* NOLINT */ &napi_module_features,
+
+#else  // NAPI_EXPERIMENTAL
+#define NAPI_DEFINE_DEFAULT_FEATURES
+#define NAPI_FEATURES_PTR
+#endif  // NAPI_EXPERIMENTAL
+
 #define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
   EXTERN_C_START                                                               \
+  NAPI_DEFINE_DEFAULT_FEATURES                                                 \
   static napi_module _module = {                                               \
       NAPI_MODULE_VERSION,                                                     \
       flags,                                                                   \
@@ -82,9 +110,11 @@ typedef struct napi_module {
       regfunc,                                                                 \
       #modname,                                                                \
       priv,                                                                    \
-      {0},                                                                     \
+      NAPI_FEATURES_PTR{0},                                                    \
   };                                                                           \
-  NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
+  NAPI_C_CTOR(_register_##modname) {                                           \
+    napi_module_register(&_module);                                            \
+  }                                                                            \
   EXTERN_C_END
 
 #define NAPI_MODULE_INITIALIZER_X(base, version)                               \

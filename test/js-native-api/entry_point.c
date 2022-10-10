@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 
 EXTERN_C_START

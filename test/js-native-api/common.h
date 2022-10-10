@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 
 // Empty value so that macros here are able to return NULL or void

@@ -108,6 +108,37 @@ typedef enum {
 //   * the definition of `napi_status` in doc/api/n-api.md to reflect the newly
 //     added value(s).
 
+#ifdef NAPI_EXPERIMENTAL
+// Features allow changing internal behavior of existing Node-API functions.
+//
+// We pass a napi_features pointer to the napi_module struct
+// in the NAPI_MODULE_X macro. This macro is used for the module registration.
+// If the module is initialized without using this macro, then there will be
+// no features selected and the module will use the napi_feature_none.
+//
+// Each Node-API version defines its own default set of features.
+// For the current version it can be accessed using napi_default_features.
+// A module can override the set of its enabled features by adding
+// NAPI_CUSTOM_FEATURES definition to the .gyp file and then defining the
+// value of the global napi_module_features variable.
+// To check enabled features use the `napi_is_feature_enabled` function.
+//
+// For example, to disables napi_feature_reference_all_types:
+// napi_features napi_module_features =
+//   napi_default_features & ~napi_feature_reference_all_types;
+typedef enum {
+  // To be used when no features needs to be set.
+  napi_feature_none = 0,
+  // Use napi_ref for all value types.
+  // Not only objects, functions, and symbols as before.
+  napi_feature_reference_all_types = 1 << 0,
+  // Each version of NAPI is going to have its own default set of features.
+  napi_default_experimental_features = napi_feature_reference_all_types,
+  // This variable must be conditionally set depending on the NAPI version.
+  napi_default_features = napi_default_experimental_features,
+} napi_features;
+#endif
+
 typedef napi_value(NAPI_CDECL* napi_callback)(napi_env env,
                                               napi_callback_info info);
 typedef void(NAPI_CDECL* napi_finalize)(napi_env env,
