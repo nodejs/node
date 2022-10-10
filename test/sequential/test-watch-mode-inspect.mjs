@@ -12,7 +12,6 @@ if (common.isIBMi)
 common.skipIfInspectorDisabled();
 
 describe('watch mode - inspect', () => {
-  const silentLogger = { log: () => {}, error: () => {} };
   async function getDebuggedPid(instance, waitForLog = true) {
     const session = await instance.connectInspectorSession();
     await session.send({ method: 'Runtime.enable' });
@@ -28,7 +27,7 @@ describe('watch mode - inspect', () => {
 
   it('should start debugger on inner process', async () => {
     const file = fixtures.path('watch-mode/inspect.js');
-    const instance = new NodeInstance(['--inspect=0', '--watch'], undefined, file, silentLogger);
+    const instance = new NodeInstance(['--inspect=0', '--watch'], undefined, file);
     let stderr = '';
     instance.on('stderr', (data) => { stderr += data; });
 
@@ -48,7 +47,7 @@ describe('watch mode - inspect', () => {
 
   it('should prevent attaching debugger with SIGUSR1 to outer process', { skip: common.isWindows }, async () => {
     const file = fixtures.path('watch-mode/inspect_with_signal.js');
-    const instance = new NodeInstance(['--inspect-port=0', '--watch'], undefined, file, silentLogger);
+    const instance = new NodeInstance(['--inspect-port=0', '--watch'], undefined, file);
     let stderr = '';
     instance.on('stderr', (data) => { stderr += data; });
 
