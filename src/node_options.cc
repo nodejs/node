@@ -358,7 +358,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-global-customevent",
             "expose experimental CustomEvent on the global scope",
             &EnvironmentOptions::experimental_global_customevent,
-            kAllowedInEnvironment);
+            kAllowedInEnvironment,
+            true);
   AddOption("--experimental-global-webcrypto",
             "expose experimental Web Crypto API on the global scope",
             &EnvironmentOptions::experimental_global_web_crypto,

@@ -405,7 +405,7 @@ putIn.run([
   'var custom = "test";',
 ]);
 testMe.complete('cus', common.mustCall(function(error, data) {
-  assert.deepStrictEqual(data, [['custom'], 'cus']);
+  assert.deepStrictEqual(data, [['CustomEvent', 'custom'], 'cus']);
 }));
 
 // Make sure tab completion doesn't crash REPL with half-baked proxy objects.

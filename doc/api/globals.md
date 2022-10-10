@@ -400,10 +400,14 @@ only if the Node.js binary was compiled with including support for the
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44860
+    description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Enable this API with the
-> [`--experimental-global-customevent`][] CLI flag.
+> Stability: 1 - Experimental. Disable this API with the
+> [`--no-experimental-global-customevent`][] CLI flag.
 
 <!-- type=global -->
 
@@ -947,8 +951,8 @@ added: v18.0.0
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
 [Web Crypto API]: webcrypto.md
-[`--experimental-global-customevent`]: cli.md#--experimental-global-customevent
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
+[`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
