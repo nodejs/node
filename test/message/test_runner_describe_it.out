@@ -123,6 +123,9 @@ not ok 13 - async assertion fail
     true !== false
     
   code: 'ERR_ASSERTION'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
   stack: |-
     *
     *
