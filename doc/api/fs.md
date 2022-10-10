@@ -517,6 +517,46 @@ If one or more `filehandle.read()` calls are made on a file handle and then a
 position till the end of the file. It doesn't always read from the beginning
 of the file.
 
+#### `filehandle.readLines([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `encoding` {string} **Default:** `null`
+  * `autoClose` {boolean} **Default:** `true`
+  * `emitClose` {boolean} **Default:** `true`
+  * `start` {integer}
+  * `end` {integer} **Default:** `Infinity`
+  * `highWaterMark` {integer} **Default:** `64 * 1024`
+* Returns: {readline.InterfaceConstructor}
+
+Convenience method to create a `readline` interface and stream over the file.
+See [`filehandle.createReadStream()`][] for the options.
+
+```mjs
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+
+for await (const line of file.readLines()) {
+  console.log(line);
+}
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+
+(async () => {
+  const file = await open('./some/file/to/read');
+
+  for await (const line of file.readLines()) {
+    console.log(line);
+  }
+})();
+```
+
 #### `filehandle.readv(buffers[, position])`
 
 <!-- YAML
@@ -7672,6 +7712,7 @@ the file contents.
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
 [`event ports`]: https://illumos.org/man/port_create
+[`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
