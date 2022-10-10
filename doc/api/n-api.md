@@ -5766,7 +5766,7 @@ The function checks enabled features for the module.
 If `feature` parameter has multiple `napi_features` bit flags, then the
 function returns `true` only when all the requested fatures are enabled.
 
-See [`napi_features`][] for more details about Node-API features.
+See `napi_features` for more details about Node-API features.
 
 ## Memory management
 

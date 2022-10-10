@@ -112,9 +112,7 @@ extern napi_features napi_module_features;
       priv,                                                                    \
       NAPI_FEATURES_PTR{0},                                                    \
   };                                                                           \
-  NAPI_C_CTOR(_register_##modname) {                                           \
-    napi_module_register(&_module);                                            \
-  }                                                                            \
+  NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
   EXTERN_C_END
 
 #define NAPI_MODULE_INITIALIZER_X(base, version)                               \
