@@ -2690,9 +2690,9 @@ An unspecified or non-specific system error has occurred within the Node.js
 process. The error object will have an `err.info` object property with
 additional details.
 
-<a id="ERR_TAP_VALIDATOR_ERROR"></a>
+<a id="ERR_TAP_VALIDATION_ERROR"></a>
 
-### `ERR_TAP_VALIDATOR_ERROR`
+### `ERR_TAP_VALIDATION_ERROR`
 
 This error represents a failed TAP validation.
 

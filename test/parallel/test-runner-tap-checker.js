@@ -16,7 +16,8 @@ function TAPChecker(input) {
 
 {
   assert.throws(() => TAPChecker('TAP version 14'), {
-    name: 'TAPValidationError',
+    name: 'Error',
+    code: 'ERR_TAP_VALIDATION_ERROR',
     message: 'missing TAP plan',
   });
 }
@@ -29,7 +30,8 @@ TAP version 14
 1..1
 `),
     {
-      name: 'TAPValidationError',
+      name: 'Error',
+      code: 'ERR_TAP_VALIDATION_ERROR',
       message: 'missing Test Points',
     }
   );
@@ -54,7 +56,8 @@ TAP version 14
 ok 2
 `),
     {
-      name: 'TAPValidationError',
+      name: 'Error',
+      code: 'ERR_TAP_VALIDATION_ERROR',
       message: 'test 2 is out of plan range 1..1',
     }
   );
@@ -69,7 +72,8 @@ TAP version 14
 ok 2
 `),
     {
-      name: 'TAPValidationError',
+      name: 'Error',
+      code: 'ERR_TAP_VALIDATION_ERROR',
       message: 'plan start 3 is greater than plan end 1',
     }
   );
@@ -86,7 +90,8 @@ ok 2
 ok 3
 `),
     {
-      name: 'TAPValidationError',
+      name: 'Error',
+      code: 'ERR_TAP_VALIDATION_ERROR',
       message: 'test 1 is out of plan range 2..3',
     }
   );

@@ -73,8 +73,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('TAP version'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected a version number, received "EOF" (EOF) at line 1, column 12 (start 12, end 12)',
+    message:
+      'Expected a version number, received "version" (VersionKeyword) at line 1, column 5 (start 4, end 10)',
   });
 }
 
@@ -82,8 +82,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('TAP'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected "version" keyword, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+    message:
+      'Expected "version" keyword, received "TAP" (TAPKeyword) at line 1, column 1 (start 0, end 2)',
   });
 }
 
@@ -123,8 +123,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('1..'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+    message:
+      'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
   });
 }
 
@@ -132,8 +132,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('1..abc'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
+    message:
+      'Expected ".." symbol, received "..abc" (Literal) at line 1, column 2 (start 1, end 5)',
   });
 }
 
@@ -141,8 +141,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('1..-1'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
+    message:
+      'Expected a plan end count, received "-" (Dash) at line 1, column 4 (start 3, end 3)',
   });
 }
 
@@ -150,8 +150,8 @@ function TAPParser(input) {
   assert.throws(() => TAPParser('1.1'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
+    message:
+      'Expected ".." symbol, received "." (Literal) at line 1, column 2 (start 1, end 1)',
   });
 }
 
@@ -473,7 +473,6 @@ ok 4 - nested1
 
 ok 6 - nested1
 `);
-  console.log(JSON.stringify(ast, null, 2));
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
@@ -870,16 +869,15 @@ ok 6 - nested1
     () =>
       TAPParser(
         `
-    message: 'description'
-    property: 'value'
-    ...
-  `
+  message: 'description'
+  property: 'value'
+  ...`
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
+      message:
+        'Unexpected YAML end marker, received "..." (YamlEndKeyword) at line 4, column 3 (start 48, end 50)',
     }
   );
 }
@@ -889,16 +887,15 @@ ok 6 - nested1
     () =>
       TAPParser(
         `
-    ---
-    message: 'description'
-    property: 'value'
-  `
+  ---
+  message: 'description'
+  property: 'value'`
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
+      message:
+        'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 44, end 50)',
     }
   );
 }
@@ -909,17 +906,16 @@ ok 6 - nested1
       // Note the leading 3 spaces before ---
       TAPParser(
         `
-     ---
-    message: 'description'
-    property: 'value'
-    ...
-  `
+   ---
+  message: 'description'
+  property: 'value'
+  ...`
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Expected valid YAML indentation (2 spaces), received 3 spaces at line 2, column 3 (start 3, end 3)',
+      message:
+        'Expected valid YAML indentation (2 spaces), received " " (Whitespace) at line 2, column 3 (start 3, end 3)',
     }
   );
 }
@@ -928,19 +924,23 @@ ok 6 - nested1
   assert.throws(
     () =>
       // Note the leading 5 spaces before ---
+      // This is a special case because the YAML block is indented by 1 space
+      // the extra 4 spaces are those of the subtest nesting level.
+      // However, the remaining content of the YAML block is indented by 2 spaces
+      // making it belong to the parent level.
       TAPParser(
         `
-       ---
-    message: 'description'
-    property: 'value'
-    ...
+     ---
+  message: 'description'
+  property: 'value'
+  ...
   `
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Expected valid YAML indentation (2 spaces), received 5 spaces at line 2, column 5 (start 5, end 5)',
+      message:
+        'Expected end of YAML block, received "\'value\'" (Literal) at line 4, column 13 (start 47, end 53)',
     }
   );
 }
@@ -951,17 +951,17 @@ ok 6 - nested1
       // Note the leading 4 spaces before ---
       TAPParser(
         `
-      ---
-    message: 'description'
-    property: 'value'
-    ...
+    ---
+  message: 'description'
+  property: 'value'
+  ...
   `
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
+      message:
+        'Expected a valid token, received "---" (YamlStartKeyword) at line 2, column 5 (start 5, end 7)',
     }
   );
 }
@@ -972,17 +972,17 @@ ok 6 - nested1
       // Note the leading 4 spaces before ...
       TAPParser(
         `
-    ---
-    message: 'description'
-    property: 'value'
-      ...
+  ---
+  message: 'description'
+  property: 'value'
+    ...
   `
       ),
     {
       name: 'SyntaxError',
       code: 'ERR_TAP_PARSER_ERROR',
-      // message:
-      //   'Expected end of YAML block, received "..." (YamlEndKeyword) at line 5, column 5 (start 56, end 58)',
+      message:
+        'Expected end of YAML block, received " " (Whitespace) at line 6, column 2 (start 61, end 61)',
     }
   );
 }
@@ -1021,8 +1021,8 @@ ok 6 - nested1
   assert.throws(() => TAPParser('abc'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
+    message:
+      'Expected a valid token, received "abc" (Literal) at line 1, column 1 (start 0, end 2)',
   });
 }
 
@@ -1030,8 +1030,8 @@ ok 6 - nested1
   assert.throws(() => TAPParser('    abc'), {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
-    // message:
-    //   'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
+    message:
+      'Expected a valid token, received "abc" (Literal) at line 1, column 5 (start 4, end 6)',
   });
 }
 

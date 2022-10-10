@@ -101,6 +101,7 @@ class MessageTestCase(test.TestCase):
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
+    result.append(self.file)
     return result
 
   def GetSource(self):
