@@ -145,9 +145,6 @@ Interpret as either ES modules or CommonJS modules input via --eval or STDIN, wh
 .js or extensionless files with no sibling or parent package.json;
 .js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
 .
-.It Fl -experimental-global-customevent
-Expose the CustomEvent on the global scope.
-.
 .It Fl -experimental-global-webcrypto
 Expose the Web Crypto API on the global scope.
 .
@@ -173,6 +170,9 @@ Enable code coverage in the test runner.
 .
 .It Fl -no-experimental-fetch
 Disable experimental support for the Fetch API.
+.
+.It Fl -no-experimental-global-customevent
+Disable exposition of the CustomEvent on the global scope.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.

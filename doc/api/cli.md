@@ -353,14 +353,6 @@ when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
 
-### `--experimental-global-customevent`
-
-<!-- YAML
-added: v18.7.0
--->
-
-Expose the [CustomEvent Web API][] on the global scope.
-
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
@@ -461,6 +453,14 @@ added: v18.0.0
 -->
 
 Disable experimental support for the [Fetch API][].
+
+### `--no-experimental-global-customevent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable exposition of [CustomEvent Web API][] on the global scope.
 
 ### `--no-experimental-repl-await`
 
@@ -1966,7 +1966,6 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
-* `--experimental-global-customevent`
 * `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
@@ -2000,6 +1999,7 @@ Node.js options that are allowed are:
 * `--no-addons`
 * `--no-deprecation`
 * `--no-experimental-fetch`
+* `--no-experimental-global-customevent`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
