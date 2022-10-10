@@ -1165,7 +1165,8 @@ const { readFile } = require('fs/promises');
 const { resolve } = require('path');
 async function logFile() {
   try {
-    const contents = await readFile(resolve('./package.json'), { encoding: 'utf8' });
+    const filePath = resolve('./package.json');
+    const contents = await readFile(filePath, { encoding: 'utf8' });
     console.log(contents);
   } catch (err) {
     console.error(err.message);
