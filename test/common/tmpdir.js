@@ -27,6 +27,7 @@ function refresh() {
     // Clean only when a test uses refresh. This allows for child processes to
     // use the tmpdir and only the parent will clean on exit.
     process.on('exit', onexit);
+    process.on('SIGINT', onexit);
   }
 }
 
