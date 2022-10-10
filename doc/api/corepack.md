@@ -64,6 +64,13 @@ package manager version you wish to set:
 corepack prepare yarn@x.y.z --activate
 ```
 
+Alternately, a tag or range may be used:
+
+```bash
+corepack prepare pnpm@latest --activate
+corepack prepare yarn@stable --activate
+```
+
 ### Offline workflow
 
 Many production environments don't have network access. Since Corepack
