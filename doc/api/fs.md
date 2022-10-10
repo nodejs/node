@@ -1151,7 +1151,8 @@ An example of reading a `package.json` file located in the same directory of the
 ```mjs
 import { readFile } from 'fs/promises';
 try {
-  const contents = await readFile(new URL('./package.json', import.meta.url), { encoding: 'utf8' });
+  const filePath = new URL('./package.json', import.meta.url);
+  const contents = await readFile(filePath, { encoding: 'utf8' });
   
   console.log(contents);
 } catch (err) {
