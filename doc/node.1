@@ -139,9 +139,6 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
-.It Fl -experimental-global-customevent
-Expose the CustomEvent on the global scope.
-.
 .It Fl -experimental-global-webcrypto
 Expose the Web Crypto API on the global scope.
 .
@@ -164,6 +161,9 @@ Use this flag to enable ShadowRealm support.
 .
 .It Fl -no-experimental-fetch
 Disable experimental support for the Fetch API.
+.
+.It Fl -no-experimental-global-customevent
+Disable exposition of the CustomEvent on the global scope.
 .
 .It Fl -no-experimental-global-webcrypto
 Disable exposition of the Web Crypto API on the global scope.

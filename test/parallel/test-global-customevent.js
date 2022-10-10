@@ -1,4 +1,4 @@
-// Flags: --experimental-global-customevent --expose-internals
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
