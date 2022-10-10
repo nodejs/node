@@ -36,7 +36,7 @@ function idl_test_shadowrealm(srcs, deps) {
                 isWindow: function() { return false; },
                 isWorker: function() { return false; },
                 isShadowRealm: function() { return true; },
-            };
+            }; undefined;
         `);
 
         const ss = await Promise.all(script_urls.map(url => fetch_text(url)));

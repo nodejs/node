@@ -604,7 +604,7 @@
          * @returns {Promise} - Resolved once the channel is disconnected.
          */
         disconnectReader() {
-            // This causes any readers to disconnect until they are explictly reconnected
+            // This causes any readers to disconnect until they are explicitly reconnected
             return this.sendChannel.disconnectReader();
         }
 

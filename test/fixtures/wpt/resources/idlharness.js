@@ -1529,12 +1529,12 @@ IdlInterface.prototype.test_self = function()
         // https://github.com/heycam/webidl/issues/698
         assert_true(isConstructor(this.get_interface_object()), "interface object must pass IsConstructor check");
 
+        var interface_object = this.get_interface_object();
+        assert_throws_js(globalOf(interface_object).TypeError, function() {
+            interface_object();
+        }, "interface object didn't throw TypeError when called as a function");
+
         if (!this.constructors().length) {
-            // "If I was not declared with a constructor operation, then throw a TypeError."
-            var interface_object = this.get_interface_object();
-            assert_throws_js(globalOf(interface_object).TypeError, function() {
-                interface_object();
-            }, "interface object didn't throw TypeError when called as a function");
             assert_throws_js(globalOf(interface_object).TypeError, function() {
                 new interface_object();
             }, "interface object didn't throw TypeError when called as a constructor");
@@ -2458,7 +2458,7 @@ IdlInterface.prototype.test_member_iterable = function(member)
             ].forEach(([property, length]) => {
                 var desc = Object.getOwnPropertyDescriptor(proto, property);
                 assert_equals(typeof desc.value, "function", property + " property should be a function");
-                assert_equals(desc.value.length, length, property + " function object length should be " + length);
+                assert_equals(desc.value.length, length, property + " function object should have the right length");
                 assert_equals(desc.value.name, property, property + " function object should have the right name");
             });
         } else {
@@ -2469,6 +2469,97 @@ IdlInterface.prototype.test_member_iterable = function(member)
             });
         }
     }.bind(this), this.name + " interface: iterable<" + member.idlType.map(function(t) { return t.idlType; }).join(", ") + ">");
+};
+
+IdlInterface.prototype.test_member_maplike = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const proto = this.get_interface_object().prototype;
+
+        const methods = [
+            ["entries", 0],
+            ["keys", 0],
+            ["values", 0],
+            ["forEach", 1],
+            ["get", 1],
+            ["has", 1]
+        ];
+        if (!member.readonly) {
+            methods.push(
+                ["set", 2],
+                ["delete", 1],
+                ["clear", 1]
+            );
+        }
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, false, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+        assert_equals(iteratorDesc.value, proto.entries, `@@iterator should equal entries`);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
+
+        const sizeDesc = Object.getOwnPropertyDescriptor(proto, "size");
+        assert_equals(typeof sizeDesc.get, "function", `size getter should be a function`);
+        assert_equals(sizeDesc.set, undefined, `size should not have a setter`);
+        assert_equals(sizeDesc.enumerable, false, `size enumerable`);
+        assert_equals(sizeDesc.configurable, true, `size configurable`);
+        assert_equals(sizeDesc.get.length, 0, `size getter length should have the right length`);
+        assert_equals(sizeDesc.get.name, "get size", `size getter have the right name`);
+    }, `${this.name} interface: maplike<${member.idlType.map(t => t.idlType).join(", ")}>`);
+};
+
+IdlInterface.prototype.test_member_setlike = function(member) {
+    subsetTestByKey(this.name, test, () => {
+        const proto = this.get_interface_object().prototype;
+
+        const methods = [
+            ["entries", 0],
+            ["keys", 0],
+            ["values", 0],
+            ["forEach", 1],
+            ["has", 1]
+        ];
+        if (!member.readonly) {
+            methods.push(
+                ["add", 1],
+                ["delete", 1],
+                ["clear", 1]
+            );
+        }
+
+        for (const [name, length] of methods) {
+            const desc = Object.getOwnPropertyDescriptor(proto, name);
+            assert_equals(typeof desc.value, "function", `${name} should be a function`);
+            assert_equals(desc.enumerable, false, `${name} enumerable`);
+            assert_equals(desc.configurable, true, `${name} configurable`);
+            assert_equals(desc.writable, true, `${name} writable`);
+            assert_equals(desc.value.length, length, `${name} function object length should be ${length}`);
+            assert_equals(desc.value.name, name, `${name} function object should have the right name`);
+        }
+
+        const iteratorDesc = Object.getOwnPropertyDescriptor(proto, Symbol.iterator);
+        assert_equals(iteratorDesc.value, proto.values, `@@iterator should equal values`);
+        assert_equals(iteratorDesc.enumerable, false, `@@iterator enumerable`);
+        assert_equals(iteratorDesc.configurable, true, `@@iterator configurable`);
+        assert_equals(iteratorDesc.writable, true, `@@iterator writable`);
+
+        const sizeDesc = Object.getOwnPropertyDescriptor(proto, "size");
+        assert_equals(typeof sizeDesc.get, "function", `size getter should be a function`);
+        assert_equals(sizeDesc.set, undefined, `size should not have a setter`);
+        assert_equals(sizeDesc.enumerable, false, `size enumerable`);
+        assert_equals(sizeDesc.configurable, true, `size configurable`);
+        assert_equals(sizeDesc.get.length, 0, `size getter length should have the right length`);
+        assert_equals(sizeDesc.get.name, "size", `size getter have the right name`);
+    }, `${this.name} interface: setlike<${member.idlType.map(t => t.idlType).join(", ")}>`);
 };
 
 IdlInterface.prototype.test_member_async_iterable = function(member)
@@ -2623,6 +2714,12 @@ IdlInterface.prototype.test_members = function()
             } else {
                 this.test_member_iterable(member);
             }
+            break;
+        case "maplike":
+            this.test_member_maplike(member);
+            break;
+        case "setlike":
+            this.test_member_setlike(member);
             break;
         default:
             // TODO: check more member types.
