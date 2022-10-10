@@ -1147,7 +1147,9 @@ platform-specific. On macOS, Linux, and Windows, the promise will be rejected
 with an error. On FreeBSD, a representation of the directory's contents will be
 returned.
 
-An example of reading a `package.json` file located in the same directory of the running code:
+An example of reading a `package.json` file located in the same directory of the
+running code:
+
 ```mjs
 import { readFile } from 'fs/promises';
 try {
