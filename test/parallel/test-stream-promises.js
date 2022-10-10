@@ -100,41 +100,41 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   const streamObj = new Readable();
   assert.throws(() => {
-    // Passing autoCleanup option not as boolean
+    // Passing cleanup option not as boolean
     // should throw error
-    finished(streamObj, { autoCleanup: 2 });
+    finished(streamObj, { cleanup: 2 });
   }, { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
 // Below code should not throw any errors as the
-// streamObj is `Stream` and autoCleanup is boolean
+// streamObj is `Stream` and cleanup is boolean
 {
   const streamObj = new Readable();
-  finished(streamObj, { autoCleanup: true });
+  finished(streamObj, { cleanup: true });
 }
 
 
-// Cleanup function should not be called when autoCleanup is set to false
+// Cleanup function should not be called when cleanup is set to false
 // listenerCount should be 1 after calling finish
 {
   const streamObj = new Writable();
   assert.strictEqual(streamObj.listenerCount('end'), 0);
-  finished(streamObj, { autoCleanup: false }).then(() => {
+  finished(streamObj, { cleanup: false }).then(() => {
     assert.strictEqual(streamObj.listenerCount('end'), 1);
   });
 }
 
-// Cleanup function should be called when autoCleanup is set to true
+// Cleanup function should be called when cleanup is set to true
 // listenerCount should be 0 after calling finish
 {
   const streamObj = new Writable();
   assert.strictEqual(streamObj.listenerCount('end'), 0);
-  finished(streamObj, { autoCleanup: true }).then(() => {
+  finished(streamObj, { cleanup: true }).then(() => {
     assert.strictEqual(streamObj.listenerCount('end'), 0);
   });
 }
 
-// Cleanup function should not be called when autoCleanup has not been set
+// Cleanup function should not be called when cleanup has not been set
 // listenerCount should be 1 after calling finish
 {
   const streamObj = new Writable();
