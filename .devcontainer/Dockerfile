@@ -1,1 +1,1 @@
-FROM nodejs/devcontainer:latest
+FROM nodejs/devcontainer:nightly
