@@ -1162,8 +1162,8 @@ try {
 ```
 
 ```cjs
-const { readFile } = require('fs/promises');
-const { resolve } = require('path');
+const { readFile } = require('node:fs/promises');
+const { resolve } = require('node:path');
 async function logFile() {
   try {
     const filePath = resolve('./package.json');
