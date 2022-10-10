@@ -215,7 +215,8 @@ static const char* name_by_gid(gid_t gid) {
 
 static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<uid_t>(value.As<Uint32>()->Value());
+    static_assert(std::is_same<uid_t, uint32_t>::value);
+    return value.As<Uint32>()->Value();
   } else {
     Utf8Value name(isolate, value);
     return uid_by_name(*name);
@@ -224,7 +225,8 @@ static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
 
 static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
-    return static_cast<gid_t>(value.As<Uint32>()->Value());
+    static_assert(std::is_same<gid_t, uint32_t>::value);
+    return value.As<Uint32>()->Value();
   } else {
     Utf8Value name(isolate, value);
     return gid_by_name(*name);
