@@ -3280,7 +3280,8 @@ changes:
 Type: Documentation-only
 
 [`url.parse()`][] behavior is not standardized and prone to errors that
-have security implications. Use the [WHATWG URL API][] instead.
+have security implications. Use the [WHATWG URL API][] instead. CVEs are not
+issued for `url.parse()` vulnerabilities.
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
