@@ -1217,7 +1217,7 @@ on [running tests from the command line][] for more details.
 ### `--test-name-pattern`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 A regular expression that configures the test runner to only execute tests
@@ -1573,7 +1573,7 @@ will be chosen.
 ### `--watch`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 > Stability: 1 - Experimental
@@ -1595,7 +1595,7 @@ $ node --watch index.js
 ### `--watch-path`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 > Stability: 1 - Experimental
