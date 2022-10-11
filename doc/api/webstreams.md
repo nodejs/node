@@ -300,7 +300,9 @@ is active.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: v18.10.0
+  - version:
+    - v18.10.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44505
     description: Support teeing a readable byte stream.
 -->

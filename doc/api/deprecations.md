@@ -3181,7 +3181,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/44711
     description: Runtime deprecation.
-  - version: v18.10.0
+  - version:
+    - v18.10.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44714
     description: Documentation-only deprecation of `process.exitCode` integer
                  coercion.
@@ -3203,7 +3205,9 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44093
     description: Documentation-only deprecation.
 -->
@@ -3236,7 +3240,9 @@ starting or ending in a slash.
 
 <!-- YAML
 changes:
-  - version: v18.10.0
+  - version:
+    - v18.10.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44588
     description: Documentation-only deprecation.
 -->
