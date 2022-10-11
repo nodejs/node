@@ -4008,7 +4008,7 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 ### `response.writeEarlyHints(links)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 * `links` {string|Array}

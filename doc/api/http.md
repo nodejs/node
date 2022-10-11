@@ -2141,9 +2141,9 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 ### `response.writeEarlyHints(hints[, callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 changes:
-  - version: REPLACEME
+  - version: v18.11.0
     pr-url: https://github.com/nodejs/node/pull/44820
     description: Allow passing hints as an object.
 -->
