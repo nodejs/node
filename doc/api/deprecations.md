@@ -3428,8 +3428,8 @@ issued for `url.parse()` vulnerabilities.
 [alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
-[legacy `urlObject`]: url.md#legacy-urlobject
 [legacy URL API]: url.md#legacy-url-api
+[legacy `urlObject`]: url.md#legacy-urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports
