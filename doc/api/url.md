@@ -1522,7 +1522,7 @@ The formatting process operates as follows:
 added: v0.1.25
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/44918
+    pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
   - version:
       - v15.13.0
