@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --sampling-heap-profiler-suppress-randomness
+// Flags: --no-stress-incremental-marking
 
 (async function() {
   let {contextGroup, Protocol} = InspectorTest.start('Checks sampling heap profiler methods.');
