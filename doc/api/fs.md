@@ -902,7 +902,7 @@ added: v10.0.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/27044
-    description: Changed 'flags' argument to 'mode' and imposed
+    description: Changed `flags` argument to `mode` and imposed
                  stricter type validation.
 -->
 
@@ -2188,7 +2188,7 @@ changes:
                  `ERR_INVALID_CALLBACK`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/27044
-    description: Changed 'flags' argument to 'mode' and imposed
+    description: Changed `flags` argument to `mode` and imposed
                  stricter type validation.
 -->
 
@@ -5012,7 +5012,7 @@ added: v8.5.0
 changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/27044
-    description: Changed 'flags' argument to 'mode' and imposed
+    description: Changed `flags` argument to `mode` and imposed
                  stricter type validation.
 -->
 
