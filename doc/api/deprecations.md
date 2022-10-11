@@ -3276,7 +3276,7 @@ Node-API callbacks.
 changes:
   - version:
       - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/44918
+    pr-url: https://github.com/nodejs/node/pull/44919
     description: Documentation-only deprecation.
 -->
 
