@@ -1011,7 +1011,7 @@ The numeric representation of the local port. For example, `80` or `21`.
 ### `socket.localFamily`
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 * {string}

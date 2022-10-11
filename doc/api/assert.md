@@ -325,7 +325,7 @@ const callsfunc = tracker.calls(func);
 ### `tracker.getCalls(fn)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 * `fn` {Function}.
@@ -439,7 +439,7 @@ tracker.report();
 ### `tracker.reset([fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 * `fn` {Function} a tracked function to reset.

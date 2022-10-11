@@ -3564,7 +3564,7 @@ try {
 ## `http.setMaxIdleHTTPParsers`
 
 <!-- YAML
-added: REPLACEME
+added: v16.18.0
 -->
 
 * {number}

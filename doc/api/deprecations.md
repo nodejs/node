@@ -3124,7 +3124,7 @@ thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44714
     description: Documentation-only deprecation of `process.exitCode` integer
                  coercion.
@@ -3144,7 +3144,7 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44093
     description: Documentation-only deprecation.
 -->
@@ -3159,7 +3159,7 @@ The [`--trace-atomics-wait`][] flag is deprecated.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44588
     description: Documentation-only deprecation.
 -->

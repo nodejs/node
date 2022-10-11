@@ -483,7 +483,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v16.18.0
     pr-url: https://github.com/nodejs/node/pull/43576
     description: add support for `maxArrayLength` when inspecting `Set` and `Map`.
   - version:

@@ -1029,7 +1029,7 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
-  - version: REPLACEME
+  - version: v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44208
     description: Report is not generated if the uncaught exception is handled.
   - version:
@@ -1206,7 +1206,7 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 
 <!-- YAML
 added: v14.3.0
-deprecated: REPLACEME
+deprecated: v16.18.0
 -->
 
 > Stability: 0 - Deprecated
