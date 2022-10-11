@@ -2288,6 +2288,9 @@ future release.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: \`url.parse()` is deprecated again in DEP0169.
   - version:
       - v15.13.0
       - v14.17.0
