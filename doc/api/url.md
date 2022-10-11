@@ -1565,8 +1565,9 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
 `url.parse()` uses a lenient, non-standard algorithm for parsing URL
 strings. It is prone to security issues such as [host name spoofing][]
-and incorrect handling of usernames and passwords. Use the [WHATWG URL][] API
-instead.
+and incorrect handling of usernames and passwords. Do not use with untrusted
+input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
+[WHATWG URL][] API instead.
 
 ### `url.resolve(from, to)`
 
