@@ -369,6 +369,10 @@ added: v10.0.0
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: `position` accepts bigint values.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -395,6 +399,10 @@ number of bytes read is zero.
 added:
  - v13.11.0
  - v12.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: `position` accepts bigint values.
 -->
 
 * `options` {Object}
@@ -425,6 +433,10 @@ number of bytes read is zero.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: `position` accepts bigint values.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
