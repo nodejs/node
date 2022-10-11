@@ -22920,33 +22920,58 @@ TEST(ScriptPositionInfo) {
   }
 }
 
-void CheckMagicComments(v8::Isolate* isolate, Local<Script> script,
+template <typename T>
+void CheckMagicComments(v8::Isolate* isolate, Local<T> unbound_script,
                         const char* expected_source_url,
                         const char* expected_source_mapping_url) {
   if (expected_source_url != nullptr) {
-    v8::String::Utf8Value url(isolate,
-                              script->GetUnboundScript()->GetSourceURL());
+    v8::String::Utf8Value url(isolate, unbound_script->GetSourceURL());
     CHECK_EQ(0, strcmp(expected_source_url, *url));
   } else {
-    CHECK(script->GetUnboundScript()->GetSourceURL()->IsUndefined());
+    CHECK(unbound_script->GetSourceURL()->IsUndefined());
   }
   if (expected_source_mapping_url != nullptr) {
-    v8::String::Utf8Value url(
-        isolate, script->GetUnboundScript()->GetSourceMappingURL());
+    v8::String::Utf8Value url(isolate, unbound_script->GetSourceMappingURL());
     CHECK_EQ(0, strcmp(expected_source_mapping_url, *url));
   } else {
-    CHECK(script->GetUnboundScript()->GetSourceMappingURL()->IsUndefined());
+    CHECK(unbound_script->GetSourceMappingURL()->IsUndefined());
   }
 }
 
-void SourceURLHelper(v8::Isolate* isolate, const char* source,
+void SourceURLHelper(v8::Isolate* isolate, const char* source_text,
                      const char* expected_source_url,
                      const char* expected_source_mapping_url) {
-  Local<Script> script = v8_compile(source);
-  CheckMagicComments(isolate, script, expected_source_url,
-                     expected_source_mapping_url);
-}
+  // Check scripts
+  {
+    Local<Script> script = v8_compile(source_text);
+    CheckMagicComments(isolate, script->GetUnboundScript(), expected_source_url,
+                       expected_source_mapping_url);
+  }
 
+  // Check modules
+  {
+    Local<v8::String> source_str = v8_str(source_text);
+    // Set a different resource name with the case above to invalidate the
+    // cache.
+    v8::ScriptOrigin origin(isolate,
+                            v8_str("module.js"),  // resource name
+                            0,                    // line offset
+                            0,                    // column offset
+                            true,                 // is cross origin
+                            -1,                   // script id
+                            Local<Value>(),       // source map URL
+                            false,                // is opaque
+                            false,                // is WASM
+                            true                  // is ES Module
+    );
+    v8::ScriptCompiler::Source source(source_str, origin, nullptr);
+
+    Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CheckMagicComments(isolate, module->GetUnboundModuleScript(),
+                       expected_source_url, expected_source_mapping_url);
+  }
+}
 
 TEST(ScriptSourceURLAndSourceMappingURL) {
   LocalContext env;
@@ -23245,8 +23270,8 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
           script.ToLocalChecked()->Run(env.local()).ToLocalChecked());
       // All scripts are supposed to return the fixed value 13 when ran.
       CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
-      CheckMagicComments(isolate, script.ToLocalChecked(), expected_source_url,
-                         expected_source_mapping_url);
+      CheckMagicComments(isolate, script.ToLocalChecked()->GetUnboundScript(),
+                         expected_source_url, expected_source_mapping_url);
     } else {
       CHECK(script.IsEmpty());
     }
