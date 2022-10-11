@@ -372,7 +372,7 @@ added: v10.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42835
-    description: `position` accepts bigint values.
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -402,7 +402,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42835
-    description: `position` accepts bigint values.
+    description: Accepts bigint values as `position`.
 -->
 
 * `options` {Object}
@@ -436,7 +436,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42835
-    description: `position` accepts bigint values.
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
