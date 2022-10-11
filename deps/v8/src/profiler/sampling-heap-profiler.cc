@@ -95,6 +95,19 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 void SamplingHeapProfiler::OnWeakCallback(
     const WeakCallbackInfo<Sample>& data) {
   Sample* sample = data.GetParameter();
+  Heap* heap = reinterpret_cast<Isolate*>(data.GetIsolate())->heap();
+  bool is_minor_gc =
+      heap->current_or_last_garbage_collector() == GarbageCollector::SCAVENGER;
+  bool should_keep_sample =
+      is_minor_gc
+          ? (sample->profiler->flags_ &
+             v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC)
+          : (sample->profiler->flags_ &
+             v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC);
+  if (should_keep_sample) {
+    sample->global.Reset();
+    return;
+  }
   AllocationNode* node = sample->owner;
   DCHECK_GT(node->allocations_[sample->size], 0);
   node->allocations_[sample->size]--;

@@ -1455,6 +1455,10 @@ class Heap {
 
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
+  GarbageCollector current_or_last_garbage_collector() const {
+    return current_or_last_garbage_collector_;
+  }
+
   // Returns whether the currently in-progress GC should avoid increasing the
   // ages on any objects that live for a set number of collections.
   bool ShouldCurrentGCKeepAgesUnchanged() const {
@@ -2389,6 +2393,8 @@ class Heap {
 
   bool is_current_gc_forced_ = false;
   bool is_current_gc_for_heap_profiler_ = false;
+  GarbageCollector current_or_last_garbage_collector_ =
+      GarbageCollector::SCAVENGER;
 
   ExternalStringTable external_string_table_;
 

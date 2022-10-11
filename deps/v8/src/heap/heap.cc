@@ -1819,6 +1819,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   collector = SelectGarbageCollector(space, gc_reason, &collector_reason);
 
+  current_or_last_garbage_collector_ = collector;
+
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
     CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
