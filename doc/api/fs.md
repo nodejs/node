@@ -518,7 +518,7 @@ of the file.
 #### `filehandle.readLines([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 * `options` {Object}

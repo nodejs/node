@@ -1025,7 +1025,7 @@ equality.
 <!-- YAML
 added: v18.3.0
 changes:
-  - version: REPLACEME
+  - version: v18.11.0
     pr-url: https://github.com/nodejs/node/pull/44631
     description: Add support for default values in input `config`.
   - version:
@@ -1600,7 +1600,7 @@ Unicode "replacement character" U+FFFD.
 ## `util.transferableAbortController()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 > Stability: 1 - Experimental
@@ -1611,7 +1611,7 @@ as transferable and can be used with `structuredClone()` or `postMessage()`.
 ## `util.transferableAbortSignal(signal)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.11.0
 -->
 
 > Stability: 1 - Experimental
