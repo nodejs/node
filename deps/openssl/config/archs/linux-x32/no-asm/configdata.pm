@@ -70,7 +70,7 @@ our %config = (
       "AS" => undef,
       "ASFLAGS" => undef,
       "BUILDFILE" => undef,
-      "CC" => undef,
+      "CC" => "gcc",
       "CFLAGS" => undef,
       "CPP" => undef,
       "CPPDEFINES" => undef,
@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux-x32",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1q",
-  version_num => "0x1010111fL",
+  version => "1.1.1r",
+  version_num => "0x1010112fL",
 );
 
 our %target = (

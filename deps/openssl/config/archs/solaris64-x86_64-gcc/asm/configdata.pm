@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "solaris64-x86_64-gcc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1q",
-  version_num => "0x1010111fL",
+  version => "1.1.1r",
+  version_num => "0x1010112fL",
 );
 
 our %target = (
