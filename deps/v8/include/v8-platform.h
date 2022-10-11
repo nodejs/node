@@ -944,18 +944,6 @@ class Platform {
   virtual void OnCriticalMemoryPressure() {}
 
   /**
-   * Enables the embedder to respond in cases where V8 can't allocate large
-   * memory regions. The |length| parameter is the amount of memory needed.
-   * Returns true if memory is now available. Returns false if no memory could
-   * be made available. V8 will retry allocations until this method returns
-   * false.
-   *
-   * Embedder overrides of this function must NOT call back into V8.
-   */
-  V8_DEPRECATED("Use the method without informative parameter")
-  virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
-
-  /**
    * Gets the number of worker threads used by
    * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
    * of tasks a work package should be split into. A return value of 0 means
