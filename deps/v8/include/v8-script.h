@@ -92,7 +92,15 @@ class V8_EXPORT UnboundScript {
  * A compiled JavaScript module, not yet tied to a Context.
  */
 class V8_EXPORT UnboundModuleScript : public Data {
-  // Only used as a container for code caching.
+ public:
+  /**
+   * Data read from magic sourceURL comments.
+   */
+  Local<Value> GetSourceURL();
+  /**
+   * Data read from magic sourceMappingURL comments.
+   */
+  Local<Value> GetSourceMappingURL();
 };
 
 /**
