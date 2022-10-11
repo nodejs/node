@@ -3562,7 +3562,9 @@ and it will be impossible to extract the private key from the returned object.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The key can now be zero-length.
   - version: v15.0.0
@@ -4231,7 +4233,9 @@ web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The input keying material can now be zero-length.
   - version: v18.0.0
@@ -4294,7 +4298,9 @@ hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/44201
     description: The input keying material can now be zero-length.
 -->

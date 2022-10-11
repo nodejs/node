@@ -393,7 +393,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
   - version:
@@ -523,7 +525,9 @@ same as [`it([name], { todo: true }[, fn])`][it options].
 ## `before([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -551,7 +555,9 @@ describe('tests', async () => {
 ## `after([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+ - v18.8.0
+ - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -579,7 +585,9 @@ describe('tests', async () => {
 ## `beforeEach([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -608,7 +616,9 @@ describe('tests', async () => {
 ## `afterEach([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function.
@@ -690,7 +700,9 @@ exposed as part of the API.
 ### `context.beforeEach([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
@@ -722,7 +734,9 @@ test('top level test', async (t) => {
 ### `context.afterEach([fn][, options])`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument
@@ -774,7 +788,9 @@ test('top level test', (t) => {
 ### `context.name`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 The name of the test.
@@ -872,7 +888,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v18.8.0
+  - version:
+    - v18.8.0
+    - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
   - version:
@@ -939,7 +957,9 @@ exposed as part of the API.
 ### `context.name`
 
 <!-- YAML
-added: v18.8.0
+added:
+  - v18.8.0
+  - v16.18.0
 -->
 
 The name of the suite.
