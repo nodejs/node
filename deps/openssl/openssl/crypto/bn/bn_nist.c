@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -249,17 +249,28 @@ const BIGNUM *BN_get0_nist_prime_521(void)
     return &_bignum_nist_p_521;
 }
 
-static void nist_cp_bn_0(BN_ULONG *dst, const BN_ULONG *src, int top, int max)
-{
-    int i;
-
-#ifdef BN_DEBUG
-    (void)ossl_assert(top <= max);
-#endif
-    for (i = 0; i < top; i++)
-        dst[i] = src[i];
-    for (; i < max; i++)
-        dst[i] = 0;
+/*
+ * To avoid more recent compilers (specifically clang-14) from treating this
+ * code as a violation of the strict aliasing conditions and omiting it, this
+ * cannot be declared as a function.  Moreover, the dst parameter cannot be
+ * cached in a local since this no longer references the union and again falls
+ * foul of the strict aliasing criteria.  Refer to #18225 for the initial
+ * diagnostics and llvm/llvm-project#55255 for the later discussions with the
+ * LLVM developers.  The problem boils down to if an array in the union is
+ * converted to a pointer or if it is used directly.
+ *
+ * This function was inlined regardless, so there is no space cost to be
+ * paid for making it a macro.
+ */
+#define nist_cp_bn_0(dst, src_in, top, max) \
+{                                           \
+    int ii;                                 \
+    const BN_ULONG *src = src_in;           \
+                                            \
+    for (ii = 0; ii < top; ii++)            \
+        (dst)[ii] = src[ii];                \
+    for (; ii < max; ii++)                  \
+        (dst)[ii] = 0;                      \
 }
 
 static void nist_cp_bn(BN_ULONG *dst, const BN_ULONG *src, int top)
