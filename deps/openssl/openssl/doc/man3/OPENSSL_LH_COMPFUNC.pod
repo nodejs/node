@@ -23,7 +23,7 @@ lh_TYPE_doall, lh_TYPE_doall_arg, lh_TYPE_error - dynamic hash table
 
  TYPE *lh_TYPE_insert(LHASH_OF(TYPE) *table, TYPE *data);
  TYPE *lh_TYPE_delete(LHASH_OF(TYPE) *table, TYPE *data);
- TYPE *lh_retrieve(LHASH_OF(TYPE) *table, TYPE *data);
+ TYPE *lh_TYPE_retrieve(LHASH_OF(TYPE) *table, TYPE *data);
 
  void lh_TYPE_doall(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNC func);
  void lh_TYPE_doall_arg(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNCARG func,
@@ -229,7 +229,7 @@ type checking.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

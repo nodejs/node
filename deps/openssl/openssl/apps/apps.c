@@ -1376,7 +1376,8 @@ static IMPLEMENT_LHASH_HASH_FN(index_name, OPENSSL_CSTRING)
 static IMPLEMENT_LHASH_COMP_FN(index_name, OPENSSL_CSTRING)
 #undef BSIZE
 #define BSIZE 256
-BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
+BIGNUM *load_serial(const char *serialfile, int *exists, int create,
+                    ASN1_INTEGER **retai)
 {
     BIO *in = NULL;
     BIGNUM *ret = NULL;
@@ -1388,6 +1389,8 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
         goto err;
 
     in = BIO_new_file(serialfile, "r");
+    if (exists != NULL)
+        *exists = in != NULL;
     if (in == NULL) {
         if (!create) {
             perror(serialfile);
@@ -1395,8 +1398,14 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
         }
         ERR_clear_error();
         ret = BN_new();
-        if (ret == NULL || !rand_serial(ret, ai))
+        if (ret == NULL) {
             BIO_printf(bio_err, "Out of memory\n");
+        } else if (!rand_serial(ret, ai)) {
+            BIO_printf(bio_err, "Error creating random number to store in %s\n",
+                       serialfile);
+            BN_free(ret);
+            ret = NULL;
+        }
     } else {
         if (!a2i_ASN1_INTEGER(in, ai, buf, 1024)) {
             BIO_printf(bio_err, "unable to load number from %s\n",
@@ -1416,6 +1425,8 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
         ai = NULL;
     }
  err:
+    if (ret == NULL)
+        ERR_print_errors(bio_err);
     BIO_free(in);
     ASN1_INTEGER_free(ai);
     return ret;

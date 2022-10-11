@@ -434,22 +434,26 @@ the CA certificate file.
 
 Sets the CA serial number file to use.
 
-When the B<-CA> option is used to sign a certificate it uses a serial
-number specified in a file. This file consists of one line containing
-an even number of hex digits with the serial number to use. After each
-use the serial number is incremented and written out to the file again.
+When creating a certificate with this option, and with the B<-CA> option,
+the certificate serial number is stored in the given file.
+This file consists of one line containing
+an even number of hex digits with the serial number used last time.
+After reading this number, it is incremented and used, and the file is updated.
 
 The default filename consists of the CA certificate file base name with
 ".srl" appended. For example if the CA certificate file is called
 "mycacert.pem" it expects to find a serial number file called "mycacert.srl".
 
+If the B<-CA> option is specified and neither <-CAserial> or <-CAcreateserial>
+is given and the default serial number file does not exist,
+a random number is generated; this is the recommended practice.
+
 =item B<-CAcreateserial>
 
-With this option the CA serial number file is created if it does not exist:
-it will contain the serial number "02" and the certificate being signed will
-have the 1 as its serial number. If the B<-CA> option is specified
-and the serial number file does not exist a random number is generated;
-this is the recommended practice.
+With this option and the B<-CA> option
+the CA serial number file is created if it does not exist.
+A random number is generated, used for the certificate,
+and saved into the serial number file determined as described above.
 
 =item B<-extfile filename>
 
@@ -932,7 +936,7 @@ the old form must have their links rebuilt using B<c_rehash> or similar.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
