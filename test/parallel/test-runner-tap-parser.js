@@ -95,7 +95,7 @@ function TAPParser(input) {
     {
       nesting: 0,
       kind: 'PlanKeyword',
-      node: { plan: { start: '1', end: '5', reason: 'reason' } },
+      node: { start: '1', end: '5', reason: 'reason' },
     },
   ]);
 }
@@ -109,11 +109,9 @@ function TAPParser(input) {
       nesting: 0,
       kind: 'PlanKeyword',
       node: {
-        plan: {
-          start: '1',
-          end: '5',
-          reason: 'reason " !"\\#$%&\'()*+,-./:;<=>?@[]^_`{|}~',
-        },
+        start: '1',
+        end: '5',
+        reason: 'reason " !"\\#$%&\'()*+,-./:;<=>?@[]^_`{|}~',
       },
     },
   ]);
@@ -162,14 +160,13 @@ function TAPParser(input) {
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '',
-          description: '',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -180,14 +177,13 @@ function TAPParser(input) {
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestNotOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: true, pass: false, todo: false, skip: false },
-          id: '',
-          description: '',
-          reason: '',
-        },
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -198,14 +194,13 @@ function TAPParser(input) {
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: '',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -219,26 +214,24 @@ not ok 222
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '111',
-          description: '',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '111',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 0,
-      kind: 'TestNotOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: true, pass: false, todo: false, skip: false },
-          id: '222',
-          description: '',
-          reason: '',
-        },
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '222',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -253,26 +246,24 @@ ok 1 - parent
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'parent',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'parent',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '2',
-          description: 'child',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '2',
+        description: 'child',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -302,14 +293,13 @@ ok 1 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: '',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -319,14 +309,13 @@ ok 1 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'nested2',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'nested2',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -336,14 +325,13 @@ ok 1 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'nested3',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'nested3',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -353,26 +341,24 @@ ok 1 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'nested4',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'nested4',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'nested1',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'nested1',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -400,14 +386,13 @@ ok 4 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'test nested1',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'test nested1',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -417,38 +402,35 @@ ok 4 - nested1
     },
     {
       nesting: 2,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '2',
-          description: 'test nested2',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '2',
+        description: 'test nested2',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '3',
-          description: 'nested2',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '3',
+        description: 'nested2',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '4',
-          description: 'nested1',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '4',
+        description: 'nested1',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -481,14 +463,13 @@ ok 6 - nested1
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'test nested1',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'test nested1',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -498,26 +479,24 @@ ok 6 - nested1
     },
     {
       nesting: 2,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '2',
-          description: 'test nested2a',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '2',
+        description: 'test nested2a',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '3',
-          description: 'nested2a',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '3',
+        description: 'nested2a',
+        reason: '',
+        time: 0,
       },
     },
     {
@@ -527,38 +506,35 @@ ok 6 - nested1
     },
     {
       nesting: 2,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '4',
-          description: 'test nested2b',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '4',
+        description: 'test nested2b',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 1,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '5',
-          description: 'nested2b',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '5',
+        description: 'nested2b',
+        reason: '',
+        time: 0,
       },
     },
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '6',
-          description: 'nested1',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '6',
+        description: 'nested1',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -569,14 +545,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'description',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'description',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -587,14 +562,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'description',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'description',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -605,14 +579,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: true, skip: false },
-          id: '1',
-          description: 'description',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: true, skip: false },
+        id: '1',
+        description: 'description',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -623,14 +596,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'description # todo',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'description # todo',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -641,14 +613,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: true, skip: false },
-          id: '1',
-          description: 'description',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: true, skip: false },
+        id: '1',
+        description: 'description',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -661,14 +632,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: true, skip: false },
-          id: '1',
-          description: 'description # \\ world',
-          reason: 'escape # characters with \\',
-        },
+        status: { fail: false, pass: true, todo: true, skip: false },
+        id: '1',
+        description: 'description # \\ world',
+        reason: 'escape # characters with \\',
+        time: 0,
       },
     },
   ]);
@@ -679,14 +649,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'description',
-          reason: '##',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'description',
+        reason: '##',
+        time: 0,
       },
     },
   ]);
@@ -699,15 +668,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '2',
-          description:
-            'not skipped: https://example.com/page.html#skip is a url',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '2',
+        description: 'not skipped: https://example.com/page.html#skip is a url',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -718,14 +685,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: true },
-          id: '3',
-          description: '',
-          reason: 'case insensitive, so this is skipped',
-        },
+        status: { fail: false, pass: true, todo: false, skip: true },
+        id: '3',
+        description: '',
+        reason: 'case insensitive, so this is skipped',
+        time: 0,
       },
     },
   ]);
@@ -736,14 +702,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '',
-          description: 'ok ok',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '',
+        description: 'ok ok',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -754,14 +719,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '',
-          description: 'not ok',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '',
+        description: 'not ok',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -772,14 +736,13 @@ ok 6 - nested1
   assert.deepStrictEqual(ast, [
     {
       nesting: 0,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: '',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: '',
+        reason: '',
+        time: 0,
       },
     },
   ]);
@@ -1039,15 +1002,25 @@ ok 6 - nested1
 
 {
   const ast = TAPParser(`
+# Comment on version 13
+# Another comment on version 13
+
 TAP version 13
+
 # Subtest: /test.js
     # Subtest: level 0a
         # Subtest: level 1a
+            # Comment test point 1a
+            # Comment test point 1aa
             ok 1 - level 1a
               ---
               duration_ms: 1.676996
               ...
+            # Comment plan 1a
+            # Comment plan 1aa
             1..1
+        # Comment closing test point 1a
+        # Comment closing test point 1aa
         not ok 1 - level 1a
           ---
           duration_ms: 0.122839
@@ -1066,7 +1039,14 @@ TAP version 13
       error: '3 subtests failed'
       code: 'ERR_TEST_FAILURE'
       ...
+    # Comment plan 0a
+    # Comment plan 0aa
     1..1
+
+# Comment closing test point 0a
+
+# Comment closing test point 0aa
+
 not ok 1 - /test.js
 # tests 1
 # pass 0
@@ -1077,65 +1057,57 @@ not ok 1 - /test.js
 # duration_ms 87.077507
   `);
 
+  console.log({ ast });
+
   assert.deepStrictEqual(ast, [
     {
-      nesting: 0,
       kind: 'VersionKeyword',
       node: { version: '13' },
+      nesting: 0,
+      comments: ['Comment on version 13', 'Another comment on version 13'],
     },
     {
-      nesting: 0,
       kind: 'SubTestPointKeyword',
       node: { name: '/test.js' },
+      nesting: 0,
     },
     {
-      nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'level 0a' },
+      nesting: 1,
     },
     {
-      nesting: 2,
       kind: 'SubTestPointKeyword',
       node: { name: 'level 1a' },
+      nesting: 2,
     },
     {
-      nesting: 3,
-      kind: 'TestOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: false, pass: true, todo: false, skip: false },
-          id: '1',
-          description: 'level 1a',
-          reason: '',
-        },
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'level 1a',
+        reason: '',
+        time: 1.676996,
+        diagnostics: ['duration_ms: 1.676996'],
       },
+      nesting: 3,
+      comments: ['Comment test point 1a', 'Comment test point 1aa'],
     },
     {
-      nesting: 3,
-      kind: 'YamlEndKeyword',
-      node: { diagnostics: ['duration_ms: 1.676996'] },
-    },
-    {
-      nesting: 3,
       kind: 'PlanKeyword',
-      node: { plan: { start: '1', end: '1' } },
+      node: { start: '1', end: '1' },
+      nesting: 3,
+      comments: ['Comment plan 1a', 'Comment plan 1aa'],
     },
     {
-      nesting: 2,
-      kind: 'TestNotOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: true, pass: false, todo: false, skip: false },
-          id: '1',
-          description: 'level 1a',
-          reason: '',
-        },
-      },
-    },
-    {
-      nesting: 2,
-      kind: 'YamlEndKeyword',
-      node: {
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '1',
+        description: 'level 1a',
+        reason: '',
+        time: 0.122839,
         diagnostics: [
           'duration_ms: 0.122839',
           "failureType: 'testCodeFailure'",
@@ -1145,28 +1117,25 @@ not ok 1 - /test.js
           '  TestContext.<anonymous> (/test.js:23:9)',
         ],
       },
-    },
-    {
       nesting: 2,
+      comments: [
+        'Comment closing test point 1a',
+        'Comment closing test point 1aa',
+      ],
+    },
+    {
       kind: 'PlanKeyword',
-      node: { plan: { start: '1', end: '1' } },
+      node: { start: '1', end: '1' },
+      nesting: 2,
     },
     {
-      nesting: 1,
-      kind: 'TestNotOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: true, pass: false, todo: false, skip: false },
-          id: '1',
-          description: 'level 0a',
-          reason: '',
-        },
-      },
-    },
-    {
-      nesting: 1,
-      kind: 'YamlEndKeyword',
-      node: {
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '1',
+        description: 'level 0a',
+        reason: '',
+        time: 84.920487,
         diagnostics: [
           'duration_ms: 84.920487',
           "failureType: 'subtestsFailed'",
@@ -1175,58 +1144,39 @@ not ok 1 - /test.js
           "code: 'ERR_TEST_FAILURE'",
         ],
       },
-    },
-    {
       nesting: 1,
+    },
+    {
       kind: 'PlanKeyword',
-      node: { plan: { start: '1', end: '1' } },
+      node: { start: '1', end: '1' },
+      nesting: 1,
+      comments: ['Comment plan 0a', 'Comment plan 0aa'],
     },
     {
-      nesting: 0,
-      kind: 'TestNotOkKeyword',
+      kind: 'TestPointKeyword',
       node: {
-        test: {
-          status: { fail: true, pass: false, todo: false, skip: false },
-          id: '1',
-          description: '/test.js',
-          reason: '',
-        },
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '1',
+        description: '/test.js',
+        reason: '',
+        time: 0,
       },
-    },
-    {
       nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'tests 1' },
+      comments: [
+        'Comment closing test point 0a',
+        'Comment closing test point 0aa',
+      ],
     },
+    { kind: 'Comment', node: { comment: 'tests 1' }, nesting: 0 },
+    { kind: 'Comment', node: { comment: 'pass 0' }, nesting: 0 },
+    { kind: 'Comment', node: { comment: 'fail 1' }, nesting: 0 },
+    { kind: 'Comment', node: { comment: 'cancelled 0' }, nesting: 0 },
+    { kind: 'Comment', node: { comment: 'skipped 0' }, nesting: 0 },
+    { kind: 'Comment', node: { comment: 'todo 0' }, nesting: 0 },
     {
-      nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'pass 0' },
-    },
-    {
-      nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'fail 1' },
-    },
-    {
-      nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'cancelled 0' },
-    },
-    {
-      nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'skipped 0' },
-    },
-    {
-      nesting: 0,
-      kind: 'Comment',
-      node: { comment: 'todo 0' },
-    },
-    {
-      nesting: 0,
       kind: 'Comment',
       node: { comment: 'duration_ms 87.077507' },
+      nesting: 0,
     },
   ]);
 }
