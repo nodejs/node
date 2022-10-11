@@ -1936,8 +1936,32 @@ void ObjectTemplate::SetCodeLike() {
 
 // --- S c r i p t s ---
 
-// Internally, UnboundScript is a SharedFunctionInfo, and Script is a
-// JSFunction.
+// Internally, UnboundScript and UnboundModuleScript are SharedFunctionInfos,
+// and Script is a JSFunction.
+
+namespace {
+inline Local<Value> GetSharedFunctionInfoSourceMappingURL(
+    i::Isolate* isolate, i::Handle<i::SharedFunctionInfo> obj) {
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  if (obj->script().IsScript()) {
+    i::Object url = i::Script::cast(obj->script()).source_mapping_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Local<String>();
+  }
+}
+
+inline Local<Value> GetSharedFunctionInfoSourceURL(
+    i::Isolate* isolate, i::Handle<i::SharedFunctionInfo> obj) {
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  if (obj->script().IsScript()) {
+    i::Object url = i::Script::cast(obj->script()).source_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Local<String>();
+  }
+}
+}  // namespace
 
 ScriptCompiler::CachedData::CachedData(const uint8_t* data_, int length_,
                                        BufferPolicy buffer_policy_)
@@ -2022,14 +2046,8 @@ Local<Value> UnboundScript::GetSourceURL() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* i_isolate = obj->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceURL);
-  if (obj->script().IsScript()) {
-    i::Object url = i::Script::cast(obj->script()).source_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
-  } else {
-    return Local<String>();
-  }
+  return GetSharedFunctionInfoSourceURL(i_isolate, obj);
 }
 
 Local<Value> UnboundScript::GetSourceMappingURL() {
@@ -2037,13 +2055,23 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* i_isolate = obj->GetIsolate();
   API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceMappingURL);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  if (obj->script().IsScript()) {
-    i::Object url = i::Script::cast(obj->script()).source_mapping_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
-  } else {
-    return Local<String>();
-  }
+  return GetSharedFunctionInfoSourceMappingURL(i_isolate, obj);
+}
+
+Local<Value> UnboundModuleScript::GetSourceURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* i_isolate = obj->GetIsolate();
+  API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceURL);
+  return GetSharedFunctionInfoSourceURL(i_isolate, obj);
+}
+
+Local<Value> UnboundModuleScript::GetSourceMappingURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* i_isolate = obj->GetIsolate();
+  API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceMappingURL);
+  return GetSharedFunctionInfoSourceMappingURL(i_isolate, obj);
 }
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
