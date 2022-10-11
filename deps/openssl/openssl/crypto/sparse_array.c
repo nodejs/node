@@ -109,8 +109,10 @@ static void sa_free_leaf(ossl_uintmax_t n, void *p, void *arg)
 
 void ossl_sa_free(OPENSSL_SA *sa)
 {
-    sa_doall(sa, &sa_free_node, NULL, NULL);
-    OPENSSL_free(sa);
+    if (sa != NULL) {
+        sa_doall(sa, &sa_free_node, NULL, NULL);
+        OPENSSL_free(sa);
+    }
 }
 
 void ossl_sa_free_leaves(OPENSSL_SA *sa)

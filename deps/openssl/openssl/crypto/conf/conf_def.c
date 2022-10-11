@@ -296,7 +296,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
             }
 #endif
             /* no more files in directory, continue with processing parent */
-            if ((parent = sk_BIO_pop(biosk)) == NULL) {
+            if (sk_BIO_num(biosk) < 1 || (parent = sk_BIO_pop(biosk)) == NULL) {
                 /* everything processed get out of the loop */
                 break;
             } else {
