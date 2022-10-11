@@ -27,7 +27,7 @@ The `node:url` module provides two APIs for working with URLs: a legacy API that
 is Node.js specific, and a newer API that implements the same
 [WHATWG URL Standard][] used by web browsers.
 
-A comparison between the WHATWG and Legacy APIs is provided below. Above the URL
+A comparison between the WHATWG and legacy APIs is provided below. Above the URL
 `'https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash'`, properties
 of an object returned by the legacy `url.parse()` are shown. Below it are
 properties of a WHATWG `URL` object.
@@ -63,7 +63,7 @@ const myURL =
   new URL('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
 
-Parsing the URL string using the Legacy API:
+Parsing the URL string using the legacy API:
 
 ```mjs
 import url from 'node:url';
@@ -1521,6 +1521,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44919
+    description: Documentation-only deprecation.
   - version:
       - v15.13.0
       - v14.17.0
@@ -1540,7 +1543,7 @@ changes:
                  when no query string is present.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
+> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
 
 * `urlString` {string} The URL string to parse.
 * `parseQueryString` {boolean} If `true`, the `query` property will always
@@ -1562,16 +1565,9 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
 `url.parse()` uses a lenient, non-standard algorithm for parsing URL
 strings. It is prone to security issues such as [host name spoofing][]
-and incorrect handling of usernames and passwords.
-
-`url.parse()` is an exception to most of the legacy APIs. Despite its security
-concerns, it is legacy and not deprecated because it is:
-
-* Faster than the alternative WHATWG `URL` parser.
-* Easier to use with regards to relative URLs than the alternative WHATWG `URL` API.
-* Widely relied upon within the npm ecosystem.
-
-Use with caution.
+and incorrect handling of usernames and passwords. Do not use with untrusted
+input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
+[WHATWG URL][] API instead.
 
 ### `url.resolve(from, to)`
 
