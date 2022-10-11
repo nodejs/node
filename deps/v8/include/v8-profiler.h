@@ -903,6 +903,8 @@ class V8_EXPORT HeapProfiler {
   enum SamplingFlags {
     kSamplingNoFlags = 0,
     kSamplingForceGC = 1 << 0,
+    kSamplingIncludeObjectsCollectedByMajorGC = 1 << 1,
+    kSamplingIncludeObjectsCollectedByMinorGC = 1 << 2,
   };
 
   /**
@@ -1097,10 +1099,8 @@ class V8_EXPORT HeapProfiler {
    * |stack_depth| parameter controls the maximum number of stack frames to be
    * captured on each allocation.
    *
-   * NOTE: This is a proof-of-concept at this point. Right now we only sample
-   * newspace allocations. Support for paged space allocation (e.g. pre-tenured
-   * objects, large objects, code objects, etc.) and native allocations
-   * doesn't exist yet, but is anticipated in the future.
+   * NOTE: Support for native allocations doesn't exist yet, but is anticipated
+   * in the future.
    *
    * Objects allocated before the sampling is started will not be included in
    * the profile.
