@@ -71,6 +71,14 @@ SOURCE[../../providers/libfips.a]=$COMMON
 # need to be applied to all affected libraries and modules.
 DEFINE[../../libcrypto]=$ECDEF
 DEFINE[../../providers/libfips.a]=$ECDEF
+DEFINE[../../providers/libdefault.a]=$ECDEF
+# We only need to include the ECDEF stuff in the legacy provider when
+# it's a separate module and it's dynamically linked with libcrypto.
+# Otherwise, it already gets everything that the static libcrypto.a
+# has, and doesn't need it added again.
+IF[{- !$disabled{module} && !$disabled{shared} -}]
+  DEFINE[../providers/liblegacy.a]=$ECDEF
+ENDIF
 
 GENERATE[ecp_nistz256-x86.S]=asm/ecp_nistz256-x86.pl
 
