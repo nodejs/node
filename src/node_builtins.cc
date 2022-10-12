@@ -114,7 +114,7 @@ void BuiltinLoader::InitializeBuiltinCategories() {
 
   builtin_categories_.cannot_be_required = std::set<std::string> {
 #if !HAVE_INSPECTOR
-    "inspector", "internal/util/inspector",
+    "inspector", "inspector/promises", "internal/util/inspector",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
