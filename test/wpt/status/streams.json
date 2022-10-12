@@ -2,16 +2,6 @@
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
-  "queuing-strategies.any.js": {
-    "fail": {
-      "expected": [
-        "CountQueuingStrategy: size should not have a prototype property",
-        "ByteLengthQueuingStrategy: size should not have a prototype property",
-        "CountQueuingStrategy: size should not be a constructor",
-        "ByteLengthQueuingStrategy: size should not be a constructor"
-      ]
-    }
-  },
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
