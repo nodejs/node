@@ -379,7 +379,7 @@ More detailed information on each of the vulnerabilities can be found in [Septem
 * \[[`754d26a53e`](https://github.com/nodejs/node/commit/754d26a53e)] - **deps**: patch V8 to 10.2.154.15 (Michaël Zasso) [#44294](https://github.com/nodejs/node/pull/44294)
 * \[[`1b50ff2600`](https://github.com/nodejs/node/commit/1b50ff2600)] - **deps**: update icu tzdata to 2022b (Matías Zúñiga) [#44283](https://github.com/nodejs/node/pull/44283)
 * \[[`1e451dca99`](https://github.com/nodejs/node/commit/1e451dca99)] - **deps**: upgrade llhttp to 6.0.9 (Paolo Insogna) [#44344](https://github.com/nodejs/node/pull/44344)
-* \[[`57da3db522`](https://github.com/nodejs/node/commit/57da3db522)] - **deps**: update undici to 5.9.1 (Node.js GitHub Bot) [#44319](https://github.com/nodejs/node/pull/44319)
+* \[[`57da3db522`](https://github.com/nodejs/node/commit/57da3db522)] - **deps**: update undici to 5.10.0 (Node.js GitHub Bot) [#44319](https://github.com/nodejs/node/pull/44319)
 * \[[`1c87a7e8f6`](https://github.com/nodejs/node/commit/1c87a7e8f6)] - **doc**: add missing parenthesis in TLSSocket section (Tobias Nießen) [#44512](https://github.com/nodejs/node/pull/44512)
 * \[[`05006eddb2`](https://github.com/nodejs/node/commit/05006eddb2)] - **doc**: do not use "Returns:" for crypto.constants (Tobias Nießen) [#44481](https://github.com/nodejs/node/pull/44481)
 * \[[`54b6ed58bc`](https://github.com/nodejs/node/commit/54b6ed58bc)] - **doc**: use serial comma in addons docs (Tobias Nießen) [#44482](https://github.com/nodejs/node/pull/44482)

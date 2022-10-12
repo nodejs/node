@@ -130,7 +130,7 @@ More detailed information on each of the vulnerabilities can be found in [Septem
 * \[[`67cbbcc902`](https://github.com/nodejs/node/commit/67cbbcc902)] - **deps**: update corepack to 0.14.0 (Node.js GitHub Bot) [#44509](https://github.com/nodejs/node/pull/44509)
 * \[[`9f14dc1a8f`](https://github.com/nodejs/node/commit/9f14dc1a8f)] - **deps**: update Acorn to v8.8.0 (Michaël Zasso) [#44437](https://github.com/nodejs/node/pull/44437)
 * \[[`1811a6aaa8`](https://github.com/nodejs/node/commit/1811a6aaa8)] - **deps**: update icu tzdata to 2022b (Matías Zúñiga) [#44283](https://github.com/nodejs/node/pull/44283)
-* \[[`0c4953cbd1`](https://github.com/nodejs/node/commit/0c4953cbd1)] - **deps**: update undici to 5.9.1 (Node.js GitHub Bot) [#44319](https://github.com/nodejs/node/pull/44319)
+* \[[`0c4953cbd1`](https://github.com/nodejs/node/commit/0c4953cbd1)] - **deps**: update undici to 5.10.0(Node.js GitHub Bot) [#44319](https://github.com/nodejs/node/pull/44319)
 * \[[`8a921fea74`](https://github.com/nodejs/node/commit/8a921fea74)] - **deps**: upgrade npm to 8.19.1 (npm team) [#44486](https://github.com/nodejs/node/pull/44486)
 * \[[`763a63c14b`](https://github.com/nodejs/node/commit/763a63c14b)] - **deps**: update corepack to 0.13.0 (Node.js GitHub Bot) [#44318](https://github.com/nodejs/node/pull/44318)
 * \[[`fdb699c84a`](https://github.com/nodejs/node/commit/fdb699c84a)] - **deps**: upgrade npm to 8.18.0 (npm team) [#44263](https://github.com/nodejs/node/pull/44263)
