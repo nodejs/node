@@ -122,7 +122,7 @@ function TAPParser(input) {
     name: 'SyntaxError',
     code: 'ERR_TAP_PARSER_ERROR',
     message:
-      'Expected a plan end count, received "EOF" (EOF) at line 1, column 4 (start 4, end 4)',
+      'Expected a plan end count, received "" (EOL) at line 1, column 4 (start 3, end 3)',
   });
 }
 

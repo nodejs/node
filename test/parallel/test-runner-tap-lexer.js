@@ -13,15 +13,13 @@ function TAPLexer(input) {
 
 {
   const tokens = TAPLexer('');
-  assert.strictEqual(tokens.length, 1);
+
   assert.strictEqual(tokens[0].kind, TokenKind.EOF);
-  assert.strictEqual(tokens[0].value, 'EOF');
+  assert.strictEqual(tokens[0].value, '');
 }
 
 {
   const tokens = TAPLexer('TAP version 14');
-
-  assert.strictEqual(tokens.length, 6);
 
   [
     { kind: TokenKind.TAP, value: 'TAP' },
@@ -29,7 +27,8 @@ function TAPLexer(input) {
     { kind: TokenKind.TAP_VERSION, value: 'version' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '14' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
+    { kind: TokenKind.EOF, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -47,7 +46,7 @@ function TAPLexer(input) {
     { kind: TokenKind.HASH, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'reason' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -80,7 +79,7 @@ function TAPLexer(input) {
     { kind: TokenKind.ESCAPE, value: '\\' },
     { kind: TokenKind.DASH, value: '-' },
     { kind: TokenKind.LITERAL, value: './:;<=>?@[]^_`{|}~' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -92,7 +91,7 @@ function TAPLexer(input) {
 
   [
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -106,7 +105,7 @@ function TAPLexer(input) {
     { kind: TokenKind.TAP_TEST_NOTOK, value: 'not' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -120,7 +119,7 @@ function TAPLexer(input) {
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '1' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -134,18 +133,18 @@ not ok 2
 `);
 
   [
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '1' },
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.TAP_TEST_NOTOK, value: 'not' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '2' },
-    { kind: TokenKind.EOL, value: '\n' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
+    { kind: TokenKind.EOF, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -159,11 +158,11 @@ ok 1
 `);
 
   [
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '1' },
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
@@ -171,8 +170,8 @@ ok 1
     { kind: TokenKind.TAP_TEST_OK, value: 'ok' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.NUMERIC, value: '1' },
-    { kind: TokenKind.EOL, value: '\n' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
+    { kind: TokenKind.EOF, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -188,7 +187,7 @@ ok 1
     { kind: TokenKind.NUMERIC, value: '1' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'description' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -206,7 +205,7 @@ ok 1
     { kind: TokenKind.DASH, value: '-' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'description' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -228,7 +227,7 @@ ok 1
     { kind: TokenKind.HASH, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'todo' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -251,7 +250,7 @@ ok 1
     { kind: TokenKind.LITERAL, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'todo' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -275,7 +274,7 @@ ok 1
     { kind: TokenKind.HASH, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'todo' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -316,7 +315,7 @@ ok 1
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.ESCAPE, value: '\\' },
     { kind: TokenKind.LITERAL, value: '\\' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -339,7 +338,7 @@ ok 1
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: '#' },
     { kind: TokenKind.LITERAL, value: '#' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -352,7 +351,7 @@ ok 1
     { kind: TokenKind.COMMENT, value: '#' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'comment' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -364,7 +363,7 @@ ok 1
 
   [
     { kind: TokenKind.COMMENT, value: '#' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -380,11 +379,11 @@ ok 1
 `);
 
   [
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.TAP_YAML_START, value: '---' },
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
@@ -392,7 +391,7 @@ ok 1
     { kind: TokenKind.LITERAL, value: 'message:' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: '"description"' },
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
@@ -400,12 +399,12 @@ ok 1
     { kind: TokenKind.LITERAL, value: 'severity:' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'fail' },
-    { kind: TokenKind.EOL, value: '\n' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.TAP_YAML_END, value: '...' },
-    { kind: TokenKind.EOL, value: '\n' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.NEWLINE, value: '\n' },
+    { kind: TokenKind.EOF, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -423,7 +422,7 @@ ok 1
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.DASH, value: '-' },
     { kind: TokenKind.LITERAL, value: 'warnings' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
@@ -439,7 +438,7 @@ ok 1
     { kind: TokenKind.LITERAL, value: 'out!' },
     { kind: TokenKind.WHITESPACE, value: ' ' },
     { kind: TokenKind.LITERAL, value: 'Error' },
-    { kind: TokenKind.EOF, value: 'EOF' },
+    { kind: TokenKind.EOL, value: '' },
   ].forEach((token, index) => {
     assert.strictEqual(tokens[index].kind, token.kind);
     assert.strictEqual(tokens[index].value, token.value);
