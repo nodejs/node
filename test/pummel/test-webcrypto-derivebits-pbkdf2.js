@@ -446,6 +446,10 @@ async function testDeriveBitsBadLengths(
 
   return Promise.all([
     assert.rejects(
+      subtle.deriveBits(algorithm, baseKeys[size], undefined), {
+        name: 'OperationError',
+      }),
+    assert.rejects(
       subtle.deriveBits(algorithm, baseKeys[size], 0), {
         message: /length cannot be zero/,
         name: 'OperationError',
