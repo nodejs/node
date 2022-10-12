@@ -1055,9 +1055,7 @@ not ok 1 - /test.js
 # skipped 0
 # todo 0
 # duration_ms 87.077507
-  `);
-
-  console.log({ ast });
+`);
 
   assert.deepStrictEqual(ast, [
     {
