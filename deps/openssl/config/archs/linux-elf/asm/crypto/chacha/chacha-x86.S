@@ -4,10 +4,10 @@
 .align	16
 ChaCha20_ctr32:
 .L_ChaCha20_ctr32_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -382,10 +382,10 @@ ChaCha20_ctr32:
 .align	16
 ChaCha20_ssse3:
 .L_ChaCha20_ssse3_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -979,10 +979,10 @@ ChaCha20_ssse3:
 .align	16
 ChaCha20_xop:
 .L_ChaCha20_xop_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx

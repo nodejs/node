@@ -156,7 +156,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.5+quic",
+    "full_version" => "3.0.6+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -204,7 +204,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "5",
+    "patch" => "6",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.30.0",
@@ -256,11 +256,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "5 Jul 2022",
+    "release_date" => "11 Oct 2022",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "solaris-x86-gcc",
-    "version" => "3.0.5"
+    "version" => "3.0.6"
 );
 our %target = (
     "AR" => "ar",
@@ -1267,10 +1267,16 @@ our %unified_info = (
             "test/exptest" => {
                 "noinst" => "1"
             },
+            "test/ext_internal_test" => {
+                "noinst" => "1"
+            },
             "test/fatalerrtest" => {
                 "noinst" => "1"
             },
             "test/ffc_internal_test" => {
+                "noinst" => "1"
+            },
+            "test/fips_version_test" => {
                 "noinst" => "1"
             },
             "test/gmdifftest" => {
@@ -1604,8 +1610,12 @@ our %unified_info = (
         ],
         "providers/libdefault.a" => [
             "AES_ASM",
+            "ECP_NISTZ256_ASM",
             "OPENSSL_CPUID_OBJ",
             "OPENSSL_IA32_SSE2",
+            "SHA1_ASM",
+            "SHA256_ASM",
+            "SHA512_ASM",
             "VPAES_ASM"
         ],
         "providers/libfips.a" => [
@@ -2873,6 +2883,9 @@ our %unified_info = (
         ],
         "doc/html/man3/OPENSSL_fork_prepare.html" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
+        ],
+        "doc/html/man3/OPENSSL_gmtime.html" => [
+            "doc/man3/OPENSSL_gmtime.pod"
         ],
         "doc/html/man3/OPENSSL_hexchar2int.html" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
@@ -5219,6 +5232,9 @@ our %unified_info = (
         ],
         "doc/man/man3/OPENSSL_fork_prepare.3" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
+        ],
+        "doc/man/man3/OPENSSL_gmtime.3" => [
+            "doc/man3/OPENSSL_gmtime.pod"
         ],
         "doc/man/man3/OPENSSL_hexchar2int.3" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
@@ -7653,6 +7669,11 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
+        "test/ext_internal_test" => [
+            "libcrypto.a",
+            "libssl.a",
+            "test/libtestutil.a"
+        ],
         "test/fatalerrtest" => [
             "libcrypto",
             "libssl",
@@ -7660,6 +7681,10 @@ our %unified_info = (
         ],
         "test/ffc_internal_test" => [
             "libcrypto.a",
+            "test/libtestutil.a"
+        ],
+        "test/fips_version_test" => [
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/gmdifftest" => [
@@ -11803,6 +11828,9 @@ our %unified_info = (
         "doc/html/man3/OPENSSL_fork_prepare.html" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/html/man3/OPENSSL_gmtime.html" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/html/man3/OPENSSL_hexchar2int.html" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -14149,6 +14177,9 @@ our %unified_info = (
         "doc/man/man3/OPENSSL_fork_prepare.3" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/man/man3/OPENSSL_gmtime.3" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/man/man3/OPENSSL_hexchar2int.3" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -16458,6 +16489,7 @@ our %unified_info = (
             "doc/html/man3/OPENSSL_LH_stats.html",
             "doc/html/man3/OPENSSL_config.html",
             "doc/html/man3/OPENSSL_fork_prepare.html",
+            "doc/html/man3/OPENSSL_gmtime.html",
             "doc/html/man3/OPENSSL_hexchar2int.html",
             "doc/html/man3/OPENSSL_ia32cap.html",
             "doc/html/man3/OPENSSL_init_crypto.html",
@@ -18557,12 +18589,21 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/ext_internal_test" => [
+            ".",
+            "include",
+            "apps/include"
+        ],
         "test/fatalerrtest" => [
             "include",
             "apps/include"
         ],
         "test/ffc_internal_test" => [
             ".",
+            "include",
+            "apps/include"
+        ],
+        "test/fips_version_test" => [
             "include",
             "apps/include"
         ],
@@ -19402,6 +19443,7 @@ our %unified_info = (
             "doc/man/man3/OPENSSL_LH_stats.3",
             "doc/man/man3/OPENSSL_config.3",
             "doc/man/man3/OPENSSL_fork_prepare.3",
+            "doc/man/man3/OPENSSL_gmtime.3",
             "doc/man/man3/OPENSSL_hexchar2int.3",
             "doc/man/man3/OPENSSL_ia32cap.3",
             "doc/man/man3/OPENSSL_init_crypto.3",
@@ -20040,8 +20082,10 @@ our %unified_info = (
         "test/evp_test",
         "test/exdatatest",
         "test/exptest",
+        "test/ext_internal_test",
         "test/fatalerrtest",
         "test/ffc_internal_test",
+        "test/fips_version_test",
         "test/gmdifftest",
         "test/hexstr_test",
         "test/hmactest",
@@ -26465,6 +26509,12 @@ our %unified_info = (
         "test/exptest-bin-exptest.o" => [
             "test/exptest.c"
         ],
+        "test/ext_internal_test" => [
+            "test/ext_internal_test-bin-ext_internal_test.o"
+        ],
+        "test/ext_internal_test-bin-ext_internal_test.o" => [
+            "test/ext_internal_test.c"
+        ],
         "test/fatalerrtest" => [
             "test/fatalerrtest-bin-fatalerrtest.o",
             "test/helpers/fatalerrtest-bin-ssltestlib.o"
@@ -26477,6 +26527,12 @@ our %unified_info = (
         ],
         "test/ffc_internal_test-bin-ffc_internal_test.o" => [
             "test/ffc_internal_test.c"
+        ],
+        "test/fips_version_test" => [
+            "test/fips_version_test-bin-fips_version_test.o"
+        ],
+        "test/fips_version_test-bin-fips_version_test.o" => [
+            "test/fips_version_test.c"
         ],
         "test/gmdifftest" => [
             "test/gmdifftest-bin-gmdifftest.o"
