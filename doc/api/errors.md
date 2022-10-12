@@ -726,6 +726,77 @@ An attempt was made to register something that is not a function as an
 The type of an asynchronous resource was invalid. Users are also able
 to define their own types if using the public embedder API.
 
+<a id="ERR_BENCHMARK_HTTP_COULD_NOT_LOCATE_BENCHMARKER"></a>
+
+### `ERR_BENCHMARK_HTTP_COULD_NOT_LOCATE_BENCHMARKER`
+
+Could not locate any of the http benchmarkers(autocannon, wrk and h2load).
+
+<a id="ERR_BENCHMARK_HTTP_BENCHMARKER_NOT_SUPPROTED"></a>
+
+### `ERR_BENCHMARK_HTTP_BENCHMARKER_NOT_SUPPROTED`
+
+Specified http benchmarker implementation does not exists.
+Valid http benchmarkers are.
+
+1. autocannon
+2. wrk
+3. h2load
+
+<a id="ERR_BENCHMARK_CLOCK_PRECISION"></a>
+
+### `ERR_BENCHMARK_CLOCK_PRECISION`
+
+Insufficient clock precision for short benchmark.
+
+<a id="ERR_BENCHMARK_END_CALLED_MORE_THAN_ONCE"></a>
+
+### `ERR_BENCHMARK_END_CALLED_MORE_THAN_ONCE`
+
+This error is thrown when the end method is called multiple times.
+
+<a id="ERR_BENCHMARK_HTTP_BENCHMARKER_NOT_INSTALLED"></a>
+
+### `ERR_BENCHMARK_HTTP_BENCHMARKER_NOT_INSTALLED`
+
+This error is thrown when the specified http benchmarker cannot be found.
+
+<a id="ERR_BENCHMARK_HTTP_STRANGE_OUTPUT"></a>
+
+### `ERR_BENCHMARK_HTTP_STRANGE_OUTPUT`
+
+Thrown when the specified http benchmarker produces a strange output.
+
+<a id="ERR_BENCHMARK_HTTP_UNKNOWN_OUTPUT"></a>
+
+### `ERR_BENCHMARK_HTTP_UNKNOWN_OUTPUT`
+
+Thrown when the specified http benchmarker failed.
+
+<a id="ERR_BENCHMARK_INVALID_OPERATION_COUNT"></a>
+
+### `ERR_BENCHMARK_INVALID_OPERATION_COUNT`
+
+The end method was called when operations count is <= 0
+
+<a id="ERR_BENCHMARK_NO_OPERATION_COUNT"></a>
+
+### `ERR_BENCHMARK_NO_OPERATION_COUNT`
+
+The end method was called without specifying operation count
+
+<a id="ERR_BENCHMARK_START_CALLED_MORE_THAN_ONCE"></a>
+
+### `ERR_BENCHMARK_START_CALLED_MORE_THAN_ONCE`
+
+This error is thrown when the end method is called multiple times.
+
+<a id="ERR_BENCHMARK_START_NOT_CALLED"></a>
+
+### `ERR_BENCHMARK_START_NOT_CALLED`
+
+The start method was not called before calling the end method.
+
 <a id="ERR_BROTLI_COMPRESSION_FAILED"></a>
 
 ### `ERR_BROTLI_COMPRESSION_FAILED`
