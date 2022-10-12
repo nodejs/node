@@ -551,10 +551,10 @@ const vectors = {
 
     if (length === undefined) {
       switch (hash) {
-        case 'SHA-1': length = 160; break;
-        case 'SHA-256': length = 256; break;
-        case 'SHA-384': length = 384; break;
-        case 'SHA-512': length = 512; break;
+        case 'SHA-1': length = 512; break;
+        case 'SHA-256': length = 512; break;
+        case 'SHA-384': length = 1024; break;
+        case 'SHA-512': length = 1024; break;
       }
     }
 
