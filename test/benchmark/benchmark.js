@@ -1,5 +1,7 @@
 'use strict';
 
+require('../common');
+
 const assert = require('assert');
 const fork = require('child_process').fork;
 const path = require('path');

@@ -8,6 +8,6 @@ if (!common.hasCrypto)
 if (!common.enoughTestMem)
   common.skip('Insufficient memory for async_hooks benchmark test');
 
-const runBenchmark = require('../common/benchmark');
+const runBenchmark = require('./benchmark');
 
 runBenchmark('async_hooks');

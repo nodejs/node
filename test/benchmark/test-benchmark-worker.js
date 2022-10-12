@@ -9,6 +9,6 @@ if (!common.enoughTestMem)
 // this should be in sequential rather than parallel to make sure
 // it does not conflict with tests that choose random available ports.
 
-const runBenchmark = require('../common/benchmark');
+const runBenchmark = require('./benchmark');
 
 runBenchmark('worker', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

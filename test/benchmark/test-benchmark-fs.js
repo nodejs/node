@@ -1,7 +1,7 @@
 'use strict';
 
 require('../common');
-const runBenchmark = require('../common/benchmark');
+const runBenchmark = require('./benchmark');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();

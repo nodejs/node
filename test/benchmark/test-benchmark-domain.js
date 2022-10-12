@@ -2,6 +2,6 @@
 
 require('../common');
 
-const runBenchmark = require('../common/benchmark');
+const runBenchmark = require('./benchmark');
 
 runBenchmark('domain');

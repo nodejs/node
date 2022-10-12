@@ -13,6 +13,6 @@ if (!common.isMainThread) {
 if (process.features.debug) {
   common.skip('benchmark does not work with debug build yet');
 }
-const runBenchmark = require('../common/benchmark');
+const runBenchmark = require('./benchmark');
 
 runBenchmark('napi', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
