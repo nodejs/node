@@ -46,6 +46,7 @@
       "assert": ["./lib/assert.js"],
       "assert/strict": ["./lib/assert/strict.js"],
       "async_hooks": ["./lib/async_hooks.js"],
+      "benchmark": ["./lib/benchmark.js"],
       "buffer": ["./lib/buffer.js"],
       "child_process": ["./lib/child_process.js"],
       "cluster": ["./lib/cluster.js"],
