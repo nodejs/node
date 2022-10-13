@@ -12,41 +12,74 @@ const {
 } = require('internal/test/binding').primordials;
 
 
-RegExp.prototype.exec = mustNotCall('%RegExp.prototype%.exec');
-RegExp.prototype.test = mustNotCall('%RegExp.prototype%.test');
-RegExp.prototype.toString = mustNotCall('%RegExp.prototype%.toString');
-RegExp.prototype[Symbol.match] = mustNotCall('%RegExp.prototype%[@@match]');
-RegExp.prototype[Symbol.matchAll] = mustNotCall('%RegExp.prototype%[@@matchAll]');
-RegExp.prototype[Symbol.replace] = mustNotCall('%RegExp.prototype%[@@replace]');
-RegExp.prototype[Symbol.search] = mustNotCall('%RegExp.prototype%[@@search]');
-RegExp.prototype[Symbol.split] = mustNotCall('%RegExp.prototype%[@@split]');
 Object.defineProperties(RegExp.prototype, {
+  [Symbol.match]: {
+    get: mustNotCall('get %RegExp.prototype%[@@match]'),
+    set: mustNotCall('set %RegExp.prototype%[@@match]'),
+  },
+  [Symbol.matchAll]: {
+    get: mustNotCall('get %RegExp.prototype%[@@matchAll]'),
+    set: mustNotCall('set %RegExp.prototype%[@@matchAll]'),
+  },
+  [Symbol.replace]: {
+    get: mustNotCall('get %RegExp.prototype%[@@replace]'),
+    set: mustNotCall('set %RegExp.prototype%[@@replace]'),
+  },
+  [Symbol.search]: {
+    get: mustNotCall('get %RegExp.prototype%[@@search]'),
+    set: mustNotCall('set %RegExp.prototype%[@@search]'),
+  },
+  [Symbol.split]: {
+    get: mustNotCall('get %RegExp.prototype%[@@split]'),
+    set: mustNotCall('set %RegExp.prototype%[@@split]'),
+  },
   dotAll: {
     get: mustNotCall('get %RegExp.prototype%.dotAll'),
+    set: mustNotCall('set %RegExp.prototype%.dotAll'),
+  },
+  exec: {
+    get: mustNotCall('get %RegExp.prototype%.exec'),
+    set: mustNotCall('set %RegExp.prototype%.exec'),
   },
   flags: {
     get: mustNotCall('get %RegExp.prototype%.flags'),
+    set: mustNotCall('set %RegExp.prototype%.flags'),
   },
   global: {
     get: mustNotCall('get %RegExp.prototype%.global'),
+    set: mustNotCall('set %RegExp.prototype%.global'),
   },
   hasIndices: {
     get: mustNotCall('get %RegExp.prototype%.hasIndices'),
+    set: mustNotCall('set %RegExp.prototype%.hasIndices'),
   },
   ignoreCase: {
     get: mustNotCall('get %RegExp.prototype%.ignoreCase'),
+    set: mustNotCall('set %RegExp.prototype%.ignoreCase'),
   },
   multiline: {
     get: mustNotCall('get %RegExp.prototype%.multiline'),
+    set: mustNotCall('set %RegExp.prototype%.multiline'),
   },
   source: {
     get: mustNotCall('get %RegExp.prototype%.source'),
+    set: mustNotCall('set %RegExp.prototype%.source'),
   },
   sticky: {
     get: mustNotCall('get %RegExp.prototype%.sticky'),
+    set: mustNotCall('set %RegExp.prototype%.sticky'),
+  },
+  test: {
+    get: mustNotCall('get %RegExp.prototype%.test'),
+    set: mustNotCall('set %RegExp.prototype%.test'),
+  },
+  toString: {
+    get: mustNotCall('get %RegExp.prototype%.toString'),
+    set: mustNotCall('set %RegExp.prototype%.toString'),
   },
   unicode: {
     get: mustNotCall('get %RegExp.prototype%.unicode'),
+    set: mustNotCall('set %RegExp.prototype%.unicode'),
   },
 });
 
