@@ -378,7 +378,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   while (r != 0 && loop->stop_flag == 0) {
     uv__update_time(loop);
     ran_pending = uv__run_pending(loop);
-    uv__run_timers(loop);
     uv__run_idle(loop);
     uv__run_prepare(loop);
 
@@ -387,6 +386,7 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
       timeout = uv_backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+    uv__run_timers(loop);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
      * returned because the timeout expired, but no events were received. This
