@@ -149,6 +149,7 @@ const expectedModules = new Set([
   'NativeModule internal/validators',
   'NativeModule internal/vm/module',
   'NativeModule internal/wasm_web_api',
+  'NativeModule internal/webidl',
   'NativeModule internal/webstreams/adapters',
   'NativeModule internal/webstreams/compression',
   'NativeModule internal/webstreams/encoding',
