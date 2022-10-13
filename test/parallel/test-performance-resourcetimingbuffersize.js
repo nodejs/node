@@ -30,6 +30,17 @@ const initiatorType = '';
 const cacheMode = '';
 
 async function main() {
+  // Invalid buffer size values are converted to 0.
+  const invalidValues = [ null, undefined, true, false, -1, 0.5, Infinity, NaN, '', 'foo', {}, [], () => {} ];
+  for (const value of invalidValues) {
+    performance.setResourceTimingBufferSize(value);
+    performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, globalThis, cacheMode);
+    assert.strictEqual(performance.getEntriesByType('resource').length, 0);
+    performance.clearResourceTimings();
+  }
+  // Wait for the buffer full event to be cleared.
+  await waitBufferFullEvent();
+
   performance.setResourceTimingBufferSize(1);
   performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, globalThis, cacheMode);
   // Trigger a resourcetimingbufferfull event.
