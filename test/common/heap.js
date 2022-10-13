@@ -211,7 +211,39 @@ function validateSnapshotNodes(...args) {
   return recordState().validateSnapshotNodes(...args);
 }
 
+function getHeapSnapshotOptionTests() {
+  const fixtures = require('../common/fixtures');
+  const cases = [
+    {
+      options: { exposeInternals: true },
+      expected: [{
+        children: [
+          // We don't have anything special to test here yet
+          // because we don't use cppgc or embedder heap tracer.
+          { edge_name: 'nonNumeric', node_name: 'test' },
+        ]
+      }]
+    },
+    {
+      options: { exposeNumericValues: true },
+      expected: [{
+        children: [
+          { edge_name: 'numeric', node_name: 'smi number' },
+        ]
+      }]
+    },
+  ];
+  return {
+    fixtures: fixtures.path('klass-with-fields.js'),
+    check(snapshot, expected) {
+      snapshot.validateSnapshot('Klass', expected, { loose: true });
+    },
+    cases,
+  };
+}
+
 module.exports = {
   recordState,
-  validateSnapshotNodes
+  validateSnapshotNodes,
+  getHeapSnapshotOptionTests
 };
