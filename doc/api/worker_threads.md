@@ -1067,14 +1067,19 @@ added: v10.5.0
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
-### `worker.getHeapSnapshot()`
+### `worker.getHeapSnapshot([options])`
 
 <!-- YAML
 added:
  - v13.9.0
  - v12.17.0
+changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Support options to configure the heap snapshot.
 -->
 
+* `options` {Object} See [`v8.getHeapSnapshot()`][] for more details.
 * Returns: {Promise} A promise for a Readable Stream containing
   a V8 heap snapshot
 
