@@ -3,7 +3,7 @@ const common = require('../common.js');
 const { Blob } = require('buffer');
 
 const bench = common.createBenchmark(main, {
-  bytes: [0, 128, 512, 1024],
+  bytes: [128, 1024, 1024 ** 2],
   n: [1e6],
   operation: ['text', 'arrayBuffer']
 });
