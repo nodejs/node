@@ -39,6 +39,7 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -1790,7 +1791,10 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   Debug(env, DebugCategory::DIAGNOSTICS, "Start generating %s...\n", *name);
 
-  heap::WriteSnapshot(env, filename.c_str());
+  HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  heap::WriteSnapshot(env, filename.c_str(), options);
   env->heap_limit_snapshot_taken_ += 1;
 
   Debug(env,

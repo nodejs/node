@@ -382,7 +382,9 @@ class DiagnosticFilename {
 };
 
 namespace heap {
-v8::Maybe<void> WriteSnapshot(Environment* env, const char* filename);
+v8::Maybe<void> WriteSnapshot(Environment* env,
+                              const char* filename,
+                              v8::HeapProfiler::HeapSnapshotOptions options);
 }
 
 namespace heap {
@@ -423,6 +425,12 @@ std::ostream& operator<<(std::ostream& output,
 }
 
 bool linux_at_secure();
+
+namespace heap {
+v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
+    v8::Local<v8::Value> options);
+}  // namespace heap
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
