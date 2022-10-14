@@ -370,7 +370,6 @@ Environment* CreateEnvironment(
   Environment* env = new Environment(
       isolate_data, context, args, exec_args, nullptr, flags, thread_id);
 #if HAVE_INSPECTOR
-  // TODO(joyeecheung): handle the exit code returned by InitializeInspector().
   if (env->should_create_inspector()) {
     if (inspector_parent_handle) {
       env->InitializeInspector(
