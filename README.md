@@ -781,6 +781,12 @@ releases on a rotation basis as outlined in the
   * [vdeturckheim](https://github.com/vdeturckheim) -
     **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
 * NearForm
+  * [RafaelGSS](https://github.com/RafaelGSS) -
+    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
+* NodeSource
+  * [juanarbol](https://github.com/juanarbol) -
+    **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
+* Platformatic
   * [mcollina](https://github.com/mcollina) -
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * Red Hat and IBM
