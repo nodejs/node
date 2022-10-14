@@ -1,5 +1,5 @@
 'use strict';
-const { Benchmark, createBenchmark } = require('benchmark');
+const { Benchmark, createBenchmark } = require('node:benchmark');
 
 const urls = {
   long: 'http://nodejs.org:89/docs/latest/api/foo/bar/qua/13949281/0f28b/' +
