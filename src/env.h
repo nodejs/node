@@ -617,7 +617,7 @@ class Environment : public MemoryRetainer {
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
-  ExitCode InitializeInspector(
+  void InitializeInspector(
       std::unique_ptr<inspector::ParentInspectorHandle> parent_handle);
 #endif
 

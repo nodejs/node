@@ -166,7 +166,7 @@ void SignalExit(int signo, siginfo_t* info, void* ucontext) {
 #endif  // __POSIX__
 
 #if HAVE_INSPECTOR
-ExitCode Environment::InitializeInspector(
+void Environment::InitializeInspector(
     std::unique_ptr<inspector::ParentInspectorHandle> parent_handle) {
   std::string inspector_path;
   bool is_main = !parent_handle;
@@ -187,7 +187,7 @@ ExitCode Environment::InitializeInspector(
                           is_main);
   if (options_->debug_options().inspector_enabled &&
       !inspector_agent_->IsListening()) {
-    return ExitCode::kInvalidCommandLineArgument2;  // Signal internal error
+    return;
   }
 
   profiler::StartProfilers(this);
@@ -196,7 +196,7 @@ ExitCode Environment::InitializeInspector(
     inspector_agent_->PauseOnNextJavascriptStatement("Break at bootstrap");
   }
 
-  return ExitCode::kNoFailure;
+  return;
 }
 #endif  // HAVE_INSPECTOR
 

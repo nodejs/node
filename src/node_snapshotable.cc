@@ -1173,8 +1173,6 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       // in the future).
       if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
-        // TODO(joyeecheung): handle the exit code returned by
-        // InitializeInspector().
         env->InitializeInspector({});
 #endif
         if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
