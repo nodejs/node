@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 #define V8_INSPECTOR_V8_STRING_CONVERSIONS_H_
 
+#include <cstdint>
 #include <string>
 
 // Conversion routines between UT8 and UTF16, used by string-16.{h,cc}. You may
