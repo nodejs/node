@@ -188,6 +188,23 @@ assert.throws(() => new Blob({}), {
 }
 
 {
+  const descriptors = Object.getOwnPropertyDescriptors(Blob.prototype);
+  const enumerable = [
+    'size',
+    'type',
+    'slice',
+    'stream',
+    'text',
+    'arrayBuffer',
+  ];
+
+  for (const prop of enumerable) {
+    assert.notStrictEqual(descriptors[prop], undefined);
+    assert.strictEqual(descriptors[prop].enumerable, true);
+  }
+}
+
+{
   const b = new Blob(['test', 42]);
   b.text().then(common.mustCall((text) => {
     assert.strictEqual(text, 'test42');
