@@ -316,6 +316,8 @@ class Finalizer {
   void* data() { return finalize_data_; }
   void* hint() { return finalize_hint_; }
 
+  void ResetFinalizer();
+
  protected:
   napi_env env_;
   napi_finalize finalize_callback_;
@@ -337,12 +339,22 @@ class TryCatch : public v8::TryCatch {
   napi_env _env;
 };
 
+// Ownership of a reference.
+enum class Ownership {
+  // The reference is owned by the runtime. No userland call is needed to
+  // destruct the reference.
+  kRuntime,
+  // The reference is owned by the userland. User code is responsible to delete
+  // the reference with appropriate node-api calls.
+  kUserland,
+};
+
 // Wrapper around Finalizer that implements reference counting.
 class RefBase : public Finalizer, public RefTracker {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
-          bool delete_self,
+          Ownership ownership,
           napi_finalize finalize_callback,
           void* finalize_data,
           void* finalize_hint);
@@ -350,7 +362,7 @@ class RefBase : public Finalizer, public RefTracker {
  public:
   static RefBase* New(napi_env env,
                       uint32_t initial_refcount,
-                      bool delete_self,
+                      Ownership ownership,
                       napi_finalize finalize_callback,
                       void* finalize_data,
                       void* finalize_hint);
@@ -361,12 +373,14 @@ class RefBase : public Finalizer, public RefTracker {
   uint32_t Unref();
   uint32_t RefCount();
 
+  Ownership ownership() { return ownership_; }
+
  protected:
   void Finalize() override;
 
  private:
   uint32_t refcount_;
-  bool delete_self_;
+  Ownership ownership_;
 };
 
 // Wrapper around v8impl::Persistent.
@@ -379,7 +393,7 @@ class Reference : public RefBase {
   static Reference* New(napi_env env,
                         v8::Local<v8::Value> value,
                         uint32_t initial_refcount,
-                        bool delete_self,
+                        Ownership ownership,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
                         void* finalize_hint = nullptr);

@@ -1,5 +1,6 @@
-#include "myobject.h"
 #include "../common.h"
+#include "assert.h"
+#include "myobject.h"
 
 napi_ref MyObject::constructor;
 
@@ -151,9 +152,69 @@ napi_value MyObject::Multiply(napi_env env, napi_callback_info info) {
   return instance;
 }
 
+// This finalizer should never be invoked.
+void ObjectWrapDanglingReferenceFinalizer(napi_env env,
+                                          void* finalize_data,
+                                          void* finalize_hint) {
+  assert(0 && "unreachable");
+}
+
+napi_ref dangling_ref;
+napi_value ObjectWrapDanglingReference(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env,
+                napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
+
+  // Create a napi_wrap and remove it immediately, whilst leaving the out-param
+  // ref dangling (not deleted).
+  NODE_API_CALL(env,
+                napi_wrap(env,
+                          args[0],
+                          nullptr,
+                          ObjectWrapDanglingReferenceFinalizer,
+                          nullptr,
+                          &dangling_ref));
+  NODE_API_CALL(env, napi_remove_wrap(env, args[0], nullptr));
+
+  return args[0];
+}
+
+napi_value ObjectWrapDanglingReferenceTest(napi_env env,
+                                           napi_callback_info info) {
+  napi_value out;
+  napi_value ret;
+  NODE_API_CALL(env, napi_get_reference_value(env, dangling_ref, &out));
+
+  if (out == nullptr) {
+    // If the napi_ref has been invalidated, delete it.
+    NODE_API_CALL(env, napi_delete_reference(env, dangling_ref));
+    NODE_API_CALL(env, napi_get_boolean(env, true, &ret));
+  } else {
+    // The dangling napi_ref is still valid.
+    NODE_API_CALL(env, napi_get_boolean(env, false, &ret));
+  }
+  return ret;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   MyObject::Init(env, exports);
+
+  napi_property_descriptor descriptors[] = {
+      DECLARE_NODE_API_PROPERTY("objectWrapDanglingReference",
+                                ObjectWrapDanglingReference),
+      DECLARE_NODE_API_PROPERTY("objectWrapDanglingReferenceTest",
+                                ObjectWrapDanglingReferenceTest),
+  };
+
+  NODE_API_CALL(
+      env,
+      napi_define_properties(env,
+                             exports,
+                             sizeof(descriptors) / sizeof(*descriptors),
+                             descriptors));
+
   return exports;
 }
 EXTERN_C_END

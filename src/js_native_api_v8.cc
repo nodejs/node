@@ -218,7 +218,12 @@ inline napi_status Unwrap(napi_env env,
   if (action == RemoveWrap) {
     CHECK(obj->DeletePrivate(context, NAPI_PRIVATE_KEY(context, wrapper))
               .FromJust());
-    delete reference;
+    if (reference->ownership() == Ownership::kUserland) {
+      // When the wrap is been removed, the finalizer should be reset.
+      reference->ResetFinalizer();
+    } else {
+      delete reference;
+    }
   }
 
   return GET_RETURN_STATUS(env);
@@ -245,7 +250,8 @@ class CallbackBundle {
     bundle->env = env;
 
     v8::Local<v8::Value> cbdata = v8::External::New(env->isolate, bundle);
-    Reference::New(env, cbdata, 0, true, Delete, bundle, nullptr);
+    Reference::New(
+        env, cbdata, 0, Ownership::kRuntime, Delete, bundle, nullptr);
     return cbdata;
   }
   napi_env env;   // Necessary to invoke C++ NAPI callback
@@ -429,8 +435,13 @@ inline napi_status Wrap(napi_env env,
     // before then, then the finalize callback will never be invoked.)
     // Therefore a finalize callback is required when returning a reference.
     CHECK_ARG(env, finalize_cb);
-    reference = v8impl::Reference::New(
-        env, obj, 0, false, finalize_cb, native_object, finalize_hint);
+    reference = v8impl::Reference::New(env,
+                                       obj,
+                                       0,
+                                       v8impl::Ownership::kUserland,
+                                       finalize_cb,
+                                       native_object,
+                                       finalize_hint);
     *result = reinterpret_cast<napi_ref>(reference);
   } else {
     // Create a self-deleting reference.
@@ -438,7 +449,7 @@ inline napi_status Wrap(napi_env env,
         env,
         obj,
         0,
-        true,
+        v8impl::Ownership::kRuntime,
         finalize_cb,
         native_object,
         finalize_cb == nullptr ? nullptr : finalize_hint);
@@ -456,16 +467,22 @@ inline napi_status Wrap(napi_env env,
 
 }  // end of anonymous namespace
 
+void Finalizer::ResetFinalizer() {
+  finalize_callback_ = nullptr;
+  finalize_data_ = nullptr;
+  finalize_hint_ = nullptr;
+}
+
 // Wrapper around v8impl::Persistent that implements reference counting.
 RefBase::RefBase(napi_env env,
                  uint32_t initial_refcount,
-                 bool delete_self,
+                 Ownership ownership,
                  napi_finalize finalize_callback,
                  void* finalize_data,
                  void* finalize_hint)
     : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
       refcount_(initial_refcount),
-      delete_self_(delete_self) {
+      ownership_(ownership) {
   Link(finalize_callback == nullptr ? &env->reflist : &env->finalizing_reflist);
 }
 
@@ -480,13 +497,13 @@ RefBase::~RefBase() {
 
 RefBase* RefBase::New(napi_env env,
                       uint32_t initial_refcount,
-                      bool delete_self,
+                      Ownership ownership,
                       napi_finalize finalize_callback,
                       void* finalize_data,
                       void* finalize_hint) {
   return new RefBase(env,
                      initial_refcount,
-                     delete_self,
+                     ownership,
                      finalize_callback,
                      finalize_data,
                      finalize_hint);
@@ -512,27 +529,29 @@ uint32_t RefBase::RefCount() {
 }
 
 void RefBase::Finalize() {
-  bool delete_self = delete_self_;
+  Ownership ownership = ownership_;
   // Swap out the field finalize_callback so that it can not be accidentally
   // called more than once.
   napi_finalize finalize_callback = finalize_callback_;
-  finalize_callback_ = nullptr;
+  void* finalize_data = finalize_data_;
+  void* finalize_hint = finalize_hint_;
+  ResetFinalizer();
 
   // Either the RefBase is going to be deleted in the finalize_callback or not,
   // it should be removed from the tracked list.
   Unlink();
   // 1. If the finalize_callback is present, it should either delete the
-  //    RefBase, or set the flag `delete_self`.
+  //    RefBase, or set ownership with Ownership::kRuntime.
   // 2. If the finalizer is not present, the RefBase can be deleted after the
   //    call.
   if (finalize_callback != nullptr) {
-    env_->CallFinalizer(finalize_callback, finalize_data_, finalize_hint_);
+    env_->CallFinalizer(finalize_callback, finalize_data, finalize_hint);
     // No access to `this` after finalize_callback is called.
   }
 
-  // If the RefBase is not self-destructive, userland code should delete it.
-  // Now delete it if it is self-destructive.
-  if (delete_self) {
+  // If the RefBase is not Ownership::kRuntime, userland code should delete it.
+  // Now delete it if it is Ownership::kRuntime.
+  if (ownership == Ownership::kRuntime) {
     delete this;
   }
 }
@@ -554,14 +573,14 @@ Reference::~Reference() {
 Reference* Reference::New(napi_env env,
                           v8::Local<v8::Value> value,
                           uint32_t initial_refcount,
-                          bool delete_self,
+                          Ownership ownership,
                           napi_finalize finalize_callback,
                           void* finalize_data,
                           void* finalize_hint) {
   return new Reference(env,
                        value,
                        initial_refcount,
-                       delete_self,
+                       ownership,
                        finalize_callback,
                        finalize_data,
                        finalize_hint);
@@ -2298,8 +2317,13 @@ napi_status NAPI_CDECL napi_create_external(napi_env env,
   if (finalize_cb) {
     // The Reference object will delete itself after invoking the finalizer
     // callback.
-    v8impl::Reference::New(
-        env, external_value, 0, true, finalize_cb, data, finalize_hint);
+    v8impl::Reference::New(env,
+                           external_value,
+                           0,
+                           v8impl::Ownership::kRuntime,
+                           finalize_cb,
+                           data,
+                           finalize_hint);
   }
 
   *result = v8impl::JsValueFromV8LocalValue(external_value);
@@ -2408,8 +2432,8 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
     return napi_set_last_error(env, napi_invalid_arg);
   }
 
-  v8impl::Reference* reference =
-      v8impl::Reference::New(env, v8_value, initial_refcount, false);
+  v8impl::Reference* reference = v8impl::Reference::New(
+      env, v8_value, initial_refcount, v8impl::Ownership::kUserland);
 
   *result = reinterpret_cast<napi_ref>(reference);
   return napi_clear_last_error(env);
@@ -3116,8 +3140,8 @@ napi_status NAPI_CDECL napi_set_instance_data(napi_env env,
     delete old_data;
   }
 
-  env->instance_data =
-      v8impl::RefBase::New(env, 0, true, finalize_cb, data, finalize_hint);
+  env->instance_data = v8impl::RefBase::New(
+      env, 0, v8impl::Ownership::kRuntime, finalize_cb, data, finalize_hint);
 
   return napi_clear_last_error(env);
 }
