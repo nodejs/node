@@ -386,6 +386,8 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
       timeout = uv_backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+
+    uv__update_time(loop);
     uv__run_timers(loop);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
