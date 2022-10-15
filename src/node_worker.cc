@@ -1,15 +1,20 @@
 #include "node_worker.h"
+#include "async_wrap-inl.h"
+#include "base_object.h"
 #include "debug_utils-inl.h"
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
+#include "node.h"
+#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_snapshot_builder.h"
 #include "util-inl.h"
-#include "async_wrap-inl.h"
+#include "v8-local-handle.h"
+#include "v8-microtask-queue.h"
+#include "v8-snapshot.h"
 
 #include <memory>
 #include <string>
@@ -21,9 +26,13 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::DeserializeInternalFieldsCallback;
+using v8::EscapableHandleScope;
 using v8::Float64Array;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -31,9 +40,11 @@ using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::MicrotaskQueue;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ResourceConstraints;
 using v8::SealHandleScope;
 using v8::String;
@@ -866,6 +877,427 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
+// ============================================================================
+
+class SynchronousWorker final : public MemoryRetainer {
+ public:
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  SynchronousWorker(Environment* env, v8::Local<v8::Object> obj);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunLoop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsLoopAlive(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SignalStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunInCallbackScope(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  struct SynchronousWorkerScope : public v8::EscapableHandleScope,
+                                  public v8::Context::Scope,
+                                  public v8::Isolate::SafeForTerminationScope {
+   public:
+    explicit SynchronousWorkerScope(SynchronousWorker* w);
+    ~SynchronousWorkerScope();
+
+   private:
+    SynchronousWorker* w_;
+    bool orig_can_be_terminated_;
+  };
+
+  v8::Local<v8::Context> context() const;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SynchronousWorker)
+  SET_SELF_SIZE(SynchronousWorker)
+
+ private:
+  static SynchronousWorker* Unwrap(const FunctionCallbackInfo<Value>& arg);
+  static void CleanupHook(void* arg);
+  void OnExit(int code);
+
+  void Start(bool own_loop, bool own_microtaskqueue);
+  v8::MaybeLocal<v8::Value> Load(v8::Local<v8::Function> callback);
+  v8::MaybeLocal<v8::Value> RunInCallbackScope(
+      v8::Local<v8::Function> callback);
+  void RunLoop(uv_run_mode mode);
+  bool IsLoopAlive();
+  void SignalStop();
+  void Stop(bool may_throw);
+
+  Isolate* isolate_;
+  Global<Object> wrap_;
+
+  uv_loop_t loop_;
+  std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
+  v8::Global<v8::Context> outer_context_;
+  v8::Global<v8::Context> context_;
+  IsolateData* isolate_data_ = nullptr;
+  Environment* env_ = nullptr;
+  bool signaled_stop_ = false;
+  bool can_be_terminated_ = false;
+  bool loop_is_running_ = false;
+};
+
+bool SynchronousWorker::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> SynchronousWorker::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->synchronousworker_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+
+    SetProtoMethod(isolate, tmpl, "start", Start);
+    SetProtoMethod(isolate, tmpl, "load", Load);
+    SetProtoMethod(isolate, tmpl, "stop", Stop);
+    SetProtoMethod(isolate, tmpl, "signalStop", SignalStop);
+    SetProtoMethod(isolate, tmpl, "runLoop", RunLoop);
+    SetProtoMethod(isolate, tmpl, "isLoopAlive", IsLoopAlive);
+    SetProtoMethod(isolate, tmpl, "runInCallbackScope", RunInCallbackScope);
+
+    env->set_synchronousworker_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void SynchronousWorker::Initialize(Environment* env,
+                                   v8::Local<v8::Object> target) {
+  SetConstructorFunction(env->context(),
+                         target,
+                         "SynchronousWorker",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+
+  NODE_DEFINE_CONSTANT(target, UV_RUN_DEFAULT);
+  NODE_DEFINE_CONSTANT(target, UV_RUN_ONCE);
+  NODE_DEFINE_CONSTANT(target, UV_RUN_NOWAIT);
+}
+
+void SynchronousWorker::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Start);
+  registry->Register(Load);
+  registry->Register(RunLoop);
+  registry->Register(IsLoopAlive);
+  registry->Register(SignalStop);
+  registry->Register(Stop);
+  registry->Register(RunInCallbackScope);
+}
+
+SynchronousWorker::SynchronousWorkerScope::SynchronousWorkerScope(
+    SynchronousWorker* w)
+    : EscapableHandleScope(w->isolate_),
+      Scope(w->context()),
+      Isolate::SafeForTerminationScope(w->isolate_),
+      w_(w),
+      orig_can_be_terminated_(w->can_be_terminated_) {
+  w_->can_be_terminated_ = true;
+}
+
+SynchronousWorker::SynchronousWorkerScope::~SynchronousWorkerScope() {
+  w_->can_be_terminated_ = orig_can_be_terminated_;
+}
+
+Local<Context> SynchronousWorker::context() const {
+  return context_.Get(isolate_);
+}
+
+SynchronousWorker::SynchronousWorker(Environment* env, Local<Object> object)
+    : isolate_(env->isolate()), wrap_(env->isolate(), object) {
+  AddEnvironmentCleanupHook(env->isolate(), CleanupHook, this);
+  loop_.data = nullptr;
+  object->SetAlignedPointerInInternalField(0, this);
+
+  Local<Context> outer_context = env->context();
+  outer_context_.Reset(env->isolate(), outer_context);
+}
+
+SynchronousWorker* SynchronousWorker::Unwrap(
+    const FunctionCallbackInfo<Value>& args) {
+  Local<Value> value = args.This();
+  if (!value->IsObject() || value.As<Object>()->InternalFieldCount() < 1) {
+    THROW_ERR_INVALID_THIS(Environment::GetCurrent(args.GetIsolate()));
+    return nullptr;
+  }
+  return static_cast<SynchronousWorker*>(
+      value.As<Object>()->GetAlignedPointerFromInternalField(0));
+}
+
+void SynchronousWorker::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  new SynchronousWorker(env, args.This());
+}
+
+void SynchronousWorker::Start(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->Start(args[0]->BooleanValue(args.GetIsolate()),
+              args[1]->BooleanValue(args.GetIsolate()));
+}
+
+void SynchronousWorker::Stop(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->Stop(true);
+}
+
+void SynchronousWorker::SignalStop(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->SignalStop();
+  args.GetIsolate()->CancelTerminateExecution();
+}
+
+void SynchronousWorker::Load(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  if (!args[0]->IsFunction()) {
+    return THROW_ERR_INVALID_ARG_TYPE(
+        Environment::GetCurrent(args),
+        "The load() argument must be a function.");
+  }
+  Local<Value> result;
+  if (self->Load(args[0].As<Function>()).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
+void SynchronousWorker::RunLoop(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  int64_t mode;
+  if (!args[0]->IntegerValue(args.GetIsolate()->GetCurrentContext()).To(&mode))
+    return;
+  self->RunLoop(static_cast<uv_run_mode>(mode));
+}
+
+void SynchronousWorker::IsLoopAlive(const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  args.GetReturnValue().Set(self->IsLoopAlive());
+}
+
+void SynchronousWorker::RunInCallbackScope(
+    const FunctionCallbackInfo<Value>& args) {
+  SynchronousWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  if (!args[0]->IsFunction()) {
+    return THROW_ERR_INVALID_ARG_TYPE(
+        Environment::GetCurrent(args),
+        "The runInCallbackScope() argument must be a function");
+  }
+  Local<Value> result;
+  if (self->RunInCallbackScope(args[0].As<Function>()).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
+MaybeLocal<Value> SynchronousWorker::RunInCallbackScope(Local<Function> fn) {
+  if (context_.IsEmpty() || signaled_stop_) {
+    Environment* env = Environment::GetCurrent(isolate_);
+    THROW_ERR_INVALID_STATE(env, "Worker has been stopped");
+    return MaybeLocal<Value>();
+  }
+  SynchronousWorkerScope worker_scope(this);
+  v8::Isolate* isolate = isolate_;
+  CallbackScope callback_scope(isolate, wrap_.Get(isolate_), {1, 0});
+  MaybeLocal<Value> ret = fn->Call(context(), Null(isolate), 0, nullptr);
+  if (signaled_stop_) {
+    isolate->CancelTerminateExecution();
+  }
+  return worker_scope.EscapeMaybe(ret);
+}
+
+void SynchronousWorker::Start(bool own_loop, bool own_microtaskqueue) {
+  signaled_stop_ = false;
+  Local<Context> outer_context = outer_context_.Get(isolate_);
+  Environment* outer_env = GetCurrentEnvironment(outer_context);
+  assert(outer_env != nullptr);
+  uv_loop_t* outer_loop = GetCurrentEventLoop(isolate_);
+  assert(outer_loop != nullptr);
+  USE(outer_loop);  // Exists only to silence a compiler warning.
+
+  if (own_loop) {
+    int ret = uv_loop_init(&loop_);
+    if (ret != 0) {
+      isolate_->ThrowException(UVException(isolate_, ret, "uv_loop_init"));
+      return;
+    }
+    loop_.data = this;
+  }
+
+  MicrotaskQueue* microtask_queue =
+      own_microtaskqueue ? (microtask_queue_ = v8::MicrotaskQueue::New(
+                                isolate_, v8::MicrotasksPolicy::kExplicit))
+                               .get()
+                         : outer_context_.Get(isolate_)->GetMicrotaskQueue();
+  uv_loop_t* loop = own_loop ? &loop_ : GetCurrentEventLoop(isolate_);
+
+  Local<Context> context = Context::New(
+      isolate_,
+      nullptr /* extensions */,
+      MaybeLocal<ObjectTemplate>() /* global_template */,
+      MaybeLocal<Value>() /* global_value */,
+      DeserializeInternalFieldsCallback() /* internal_fields_deserializer */,
+      microtask_queue);
+  context->SetSecurityToken(outer_context->GetSecurityToken());
+  if (context.IsEmpty() || !InitializeContext(context).FromMaybe(false)) {
+    return;
+  }
+
+  context_.Reset(isolate_, context);
+  Context::Scope context_scope(context);
+  isolate_data_ = CreateIsolateData(
+      isolate_,
+      loop,
+      GetMultiIsolatePlatform(outer_env),
+      GetArrayBufferAllocator(GetEnvironmentIsolateData(outer_env)));
+  assert(isolate_data_ != nullptr);
+  ThreadId thread_id = AllocateEnvironmentThreadId();
+  auto inspector_parent_handle = GetInspectorParentHandle(
+      outer_env, thread_id, "file:///synchronous-worker.js");
+  env_ = CreateEnvironment(isolate_data_,
+                           context,
+                           {},
+                           {},
+                           static_cast<EnvironmentFlags::Flags>(
+                               EnvironmentFlags::kTrackUnmanagedFds |
+                               EnvironmentFlags::kNoRegisterESMLoader),
+                           thread_id,
+                           std::move(inspector_parent_handle));
+  assert(env_ != nullptr);
+  SetProcessExitHandler(env_,
+                        [this](Environment* env, int code) { OnExit(code); });
+}
+
+void SynchronousWorker::OnExit(int code) {
+  HandleScope handle_scope(isolate_);
+  Local<Object> self = wrap_.Get(isolate_);
+  Local<Context> outer_context = outer_context_.Get(isolate_);
+  Context::Scope context_scope(outer_context);
+  Isolate::SafeForTerminationScope termination_scope(isolate_);
+  Local<Value> onexit_v;
+  if (!self->Get(outer_context, String::NewFromUtf8Literal(isolate_, "onexit"))
+           .ToLocal(&onexit_v) ||
+      !onexit_v->IsFunction()) {
+    return;
+  }
+  Local<Value> args[] = {Integer::New(isolate_, code)};
+  USE(onexit_v.As<Function>()->Call(outer_context, self, 1, args));
+  SignalStop();
+}
+
+void SynchronousWorker::SignalStop() {
+  signaled_stop_ = true;
+  if (env_ != nullptr && can_be_terminated_) {
+    node::Stop(env_);
+  }
+}
+
+void SynchronousWorker::Stop(bool may_throw) {
+  if (loop_.data == nullptr) {
+    // If running in shared-event-loop mode, spin the outer event loop
+    // until all currently pending items have been addressed, so that
+    // FreeEnvironment() does not run the outer loop's handles.
+    TryCatch try_catch(isolate_);
+    try_catch.SetVerbose(true);
+    SealHandleScope seal_handle_scope(isolate_);
+    uv_run(GetCurrentEventLoop(isolate_), UV_RUN_NOWAIT);
+  }
+  if (env_ != nullptr) {
+    if (!signaled_stop_) {
+      SignalStop();
+      isolate_->CancelTerminateExecution();
+    }
+    FreeEnvironment(env_);
+    env_ = nullptr;
+  }
+  if (isolate_data_ != nullptr) {
+    FreeIsolateData(isolate_data_);
+    isolate_data_ = nullptr;
+  }
+  context_.Reset();
+  outer_context_.Reset();
+  if (loop_.data != nullptr) {
+    loop_.data = nullptr;
+    int ret = uv_loop_close(&loop_);
+    if (ret != 0 && may_throw) {
+      isolate_->ThrowException(UVException(isolate_, ret, "uv_loop_close"));
+    }
+  }
+  microtask_queue_.reset();
+
+  RemoveEnvironmentCleanupHook(isolate_, CleanupHook, this);
+  if (!wrap_.IsEmpty()) {
+    HandleScope handle_scope(isolate_);
+    wrap_.Get(isolate_)->SetAlignedPointerInInternalField(0, nullptr);
+  }
+  wrap_.Reset();
+  delete this;
+}
+
+MaybeLocal<Value> SynchronousWorker::Load(Local<Function> callback) {
+  if (env_ == nullptr || signaled_stop_) {
+    Environment* env = Environment::GetCurrent(isolate_);
+    THROW_ERR_INVALID_STATE(env, "Worker not initialized");
+    return MaybeLocal<Value>();
+  }
+
+  SynchronousWorkerScope worker_scope(this);
+  return worker_scope.EscapeMaybe(
+      LoadEnvironment(env_, [&](const StartExecutionCallbackInfo& info) {
+        Local<Value> argv[] = {
+            info.process_object, info.native_require, context()->Global()};
+        return callback->Call(context(), Null(isolate_), 3, argv);
+      }));
+}
+
+void SynchronousWorker::CleanupHook(void* arg) {
+  static_cast<SynchronousWorker*>(arg)->Stop(false);
+}
+
+void SynchronousWorker::RunLoop(uv_run_mode mode) {
+  Environment* env = Environment::GetCurrent(isolate_);
+  if (loop_.data == nullptr || context_.IsEmpty() || signaled_stop_) {
+    return THROW_ERR_INVALID_STATE(env, "Worker has been stopped");
+  }
+  if (loop_is_running_) {
+    return THROW_ERR_INVALID_STATE(env, "Cannot nest calls to runLoop");
+  }
+  SynchronousWorkerScope worker_scope(this);
+  TryCatch try_catch(isolate_);
+  try_catch.SetVerbose(true);
+  SealHandleScope seal_handle_scope(isolate_);
+  loop_is_running_ = true;
+  uv_run(&loop_, mode);
+  loop_is_running_ = false;
+  if (signaled_stop_) {
+    isolate_->CancelTerminateExecution();
+  }
+}
+
+bool SynchronousWorker::IsLoopAlive() {
+  if (loop_.data == nullptr || signaled_stop_) return false;
+  return uv_loop_alive(&loop_);
+}
+
+void SynchronousWorker::MemoryInfo(MemoryTracker* tracker) const {
+  // TODO(@jasnell): Implement
+}
+
+// ============================================================================
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -921,6 +1353,8 @@ void InitWorker(Local<Object> target,
     env->set_worker_heap_snapshot_taker_template(wst->InstanceTemplate());
   }
 
+  SynchronousWorker::Initialize(env, target);
+
   SetMethod(context, target, "getEnvMessagePort", GetEnvMessagePort);
 
   target
@@ -968,6 +1402,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+
+  SynchronousWorker::RegisterExternalReferences(registry);
 }
 
 }  // anonymous namespace

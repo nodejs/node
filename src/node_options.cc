@@ -409,6 +409,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvironment);
+  AddOption("--experimental-synchronousworker",
+            "experimental SynchronousWorker support",
+            &EnvironmentOptions::experimental_synchronousworker,
+            kAllowedInEnvironment,
+            false);
   AddOption("--experimental-wasi-unstable-preview1",
             "experimental WASI support",
             &EnvironmentOptions::experimental_wasi,
