@@ -7,6 +7,7 @@ const assert = require('assert');
 const {
   RegExpPrototypeSymbolReplace,
   RegExpPrototypeSymbolSearch,
+  RegExpPrototypeSymbolSplit,
   SafeStringPrototypeSearch,
   hardenRegExp,
 } = require('internal/test/binding').primordials;
@@ -104,10 +105,15 @@ hardenRegExp(hardenRegExp(/1/));
   const myRegex = /a/;
   assert.strictEqual(SafeStringPrototypeSearch('baar', myRegex), 1);
 }
-// RegExpPrototypeSymbolSplit creates a new RegExp instance, and therefore
-// does not benefit from `hardenRegExp` and remains unsafe.
-// The following test doesn't pass:
-// {
-//   const myRegex = hardenRegExp(/a/);
-//   assert.deepStrictEqual(RegExpPrototypeSymbolSplit(myRegex, 'baar'), ['b', '', 'r']);
-// }
+{
+  const myRegex = hardenRegExp(/a/);
+  assert.deepStrictEqual(RegExpPrototypeSymbolSplit(myRegex, 'baar', 0), []);
+}
+{
+  const myRegex = hardenRegExp(/a/);
+  assert.deepStrictEqual(RegExpPrototypeSymbolSplit(myRegex, 'baar', 1), ['b']);
+}
+{
+  const myRegex = hardenRegExp(/a/);
+  assert.deepStrictEqual(RegExpPrototypeSymbolSplit(myRegex, 'baar'), ['b', '', 'r']);
+}

@@ -1121,7 +1121,6 @@ parameters of the MIME. This property is read-only. See
 * Returns: {string}
 
 The `toString()` method on the `MIMEType` object returns the serialized MIME.
-The value returned is equivalent to that of [`mime.toJSON()`][].
 
 Because of the need for standard compliance, this method does not allow users
 to customize the serialization process of the MIME.
@@ -1130,8 +1129,7 @@ to customize the serialization process of the MIME.
 
 * Returns: {string}
 
-The `toJSON()` method on the `MIMEType` object returns the serialized MIME. The
-value returned is equivalent to that of [`mime.toString()`][].
+Alias for [`mime.toString()`][].
 
 This method is automatically called when an `MIMEType` object is serialized
 with [`JSON.stringify()`][].
@@ -1172,11 +1170,9 @@ Remove all name-value pairs whose name is `name`.
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over each of the name-value pairs in the parameters.
-Each item of the iterator is a JavaScript Array. The first item of the Array
-is the `name`, the second item of the Array is the `value`.
-
-Alias for [`mimeParams[@@iterator]()`][`mimeParams@@iterator()`].
+Returns an iterator over each of the name-value pairs in the parameters.
+Each item of the iterator is a JavaScript `Array`. The first item of the array
+is the `name`, the second item of the array is the `value`.
 
 #### `mimeParams.get(name)`
 
@@ -1198,7 +1194,7 @@ Returns `true` if there is at least one name-value pair whose name is `name`.
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over the names of each name-value pair.
+Returns an iterator over the names of each name-value pair.
 
 ```js
 const { params } = new MIMEType('text/plain;foo=0;bar=1');
@@ -1231,15 +1227,11 @@ console.log(params.toString());
 
 * Returns: {Iterator}
 
-Returns an ES6 Iterator over the values of each name-value pair.
+Returns an iterator over the values of each name-value pair.
 
-#### `mimeParams\[@@iterator\]()`
+#### `mimeParams[@@iterator]()`
 
 * Returns: {Iterator}
-
-Returns an ES6 Iterator over each of the name-value pairs in the query string.
-Each item of the iterator is a JavaScript Array. The first item of the Array
-is the `name`, the second item of the Array is the `value`.
 
 Alias for [`mimeParams.entries()`][].
 
@@ -3151,10 +3143,8 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
-[`mime.toJSON()`]: #mimetojson
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
-[`mimeParams@@iterator()`]: #mimeparamsiterator
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
