@@ -1,4 +1,5 @@
 #include "cleanup_queue.h"  // NOLINT(build/include_inline)
+#include <algorithm>
 #include <vector>
 #include "cleanup_queue-inl.h"
 
