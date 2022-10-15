@@ -3,13 +3,10 @@
 const common = require('../common');
 const stream = require('stream');
 const {
-  Readable,
-  Writable,
-  promises,
+  Readable, Writable, promises,
 } = stream;
 const {
-  finished,
-  pipeline,
+  finished, pipeline,
 } = require('stream/promises');
 const fs = require('fs');
 const assert = require('assert');
@@ -24,14 +21,11 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   let finished = false;
   const processed = [];
-  const expected = [
-    Buffer.from('a'),
-    Buffer.from('b'),
-    Buffer.from('c'),
-  ];
+  const expected = [Buffer.from('a'), Buffer.from('b'), Buffer.from('c')];
 
   const read = new Readable({
-    read() { }
+    read() {
+    }
   });
 
   const write = new Writable({
@@ -59,7 +53,8 @@ assert.strictEqual(finished, promisify(stream.finished));
 // pipeline error
 {
   const read = new Readable({
-    read() { }
+    read() {
+    }
   });
 
   const write = new Writable({
@@ -100,4 +95,51 @@ assert.strictEqual(finished, promisify(stream.finished));
   assert.rejects(finished(rs), {
     code: 'ENOENT'
   }).then(common.mustCall());
+}
+
+{
+  const streamObj = new Readable();
+  assert.throws(() => {
+    // Passing cleanup option not as boolean
+    // should throw error
+    finished(streamObj, { cleanup: 2 });
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+}
+
+// Below code should not throw any errors as the
+// streamObj is `Stream` and cleanup is boolean
+{
+  const streamObj = new Readable();
+  finished(streamObj, { cleanup: true });
+}
+
+
+// Cleanup function should not be called when cleanup is set to false
+// listenerCount should be 1 after calling finish
+{
+  const streamObj = new Writable();
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
+  finished(streamObj, { cleanup: false }).then(() => {
+    assert.strictEqual(streamObj.listenerCount('end'), 1);
+  });
+}
+
+// Cleanup function should be called when cleanup is set to true
+// listenerCount should be 0 after calling finish
+{
+  const streamObj = new Writable();
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
+  finished(streamObj, { cleanup: true }).then(() => {
+    assert.strictEqual(streamObj.listenerCount('end'), 0);
+  });
+}
+
+// Cleanup function should not be called when cleanup has not been set
+// listenerCount should be 1 after calling finish
+{
+  const streamObj = new Writable();
+  assert.strictEqual(streamObj.listenerCount('end'), 0);
+  finished(streamObj).then(() => {
+    assert.strictEqual(streamObj.listenerCount('end'), 1);
+  });
 }
