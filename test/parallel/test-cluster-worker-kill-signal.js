@@ -45,5 +45,5 @@ if (cluster.isWorker) {
   }, 1));
 
   // Check if the cluster was killed as well
-  cluster.on('exit', common.mustCall(() => {}, 1));
+  cluster.on('exit', common.mustCall(1));
 }

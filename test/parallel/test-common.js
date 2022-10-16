@@ -70,20 +70,20 @@ assert.throws(
     message: /^fhqwhgads$/
   });
 
-const fnOnce = common.mustCall(() => {});
+const fnOnce = common.mustCall();
 fnOnce();
-const fnTwice = common.mustCall(() => {}, 2);
+const fnTwice = common.mustCall(2);
 fnTwice();
 fnTwice();
-const fnAtLeast1Called1 = common.mustCallAtLeast(() => {}, 1);
+const fnAtLeast1Called1 = common.mustCallAtLeast(1);
 fnAtLeast1Called1();
-const fnAtLeast1Called2 = common.mustCallAtLeast(() => {}, 1);
+const fnAtLeast1Called2 = common.mustCallAtLeast(1);
 fnAtLeast1Called2();
 fnAtLeast1Called2();
-const fnAtLeast2Called2 = common.mustCallAtLeast(() => {}, 2);
+const fnAtLeast2Called2 = common.mustCallAtLeast(2);
 fnAtLeast2Called2();
 fnAtLeast2Called2();
-const fnAtLeast2Called3 = common.mustCallAtLeast(() => {}, 2);
+const fnAtLeast2Called3 = common.mustCallAtLeast(2);
 fnAtLeast2Called3();
 fnAtLeast2Called3();
 fnAtLeast2Called3();
