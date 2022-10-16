@@ -34,7 +34,8 @@ namespace compiler {
   V(Protector)                          \
   V(PrototypeProperty)                  \
   V(StableMap)                          \
-  V(Transition)
+  V(Transition)                         \
+  V(ObjectSlotValue)
 
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
@@ -868,6 +869,42 @@ class ProtectorDependency final : public CompilationDependency {
   const PropertyCellRef cell_;
 };
 
+// Check that an object slot will not change during compilation.
+class ObjectSlotValueDependency final : public CompilationDependency {
+ public:
+  explicit ObjectSlotValueDependency(const HeapObjectRef& object, int offset,
+                                     const ObjectRef& value)
+      : CompilationDependency(kObjectSlotValue),
+        object_(object.object()),
+        offset_(offset),
+        value_(value.object()) {}
+
+  bool IsValid() const override {
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*object_);
+    Object current_value =
+        offset_ == HeapObject::kMapOffset
+            ? object_->map()
+            : TaggedField<Object>::Relaxed_Load(cage_base, *object_, offset_);
+    return *value_ == current_value;
+  }
+  void Install(PendingDependencies* deps) const override {}
+
+ private:
+  size_t Hash() const override {
+    return base::hash_combine(object_.address(), offset_, value_.address());
+  }
+
+  bool Equals(const CompilationDependency* that) const override {
+    const ObjectSlotValueDependency* const zat = that->AsObjectSlotValue();
+    return object_->address() == zat->object_->address() &&
+           offset_ == zat->offset_ && value_.address() == zat->value_.address();
+  }
+
+  Handle<HeapObject> object_;
+  int offset_;
+  Handle<Object> value_;
+};
+
 class ElementsKindDependency final : public CompilationDependency {
  public:
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
@@ -1118,6 +1155,12 @@ void CompilationDependencies::DependOnElementsKind(
   if (AllocationSite::ShouldTrack(kind)) {
     RecordDependency(zone_->New<ElementsKindDependency>(site, kind));
   }
+}
+
+void CompilationDependencies::DependOnObjectSlotValue(
+    const HeapObjectRef& object, int offset, const ObjectRef& value) {
+  RecordDependency(
+      zone_->New<ObjectSlotValueDependency>(object, offset, value));
 }
 
 void CompilationDependencies::DependOnOwnConstantElement(

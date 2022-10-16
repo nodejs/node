@@ -2797,13 +2797,15 @@ bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
             Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
             isolate);
       }
-      promise = Handle<JSPromise>::cast(promise_or_capability);
-      if (!reaction->reject_handler().IsUndefined(isolate)) {
-        Handle<JSReceiver> reject_handler(
-            JSReceiver::cast(reaction->reject_handler()), isolate);
-        if (PromiseIsRejectHandler(isolate, reject_handler)) return true;
+      if (promise_or_capability->IsJSPromise()) {
+        promise = Handle<JSPromise>::cast(promise_or_capability);
+        if (!reaction->reject_handler().IsUndefined(isolate)) {
+          Handle<JSReceiver> reject_handler(
+              JSReceiver::cast(reaction->reject_handler()), isolate);
+          if (PromiseIsRejectHandler(isolate, reject_handler)) return true;
+        }
+        if (isolate->PromiseHasUserDefinedRejectHandler(promise)) return true;
       }
-      if (isolate->PromiseHasUserDefinedRejectHandler(promise)) return true;
     }
     current = handle(reaction->next(), isolate);
   }
