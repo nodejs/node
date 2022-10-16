@@ -1048,8 +1048,14 @@ properties for each of these components.
 
 Creates a new `MIMEType` object by parsing the `input`.
 
-```js
+```mjs
 import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/plain');
+```
+
+```cjs
+const { MIMEType } = require('node:util');
 
 const myMIME = new MIMEType('text/plain');
 ```
@@ -1058,7 +1064,15 @@ A `TypeError` will be thrown if the `input` is not a valid MIME. Note
 that an effort will be made to coerce the given values into strings. For
 instance:
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+const myMIME = new MIMEType({ toString: () => 'text/plain' });
+console.log(String(myMIME));
+// Prints: text/plain
+```
+
+```cjs
+const { MIMEType } = require('node:util');
 const myMIME = new MIMEType({ toString: () => 'text/plain' });
 console.log(String(myMIME));
 // Prints: text/plain
@@ -1070,7 +1084,20 @@ console.log(String(myMIME));
 
 Gets and sets the type portion of the MIME.
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.type);
+// Prints: text
+myMIME.type = 'application';
+console.log(myMIME.type);
+// Prints: application
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const myMIME = new MIMEType('text/javascript');
 console.log(myMIME.type);
 // Prints: text
@@ -1085,7 +1112,20 @@ console.log(myMIME.type);
 
 Gets and sets the subtype portion of the MIME.
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/ecmascript');
+console.log(myMIME.subtype);
+// Prints: ecmascript
+myMIME.subtype = 'javascript';
+console.log(myMIME.subtype);
+// Prints: javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const myMIME = new MIMEType('text/ecmascript');
 console.log(myMIME.subtype);
 // Prints: ecmascript
@@ -1101,7 +1141,20 @@ console.log(myMIME.subtype);
 Gets the essence of the MIME. This property is read only.
 Use `mime.type` or `mime.subtype` to alter the MIME.
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.essence);
+// Prints: text/javascript
+myMIME.type = 'application';
+console.log(myMIME.essence);
+// Prints: application/javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const myMIME = new MIMEType('text/javascript');
 console.log(myMIME.essence);
 // Prints: text/javascript
@@ -1136,7 +1189,20 @@ Alias for [`mime.toString()`][].
 This method is automatically called when an `MIMEType` object is serialized
 with [`JSON.stringify()`][].
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIMES = [
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
+];
+console.log(JSON.stringify(myMIMES));
+// Prints: ["image/png", "image/gif"]
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const myMIMES = [
   new MIMEType('image/png'),
   new MIMEType('image/gif'),
@@ -1158,7 +1224,15 @@ The `MIMEParams` API provides read and write access to the parameters of a
 
 Creates a new `MIMEParams` object by with empty parameters
 
-```js
+```mjs
+import { MIMEParams } from 'node:util';
+
+const myParams = new MIMEParams();
+```
+
+```cjs
+const { MIMEParams } = require('node:util');
+
 const myParams = new MIMEParams();
 ```
 
@@ -1198,7 +1272,21 @@ Returns `true` if there is at least one name-value pair whose name is `name`.
 
 Returns an iterator over the names of each name-value pair.
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+for (const name of params.keys()) {
+  console.log(name);
+}
+// Prints:
+//   foo
+//   bar
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const { params } = new MIMEType('text/plain;foo=0;bar=1');
 for (const name of params.keys()) {
   console.log(name);
@@ -1217,7 +1305,19 @@ Sets the value in the `MIMEParams` object associated with `name` to
 `value`. If there are any pre-existing name-value pairs whose names are `name`,
 set the first such pair's value to `value`.
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+params.set('foo', 'def');
+params.set('baz', 'xyz');
+console.log(params.toString());
+// Prints: foo=def&bar=1&baz=xyz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const { params } = new MIMEType('text/plain;foo=0;bar=1');
 params.set('foo', 'def');
 params.set('baz', 'xyz');
@@ -1237,7 +1337,21 @@ Returns an iterator over the values of each name-value pair.
 
 Alias for [`mimeParams.entries()`][].
 
-```js
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
+for (const [name, value] of params) {
+  console.log(name, value);
+}
+// Prints:
+//   foo bar
+//   xyz baz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
 const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
 for (const [name, value] of params) {
   console.log(name, value);
