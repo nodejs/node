@@ -1049,6 +1049,8 @@ properties for each of these components.
 Creates a new `MIMEType` object by parsing the `input`.
 
 ```js
+import { MIMEType } from 'node:util';
+
 const myMIME = new MIMEType('text/plain');
 ```
 
@@ -1136,11 +1138,11 @@ with [`JSON.stringify()`][].
 
 ```js
 const myMIMES = [
-  new MIMEType('img/png'),
-  new MIMEType('img/gif'),
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
 ];
 console.log(JSON.stringify(myMIMES));
-// Prints: ["img/png", "img/gif"]
+// Prints: ["image/png", "image/gif"]
 ```
 
 ### Class: `util.MIMEParams`
