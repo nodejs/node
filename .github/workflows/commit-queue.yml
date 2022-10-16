@@ -33,13 +33,14 @@ jobs:
       - name: Get Pull Requests
         id: get_mergeable_prs
         run: >
-          gh pr list \
+          numbers=$(gh pr list \
                   --repo ${{ github.repository }} \
                   --base ${{ github.ref_name }} \
                   --label 'commit-queue' \
                   --json 'number' \
-                  -t '::set-output name=numbers::{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100)
+          echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   commitQueue:
