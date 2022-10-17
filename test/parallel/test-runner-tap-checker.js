@@ -112,7 +112,7 @@ ok 5 - # SKIP no /sys directory
 }
 
 {
-// Valida empty test plan should not throw.
+// Valid empty test plan should not throw.
   TAPChecker(`
 TAP version 14
 1..0 # skip because English-to-French translator isn't installed
