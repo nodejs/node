@@ -885,15 +885,15 @@ const parseTests = {
     protocol: 'https:',
     slashes: true,
     auth: null,
-    host: '',
+    host: '*',
     port: null,
-    hostname: '',
+    hostname: '*',
     hash: null,
     search: null,
     query: null,
-    pathname: '/*',
-    path: '/*',
-    href: 'https:///*'
+    pathname: '/',
+    path: '/',
+    href: 'https://*/'
   },
 
   // The following two URLs are the same, but they differ for a capital A.
@@ -991,7 +991,22 @@ const parseTests = {
     pathname: '/',
     path: '/',
     href: 'http://example.com/'
-  }
+  },
+
+  'https://evil.com$.example.com': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: 'evil.com$.example.com',
+    port: null,
+    hostname: 'evil.com$.example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'https://evil.com$.example.com/'
+  },
 };
 
 for (const u in parseTests) {
