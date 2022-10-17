@@ -1007,7 +1007,7 @@ for (const u in parseTests) {
   assert.deepStrictEqual(
     actual,
     expected,
-    `parsing ${u} and expected ${inspect(expected)} but got ${inspect(actual)}`
+    `parsing ${inspect(u)}, expected ${inspect(expected)}, got ${inspect(actual)}`
   );
   assert.deepStrictEqual(
     spaced,

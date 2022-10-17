@@ -86,3 +86,18 @@ if (common.hasIntl) {
                   `parsing ${badURL}`);
   });
 }
+
+{
+  const badChars = [ ' ', '>', '<', '^', '|' ];
+  for (const badChar of badChars) {
+    const badURL = `http://fail${badChar}fail.com/`;
+    assert.throws(() => { url.parse(badURL); },
+                  (e) => e.code === 'ERR_INVALID_URL',
+                  `parsing "${badURL}"`);
+  }
+}
+
+assert.throws(() => { url.parse('http://google.com" onload="alert(42)/'); },
+              (e) => e.code === 'ERR_INVALID_URL',
+              'parsing \'http://google.com" onload="alert(42)/\''
+);

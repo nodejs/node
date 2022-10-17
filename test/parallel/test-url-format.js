@@ -67,12 +67,6 @@ const formatTests = {
     hash: '#frag=?bar/#frag',
     pathname: '/'
   },
-  'http://google.com" onload="alert(42)/': {
-    href: 'http://google.com/%22%20onload=%22alert(42)/',
-    protocol: 'http:',
-    host: 'google.com',
-    pathname: '/%22%20onload=%22alert(42)/'
-  },
   'http://a.com/a/b/c?s#h': {
     href: 'http://a.com/a/b/c?s#h',
     protocol: 'http',
