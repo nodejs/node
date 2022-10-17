@@ -1,4 +1,4 @@
-TAP version 14
+TAP version 13
 # Subtest: sync pass todo
 ok 1 - sync pass todo # TODO
   ---
