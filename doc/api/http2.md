@@ -3787,7 +3787,7 @@ Removes a header that has been queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
-### `response.req`
+#### `response.req`
 
 <!-- YAML
 added: v15.7.0
@@ -4005,30 +4005,34 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
-### `response.writeEarlyHints(links)`
+#### `response.writeEarlyHints(hints)`
 
 <!-- YAML
 added: v18.11.0
 -->
 
-* `links` {string|Array}
+* `hints` {Object}
 
 Sends a status `103 Early Hints` to the client with a Link header,
 indicating that the user agent can preload/preconnect the linked resources.
-The `links` can be a string or an array of strings containing the values
-of the `Link` header.
+The `hints` is an object containing the values of headers to be sent with
+early hints message.
 
 **Example**
 
 ```js
 const earlyHintsLink = '</styles.css>; rel=preload; as=style';
-response.writeEarlyHints(earlyHintsLink);
+response.writeEarlyHints({
+  'link': earlyHintsLink,
+});
 
 const earlyHintsLinks = [
   '</styles.css>; rel=preload; as=style',
   '</scripts.js>; rel=preload; as=script',
 ];
-response.writeEarlyHints(earlyHintsLinks);
+response.writeEarlyHints({
+  'link': earlyHintsLinks,
+});
 ```
 
 #### `response.writeHead(statusCode[, statusMessage][, headers])`
