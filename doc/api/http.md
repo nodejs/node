@@ -2162,7 +2162,9 @@ response.writeEarlyHints({
 });
 
 const earlyHintsCallback = () => console.log('early hints message sent');
-response.writeEarlyHints(earlyHintsLinks, earlyHintsCallback);
+response.writeEarlyHints({
+  'link': earlyHintsLinks,
+}, earlyHintsCallback);
 ```
 
 ### `response.writeHead(statusCode[, statusMessage][, headers])`
