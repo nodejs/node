@@ -1093,6 +1093,8 @@ console.log(myMIME.type);
 myMIME.type = 'application';
 console.log(myMIME.type);
 // Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript
 ```
 
 ```cjs
@@ -1104,6 +1106,8 @@ console.log(myMIME.type);
 myMIME.type = 'application';
 console.log(myMIME.type);
 // Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript/javascript
 ```
 
 #### `mime.subtype`
@@ -1121,6 +1125,8 @@ console.log(myMIME.subtype);
 myMIME.subtype = 'javascript';
 console.log(myMIME.subtype);
 // Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
 ```
 
 ```cjs
@@ -1132,6 +1138,8 @@ console.log(myMIME.subtype);
 myMIME.subtype = 'javascript';
 console.log(myMIME.subtype);
 // Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
 ```
 
 #### `mime.essence`
@@ -1144,23 +1152,27 @@ Use `mime.type` or `mime.subtype` to alter the MIME.
 ```mjs
 import { MIMEType } from 'node:util';
 
-const myMIME = new MIMEType('text/javascript');
+const myMIME = new MIMEType('text/javascript;key=value');
 console.log(myMIME.essence);
 // Prints: text/javascript
 myMIME.type = 'application';
 console.log(myMIME.essence);
 // Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
 ```
 
 ```cjs
 const { MIMEType } = require('node:util');
 
-const myMIME = new MIMEType('text/javascript');
+const myMIME = new MIMEType('text/javascript;key=value');
 console.log(myMIME.essence);
 // Prints: text/javascript
 myMIME.type = 'application';
 console.log(myMIME.essence);
 // Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
 ```
 
 #### `mime.params`
