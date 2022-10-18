@@ -12,7 +12,7 @@ const promise = new Promise((resolve) => {
   setTimeout(() => {
     initialAsyncId = async_hooks.executionAsyncId();
     async_hooks.createHook({
-      after: common.mustCall(() => {}, 2)
+      after: common.mustCall(2)
     }).enable();
     resolve();
   }, 0);

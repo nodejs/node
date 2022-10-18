@@ -37,6 +37,6 @@ watcher.addListener('change', () => {
 fs.rmdirSync(root);
 // Wait for the listener to hit
 setTimeout(
-  common.mustCall(() => {}),
+  common.mustCall(),
   common.platformTimeout(100)
 );

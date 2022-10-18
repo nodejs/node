@@ -142,7 +142,7 @@ const { Blob } = require('buffer');
       }
       assert.strictEqual(ret, 'abcdefghi');
     },
-    common.mustCall(() => {}),
+    common.mustCall(),
   );
 }
 

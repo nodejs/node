@@ -151,12 +151,12 @@ fs.stat(__filename, common.mustSucceed((s) => {
 });
 
 // Should not throw an error
-fs.stat(__filename, undefined, common.mustCall(() => {}));
+fs.stat(__filename, undefined, common.mustCall());
 
 fs.open(__filename, 'r', undefined, common.mustCall((err, fd) => {
   // Should not throw an error
-  fs.fstat(fd, undefined, common.mustCall(() => {}));
+  fs.fstat(fd, undefined, common.mustCall());
 }));
 
 // Should not throw an error
-fs.lstat(__filename, undefined, common.mustCall(() => {}));
+fs.lstat(__filename, undefined, common.mustCall());

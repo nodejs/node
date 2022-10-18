@@ -15,4 +15,4 @@ async function runTest() {
   );
 }
 
-runTest().then(common.mustCall(() => {}));
+runTest().then(common.mustCall());

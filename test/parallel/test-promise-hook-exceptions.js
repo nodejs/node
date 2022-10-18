@@ -26,6 +26,6 @@ testHook('onSettled');
 testHook('onBefore');
 testHook('onAfter');
 
-const stop = promiseHooks.onInit(common.mustCall(() => {}, 2));
+const stop = promiseHooks.onInit(common.mustCall(2));
 
 Promise.resolve().then(stop);

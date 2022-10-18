@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
-  req.on('response', common.mustCall(() => {}));
+  req.on('response', common.mustCall());
   req.once('data', common.mustCall(() => {
     net.Socket.prototype.destroy.call(client.socket);
     server.close();

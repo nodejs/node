@@ -21,7 +21,7 @@ const tls = require('tls');
   });
 });
 
-connectDoesNotThrow(common.mustCall(() => {}));
+connectDoesNotThrow(common.mustCall());
 
 function connectDoesNotThrow(input) {
   const opts = {
