@@ -1673,6 +1673,10 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
 
   // Now that we hold the migration lock, get the current map.
   MapRef boilerplate_map = boilerplate.map();
+  // Protect against concurrent changes to the boilerplate object by checking
+  // for an identical value at the end of the compilation.
+  dependencies()->DependOnObjectSlotValue(boilerplate, HeapObject::kMapOffset,
+                                          boilerplate_map);
   {
     base::Optional<MapRef> current_boilerplate_map =
         boilerplate.map_direct_read();
@@ -1838,10 +1842,18 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
       boilerplate.elements(kRelaxedLoad);
   if (!maybe_boilerplate_elements.has_value()) return {};
   FixedArrayBaseRef boilerplate_elements = maybe_boilerplate_elements.value();
+  // Protect against concurrent changes to the boilerplate object by checking
+  // for an identical value at the end of the compilation.
+  dependencies()->DependOnObjectSlotValue(
+      boilerplate, JSObject::kElementsOffset, boilerplate_elements);
 
   // Empty or copy-on-write elements just store a constant.
   int const elements_length = boilerplate_elements.length();
   MapRef elements_map = boilerplate_elements.map();
+  // Protect against concurrent changes to the boilerplate object by checking
+  // for an identical value at the end of the compilation.
+  dependencies()->DependOnObjectSlotValue(boilerplate_elements,
+                                          HeapObject::kMapOffset, elements_map);
   if (boilerplate_elements.length() == 0 || elements_map.IsFixedCowArrayMap()) {
     if (allocation == AllocationType::kOld &&
         !boilerplate.IsElementsTenured(boilerplate_elements)) {
