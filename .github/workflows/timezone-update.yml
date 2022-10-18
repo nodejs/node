@@ -31,6 +31,9 @@ jobs:
           persist-credentials: false
           repository: unicode-org/icu-data
 
+      - name: Record new version
+        run: echo "new_version=$(ls icu-data/tzdata/icunew | tail -1)" >> $GITHUB_ENV
+
       - run: ./tools/update-timezone.mjs
 
       - name: Open Pull Request
@@ -49,7 +52,7 @@ jobs:
             console.log(process.versions.tz)
             ```
           branch: actions/timezone-update
-          commit-message: 'deps: update timezone'
+          commit-message: 'deps: update timezone to ${{ env.new_version }}'
           labels: dependencies
-          title: 'deps: update timezone'
+          title: 'deps: update timezone to ${{ env.new_version }}'
           reviewers: \@nodejs/i18n-api
