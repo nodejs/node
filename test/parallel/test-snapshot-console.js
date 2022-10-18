@@ -1,7 +1,5 @@
 'use strict';
 
-// TODO(joyeecheung): remove the flag when it is turned on by default in V8.
-// Flags: --experimental-async-stack-tagging-api
 // This tests the console works in the deserialized snapshot.
 
 const common = require('../common');
@@ -20,7 +18,6 @@ const entry = fixtures.path('snapshot', 'console.js');
 
 {
   const child = spawnSync(process.execPath, [
-    '--experimental-async-stack-tagging-api',
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
@@ -41,7 +38,6 @@ const entry = fixtures.path('snapshot', 'console.js');
 
 {
   const child = spawnSync(process.execPath, [
-    '--experimental-async-stack-tagging-api',
     '--snapshot-blob',
     blobPath,
   ], {
