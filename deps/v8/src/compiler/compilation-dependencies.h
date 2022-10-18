@@ -93,6 +93,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
 
+  // Check that an object slot will not change during compilation.
+  void DependOnObjectSlotValue(const HeapObjectRef& object, int offset,
+                               const ObjectRef& value);
+
   void DependOnOwnConstantElement(const JSObjectRef& holder, uint32_t index,
                                   const ObjectRef& element);
 

@@ -65,21 +65,48 @@ class ConcurrentMarkingState final
 // Helper class for storing in-object slot addresses and values.
 class SlotSnapshot {
  public:
-  SlotSnapshot() : number_of_slots_(0) {}
+  SlotSnapshot()
+      : number_of_object_slots_(0), number_of_external_pointer_slots_(0) {}
   SlotSnapshot(const SlotSnapshot&) = delete;
   SlotSnapshot& operator=(const SlotSnapshot&) = delete;
-  int number_of_slots() const { return number_of_slots_; }
-  ObjectSlot slot(int i) const { return snapshot_[i].first; }
-  Object value(int i) const { return snapshot_[i].second; }
-  void clear() { number_of_slots_ = 0; }
+  int number_of_object_slots() const { return number_of_object_slots_; }
+  int number_of_external_pointer_slots() const {
+    return number_of_external_pointer_slots_;
+  }
+  ObjectSlot object_slot(int i) const { return object_snapshot_[i].first; }
+  Object object_value(int i) const { return object_snapshot_[i].second; }
+  ExternalPointerSlot external_pointer_slot(int i) const {
+    return external_pointer_snapshot_[i].first;
+  }
+  ExternalPointerTag external_pointer_tag(int i) const {
+    return external_pointer_snapshot_[i].second;
+  }
+  void clear() {
+    number_of_object_slots_ = 0;
+    number_of_external_pointer_slots_ = 0;
+  }
   void add(ObjectSlot slot, Object value) {
-    snapshot_[number_of_slots_++] = {slot, value};
+    DCHECK_LT(number_of_object_slots_, kMaxObjectSlots);
+    object_snapshot_[number_of_object_slots_++] = {slot, value};
+  }
+  void add(ExternalPointerSlot slot, ExternalPointerTag tag) {
+    DCHECK_LT(number_of_external_pointer_slots_, kMaxExternalPointerSlots);
+    external_pointer_snapshot_[number_of_external_pointer_slots_++] = {slot,
+                                                                       tag};
   }
 
  private:
-  static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kTaggedSize;
-  int number_of_slots_;
-  std::pair<ObjectSlot, Object> snapshot_[kMaxSnapshotSize];
+  // Maximum number of pointer slots of objects we use snapshotting for.
+  // ConsStrings can have 3 (Map + Left + Right) pointers.
+  static constexpr int kMaxObjectSlots = 3;
+  // Maximum number of external pointer slots of objects we use snapshotting
+  // for. ExternalStrings can have 2 (resource + cached data) external pointers.
+  static constexpr int kMaxExternalPointerSlots = 2;
+  int number_of_object_slots_;
+  int number_of_external_pointer_slots_;
+  std::pair<ObjectSlot, Object> object_snapshot_[kMaxObjectSlots];
+  std::pair<ExternalPointerSlot, ExternalPointerTag>
+      external_pointer_snapshot_[kMaxExternalPointerSlots];
 };
 
 class ConcurrentMarkingVisitorUtility {
@@ -111,9 +138,9 @@ class ConcurrentMarkingVisitorUtility {
   template <typename Visitor>
   static void VisitPointersInSnapshot(Visitor* visitor, HeapObject host,
                                       const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_slots(); i++) {
-      ObjectSlot slot = snapshot.slot(i);
-      Object object = snapshot.value(i);
+    for (int i = 0; i < snapshot.number_of_object_slots(); i++) {
+      ObjectSlot slot = snapshot.object_slot(i);
+      Object object = snapshot.object_value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
@@ -123,6 +150,16 @@ class ConcurrentMarkingVisitorUtility {
       if (!visitor->is_shared_heap() && target_page->InSharedHeap()) continue;
       visitor->MarkObject(host, heap_object);
       visitor->RecordSlot(host, slot, heap_object);
+    }
+  }
+
+  template <typename Visitor>
+  static void VisitExternalPointersInSnapshot(Visitor* visitor, HeapObject host,
+                                              const SlotSnapshot& snapshot) {
+    for (int i = 0; i < snapshot.number_of_external_pointer_slots(); i++) {
+      ExternalPointerSlot slot = snapshot.external_pointer_slot(i);
+      ExternalPointerTag tag = snapshot.external_pointer_tag(i);
+      visitor->VisitExternalPointer(host, slot, tag);
     }
   }
 
@@ -136,6 +173,8 @@ class ConcurrentMarkingVisitorUtility {
     if (!visitor->ShouldVisit(object)) return 0;
     ConcurrentMarkingVisitorUtility::VisitPointersInSnapshot(visitor, object,
                                                              snapshot);
+    ConcurrentMarkingVisitorUtility::VisitExternalPointersInSnapshot(
+        visitor, object, snapshot);
     return size;
   }
 
@@ -180,6 +219,11 @@ class ConcurrentMarkingVisitorUtility {
       // This should never happen, because we don't use snapshotting for objects
       // which contain weak references.
       UNREACHABLE();
+    }
+
+    void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                              ExternalPointerTag tag) override {
+      slot_snapshot_->add(slot, tag);
     }
 
     void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
@@ -448,6 +492,16 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object);
     return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
+  }
+
+  int VisitExternalOneByteString(Map map, ExternalOneByteString object) {
+    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
+                                                                   object);
+  }
+
+  int VisitExternalTwoByteString(Map map, ExternalTwoByteString object) {
+    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
+                                                                   object);
   }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
