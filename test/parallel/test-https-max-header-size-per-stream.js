@@ -98,7 +98,7 @@ const certFixture = {
 
   // clientError may be emitted multiple times when header is larger than
   // maxHeaderSize.
-  server.on('clientError', common.mustCallAtLeast(() => {}, 1));
+  server.on('clientError', common.mustCallAtLeast(1));
 
   server.listen(0, common.mustCall(() => {
     const client = tls.connect({
