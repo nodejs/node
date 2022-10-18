@@ -721,6 +721,24 @@ Revert all changes that were made to `src/node_version.h`:
 $ git checkout --ours HEAD -- src/node_version.h
 ```
 
+<details>
+<summary>Major version release</summary>
+
+On the main branch, instead of reverting changes made to `src/node_version.h`
+edit it instead and:
+
+* Increment `NODE_MAJOR_VERSION` by one
+* Reset `NODE_PATCH_VERSION` to `0`
+* Change `NODE_VERSION_IS_RELEASE` back to `0`
+
+Amend the current commit to apply the changes:
+
+```console
+$ git commit --amend
+```
+
+</details>
+
 Even if there are no conflicts, ensure that you revert all the changes that were
 made to `src/node_version.h`.
 
