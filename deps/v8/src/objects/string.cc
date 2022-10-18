@@ -223,6 +223,14 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   Map target_map = ComputeThinStringMap(isolate, initial_shape,
                                         internalized.IsOneByteRepresentation());
   if (initial_shape.IsExternal()) {
+    // Notify GC about the layout change before the transition to avoid
+    // concurrent marking from observing any in-between state (e.g.
+    // ExternalString map where the resource external pointer is overwritten
+    // with a tagged pointer).
+    // ExternalString -> ThinString transitions can only happen on the
+    // main-thread.
+    isolate->AsIsolate()->heap()->NotifyObjectLayoutChange(
+        *this, no_gc, InvalidateRecordedSlots::kYes, ThinString::kSize);
     MigrateExternalString(isolate->AsIsolate(), *this, internalized);
   }
 
@@ -231,7 +239,11 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   // ThinString.
   ThinString thin = ThinString::unchecked_cast(*this);
   thin.set_actual(internalized);
-  set_map_safe_transition(target_map, kReleaseStore);
+  if (initial_shape.IsExternal()) {
+    set_map(target_map, kReleaseStore);
+  } else {
+    set_map_safe_transition(target_map, kReleaseStore);
+  }
 
   DCHECK_GE(old_size, ThinString::kSize);
   int size_delta = old_size - ThinString::kSize;
