@@ -164,7 +164,7 @@ new RuleTester({
       },
       {
         code: 'RegExpPrototypeSymbolSearch(/some regex/, "some string")',
-        errors: [{ message: /looks up the "exec" property/ }],
+        errors: [{ message: /SafeStringPrototypeSearch/ }],
       },
       {
         code: 'StringPrototypeMatch("some string", /some regex/)',
@@ -204,7 +204,7 @@ new RuleTester({
       },
       {
         code: 'StringPrototypeSearch("some string", /some regex/)',
-        errors: [{ message: /looks up the Symbol\.search property/ }],
+        errors: [{ message: /SafeStringPrototypeSearch/ }],
       },
       {
         code: 'StringPrototypeSplit("some string", /some regex/)',
