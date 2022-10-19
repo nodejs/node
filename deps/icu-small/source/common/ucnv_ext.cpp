@@ -108,7 +108,7 @@ ucnv_extFindToU(const uint32_t *toUSection, int32_t length, uint8_t byte) {
 }
 
 /*
- * TRUE if not an SI/SO stateful converter,
+ * true if not an SI/SO stateful converter,
  * or if the match length fits with the current converter state
  */
 #define UCNV_EXT_TO_U_VERIFY_SISO_MATCH(sisoState, match) \
@@ -154,7 +154,7 @@ ucnv_extMatchToU(const int32_t *cx, int8_t sisoState,
                 srcLength=1;
             }
         }
-        flush=TRUE;
+        flush=true;
     }
 
     /* we must not remember fallback matches when not using fallbacks */
@@ -302,7 +302,7 @@ ucnv_extInitialMatchToU(UConverter *cnv, const int32_t *cx,
                          target, targetLimit,
                          offsets, srcIndex,
                          pErrorCode);
-        return TRUE;
+        return true;
     } else if(match<0) {
         /* save state for partial match */
         const char *s;
@@ -323,9 +323,9 @@ ucnv_extInitialMatchToU(UConverter *cnv, const int32_t *cx,
         }
         *src=s; /* same as *src=srcLimit; because we reached the end of input */
         cnv->preToULength=(int8_t)match;
-        return TRUE;
+        return true;
     } else /* match==0 no match */ {
-        return FALSE;
+        return false;
     }
 }
 
@@ -345,7 +345,7 @@ ucnv_extSimpleMatchToU(const int32_t *cx,
                            source, length,
                            NULL, 0,
                            &value,
-                           useFallback, TRUE);
+                           useFallback, true);
     if(match==length) {
         /* write result for simple, single-character conversion */
         if(UCNV_EXT_TO_U_IS_CODE_POINT(value)) {
@@ -358,7 +358,7 @@ ucnv_extSimpleMatchToU(const int32_t *cx,
      * - match>0 && value points to string: simple conversion cannot handle multiple code points
      * - match>0 && match!=length: not all input consumed, forbidden for this function
      * - match==0: no match found in the first place
-     * - match<0: partial match, not supported for simple conversion (and flush==TRUE)
+     * - match<0: partial match, not supported for simple conversion (and flush==true)
      */
     return 0xfffe;
 }
@@ -516,13 +516,13 @@ ucnv_extFindFromU(const UChar *fromUSection, int32_t length, UChar u) {
  * @param srcLength length of src, >=0
  * @param pMatchValue [out] output result value for the match from the data structure
  * @param useFallback "use fallback" flag, usually from cnv->useFallback
- * @param flush TRUE if the end of the input stream is reached
+ * @param flush true if the end of the input stream is reached
  * @return >1: matched, return value=total match length (number of input units matched)
  *          1: matched, no mapping but request for <subchar1>
  *             (only for the first code point)
  *          0: no match
  *         <0: partial match, return value=negative total match length
- *             (partial matches are never returned for flush==TRUE)
+ *             (partial matches are never returned for flush==true)
  *             (partial matches are never returned as being longer than UCNV_EXT_MAX_UCHARS)
  *         the matchLength is 2 if only firstCP matched, and >2 if firstCP and
  *         further code units matched
@@ -778,7 +778,7 @@ ucnv_extInitialMatchFromU(UConverter *cnv, const int32_t *cx,
                            target, targetLimit,
                            offsets, srcIndex,
                            pErrorCode);
-        return TRUE;
+        return true;
     } else if(match<0) {
         /* save state for partial match */
         const UChar *s;
@@ -795,13 +795,13 @@ ucnv_extInitialMatchFromU(UConverter *cnv, const int32_t *cx,
         }
         *src=s; /* same as *src=srcLimit; because we reached the end of input */
         cnv->preFromULength=(int8_t)match;
-        return TRUE;
+        return true;
     } else if(match==1) {
         /* matched, no mapping but request for <subchar1> */
-        cnv->useSubChar1=TRUE;
-        return FALSE;
+        cnv->useSubChar1=true;
+        return false;
     } else /* match==0 no match */ {
-        return FALSE;
+        return false;
     }
 }
 
@@ -822,7 +822,7 @@ ucnv_extSimpleMatchFromU(const int32_t *cx,
                              NULL, 0,
                              NULL, 0,
                              &value,
-                             useFallback, TRUE);
+                             useFallback, true);
     if(match>=2) {
         /* write result for simple, single-character conversion */
         int32_t length;
@@ -854,7 +854,7 @@ ucnv_extSimpleMatchFromU(const int32_t *cx,
      * - match>1 && resultLength>4: result too long for simple conversion
      * - match==1: no match found, <subchar1> preferred
      * - match==0: no match found in the first place
-     * - match<0: partial match, not supported for simple conversion (and flush==TRUE)
+     * - match<0: partial match, not supported for simple conversion (and flush==true)
      */
     return 0;
 }
@@ -934,7 +934,7 @@ ucnv_extContinueMatchFromU(UConverter *cnv,
 
         if(match==1) {
             /* matched, no mapping but request for <subchar1> */
-            cnv->useSubChar1=TRUE;
+            cnv->useSubChar1=true;
         }
 
         /* move the first code point to the error field */
@@ -961,12 +961,12 @@ extSetUseMapping(UConverterUnicodeSet which, int32_t minLength, uint32_t value) 
         // Do not add entries with reserved bits set.
         if(((value&(UCNV_EXT_FROM_U_ROUNDTRIP_FLAG|UCNV_EXT_FROM_U_RESERVED_MASK))!=
                 UCNV_EXT_FROM_U_ROUNDTRIP_FLAG)) {
-            return FALSE;
+            return false;
         }
     } else /* UCNV_ROUNDTRIP_AND_FALLBACK_SET */ {
         // Do not add entries with reserved bits set.
         if((value&UCNV_EXT_FROM_U_RESERVED_MASK)!=0) {
-            return FALSE;
+            return false;
         }
     }
     // Do not add <subchar1> entries or other (future?) pseudo-entries

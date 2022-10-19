@@ -920,7 +920,7 @@ private:
     char validLocale[ULOC_FULLNAME_CAPACITY];
     char actualLocale[ULOC_FULLNAME_CAPACITY];
 
-    DateFormatSymbols(); // default constructor not implemented
+    DateFormatSymbols() = delete; // default constructor not implemented
 
     /**
      * Called by the constructors to actually load data from the resources

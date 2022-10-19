@@ -15,7 +15,7 @@ U_NAMESPACE_BEGIN
 #define UPRV_ISDIGIT(c) (((c) >= '0') && ((c) <= '9'))
 #define UPRV_ISALPHANUM(c) (uprv_isASCIILetter(c) || UPRV_ISDIGIT(c) )
 
-const char* kAttributeKey = "attribute";
+constexpr const char* kAttributeKey = "attribute";
 
 static bool _isExtensionSubtags(char key, const char* s, int32_t len) {
     switch (uprv_tolower(key)) {
@@ -459,7 +459,7 @@ Locale LocaleBuilder::build(UErrorCode& errorCode)
 UBool LocaleBuilder::copyErrorTo(UErrorCode &outErrorCode) const {
     if (U_FAILURE(outErrorCode)) {
         // Do not overwrite the older error code
-        return TRUE;
+        return true;
     }
     outErrorCode = status_;
     return U_FAILURE(outErrorCode);

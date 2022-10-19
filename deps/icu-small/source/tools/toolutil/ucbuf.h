@@ -52,7 +52,7 @@ struct  ULine {
  *                  If *codepage is NULL on input the API will try to autodetect
  *                  popular Unicode encodings
  * @param showWarning Flag to print out warnings to STDOUT
- * @param buffered  If TRUE performs a buffered read of the input file. If FALSE reads
+ * @param buffered  If true performs a buffered read of the input file. If false reads
  *                  the whole file into memory and converts it.
  * @param err is a pointer to a valid <code>UErrorCode</code> value. If this value
  *        indicates a failure on entry, the function will immediately return.

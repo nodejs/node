@@ -126,24 +126,24 @@ LocaleKey::fallback() {
         int x = _currentID.lastIndexOf(UNDERSCORE_CHAR);
         if (x != -1) {
             _currentID.remove(x); // truncate current or fallback, whichever we're pointing to
-            return TRUE;
+            return true;
         }
 
         if (!_fallbackID.isBogus()) {
             _currentID = _fallbackID;
             _fallbackID.setToBogus();
-            return TRUE;
+            return true;
         }
 
         if (_currentID.length() > 0) {
             _currentID.remove(0); // completely truncate
-            return TRUE;
+            return true;
         }
 
         _currentID.setToBogus();
     }
 
-    return FALSE;
+    return false;
 }
 
 UBool

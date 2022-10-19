@@ -49,7 +49,7 @@ U_CFUNC UDataMemory *UDataMemory_createNewInstance(UErrorCode *pErr) {
         *pErr = U_MEMORY_ALLOCATION_ERROR; }
     else {
         UDataMemory_init(This);
-        This->heapAllocated = TRUE;
+        This->heapAllocated = true;
     }
     return This;
 }

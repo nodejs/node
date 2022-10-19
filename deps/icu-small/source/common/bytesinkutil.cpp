@@ -20,7 +20,7 @@ U_NAMESPACE_BEGIN
 UBool
 ByteSinkUtil::appendChange(int32_t length, const char16_t *s16, int32_t s16Length,
                            ByteSink &sink, Edits *edits, UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode)) { return FALSE; }
+    if (U_FAILURE(errorCode)) { return false; }
     char scratch[200];
     int32_t s8Length = 0;
     for (int32_t i = 0; i < s16Length;) {
@@ -44,7 +44,7 @@ ByteSinkUtil::appendChange(int32_t length, const char16_t *s16, int32_t s16Lengt
         }
         if (j > (INT32_MAX - s8Length)) {
             errorCode = U_INDEX_OUTOFBOUNDS_ERROR;
-            return FALSE;
+            return false;
         }
         sink.Append(buffer, j);
         s8Length += j;
@@ -52,17 +52,17 @@ ByteSinkUtil::appendChange(int32_t length, const char16_t *s16, int32_t s16Lengt
     if (edits != nullptr) {
         edits->addReplace(length, s8Length);
     }
-    return TRUE;
+    return true;
 }
 
 UBool
 ByteSinkUtil::appendChange(const uint8_t *s, const uint8_t *limit,
                            const char16_t *s16, int32_t s16Length,
                            ByteSink &sink, Edits *edits, UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode)) { return FALSE; }
+    if (U_FAILURE(errorCode)) { return false; }
     if ((limit - s) > INT32_MAX) {
         errorCode = U_INDEX_OUTOFBOUNDS_ERROR;
-        return FALSE;
+        return false;
     }
     return appendChange((int32_t)(limit - s), s16, s16Length, sink, edits, errorCode);
 }
@@ -109,16 +109,16 @@ UBool
 ByteSinkUtil::appendUnchanged(const uint8_t *s, const uint8_t *limit,
                               ByteSink &sink, uint32_t options, Edits *edits,
                               UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode)) { return FALSE; }
+    if (U_FAILURE(errorCode)) { return false; }
     if ((limit - s) > INT32_MAX) {
         errorCode = U_INDEX_OUTOFBOUNDS_ERROR;
-        return FALSE;
+        return false;
     }
     int32_t length = (int32_t)(limit - s);
     if (length > 0) {
         appendNonEmptyUnchanged(s, length, sink, options, edits);
     }
-    return TRUE;
+    return true;
 }
 
 CharStringByteSink::CharStringByteSink(CharString* dest) : dest_(*dest) {

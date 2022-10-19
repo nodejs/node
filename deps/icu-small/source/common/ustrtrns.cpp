@@ -119,7 +119,7 @@ u_strFromUTF32WithSub(UChar *dest,
             } else {
                 ++numSubstitutions;
             }
-        } while(TRUE);
+        } while(true);
     }
 
     reqLength += (int32_t)(pDest - dest);

@@ -153,7 +153,7 @@ UsagePrefsHandler::UsagePrefsHandler(const Locale &locale,
                                      const StringPiece usage,
                                      const MicroPropsGenerator *parent,
                                      UErrorCode &status)
-    : fUnitsRouter(inputUnit, StringPiece(locale.getCountry()), usage, status),
+    : fUnitsRouter(inputUnit, locale, usage, status),
       fParent(parent) {
 }
 

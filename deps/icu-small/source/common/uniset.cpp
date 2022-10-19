@@ -82,7 +82,7 @@ static int32_t _dbgCount = 0;
 
 static inline void _dbgct(UnicodeSet* set) {
     UnicodeString str;
-    set->toPattern(str, TRUE);
+    set->toPattern(str, true);
     char buf[40];
     str.extract(0, 39, buf, "");
     printf("DEBUG UnicodeSet: ct 0x%08X; %d %s\n", set, ++_dbgCount, buf);
@@ -90,7 +90,7 @@ static inline void _dbgct(UnicodeSet* set) {
 
 static inline void _dbgdt(UnicodeSet* set) {
     UnicodeString str;
-    set->toPattern(str, TRUE);
+    set->toPattern(str, true);
     char buf[40];
     str.extract(0, 39, buf, "");
     printf("DEBUG UnicodeSet: dt 0x%08X; %d %s\n", set, --_dbgCount, buf);
@@ -204,7 +204,7 @@ UnicodeSet::~UnicodeSet() {
  * Assigns this object to be a copy of another.
  */
 UnicodeSet& UnicodeSet::operator=(const UnicodeSet& o) {
-    return copyFrom(o, FALSE);
+    return copyFrom(o, false);
 }
 
 UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) {
@@ -265,7 +265,7 @@ UnicodeSet* UnicodeSet::clone() const {
 }
 
 UnicodeSet *UnicodeSet::cloneAsThawed() const {
-    return new UnicodeSet(*this, TRUE);
+    return new UnicodeSet(*this, true);
 }
 
 /**
@@ -352,7 +352,7 @@ UBool UnicodeSet::contains(UChar32 c) const {
         return stringSpan->contains(c);
     }
     if (c >= UNICODESET_HIGH) { // Don't need to check LOW bound
-        return FALSE;
+        return false;
     }
     int32_t i = findCodePoint(c);
     return (UBool)(i & 1); // return true if odd
@@ -447,7 +447,7 @@ UBool UnicodeSet::containsAll(const UnicodeSet& c) const {
     int32_t n = c.getRangeCount();
     for (int i=0; i<n; ++i) {
         if (!contains(c.getRangeStart(i), c.getRangeEnd(i))) {
-            return FALSE;
+            return false;
         }
     }
     return !c.hasStrings() || (strings != nullptr && strings->containsAll(*c.strings));
@@ -493,7 +493,7 @@ UBool UnicodeSet::containsNone(const UnicodeSet& c) const {
     int32_t n = c.getRangeCount();
     for (int32_t i=0; i<n; ++i) {
         if (!containsNone(c.getRangeStart(i), c.getRangeEnd(i))) {
-            return FALSE;
+            return false;
         }
     }
     return strings == nullptr || !c.hasStrings() || strings->containsNone(*c.strings);
@@ -531,10 +531,10 @@ UBool UnicodeSet::matchesIndexValue(uint8_t v) const {
         UChar32 high = getRangeEnd(i);
         if ((low & ~0xFF) == (high & ~0xFF)) {
             if ((low & 0xFF) <= v && v <= (high & 0xFF)) {
-                return TRUE;
+                return true;
             }
         } else if ((low & 0xFF) <= v || v <= (high & 0xFF)) {
-            return TRUE;
+            return true;
         }
     }
     if (hasStrings()) {
@@ -545,11 +545,11 @@ UBool UnicodeSet::matchesIndexValue(uint8_t v) const {
             }
             UChar32 c = s.char32At(0);
             if ((c & 0xFF) == v) {
-                return TRUE;
+                return true;
             }
         }
     }
-    return FALSE;
+    return false;
 }
 
 /**
@@ -1603,24 +1603,24 @@ int32_t UnicodeSet::serialize(uint16_t *dest, int32_t destCapacity, UErrorCode& 
 //----------------------------------------------------------------
 
 /**
- * Allocate our strings vector and return TRUE if successful.
+ * Allocate our strings vector and return true if successful.
  */
 UBool UnicodeSet::allocateStrings(UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     strings = new UVector(uprv_deleteUObject,
                           uhash_compareUnicodeString, 1, status);
     if (strings == NULL) { // Check for memory allocation error.
         status = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
     if (U_FAILURE(status)) {
         delete strings;
         strings = NULL;
-        return FALSE;
+        return false;
     } 
-    return TRUE;
+    return true;
 }
 
 int32_t UnicodeSet::nextCapacity(int32_t minCapacity) {
