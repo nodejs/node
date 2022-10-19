@@ -42,7 +42,7 @@ jobs:
         run: tools/find-inactive-tsc.mjs >> $GITHUB_ENV
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f
+        uses: gr2m/create-or-update-pull-request-action@cb63b1c12a6c32d49cc613469950581413b29245
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:
