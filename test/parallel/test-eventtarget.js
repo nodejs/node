@@ -615,6 +615,15 @@ let asyncTest = Promise.resolve();
   deepStrictEqual(output, [1, 2, 3, 4]);
 }
 {
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo', 'bar');
+  const output = [];
+  target.addEventListener('bar', () => output.push(1));
+  target.onfoo = () => output.push(2);
+  target.dispatchEvent(new Event('bar'));
+  deepStrictEqual(output, [1, 2]);
+}
+{
   const et = new EventTarget();
   const listener = common.mustNotCall();
   et.addEventListener('foo', common.mustCall((e) => {
