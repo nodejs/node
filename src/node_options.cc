@@ -171,7 +171,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
       errors->push_back("either --watch or --interactive "
                         "can be used, not both");
     } else if (argv->size() < 1 || (*argv)[1].empty()) {
-      errors->push_back("--watch requires specifing a file");
+      errors->push_back("--watch requires specifying a file");
     }
 
 #ifndef ALLOW_ATTACHING_DEBUGGER_IN_WATCH_MODE
