@@ -2698,6 +2698,17 @@ This error represents a failed test. Additional information about the failure
 is available via the `cause` property. The `failureType` property specifies
 what the test was doing when the failure occurred.
 
+<a id="ERR_TLS_ALPN_FALLBACK_WITHOUT_PROTOCOLS"></a>
+
+### `ERR_TLS_ALPN_FALLBACK_WITHOUT_PROTOCOLS`
+
+This error is thrown when creating a `TLSServer` if the TLS options sets
+`allowALPNFallback` to `true` without providing an `ALPNProtocols` argument.
+
+When `ALPNProtocols` is not provided, ALPN is skipped entirely, so the fallback
+would not be functional. To enable ALPN for all protocols, using the fallback
+in all cases, set `ALPNProtocols` to an empty array instead.
+
 <a id="ERR_TLS_CERT_ALTNAME_FORMAT"></a>
 
 ### `ERR_TLS_CERT_ALTNAME_FORMAT`

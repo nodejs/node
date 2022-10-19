@@ -39,6 +39,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -237,6 +238,13 @@ int SelectALPNCallback(
   if (UNLIKELY(alpn_buffer.IsEmpty()) || !alpn_buffer->IsArrayBufferView())
     return SSL_TLSEXT_ERR_NOACK;
 
+  bool alpn_fallback_allowed =
+      w->object()
+          ->Get(env->context(), env->allow_alpn_fallback_string())
+          .ToLocalChecked()
+          .As<Boolean>()
+          ->Value();
+
   ArrayBufferViewContents<unsigned char> alpn_protos(alpn_buffer);
   int status = SSL_select_next_proto(
       const_cast<unsigned char**>(out),
@@ -249,10 +257,17 @@ int SelectALPNCallback(
   // Previous versions of Node.js returned SSL_TLSEXT_ERR_NOACK if no protocol
   // match was found. This would neither cause a fatal alert nor would it result
   // in a useful ALPN response as part of the Server Hello message.
-  // We now return SSL_TLSEXT_ERR_ALERT_FATAL in that case as per Section 3.2
-  // of RFC 7301, which causes a fatal no_application_protocol alert.
-  return status == OPENSSL_NPN_NEGOTIATED ? SSL_TLSEXT_ERR_OK
-                                          : SSL_TLSEXT_ERR_ALERT_FATAL;
+
+  // By default, we now return SSL_TLSEXT_ERR_ALERT_FATAL in that case as per
+  // Section 3.2 of RFC 7301, which causes a fatal no_application_protocol
+  // alert, unless the allowALPNFallback option has been set, which enables
+  // OpenSSL's default protocol selection behavior, falling back to the client's
+  // first preference.
+  if (status == OPENSSL_NPN_NEGOTIATED || alpn_fallback_allowed) {
+    return SSL_TLSEXT_ERR_OK;
+  } else {
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
 }
 
 int TLSExtStatusCallback(SSL* s, void* arg) {

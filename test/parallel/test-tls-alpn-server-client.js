@@ -206,6 +206,66 @@ function TestFatalAlert() {
       }
     }));
   }));
+
+  TestALPNFallback();
+}
+
+function TestALPNFallback() {
+  const serverOptions = {
+    ALPNProtocols: ['b'],
+    allowALPNFallback: true
+  };
+
+  const clientOptions = [{
+    ALPNProtocols: ['a', 'b']
+  }, {
+    ALPNProtocols: ['a']
+  }];
+
+  runTest(clientOptions, serverOptions, function(results) {
+    // 'b' is selected by ALPN if available
+    checkResults(results[0],
+                 { server: { ALPN: 'b' },
+                   client: { ALPN: 'b' } });
+
+    // 'a' is selected by ALPN if not, due to fallback
+    checkResults(results[1],
+                 { server: { ALPN: 'a' },
+                   client: { ALPN: 'a' } });
+  });
+
+  TestEmptyALPNFallback();
+}
+
+function TestEmptyALPNFallback() {
+  const serverOptions = {
+    ALPNProtocols: [],
+    allowALPNFallback: true
+  };
+
+  const clientOptions = [{
+    ALPNProtocols: ['a', 'b']
+  }];
+
+  runTest(clientOptions, serverOptions, function(results) {
+    // 'a' is selected by ALPN, due to fallback with empty array
+    checkResults(results[0],
+                 { server: { ALPN: 'a' },
+                   client: { ALPN: 'a' } });
+  });
+
+  TestFallbackWithoutProtocols();
+}
+
+function TestFallbackWithoutProtocols() {
+  assert.throws(() => {
+    tls.createServer({
+      allowALPNFallback: true
+    });
+  }, {
+    code: 'ERR_TLS_ALPN_FALLBACK_WITHOUT_PROTOCOLS',
+    message: 'The allowALPNFallback TLS option cannot be set without ALPNProtocols'
+  });
 }
 
 Test1();

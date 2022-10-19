@@ -2012,6 +2012,9 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45075
+    description: The `options` parameter can now include `allowALPNFallback`.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: If `ALPNProtocols` is set, incoming connections that send an
@@ -2042,6 +2045,11 @@ changes:
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
+  * `allowALPNFallback`: {boolean} If `true`, if the `ALPNProtocols` option was
+    set and the client uses ALPN, but requests only protocols that are not do
+    not match the server's `ALPNProtocols`, the server will fall back to sending
+    an ALPN response accepting the first protocol the client suggested, instead
+    of closing the connection immediately with a fatal alert.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
   * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
