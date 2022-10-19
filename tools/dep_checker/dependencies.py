@@ -46,6 +46,11 @@ dependencies: dict[str, Dependency] = {
     "libuv": Dependency(
         version=vp.get_libuv_version(), cpe=CPE(vendor="libuv_project", product="libuv")
     ),
+    "postject": Dependency(
+        version=vp.get_postject_version(),
+        cpe=CPE(vendor="nodejs", product="postject"),
+        npm_name="postject",
+    ),
     "undici": Dependency(
         version=vp.get_undici_version(),
         cpe=CPE(vendor="nodejs", product="undici"),

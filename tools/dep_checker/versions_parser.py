@@ -108,6 +108,10 @@ def get_openssl_version() -> str:
         return f"{versions['major']}.{versions['minor']}.{versions['patch']}"
 
 
+def get_postject_version() -> str:
+    return get_package_json_version(Path("../../deps/postject/src/package.json"))
+
+
 def get_undici_version() -> str:
     return get_package_json_version(Path("../../deps/undici/src/package.json"))
 
