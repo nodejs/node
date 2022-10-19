@@ -18,9 +18,32 @@ Promise.all = common.mustNotCall('%Promise%.all');
 Promise.allSettled = common.mustNotCall('%Promise%.allSettled');
 Promise.any = common.mustNotCall('%Promise%.any');
 Promise.race = common.mustNotCall('%Promise%.race');
-Promise.prototype.catch = common.mustNotCall('%Promise.prototype%.catch');
-Promise.prototype.finally = common.mustNotCall('%Promise.prototype%.finally');
-Promise.prototype.then = common.mustNotCall('%Promise.prototype%.then');
+
+Object.defineProperties(Promise.prototype, {
+  catch: {
+    set: common.mustNotCall('set %Promise.prototype%.catch'),
+    get: common.mustNotCall('get %Promise.prototype%.catch'),
+  },
+  finally: {
+    set: common.mustNotCall('set %Promise.prototype%.finally'),
+    get: common.mustNotCall('get %Promise.prototype%.finally'),
+  },
+  then: {
+    set: common.mustNotCall('set %Promise.prototype%.then'),
+    get: common.mustNotCall('get %Promise.prototype%.then'),
+  },
+});
+Object.defineProperties(Array.prototype, {
+  // %Promise.all% and %Promise.allSettled% are depending on the value of
+  // `%Array.prototype%.then`.
+  then: {},
+});
+Object.defineProperties(Object.prototype, {
+  then: {
+    set: common.mustNotCall('set %Object.prototype%.then'),
+    get: common.mustNotCall('get %Object.prototype%.then'),
+  },
+});
 
 assertIsPromise(PromisePrototypeThen(test(), common.mustCall()));
 assertIsPromise(SafePromisePrototypeFinally(test(), common.mustCall()));
