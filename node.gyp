@@ -232,6 +232,9 @@
                 '-Wl,--no-whole-archive',
               ],
             }],
+            [ 'OS=="win"', {
+              'sources': [ 'src/res/node.rc' ],
+            }],
           ],
         }],
         [ 'node_shared=="true"', {
