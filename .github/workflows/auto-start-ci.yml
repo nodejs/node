@@ -28,12 +28,13 @@ jobs:
       - name: Get Pull Requests
         id: get_prs_for_ci
         run: >
-          gh pr list \
+          numbers=$(gh pr list \
                   --repo ${{ github.repository }} \
                   --label 'request-ci' \
                   --json 'number' \
-                  -t '::set-output name=numbers::{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100)
+          echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   start-ci:
