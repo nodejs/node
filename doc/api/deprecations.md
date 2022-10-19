@@ -3178,6 +3178,9 @@ thing instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43716
+    description: End-of-Life.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44711
     description: Runtime deprecation.
@@ -3195,7 +3198,7 @@ changes:
                  coercion.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Values other than `undefined`, `null`, integer numbers, and integer strings
 (e.g., `'1'`) are deprecated as value for the `code` parameter in
