@@ -1024,6 +1024,355 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+## Class: `util.MIMEType`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of [the MIMEType class](https://bmeck.github.io/node-proposal-mime-api/).
+
+In accordance with browser conventions, all properties of `MIMEType` objects
+are implemented as getters and setters on the class prototype, rather than as
+data properties on the object itself.
+
+A MIME string is a structured string containing multiple meaningful
+components. When parsed, a `MIMEType` object is returned containing
+properties for each of these components.
+
+### Constructor: `new MIMEType(input)`
+
+* `input` {string} The input MIME to parse
+
+Creates a new `MIMEType` object by parsing the `input`.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/plain');
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/plain');
+```
+
+A `TypeError` will be thrown if the `input` is not a valid MIME. Note
+that an effort will be made to coerce the given values into strings. For
+instance:
+
+```mjs
+import { MIMEType } from 'node:util';
+const myMIME = new MIMEType({ toString: () => 'text/plain' });
+console.log(String(myMIME));
+// Prints: text/plain
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+const myMIME = new MIMEType({ toString: () => 'text/plain' });
+console.log(String(myMIME));
+// Prints: text/plain
+```
+
+#### `mime.type`
+
+* {string}
+
+Gets and sets the type portion of the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.type);
+// Prints: text
+myMIME.type = 'application';
+console.log(myMIME.type);
+// Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/javascript');
+console.log(myMIME.type);
+// Prints: text
+myMIME.type = 'application';
+console.log(myMIME.type);
+// Prints: application
+console.log(String(myMIME));
+// Prints: application/javascript/javascript
+```
+
+#### `mime.subtype`
+
+* {string}
+
+Gets and sets the subtype portion of the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/ecmascript');
+console.log(myMIME.subtype);
+// Prints: ecmascript
+myMIME.subtype = 'javascript';
+console.log(myMIME.subtype);
+// Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/ecmascript');
+console.log(myMIME.subtype);
+// Prints: ecmascript
+myMIME.subtype = 'javascript';
+console.log(myMIME.subtype);
+// Prints: javascript
+console.log(String(myMIME));
+// Prints: text/javascript
+```
+
+#### `mime.essence`
+
+* {string}
+
+Gets the essence of the MIME. This property is read only.
+Use `mime.type` or `mime.subtype` to alter the MIME.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIME = new MIMEType('text/javascript;key=value');
+console.log(myMIME.essence);
+// Prints: text/javascript
+myMIME.type = 'application';
+console.log(myMIME.essence);
+// Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIME = new MIMEType('text/javascript;key=value');
+console.log(myMIME.essence);
+// Prints: text/javascript
+myMIME.type = 'application';
+console.log(myMIME.essence);
+// Prints: application/javascript
+console.log(String(myMIME));
+// Prints: application/javascript;key=value
+```
+
+#### `mime.params`
+
+* {MIMEParams}
+
+Gets the [`MIMEParams`][] object representing the
+parameters of the MIME. This property is read-only. See
+[`MIMEParams`][] documentation for details.
+
+#### `mime.toString()`
+
+* Returns: {string}
+
+The `toString()` method on the `MIMEType` object returns the serialized MIME.
+
+Because of the need for standard compliance, this method does not allow users
+to customize the serialization process of the MIME.
+
+#### `mime.toJSON()`
+
+* Returns: {string}
+
+Alias for [`mime.toString()`][].
+
+This method is automatically called when an `MIMEType` object is serialized
+with [`JSON.stringify()`][].
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const myMIMES = [
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
+];
+console.log(JSON.stringify(myMIMES));
+// Prints: ["image/png", "image/gif"]
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const myMIMES = [
+  new MIMEType('image/png'),
+  new MIMEType('image/gif'),
+];
+console.log(JSON.stringify(myMIMES));
+// Prints: ["image/png", "image/gif"]
+```
+
+### Class: `util.MIMEParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `MIMEParams` API provides read and write access to the parameters of a
+`MIMEType`.
+
+#### Constructor: `new MIMEParams()`
+
+Creates a new `MIMEParams` object by with empty parameters
+
+```mjs
+import { MIMEParams } from 'node:util';
+
+const myParams = new MIMEParams();
+```
+
+```cjs
+const { MIMEParams } = require('node:util');
+
+const myParams = new MIMEParams();
+```
+
+#### `mimeParams.delete(name)`
+
+* `name` {string}
+
+Remove all name-value pairs whose name is `name`.
+
+#### `mimeParams.entries()`
+
+* Returns: {Iterator}
+
+Returns an iterator over each of the name-value pairs in the parameters.
+Each item of the iterator is a JavaScript `Array`. The first item of the array
+is the `name`, the second item of the array is the `value`.
+
+#### `mimeParams.get(name)`
+
+* `name` {string}
+* Returns: {string} or `null` if there is no name-value pair with the given
+  `name`.
+
+Returns the value of the first name-value pair whose name is `name`. If there
+are no such pairs, `null` is returned.
+
+#### `mimeParams.has(name)`
+
+* `name` {string}
+* Returns: {boolean}
+
+Returns `true` if there is at least one name-value pair whose name is `name`.
+
+#### `mimeParams.keys()`
+
+* Returns: {Iterator}
+
+Returns an iterator over the names of each name-value pair.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+for (const name of params.keys()) {
+  console.log(name);
+}
+// Prints:
+//   foo
+//   bar
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+for (const name of params.keys()) {
+  console.log(name);
+}
+// Prints:
+//   foo
+//   bar
+```
+
+#### `mimeParams.set(name, value)`
+
+* `name` {string}
+* `value` {string}
+
+Sets the value in the `MIMEParams` object associated with `name` to
+`value`. If there are any pre-existing name-value pairs whose names are `name`,
+set the first such pair's value to `value`.
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+params.set('foo', 'def');
+params.set('baz', 'xyz');
+console.log(params.toString());
+// Prints: foo=def&bar=1&baz=xyz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=0;bar=1');
+params.set('foo', 'def');
+params.set('baz', 'xyz');
+console.log(params.toString());
+// Prints: foo=def&bar=1&baz=xyz
+```
+
+#### `mimeParams.values()`
+
+* Returns: {Iterator}
+
+Returns an iterator over the values of each name-value pair.
+
+#### `mimeParams[@@iterator]()`
+
+* Returns: {Iterator}
+
+Alias for [`mimeParams.entries()`][].
+
+```mjs
+import { MIMEType } from 'node:util';
+
+const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
+for (const [name, value] of params) {
+  console.log(name, value);
+}
+// Prints:
+//   foo bar
+//   xyz baz
+```
+
+```cjs
+const { MIMEType } = require('node:util');
+
+const { params } = new MIMEType('text/plain;foo=bar;xyz=baz');
+for (const [name, value] of params) {
+  console.log(name, value);
+}
+// Prints:
+//   foo bar
+//   xyz baz
+```
+
 ## `util.parseArgs([config])`
 
 <!-- YAML
@@ -2903,6 +3252,8 @@ util.log('Timestamped message.');
 [`Int16Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array
 [`Int32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`MIMEparams`]: #class-utilmimeparams
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
@@ -2920,6 +3271,8 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assertdeepstrictequalactual-expected-message
 [`console.error()`]: console.md#consoleerrordata-args
+[`mime.toString()`]: #mimetostring
+[`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env

@@ -1967,6 +1967,12 @@ An invalid HTTP token was supplied.
 
 An IP address is not valid.
 
+<a id="ERR_INVALID_MIME_SYNTAX"></a>
+
+### `ERR_INVALID_MIME_SYNTAX`
+
+The syntax of a MIME is not valid.
+
 <a id="ERR_INVALID_MODULE"></a>
 
 ### `ERR_INVALID_MODULE`

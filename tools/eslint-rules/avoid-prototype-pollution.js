@@ -135,17 +135,22 @@ module.exports = {
           }],
         });
       },
-      [CallExpression(/^RegExpPrototypeSymbol(Match|MatchAll|Search)$/)](node) {
+      [CallExpression(/^RegExpPrototypeSymbol(Match|MatchAll)$/)](node) {
         context.report({
           node,
           message: node.callee.name + ' looks up the "exec" property of `this` value',
+        });
+      },
+      [CallExpression(/^(RegExpPrototypeSymbol|StringPrototype)Search$/)](node) {
+        context.report({
+          node,
+          message: node.callee.name + ' is unsafe, use SafeStringPrototypeSearch instead',
         });
       },
       ...createUnsafeStringMethodReport(context, '%String.prototype.match%', 'Symbol.match'),
       ...createUnsafeStringMethodReport(context, '%String.prototype.matchAll%', 'Symbol.matchAll'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.replace%', 'Symbol.replace'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.replaceAll%', 'Symbol.replace'),
-      ...createUnsafeStringMethodReport(context, '%String.prototype.search%', 'Symbol.search'),
       ...createUnsafeStringMethodOnRegexReport(context, '%String.prototype.split%', 'Symbol.split'),
 
       'NewExpression[callee.name="Proxy"][arguments.1.type="ObjectExpression"]'(node) {

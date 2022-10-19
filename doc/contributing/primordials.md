@@ -639,6 +639,9 @@ RegExp.prototype.exec = () => null;
 // Core
 console.log(RegExpPrototypeTest(/o/, 'foo')); // false
 console.log(RegExpPrototypeExec(/o/, 'foo') !== null); // true
+
+console.log(RegExpPrototypeSymbolSearch(/o/, 'foo')); // -1
+console.log(SafeStringPrototypeSearch('foo', /o/)); // 1
 ```
 
 #### Don't trust `RegExp` flags
@@ -668,19 +671,7 @@ Object.defineProperty(RegExp.prototype, 'global', { value: false });
 
 // Core
 console.log(RegExpPrototypeSymbolReplace(/o/g, 'foo', 'a')); // 'fao'
-
-const regex = /o/g;
-ObjectDefineProperties(regex, {
-  dotAll: { value: false },
-  exec: { value: undefined },
-  flags: { value: 'g' },
-  global: { value: true },
-  ignoreCase: { value: false },
-  multiline: { value: false },
-  unicode: { value: false },
-  sticky: { value: false },
-});
-console.log(RegExpPrototypeSymbolReplace(regex, 'foo', 'a')); // 'faa'
+console.log(RegExpPrototypeSymbolReplace(hardenRegExp(/o/g), 'foo', 'a')); // 'faa'
 ```
 
 ### Defining object own properties
