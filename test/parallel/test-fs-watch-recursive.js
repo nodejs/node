@@ -17,12 +17,6 @@ tmpdir.refresh();
 const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
-
-if (!common.isOSX && !common.isWindows) {
-  assert.throws(() => { fs.watch(testDir, { recursive: true }); },
-                { code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM' });
-  return;
-}
 const watcher = fs.watch(testDir, { recursive: true });
 
 let watcherClosed = false;
@@ -41,7 +35,7 @@ watcher.on('change', function(event, filename) {
 });
 
 let interval;
-if (common.isOSX) {
+if (common.isOSX || common.isLinux) {
   interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 10);

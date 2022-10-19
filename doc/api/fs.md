@@ -4377,10 +4377,6 @@ the returned {fs.FSWatcher}.
 The `fs.watch` API is not 100% consistent across platforms, and is
 unavailable in some situations.
 
-The recursive option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
-
 On Windows, no events will be emitted if the watched directory is moved or
 renamed. An `EPERM` error is reported when the watched directory is deleted.
 
