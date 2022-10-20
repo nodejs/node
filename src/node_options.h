@@ -50,7 +50,8 @@ class HostPort {
 
 class Options {
  public:
-  virtual void CheckOptions(std::vector<std::string>* errors) {}
+  virtual void CheckOptions(std::vector<std::string>* errors,
+                            std::vector<std::string>* argv) {}
   virtual ~Options() = default;
 };
 
@@ -99,7 +100,8 @@ class DebugOptions : public Options {
     return break_first_line || break_node_first_line;
   }
 
-  void CheckOptions(std::vector<std::string>* errors) override;
+  void CheckOptions(std::vector<std::string>* errors,
+                    std::vector<std::string>* argv) override;
 };
 
 class EnvironmentOptions : public Options {
@@ -202,7 +204,8 @@ class EnvironmentOptions : public Options {
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
 
-  void CheckOptions(std::vector<std::string>* errors) override;
+  void CheckOptions(std::vector<std::string>* errors,
+                    std::vector<std::string>* argv) override;
 
  private:
   DebugOptions debug_options_;
@@ -217,7 +220,8 @@ class PerIsolateOptions : public Options {
   bool experimental_shadow_realm = false;
   std::string report_signal = "SIGUSR2";
   inline EnvironmentOptions* get_per_env_options();
-  void CheckOptions(std::vector<std::string>* errors) override;
+  void CheckOptions(std::vector<std::string>* errors,
+                    std::vector<std::string>* argv) override;
 };
 
 class PerProcessOptions : public Options {
@@ -290,7 +294,8 @@ class PerProcessOptions : public Options {
   std::vector<std::string> cmdline;
 
   inline PerIsolateOptions* get_per_isolate_options();
-  void CheckOptions(std::vector<std::string>* errors) override;
+  void CheckOptions(std::vector<std::string>* errors,
+                    std::vector<std::string>* argv) override;
 };
 
 // The actual options parser, as opposed to the structs containing them:
