@@ -33,6 +33,7 @@ import re
 from functools import reduce
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+FLAGS_ONLY_PATTERN = re.compile(r"//\s+FlagsOnly")
 
 class MessageTestCase(test.TestCase):
 
@@ -101,7 +102,8 @@ class MessageTestCase(test.TestCase):
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
-    result.append(self.file)
+    if FLAGS_ONLY_PATTERN.search(source) == None:
+      result.append(self.file)
     return result
 
   def GetSource(self):

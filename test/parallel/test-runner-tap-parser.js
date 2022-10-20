@@ -21,6 +21,7 @@ function TAPParser(input) {
       nesting: 0,
       kind: 'Comment',
       node: { comment: 'comment' },
+      lexeme: '# comment',
     },
   ]);
 }
@@ -34,6 +35,7 @@ function TAPParser(input) {
       node: {
         comment: '',
       },
+      lexeme: '#',
     },
   ]);
 }
@@ -45,6 +47,7 @@ function TAPParser(input) {
       nesting: 0,
       kind: 'Comment',
       node: { comment: '###' },
+      lexeme: '####',
     },
   ]);
 }
@@ -65,6 +68,7 @@ function TAPParser(input) {
       nesting: 0,
       kind: 'VersionKeyword',
       node: { version: '14' },
+      lexeme: 'TAP version 14',
     },
   ]);
 }
@@ -96,6 +100,7 @@ function TAPParser(input) {
       nesting: 0,
       kind: 'PlanKeyword',
       node: { start: '1', end: '5', reason: 'reason' },
+      lexeme: '1..5 # reason',
     },
   ]);
 }
@@ -113,6 +118,7 @@ function TAPParser(input) {
         end: '5',
         reason: 'reason " !"\\#$%&\'()*+,-./:;<=>?@[]^_`{|}~',
       },
+      lexeme: '1..5 # reason "\\ !"\\#$%&\'()*+,\\-./:;<=>?@[]^_`{|}~',
     },
   ]);
 }
@@ -167,7 +173,9 @@ function TAPParser(input) {
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok',
     },
   ]);
 }
@@ -184,7 +192,9 @@ function TAPParser(input) {
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'not ok',
     },
   ]);
 }
@@ -201,7 +211,9 @@ function TAPParser(input) {
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1',
     },
   ]);
 }
@@ -221,7 +233,9 @@ not ok 222
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 111',
     },
     {
       nesting: 0,
@@ -232,7 +246,9 @@ not ok 222
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'not ok 222',
     },
   ]);
 }
@@ -253,7 +269,9 @@ ok 1 - parent
         description: 'parent',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - parent',
     },
     {
       nesting: 1,
@@ -264,7 +282,9 @@ ok 1 - parent
         description: 'child',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 2 - child',
     },
   ]);
 }
@@ -275,13 +295,13 @@ ok 1 - parent
     ok 1
 
     # Subtest: nested2
-    ok 1 - nested2
+    ok 2 - nested2
 
     # Subtest: nested3
-    ok 1 - nested3
+    ok 3 - nested3
 
     # Subtest: nested4
-    ok 1 - nested4
+    ok 4 - nested4
 
 ok 1 - nested1
 `);
@@ -290,6 +310,7 @@ ok 1 - nested1
       nesting: 0,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested1' },
+      lexeme: '# Subtest: nested1',
     },
     {
       nesting: 1,
@@ -300,55 +321,66 @@ ok 1 - nested1
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 1',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested2' },
+      lexeme: '    # Subtest: nested2',
     },
     {
       nesting: 1,
       kind: 'TestPointKeyword',
       node: {
         status: { fail: false, pass: true, todo: false, skip: false },
-        id: '1',
+        id: '2',
         description: 'nested2',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 2 - nested2',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested3' },
+      lexeme: '    # Subtest: nested3',
     },
     {
       nesting: 1,
       kind: 'TestPointKeyword',
       node: {
         status: { fail: false, pass: true, todo: false, skip: false },
-        id: '1',
+        id: '3',
         description: 'nested3',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 3 - nested3',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested4' },
+      lexeme: '    # Subtest: nested4',
     },
     {
       nesting: 1,
       kind: 'TestPointKeyword',
       node: {
         status: { fail: false, pass: true, todo: false, skip: false },
-        id: '1',
+        id: '4',
         description: 'nested4',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 4 - nested4',
     },
     {
       nesting: 0,
@@ -359,7 +391,9 @@ ok 1 - nested1
         description: 'nested1',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - nested1',
     },
   ]);
 }
@@ -383,6 +417,7 @@ ok 4 - nested1
       nesting: 0,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested1' },
+      lexeme: '# Subtest: nested1',
     },
     {
       nesting: 1,
@@ -393,12 +428,15 @@ ok 4 - nested1
         description: 'test nested1',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 1 - test nested1',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested2' },
+      lexeme: '    # Subtest: nested2',
     },
     {
       nesting: 2,
@@ -409,7 +447,9 @@ ok 4 - nested1
         description: 'test nested2',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '        ok 2 - test nested2',
     },
     {
       nesting: 1,
@@ -420,7 +460,9 @@ ok 4 - nested1
         description: 'nested2',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 3 - nested2',
     },
     {
       nesting: 0,
@@ -431,7 +473,9 @@ ok 4 - nested1
         description: 'nested1',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 4 - nested1',
     },
   ]);
 }
@@ -460,6 +504,7 @@ ok 6 - nested1
       nesting: 0,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested1' },
+      lexeme: '# Subtest: nested1',
     },
     {
       nesting: 1,
@@ -470,12 +515,15 @@ ok 6 - nested1
         description: 'test nested1',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 1 - test nested1',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested2a' },
+      lexeme: '    # Subtest: nested2a',
     },
     {
       nesting: 2,
@@ -486,7 +534,9 @@ ok 6 - nested1
         description: 'test nested2a',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '        ok 2 - test nested2a',
     },
     {
       nesting: 1,
@@ -497,12 +547,15 @@ ok 6 - nested1
         description: 'nested2a',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 3 - nested2a',
     },
     {
       nesting: 1,
       kind: 'SubTestPointKeyword',
       node: { name: 'nested2b' },
+      lexeme: '    # Subtest: nested2b',
     },
     {
       nesting: 2,
@@ -513,7 +566,9 @@ ok 6 - nested1
         description: 'test nested2b',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '        ok 4 - test nested2b',
     },
     {
       nesting: 1,
@@ -524,7 +579,9 @@ ok 6 - nested1
         description: 'nested2b',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: '    ok 5 - nested2b',
     },
     {
       nesting: 0,
@@ -535,7 +592,9 @@ ok 6 - nested1
         description: 'nested1',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 6 - nested1',
     },
   ]);
 }
@@ -552,7 +611,9 @@ ok 6 - nested1
         description: 'description',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 description',
     },
   ]);
 }
@@ -569,7 +630,9 @@ ok 6 - nested1
         description: 'description',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - description',
     },
   ]);
 }
@@ -586,7 +649,9 @@ ok 6 - nested1
         description: 'description',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - description # todo',
     },
   ]);
 }
@@ -603,7 +668,9 @@ ok 6 - nested1
         description: 'description # todo',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - description \\# todo',
     },
   ]);
 }
@@ -620,7 +687,9 @@ ok 6 - nested1
         description: 'description',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - description \\ # todo',
     },
   ]);
 }
@@ -639,7 +708,10 @@ ok 6 - nested1
         description: 'description # \\ world',
         reason: 'escape # characters with \\',
         time: 0,
+        diagnostics: [],
       },
+      lexeme:
+        'ok 1 description \\# \\\\ world # TODO escape \\# characters with \\\\',
     },
   ]);
 }
@@ -656,7 +728,9 @@ ok 6 - nested1
         description: 'description',
         reason: '##',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1 - description # ##',
     },
   ]);
 }
@@ -675,7 +749,9 @@ ok 6 - nested1
         description: 'not skipped: https://example.com/page.html#skip is a url',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 2 not skipped: https://example.com/page.html#skip is a url',
     },
   ]);
 }
@@ -692,7 +768,9 @@ ok 6 - nested1
         description: '',
         reason: 'case insensitive, so this is skipped',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 3 - #SkIp case insensitive, so this is skipped',
     },
   ]);
 }
@@ -709,7 +787,9 @@ ok 6 - nested1
         description: 'ok ok',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok ok ok',
     },
   ]);
 }
@@ -726,7 +806,9 @@ ok 6 - nested1
         description: 'not ok',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok not ok',
     },
   ]);
 }
@@ -743,7 +825,9 @@ ok 6 - nested1
         description: '',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
+      lexeme: 'ok 1..1',
     },
   ]);
 }
@@ -765,6 +849,7 @@ ok 6 - nested1
       node: {
         diagnostics: ["message: 'description'", "property: 'value'"],
       },
+      lexeme: '  ...',
     },
   ]);
 }
@@ -809,6 +894,7 @@ ok 6 - nested1
           "    - '        G     R     G        '",
         ],
       },
+      lexeme: '  ...',
     },
   ]);
 }
@@ -823,6 +909,7 @@ ok 6 - nested1
       nesting: 0,
       kind: 'YamlEndKeyword',
       node: { diagnostics: [] },
+      lexeme: '  ...',
     },
   ]);
 }
@@ -961,6 +1048,7 @@ ok 6 - nested1
       node: {
         pragmas: { strict: true, warnings: false },
       },
+      lexeme: 'pragma +strict, -warnings',
     },
   ]);
 }
@@ -974,6 +1062,7 @@ ok 6 - nested1
       nesting: 0,
       kind: 'BailOutKeyword',
       node: { bailout: true, reason: 'Error' },
+      lexeme: 'Bail out! Error',
     },
   ]);
 }
@@ -1063,21 +1152,25 @@ not ok 1 - /test.js
       node: { version: '13' },
       nesting: 0,
       comments: ['Comment on version 13', 'Another comment on version 13'],
+      lexeme: 'TAP version 13',
     },
     {
       kind: 'SubTestPointKeyword',
       node: { name: '/test.js' },
       nesting: 0,
+      lexeme: '# Subtest: /test.js',
     },
     {
       kind: 'SubTestPointKeyword',
       node: { name: 'level 0a' },
       nesting: 1,
+      lexeme: '    # Subtest: level 0a',
     },
     {
       kind: 'SubTestPointKeyword',
       node: { name: 'level 1a' },
       nesting: 2,
+      lexeme: '        # Subtest: level 1a',
     },
     {
       kind: 'TestPointKeyword',
@@ -1091,12 +1184,14 @@ not ok 1 - /test.js
       },
       nesting: 3,
       comments: ['Comment test point 1a', 'Comment test point 1aa'],
+      lexeme: '            ok 1 - level 1a',
     },
     {
       kind: 'PlanKeyword',
       node: { start: '1', end: '1' },
       nesting: 3,
       comments: ['Comment plan 1a', 'Comment plan 1aa'],
+      lexeme: '            1..1',
     },
     {
       kind: 'TestPointKeyword',
@@ -1120,11 +1215,13 @@ not ok 1 - /test.js
         'Comment closing test point 1a',
         'Comment closing test point 1aa',
       ],
+      lexeme: '        not ok 1 - level 1a',
     },
     {
       kind: 'PlanKeyword',
       node: { start: '1', end: '1' },
       nesting: 2,
+      lexeme: '        1..1',
     },
     {
       kind: 'TestPointKeyword',
@@ -1143,12 +1240,14 @@ not ok 1 - /test.js
         ],
       },
       nesting: 1,
+      lexeme: '    not ok 1 - level 0a',
     },
     {
       kind: 'PlanKeyword',
       node: { start: '1', end: '1' },
       nesting: 1,
       comments: ['Comment plan 0a', 'Comment plan 0aa'],
+      lexeme: '    1..1',
     },
     {
       kind: 'TestPointKeyword',
@@ -1158,23 +1257,56 @@ not ok 1 - /test.js
         description: '/test.js',
         reason: '',
         time: 0,
+        diagnostics: [],
       },
       nesting: 0,
       comments: [
         'Comment closing test point 0a',
         'Comment closing test point 0aa',
       ],
+      lexeme: 'not ok 1 - /test.js',
     },
-    { kind: 'Comment', node: { comment: 'tests 1' }, nesting: 0 },
-    { kind: 'Comment', node: { comment: 'pass 0' }, nesting: 0 },
-    { kind: 'Comment', node: { comment: 'fail 1' }, nesting: 0 },
-    { kind: 'Comment', node: { comment: 'cancelled 0' }, nesting: 0 },
-    { kind: 'Comment', node: { comment: 'skipped 0' }, nesting: 0 },
-    { kind: 'Comment', node: { comment: 'todo 0' }, nesting: 0 },
+    {
+      kind: 'Comment',
+      node: { comment: 'tests 1' },
+      nesting: 0,
+      lexeme: '# tests 1',
+    },
+    {
+      kind: 'Comment',
+      node: { comment: 'pass 0' },
+      nesting: 0,
+      lexeme: '# pass 0',
+    },
+    {
+      kind: 'Comment',
+      node: { comment: 'fail 1' },
+      nesting: 0,
+      lexeme: '# fail 1',
+    },
+    {
+      kind: 'Comment',
+      node: { comment: 'cancelled 0' },
+      nesting: 0,
+      lexeme: '# cancelled 0',
+    },
+    {
+      kind: 'Comment',
+      node: { comment: 'skipped 0' },
+      nesting: 0,
+      lexeme: '# skipped 0',
+    },
+    {
+      kind: 'Comment',
+      node: { comment: 'todo 0' },
+      nesting: 0,
+      lexeme: '# todo 0',
+    },
     {
       kind: 'Comment',
       node: { comment: 'duration_ms 87.077507' },
       nesting: 0,
+      lexeme: '# duration_ms 87.077507',
     },
   ]);
 }

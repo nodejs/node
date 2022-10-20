@@ -122,6 +122,7 @@ not ok 3 - test # TODO reason`,
           description: 'test',
           reason: '',
           time: 0,
+          diagnostics: [],
         },
         lexeme: 'ok 1 - test',
       },
@@ -134,6 +135,7 @@ not ok 3 - test # TODO reason`,
           description: 'test',
           reason: '',
           time: 0,
+          diagnostics: [],
         },
         lexeme: 'ok 2 - test # SKIP',
       },
@@ -146,6 +148,7 @@ not ok 3 - test # TODO reason`,
           description: 'test',
           reason: 'reason',
           time: 0,
+          diagnostics: [],
         },
         lexeme: 'not ok 3 - test # TODO reason',
       },
@@ -178,6 +181,7 @@ ok 2 - test`,
           description: 'test',
           reason: '',
           time: 0,
+          diagnostics: [],
         },
         lexeme: 'ok 1 - test',
       },
@@ -190,6 +194,7 @@ ok 2 - test`,
           description: 'test',
           reason: '',
           time: 0,
+          diagnostics: [],
         },
         lexeme: 'ok 2 - test',
       },
@@ -237,6 +242,273 @@ ok 1 - test
           ],
         },
         lexeme: 'ok 1 - test',
+      },
+    ],
+  },
+  {
+    input: `TAP version 13
+# Subtest: test/fixtures/test-runner/index.test.js
+    # Subtest: this should pass
+    ok 1 - this should pass
+      ---
+      duration_ms: 0.0001
+      ...
+    1..1`,
+    expected: [
+      {
+        nesting: 0,
+        kind: 'VersionKeyword',
+        node: { version: '13' },
+        lexeme: 'TAP version 13',
+      },
+      {
+        kind: 'SubTestPointKeyword',
+        lexeme: '# Subtest: test/fixtures/test-runner/index.test.js',
+        nesting: 0,
+        node: {
+          name: 'test/fixtures/test-runner/index.test.js',
+        },
+      },
+      {
+        kind: 'SubTestPointKeyword',
+        lexeme: '    # Subtest: this should pass',
+        nesting: 1,
+        node: {
+          name: 'this should pass',
+        },
+      },
+      {
+        kind: 'TestPointKeyword',
+        lexeme: '    ok 1 - this should pass',
+        nesting: 1,
+        node: {
+          description: 'this should pass',
+          diagnostics: ['duration_ms: 0.0001'],
+          id: '1',
+          reason: '',
+          status: {
+            fail: false,
+            pass: true,
+            skip: false,
+            todo: false,
+          },
+          time: 0.0001,
+        },
+      },
+      {
+        kind: 'PlanKeyword',
+        lexeme: '    1..1',
+        nesting: 1,
+        node: {
+          end: '1',
+          start: '1',
+        },
+      },
+    ],
+  },
+  {
+    input: `TAP version 13
+# Subtest: test 1
+ok 1 - test 1
+  ---
+  foo: bar
+  duration_ms: 1.00
+  prop: |-
+    multiple
+    lines
+  ...
+# Subtest: test 2
+ok 2 - test 2
+  ---
+  duration_ms: 2.00
+  ...
+# Subtest: test 3
+ok 3 - test 3
+  ---
+  foo: bar
+  duration_ms: 3.00
+  prop: |-
+    multiple
+    lines
+  ...`,
+    expected: [
+      {
+        nesting: 0,
+        kind: 'VersionKeyword',
+        node: { version: '13' },
+        lexeme: 'TAP version 13',
+      },
+      {
+        nesting: 0,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 1' },
+        lexeme: '# Subtest: test 1',
+      },
+      {
+        nesting: 0,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'test 1',
+          reason: '',
+          time: 1.0,
+          diagnostics: [
+            'foo: bar',
+            'duration_ms: 1.00',
+            'prop: |-',
+            '  multiple',
+            '  lines',
+          ],
+        },
+        lexeme: 'ok 1 - test 1',
+      },
+      {
+        nesting: 0,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 2' },
+        lexeme: '# Subtest: test 2',
+      },
+      {
+        nesting: 0,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '2',
+          description: 'test 2',
+          reason: '',
+          time: 2.0,
+          diagnostics: ['duration_ms: 2.00'],
+        },
+        lexeme: 'ok 2 - test 2',
+      },
+      {
+        nesting: 0,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 3' },
+        lexeme: '# Subtest: test 3',
+      },
+      {
+        nesting: 0,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '3',
+          description: 'test 3',
+          reason: '',
+          time: 3.0,
+          diagnostics: [
+            'foo: bar',
+            'duration_ms: 3.00',
+            'prop: |-',
+            '  multiple',
+            '  lines',
+          ],
+        },
+        lexeme: 'ok 3 - test 3',
+      },
+    ],
+  },
+  {
+    input: `TAP version 13
+# Subtest: test 1
+ok 1 - test 1
+  ---
+  foo: bar
+  duration_ms: 1.00
+  prop: |-
+    multiple
+    lines
+  ...
+    # Subtest: test 11
+    ok 11 - test 11
+      ---
+      duration_ms: 11.00
+      ...
+        # Subtest: test 111
+        ok 111 - test 111
+          ---
+          foo: bar
+          duration_ms: 111.00
+          prop: |-
+            multiple
+            lines
+          ...`,
+    expected: [
+      {
+        nesting: 0,
+        kind: 'VersionKeyword',
+        node: { version: '13' },
+        lexeme: 'TAP version 13',
+      },
+      {
+        nesting: 0,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 1' },
+        lexeme: '# Subtest: test 1',
+      },
+      {
+        nesting: 0,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '1',
+          description: 'test 1',
+          reason: '',
+          time: 1.0,
+          diagnostics: [
+            'foo: bar',
+            'duration_ms: 1.00',
+            'prop: |-',
+            '  multiple',
+            '  lines',
+          ],
+        },
+        lexeme: 'ok 1 - test 1',
+      },
+      {
+        nesting: 1,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 11' },
+        lexeme: '    # Subtest: test 11',
+      },
+      {
+        nesting: 1,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '11',
+          description: 'test 11',
+          reason: '',
+          time: 11.0,
+          diagnostics: ['duration_ms: 11.00'],
+        },
+        lexeme: '    ok 11 - test 11',
+      },
+      {
+        nesting: 2,
+        kind: 'SubTestPointKeyword',
+        node: { name: 'test 111' },
+        lexeme: '        # Subtest: test 111',
+      },
+      {
+        nesting: 2,
+        kind: 'TestPointKeyword',
+        node: {
+          status: { fail: false, pass: true, todo: false, skip: false },
+          id: '111',
+          description: 'test 111',
+          reason: '',
+          time: 111.0,
+          diagnostics: [
+            'foo: bar',
+            'duration_ms: 111.00',
+            'prop: |-',
+            '  multiple',
+            '  lines',
+          ],
+        },
+        lexeme: '        ok 111 - test 111',
       },
     ],
   },
