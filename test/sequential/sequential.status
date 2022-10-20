@@ -7,6 +7,9 @@ prefix sequential
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/27611#issuecomment-613100468
 test-cpu-prof-dir-worker: PASS, FLAKY
+# https://github.com/nodejs/node/issues/44898
+test-watch-mode: PASS, FLAKY
+test-watch-mode-inspect: PASS, FLAKY
 
 [$system==win32]
 
