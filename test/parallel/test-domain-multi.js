@@ -73,5 +73,5 @@ const server = http.createServer((req, res) => {
     res.pipe(process.stdout);
   });
 
-  c.on('error', common.mustCall((er) => { }));
+  c.on('error', common.mustCall());
 });
