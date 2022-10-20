@@ -51,14 +51,17 @@ const { join } = require('path');
 
 // common.mustCall() tests
 assert.throws(function() {
+  // eslint-disable-next-line no-restricted-syntax
   common.mustCall(function() {}, 'foo');
 }, /^TypeError: Invalid exact value: foo$/);
 
 assert.throws(function() {
+  // eslint-disable-next-line no-restricted-syntax
   common.mustCall(function() {}, /foo/);
 }, /^TypeError: Invalid exact value: \/foo\/$/);
 
 assert.throws(function() {
+  // eslint-disable-next-line no-restricted-syntax
   common.mustCallAtLeast(function() {}, /foo/);
 }, /^TypeError: Invalid minimum value: \/foo\/$/);
 

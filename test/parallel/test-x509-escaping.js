@@ -499,8 +499,6 @@ const { hasOpenSSL3 } = common;
     tls.connect(port, {
       ca: cert,
       servername,
-    }, common.mustCall(() => {
-      // Do nothing, the server will close the connection.
-    }));
+    }, common.mustCall());
   }));
 }

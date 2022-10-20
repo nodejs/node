@@ -14,8 +14,7 @@ assert.strictEqual(expected, '/caf\u{e9}\u{1f436}');
 
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.strictEqual(req.url, expected);
-  req.on('data', common.mustCall(function() {
-  })).on('end', common.mustCall(function() {
+  req.on('data', common.mustCall()).on('end', common.mustCall(function() {
     server.close();
     res.writeHead(200);
     res.end('hello world\n');

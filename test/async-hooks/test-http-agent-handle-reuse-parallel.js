@@ -34,7 +34,7 @@ const verifyRequest = (idx) => (res) => {
     socket = res.socket;
   }
 
-  res.on('data', common.mustCallAtLeast(() => {}));
+  res.on('data', common.mustCallAtLeast());
   res.on('end', common.mustCall(() => {
     if (++responses === 2) {
       // Clean up to let the event loop stop.

@@ -46,6 +46,8 @@ rules:
       message: Use Number.isNaN() instead of the global isNaN() function.
     - selector: VariableDeclarator > CallExpression:matches([callee.name='debuglog'], [callee.property.name='debuglog']):not([arguments.0.value='test'])
       message: Use 'test' as debuglog value in tests.
+    - selector: CallExpression:matches([callee.object.name="common"][callee.property.name=/^mustCall/],[callee.name="mustCall"],[callee.name="mustCallAtLeast"])>:first-child[type=/FunctionExpression$/][body.body.length=0]
+      message: Do not use an empty function, omit the parameter altogether.
 
   # Custom rules in tools/eslint-rules
   node-core/prefer-assert-iferror: error

@@ -35,7 +35,7 @@ if (cluster.isWorker) {
   const http = require('http');
   const server = http.Server(() => { });
 
-  server.once('listening', common.mustCall(() => { }));
+  server.once('listening', common.mustCall());
   server.listen(0, '127.0.0.1');
 
 } else if (cluster.isPrimary) {

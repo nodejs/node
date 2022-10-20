@@ -23,9 +23,8 @@ const serverConfig = {
   cert: fixtures.readKey('agent2-cert.pem')
 };
 
-const server = tls.createServer(serverConfig, common.mustCall(function() {
-
-}, clientConfigs.length)).listen(0, common.localhostIPv4, function() {
+const server = tls.createServer(serverConfig, common.mustCall(clientConfigs.length))
+.listen(0, common.localhostIPv4, function() {
   let connected = 0;
   clientConfigs.forEach(function(v) {
     tls.connect({
