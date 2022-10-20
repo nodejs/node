@@ -331,7 +331,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/test_runner");
   }
 
-  if (env->options()->watch_mode && !first_argv.empty()) {
+  if (env->options()->watch_mode) {
     return StartExecution(env, "internal/main/watch_mode");
   }
 
