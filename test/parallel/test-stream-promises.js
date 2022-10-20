@@ -119,9 +119,10 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   const streamObj = new Writable();
   assert.strictEqual(streamObj.listenerCount('end'), 0);
-  finished(streamObj, { cleanup: false }).then(() => {
+  finished(streamObj, { cleanup: false }).then(common.mustCall(() => {
     assert.strictEqual(streamObj.listenerCount('end'), 1);
-  });
+  }));
+  streamObj.end();
 }
 
 // Cleanup function should be called when cleanup is set to true
@@ -129,9 +130,10 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   const streamObj = new Writable();
   assert.strictEqual(streamObj.listenerCount('end'), 0);
-  finished(streamObj, { cleanup: true }).then(() => {
+  finished(streamObj, { cleanup: true }).then(common.mustCall(() => {
     assert.strictEqual(streamObj.listenerCount('end'), 0);
-  });
+  }));
+  streamObj.end();
 }
 
 // Cleanup function should not be called when cleanup has not been set
@@ -139,7 +141,8 @@ assert.strictEqual(finished, promisify(stream.finished));
 {
   const streamObj = new Writable();
   assert.strictEqual(streamObj.listenerCount('end'), 0);
-  finished(streamObj).then(() => {
+  finished(streamObj).then(common.mustCall(() => {
     assert.strictEqual(streamObj.listenerCount('end'), 1);
-  });
+  }));
+  streamObj.end();
 }
