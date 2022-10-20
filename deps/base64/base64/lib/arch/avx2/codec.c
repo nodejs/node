@@ -11,11 +11,25 @@
 #if HAVE_AVX2
 #include <immintrin.h>
 
+// Only enable inline assembly on supported compilers.
+#ifndef BASE64_AVX2_USE_ASM
+# if defined(__GNUC__) || defined(__clang__)
+#  define BASE64_AVX2_USE_ASM 1
+# else
+#  define BASE64_AVX2_USE_ASM 0
+# endif
+#endif
+
 #include "dec_reshuffle.c"
 #include "dec_loop.c"
-#include "enc_translate.c"
-#include "enc_reshuffle.c"
-#include "enc_loop.c"
+
+#if BASE64_AVX2_USE_ASM
+# include "enc_loop_asm.c"
+#else
+# include "enc_translate.c"
+# include "enc_reshuffle.c"
+# include "enc_loop.c"
+#endif
 
 #endif	// HAVE_AVX2
 

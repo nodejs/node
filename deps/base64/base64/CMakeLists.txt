@@ -17,7 +17,7 @@ if (POLICY CMP0127)
     cmake_policy(SET CMP0127 NEW)
 endif()
 
-project(base64 LANGUAGES C VERSION 0.4.0)
+project(base64 LANGUAGES C VERSION 0.5.0)
 
 include(GNUInstallDirs)
 include(CMakeDependentOption)
@@ -62,6 +62,8 @@ cmake_dependent_option(BASE64_WITH_AVX "add AVX codepath" ON ${_IS_X86} OFF)
 add_feature_info(AVX BASE64_WITH_AVX "add AVX codepath")
 cmake_dependent_option(BASE64_WITH_AVX2 "add AVX 2 codepath" ON ${_IS_X86} OFF)
 add_feature_info(AVX2 BASE64_WITH_AVX2 "add AVX2 codepath")
+cmake_dependent_option(BASE64_WITH_AVX512 "add AVX 512 codepath" ON ${_IS_X86} OFF)
+add_feature_info(AVX2 BASE64_WITH_AVX512 "add AVX512 codepath")
 
 cmake_dependent_option(BASE64_WITH_NEON32 "add NEON32 codepath" OFF _TARGET_ARCH_arm OFF)
 add_feature_info(NEON32 BASE64_WITH_NEON32 "add NEON32 codepath")
@@ -118,6 +120,7 @@ add_library(base64
     lib/arch/sse42/codec.c
     lib/arch/avx/codec.c
     lib/arch/avx2/codec.c
+    lib/arch/avx512/codec.c
 
     lib/arch/neon32/codec.c
     lib/arch/neon64/codec.c
@@ -206,6 +209,7 @@ if (_TARGET_ARCH STREQUAL "x86" OR _TARGET_ARCH STREQUAL "x64")
     configure_codec(SSE42 __SSSE4_2__)
     configure_codec(AVX)
     configure_codec(AVX2)
+    configure_codec(AVX512)
 
 elseif (_TARGET_ARCH STREQUAL "arm")
     set(BASE64_NEON32_CFLAGS "${COMPILE_FLAGS_NEON32}" CACHE STRING "the NEON32 compile flags (for 'lib/arch/neon32/codec.c')")

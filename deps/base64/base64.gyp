@@ -46,6 +46,7 @@
             'HAVE_SSE42=1',
             'HAVE_AVX=1',
             'HAVE_AVX2=1',
+            'HAVE_AVX512=1',
           ],
           'dependencies': [
             'base64_ssse3',
@@ -53,6 +54,7 @@
             'base64_sse42',
             'base64_avx',
             'base64_avx2',
+            'base64_avx512',
           ],
         }, {
           'sources': [
@@ -61,6 +63,7 @@
             'base64/lib/arch/sse42/codec.c',
             'base64/lib/arch/avx/codec.c',
             'base64/lib/arch/avx2/codec.c',
+            'base64/lib/arch/avx512/codec.c',
           ],
         }],
       ],
@@ -155,6 +158,30 @@
             'VCCLCompilerTool': {
               'AdditionalOptions': [
                 '/arch:AVX2'
+              ],
+            },
+          },
+        }],
+      ],
+    },
+
+    {
+      'target_name': 'base64_avx512',
+      'type': 'static_library',
+      'include_dirs': [ 'base64/include', 'base64/lib' ],
+      'sources': [ 'base64/lib/arch/avx512/codec.c' ],
+      'defines': [ 'BASE64_STATIC_DEFINE', 'HAVE_AVX512=1' ],
+      'conditions': [
+        [ 'OS!="win"', {
+          'cflags': [ '-mavx512vl', '-mavx512vbmi' ],
+          'xcode_settings': {
+            'OTHER_CFLAGS': [ '-mavx512vl', '-mavx512vbmi' ]
+          },
+        }, {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '/arch:AVX512'
               ],
             },
           },
