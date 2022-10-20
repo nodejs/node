@@ -31,7 +31,7 @@ release.
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V19.md">19</a> (Current)</th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V18.md">18</a> (Current)</th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V17.md">17</a> (Current)</th>
-  <th title="LTS Until 2024-04"><a href="doc/changelogs/CHANGELOG_V16.md">16</a> (LTS)</th>
+  <th title="LTS Until 2023-09"><a href="doc/changelogs/CHANGELOG_V16.md">16</a> (LTS)</th>
   <th title="LTS Until 2023-04"><a href="doc/changelogs/CHANGELOG_V14.md">14</a> (LTS)</th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a> (LTS)</th>
 </tr>
