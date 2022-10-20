@@ -39,7 +39,7 @@ permissions:
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-cores
     env:
       CC: clang
       CXX: clang++
@@ -56,6 +56,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1
+        run: make build-ci -j16 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
+        run: make run-ci -j16 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
