@@ -4,9 +4,13 @@
 
 <table>
 <tr>
+<th>LTS 'Hydrogen'</th>
 <th>Current</th>
 </tr>
 <tr>
+<td>
+<a href="#18.12.0">18.12.0</a><br/>
+</td>
 <td>
 <a href="#18.11.0">18.11.0</a><br/>
 <a href="#18.10.0">18.10.0</a><br/>
@@ -45,6 +49,17 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.12.0"></a>
+
+## 2022-10-25, Version 18.12.0 'Hydrogen' (LTS), @ruyadorno and @RafaelGSS
+
+### Notable Changes
+
+This release marks the transition of Node.js 18.x into Long Term Support (LTS)
+with the codename 'Hydrogen'. The 18.x release line now moves into "Active LTS"
+and will remain so until October 2023. After that time, it will move into
+"Maintenance" until end of life in April 2025.
 
 <a id="18.11.0"></a>
 
