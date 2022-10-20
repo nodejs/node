@@ -2,6 +2,8 @@ import * as common from '../common/index.mjs';
 import * as tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import { NodeInstance } from '../common/inspector-helper.js';
 
 
@@ -51,4 +53,32 @@ tmpdir.refresh();
   assert.doesNotMatch(stderr, /Warning: Using the inspector with --test forces running at a concurrency of 1\. Use the inspectPort option to run with concurrency/);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
+}
+
+
+// Outputs coverage when event loop is drained, with no async logic.
+{
+  const coverageDirectory = path.join(tmpdir.path, 'coverage');
+  async function getCoveredFiles() {
+    const coverageFiles = await fs.readdir(coverageDirectory);
+    const files = new Set();
+    for (const coverageFile of coverageFiles) {
+      const coverage = JSON.parse(await fs.readFile(path.join(coverageDirectory, coverageFile)));
+      for (const { url } of coverage.result) {
+        if (!url.startsWith('node:')) files.add(url);
+      }
+    }
+    return files;
+  }
+
+  const { stderr, code, signal } = await common
+          .spawnPromisified(process.execPath,
+                            ['--test', fixtures.path('v8-coverage/basic.js')],
+                            { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+  const files = await getCoveredFiles(coverageDirectory);
+  assert.ok(files.has(fixtures.fileURL('v8-coverage/basic.js').href));
 }
