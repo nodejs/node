@@ -3565,7 +3565,7 @@ server.on('request', (request, res) => {
 server.listen(8000);
 ```
 
-## `http.createSimpleServer([directory[, port[, host]]])`
+## `http.createSimpleServer([options])`
 
 <!--YAML
 added: REPLACEME
@@ -3573,10 +3573,11 @@ added: REPLACEME
 
 > Stability: 0 - Experimental
 
-* `directory` {string|URL} Root directory from which files would be served.
-  **Default:** `process.cwd()`.
-* `port` {number}
-* `host` {string} **Default:** `'localhost'`
+* `options` {Object}
+  * `directory` {string|URL} Root directory from which files would be served.
+    **Default:** `process.cwd()`.
+  * `port` {number}
+  * `host` {string} **Default:** `'localhost'`
 
 * Returns: {http.Server}
 
@@ -3591,14 +3592,18 @@ unused port, which it's output will be the standard output.
 Also accessible via `require('node:http/server')`.
 
 ```bash
-node -r node:http/server # starts serving the cwd on a random port
+# Starts serving the cwd on a random port:
+node -r node:http/server
+node -e 'http.createSimpleServer()'
 
 # To start serving on the port 8080 using /path/to/dir as the root:
 node -r node:http/server /path/to/dir --port 8080
+node -e 'http.createSimpleServer({directory: "/path/to/dir", port: 8080})'
 
 # Same as above, but exposing your local file system to the whole
 # IPv4 network:
 node -r node:http/server /path/to/dir --port 8080 --host 0.0.0.0
+node -e 'http.createSimpleServer({directory: "/path/to/dir", port: 8080, host: "0.0.0.0"})'
 ```
 
 ## `http.get(options[, callback])`
