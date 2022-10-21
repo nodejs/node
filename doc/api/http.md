@@ -3580,6 +3580,8 @@ added: REPLACEME
     **Default:** `process.cwd()`.
   * `port` {number}
   * `host` {string} **Default:** `'localhost'`
+  * `mimeOverrides` {Object} Dictionary linking file extension to a MIME string,
+    to override or extend the built-in ones.
 
 * Returns: {http.Server}
 
