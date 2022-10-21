@@ -3574,21 +3574,19 @@ added: REPLACEME
 > Stability: 0 - Experimental
 
 * `directory` {string|URL} Root directory from which files would be serve.
+  **Default:** `process.cwd()`.
 * `port` {number}
-* `host` {string}
+* `host` {string} **Default:** `'localhost'`
+
+* Returns: {http.Server}
 
 Start a TCP server listening for connections on the given `port` and `host`, and
 serve statically local files, using `directory` as the root. Please note that
 when specifying a `host` other than `localhost`, you are exposing you local file
 system to all the machines that can connect to your computer.
 
-If `host` is omitted, the server will accept connections on the
-[unspecified IPv6 address][] (`::`) when IPv6 is available, or the
-[unspecified IPv4 address][] (`0.0.0.0`) otherwise.
-
-In most operating systems, listening to the [unspecified IPv6 address][] (`::`)
-may cause the `net.Server` to also listen on the [unspecified IPv4 address][]
-(`0.0.0.0`).
+If `port` is omitted or is 0, the operating system will assign an arbitrary
+unused port, which will be output the standard output.
 
 Also accessible via `require('node:http/server')`.
 
@@ -3596,10 +3594,10 @@ Also accessible via `require('node:http/server')`.
 node -r node:http/server # starts serving the cwd on a random port
 
 # To start serving on the port 8080 using /path/to/dir as the root:
-node -r node:http/server /path/to/dir --port 8080 --host localhost
-
-# If `--host` is omitted, your local file system is exposed:
 node -r node:http/server /path/to/dir --port 8080
+
+# Same, but exposing your local file system to the whole IPv4 network:
+node -r node:http/server /path/to/dir --port 8080 --host 0.0.0.0
 ```
 
 ## `http.get(options[, callback])`
