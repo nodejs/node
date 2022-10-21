@@ -105,7 +105,6 @@ const testFixtures = fixtures.path('test-runner');
     ['--print', 'console.log("should not print")', '--test'],
   ];
 
-
   flags.forEach((args) => {
     const child = spawnSync(process.execPath, args);
 
@@ -115,4 +114,58 @@ const testFixtures = fixtures.path('test-runner');
     const stderr = child.stderr.toString();
     assert.match(stderr, /--test/);
   });
+}
+
+{
+  // Test combined stream outputs
+  const args = [
+    '--test',
+    'test/fixtures/test-runner/index.test.js',
+    'test/fixtures/test-runner/nested.js',
+    'test/fixtures/test-runner/invalid-tap.js',
+  ];
+  const child = spawnSync(process.execPath, args);
+
+  console.log(child.stdout.toString());
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /# Subtest: .+index.test.js/);
+  assert.match(stdout, /    # Subtest: this should pass/);
+  assert.match(stdout, /    ok 1 - this should pass/);
+  assert.match(stdout, /      \-\-\-/);
+  assert.match(stdout, /      duration_ms: .*/);
+  assert.match(stdout, /      \.\.\./);
+  assert.match(stdout, /    1..1/);
+
+  assert.match(stdout, /ok 1 - .+index\.test\.js/);
+
+  assert.match(stdout, /# Subtest: .+invalid-tap.js/);
+  assert.match(stdout, /    # invalid tap output/);
+  assert.match(stdout, /ok 2 - .+invalid-tap\.js/);
+
+  assert.match(stdout, /# Subtest: .+nested.js/);
+  assert.match(stdout, /    # Subtest: level 0a/);
+  assert.match(stdout, /        # Subtest: level 1a/);
+  assert.match(stdout, /        ok 1 - level 1a/);
+  assert.match(stdout, /        # Subtest: level 1b/);
+  assert.match(stdout, /        not ok 2 - level 1b/);
+  assert.match(stdout, /          code: 'ERR_TEST_FAILURE'/);
+  assert.match(stdout, /          stack: |-'/);
+  assert.match(stdout, /            TestContext.<anonymous> .*/);
+  assert.match(stdout, /        # Subtest: level 1c/);
+  assert.match(stdout, /        ok 3 - level 1c # SKIP aaa/);
+  assert.match(stdout, /        # Subtest: level 1d/);
+  assert.match(stdout, /        ok 4 - level 1d/);
+  assert.match(stdout, /    not ok 1 - level 0a/);
+  assert.match(stdout, /      error: '1 subtest failed'/);
+  assert.match(stdout, /    # Subtest: level 0b/);
+  assert.match(stdout, /    not ok 2 - level 0b/);
+  assert.match(stdout, /      error: 'level 0b error'/);
+  assert.match(stdout, /not ok 3 - .+nested.js/);
+  assert.match(stdout, /# tests 3/);
+  assert.match(stdout, /# pass 2/);
+  assert.match(stdout, /# fail 1/);
 }
