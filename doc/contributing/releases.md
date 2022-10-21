@@ -954,7 +954,7 @@ $ git checkout v1.x-staging
 Next, make sure you have **node-core-utils** installed:
 
 ```console
-npm i -g node-core-utils
+$ npm i -g node-core-utils
 ```
 
 Run the prepare LTS release command:
