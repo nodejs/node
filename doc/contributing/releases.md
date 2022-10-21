@@ -1002,6 +1002,7 @@ The `test/parallel/test-process-release.js` file might also need to be updated.
 In case you can not run the automated `node-core-utils` command and you are
 currently running these steps manually it's a good idea to refer to previous
 LTS proposal PRs and make sure all required changes are covered.
+
 </details>
 
 ### Update release labels
