@@ -151,7 +151,8 @@
 
       'include_dirs': [
         'src',
-        'deps/v8/include'
+        'deps/v8/include',
+        'test/fixtures/postject-copy/node_modules/postject/dist'
       ],
 
       'sources': [
@@ -449,6 +450,7 @@
 
       'include_dirs': [
         'src',
+        'test/fixtures/postject-copy/node_modules/postject/dist',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
@@ -675,6 +677,7 @@
         'src/util-inl.h',
         # Dependency headers
         'deps/v8/include/v8.h',
+        'test/fixtures/postject-copy/node_modules/postject/dist/postject-api.h'
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         '<@(deps_files)',

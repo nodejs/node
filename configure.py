@@ -146,6 +146,12 @@ parser.add_argument('--no-ifaddrs',
     default=None,
     help='use on deprecated SunOS systems that do not support ifaddrs.h')
 
+parser.add_argument('--disable-single-executable-application',
+    action='store_true',
+    dest='disable_single_executable_application',
+    default=None,
+    help='Disable Single Executable Application support.')
+
 parser.add_argument("--fully-static",
     action="store_true",
     dest="fully_static",
@@ -1356,6 +1362,10 @@ def configure_node(o):
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
+
+  o['variables']['single_executable_application'] = b(not options.disable_single_executable_application)
+  if options.disable_single_executable_application:
+    o['defines'] += ['DISABLE_SINGLE_EXECUTABLE_APPLICATION']
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:

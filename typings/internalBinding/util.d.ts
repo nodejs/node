@@ -16,6 +16,7 @@ declare function InternalBinding(binding: 'util'): {
   napi_wrapper: 5;
   untransferable_object_private_symbol: 6;
   exiting_aliased_Uint32Array: 7;
+  single_executable_application_code: 8;
 
   kPending: 0;
   kFulfilled: 1;

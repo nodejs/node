@@ -310,6 +310,27 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     first_argv = env->argv()[1];
   }
 
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  size_t single_executable_application_size = 0;
+  const char* single_executable_application_code =
+      FindSingleExecutableCode(&single_executable_application_size);
+  if (single_executable_application_code != nullptr) {
+    Local<Value> buffer =
+        Buffer::New(
+            env->isolate(),
+            const_cast<char*>(single_executable_application_code),
+            single_executable_application_size,
+            [](char* data, void* hint) {},
+            nullptr)
+            .ToLocalChecked();
+    env->process_object()
+        ->SetPrivate(
+            env->context(), env->single_executable_application_code(), buffer)
+        .Check();
+    return StartExecution(env, "internal/main/single_executable_application");
+  }
+#endif
+
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
   }
@@ -1250,6 +1271,26 @@ static ExitCode StartInternal(int argc, char** argv) {
 }
 
 int Start(int argc, char** argv) {
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  // Repeats argv[0] at position 1 on argv as a replacement for the missing
+  // entry point file path.
+  if (FindSingleExecutableCode() != nullptr) {
+    char** new_argv = new char*[argc + 2];
+    int new_argc = 0;
+    new_argv[new_argc++] = argv[0];
+    new_argv[new_argc++] = argv[0];
+
+    for (int i = 1; i < argc; ++i) {
+      new_argv[new_argc++] = argv[i];
+    }
+
+    new_argv[new_argc] = nullptr;
+
+    argc = new_argc;
+    argv = new_argv;
+  }
+#endif
+
   return static_cast<int>(StartInternal(argc, argv));
 }
 

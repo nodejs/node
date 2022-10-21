@@ -31,6 +31,10 @@
 #include "string_bytes.h"
 #include "uv.h"
 
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+#include "postject-api.h"
+#endif
+
 #ifdef _WIN32
 #include <io.h>  // _S_IREAD _S_IWRITE
 #include <time.h>
@@ -52,6 +56,12 @@
 #include <sstream>
 
 static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
+
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+static bool single_executable_application_code_loaded = false;
+static size_t single_executable_application_size = 0;
+static const char* single_executable_application_code = nullptr;
+#endif
 
 namespace node {
 
@@ -591,5 +601,24 @@ Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
     return String::NewExternalTwoByte(isolate, source).ToLocalChecked();
   }
 }
+
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+const char* FindSingleExecutableCode(size_t* size) {
+  // TODO(RaisinTen): Use a fuse when https://github.com/nodejs/postject/pull/59
+  // lands.
+  if (single_executable_application_code_loaded == false) {
+    single_executable_application_code =
+        static_cast<const char*>(postject_find_resource(
+            "NODE_JS_CODE", &single_executable_application_size, nullptr));
+    single_executable_application_code_loaded = true;
+  }
+
+  if (size != nullptr) {
+    *size = single_executable_application_size;
+  }
+
+  return single_executable_application_code;
+}
+#endif
 
 }  // namespace node
