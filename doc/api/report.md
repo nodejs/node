@@ -528,6 +528,11 @@ includes the date, time, PID, and a sequence number. The sequence number helps
 in associating the report dump with the runtime state if generated multiple
 times for the same Node.js process.
 
+Diagnostic report has an associated single-digit version number (`report.header.reportVersion`),
+uniquely representing the report format. The version number is bumped
+when new key is added or removed, or the data type of a value is changed.
+Report version definitions are consistent across LTS releases.
+
 ## Configuration
 
 Additional runtime configuration of report generation is available via
