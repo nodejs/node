@@ -126,7 +126,6 @@ const testFixtures = fixtures.path('test-runner');
   ];
   const child = spawnSync(process.execPath, args);
 
-  console.log(child.stdout.toString());
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
