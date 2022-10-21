@@ -3580,6 +3580,7 @@ added: REPLACEME
   * `host` {string} **Default:** `'localhost'`
   * `mimeOverrides` {Object} Dictionary linking file extension to a MIME string,
     to override or extend the built-in ones.
+  * `serveDotFiles` {boolean} **Default:** `false`
 
 * Returns: {http.Server}
 
