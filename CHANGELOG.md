@@ -4,7 +4,7 @@ Select a Node.js version below to view the changelog history:
 
 * [Node.js 19](doc/changelogs/CHANGELOG_V19.md) **Current**
 * [Node.js 18](doc/changelogs/CHANGELOG_V18.md) **Current**
-* [Node.js 17](doc/changelogs/CHANGELOG_V17.md) **Current**
+* [Node.js 17](doc/changelogs/CHANGELOG_V17.md) End-of-Life
 * [Node.js 16](doc/changelogs/CHANGELOG_V16.md) **Long Term Support**
 * [Node.js 15](doc/changelogs/CHANGELOG_V15.md) End-of-Life
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) Long Term Support
@@ -30,7 +30,6 @@ release.
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V19.md">19</a> (Current)</th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V18.md">18</a> (Current)</th>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V17.md">17</a> (Current)</th>
   <th title="LTS Until 2023-09"><a href="doc/changelogs/CHANGELOG_V16.md">16</a> (LTS)</th>
   <th title="LTS Until 2023-04"><a href="doc/changelogs/CHANGELOG_V14.md">14</a> (LTS)</th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a> (LTS)</th>
@@ -55,23 +54,6 @@ release.
 <a href="doc/changelogs/CHANGELOG_V18.md#18.0.0">18.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V17.md#17.9.1">17.9.1</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.9.0">17.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.8.0">17.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.7.2">17.7.2</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.7.1">17.7.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.7.0">17.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.6.0">17.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.5.0">17.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.4.0">17.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.3.1">17.3.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.3.0">17.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.2.0">17.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.1.0">17.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.0.1">17.0.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V17.md#17.0.0">17.0.0</a><br/>
-    </td>
-    <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V16.md#16.17.1">16.17.1</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.17.0">16.17.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.16.0">16.16.0</a><br/>
