@@ -960,7 +960,7 @@ $ npm i -g node-core-utils
 Run the prepare LTS release command:
 
 ```console
-git node release --prepare --startLTS
+$ git node release --prepare --startLTS
 ```
 
 <details>
