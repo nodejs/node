@@ -3565,6 +3565,43 @@ server.on('request', (request, res) => {
 server.listen(8000);
 ```
 
+## `http.createSimpleServer([directory[, port[, host]]])`
+
+<!--YAML
+added: REPLACEME
+-->
+
+> Stability: 0 - Experimental
+
+* `directory` {string|URL} Root directory from which files would be serve.
+* `port` {number}
+* `host` {string}
+
+Start a TCP server listening for connections on the given `port` and `host`, and
+serve statically local files, using `directory` as the root. Please note that
+when specifying a `host` other than `localhost`, you are exposing you local file
+system to all the machines that can connect to your computer.
+
+If `host` is omitted, the server will accept connections on the
+[unspecified IPv6 address][] (`::`) when IPv6 is available, or the
+[unspecified IPv4 address][] (`0.0.0.0`) otherwise.
+
+In most operating systems, listening to the [unspecified IPv6 address][] (`::`)
+may cause the `net.Server` to also listen on the [unspecified IPv4 address][]
+(`0.0.0.0`).
+
+Also accessible via `require('node:http/server')`.
+
+```bash
+node -r node:http/server # starts serving the cwd on a random port
+
+# To start serving on the port 8080 using /path/to/dir as the root:
+node -r node:http/server /path/to/dir --port 8080 --host localhost
+
+# If `--host` is omitted, your local file system is exposed:
+node -r node:http/server /path/to/dir --port 8080
+```
+
 ## `http.get(options[, callback])`
 
 ## `http.get(url[, options][, callback])`
