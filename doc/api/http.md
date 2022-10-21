@@ -3565,7 +3565,7 @@ server.on('request', (request, res) => {
 server.listen(8000);
 ```
 
-## `http.createSimpleServer([options])`
+## `http.createStaticServer([options])`
 
 <!--YAML
 added: REPLACEME
@@ -3594,16 +3594,16 @@ Also accessible via `require('node:http/server')`.
 ```bash
 # Starts serving the cwd on a random port:
 node -r node:http/server
-node -e 'http.createSimpleServer()'
+node -e 'http.createStaticServer()'
 
 # To start serving on the port 8080 using /path/to/dir as the root:
 node -r node:http/server /path/to/dir --port 8080
-node -e 'http.createSimpleServer({directory: "/path/to/dir", port: 8080})'
+node -e 'http.createStaticServer({directory: "/path/to/dir", port: 8080})'
 
 # Same as above, but exposing your local file system to the whole
 # IPv4 network:
 node -r node:http/server /path/to/dir --port 8080 --host 0.0.0.0
-node -e 'http.createSimpleServer({directory: "/path/to/dir", port: 8080, host: "0.0.0.0"})'
+node -e 'http.createStaticServer({directory: "/path/to/dir", port: 8080, host: "0.0.0.0"})'
 ```
 
 ## `http.get(options[, callback])`
