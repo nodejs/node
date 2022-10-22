@@ -6403,6 +6403,10 @@ By default, all {fs.FSWatcher} objects are "ref'ed", making it normally
 unnecessary to call `watcher.ref()` unless `watcher.unref()` had been
 called previously.
 
+`watcher.ref()` is not available on Linux. An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
+exception will be thrown when the function is used on a platform that
+does not support it.
+
 #### `watcher.unref()`
 
 <!-- YAML
@@ -6418,6 +6422,10 @@ event loop to remain active. If there is no other activity keeping the
 event loop running, the process may exit before the {fs.FSWatcher} object's
 callback is invoked. Calling `watcher.unref()` multiple times will have
 no effect.
+
+`watcher.unref()` is not available on Linux. An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
+exception will be thrown when the function is used on a platform that
+does not support it.
 
 ### Class: `fs.StatWatcher`
 
