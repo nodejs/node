@@ -1151,15 +1151,9 @@ void TriggerUncaughtException(Isolate* isolate,
   RunAtExit(env);
 
   // If the global uncaught exception handler sets process.exitCode,
-  // exit with that code. Otherwise, exit with 1.
-  Local<String> exit_code = env->exit_code_string();
-  Local<Value> code;
-  if (process_object->Get(env->context(), exit_code).ToLocal(&code) &&
-      code->IsInt32()) {
-    env->Exit(static_cast<ExitCode>(code.As<Int32>()->Value()));
-  } else {
-    env->Exit(ExitCode::kGenericUserError);
-  }
+  // exit with that code. Otherwise, exit with `ExitCode::kGenericUserError`.
+  env->Exit(static_cast<ExitCode>(env->exit_code().value_or(
+      static_cast<int32_t>(ExitCode::kGenericUserError))));
 }
 
 void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {

@@ -41,7 +41,8 @@
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
-  V(trigger_async_id_symbol, "trigger_async_id_symbol")
+  V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(exit_code_symbol, "exit_code_symbol")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -114,7 +115,6 @@
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
   V(exchange_string, "exchange")                                               \
-  V(exit_code_string, "exitCode")                                              \
   V(expire_string, "expire")                                                   \
   V(exponent_string, "exponent")                                               \
   V(exports_string, "exports")                                                 \
