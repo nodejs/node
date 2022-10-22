@@ -1,12 +1,12 @@
 name: Test Linux
 
 on:
-  pull_request:
-    paths-ignore:
-      - README.md
-      - .github/**
-      - '!.github/workflows/test-linux.yml'
-    types: [opened, synchronize, reopened, ready_for_review]
+  # pull_request:
+  #   paths-ignore:
+  #     - README.md
+  #     - .github/**
+  #     - '!.github/workflows/test-linux.yml'
+  #   types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - main

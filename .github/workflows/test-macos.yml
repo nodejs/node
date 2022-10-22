@@ -1,15 +1,15 @@
 name: Test macOS
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - .mailmap
-      - '**.md'
-      - AUTHORS
-      - doc/**
-      - .github/**
-      - '!.github/workflows/test-macos.yml'
+  # pull_request:
+  #   types: [opened, synchronize, reopened, ready_for_review]
+  #   paths-ignore:
+  #     - .mailmap
+  #     - '**.md'
+  #     - AUTHORS
+  #     - doc/**
+  #     - .github/**
+  #     - '!.github/workflows/test-macos.yml'
   push:
     branches:
       - main

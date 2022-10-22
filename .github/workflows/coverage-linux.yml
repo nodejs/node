@@ -1,17 +1,17 @@
 name: Coverage Linux
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - lib/**/*.js
-      - Makefile
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-linux.yml
+  # pull_request:
+  #   types: [opened, synchronize, reopened, ready_for_review]
+  #   paths:
+  #     - lib/**/*.js
+  #     - Makefile
+  #     - src/**/*.cc
+  #     - src/**/*.h
+  #     - test/**
+  #     - tools/gyp/**
+  #     - tools/test.py
+  #     - .github/workflows/coverage-linux.yml
   push:
     branches:
       - main
