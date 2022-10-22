@@ -903,6 +903,8 @@ This script will use the promoted builds and changelog to generate the post. Run
 * Select the tag version you pushed earlier.
 * For release title, copy the title from the changelog.
 * For the description, copy the rest of the changelog entry.
+* If you are not releasing the latest "Current", uncheck
+  "Set as the latest release".
 * Click on the "Publish release" button.
 
 ### 19. Cleanup
