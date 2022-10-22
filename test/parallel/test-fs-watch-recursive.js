@@ -27,7 +27,7 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
-  if (common.isOSX) {
+  if (common.isOSX || common.isLinux) {
     clearInterval(interval);
   }
   watcher.close();
