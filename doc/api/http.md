@@ -3580,7 +3580,11 @@ added: REPLACEME
   * `host` {string} **Default:** `'localhost'`
   * `mimeOverrides` {Object} Dictionary linking file extension to a MIME string,
     to override or extend the built-in ones.
-  * `serveDotFiles` {boolean} **Default:** `false`
+  * `filter` {Function|null} should be a function that accepts one argument and
+    returns a value that is coercible to a `Boolean` value. The function is
+    called once per request, and the server will return a HTTP 401 when
+    `filter(url)` returns `false`. When `null`, no files are filtered.
+    **Default:** filters all dot files.
 
 * Returns: {http.Server}
 
