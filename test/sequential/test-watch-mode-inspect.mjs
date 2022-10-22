@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { writeFileSync, readFileSync } from 'node:fs';
+import { setTimeout } from 'node:timers/promises';
 import { NodeInstance } from '../common/inspector-helper.js';
 
 
@@ -10,6 +11,12 @@ if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 common.skipIfInspectorDisabled();
+
+function restart(file) {
+  writeFileSync(file, readFileSync(file));
+  const interval = setInterval(() => writeFileSync(file, readFileSync(file)), 500);
+  return () => clearInterval(interval);
+}
 
 describe('watch mode - inspect', () => {
   async function getDebuggedPid(instance, waitForLog = true) {
@@ -29,20 +36,25 @@ describe('watch mode - inspect', () => {
     const file = fixtures.path('watch-mode/inspect.js');
     const instance = new NodeInstance(['--inspect=0', '--watch'], undefined, file);
     let stderr = '';
+    const stdout = [];
     instance.on('stderr', (data) => { stderr += data; });
+    instance.on('stdout', (data) => { stdout.push(data); });
 
     const pids = [instance.pid];
     pids.push(await getDebuggedPid(instance));
     instance.resetPort();
-    writeFileSync(file, readFileSync(file));
+    const stopRestarting = restart(file);
     pids.push(await getDebuggedPid(instance));
+    stopRestarting();
 
+    await setTimeout(common.platformTimeout(500));
     await instance.kill();
 
-    // There should be 3 pids (one parent + 2 restarts).
-    // Message about Debugger should only appear twice.
-    assert.strictEqual(stderr.match(/Debugger listening on ws:\/\//g).length, 2);
-    assert.strictEqual(new Set(pids).size, 3);
+    // There should be a process per restart and one per parent process.
+    // Message about Debugger should appear once per restart.
+    const restarts = stdout.filter((line) => line === 'safe to debug now').length;
+    assert.strictEqual(stderr.match(/Debugger listening on ws:\/\//g).length, restarts);
+    assert.strictEqual(new Set(pids).size, restarts + 1);
   });
 
   it('should prevent attaching debugger with SIGUSR1 to outer process', { skip: common.isWindows }, async () => {
