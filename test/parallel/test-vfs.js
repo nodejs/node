@@ -39,7 +39,7 @@ common.expectWarning(
 process.on('warning', common.mustCall());
 
 const originalStat = Module._stat;
-TODO(aduh95): We'd like to have a better way to achieve this without monkey-patching.
+// TODO(aduh95): We'd like to have a better way to achieve this without monkey-patching.
 Module._stat = function(filename) {
   if (!filename.startsWith(process.execPath)) {
     return originalStat(filename);
