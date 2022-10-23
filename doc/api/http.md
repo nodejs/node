@@ -3580,11 +3580,9 @@ added: REPLACEME
   * `host` {string} **Default:** `'localhost'`
   * `mimeOverrides` {Object} Dictionary linking file extension to a MIME string,
     to override or extend the built-in ones.
-  * `filter` {Function|null} should be a function that accepts one argument and
-    returns a value that is coercible to a `Boolean` value. The function is
-    called once per request, and the server will return a HTTP 401 when
-    `filter(url)` returns `false`. When `null`, no files are filtered.
-    **Default:** filters all dot files.
+  * `filter` {Function|null} should be a function that accepts two arguments and
+    returns a value that is coercible to a `Boolean` value. When `null`, no
+    files are filtered. **Default:** filters all dot files.
 
 * Returns: {http.Server}
 
@@ -3592,6 +3590,12 @@ Start a TCP server listening for connections on the given `port` and `host`, and
 serve static local files, using `directory` as the root. Please note that
 when specifying a `host` other than `localhost`, you are exposing your local file
 system to all the machines that can connect to your computer.
+
+If specified and not `null`, `filter` will be called with two arguments: the
+first one if the request URL string (the URL that is present in the actual HTTP
+request), and the second one is the `file:` `URL` that was generated from the
+base directory and the request URL. If the function returns a falsy value, the
+request will be blocked.
 
 If `port` is omitted or is 0, the operating system will assign an arbitrary
 unused port, which it's output will be the standard output.
