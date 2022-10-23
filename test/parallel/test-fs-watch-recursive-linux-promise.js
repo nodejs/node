@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 const { randomUUID } = require('crypto');
 const assert = require('assert');
 const path = require('path');
