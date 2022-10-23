@@ -3567,7 +3567,7 @@ server.listen(8000);
 
 ## `http.createStaticServer([options])`
 
-<!--YAML
+<!-- YAML
 added: REPLACEME
 -->
 
@@ -3587,9 +3587,9 @@ added: REPLACEME
 * Returns: {http.Server}
 
 Start a TCP server listening for connections on the given `port` and `host`, and
-serve static local files, using `directory` as the root. Please note that
-when specifying a `host` other than `localhost`, you are exposing your local file
-system to all the machines that can connect to your computer.
+serve static local files, using `directory` as the root.
+When specifying a `host` other than `localhost`, you are exposing your local
+file system to all the machines that can connect to your computer.
 
 If specified and not `null`, `filter` will be called with two arguments: the
 first one if the request URL string (the URL that is present in the actual HTTP
