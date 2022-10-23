@@ -9,6 +9,9 @@ const fixtures = require('../common/fixtures');
 const entry = fixtures.path('empty.js');
 const { Worker } = require('worker_threads');
 
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
 function testOnServerListen(fn) {
   const server = createServer((socket) => {
     socket.end('echo');
@@ -24,7 +27,10 @@ function testOnServerListen(fn) {
 function testChildProcess(getArgs, exitCode) {
   testOnServerListen((server) => {
     const { port } = server.address();
-    const child = spawnSync(process.execPath, getArgs(port));
+    const child = spawnSync(process.execPath, getArgs(port), {
+      // Generates snapshot blobs in the tmpdir.
+      cwd: tmpdir.path,
+    });
     const stderr = child.stderr.toString().trim();
     const stdout = child.stdout.toString().trim();
     console.log('[STDERR]');
