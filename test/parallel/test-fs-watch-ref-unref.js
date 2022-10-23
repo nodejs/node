@@ -12,30 +12,38 @@ const isWindows = process.platform === 'win32';
 const isOSX = process.platform === 'darwin';
 const isLinux = process.platform === 'linux';
 
-const watcher = fs.watch(__filename, common.mustNotCall());
+{
+  const watcher = fs.watch(__filename, common.mustNotCall());
 
-if (isOSX || isWindows) {
-  watcher.unref();
+  if (isOSX || isWindows) {
+    watcher.unref();
 
-  setTimeout(
-    common.mustCall(() => {
-      watcher.ref();
-      watcher.unref();
-    }),
-    common.platformTimeout(100)
-  );
+    setTimeout(
+      common.mustCall(() => {
+        watcher.ref();
+        watcher.unref();
+      }),
+      common.platformTimeout(100)
+    );
+  }
 }
 
-if (isLinux) {
-  assert.throws(() => {
-    watcher.ref();
-  }, {
-    code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
-  });
+{
+  const watcher = fs.watch(__filename, { recursive: true }, common.mustNotCall());
 
-  assert.throws(() => {
-    watcher.unref();
-  }, {
-    code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
-  });
+  if (isLinux) {
+    assert.throws(() => {
+      watcher.ref();
+    }, {
+      code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
+    });
+
+    assert.throws(() => {
+      watcher.unref();
+    }, {
+      code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
+    });
+  }
+
+  watcher.close();
 }
