@@ -2,6 +2,8 @@
 
 const common = require('../common');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
 
 const assert = require('assert');
 const path = require('path');
