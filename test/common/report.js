@@ -234,12 +234,16 @@ function _validateContent(report, fields = []) {
   // Verify the format of the resourceUsage section.
   const usage = report.resourceUsage;
   const resourceUsageFields = ['userCpuSeconds', 'kernelCpuSeconds',
-                               'cpuConsumptionPercent', 'maxRss',
+                               'cpuConsumptionPercent', 'userCpuConsumptionPercent',
+                               'kernelCpuConsumptionPercent', 'rss', 'maxRss',
                                'pageFaults', 'fsActivity'];
   checkForUnknownFields(usage, resourceUsageFields);
   assert.strictEqual(typeof usage.userCpuSeconds, 'number');
   assert.strictEqual(typeof usage.kernelCpuSeconds, 'number');
   assert.strictEqual(typeof usage.cpuConsumptionPercent, 'number');
+  assert.strictEqual(typeof usage.userCpuConsumptionPercent, 'number');
+  assert.strictEqual(typeof usage.kernelCpuConsumptionPercent, 'number');
+  assert(Number.isSafeInteger(usage.rss));
   assert(Number.isSafeInteger(usage.maxRss));
   assert(typeof usage.pageFaults === 'object' && usage.pageFaults !== null);
   checkForUnknownFields(usage.pageFaults, ['IORequired', 'IONotRequired']);
@@ -254,11 +258,15 @@ function _validateContent(report, fields = []) {
   if (report.uvthreadResourceUsage) {
     const usage = report.uvthreadResourceUsage;
     const threadUsageFields = ['userCpuSeconds', 'kernelCpuSeconds',
-                               'cpuConsumptionPercent', 'fsActivity'];
+                               'cpuConsumptionPercent', 'fsActivity',
+                               'userCpuConsumptionPercent',
+                               'kernelCpuConsumptionPercent'];
     checkForUnknownFields(usage, threadUsageFields);
     assert.strictEqual(typeof usage.userCpuSeconds, 'number');
     assert.strictEqual(typeof usage.kernelCpuSeconds, 'number');
     assert.strictEqual(typeof usage.cpuConsumptionPercent, 'number');
+    assert.strictEqual(typeof usage.userCpuConsumptionPercent, 'number');
+    assert.strictEqual(typeof usage.kernelCpuConsumptionPercent, 'number');
     assert(typeof usage.fsActivity === 'object' && usage.fsActivity !== null);
     checkForUnknownFields(usage.fsActivity, ['reads', 'writes']);
     assert(Number.isSafeInteger(usage.fsActivity.reads));

@@ -627,6 +627,13 @@ static void PrintResourceUsage(JSONWriter* writer) {
   // Process and current thread usage statistics
   uv_rusage_t rusage;
   writer->json_objectstart("resourceUsage");
+
+  size_t rss;
+  int err = uv_resident_set_memory(&rss);
+  if (!err) {
+    writer->json_keyvalue("rss", rss);
+  }
+
   if (uv_getrusage(&rusage) == 0) {
     double user_cpu =
         rusage.ru_utime.tv_sec + SEC_PER_MICROS * rusage.ru_utime.tv_usec;
@@ -636,7 +643,11 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
     double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    double user_cpu_percentage = (user_cpu / uptime) * 100.0;
+    double kernel_cpu_percentage = (kernel_cpu / uptime) * 100.0;
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
+    writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
+    writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
     writer->json_keyvalue("maxRss", rusage.ru_maxrss * 1024);
     writer->json_objectstart("pageFaults");
     writer->json_keyvalue("IORequired", rusage.ru_majflt);
@@ -660,7 +671,11 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("kernelCpuSeconds", kernel_cpu);
     double cpu_abs = user_cpu + kernel_cpu;
     double cpu_percentage = (cpu_abs / uptime) * 100.0;
+    double user_cpu_percentage = (user_cpu / uptime) * 100.0;
+    double kernel_cpu_percentage = (kernel_cpu / uptime) * 100.0;
     writer->json_keyvalue("cpuConsumptionPercent", cpu_percentage);
+    writer->json_keyvalue("userCpuConsumptionPercent", user_cpu_percentage);
+    writer->json_keyvalue("kernelCpuConsumptionPercent", kernel_cpu_percentage);
     writer->json_objectstart("fsActivity");
     writer->json_keyvalue("reads", stats.ru_inblock);
     writer->json_keyvalue("writes", stats.ru_oublock);
