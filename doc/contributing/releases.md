@@ -965,6 +965,7 @@ $ git node release --prepare --startLTS
 
 <details>
 <summary>Manual steps for reference.</summary>
+
 To mark a release line as LTS, the following changes must be made to
 `src/node_version.h`:
 
