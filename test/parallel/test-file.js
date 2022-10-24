@@ -143,3 +143,13 @@ const { inspect } = require('util');
   });
   assert.strictEqual(counter, 1);
 }
+
+{
+  const getter = Object.getOwnPropertyDescriptor(File.prototype, 'name').get;
+  assert.throws(
+    () => getter.call(undefined),
+    {
+      code: 'ERR_INVALID_THIS',
+    }
+  );
+}
