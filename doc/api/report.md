@@ -198,10 +198,13 @@ is provided below for reference.
     }
   },
   "resourceUsage": {
-    "userCpuSeconds": 0.069595,
-    "kernelCpuSeconds": 0.019163,
-    "cpuConsumptionPercent": 0.000000,
-    "maxRss": 18079744,
+    "rss": 45768704,
+    "userCpuSeconds": 0.040072,
+    "kernelCpuSeconds": 0.016029,
+    "cpuConsumptionPercent": 5.6101,
+    "userCpuConsumptionPercent": 4.0072,
+    "kernelCpuConsumptionPercent": 1.6029,
+    "maxRss": 45768704,
     "pageFaults": {
       "IORequired": 0,
       "IONotRequired": 4610
@@ -212,9 +215,11 @@ is provided below for reference.
     }
   },
   "uvthreadResourceUsage": {
-    "userCpuSeconds": 0.068457,
-    "kernelCpuSeconds": 0.019127,
-    "cpuConsumptionPercent": 0.000000,
+    "userCpuSeconds": 0.039843,
+    "kernelCpuSeconds": 0.015937,
+    "cpuConsumptionPercent": 5.578,
+    "userCpuConsumptionPercent": 3.9843,
+    "kernelCpuConsumptionPercent": 1.5937,
     "fsActivity": {
       "reads": 0,
       "writes": 0
