@@ -961,6 +961,31 @@ _In whatever form you do this..._
 
 ### Marking a release line as LTS
 
+The process of marking a release line as LTS has been automated using
+[node-core-utils](https://github.com/nodejs/node-core-utils).
+
+Start by checking out the staging branch for the release line that is going to
+be marked as LTS, e.g:
+
+```console
+$ git checkout v1.x-staging
+```
+
+Next, make sure you have **node-core-utils** installed:
+
+```console
+$ npm i -g node-core-utils
+```
+
+Run the prepare LTS release command:
+
+```console
+$ git node release --prepare --startLTS
+```
+
+<details>
+<summary>Manual steps for reference.</summary>
+
 To mark a release line as LTS, the following changes must be made to
 `src/node_version.h`:
 
@@ -988,6 +1013,18 @@ For example:
 ```
 
 The changes must be made as part of a new semver-minor release.
+
+Updating changelogs to properly reflect the changes between **Current** and
+**Long Term Support** is also necessary, along with adding a reference to the
+current LTS codename in its release line changelog file.
+
+The `test/parallel/test-process-release.js` file might also need to be updated.
+
+In case you can not run the automated `node-core-utils` command and you are
+currently running these steps manually it's a good idea to refer to previous
+LTS proposal PRs and make sure all required changes are covered.
+
+</details>
 
 ### Update release labels
 
