@@ -6,6 +6,7 @@ const {
   PerformanceObserver,
   PerformanceEntry,
   PerformanceMark,
+  PerformanceMeasure,
   performance,
   performance: {
     nodeTiming,
@@ -17,6 +18,16 @@ assert(PerformanceEntry);
 assert(PerformanceMark);
 assert(performance.mark);
 assert(performance.measure);
+
+assert.deepStrictEqual(
+  Object.getOwnPropertyDescriptor(PerformanceMark.prototype, Symbol.toStringTag),
+  { configurable: true, enumerable: false, value: 'PerformanceMark', writable: false },
+);
+
+assert.deepStrictEqual(
+  Object.getOwnPropertyDescriptor(PerformanceMeasure.prototype, Symbol.toStringTag),
+  { configurable: true, enumerable: false, value: 'PerformanceMeasure', writable: false },
+);
 
 [undefined, 'a', 'null', 1, true].forEach((i) => {
   const m = performance.mark(i);
