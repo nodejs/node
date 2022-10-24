@@ -13,9 +13,9 @@ const isOSX = process.platform === 'darwin';
 const isLinux = process.platform === 'linux';
 
 {
-  const watcher = fs.watch(__filename, common.mustNotCall());
-
   if (isOSX || isWindows) {
+    const watcher = fs.watch(__filename, common.mustNotCall());
+
     watcher.unref();
 
     setTimeout(
@@ -29,9 +29,9 @@ const isLinux = process.platform === 'linux';
 }
 
 {
-  const watcher = fs.watch(__filename, { recursive: true }, common.mustNotCall());
-
   if (isLinux) {
+    const watcher = fs.watch(__filename, { recursive: true }, common.mustNotCall());
+
     assert.throws(() => {
       watcher.ref();
     }, {
@@ -43,7 +43,7 @@ const isLinux = process.platform === 'linux';
     }, {
       code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
     });
-  }
 
-  watcher.close();
+    watcher.close();
+  }
 }
