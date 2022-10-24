@@ -13,6 +13,7 @@ const { randomUUID } = require('crypto');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
@@ -101,7 +102,6 @@ tmpdir.refresh();
   });
 })().then(common.mustCall());
 
-
 (async () => {
   // Add a file to subfolder of a watching folder
 
@@ -133,6 +133,33 @@ tmpdir.refresh();
 
   await setTimeout(100);
   fs.writeFileSync(childrenAbsolutePath, 'world');
+
+  process.on('exit', function() {
+    assert(watcherClosed, 'watcher Object was not closed');
+  });
+})().then(common.mustCall());
+
+(async () => {
+   // Add a file to already watching folder, and use URL as the path
+
+  const testsubdir = fs.mkdtempSync(testDir + path.sep);
+  const file = `${randomUUID()}.txt`;
+  const filePath = path.join(testsubdir, file);
+  const url = new URL(pathToFileURL(testsubdir));
+  const watcher = fs.watch(url, { recursive: true });
+
+  let watcherClosed = false;
+  watcher.on('change', function(event, filename) {
+    assert.ok(event === 'change' || event === 'rename');
+
+    if (filename === file) {
+      watcher.close();
+      watcherClosed = true;
+    }
+  });
+
+  await setTimeout(100);
+  fs.writeFileSync(filePath, 'world');
 
   process.on('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
