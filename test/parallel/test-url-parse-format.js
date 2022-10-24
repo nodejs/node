@@ -853,16 +853,16 @@ const parseTests = {
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
-    auth: 'a\r" \t\n<\'b:b',
-    host: 'c',
+    auth: 'a" <\'b:b',
+    host: 'cd',
     port: null,
-    hostname: 'c',
+    hostname: 'cd',
     hash: null,
     search: '?f',
     query: 'f',
-    pathname: '%0D%0Ad/e',
-    path: '%0D%0Ad/e?f',
-    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+    pathname: '/e',
+    path: '/e?f',
+    href: 'http://a%22%20%3C\'b:b@cd/e?f'
   },
 
   'https://*': {
@@ -1007,7 +1007,7 @@ for (const u in parseTests) {
   assert.deepStrictEqual(
     actual,
     expected,
-    `expected ${inspect(expected)}, got ${inspect(actual)}`
+    `parsing ${u} and expected ${inspect(expected)} but got ${inspect(actual)}`
   );
   assert.deepStrictEqual(
     spaced,
