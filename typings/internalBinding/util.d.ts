@@ -8,15 +8,14 @@ declare namespace InternalUtilBinding {
 }
 
 declare function InternalBinding(binding: 'util'): {
-  // PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES, defined in src/env.h
+  // PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES, defined in src/env_properties.h
   arrow_message_private_symbol: 1;
   contextify_context_private_symbol: 2;
-  contextify_global_private_symbol: 3;
-  decorated_private_symbol: 4;
-  napi_type_tag: 5;
-  napi_wrapper: 6;
-  untransferable_object_private_symbol: 7;
-  exiting_aliased_Uint32Array: 8;
+  decorated_private_symbol: 3;
+  napi_type_tag: 4;
+  napi_wrapper: 5;
+  untransferable_object_private_symbol: 6;
+  exiting_aliased_Uint32Array: 7;
 
   kPending: 0;
   kFulfilled: 1;
