@@ -3,7 +3,9 @@
     "fail": {
       "note": "File's options is passed to Blob, this is an issue in Blob.",
       "expected": [
-        "Unusual but valid property bag: null"
+        "Unusual but valid property bag: null",
+        "Unusual but valid property bag: 1,2,3",
+        "Unusual but valid property bag: function() {}"
       ]
     }
   },
