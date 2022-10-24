@@ -48,10 +48,25 @@ async function test() {
   session.on('NodeTracing.dataCollected', (n) => traceNotification = n);
   session.on('NodeTracing.tracingComplete', () => tracingComplete = true);
   const { categories } = await post('NodeTracing.getCategories');
-  compareIgnoringOrder(['node', 'node.async', 'node.bootstrap', 'node.fs.sync',
-                        'node.perf', 'node.perf.usertiming',
-                        'node.perf.timerify', 'v8'],
-                       categories);
+  compareIgnoringOrder(['node',
+                        'node.async_hooks',
+                        'node.bootstrap',
+                        'node.console',
+                        'node.dns.native',
+                        'node.net.native',
+                        'node.environment',
+                        'node.fs.sync',
+                        'node.fs_dir.sync',
+                        'node.fs.async',
+                        'node.fs_dir.async',
+                        'node.perf',
+                        'node.perf.usertiming',
+                        'node.perf.timerify',
+                        'node.promises.rejections',
+                        'node.vm.script',
+                        'v8',
+                        'node.http',
+  ], categories);
 
   const traceConfig = { includedCategories: ['v8'] };
   await post('NodeTracing.start', { traceConfig });
