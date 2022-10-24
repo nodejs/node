@@ -56,6 +56,14 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       const char* id,
       Environment* optional_env);
 
+  // A variant of LookupAndCompile where parameters are explicitly
+  // passed instead of guessed based on id pattern - used by embedders.
+  static v8::MaybeLocal<v8::Function> LookupAndCompile(
+      v8::Local<v8::Context> context,
+      const char* id,
+      std::vector<v8::Local<v8::String>>* parameters,
+      Environment* optional_env);
+
   static v8::MaybeLocal<v8::Value> CompileAndCall(
       v8::Local<v8::Context> context,
       const char* id,

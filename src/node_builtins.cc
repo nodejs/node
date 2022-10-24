@@ -373,7 +373,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
 // Otherwise return a Local<Object> containing the cache.
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context, const char* id, Environment* optional_env) {
-  Result result;
   std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
   // Detects parameters of the scripts based on module ids.
@@ -424,8 +423,17 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     };
   }
 
-  MaybeLocal<Function> maybe = GetInstance()->LookupAndCompileInternal(
-      context, id, &parameters, &result);
+  return LookupAndCompile(context, id, &parameters, optional_env);
+}
+
+MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
+    Local<Context> context,
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    Environment* optional_env) {
+  Result result;
+  MaybeLocal<Function> maybe =
+      GetInstance()->LookupAndCompileInternal(context, id, parameters, &result);
   if (optional_env != nullptr) {
     RecordResult(id, result, optional_env);
   }
