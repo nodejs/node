@@ -71,7 +71,6 @@ const { inspect } = require('util');
 
   const invalidLastModified = [
     null,
-    undefined,
     'string',
     false,
     toPrimitive,
@@ -81,6 +80,11 @@ const { inspect } = require('util');
     const file = new File([], '', { lastModified });
     assert.strictEqual(file.lastModified, 0);
   }
+}
+
+{
+  const file = new File([], '', { lastModified: undefined });
+  assert.notStrictEqual(file.lastModified, 0);
 }
 
 {
@@ -119,4 +123,23 @@ const { inspect } = require('util');
 {
   const file = new File([], '');
   assert(inspect(file).startsWith('File { size: 0, type: \'\', name: \'\', lastModified:'));
+}
+
+{
+  function MyClass() {}
+  MyClass.prototype.lastModified = 10;
+
+  const file = new File([], '', new MyClass());
+  assert.strictEqual(file.lastModified, 10);
+}
+
+{
+  let counter = 0;
+  new File([], '', {
+    get lastModified() {
+      counter++;
+      return 10;
+    }
+  });
+  assert.strictEqual(counter, 1);
 }

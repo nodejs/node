@@ -5041,6 +5041,7 @@ added: REPLACEME
     the platform native line-ending as specified by `require('node:os').EOL`.
   * `type` {string} The File content-type.
   * `lastModified` {number} The last modified date of the file.
+    **Default:** `Date.now()`. 
 
 ### `file.name`
 
