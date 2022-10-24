@@ -147,7 +147,7 @@ const { inspect } = require('util');
 {
   const getter = Object.getOwnPropertyDescriptor(File.prototype, 'name').get;
   assert.throws(
-    () => getter.call(undefined),
+    () => getter.call(undefined), // eslint-disable-line no-useless-call
     {
       code: 'ERR_INVALID_THIS',
     }
