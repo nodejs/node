@@ -5014,6 +5014,7 @@ changes:
 See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 
 ## Class: `File`
+
 <!-- YAML
 added: REPLACEME
 -->
@@ -5025,6 +5026,7 @@ added: REPLACEME
 A [`File`][] provides information about files.
 
 ### `new buffer.File(sources, fileName[, options])`
+
 <!-- YAML
 added: REPLACEME
 -->
@@ -5041,6 +5043,7 @@ added: REPLACEME
   * `lastModified` {number} The last modified date of the file.
 
 ### `file.name`
+
 <!-- YAML
 added: REPLACEME
 -->
@@ -5050,6 +5053,7 @@ added: REPLACEME
 The name of the `File`.
 
 ### `file.lastModified`
+
 <!-- YAML
 added: REPLACEME
 -->
