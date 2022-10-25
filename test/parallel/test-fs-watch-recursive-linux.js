@@ -145,7 +145,7 @@ tmpdir.refresh();
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
   const file = `${randomUUID()}.txt`;
   const filePath = path.join(testsubdir, file);
-  const url = new URL(pathToFileURL(testsubdir));
+  const url = pathToFileURL(testsubdir);
   const watcher = fs.watch(url, { recursive: true });
 
   let watcherClosed = false;
