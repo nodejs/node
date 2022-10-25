@@ -370,6 +370,8 @@ For information about the governance of the Node.js project, see
   **LiviaMedeiros** <<livia@cirno.name>>
 * [lpinca](https://github.com/lpinca) -
   **Luigi Pinca** <<luigipinca@gmail.com>> (he/him)
+* [lukekarrys](https://github.com/lukekarrys) -
+  **Luke Karrys** <<luke@lukekarry.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
 * [marsonya](https://github.com/marsonya) -
