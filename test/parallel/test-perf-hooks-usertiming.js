@@ -26,7 +26,7 @@ assert(performance.measure);
       configurable: true,
       enumerable: false,
       writable: false,
-      value: c.prototype.constructor.name,
+      value: c.name,
     }
   );
 });
