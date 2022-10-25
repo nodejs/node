@@ -310,8 +310,6 @@ dns.lookup('', {
 const portErr = (port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
-    message:
-      `Port should be >= 0 and < 65536. Received ${port}.`,
     name: 'RangeError'
   };
 
@@ -323,10 +321,7 @@ const portErr = (port) => {
     dns.lookupService('0.0.0.0', port, common.mustNotCall());
   }, err);
 };
-portErr(null);
-portErr(undefined);
-portErr(65538);
-portErr('test');
+[null, undefined, 65538, 'test', NaN, Infinity, Symbol(), 0n, true, false, '', () => {}, {}].forEach(portErr);
 
 assert.throws(() => {
   dns.lookupService('0.0.0.0', 80, null);
