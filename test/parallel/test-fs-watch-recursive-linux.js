@@ -140,7 +140,7 @@ tmpdir.refresh();
 })().then(common.mustCall());
 
 (async () => {
-   // Add a file to already watching folder, and use URL as the path
+  // Add a file to already watching folder, and use URL as the path
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
   const file = `${randomUUID()}.txt`;
