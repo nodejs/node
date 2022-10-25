@@ -128,9 +128,9 @@ function onconnection(c) {
 }
 
 function onserverClosed() {
-  checkInvocations(tcpserver, { init: 1, before: 1, after: 1, destroy: 1 },
-                   'tcpserver when server is closed');
   setImmediate(() => {
+    checkInvocations(tcpserver, { init: 1, before: 1, after: 1, destroy: 1 },
+                     'tcpserver when server is closed');
     checkInvocations(tcp1, { init: 1, before: 2, after: 2, destroy: 1 },
                      'tcp1 after server is closed');
   });
