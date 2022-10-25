@@ -15,7 +15,7 @@ const runTest = async () => {
   const target = spawn(process.execPath, [script]);
   const cli = startCLI(['-p', `${target.pid}`]);
 
-  try {  
+  try {
     await cli.waitForPrompt();
     await cli.command('sb("alive.js", 3)');
     await cli.waitFor(/break/);
@@ -30,6 +30,6 @@ const runTest = async () => {
     await cli.quit();
     target.kill();
   }
-}
+};
 
-runTest()
+runTest();
