@@ -755,7 +755,7 @@ changes:
     description: This method now returns a reference to `ClientRequest`.
 -->
 
-* `data` {string|Buffer}
+* `data` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {this}
@@ -1207,7 +1207,7 @@ before the [`'finish'`][] event is emitted.
 added: v0.1.29
 -->
 
-* `chunk` {string|Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {boolean}
@@ -1745,7 +1745,7 @@ changes:
     description: This method now returns a reference to `ServerResponse`.
 -->
 
-* `data` {string|Buffer}
+* `data` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {this}
@@ -2096,7 +2096,7 @@ before the [`'finish'`][] event is emitted.
 added: v0.1.29
 -->
 
-* `chunk` {string|Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
 * Returns: {boolean}
@@ -2788,7 +2788,7 @@ changes:
     description: add `callback` argument.
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} Optional, **Default**: `utf8`
 * `callback` {Function} Optional
 * Returns: {this}
@@ -3048,7 +3048,7 @@ changes:
     description: The `callback` argument was added.
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} **Default**: `utf8`
 * `callback` {Function}
 * Returns {boolean}
