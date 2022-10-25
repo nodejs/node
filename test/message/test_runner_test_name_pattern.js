@@ -34,8 +34,8 @@ test('top level test enabled', common.mustCall(async (t) => {
 
 describe('top level describe enabled', () => {
   before(common.mustCall());
-  beforeEach(common.mustCall(2));
-  afterEach(common.mustCall(2));
+  beforeEach(common.mustCall(4));
+  afterEach(common.mustCall(4));
   after(common.mustCall());
 
   it('nested it disabled', common.mustNotCall());

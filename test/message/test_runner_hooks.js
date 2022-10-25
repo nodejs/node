@@ -15,10 +15,12 @@ describe('describe hooks', () => {
       'before describe hooks',
       'beforeEach 1', '1', 'afterEach 1',
       'beforeEach 2', '2', 'afterEach 2',
+      'beforeEach nested',
       'before nested',
       'beforeEach nested 1', 'nested 1', 'afterEach nested 1',
       'beforeEach nested 2', 'nested 2', 'afterEach nested 2',
       'after nested',
+      'afterEach nested',
       'after describe hooks',
     ]);
   });
