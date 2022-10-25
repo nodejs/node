@@ -37,7 +37,7 @@ jobs:
       - run: ./tools/update-timezone.mjs
 
       - name: Open Pull Request
-        uses: gr2m/create-or-update-pull-request-action@cb63b1c12a6c32d49cc613469950581413b29245  # Create a PR or update the Action's existing PR
+        uses: gr2m/create-or-update-pull-request-action@dc1726cbf4dd3ce766af4ec29cfb660e0125e8ee  # Create a PR or update the Action's existing PR
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
