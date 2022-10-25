@@ -2060,9 +2060,12 @@ void Http2Stream::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 std::string Http2Stream::diagnostic_name() const {
+  const Http2Session* sess = session();
+  const std::string sname =
+      sess ? sess->diagnostic_name() : "session already destroyed";
   return "HttpStream " + std::to_string(id()) + " (" +
-      std::to_string(static_cast<int64_t>(get_async_id())) + ") [" +
-      session()->diagnostic_name() + "]";
+         std::to_string(static_cast<int64_t>(get_async_id())) + ") [" + sname +
+         "]";
 }
 
 // Notify the Http2Stream that a new block of HEADERS is being processed.
