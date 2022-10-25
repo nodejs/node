@@ -2362,6 +2362,19 @@ This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
 later by native code using [`napi_get_value_external`][].
 
+**Some runtimes other than Node.ja hasve dropped support for external buffers**.
+On runtimes other than Node.js this method may return
+`napi_no_external_buffers_allowed` to indicate that external
+buffers are not supported. One such runtime is electron as
+described in this issue
+[electron/issues/35801](https://github.com/electron/electron/issues/35801).
+
+In order to maintain broadest compatibility with all runtimes
+you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
+includes for the node-api headers. Doing so will hide the 2 methods
+that create external buffers. This will ensure a compilation error
+occurs if you accidentally use one of these methods.
+
 The API adds a `napi_finalize` callback which will be called when the JavaScript
 object just created is ready for garbage collection. It is similar to
 `napi_wrap()` except that:

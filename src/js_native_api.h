@@ -402,12 +402,14 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_arraybuffer(napi_env env,
                                                            void** data,
                                                            napi_value* result);
 NAPI_EXTERN napi_status NAPI_CDECL
+#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 napi_create_external_arraybuffer(napi_env env,
                                  void* external_data,
                                  size_t byte_length,
                                  napi_finalize finalize_cb,
                                  void* finalize_hint,
                                  napi_value* result);
+#endif  // NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_arraybuffer_info(
     napi_env env, napi_value arraybuffer, void** data, size_t* byte_length);
 NAPI_EXTERN napi_status NAPI_CDECL napi_is_typedarray(napi_env env,
