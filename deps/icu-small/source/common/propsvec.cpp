@@ -351,7 +351,7 @@ upvec_compact(UPropsVectors *pv, UPVecCompactHandler *handler, void *context, UE
     }
 
     /* Set the flag now: Sorting and compacting destroys the builder data structure. */
-    pv->isCompacted=TRUE;
+    pv->isCompacted=true;
 
     rows=pv->rows;
     columns=pv->columns;
@@ -360,7 +360,7 @@ upvec_compact(UPropsVectors *pv, UPVecCompactHandler *handler, void *context, UE
 
     /* sort the properties vectors to find unique vector values */
     uprv_sortArray(pv->v, rows, columns*4,
-                   upvec_compareRows, pv, FALSE, pErrorCode);
+                   upvec_compareRows, pv, false, pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
         return;
     }
@@ -503,7 +503,7 @@ upvec_compactToUTrie2Handler(void *context,
     (void)columns;
     UPVecToUTrie2Context *toUTrie2=(UPVecToUTrie2Context *)context;
     if(start<UPVEC_FIRST_SPECIAL_CP) {
-        utrie2_setRange32(toUTrie2->trie, start, end, (uint32_t)rowIndex, TRUE, pErrorCode);
+        utrie2_setRange32(toUTrie2->trie, start, end, (uint32_t)rowIndex, true, pErrorCode);
     } else {
         switch(start) {
         case UPVEC_INITIAL_VALUE_CP:

@@ -36,6 +36,7 @@
 
 /**
  * \file
+ * \brief C API: Encoding/charset encoding selector
  *
  * A converter selector is built with a set of encoding/charset names
  * and given an input string returns the set of names of the

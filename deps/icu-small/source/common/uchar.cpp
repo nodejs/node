@@ -126,7 +126,7 @@ u_isxdigit(UChar32 c) {
         (c<=0x66 && c>=0x41 && (c<=0x46 || c>=0x61)) ||
         (c>=0xff21 && c<=0xff46 && (c<=0xff26 || c>=0xff41))
     ) {
-        return TRUE;
+        return true;
     }
 
     GET_PROPS(c, props);
@@ -249,7 +249,7 @@ U_CAPI UBool U_EXPORT2
 u_isprint(UChar32 c) {
     uint32_t props;
     GET_PROPS(c, props);
-    /* comparing ==0 returns FALSE for the categories mentioned */
+    /* comparing ==0 returns false for the categories mentioned */
     return (UBool)((CAT_MASK(props)&U_GC_C_MASK)==0);
 }
 
@@ -273,7 +273,7 @@ U_CAPI UBool U_EXPORT2
 u_isgraph(UChar32 c) {
     uint32_t props;
     GET_PROPS(c, props);
-    /* comparing ==0 returns FALSE for the categories mentioned */
+    /* comparing ==0 returns false for the categories mentioned */
     return (UBool)((CAT_MASK(props)&
                     (U_GC_CC_MASK|U_GC_CF_MASK|U_GC_CS_MASK|U_GC_CN_MASK|U_GC_Z_MASK))
                    ==0);
@@ -291,7 +291,7 @@ u_isgraphPOSIX(UChar32 c) {
     uint32_t props;
     GET_PROPS(c, props);
     /* \p{space}\p{gc=Control} == \p{gc=Z}\p{Control} */
-    /* comparing ==0 returns FALSE for the categories mentioned */
+    /* comparing ==0 returns false for the categories mentioned */
     return (UBool)((CAT_MASK(props)&
                     (U_GC_CC_MASK|U_GC_CS_MASK|U_GC_CN_MASK|U_GC_Z_MASK))
                    ==0);
@@ -591,7 +591,7 @@ uscript_hasScript(UChar32 c, UScriptCode sc) {
     uint32_t sc32=sc;
     if(sc32>0x7fff) {
         /* Guard against bogus input that would make us go past the Script_Extensions terminator. */
-        return FALSE;
+        return false;
     }
     while(sc32>*scx) {
         ++scx;
@@ -654,7 +654,7 @@ _enumPropertyStartsRange(const void *context, UChar32 start, UChar32 end, uint32
     sa->add(sa->set, start);
     (void)end;
     (void)value;
-    return TRUE;
+    return true;
 }
 
 #define USET_ADD_CP_AND_NEXT(sa, cp) sa->add(sa->set, cp); sa->add(sa->set, cp+1)

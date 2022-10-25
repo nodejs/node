@@ -137,14 +137,14 @@ UnicodeString &
 FilteredNormalizer2::normalizeSecondAndAppend(UnicodeString &first,
                                               const UnicodeString &second,
                                               UErrorCode &errorCode) const {
-    return normalizeSecondAndAppend(first, second, TRUE, errorCode);
+    return normalizeSecondAndAppend(first, second, true, errorCode);
 }
 
 UnicodeString &
 FilteredNormalizer2::append(UnicodeString &first,
                             const UnicodeString &second,
                             UErrorCode &errorCode) const {
-    return normalizeSecondAndAppend(first, second, FALSE, errorCode);
+    return normalizeSecondAndAppend(first, second, false, errorCode);
 }
 
 UnicodeString &
@@ -224,7 +224,7 @@ UBool
 FilteredNormalizer2::isNormalized(const UnicodeString &s, UErrorCode &errorCode) const {
     uprv_checkCanGetBuffer(s, errorCode);
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     USetSpanCondition spanCondition=USET_SPAN_SIMPLE;
     for(int32_t prevSpanLimit=0; prevSpanLimit<s.length();) {
@@ -235,19 +235,19 @@ FilteredNormalizer2::isNormalized(const UnicodeString &s, UErrorCode &errorCode)
             if( !norm2.isNormalized(s.tempSubStringBetween(prevSpanLimit, spanLimit), errorCode) ||
                 U_FAILURE(errorCode)
             ) {
-                return FALSE;
+                return false;
             }
             spanCondition=USET_SPAN_NOT_CONTAINED;
         }
         prevSpanLimit=spanLimit;
     }
-    return TRUE;
+    return true;
 }
 
 UBool
 FilteredNormalizer2::isNormalizedUTF8(StringPiece sp, UErrorCode &errorCode) const {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     const char *s = sp.data();
     int32_t length = sp.length();
@@ -259,14 +259,14 @@ FilteredNormalizer2::isNormalizedUTF8(StringPiece sp, UErrorCode &errorCode) con
         } else {
             if (!norm2.isNormalizedUTF8(StringPiece(s, spanLength), errorCode) ||
                     U_FAILURE(errorCode)) {
-                return FALSE;
+                return false;
             }
             spanCondition = USET_SPAN_NOT_CONTAINED;
         }
         s += spanLength;
         length -= spanLength;
     }
-    return TRUE;
+    return true;
 }
 
 UNormalizationCheckResult

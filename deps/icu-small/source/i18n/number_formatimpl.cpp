@@ -353,7 +353,9 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
     }
     fPatternModifier.adoptInstead(patternModifier);
     const AffixPatternProvider* affixProvider =
-        macros.affixProvider != nullptr
+        macros.affixProvider != nullptr && (
+                // For more information on this condition, see ICU-22073
+                !isCompactNotation || isCurrency == macros.affixProvider->hasCurrencySign())
             ? macros.affixProvider
             : static_cast<const AffixPatternProvider*>(fPatternInfo.getAlias());
     patternModifier->setPatternInfo(affixProvider, kUndefinedField);

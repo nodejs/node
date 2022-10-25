@@ -382,7 +382,7 @@ U_CDECL_END
 U_NAMESPACE_BEGIN
 
 Package::Package()
-        : doAutoPrefix(FALSE), prefixEndsWithType(FALSE) {
+        : doAutoPrefix(false), prefixEndsWithType(false) {
     inPkgName[0]=0;
     pkgPrefix[0]=0;
     inData=NULL;
@@ -655,7 +655,7 @@ Package::readPackage(const char *filename) {
                 }
                 items[i-1].type=makeTypeLetter(typeEnum);
             }
-            items[i].isDataOwned=FALSE;
+            items[i].isDataOwned=false;
         }
         // set the last item's length
         items[itemCount-1].length=length-ds->readUInt32(inEntries[itemCount-1].dataOffset);
@@ -728,10 +728,10 @@ Package::writePackage(const char *filename, char outType, const char *comment) {
     // one type (TYPE_LE) is bogus
     errorCode=U_ZERO_ERROR;
     i=makeTypeEnum(outType);
-    ds[TYPE_B]= i==TYPE_B ? NULL : udata_openSwapper(TRUE, U_ASCII_FAMILY, outIsBigEndian, outCharset, &errorCode);
-    ds[TYPE_L]= i==TYPE_L ? NULL : udata_openSwapper(FALSE, U_ASCII_FAMILY, outIsBigEndian, outCharset, &errorCode);
+    ds[TYPE_B]= i==TYPE_B ? NULL : udata_openSwapper(true, U_ASCII_FAMILY, outIsBigEndian, outCharset, &errorCode);
+    ds[TYPE_L]= i==TYPE_L ? NULL : udata_openSwapper(false, U_ASCII_FAMILY, outIsBigEndian, outCharset, &errorCode);
     ds[TYPE_LE]=NULL;
-    ds[TYPE_E]= i==TYPE_E ? NULL : udata_openSwapper(TRUE, U_EBCDIC_FAMILY, outIsBigEndian, outCharset, &errorCode);
+    ds[TYPE_E]= i==TYPE_E ? NULL : udata_openSwapper(true, U_EBCDIC_FAMILY, outIsBigEndian, outCharset, &errorCode);
     if(U_FAILURE(errorCode)) {
         fprintf(stderr, "icupkg: udata_openSwapper() failed - %s\n", u_errorName(errorCode));
         exit(errorCode);
@@ -798,7 +798,7 @@ Package::writePackage(const char *filename, char outType, const char *comment) {
     // create the output item names in sorted order, with the package name prepended to each
     for(i=0; i<itemCount; ++i) {
         length=(int32_t)strlen(items[i].name);
-        name=allocString(FALSE, length+prefixLength);
+        name=allocString(false, length+prefixLength);
         memcpy(name, prefix, prefixLength);
         memcpy(name+prefixLength, items[i].name, length+1);
         items[i].name=name;
@@ -810,7 +810,7 @@ Package::writePackage(const char *filename, char outType, const char *comment) {
     offset=basenameOffset+outStringTop;
     if((length=(offset&15))!=0) {
         length=16-length;
-        memset(allocString(FALSE, length-1), 0xaa, length);
+        memset(allocString(false, length-1), 0xaa, length);
         offset+=length;
     }
 
@@ -1021,7 +1021,7 @@ Package::setMatchMode(uint32_t mode) {
 
 void
 Package::addItem(const char *name) {
-    addItem(name, NULL, 0, FALSE, U_ICUDATA_TYPE_LETTER[0]);
+    addItem(name, NULL, 0, false, U_ICUDATA_TYPE_LETTER[0]);
 }
 
 void
@@ -1043,7 +1043,7 @@ Package::addItem(const char *name, uint8_t *data, int32_t length, UBool isDataOw
         memset(items+idx, 0, sizeof(Item));
 
         // copy the item's name
-        items[idx].name=allocString(TRUE, static_cast<int32_t>(strlen(name)));
+        items[idx].name=allocString(true, static_cast<int32_t>(strlen(name)));
         strcpy(items[idx].name, name);
         pathToTree(items[idx].name);
     } else {
@@ -1070,7 +1070,7 @@ Package::addFile(const char *filesPath, const char *name) {
 
     data=readFile(filesPath, name, length, type);
     // readFile() exits the tool if it fails
-    addItem(name, data, length, TRUE, type);
+    addItem(name, data, length, true, type);
 }
 
 void
@@ -1079,7 +1079,7 @@ Package::addItems(const Package &listPkg) {
     int32_t i;
 
     for(pItem=listPkg.items, i=0; i<listPkg.itemCount; ++pItem, ++i) {
-        addItem(pItem->name, pItem->data, pItem->length, FALSE, pItem->type);
+        addItem(pItem->name, pItem->data, pItem->length, false, pItem->type);
     }
 }
 
@@ -1224,14 +1224,14 @@ Package::checkDependency(void *context, const char *itemName, const char *target
     // check dependency: make sure the target item is in the package
     Package *me=(Package *)context;
     if(me->findItem(targetName)<0) {
-        me->isMissingItems=TRUE;
+        me->isMissingItems=true;
         fprintf(stderr, "Item %s depends on missing item %s\n", itemName, targetName);
     }
 }
 
 UBool
 Package::checkDependencies() {
-    isMissingItems=FALSE;
+    isMissingItems=false;
     enumDependencies(this, checkDependency);
     return (UBool)!isMissingItems;
 }
@@ -1274,7 +1274,7 @@ Package::allocString(UBool in, int32_t length) {
 void
 Package::sortItems() {
     UErrorCode errorCode=U_ZERO_ERROR;
-    uprv_sortArray(items, itemCount, (int32_t)sizeof(Item), compareItems, NULL, FALSE, &errorCode);
+    uprv_sortArray(items, itemCount, (int32_t)sizeof(Item), compareItems, NULL, false, &errorCode);
     if(U_FAILURE(errorCode)) {
         fprintf(stderr, "icupkg: sorting item names failed - %s\n", u_errorName(errorCode));
         exit(errorCode);

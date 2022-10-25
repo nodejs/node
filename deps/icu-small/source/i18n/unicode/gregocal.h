@@ -411,19 +411,6 @@ public:
      */
     int32_t getActualMinimum(UCalendarDateFields field, UErrorCode &status) const override;
 
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Return the maximum value that this field could have, given the current date.
-     * For example, with the date "Feb 3, 1997" and the DAY_OF_MONTH field, the actual
-     * maximum would be 28; for "Feb 3, 1996" it s 29.  Similarly for a Hebrew calendar,
-     * for some years the actual maximum for MONTH is 12, and for others 13.
-     * @param field    the time field.
-     * @return         the maximum value that this field could have, given the current date.
-     * @deprecated ICU 2.6. Use getActualMaximum(UCalendarDateFields field) instead.
-     */
-    int32_t getActualMaximum(EDateFields field) const;
-#endif  /* U_HIDE_DEPRECATED_API */
-
     /**
      * Return the maximum value that this field could have, given the current date.
      * For example, with the date "Feb 3, 1997" and the DAY_OF_MONTH field, the actual
@@ -487,7 +474,7 @@ public:
     virtual const char * getType() const override;
 
  private:
-    GregorianCalendar(); // default constructor not implemented
+    GregorianCalendar() = delete; // default constructor not implemented
 
  protected:
     /**
@@ -714,12 +701,6 @@ public:
      * 1 BC, -1 representing 2 BC, etc.
      */
     int32_t fGregorianCutoverYear;// = 1582;
-
-    /**
-     * The year of the gregorianCutover, with 0 representing
-     * 1 BC, -1 representing 2 BC, etc.
-     */
-    int32_t fGregorianCutoverJulianDay;// = 2299161;
 
     /**
      * Converts time as milliseconds to Julian date. The Julian date used here is not a

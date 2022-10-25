@@ -44,7 +44,7 @@ struct UDataMemory {
     int32_t           length;      /* Length of the data in bytes; -1 if unknown.     */
 };
 
-U_CFUNC UDataMemory *UDataMemory_createNewInstance(UErrorCode *pErr);
+U_CAPI  UDataMemory* U_EXPORT2 UDataMemory_createNewInstance(UErrorCode *pErr);
 U_CFUNC void         UDatamemory_assign  (UDataMemory *dest, UDataMemory *source);
 U_CFUNC void         UDataMemory_init    (UDataMemory *This);
 U_CFUNC UBool        UDataMemory_isLoaded(const UDataMemory *This);

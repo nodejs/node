@@ -234,7 +234,7 @@ res_init(ResourceData *pResData,
          * formatVersion 1: compare key strings in native-charset order
          * formatVersion 2 and up: compare key strings in ASCII order
          */
-        pResData->useNativeStrcmp=TRUE;
+        pResData->useNativeStrcmp=true;
     }
 }
 
@@ -377,10 +377,10 @@ UBool isNoInheritanceMarker(const ResourceData *pResData, Resource res) {
             return p[1] == 0x2205 && p[2] == 0x2205 && p[3] == 0x2205;
         } else {
             // Assume that the string has not been stored with more length units than necessary.
-            return FALSE;
+            return false;
         }
     }
-    return FALSE;
+    return false;
 }
 
 int32_t getStringArray(const ResourceData *pResData, const icu::ResourceArray &array,
@@ -409,7 +409,7 @@ int32_t getStringArray(const ResourceData *pResData, const icu::ResourceArray &a
             errorCode = U_RESOURCE_TYPE_MISMATCH;
             return 0;
         }
-        dest[i].setTo(TRUE, s, sLength);
+        dest[i].setTo(true, s, sLength);
     }
     return length;
 }
@@ -660,7 +660,7 @@ int32_t ResourceDataValue::getStringArrayOrStringAsArray(UnicodeString *dest, in
     int32_t sLength;
     const UChar *s = res_getString(fTraceInfo, &getData(), res, &sLength);
     if(s != NULL) {
-        dest[0].setTo(TRUE, s, sLength);
+        dest[0].setTo(true, s, sLength);
         return 1;
     }
     errorCode = U_RESOURCE_TYPE_MISMATCH;
@@ -675,7 +675,7 @@ UnicodeString ResourceDataValue::getStringOrFirstOfArray(UErrorCode &errorCode) 
     int32_t sLength;
     const UChar *s = res_getString(fTraceInfo, &getData(), res, &sLength);
     if(s != NULL) {
-        us.setTo(TRUE, s, sLength);
+        us.setTo(true, s, sLength);
         return us;
     }
     ResourceArray array = getArray(errorCode);
@@ -686,7 +686,7 @@ UnicodeString ResourceDataValue::getStringOrFirstOfArray(UErrorCode &errorCode) 
         // Tracing is already performed above (unimportant for trace that this is an array)
         s = res_getStringNoTrace(&getData(), array.internalGetResource(&getData(), 0), &sLength);
         if(s != NULL) {
-            us.setTo(TRUE, s, sLength);
+            us.setTo(true, s, sLength);
             return us;
         }
     }
@@ -837,9 +837,9 @@ UBool icu::ResourceTable::getKeyAndValue(int32_t i,
         // alive for the duration that fields are being read from it
         // (including nested fields).
         rdValue.setResource(res, ResourceTracer(fTraceInfo, key));
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 UBool icu::ResourceTable::findValue(const char *key, ResourceValue &value) const {
@@ -860,9 +860,9 @@ UBool icu::ResourceTable::findValue(const char *key, ResourceValue &value) const
         }
         // Same note about lifetime as in getKeyAndValue().
         rdValue.setResource(res, ResourceTracer(fTraceInfo, key));
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 U_CAPI Resource U_EXPORT2
@@ -912,9 +912,9 @@ UBool icu::ResourceArray::getValue(int32_t i, icu::ResourceValue &value) const {
         rdValue.setResource(
             internalGetResource(&rdValue.getData(), i),
             ResourceTracer(fTraceInfo, i));
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 U_CFUNC Resource
@@ -1222,7 +1222,7 @@ ures_swapResource(const UDataSwapper *ds,
             }
             uprv_sortArray(pTempTable->rows, count, sizeof(Row),
                            ures_compareRows, pTempTable->keyChars,
-                           FALSE, pErrorCode);
+                           false, pErrorCode);
             if(U_FAILURE(*pErrorCode)) {
                 udata_printError(ds, "ures_swapResource(table res=%08x).uprv_sortArray(%d items) failed\n",
                                  res, count);

@@ -66,7 +66,7 @@ utrie2_get32(const UTrie2 *trie, UChar32 c) {
     } else if((uint32_t)c>0x10ffff) {
         return trie->errorValue;
     } else {
-        return get32(trie->newTrie, c, TRUE);
+        return get32(trie->newTrie, c, true);
     }
 }
 
@@ -80,7 +80,7 @@ utrie2_get32FromLeadSurrogateCodeUnit(const UTrie2 *trie, UChar32 c) {
     } else if(trie->data32!=NULL) {
         return UTRIE2_GET32_FROM_U16_SINGLE_LEAD(trie, c);
     } else {
-        return get32(trie->newTrie, c, FALSE);
+        return get32(trie->newTrie, c, false);
     }
 }
 
@@ -200,7 +200,7 @@ utrie2_openFromSerialized(UTrie2ValueBits valueBits,
     uprv_memcpy(trie, &tempTrie, sizeof(tempTrie));
     trie->memory=(uint32_t *)data;
     trie->length=actualLength;
-    trie->isMemoryOwned=FALSE;
+    trie->isMemoryOwned=false;
 #ifdef UTRIE2_DEBUG
     trie->name="fromSerialized";
 #endif
@@ -279,7 +279,7 @@ utrie2_openDummy(UTrie2ValueBits valueBits,
         return 0;
     }
     trie->length=length;
-    trie->isMemoryOwned=TRUE;
+    trie->isMemoryOwned=true;
 
     /* set the UTrie2 fields */
     if(valueBits==UTRIE2_16_VALUE_BITS) {

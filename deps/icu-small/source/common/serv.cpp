@@ -64,7 +64,7 @@ ICUServiceKey::currentDescriptor(UnicodeString& result) const
 UBool 
 ICUServiceKey::fallback() 
 {
-    return FALSE;
+    return false;
 }
 
 UBool 
@@ -249,7 +249,7 @@ public:
     }
 
     /**
-    * Return TRUE if there is at least one reference to this and the
+    * Return true if there is at least one reference to this and the
     * resource has not been released.
     */
     UBool isShared() const {
@@ -454,11 +454,11 @@ ICUService::getKey(ICUServiceKey& key, UnicodeString* actualReturn, const ICUSer
 
         UnicodeString currentDescriptor;
         LocalPointer<UVector> cacheDescriptorList;
-        UBool putInCache = FALSE;
+        UBool putInCache = false;
 
         int32_t startIndex = 0;
         int32_t limit = factories->size();
-        UBool cacheResult = TRUE;
+        UBool cacheResult = true;
 
         if (factory != NULL) {
             for (int32_t i = 0; i < limit; ++i) {
@@ -472,7 +472,7 @@ ICUService::getKey(ICUServiceKey& key, UnicodeString* actualReturn, const ICUSer
                 status = U_ILLEGAL_ARGUMENT_ERROR;
                 return NULL;
             }
-            cacheResult = FALSE;
+            cacheResult = false;
         }
 
         do {
@@ -486,7 +486,7 @@ ICUService::getKey(ICUServiceKey& key, UnicodeString* actualReturn, const ICUSer
             // first test of cache failed, so we'll have to update
             // the cache if we eventually succeed-- that is, if we're 
             // going to update the cache at all.
-            putInCache = TRUE;
+            putInCache = true;
 
             int32_t index = startIndex;
             while (index < limit) {
@@ -796,7 +796,7 @@ ICUService::getDisplayNames(UVector& result,
 URegistryKey
 ICUService::registerInstance(UObject* objToAdopt, const UnicodeString& id, UErrorCode& status) 
 {
-    return registerInstance(objToAdopt, id, TRUE, status);
+    return registerInstance(objToAdopt, id, true, status);
 }
 
 URegistryKey
@@ -864,13 +864,13 @@ UBool
 ICUService::unregister(URegistryKey rkey, UErrorCode& status) 
 {
     ICUServiceFactory *factory = (ICUServiceFactory*)rkey;
-    UBool result = FALSE;
+    UBool result = false;
     if (factory != NULL && factories != NULL) {
         Mutex mutex(&lock);
 
         if (factories->removeElement(factory)) {
             clearCaches();
-            result = TRUE;
+            result = true;
         } else {
             status = U_ILLEGAL_ARGUMENT_ERROR;
             delete factory;

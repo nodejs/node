@@ -16,6 +16,7 @@ package(
 cc_library(
     name = "stubdata",
     srcs = ["stubdata.cpp"],
+    hdrs = ["stubdata.h"],
     deps = ["//icu4c/source/common:headers"],
     local_defines = [
         "U_COMMON_IMPLEMENTATION",

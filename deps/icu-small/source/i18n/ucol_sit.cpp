@@ -109,7 +109,7 @@ CollatorSpec::CollatorSpec() :
 locale(),
 variableTopValue(0),
 variableTopString(),
-variableTopSet(FALSE)
+variableTopSet(false)
  {
     // set collation options to default
     for(int32_t i = 0; i < UCOL_ATTRIBUTE_COUNT; i++) {
@@ -270,7 +270,7 @@ _processVariableTop(CollatorSpec *spec, uint32_t value1, const char* string, UEr
         spec->variableTopValue = readHexCodeUnit(&string, status);
     }
     if(U_SUCCESS(*status)) {
-        spec->variableTopSet = TRUE;
+        spec->variableTopSet = true;
     }
     return string;
 }
@@ -618,7 +618,7 @@ ucol_getContractions( const UCollator *coll,
                   USet *contractions,
                   UErrorCode *status)
 {
-  ucol_getContractionsAndExpansions(coll, contractions, NULL, FALSE, status);
+  ucol_getContractionsAndExpansions(coll, contractions, NULL, false, status);
   return uset_getItemCount(contractions);
 }
 

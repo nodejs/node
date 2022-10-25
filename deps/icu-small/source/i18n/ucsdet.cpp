@@ -148,7 +148,7 @@ ucsdet_isInputFilterEnabled(const UCharsetDetector *ucsd)
 {
     // todo: could use an error return...
     if (ucsd == NULL) {
-        return FALSE;
+        return false;
     }
 
     return ((CharsetDetector *) ucsd)->getStripTagsFlag();
@@ -159,7 +159,7 @@ ucsdet_enableInputFilter(UCharsetDetector *ucsd, UBool filter)
 {
     // todo: could use an error return...
     if (ucsd == NULL) {
-        return FALSE;
+        return false;
     }
 
     CharsetDetector *csd = (CharsetDetector *) ucsd;

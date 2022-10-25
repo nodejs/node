@@ -131,7 +131,7 @@ public:
         }
     }
 private:
-    Hangul();  // no instantiation
+    Hangul() = delete;  // no instantiation
 };
 
 class Normalizer2Impl;
@@ -730,7 +730,7 @@ private:
     const uint16_t *extraData;  // mappings and/or compositions for yesYes, yesNo & noNo characters
     const uint8_t *smallFCD;  // [0x100] one bit per 32 BMP code points, set if any FCD!=0
 
-    UInitOnce       fCanonIterDataInitOnce = U_INITONCE_INITIALIZER;
+    UInitOnce       fCanonIterDataInitOnce {};
     CanonIterData  *fCanonIterData;
 };
 
@@ -759,7 +759,7 @@ public:
     // Must be used only when it is known that norm2 is a Normalizer2WithImpl instance.
     static const Normalizer2Impl *getImpl(const Normalizer2 *norm2);
 private:
-    Normalizer2Factory();  // No instantiation.
+    Normalizer2Factory() = delete;  // No instantiation.
 };
 
 U_NAMESPACE_END

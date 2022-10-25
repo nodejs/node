@@ -211,7 +211,7 @@ PreparsedUCD::getProps(UnicodeSet &newValues, UErrorCode &errorCode) {
     UChar32 start, end;
     if(!parseCodePointRange(field, start, end, errorCode)) { return NULL; }
     UniProps *props;
-    UBool insideBlock=FALSE;  // TRUE if cp or unassigned range inside the block range.
+    UBool insideBlock=false;  // true if cp or unassigned range inside the block range.
     switch(lineType) {
     case DEFAULTS_LINE:
         // Should occur before any block/cp/unassigned line.
@@ -247,7 +247,7 @@ PreparsedUCD::getProps(UnicodeSet &newValues, UErrorCode &errorCode) {
     case CP_LINE:
     case UNASSIGNED_LINE:
         if(blockProps.start<=start && end<=blockProps.end) {
-            insideBlock=TRUE;
+            insideBlock=true;
             if(lineType==CP_LINE) {
                 // Code point range fully inside the last block inherits the block properties.
                 cpProps=blockProps;
@@ -313,7 +313,7 @@ static const struct {
     { "Turkic_Case_Folding", PPUCD_TURKIC_CASE_FOLDING }
 };
 
-// Returns TRUE for "ok to continue parsing fields".
+// Returns true for "ok to continue parsing fields".
 UBool
 PreparsedUCD::parseProperty(UniProps &props, const char *field, UnicodeSet &newValues,
                             UErrorCode &errorCode) {
@@ -328,7 +328,7 @@ PreparsedUCD::parseProperty(UniProps &props, const char *field, UnicodeSet &newV
                     "enum-property syntax '%s' on line %ld\n",
                     field, (long)lineNumber);
             errorCode=U_PARSE_ERROR;
-            return FALSE;
+            return false;
         }
         binaryValue=0;
         ++p;
@@ -346,7 +346,7 @@ PreparsedUCD::parseProperty(UniProps &props, const char *field, UnicodeSet &newV
         for(int32_t i=0;; ++i) {
             if(i==UPRV_LENGTHOF(ppucdProperties)) {
                 // Ignore unknown property names.
-                return TRUE;
+                return true;
             }
             if(0==uprv_stricmp(p, ppucdProperties[i].name)) {
                 prop=ppucdProperties[i].prop;
@@ -498,23 +498,23 @@ PreparsedUCD::parseProperty(UniProps &props, const char *field, UnicodeSet &newV
             break;
         default:
             // Ignore unhandled properties.
-            return TRUE;
+            return true;
         }
     }
     if(U_SUCCESS(errorCode)) {
         newValues.add((UChar32)prop);
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
 UBool
 PreparsedUCD::getRangeForAlgNames(UChar32 &start, UChar32 &end, UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     if(lineType!=ALG_NAMES_RANGE_LINE) {
         errorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     firstField();
     const char *field=nextField();
@@ -525,7 +525,7 @@ PreparsedUCD::getRangeForAlgNames(UChar32 &start, UChar32 &end, UErrorCode &erro
                 "(no second field) on line %ld\n",
                 (long)lineNumber);
         errorCode=U_PARSE_ERROR;
-        return FALSE;
+        return false;
     }
     return parseCodePointRange(field, start, end, errorCode);
 }
@@ -552,11 +552,11 @@ PreparsedUCD::parseCodePointRange(const char *s, UChar32 &start, UChar32 &end, U
         fprintf(stderr,
                 "error in preparsed UCD: '%s' is not a valid code point range on line %ld\n",
                 s, (long)lineNumber);
-        return FALSE;
+        return false;
     }
     start=(UChar32)st;
     end=(UChar32)e;
-    return TRUE;
+    return true;
 }
 
 void

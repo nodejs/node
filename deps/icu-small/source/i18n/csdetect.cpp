@@ -47,7 +47,7 @@ struct CSRecognizerInfo : public UMemory {
 U_NAMESPACE_END
 
 static icu::CSRecognizerInfo **fCSRecognizers = NULL;
-static icu::UInitOnce gCSRecognizersInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gCSRecognizersInitOnce {};
 static int32_t fCSRecognizers_size = 0;
 
 U_CDECL_BEGIN
@@ -66,7 +66,7 @@ static UBool U_CALLCONV csdet_cleanup(void)
     }
     gCSRecognizersInitOnce.reset();
 
-    return TRUE;
+    return true;
 }
 
 static int32_t U_CALLCONV
@@ -85,39 +85,39 @@ static void U_CALLCONV initRecognizers(UErrorCode &status) {
     U_NAMESPACE_USE
     ucln_i18n_registerCleanup(UCLN_I18N_CSDET, csdet_cleanup);
     CSRecognizerInfo *tempArray[] = {
-        new CSRecognizerInfo(new CharsetRecog_UTF8(), TRUE),
+        new CSRecognizerInfo(new CharsetRecog_UTF8(), true),
 
-        new CSRecognizerInfo(new CharsetRecog_UTF_16_BE(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_UTF_16_LE(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_UTF_32_BE(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_UTF_32_LE(), TRUE),
+        new CSRecognizerInfo(new CharsetRecog_UTF_16_BE(), true),
+        new CSRecognizerInfo(new CharsetRecog_UTF_16_LE(), true),
+        new CSRecognizerInfo(new CharsetRecog_UTF_32_BE(), true),
+        new CSRecognizerInfo(new CharsetRecog_UTF_32_LE(), true),
 
-        new CSRecognizerInfo(new CharsetRecog_8859_1(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_2(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_5_ru(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_6_ar(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_7_el(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_8_I_he(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_8_he(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_windows_1251(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_windows_1256(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_KOI8_R(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_8859_9_tr(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_sjis(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_gb_18030(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_euc_jp(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_euc_kr(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_big5(), TRUE),
+        new CSRecognizerInfo(new CharsetRecog_8859_1(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_2(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_5_ru(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_6_ar(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_7_el(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_8_I_he(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_8_he(), true),
+        new CSRecognizerInfo(new CharsetRecog_windows_1251(), true),
+        new CSRecognizerInfo(new CharsetRecog_windows_1256(), true),
+        new CSRecognizerInfo(new CharsetRecog_KOI8_R(), true),
+        new CSRecognizerInfo(new CharsetRecog_8859_9_tr(), true),
+        new CSRecognizerInfo(new CharsetRecog_sjis(), true),
+        new CSRecognizerInfo(new CharsetRecog_gb_18030(), true),
+        new CSRecognizerInfo(new CharsetRecog_euc_jp(), true),
+        new CSRecognizerInfo(new CharsetRecog_euc_kr(), true),
+        new CSRecognizerInfo(new CharsetRecog_big5(), true),
 
-        new CSRecognizerInfo(new CharsetRecog_2022JP(), TRUE),
+        new CSRecognizerInfo(new CharsetRecog_2022JP(), true),
 #if !UCONFIG_ONLY_HTML_CONVERSION
-        new CSRecognizerInfo(new CharsetRecog_2022KR(), TRUE),
-        new CSRecognizerInfo(new CharsetRecog_2022CN(), TRUE),
+        new CSRecognizerInfo(new CharsetRecog_2022KR(), true),
+        new CSRecognizerInfo(new CharsetRecog_2022CN(), true),
 
-        new CSRecognizerInfo(new CharsetRecog_IBM424_he_rtl(), FALSE),
-        new CSRecognizerInfo(new CharsetRecog_IBM424_he_ltr(), FALSE),
-        new CSRecognizerInfo(new CharsetRecog_IBM420_ar_rtl(), FALSE),
-        new CSRecognizerInfo(new CharsetRecog_IBM420_ar_ltr(), FALSE)
+        new CSRecognizerInfo(new CharsetRecog_IBM424_he_rtl(), false),
+        new CSRecognizerInfo(new CharsetRecog_IBM424_he_ltr(), false),
+        new CSRecognizerInfo(new CharsetRecog_IBM420_ar_rtl(), false),
+        new CSRecognizerInfo(new CharsetRecog_IBM420_ar_ltr(), false)
 #endif
     };
     int32_t rCount = UPRV_LENGTHOF(tempArray);
@@ -149,7 +149,7 @@ void CharsetDetector::setRecognizers(UErrorCode &status)
 
 CharsetDetector::CharsetDetector(UErrorCode &status)
   : textIn(new InputText(status)), resultArray(NULL),
-    resultCount(0), fStripTags(FALSE), fFreshTextSet(FALSE),
+    resultCount(0), fStripTags(false), fFreshTextSet(false),
     fEnabledRecognizers(NULL)
 {
     if (U_FAILURE(status)) {
@@ -197,14 +197,14 @@ CharsetDetector::~CharsetDetector()
 void CharsetDetector::setText(const char *in, int32_t len)
 {
     textIn->setText(in, len);
-    fFreshTextSet = TRUE;
+    fFreshTextSet = true;
 }
 
 UBool CharsetDetector::setStripTagsFlag(UBool flag)
 {
     UBool temp = fStripTags;
     fStripTags = flag;
-    fFreshTextSet = TRUE;
+    fFreshTextSet = true;
     return temp;
 }
 
@@ -263,9 +263,9 @@ const CharsetMatch * const *CharsetDetector::detectAll(int32_t &maxMatchesFound,
         }
 
         if (resultCount > 1) {
-            uprv_sortArray(resultArray, resultCount, sizeof resultArray[0], charsetMatchComparator, NULL, TRUE, &status);
+            uprv_sortArray(resultArray, resultCount, sizeof resultArray[0], charsetMatchComparator, NULL, true, &status);
         }
-        fFreshTextSet = FALSE;
+        fFreshTextSet = false;
     }
 
     maxMatchesFound = resultCount;
@@ -285,7 +285,7 @@ void CharsetDetector::setDetectableCharset(const char *encoding, UBool enabled, 
     }
 
     int32_t modIdx = -1;
-    UBool isDefaultVal = FALSE;
+    UBool isDefaultVal = false;
     for (int32_t i = 0; i < fCSRecognizers_size; i++) {
         CSRecognizerInfo *csrinfo = fCSRecognizers[i];
         if (uprv_strcmp(csrinfo->recognizer->getName(), encoding) == 0) {
@@ -459,7 +459,7 @@ UEnumeration * CharsetDetector::getAllDetectableCharsets(UErrorCode &status)
         return 0;
     }
     uprv_memset(en->context, 0, sizeof(Context));
-    ((Context*)en->context)->all = TRUE;
+    ((Context*)en->context)->all = true;
     return en;
 }
 
@@ -482,7 +482,7 @@ UEnumeration * CharsetDetector::getDetectableCharsets(UErrorCode &status) const
         return 0;
     }
     uprv_memset(en->context, 0, sizeof(Context));
-    ((Context*)en->context)->all = FALSE;
+    ((Context*)en->context)->all = false;
     ((Context*)en->context)->enabledRecognizers = fEnabledRecognizers;
     return en;
 }

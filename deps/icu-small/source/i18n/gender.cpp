@@ -37,7 +37,7 @@ static const char* gNeutralStr = "neutral";
 static const char* gMailTaintsStr = "maleTaints";
 static const char* gMixedNeutralStr = "mixedNeutral";
 static icu::GenderInfo* gObjs = NULL;
-static icu::UInitOnce gGenderInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gGenderInitOnce {};
 
 enum GenderStyle {
   NEUTRAL,
@@ -55,7 +55,7 @@ static UBool U_CALLCONV gender_cleanup(void) {
     delete [] gObjs;
   }
   gGenderInitOnce.reset();
-  return TRUE;
+  return true;
 }
 
 U_CDECL_END
@@ -184,8 +184,8 @@ UGender GenderInfo::getListGender(const UGender* genders, int32_t length, UError
   if (length == 1) {
     return genders[0];
   }
-  UBool has_female = FALSE;
-  UBool has_male = FALSE;
+  UBool has_female = false;
+  UBool has_male = false;
   switch (_style) {
     case NEUTRAL:
       return UGENDER_OTHER;
@@ -199,13 +199,13 @@ UGender GenderInfo::getListGender(const UGender* genders, int32_t length, UError
             if (has_male) {
               return UGENDER_OTHER;
             }
-            has_female = TRUE;
+            has_female = true;
             break;
           case UGENDER_MALE:
             if (has_female) {
               return UGENDER_OTHER;
             }
-            has_male = TRUE;
+            has_male = true;
             break;
           default:
             break;

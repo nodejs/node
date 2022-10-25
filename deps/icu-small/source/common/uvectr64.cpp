@@ -117,22 +117,22 @@ void UVector64::removeAllElements(void) {
 
 UBool UVector64::expandCapacity(int32_t minimumCapacity, UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     if (minimumCapacity < 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     if (capacity >= minimumCapacity) {
-        return TRUE;
+        return true;
     }
     if (maxCapacity>0 && minimumCapacity>maxCapacity) {
         status = U_BUFFER_OVERFLOW_ERROR;
-        return FALSE;
+        return false;
     }
     if (capacity > (INT32_MAX - 1) / 2) {  // integer overflow check
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     int32_t newCap = capacity * 2;
     if (newCap < minimumCapacity) {
@@ -144,17 +144,17 @@ UBool UVector64::expandCapacity(int32_t minimumCapacity, UErrorCode &status) {
     if (newCap > (int32_t)(INT32_MAX / sizeof(int64_t))) {  // integer overflow check
         // We keep the original memory contents on bad minimumCapacity/maxCapacity.
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     int64_t* newElems = (int64_t *)uprv_realloc(elements, sizeof(int64_t)*newCap);
     if (newElems == NULL) {
         // We keep the original contents on the memory failure on realloc.
         status = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
     elements = newElems;
     capacity = newCap;
-    return TRUE;
+    return true;
 }
 
 void UVector64::setMaxCapacity(int32_t limit) {

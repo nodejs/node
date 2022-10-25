@@ -114,7 +114,7 @@ inline void _debugOut(const char* msg, TransliterationRule* rule,
     UnicodeString buf(msg, "");
     if (rule) {
         UnicodeString r;
-        rule->toRule(r, TRUE);
+        rule->toRule(r, true);
         buf.append((UChar)32).append(r);
     }
     buf.append(UnicodeString(" => ", ""));
@@ -145,14 +145,14 @@ static void maskingError(const icu::TransliterationRule& rule1,
     parseError.line = parseError.offset = -1;
     
     // for pre-context
-    rule1.toRule(r, FALSE);
+    rule1.toRule(r, false);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.preContext);
     parseError.preContext[len] = 0;   
     
     //for post-context
     r.truncate(0);
-    rule2.toRule(r, FALSE);
+    rule2.toRule(r, false);
     len = uprv_min(r.length(), U_PARSE_CONTEXT_LEN-1);
     r.extract(0, len, parseError.postContext);
     parseError.postContext[len] = 0;   
@@ -387,14 +387,14 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
 
 /**
  * Transliterate the given text with the given UTransPosition
- * indices.  Return TRUE if the transliteration should continue
- * or FALSE if it should halt (because of a U_PARTIAL_MATCH match).
- * Note that FALSE is only ever returned if isIncremental is TRUE.
+ * indices.  Return true if the transliteration should continue
+ * or false if it should halt (because of a U_PARTIAL_MATCH match).
+ * Note that false is only ever returned if isIncremental is true.
  * @param text the text to be transliterated
  * @param pos the position indices, which will be updated
- * @param incremental if TRUE, assume new text may be inserted
- * at index.limit, and return FALSE if there is a partial match.
- * @return TRUE unless a U_PARTIAL_MATCH has been obtained,
+ * @param incremental if true, assume new text may be inserted
+ * at index.limit, and return false if there is a partial match.
+ * @return true unless a U_PARTIAL_MATCH has been obtained,
  * indicating that transliteration should stop until more text
  * arrives.
  */
@@ -407,10 +407,10 @@ UBool TransliterationRuleSet::transliterate(Replaceable& text,
         switch (m) {
         case U_MATCH:
             _debugOut("match", rules[i], text, pos);
-            return TRUE;
+            return true;
         case U_PARTIAL_MATCH:
             _debugOut("partial match", rules[i], text, pos);
-            return FALSE;
+            return false;
         default: /* Ram: added default to make GCC happy */
             break;
         }
@@ -418,7 +418,7 @@ UBool TransliterationRuleSet::transliterate(Replaceable& text,
     // No match or partial match from any rule
     pos.start += U16_LENGTH(text.char32At(pos.start));
     _debugOut("no match", NULL, text, pos);
-    return TRUE;
+    return true;
 }
 
 /**

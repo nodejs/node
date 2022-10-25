@@ -172,7 +172,7 @@ static const uint8_t pnjMap[80] = {
 static UBool
 isPNJConsonant(UChar32 c) {
     if (c < 0xa00 || 0xa50 <= c) {
-        return FALSE;
+        return false;
     } else {
         return (UBool)(pnjMap[c - 0xa00] & 1);
     }
@@ -181,7 +181,7 @@ isPNJConsonant(UChar32 c) {
 static UBool
 isPNJBindiTippi(UChar32 c) {
     if (c < 0xa00 || 0xa50 <= c) {
-        return FALSE;
+        return false;
     } else {
         return (UBool)(pnjMap[c - 0xa00] >> 1);
     }
@@ -202,7 +202,7 @@ _ISCIIOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode) {
         converterData->contextCharToUnicode=NO_CHAR_MARKER;
         cnv->toUnicodeStatus = missingCharMarker;
         converterData->contextCharFromUnicode=0x0000;
-        converterData->resetToDefaultToUnicode=FALSE;
+        converterData->resetToDefaultToUnicode=false;
         /* check if the version requested is supported */
         if ((pArgs->options & UCNV_OPTIONS_VERSION_MASK) < 9) {
             /* initialize state variables */
@@ -214,7 +214,7 @@ _ISCIIOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode) {
                     = converterData->currentMaskToUnicode
                             = converterData->defMaskToUnicode = lookupInitialData[pArgs->options & UCNV_OPTIONS_VERSION_MASK].maskEnum;
             
-            converterData->isFirstBuffer=TRUE;
+            converterData->isFirstBuffer=true;
             (void)uprv_strcpy(converterData->name, ISCII_CNV_PREFIX);
             len = (int32_t)uprv_strlen(converterData->name);
             converterData->name[len]= (char)((pArgs->options & UCNV_OPTIONS_VERSION_MASK) + '0');
@@ -267,8 +267,8 @@ _ISCIIReset(UConverter *cnv, UConverterResetChoice choice) {
         data->contextCharFromUnicode=0x00;
         data->currentMaskFromUnicode=data->defMaskToUnicode;
         data->currentDeltaFromUnicode=data->defDeltaToUnicode;
-        data->isFirstBuffer=TRUE;
-        data->resetToDefaultToUnicode=FALSE;
+        data->isFirstBuffer=true;
+        data->resetToDefaultToUnicode=false;
     }
 }
 
@@ -906,7 +906,7 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
     UConverterDataISCII *converterData;
     uint16_t newDelta=0;
     uint16_t range = 0;
-    UBool deltaChanged = FALSE;
+    UBool deltaChanged = false;
 
     if ((args->converter == NULL) || (args->targetLimit < args->target) || (args->sourceLimit < args->source)) {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
@@ -986,8 +986,8 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
                     if (newDelta!= converterData->currentDeltaFromUnicode || converterData->isFirstBuffer) {
                         converterData->currentDeltaFromUnicode = newDelta;
                         converterData->currentMaskFromUnicode = lookupInitialData[range].maskEnum;
-                        deltaChanged =TRUE;
-                        converterData->isFirstBuffer=FALSE;
+                        deltaChanged =true;
+                        converterData->isFirstBuffer=false;
                     }
                     
                     if (converterData->currentDeltaFromUnicode == PNJ_DELTA) { 
@@ -1024,7 +1024,7 @@ UConverter_fromUnicode_ISCII_OFFSETS_LOGIC(
                     temp =(uint16_t)(ATR<<8);
                     temp += (uint16_t)((uint8_t) lookupInitialData[range].isciiLang);
                     /* reset */
-                    deltaChanged=FALSE;
+                    deltaChanged=false;
                     /* now append ATR and language code */
                     WRITE_TO_TARGET_FROM_U(args,offsets,source,target,targetLimit,temp,err);
                     if (U_FAILURE(*err)) {
@@ -1330,7 +1330,7 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
                 break;
             case 0x0A:
             case 0x0D:
-                data->resetToDefaultToUnicode = TRUE;
+                data->resetToDefaultToUnicode = true;
                 GET_MAPPING(sourceChar,targetUniChar,data)
                 ;
                 *contextCharToUnicode = sourceChar;
@@ -1338,12 +1338,12 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
 
             case ISCII_VOWEL_SIGN_E:
                 i=1;
-                found=FALSE;
+                found=false;
                 for (; i<vowelSignESpecialCases[0][0]; i++) {
                     U_ASSERT(i<UPRV_LENGTHOF(vowelSignESpecialCases));
                     if (vowelSignESpecialCases[i][0]==(uint8_t)*contextCharToUnicode) {
                         targetUniChar=vowelSignESpecialCases[i][1];
-                        found=TRUE;
+                        found=true;
                         break;
                     }
                 }
@@ -1397,12 +1397,12 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
                 } else {
                     /* try to handle <CHAR> + ISCII_NUKTA special mappings */
                     i=1;
-                    found =FALSE;
+                    found =false;
                     for (; i<nuktaSpecialCases[0][0]; i++) {
                         if (nuktaSpecialCases[i][0]==(uint8_t)
                                 *contextCharToUnicode) {
                             targetUniChar=nuktaSpecialCases[i][1];
-                            found =TRUE;
+                            found =true;
                             break;
                         }
                     }
@@ -1472,10 +1472,10 @@ UConverter_toUnicode_ISCII_OFFSETS_LOGIC(UConverterToUnicodeArgs *args, UErrorCo
             if (targetUniChar != missingCharMarker) {
                 /* now save the targetUniChar for delayed write */
                 *toUnicodeStatus = (UChar) targetUniChar;
-                if (data->resetToDefaultToUnicode==TRUE) {
+                if (data->resetToDefaultToUnicode==true) {
                     data->currentDeltaToUnicode = data->defDeltaToUnicode;
                     data->currentMaskToUnicode = data->defMaskToUnicode;
-                    data->resetToDefaultToUnicode=FALSE;
+                    data->resetToDefaultToUnicode=false;
                 }
             } else {
 
@@ -1550,7 +1550,7 @@ _ISCII_SafeClone(const UConverter *cnv,
 
     uprv_memcpy(&localClone->mydata, cnv->extraInfo, sizeof(UConverterDataISCII));
     localClone->cnv.extraInfo = &localClone->mydata;
-    localClone->cnv.isExtraLocal = TRUE;
+    localClone->cnv.isExtraLocal = true;
 
     return &localClone->cnv;
 }
@@ -1621,8 +1621,8 @@ static const UConverterStaticData _ISCIIStaticData={
          4,
         { 0x1a, 0, 0, 0 },
         0x1,
-        FALSE,
-        FALSE,
+        false,
+        false,
         0x0,
         0x0,
         { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }, /* reserved */

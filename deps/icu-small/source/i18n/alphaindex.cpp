@@ -312,7 +312,7 @@ void AlphabeticIndex::initLabels(UVector &indexCharacters, UErrorCode &errorCode
         UBool checkDistinct;
         int32_t itemLength = item->length();
         if (!item->hasMoreChar32Than(0, itemLength, 1)) {
-            checkDistinct = FALSE;
+            checkDistinct = false;
         } else if(item->charAt(itemLength - 1) == 0x2a &&  // '*'
                 item->charAt(itemLength - 2) != 0x2a) {
             // Use a label if it is marked with one trailing star,
@@ -323,9 +323,9 @@ void AlphabeticIndex::initLabels(UVector &indexCharacters, UErrorCode &errorCode
                 errorCode = U_MEMORY_ALLOCATION_ERROR;
                 return;
             }
-            checkDistinct = FALSE;
+            checkDistinct = false;
         } else {
-            checkDistinct = TRUE;
+            checkDistinct = true;
         }
         if (collatorPrimaryOnly_->compare(*item, firstScriptBoundary, errorCode) < 0) {
             // Ignore a primary-ignorable or non-alphabetic index character.
@@ -398,20 +398,20 @@ UBool hasMultiplePrimaryWeights(
         const UnicodeString &s, UVector64 &ces, UErrorCode &errorCode) {
     ces.removeAllElements();
     coll.internalGetCEs(s, ces, errorCode);
-    if (U_FAILURE(errorCode)) { return FALSE; }
-    UBool seenPrimary = FALSE;
+    if (U_FAILURE(errorCode)) { return false; }
+    UBool seenPrimary = false;
     for (int32_t i = 0; i < ces.size(); ++i) {
         int64_t ce = ces.elementAti(i);
         uint32_t p = (uint32_t)(ce >> 32);
         if (p > variableTop) {
             // not primary ignorable
             if (seenPrimary) {
-                return TRUE;
+                return true;
             }
-            seenPrimary = TRUE;
+            seenPrimary = true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 }  // namespace
@@ -431,7 +431,7 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
     } else {
         variableTop = 0;
     }
-    UBool hasInvisibleBuckets = FALSE;
+    UBool hasInvisibleBuckets = false;
 
     // Helper arrays for Chinese Pinyin collation.
     Bucket *asciiBuckets[26] = {
@@ -442,7 +442,7 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     };
-    UBool hasPinyin = FALSE;
+    UBool hasPinyin = false;
 
     LocalPointer<UVector> bucketList(new UVector(errorCode), errorCode);
     if (U_FAILURE(errorCode)) {
@@ -469,13 +469,13 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
         if (collatorPrimaryOnly_->compare(current, *scriptUpperBoundary, errorCode) >= 0) {
             // We crossed the script boundary into a new script.
             const UnicodeString &inflowBoundary = *scriptUpperBoundary;
-            UBool skippedScript = FALSE;
+            UBool skippedScript = false;
             for (;;) {
                 scriptUpperBoundary = getString(*firstCharsInScripts_, ++scriptIndex);
                 if (collatorPrimaryOnly_->compare(current, *scriptUpperBoundary, errorCode) < 0) {
                     break;
                 }
-                skippedScript = TRUE;
+                skippedScript = true;
             }
             if (skippedScript && bucketList->size() > 1) {
                 // We are skipping one or more scripts,
@@ -498,7 +498,7 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
         } else if (current.length() == BASE_LENGTH + 1 && current.startsWith(BASE, BASE_LENGTH) &&
                 0x41 <= (c = current.charAt(BASE_LENGTH)) && c <= 0x5A) {
             pinyinBuckets[c - 0x41] = (Bucket *)bucketList->lastElement();
-            hasPinyin = TRUE;
+            hasPinyin = true;
         }
         // Check for multiple primary weights.
         if (!current.startsWith(BASE, BASE_LENGTH) &&
@@ -531,7 +531,7 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
                     bucket->displayBucket_ = singleBucket;
                     bucketList->adoptElement(bucket.orphan(), errorCode);
                     if (U_FAILURE(errorCode)) { return nullptr; }
-                    hasInvisibleBuckets = TRUE;
+                    hasInvisibleBuckets = true;
                     break;
                 }
             }
@@ -563,7 +563,7 @@ BucketList *AlphabeticIndex::createBucketList(UErrorCode &errorCode) const {
             }
             if (pinyinBuckets[i] != NULL && asciiBucket != NULL) {
                 pinyinBuckets[i]->displayBucket_ = asciiBucket;
-                hasInvisibleBuckets = TRUE;
+                hasInvisibleBuckets = true;
             }
         }
     }
@@ -754,7 +754,7 @@ void AlphabeticIndex::addIndexExemplars(const Locale &locale, UErrorCode &status
 UBool AlphabeticIndex::addChineseIndexCharacters(UErrorCode &errorCode) {
     UnicodeSet contractions;
     collatorPrimaryOnly_->internalAddContractions(BASE[0], contractions, errorCode);
-    if (U_FAILURE(errorCode) || contractions.isEmpty()) { return FALSE; }
+    if (U_FAILURE(errorCode) || contractions.isEmpty()) { return false; }
     initialLabels_->addAll(contractions);
     UnicodeSetIterator iter(contractions);
     while (iter.next()) {
@@ -767,7 +767,7 @@ UBool AlphabeticIndex::addChineseIndexCharacters(UErrorCode &errorCode) {
             break;
         }
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -1028,7 +1028,7 @@ UBool isOneLabelBetterThanOther(const Normalizer2 &nfkdNormalizer,
     UErrorCode status = U_ZERO_ERROR;
     UnicodeString n1 = nfkdNormalizer.normalize(one, status);
     UnicodeString n2 = nfkdNormalizer.normalize(other, status);
-    if (U_FAILURE(status)) { return FALSE; }
+    if (U_FAILURE(status)) { return false; }
     int32_t result = n1.countChar32() - n2.countChar32();
     if (result != 0) {
         return result < 0;
@@ -1105,24 +1105,24 @@ int32_t AlphabeticIndex::getBucketIndex() const {
 
 UBool AlphabeticIndex::nextBucket(UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     if (buckets_ == NULL && currentBucket_ != NULL) {
         status = U_ENUM_OUT_OF_SYNC_ERROR;
-        return FALSE;
+        return false;
     }
     initBuckets(status);
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     ++labelsIterIndex_;
     if (labelsIterIndex_ >= buckets_->getBucketCount()) {
         labelsIterIndex_ = buckets_->getBucketCount();
-        return FALSE;
+        return false;
     }
     currentBucket_ = getBucket(*buckets_->immutableVisibleList_, labelsIterIndex_);
     resetRecordIterator();
-    return TRUE;
+    return true;
 }
 
 const UnicodeString &AlphabeticIndex::getBucketLabel() const {
@@ -1163,27 +1163,27 @@ AlphabeticIndex &AlphabeticIndex::resetBucketIterator(UErrorCode &status) {
 
 UBool AlphabeticIndex::nextRecord(UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     if (currentBucket_ == NULL) {
         // We are trying to iterate over the items in a bucket, but there is no
         // current bucket from the enumeration of buckets.
         status = U_INVALID_STATE_ERROR;
-        return FALSE;
+        return false;
     }
     if (buckets_ == NULL) {
         status = U_ENUM_OUT_OF_SYNC_ERROR;
-        return FALSE;
+        return false;
     }
     if (currentBucket_->records_ == NULL) {
-        return FALSE;
+        return false;
     }
     ++itemsIterIndex_;
     if (itemsIterIndex_ >= currentBucket_->records_->size()) {
         itemsIterIndex_  = currentBucket_->records_->size();
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 

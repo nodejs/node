@@ -33,28 +33,33 @@ int64_t ClockMath::floorDivide(int64_t numerator, int64_t denominator) {
 }
 
 int32_t ClockMath::floorDivide(double numerator, int32_t denominator,
-                          int32_t& remainder) {
-    double quotient;
-    quotient = uprv_floor(numerator / denominator);
-    remainder = (int32_t) (numerator - (quotient * denominator));
+                          int32_t* remainder) {
+    // For an integer n and representable ⌊x/n⌋, ⌊RN(x/n)⌋=⌊x/n⌋, where RN is
+    // rounding to nearest.
+    double quotient = uprv_floor(numerator / denominator);
+    // For doubles x and n, where n is an integer and ⌊x+n⌋ < 2³¹, the
+    // expression `(int32_t) (x + n)` evaluated with rounding to nearest
+    // differs from ⌊x+n⌋ if 0 < ⌈x⌉−x ≪ x+n, as `x + n` is rounded up to
+    // n+⌈x⌉ = ⌊x+n⌋ + 1.  Rewriting it as ⌊x⌋+n makes the addition exact.
+    *remainder = (int32_t) (uprv_floor(numerator) - (quotient * denominator));
     return (int32_t) quotient;
 }
 
 double ClockMath::floorDivide(double dividend, double divisor,
-                         double& remainder) {
+                         double* remainder) {
     // Only designed to work for positive divisors
     U_ASSERT(divisor > 0);
     double quotient = floorDivide(dividend, divisor);
-    remainder = dividend - (quotient * divisor);
+    *remainder = dividend - (quotient * divisor);
     // N.B. For certain large dividends, on certain platforms, there
     // is a bug such that the quotient is off by one.  If you doubt
     // this to be true, set a breakpoint below and run cintltst.
-    if (remainder < 0 || remainder >= divisor) {
+    if (*remainder < 0 || *remainder >= divisor) {
         // E.g. 6.7317038241449352e+022 / 86400000.0 is wrong on my
         // machine (too high by one).  4.1792057231752762e+024 /
         // 86400000.0 is wrong the other way (too low).
         double q = quotient;
-        quotient += (remainder < 0) ? -1 : +1;
+        quotient += (*remainder < 0) ? -1 : +1;
         if (q == quotient) {
             // For quotients > ~2^53, we won't be able to add or
             // subtract one, since the LSB of the mantissa will be >
@@ -65,12 +70,12 @@ double ClockMath::floorDivide(double dividend, double divisor,
             // values give back an approximate answer rather than
             // crashing.  For example, UDate values above a ~10^25
             // might all have a time of midnight.
-            remainder = 0;
+            *remainder = 0;
         } else {
-            remainder = dividend - (quotient * divisor);
+            *remainder = dividend - (quotient * divisor);
         }
     }
-    U_ASSERT(0 <= remainder && remainder < divisor);
+    U_ASSERT(0 <= *remainder && *remainder < divisor);
     return quotient;
 }
 
@@ -106,10 +111,10 @@ void Grego::dayToFields(double day, int32_t& year, int32_t& month,
     // representation.  We use 400-year, 100-year, and 4-year cycles.
     // For example, the 4-year cycle has 4 years + 1 leap day; giving
     // 1461 == 365*4 + 1 days.
-    int32_t n400 = ClockMath::floorDivide(day, 146097, doy); // 400-year cycle length
-    int32_t n100 = ClockMath::floorDivide(doy, 36524, doy); // 100-year cycle length
-    int32_t n4   = ClockMath::floorDivide(doy, 1461, doy); // 4-year cycle length
-    int32_t n1   = ClockMath::floorDivide(doy, 365, doy);
+    int32_t n400 = ClockMath::floorDivide(day, 146097, &doy); // 400-year cycle length
+    int32_t n100 = ClockMath::floorDivide(doy, 36524, &doy); // 100-year cycle length
+    int32_t n4   = ClockMath::floorDivide(doy, 1461, &doy); // 4-year cycle length
+    int32_t n1   = ClockMath::floorDivide(doy, 365, &doy);
     year = 400*n400 + 100*n100 + 4*n4 + n1;
     if (n100 == 4 || n1 == 4) {
         doy = 365; // Dec 31 at end of 4- or 400-year cycle
@@ -137,14 +142,14 @@ void Grego::dayToFields(double day, int32_t& year, int32_t& month,
 void Grego::timeToFields(UDate time, int32_t& year, int32_t& month,
                         int32_t& dom, int32_t& dow, int32_t& doy, int32_t& mid) {
     double millisInDay;
-    double day = ClockMath::floorDivide((double)time, (double)U_MILLIS_PER_DAY, millisInDay);
+    double day = ClockMath::floorDivide((double)time, (double)U_MILLIS_PER_DAY, &millisInDay);
     mid = (int32_t)millisInDay;
     dayToFields(day, year, month, dom, dow, doy);
 }
 
 int32_t Grego::dayOfWeek(double day) {
     int32_t dow;
-    ClockMath::floorDivide(day + UCAL_THURSDAY, 7, dow);
+    ClockMath::floorDivide(day + int{UCAL_THURSDAY}, 7, &dow);
     return (dow == 0) ? UCAL_SATURDAY : dow;
 }
 

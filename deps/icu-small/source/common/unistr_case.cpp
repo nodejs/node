@@ -123,7 +123,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
       capacity = getCapacity();
     } else {
       // Switch from the read-only alias or shared heap buffer to the stack buffer.
-      if (!cloneArrayIfNeeded(US_STACKBUF_SIZE, US_STACKBUF_SIZE, /* doCopyArray= */ FALSE)) {
+      if (!cloneArrayIfNeeded(US_STACKBUF_SIZE, US_STACKBUF_SIZE, /* doCopyArray= */ false)) {
         return *this;
       }
       U_ASSERT(fUnion.fFields.fLengthAndFlags & kUsingStackBuffer);
@@ -132,7 +132,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
     }
 #if !UCONFIG_NO_BREAK_ITERATION
     if (iter != nullptr) {
-      oldString.setTo(FALSE, oldArray, oldLength);
+      oldString.setTo(false, oldArray, oldLength);
       iter->setText(oldString);
     }
 #endif
@@ -158,7 +158,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
     UChar replacementChars[200];
 #if !UCONFIG_NO_BREAK_ITERATION
     if (iter != nullptr) {
-      oldString.setTo(FALSE, oldArray, oldLength);
+      oldString.setTo(false, oldArray, oldLength);
       iter->setText(oldString);
     }
 #endif
@@ -194,7 +194,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
   // and deletes the old array itself after it is done.
   // In addition, we are forcing cloneArrayIfNeeded() to always allocate a new array.
   int32_t *bufferToDelete = 0;
-  if (!cloneArrayIfNeeded(newLength, newLength, FALSE, &bufferToDelete, TRUE)) {
+  if (!cloneArrayIfNeeded(newLength, newLength, false, &bufferToDelete, true)) {
     return *this;
   }
   errorCode = U_ZERO_ERROR;
@@ -241,10 +241,10 @@ uhash_compareCaselessUnicodeString(const UElement key1, const UElement key2) {
     const UnicodeString *str1 = (const UnicodeString*) key1.pointer;
     const UnicodeString *str2 = (const UnicodeString*) key2.pointer;
     if (str1 == str2) {
-        return TRUE;
+        return true;
     }
     if (str1 == NULL || str2 == NULL) {
-        return FALSE;
+        return false;
     }
     return str1->caseCompare(*str2, U_FOLD_CASE_DEFAULT) == 0;
 }

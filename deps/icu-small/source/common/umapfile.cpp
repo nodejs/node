@@ -107,10 +107,10 @@ typedef HANDLE MemoryMap;
     U_CFUNC UBool
     uprv_mapFile(UDataMemory *pData, const char *path, UErrorCode *status) {
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
         UDataMemory_init(pData); /* Clear the output struct. */
-        return FALSE;            /* no file access */
+        return false;            /* no file access */
     }
 
     U_CFUNC void uprv_unmapFile(UDataMemory *pData) {
@@ -126,7 +126,7 @@ typedef HANDLE MemoryMap;
          )
     {
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
 
         HANDLE map = nullptr;
@@ -150,12 +150,12 @@ typedef HANDLE MemoryMap;
         u_strFromUTF8(reinterpret_cast<UChar*>(utf16Path), static_cast<int32_t>(UPRV_LENGTHOF(utf16Path)), &pathUtf16Len, path, -1, status);
 
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
         if (*status == U_STRING_NOT_TERMINATED_WARNING) {
             // Report back an error instead of a warning.
             *status = U_BUFFER_OVERFLOW_ERROR;
-            return FALSE;
+            return false;
         }
 
         file = CreateFileW(utf16Path, GENERIC_READ, FILE_SHARE_READ, nullptr,
@@ -168,7 +168,7 @@ typedef HANDLE MemoryMap;
             if (HRESULT_FROM_WIN32(GetLastError()) == E_OUTOFMEMORY) {
                 *status = U_MEMORY_ALLOCATION_ERROR;
             }
-            return FALSE;
+            return false;
         }
 
         // Note: We use NULL/nullptr for lpAttributes parameter below.
@@ -183,17 +183,17 @@ typedef HANDLE MemoryMap;
             if (HRESULT_FROM_WIN32(GetLastError()) == E_OUTOFMEMORY) {
                 *status = U_MEMORY_ALLOCATION_ERROR;
             }
-            return FALSE;
+            return false;
         }
 
         /* map a view of the file into our address space */
         pData->pHeader = reinterpret_cast<const DataHeader *>(MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0));
         if (pData->pHeader == nullptr) {
             CloseHandle(map);
-            return FALSE;
+            return false;
         }
         pData->map = map;
-        return TRUE;
+        return true;
     }
 
     U_CFUNC void
@@ -217,21 +217,21 @@ typedef HANDLE MemoryMap;
         void *data;
 
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
 
         UDataMemory_init(pData); /* Clear the output struct.        */
 
         /* determine the length of the file */
         if(stat(path, &mystat)!=0 || mystat.st_size<=0) {
-            return FALSE;
+            return false;
         }
         length=mystat.st_size;
 
         /* open the file */
         fd=open(path, O_RDONLY);
         if(fd==-1) {
-            return FALSE;
+            return false;
         }
 
         /* get a view of the mapping */
@@ -243,7 +243,7 @@ typedef HANDLE MemoryMap;
         close(fd); /* no longer needed */
         if(data==MAP_FAILED) {
             // Possibly check the errno value for ENOMEM, and report U_MEMORY_ALLOCATION_ERROR?
-            return FALSE;
+            return false;
         }
 
         pData->map = (char *)data + length;
@@ -252,7 +252,7 @@ typedef HANDLE MemoryMap;
 #if U_PLATFORM == U_PF_IPHONE
         posix_madvise(data, length, POSIX_MADV_RANDOM);
 #endif
-        return TRUE;
+        return true;
     }
 
     U_CFUNC void
@@ -291,21 +291,21 @@ typedef HANDLE MemoryMap;
         void *p;
 
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
 
         UDataMemory_init(pData); /* Clear the output struct.        */
         /* open the input file */
         file=fopen(path, "rb");
         if(file==nullptr) {
-            return FALSE;
+            return false;
         }
 
         /* get the file length */
         fileLength=umap_fsize(file);
         if(ferror(file) || fileLength<=20) {
             fclose(file);
-            return FALSE;
+            return false;
         }
 
         /* allocate the memory to hold the file data */
@@ -313,21 +313,21 @@ typedef HANDLE MemoryMap;
         if(p==nullptr) {
             fclose(file);
             *status = U_MEMORY_ALLOCATION_ERROR;
-            return FALSE;
+            return false;
         }
 
         /* read the file */
         if(fileLength!=fread(p, 1, fileLength, file)) {
             uprv_free(p);
             fclose(file);
-            return FALSE;
+            return false;
         }
 
         fclose(file);
         pData->map=p;
         pData->pHeader=(const DataHeader *)p;
         pData->mapAddr=p;
-        return TRUE;
+        return true;
     }
 
     U_CFUNC void
@@ -427,7 +427,7 @@ typedef HANDLE MemoryMap;
         void *val=0;
 
         if (U_FAILURE(*status)) {
-            return FALSE;
+            return false;
         }
 
         inBasename=uprv_strrchr(path, U_FILE_SEP_CHAR);
@@ -447,14 +447,14 @@ typedef HANDLE MemoryMap;
 
             /* determine the length of the file */
             if(stat(path, &mystat)!=0 || mystat.st_size<=0) {
-                return FALSE;
+                return false;
             }
             length=mystat.st_size;
 
             /* open the file */
             fd=open(path, O_RDONLY);
             if(fd==-1) {
-                return FALSE;
+                return false;
             }
 
             /* get a view of the mapping */
@@ -462,12 +462,12 @@ typedef HANDLE MemoryMap;
             close(fd); /* no longer needed */
             if(data==MAP_FAILED) {
                 // Possibly check the errorno value for ENOMEM, and report U_MEMORY_ALLOCATION_ERROR?
-                return FALSE;
+                return false;
             }
             pData->map = (char *)data + length;
             pData->pHeader=(const DataHeader *)data;
             pData->mapAddr = data;
-            return TRUE;
+            return true;
         }
 
 #       ifdef OS390BATCH
@@ -503,16 +503,16 @@ typedef HANDLE MemoryMap;
                val=dllqueryvar((dllhandle*)handle, U_ICUDATA_ENTRY_NAME);
                if(val == 0) {
                     /* failed... so keep looking */
-                    return FALSE;
+                    return false;
                }
 #              ifdef UDATA_DEBUG
                     fprintf(stderr, "dllqueryvar(%08X, %s) -> %08X\n", handle, U_ICUDATA_ENTRY_NAME, val);
 #              endif
 
                pData->pHeader=(const DataHeader *)val;
-               return TRUE;
+               return true;
          } else {
-               return FALSE; /* no handle */
+               return false; /* no handle */
          }
     }
 

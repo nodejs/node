@@ -39,7 +39,7 @@ CollationCompare::compareUpToQuaternary(CollationIterator &left, CollationIterat
         // +1 so that we can use "<" and primary ignorables test out early.
         variableTop = settings.variableTop + 1;
     }
-    UBool anyVariable = FALSE;
+    UBool anyVariable = false;
 
     // Fetch CEs, compare primaries, store secondary & tertiary weights.
     for(;;) {
@@ -51,7 +51,7 @@ CollationCompare::compareUpToQuaternary(CollationIterator &left, CollationIterat
             if(leftPrimary < variableTop && leftPrimary > Collation::MERGE_SEPARATOR_PRIMARY) {
                 // Variable CE, shift it to quaternary level.
                 // Ignore all following primary ignorables, and shift further variable CEs.
-                anyVariable = TRUE;
+                anyVariable = true;
                 do {
                     // Store only the primary of the variable CE.
                     left.setCurrentCE(ce & INT64_C(0xffffffff00000000));
@@ -76,7 +76,7 @@ CollationCompare::compareUpToQuaternary(CollationIterator &left, CollationIterat
             if(rightPrimary < variableTop && rightPrimary > Collation::MERGE_SEPARATOR_PRIMARY) {
                 // Variable CE, shift it to quaternary level.
                 // Ignore all following primary ignorables, and shift further variable CEs.
-                anyVariable = TRUE;
+                anyVariable = true;
                 do {
                     // Store only the primary of the variable CE.
                     right.setCurrentCE(ce & INT64_C(0xffffffff00000000));

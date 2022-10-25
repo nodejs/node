@@ -1569,7 +1569,7 @@ void MixedUnitLongNameHandler::forMeasureUnit(const Locale &loc,
     for (int32_t i = 0; i < fillIn->fMixedUnitCount; i++) {
         // Grab data for each of the components.
         UnicodeString *unitData = &fillIn->fMixedUnitData[i * ARRAY_LENGTH];
-        // TODO(CLDR-14502): check from the CLDR-14502 ticket whether this
+        // TODO(CLDR-14582): check from the CLDR-14582 ticket whether this
         // propagation of unitDisplayCase is correct:
         getMeasureData(loc, impl.singleUnits[i]->build(status), width, unitDisplayCase, unitData,
                        status);

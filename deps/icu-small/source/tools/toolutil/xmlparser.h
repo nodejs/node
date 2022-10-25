@@ -61,7 +61,7 @@ public:
     /**
      * Get the text contents of the element.
      * Append the contents of all text child nodes.
-     * @param recurse If TRUE, also recursively appends the contents of all
+     * @param recurse If true, also recursively appends the contents of all
      *        text child nodes of element children.
      * @return The text contents.
      */

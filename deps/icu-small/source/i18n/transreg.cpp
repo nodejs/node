@@ -141,16 +141,10 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
             // to see whether there really are ID blocks at the beginning and end (by looking for U+FFFF, which
             // marks the position where an anonymous transliterator goes) and adjust accordingly
             int32_t anonymousRBTs = transes->size();
-            int32_t transCount = anonymousRBTs * 2 + 1;
-            if (!aliasesOrRules.isEmpty() && aliasesOrRules[0] == (UChar)(0xffff))
-                --transCount;
-            if (aliasesOrRules.length() >= 2 && aliasesOrRules[aliasesOrRules.length() - 1] == (UChar)(0xffff))
-                --transCount;
             UnicodeString noIDBlock((UChar)(0xffff));
             noIDBlock += ((UChar)(0xffff));
             int32_t pos = aliasesOrRules.indexOf(noIDBlock);
             while (pos >= 0) {
-                --transCount;
                 pos = aliasesOrRules.indexOf(noIDBlock, pos + 1);
             }
 
@@ -187,7 +181,7 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
         }
         break;
     case RULES:
-        UPRV_UNREACHABLE_EXIT; // don't call create() if isRuleBased() returns TRUE!
+        UPRV_UNREACHABLE_EXIT; // don't call create() if isRuleBased() returns true!
     }
     return t;
 }
@@ -248,8 +242,8 @@ class TransliteratorSpec : public UMemory {
     UnicodeString spec;
     UnicodeString nextSpec;
     UnicodeString scriptName;
-    UBool isSpecLocale; // TRUE if spec is a locale
-    UBool isNextLocale; // TRUE if nextSpec is a locale
+    UBool isSpecLocale; // true if spec is a locale
+    UBool isNextLocale; // true if nextSpec is a locale
     ResourceBundle* res;
 
     TransliteratorSpec(const TransliteratorSpec &other); // forbid copying of this class
@@ -319,7 +313,7 @@ void TransliteratorSpec::reset() {
 }
 
 void TransliteratorSpec::setupNext() {
-    isNextLocale = FALSE;
+    isNextLocale = false;
     if (isSpecLocale) {
         nextSpec = spec;
         int32_t i = nextSpec.lastIndexOf(LOCALE_SEP);
@@ -327,7 +321,7 @@ void TransliteratorSpec::setupNext() {
         // to the scriptName.
         if (i > 0) {
             nextSpec.truncate(i);
-            isNextLocale = TRUE;
+            isNextLocale = true;
         } else {
             nextSpec = scriptName; // scriptName may be empty
         }
@@ -534,8 +528,8 @@ U_CDECL_END
 //----------------------------------------------------------------------
 
 TransliteratorRegistry::TransliteratorRegistry(UErrorCode& status) :
-    registry(TRUE, status),
-    specDAG(TRUE, SPECDAG_INIT_SIZE, status),
+    registry(true, status),
+    specDAG(true, SPECDAG_INIT_SIZE, status),
     variantList(VARIANT_LIST_INIT_SIZE, status),
     availableIDs(AVAILABLE_IDS_INIT_SIZE, status)
 {
@@ -580,7 +574,7 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
 
     // The usage model for the caller is that they will first call
     // reg->get() inside the mutex, they'll get back an alias, they call
-    // alias->isRuleBased(), and if they get TRUE, they call alias->parse()
+    // alias->isRuleBased(), and if they get true, they call alias->parse()
     // outside the mutex, then reg->reget() inside the mutex again.  A real
     // mess, but it gets things working for ICU 3.0. [alan].
 
@@ -684,7 +678,7 @@ void TransliteratorRegistry::put(const UnicodeString& ID,
     entry->entryType = (dir == UTRANS_FORWARD) ? TransliteratorEntry::RULES_FORWARD
         : TransliteratorEntry::RULES_REVERSE;
     if (readonlyResourceAlias) {
-        entry->stringArg.setTo(TRUE, resourceName.getBuffer(), -1);
+        entry->stringArg.setTo(true, resourceName.getBuffer(), -1);
     }
     else {
         entry->stringArg = resourceName;
@@ -702,7 +696,7 @@ void TransliteratorRegistry::put(const UnicodeString& ID,
     if (entry != NULL) {
         entry->entryType = TransliteratorEntry::ALIAS;
         if (readonlyAliasAlias) {
-            entry->stringArg.setTo(TRUE, alias.getBuffer(), -1);
+            entry->stringArg.setTo(true, alias.getBuffer(), -1);
         }
         else {
             entry->stringArg = alias;
@@ -916,7 +910,7 @@ void TransliteratorRegistry::registerEntry(const UnicodeString& source,
     UnicodeString ID;
     UnicodeString s(source);
     if (s.length() == 0) {
-        s.setTo(TRUE, ANY, 3);
+        s.setTo(true, ANY, 3);
     }
     TransliteratorIDParser::STVtoID(source, target, variant, ID);
     registerEntry(ID, s, target, variant, adopted, visible);
@@ -984,7 +978,7 @@ void TransliteratorRegistry::registerSTV(const UnicodeString& source,
         } else if (source.compare(LAT,3) == 0) {
             size = LAT_TARGETS_INIT_SIZE;
         }
-        targets = new Hashtable(TRUE, size, status);
+        targets = new Hashtable(true, size, status);
         if (U_FAILURE(status) || targets == NULL) {
             return;
         }
@@ -1085,7 +1079,7 @@ TransliteratorEntry* TransliteratorRegistry::findInStaticStore(const Translitera
     // If we found an entry, store it in the Hashtable for next
     // time.
     if (entry != 0) {
-        registerEntry(src.getTop(), trg.getTop(), variant, entry, FALSE);
+        registerEntry(src.getTop(), trg.getTop(), variant, entry, false);
     }
 
     return entry;
@@ -1336,7 +1330,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
             for (int32_t i = 0; U_SUCCESS(status) && i < entry->u.dataVector->size(); i++) {
                 // TODO: Should passNumber be turned into a decimal-string representation (1 -> "1")?
                 Transliterator* tl = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
-                    (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), FALSE);
+                    (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), false);
                 if (tl == 0)
                     status = U_MEMORY_ALLOCATION_ERROR;
                 else

@@ -184,12 +184,12 @@ static void U_CALLCONV
 _UTF7Reset(UConverter *cnv, UConverterResetChoice choice) {
     if(choice<=UCNV_RESET_TO_UNICODE) {
         /* reset toUnicode */
-        cnv->toUnicodeStatus=0x1000000; /* inDirectMode=TRUE */
+        cnv->toUnicodeStatus=0x1000000; /* inDirectMode=true */
         cnv->toULength=0;
     }
     if(choice!=UCNV_RESET_TO_UNICODE) {
         /* reset fromUnicode */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     }
 }
 
@@ -286,7 +286,7 @@ directMode:
             } else /* PLUS */ {
                 /* switch to Unicode mode */
                 nextSourceIndex=++sourceIndex;
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 byteIndex=0;
                 bits=0;
                 base64Counter=-1;
@@ -329,7 +329,7 @@ unicodeMode:
                      *        It may be for example, a plus which we need to deal with in direct mode.
                      * 2.2.2. Else if the current char is illegal, we might as well deal with it here.
                      */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* illegal: + immediately followed by something other than base64 or minus sign */
                         /* include the plus sign in the reported sequence, but not the subsequent char */
@@ -411,7 +411,7 @@ unicodeMode:
                     }
                 } else /*base64Value==-2*/ {
                     /* minus sign terminates the base64 sequence */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* +- i.e. a minus immediately following a plus */
                         *target++=PLUS;
@@ -541,7 +541,7 @@ directMode:
                 if(offsets!=NULL) {
                     *offsets++=sourceIndex;
                 }
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 base64Counter=0;
                 goto unicodeMode;
             }
@@ -558,7 +558,7 @@ unicodeMode:
                 c=*source++;
                 if(c<=127 && encodeDirectly[c]) {
                     /* encode directly */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
 
                     /* trick: back out this character to make this easier */
                     --source;
@@ -719,7 +719,7 @@ unicodeMode:
             }
         }
         /* reset the state for the next conversion */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     } else {
         /* set the converter state back into UConverter */
         cnv->fromUnicodeStatus=
@@ -778,7 +778,7 @@ static const UConverterStaticData _UTF7StaticData={
     UCNV_IBM, UCNV_UTF7,
     1, 4,
     { 0x3f, 0, 0, 0 }, 1, /* the subchar is not used */
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -971,7 +971,7 @@ directMode:
             } else /* AMPERSAND */ {
                 /* switch to Unicode mode */
                 nextSourceIndex=++sourceIndex;
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 byteIndex=0;
                 bits=0;
                 base64Counter=-1;
@@ -1002,7 +1002,7 @@ unicodeMode:
                 ++nextSourceIndex;
                 if(b>0x7e) {
                     /* illegal - test other illegal US-ASCII values by base64Value==-3 */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                     break;
                 } else if((base64Value=FROM_BASE64_IMAP(b))>=0) {
@@ -1024,7 +1024,7 @@ unicodeMode:
                         c=(UChar)((bits<<4)|(base64Value>>2));
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
@@ -1042,7 +1042,7 @@ unicodeMode:
                         c=(UChar)((bits<<2)|(base64Value>>4));
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
@@ -1060,7 +1060,7 @@ unicodeMode:
                         c=(UChar)((bits<<6)|base64Value);
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
@@ -1079,7 +1079,7 @@ unicodeMode:
                     }
                 } else if(base64Value==-2) {
                     /* minus sign terminates the base64 sequence */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* &- i.e. a minus immediately following an ampersand */
                         *target++=AMPERSAND;
@@ -1109,7 +1109,7 @@ unicodeMode:
                     /* base64Value==-1 for characters that are illegal only in Unicode mode */
                     /* base64Value==-3 for illegal characters */
                     /* illegal */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                     break;
                 }
@@ -1144,7 +1144,7 @@ endloop:
         }
         /* else if(base64Counter!=-1) byteIndex remains 0 because there is no particular byte sequence */
 
-        inDirectMode=TRUE; /* avoid looping */
+        inDirectMode=true; /* avoid looping */
         *pErrorCode=U_TRUNCATED_CHAR_FOUND;
     }
 
@@ -1240,7 +1240,7 @@ directMode:
                 if(offsets!=NULL) {
                     *offsets++=sourceIndex;
                 }
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 base64Counter=0;
                 goto unicodeMode;
             }
@@ -1257,7 +1257,7 @@ unicodeMode:
                 c=*source++;
                 if(isLegalIMAP(c)) {
                     /* encode directly */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
 
                     /* trick: back out this character to make this easier */
                     --source;
@@ -1431,7 +1431,7 @@ unicodeMode:
             }
         }
         /* reset the state for the next conversion */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     } else {
         /* set the converter state back into UConverter */
         cnv->fromUnicodeStatus=
@@ -1479,7 +1479,7 @@ static const UConverterStaticData _IMAPStaticData={
     UCNV_IBM, UCNV_IMAP_MAILBOX,
     1, 4,
     { 0x3f, 0, 0, 0 }, 1, /* the subchar is not used */
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

@@ -59,8 +59,14 @@ class FormattedNumber;
 class FormattedNumberRange;
 namespace impl {
 class UFormattedNumberRangeData;
+class DecimalQuantity;
+class DecNum;
 }
 }
+
+#ifndef U_HIDE_INTERNAL_API
+using icu::number::impl::DecimalQuantity;
+#endif  /* U_HIDE_INTERNAL_API */
 
 /**
  * Defines rules for mapping non-negative numeric values onto a small set of
@@ -307,14 +313,6 @@ public:
     static StringEnumeration* U_EXPORT2 getAvailableLocales(UErrorCode &status);
 
     /**
-     * Returns whether or not there are overrides.
-     * @param locale       the locale to check.
-     * @return
-     * @internal
-     */
-    static UBool hasOverride(const Locale &locale);
-
-    /**
      * For ICU use only.
      * creates a  SharedPluralRules object
      * @internal
@@ -476,7 +474,7 @@ public:
 
 #ifndef U_HIDE_INTERNAL_API
     /**
-     * Internal-only function that returns FixedDecimals instead of doubles.
+     * Internal-only function that returns DecimalQuantitys instead of doubles.
      *
      * Returns sample values for which select() would return the keyword.  If
      * the keyword is unknown, returns no values, but this is not an error.
@@ -496,7 +494,7 @@ public:
      * @internal
      */
     int32_t getSamples(const UnicodeString &keyword,
-                       FixedDecimal *dest, int32_t destCapacity,
+                       DecimalQuantity *dest, int32_t destCapacity,
                        UErrorCode& status);
 #endif  /* U_HIDE_INTERNAL_API */
 
@@ -569,9 +567,7 @@ private:
     RuleChain  *mRules;
     StandardPluralRanges *mStandardPluralRanges;
 
-    PluralRules();   // default constructor not implemented
-    void            parseDescription(const UnicodeString& ruleData, UErrorCode &status);
-    int32_t         getNumberValue(const UnicodeString& token) const;
+    PluralRules() = delete;   // default constructor not implemented
     UnicodeString   getRuleFromResource(const Locale& locale, UPluralType type, UErrorCode& status);
     RuleChain      *rulesForKeyword(const UnicodeString &keyword) const;
     PluralRules    *clone(UErrorCode& status) const;

@@ -167,7 +167,7 @@ public:
 
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return static_cast<double>(divisor); }
 
-    virtual UBool isModulusSubstitution() const override { return TRUE; }
+    virtual UBool isModulusSubstitution() const override { return true; }
 
     virtual UChar tokenChar() const override { return (UChar)0x003e; } // '>'
 
@@ -763,11 +763,11 @@ NFSubstitution::doParse(const UnicodeString& text,
         // the result.
         tempResult = composeRuleValue(tempResult, baseValue);
         result.setDouble(tempResult);
-        return TRUE;
+        return true;
         // if the parse was UNsuccessful, return 0
     } else {
         result.setLong(0);
-        return FALSE;
+        return false;
     }
 }
 
@@ -779,7 +779,7 @@ NFSubstitution::doParse(const UnicodeString& text,
      */
 UBool
 NFSubstitution::isModulusSubstitution() const {
-    return FALSE;
+    return false;
 }
 
 //===================================================================
@@ -950,7 +950,7 @@ ModulusSubstitution::doParse(const UnicodeString& text,
         // use the specific rule's doParse() method, and then we have to
         // do some of the other work of NFRuleSet.parse()
     } else {
-        ruleToUse->doParse(text, parsePosition, FALSE, upperBound, nonNumericalExecutedRuleMask, result);
+        ruleToUse->doParse(text, parsePosition, false, upperBound, nonNumericalExecutedRuleMask, result);
 
         if (parsePosition.getIndex() != 0) {
             UErrorCode status = U_ZERO_ERROR;
@@ -959,7 +959,7 @@ ModulusSubstitution::doParse(const UnicodeString& text,
             result.setDouble(tempResult);
         }
 
-        return TRUE;
+        return true;
     }
 }
 /**
@@ -1007,17 +1007,17 @@ FractionalPartSubstitution::FractionalPartSubstitution(int32_t _pos,
                              const UnicodeString& description,
                              UErrorCode& status)
  : NFSubstitution(_pos, _ruleSet, description, status)
- , byDigits(FALSE)
- , useSpaces(TRUE)
+ , byDigits(false)
+ , useSpaces(true)
 
 {
     // akk, ruleSet can change in superclass constructor
     if (0 == description.compare(gGreaterGreaterThan, 2) ||
         0 == description.compare(gGreaterGreaterGreaterThan, 3) ||
         _ruleSet == getRuleSet()) {
-        byDigits = TRUE;
+        byDigits = true;
         if (0 == description.compare(gGreaterGreaterGreaterThan, 3)) {
-            useSpaces = FALSE;
+            useSpaces = false;
         }
     } else {
         // cast away const
@@ -1059,14 +1059,14 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     //          // this flag keeps us from formatting trailing zeros.  It starts
     //          // out false because we're pulling from the right, and switches
     //          // to true the first time we encounter a non-zero digit
-    //          UBool doZeros = FALSE;
+    //          UBool doZeros = false;
     //          for (int32_t i = 0; i < kMaxDecimalDigits; i++) {
     //              int64_t digit = numberToFormat % 10;
     //              if (digit != 0 || doZeros) {
     //                  if (doZeros && useSpaces) {
     //                      toInsertInto.insert(_pos + getPos(), gSpace);
     //                  }
-    //                  doZeros = TRUE;
+    //                  doZeros = true;
     //                  getRuleSet()->format(digit, toInsertInto, _pos + getPos());
     //              }
     //              numberToFormat /= 10;
@@ -1076,7 +1076,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     dl.setToDouble(number);
     dl.roundToMagnitude(-20, UNUM_ROUND_HALFEVEN, status);     // round to 20 fraction digits.
     
-    UBool pad = FALSE;
+    UBool pad = false;
     for (int32_t didx = dl.getLowerDisplayMagnitude(); didx<0; didx++) {
       // Loop iterates over fraction digits, starting with the LSD.
       //   include both real digits from the number, and zeros
@@ -1084,7 +1084,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
       if (pad && useSpaces) {
         toInsertInto.insert(_pos + getPos(), gSpace);
       } else {
-        pad = TRUE;
+        pad = true;
       }
       int64_t digit = dl.getDigit(didx);
       getRuleSet()->format(digit, toInsertInto, _pos + getPos(), recursionCount, status);
@@ -1191,7 +1191,7 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
         result = dl.toDouble();
         result = composeRuleValue(result, baseValue);
         resVal.setDouble(result);
-        return TRUE;
+        return true;
     }
 }
 
@@ -1301,7 +1301,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
     }
 
     // we've parsed off the zeros, now let's parse the rest from our current position
-    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, FALSE, nonNumericalExecutedRuleMask, result);
+    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, false, nonNumericalExecutedRuleMask, result);
 
     if (withZeros) {
         // any base value will do in this case.  is there a way to
@@ -1310,10 +1310,8 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
         // compute the 'effective' base and prescale the value down
         int64_t n = result.getLong(status); // force conversion!
         int64_t d = 1;
-        int32_t pow = 0;
         while (d <= n) {
             d *= 10;
-            ++pow;
         }
         // now add the zeros
         while (zeroCount > 0) {
@@ -1324,7 +1322,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
         result.setDouble((double)n/(double)d);
     }
 
-    return TRUE;
+    return true;
 }
 
 bool

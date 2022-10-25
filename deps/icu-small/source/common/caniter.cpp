@@ -119,7 +119,7 @@ UnicodeString CanonicalIterator::getSource() {
  * Resets the iterator so that one can start again from the beginning.
  */
 void CanonicalIterator::reset() {
-    done = FALSE;
+    done = false;
     for (int i = 0; i < current_length; ++i) {
         current[i] = 0;
     }
@@ -151,7 +151,7 @@ UnicodeString CanonicalIterator::next() {
 
     for (i = current_length - 1; ; --i) {
         if (i < 0) {
-            done = TRUE;
+            done = true;
             break;
         }
         current[i]++;
@@ -176,7 +176,7 @@ void CanonicalIterator::setSource(const UnicodeString &newSource, UErrorCode &st
     if(U_FAILURE(status)) {
       return;
     }
-    done = FALSE;
+    done = false;
 
     cleanPieces();
 
@@ -521,7 +521,7 @@ Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, con
     int32_t decompLen=decompString.length();
 
     // See if it matches the start of segment (at segmentPos)
-    UBool ok = FALSE;
+    UBool ok = false;
     UChar32 cp;
     int32_t decompPos = 0;
     UChar32 decompCp;
@@ -537,7 +537,7 @@ Hashtable *CanonicalIterator::extract(Hashtable *fillinResult, UChar32 comp, con
 
             if (decompPos == decompLen) { // done, have all decomp characters!
                 temp.append(segment+i, segLen-i);
-                ok = TRUE;
+                ok = true;
                 break;
             }
             U16_NEXT(decomp, decompPos, decompLen, decompCp);

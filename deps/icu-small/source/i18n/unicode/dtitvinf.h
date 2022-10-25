@@ -343,7 +343,7 @@ private:
     /**
      * Internal struct used to load resource bundle data.
      */
-    struct DateIntervalSink;
+    struct U_HIDDEN DateIntervalSink;
 
     /**
      * Following is for saving the interval patterns.

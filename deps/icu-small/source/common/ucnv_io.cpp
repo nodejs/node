@@ -175,7 +175,7 @@ static const char DATA_NAME[] = "cnvalias";
 static const char DATA_TYPE[] = "icu";
 
 static UDataMemory *gAliasData=NULL;
-static icu::UInitOnce gAliasDataInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gAliasDataInitOnce {};
 
 enum {
     tocLengthIndex=0,
@@ -226,7 +226,7 @@ static UBool U_CALLCONV ucnv_io_cleanup(void)
 
     uprv_memset(&gMainTable, 0, sizeof(gMainTable));
 
-    return TRUE;                   /* Everything was cleaned up */
+    return true;                   /* Everything was cleaned up */
 }
 
 static void U_CALLCONV initAliasData(UErrorCode &errCode) {
@@ -319,7 +319,7 @@ static inline UBool
 isAlias(const char *alias, UErrorCode *pErrorCode) {
     if(alias==NULL) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     return (UBool)(*alias!=0);
 }
@@ -388,13 +388,13 @@ ucnv_io_stripASCIIForCompare(char *dst, const char *name) {
     char *dstItr = dst;
     uint8_t type, nextType;
     char c1;
-    UBool afterDigit = FALSE;
+    UBool afterDigit = false;
 
     while ((c1 = *name++) != 0) {
         type = GET_ASCII_TYPE(c1);
         switch (type) {
         case UIGNORE:
-            afterDigit = FALSE;
+            afterDigit = false;
             continue; /* ignore all but letters and digits */
         case ZERO:
             if (!afterDigit) {
@@ -405,11 +405,11 @@ ucnv_io_stripASCIIForCompare(char *dst, const char *name) {
             }
             break;
         case NONZERO:
-            afterDigit = TRUE;
+            afterDigit = true;
             break;
         default:
             c1 = (char)type; /* lowercased letter */
-            afterDigit = FALSE;
+            afterDigit = false;
             break;
         }
         *dstItr++ = c1;
@@ -423,13 +423,13 @@ ucnv_io_stripEBCDICForCompare(char *dst, const char *name) {
     char *dstItr = dst;
     uint8_t type, nextType;
     char c1;
-    UBool afterDigit = FALSE;
+    UBool afterDigit = false;
 
     while ((c1 = *name++) != 0) {
         type = GET_EBCDIC_TYPE(c1);
         switch (type) {
         case UIGNORE:
-            afterDigit = FALSE;
+            afterDigit = false;
             continue; /* ignore all but letters and digits */
         case ZERO:
             if (!afterDigit) {
@@ -440,11 +440,11 @@ ucnv_io_stripEBCDICForCompare(char *dst, const char *name) {
             }
             break;
         case NONZERO:
-            afterDigit = TRUE;
+            afterDigit = true;
             break;
         default:
             c1 = (char)type; /* lowercased letter */
-            afterDigit = FALSE;
+            afterDigit = false;
             break;
         }
         *dstItr++ = c1;
@@ -479,14 +479,14 @@ ucnv_compareNames(const char *name1, const char *name2) {
     int rc;
     uint8_t type, nextType;
     char c1, c2;
-    UBool afterDigit1 = FALSE, afterDigit2 = FALSE;
+    UBool afterDigit1 = false, afterDigit2 = false;
 
     for (;;) {
         while ((c1 = *name1++) != 0) {
             type = GET_CHAR_TYPE(c1);
             switch (type) {
             case UIGNORE:
-                afterDigit1 = FALSE;
+                afterDigit1 = false;
                 continue; /* ignore all but letters and digits */
             case ZERO:
                 if (!afterDigit1) {
@@ -497,11 +497,11 @@ ucnv_compareNames(const char *name1, const char *name2) {
                 }
                 break;
             case NONZERO:
-                afterDigit1 = TRUE;
+                afterDigit1 = true;
                 break;
             default:
                 c1 = (char)type; /* lowercased letter */
-                afterDigit1 = FALSE;
+                afterDigit1 = false;
                 break;
             }
             break; /* deliver c1 */
@@ -510,7 +510,7 @@ ucnv_compareNames(const char *name1, const char *name2) {
             type = GET_CHAR_TYPE(c2);
             switch (type) {
             case UIGNORE:
-                afterDigit2 = FALSE;
+                afterDigit2 = false;
                 continue; /* ignore all but letters and digits */
             case ZERO:
                 if (!afterDigit2) {
@@ -521,11 +521,11 @@ ucnv_compareNames(const char *name1, const char *name2) {
                 }
                 break;
             case NONZERO:
-                afterDigit2 = TRUE;
+                afterDigit2 = true;
                 break;
             default:
                 c2 = (char)type; /* lowercased letter */
-                afterDigit2 = FALSE;
+                afterDigit2 = false;
                 break;
             }
             break; /* deliver c2 */
@@ -628,11 +628,11 @@ isAliasInList(const char *alias, uint32_t listOffset) {
             if (currList[currAlias]
                 && ucnv_compareNames(alias, GET_STRING(currList[currAlias]))==0)
             {
-                return TRUE;
+                return true;
             }
         }
     }
-    return FALSE;
+    return false;
 }
 
 /*
@@ -1288,7 +1288,7 @@ ucnv_swapAliases(const UDataSwapper *ds,
 
             uprv_sortArray(tempTable.rows, (int32_t)count, sizeof(TempRow),
                            io_compareRows, &tempTable,
-                           FALSE, pErrorCode);
+                           false, pErrorCode);
 
             if(U_SUCCESS(*pErrorCode)) {
                 /* copy/swap/permutate items */

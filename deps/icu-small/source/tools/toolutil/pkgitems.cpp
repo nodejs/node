@@ -277,44 +277,46 @@ checkAlias(const char *itemName,
  * Enumerate one resource item and its children and extract dependencies from
  * aliases.
  */
-static void
+static UBool
 ures_enumDependencies(const char *itemName,
                       const ResourceData *pResData,
                       Resource res, const char *inKey, const char *parentKey, int32_t depth,
                       CheckDependency check, void *context,
                       Package *pkg,
                       UErrorCode *pErrorCode) {
+    UBool doCheckParent = true;  // always remains true if depth>1
     switch(res_getPublicType(res)) {
     case URES_STRING:
-        {
-            UBool useResSuffix = TRUE;
-            // Check for %%ALIAS
-            if(depth==1 && inKey!=NULL) {
-                if(0!=strcmp(inKey, "%%ALIAS")) {
-                    break;
-                }
-            }
-            // Check for %%DEPENDENCY
-            else if(depth==2 && parentKey!=NULL) {
-                if(0!=strcmp(parentKey, "%%DEPENDENCY")) {
-                    break;
-                }
-                useResSuffix = FALSE;
-            } else {
-                // we ignore all other strings
-                break;
-            }
-            int32_t length;
+        if(depth==1 && inKey!=NULL &&
+                (0==strcmp(inKey, "%%ALIAS") || 0==strcmp(inKey, "%%Parent"))) {
+            // Top-level %%ALIAS string:
+            //   The alias resource bundle will be used instead of this one.
+            // Top-level %%Parent string:
+            //   We use this bundle as well as the explicit parent bundle.
+            // Either way, the truncation parent is ignored.
+            doCheckParent = false;
             // No tracing: build tool
+            int32_t length;
             const UChar *alias=res_getStringNoTrace(pResData, res, &length);
-            checkAlias(itemName, res, alias, length, useResSuffix, check, context, pErrorCode);
+            checkAlias(itemName, res, alias, length, /*useResSuffix=*/ true,
+                       check, context, pErrorCode);
+            // If there is a %%ALIAS, then there should be nothing else in this resource bundle.
+        } else if(depth==2 && parentKey!=NULL && 0==strcmp(parentKey, "%%DEPENDENCY")) {
+            // Second-level %%DEPENDENCY string:
+            // Explicit declaration of a dependency of this item on that one.
+            // No tracing: build tool
+            int32_t length;
+            const UChar *alias=res_getStringNoTrace(pResData, res, &length);
+            checkAlias(itemName, res, alias, length, /*useResSuffix=*/ false,
+                       check, context, pErrorCode);
         }
+        // we ignore all other strings
         break;
     case URES_ALIAS:
         {
             int32_t length;
             const UChar *alias=res_getAlias(pResData, res, &length);
-            checkAlias(itemName, res, alias, length, TRUE, check, context, pErrorCode);
+            checkAlias(itemName, res, alias, length, true, check, context, pErrorCode);
         }
         break;
     case URES_TABLE:
@@ -324,7 +326,9 @@ ures_enumDependencies(const char *itemName,
             for(int32_t i=0; i<count; ++i) {
                 const char *itemKey;
                 Resource item=res_getTableItemByIndex(pResData, res, i, &itemKey);
-                ures_enumDependencies(
+                // This doCheckParent return value is needed to
+                // propagate the possible false value from depth=1 to depth=0.
+                doCheckParent &= ures_enumDependencies(
                         itemName, pResData,
                         item, itemKey,
                         inKey, depth+1,
@@ -363,6 +367,7 @@ ures_enumDependencies(const char *itemName,
     default:
         break;
     }
+    return doCheckParent;
 }
 
 static void
@@ -378,17 +383,6 @@ ures_enumDependencies(const char *itemName, const UDataInfo *pInfo,
         fprintf(stderr, "icupkg: .res format version %02x.%02x not supported, or bundle malformed\n",
                         pInfo->formatVersion[0], pInfo->formatVersion[1]);
         exit(U_UNSUPPORTED_ERROR);
-    }
-
-    /*
-     * if the bundle attributes are present and the nofallback flag is not set,
-     * then add the parent bundle as a dependency
-     */
-    if(pInfo->formatVersion[0]>1 || (pInfo->formatVersion[0]==1 && pInfo->formatVersion[1]>=1)) {
-        if(!resData.noFallback) {
-            /* this bundle participates in locale fallback */
-            checkParent(itemName, check, context, pErrorCode);
-        }
     }
 
     icu::NativeItem nativePool;
@@ -431,12 +425,26 @@ ures_enumDependencies(const char *itemName, const UDataInfo *pInfo,
         }
     }
 
-    ures_enumDependencies(
+    UBool doCheckParent = ures_enumDependencies(
         itemName, &resData,
         resData.rootRes, NULL, NULL, 0,
         check, context,
         pkg,
         pErrorCode);
+    if(!doCheckParent) {
+        return;
+    }
+
+    /*
+     * if the bundle attributes are present and the nofallback flag is not set,
+     * then add the parent bundle as a dependency
+     */
+    if(pInfo->formatVersion[0]>1 || (pInfo->formatVersion[0]==1 && pInfo->formatVersion[1]>=1)) {
+        if(!resData.noFallback) {
+            /* this bundle participates in locale fallback */
+            checkParent(itemName, check, context, pErrorCode);
+        }
+    }
 }
 
 // get dependencies from conversion tables --------------------------------- ***

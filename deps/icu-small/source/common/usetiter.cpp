@@ -50,19 +50,19 @@ UBool UnicodeSetIterator::next() {
     if (nextElement <= endElement) {
         codepoint = codepointEnd = nextElement++;
         string = NULL;
-        return TRUE;
+        return true;
     }
     if (range < endRange) {
         loadRange(++range);
         codepoint = codepointEnd = nextElement++;
         string = NULL;
-        return TRUE;
+        return true;
     }
 
-    if (nextString >= stringCount) return FALSE;
+    if (nextString >= stringCount) return false;
     codepoint = (UChar32)IS_STRING; // signal that value is actually a string
     string = (const UnicodeString*) set->strings->elementAt(nextString++);
-    return TRUE;
+    return true;
 }
 
 /**
@@ -82,20 +82,20 @@ UBool UnicodeSetIterator::nextRange() {
         codepointEnd = endElement;
         codepoint = nextElement;
         nextElement = endElement+1;
-        return TRUE;
+        return true;
     }
     if (range < endRange) {
         loadRange(++range);
         codepointEnd = endElement;
         codepoint = nextElement;
         nextElement = endElement+1;
-        return TRUE;
+        return true;
     }
 
-    if (nextString >= stringCount) return FALSE;
+    if (nextString >= stringCount) return false;
     codepoint = (UChar32)IS_STRING; // signal that value is actually a string
     string = (const UnicodeString*) set->strings->elementAt(nextString++);
-    return TRUE;
+    return true;
 }
 
 /**

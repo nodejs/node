@@ -204,9 +204,9 @@ U_CAPI UBool U_EXPORT2
 uprv_fileExists(const char *file) {
   struct stat stat_buf;
   if (stat(file, &stat_buf) == 0) {
-    return TRUE;
+    return true;
   } else {
-    return FALSE;
+    return false;
   }
 }
 #endif
@@ -351,7 +351,7 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
         mem->capacity=newCapacity;
     }
 
-    return TRUE;
+    return true;
 }
 
 U_CAPI void * U_EXPORT2

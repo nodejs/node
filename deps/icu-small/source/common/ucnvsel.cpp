@@ -142,7 +142,7 @@ static void generateSelectorData(UConverterSelector* result,
   result->trie = upvec_compactToUTrie2WithRowIndexes(upvec, status);
   result->pv = upvec_cloneArray(upvec, &result->pvCount, NULL, status);
   result->pvCount *= columns;  // number of uint32_t = rows * columns
-  result->ownPv = TRUE;
+  result->ownPv = true;
 }
 
 /* open a selector. If converterListSize is 0, build for all converters.
@@ -212,7 +212,7 @@ ucnvsel_open(const char* const*  converterList, int32_t converterListSize,
     --encodingStrPadding;
   }
 
-  newSelector->ownEncodingStrings = TRUE;
+  newSelector->ownEncodingStrings = true;
   newSelector->encodingsCount = converterListSize;
   UPropsVectors *upvec = upvec_open((converterListSize+31)/32, status);
   generateSelectorData(newSelector.getAlias(), upvec, excludedCodePoints, whichSet, status);

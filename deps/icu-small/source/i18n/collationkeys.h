@@ -116,7 +116,7 @@ public:
 private:
     friend struct CollationDataReader;
 
-    CollationKeys();  // no instantiation
+    CollationKeys() = delete;  // no instantiation
 
     // Secondary level: Compress up to 33 common weights as 05..25 or 25..45.
     static const uint32_t SEC_COMMON_LOW = Collation::COMMON_BYTE;

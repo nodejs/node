@@ -79,110 +79,110 @@ struct RBBIRuleTableEl {
 };
 
 static const struct RBBIRuleTableEl gRuleParseStateTable[] = {
-    {doNOP, 0, 0, 0, TRUE}
-    , {doExprStart, 254, 29, 9, FALSE}     //  1      start
-    , {doNOP, 132, 1,0,  TRUE}     //  2 
-    , {doNoChain, 94 /* ^ */, 12, 9, TRUE}     //  3 
-    , {doExprStart, 36 /* $ */, 88, 98, FALSE}     //  4 
-    , {doNOP, 33 /* ! */, 19,0,  TRUE}     //  5 
-    , {doNOP, 59 /* ; */, 1,0,  TRUE}     //  6 
-    , {doNOP, 252, 0,0,  FALSE}     //  7 
-    , {doExprStart, 255, 29, 9, FALSE}     //  8 
-    , {doEndOfRule, 59 /* ; */, 1,0,  TRUE}     //  9      break-rule-end
-    , {doNOP, 132, 9,0,  TRUE}     //  10 
-    , {doRuleError, 255, 103,0,  FALSE}     //  11 
-    , {doExprStart, 254, 29,0,  FALSE}     //  12      start-after-caret
-    , {doNOP, 132, 12,0,  TRUE}     //  13 
-    , {doRuleError, 94 /* ^ */, 103,0,  FALSE}     //  14 
-    , {doExprStart, 36 /* $ */, 88, 37, FALSE}     //  15 
-    , {doRuleError, 59 /* ; */, 103,0,  FALSE}     //  16 
-    , {doRuleError, 252, 103,0,  FALSE}     //  17 
-    , {doExprStart, 255, 29,0,  FALSE}     //  18 
-    , {doNOP, 33 /* ! */, 21,0,  TRUE}     //  19      rev-option
-    , {doReverseDir, 255, 28, 9, FALSE}     //  20 
-    , {doOptionStart, 130, 23,0,  TRUE}     //  21      option-scan1
-    , {doRuleError, 255, 103,0,  FALSE}     //  22 
-    , {doNOP, 129, 23,0,  TRUE}     //  23      option-scan2
-    , {doOptionEnd, 255, 25,0,  FALSE}     //  24 
-    , {doNOP, 59 /* ; */, 1,0,  TRUE}     //  25      option-scan3
-    , {doNOP, 132, 25,0,  TRUE}     //  26 
-    , {doRuleError, 255, 103,0,  FALSE}     //  27 
-    , {doExprStart, 255, 29, 9, FALSE}     //  28      reverse-rule
-    , {doRuleChar, 254, 38,0,  TRUE}     //  29      term
-    , {doNOP, 132, 29,0,  TRUE}     //  30 
-    , {doRuleChar, 131, 38,0,  TRUE}     //  31 
-    , {doNOP, 91 /* [ */, 94, 38, FALSE}     //  32 
-    , {doLParen, 40 /* ( */, 29, 38, TRUE}     //  33 
-    , {doNOP, 36 /* $ */, 88, 37, FALSE}     //  34 
-    , {doDotAny, 46 /* . */, 38,0,  TRUE}     //  35 
-    , {doRuleError, 255, 103,0,  FALSE}     //  36 
-    , {doCheckVarDef, 255, 38,0,  FALSE}     //  37      term-var-ref
-    , {doNOP, 132, 38,0,  TRUE}     //  38      expr-mod
-    , {doUnaryOpStar, 42 /* * */, 43,0,  TRUE}     //  39 
-    , {doUnaryOpPlus, 43 /* + */, 43,0,  TRUE}     //  40 
-    , {doUnaryOpQuestion, 63 /* ? */, 43,0,  TRUE}     //  41 
-    , {doNOP, 255, 43,0,  FALSE}     //  42 
-    , {doExprCatOperator, 254, 29,0,  FALSE}     //  43      expr-cont
-    , {doNOP, 132, 43,0,  TRUE}     //  44 
-    , {doExprCatOperator, 131, 29,0,  FALSE}     //  45 
-    , {doExprCatOperator, 91 /* [ */, 29,0,  FALSE}     //  46 
-    , {doExprCatOperator, 40 /* ( */, 29,0,  FALSE}     //  47 
-    , {doExprCatOperator, 36 /* $ */, 29,0,  FALSE}     //  48 
-    , {doExprCatOperator, 46 /* . */, 29,0,  FALSE}     //  49 
-    , {doExprCatOperator, 47 /* / */, 55,0,  FALSE}     //  50 
-    , {doExprCatOperator, 123 /* { */, 67,0,  TRUE}     //  51 
-    , {doExprOrOperator, 124 /* | */, 29,0,  TRUE}     //  52 
-    , {doExprRParen, 41 /* ) */, 255,0,  TRUE}     //  53 
-    , {doExprFinished, 255, 255,0,  FALSE}     //  54 
-    , {doSlash, 47 /* / */, 57,0,  TRUE}     //  55      look-ahead
-    , {doNOP, 255, 103,0,  FALSE}     //  56 
-    , {doExprCatOperator, 254, 29,0,  FALSE}     //  57      expr-cont-no-slash
-    , {doNOP, 132, 43,0,  TRUE}     //  58 
-    , {doExprCatOperator, 131, 29,0,  FALSE}     //  59 
-    , {doExprCatOperator, 91 /* [ */, 29,0,  FALSE}     //  60 
-    , {doExprCatOperator, 40 /* ( */, 29,0,  FALSE}     //  61 
-    , {doExprCatOperator, 36 /* $ */, 29,0,  FALSE}     //  62 
-    , {doExprCatOperator, 46 /* . */, 29,0,  FALSE}     //  63 
-    , {doExprOrOperator, 124 /* | */, 29,0,  TRUE}     //  64 
-    , {doExprRParen, 41 /* ) */, 255,0,  TRUE}     //  65 
-    , {doExprFinished, 255, 255,0,  FALSE}     //  66 
-    , {doNOP, 132, 67,0,  TRUE}     //  67      tag-open
-    , {doStartTagValue, 128, 70,0,  FALSE}     //  68 
-    , {doTagExpectedError, 255, 103,0,  FALSE}     //  69 
-    , {doNOP, 132, 74,0,  TRUE}     //  70      tag-value
-    , {doNOP, 125 /* } */, 74,0,  FALSE}     //  71 
-    , {doTagDigit, 128, 70,0,  TRUE}     //  72 
-    , {doTagExpectedError, 255, 103,0,  FALSE}     //  73 
-    , {doNOP, 132, 74,0,  TRUE}     //  74      tag-close
-    , {doTagValue, 125 /* } */, 77,0,  TRUE}     //  75 
-    , {doTagExpectedError, 255, 103,0,  FALSE}     //  76 
-    , {doExprCatOperator, 254, 29,0,  FALSE}     //  77      expr-cont-no-tag
-    , {doNOP, 132, 77,0,  TRUE}     //  78 
-    , {doExprCatOperator, 131, 29,0,  FALSE}     //  79 
-    , {doExprCatOperator, 91 /* [ */, 29,0,  FALSE}     //  80 
-    , {doExprCatOperator, 40 /* ( */, 29,0,  FALSE}     //  81 
-    , {doExprCatOperator, 36 /* $ */, 29,0,  FALSE}     //  82 
-    , {doExprCatOperator, 46 /* . */, 29,0,  FALSE}     //  83 
-    , {doExprCatOperator, 47 /* / */, 55,0,  FALSE}     //  84 
-    , {doExprOrOperator, 124 /* | */, 29,0,  TRUE}     //  85 
-    , {doExprRParen, 41 /* ) */, 255,0,  TRUE}     //  86 
-    , {doExprFinished, 255, 255,0,  FALSE}     //  87 
-    , {doStartVariableName, 36 /* $ */, 90,0,  TRUE}     //  88      scan-var-name
-    , {doNOP, 255, 103,0,  FALSE}     //  89 
-    , {doNOP, 130, 92,0,  TRUE}     //  90      scan-var-start
-    , {doVariableNameExpectedErr, 255, 103,0,  FALSE}     //  91 
-    , {doNOP, 129, 92,0,  TRUE}     //  92      scan-var-body
-    , {doEndVariableName, 255, 255,0,  FALSE}     //  93 
-    , {doScanUnicodeSet, 91 /* [ */, 255,0,  TRUE}     //  94      scan-unicode-set
-    , {doScanUnicodeSet, 112 /* p */, 255,0,  TRUE}     //  95 
-    , {doScanUnicodeSet, 80 /* P */, 255,0,  TRUE}     //  96 
-    , {doNOP, 255, 103,0,  FALSE}     //  97 
-    , {doNOP, 132, 98,0,  TRUE}     //  98      assign-or-rule
-    , {doStartAssign, 61 /* = */, 29, 101, TRUE}     //  99 
-    , {doNOP, 255, 37, 9, FALSE}     //  100 
-    , {doEndAssign, 59 /* ; */, 1,0,  TRUE}     //  101      assign-end
-    , {doRuleErrorAssignExpr, 255, 103,0,  FALSE}     //  102 
-    , {doExit, 255, 103,0,  TRUE}     //  103      errorDeath
+    {doNOP, 0, 0, 0, true}
+    , {doExprStart, 254, 29, 9, false}     //  1      start
+    , {doNOP, 132, 1,0,  true}     //  2 
+    , {doNoChain, 94 /* ^ */, 12, 9, true}     //  3 
+    , {doExprStart, 36 /* $ */, 88, 98, false}     //  4 
+    , {doNOP, 33 /* ! */, 19,0,  true}     //  5 
+    , {doNOP, 59 /* ; */, 1,0,  true}     //  6 
+    , {doNOP, 252, 0,0,  false}     //  7 
+    , {doExprStart, 255, 29, 9, false}     //  8 
+    , {doEndOfRule, 59 /* ; */, 1,0,  true}     //  9      break-rule-end
+    , {doNOP, 132, 9,0,  true}     //  10 
+    , {doRuleError, 255, 103,0,  false}     //  11 
+    , {doExprStart, 254, 29,0,  false}     //  12      start-after-caret
+    , {doNOP, 132, 12,0,  true}     //  13 
+    , {doRuleError, 94 /* ^ */, 103,0,  false}     //  14 
+    , {doExprStart, 36 /* $ */, 88, 37, false}     //  15 
+    , {doRuleError, 59 /* ; */, 103,0,  false}     //  16 
+    , {doRuleError, 252, 103,0,  false}     //  17 
+    , {doExprStart, 255, 29,0,  false}     //  18 
+    , {doNOP, 33 /* ! */, 21,0,  true}     //  19      rev-option
+    , {doReverseDir, 255, 28, 9, false}     //  20 
+    , {doOptionStart, 130, 23,0,  true}     //  21      option-scan1
+    , {doRuleError, 255, 103,0,  false}     //  22 
+    , {doNOP, 129, 23,0,  true}     //  23      option-scan2
+    , {doOptionEnd, 255, 25,0,  false}     //  24 
+    , {doNOP, 59 /* ; */, 1,0,  true}     //  25      option-scan3
+    , {doNOP, 132, 25,0,  true}     //  26 
+    , {doRuleError, 255, 103,0,  false}     //  27 
+    , {doExprStart, 255, 29, 9, false}     //  28      reverse-rule
+    , {doRuleChar, 254, 38,0,  true}     //  29      term
+    , {doNOP, 132, 29,0,  true}     //  30 
+    , {doRuleChar, 131, 38,0,  true}     //  31 
+    , {doNOP, 91 /* [ */, 94, 38, false}     //  32 
+    , {doLParen, 40 /* ( */, 29, 38, true}     //  33 
+    , {doNOP, 36 /* $ */, 88, 37, false}     //  34 
+    , {doDotAny, 46 /* . */, 38,0,  true}     //  35 
+    , {doRuleError, 255, 103,0,  false}     //  36 
+    , {doCheckVarDef, 255, 38,0,  false}     //  37      term-var-ref
+    , {doNOP, 132, 38,0,  true}     //  38      expr-mod
+    , {doUnaryOpStar, 42 /* * */, 43,0,  true}     //  39 
+    , {doUnaryOpPlus, 43 /* + */, 43,0,  true}     //  40 
+    , {doUnaryOpQuestion, 63 /* ? */, 43,0,  true}     //  41 
+    , {doNOP, 255, 43,0,  false}     //  42 
+    , {doExprCatOperator, 254, 29,0,  false}     //  43      expr-cont
+    , {doNOP, 132, 43,0,  true}     //  44 
+    , {doExprCatOperator, 131, 29,0,  false}     //  45 
+    , {doExprCatOperator, 91 /* [ */, 29,0,  false}     //  46 
+    , {doExprCatOperator, 40 /* ( */, 29,0,  false}     //  47 
+    , {doExprCatOperator, 36 /* $ */, 29,0,  false}     //  48 
+    , {doExprCatOperator, 46 /* . */, 29,0,  false}     //  49 
+    , {doExprCatOperator, 47 /* / */, 55,0,  false}     //  50 
+    , {doExprCatOperator, 123 /* { */, 67,0,  true}     //  51 
+    , {doExprOrOperator, 124 /* | */, 29,0,  true}     //  52 
+    , {doExprRParen, 41 /* ) */, 255,0,  true}     //  53 
+    , {doExprFinished, 255, 255,0,  false}     //  54 
+    , {doSlash, 47 /* / */, 57,0,  true}     //  55      look-ahead
+    , {doNOP, 255, 103,0,  false}     //  56 
+    , {doExprCatOperator, 254, 29,0,  false}     //  57      expr-cont-no-slash
+    , {doNOP, 132, 43,0,  true}     //  58 
+    , {doExprCatOperator, 131, 29,0,  false}     //  59 
+    , {doExprCatOperator, 91 /* [ */, 29,0,  false}     //  60 
+    , {doExprCatOperator, 40 /* ( */, 29,0,  false}     //  61 
+    , {doExprCatOperator, 36 /* $ */, 29,0,  false}     //  62 
+    , {doExprCatOperator, 46 /* . */, 29,0,  false}     //  63 
+    , {doExprOrOperator, 124 /* | */, 29,0,  true}     //  64 
+    , {doExprRParen, 41 /* ) */, 255,0,  true}     //  65 
+    , {doExprFinished, 255, 255,0,  false}     //  66 
+    , {doNOP, 132, 67,0,  true}     //  67      tag-open
+    , {doStartTagValue, 128, 70,0,  false}     //  68 
+    , {doTagExpectedError, 255, 103,0,  false}     //  69 
+    , {doNOP, 132, 74,0,  true}     //  70      tag-value
+    , {doNOP, 125 /* } */, 74,0,  false}     //  71 
+    , {doTagDigit, 128, 70,0,  true}     //  72 
+    , {doTagExpectedError, 255, 103,0,  false}     //  73 
+    , {doNOP, 132, 74,0,  true}     //  74      tag-close
+    , {doTagValue, 125 /* } */, 77,0,  true}     //  75 
+    , {doTagExpectedError, 255, 103,0,  false}     //  76 
+    , {doExprCatOperator, 254, 29,0,  false}     //  77      expr-cont-no-tag
+    , {doNOP, 132, 77,0,  true}     //  78 
+    , {doExprCatOperator, 131, 29,0,  false}     //  79 
+    , {doExprCatOperator, 91 /* [ */, 29,0,  false}     //  80 
+    , {doExprCatOperator, 40 /* ( */, 29,0,  false}     //  81 
+    , {doExprCatOperator, 36 /* $ */, 29,0,  false}     //  82 
+    , {doExprCatOperator, 46 /* . */, 29,0,  false}     //  83 
+    , {doExprCatOperator, 47 /* / */, 55,0,  false}     //  84 
+    , {doExprOrOperator, 124 /* | */, 29,0,  true}     //  85 
+    , {doExprRParen, 41 /* ) */, 255,0,  true}     //  86 
+    , {doExprFinished, 255, 255,0,  false}     //  87 
+    , {doStartVariableName, 36 /* $ */, 90,0,  true}     //  88      scan-var-name
+    , {doNOP, 255, 103,0,  false}     //  89 
+    , {doNOP, 130, 92,0,  true}     //  90      scan-var-start
+    , {doVariableNameExpectedErr, 255, 103,0,  false}     //  91 
+    , {doNOP, 129, 92,0,  true}     //  92      scan-var-body
+    , {doEndVariableName, 255, 255,0,  false}     //  93 
+    , {doScanUnicodeSet, 91 /* [ */, 255,0,  true}     //  94      scan-unicode-set
+    , {doScanUnicodeSet, 112 /* p */, 255,0,  true}     //  95 
+    , {doScanUnicodeSet, 80 /* P */, 255,0,  true}     //  96 
+    , {doNOP, 255, 103,0,  false}     //  97 
+    , {doNOP, 132, 98,0,  true}     //  98      assign-or-rule
+    , {doStartAssign, 61 /* = */, 29, 101, true}     //  99 
+    , {doNOP, 255, 37, 9, false}     //  100 
+    , {doEndAssign, 59 /* ; */, 1,0,  true}     //  101      assign-end
+    , {doRuleErrorAssignExpr, 255, 103,0,  false}     //  102 
+    , {doExit, 255, 103,0,  true}     //  103      errorDeath
  };
 #ifdef RBBI_DEBUG
 static const char * const RBBIRuleStateNames[] = {    0,

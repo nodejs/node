@@ -177,8 +177,8 @@ private:
 
     UBool ensureCapacity(int32_t capacity, int32_t desiredCapacityHint, UErrorCode &errorCode);
 
-    CharString(const CharString &other); // forbid copying of this class
-    CharString &operator=(const CharString &other); // forbid copying of this class
+    CharString(const CharString &other) = delete; // forbid copying of this class
+    CharString &operator=(const CharString &other) = delete; // forbid copying of this class
 
     /**
      * Returns U_FILE_ALT_SEP_CHAR if found in string, and U_FILE_SEP_CHAR is not found.

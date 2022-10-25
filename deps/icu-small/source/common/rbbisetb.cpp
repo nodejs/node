@@ -261,7 +261,7 @@ void RBBISetBuilder::buildRanges() {
         }
         if (inputSet->contains(bofString)) {
             addValToSet(usetNode, 2);
-            fSawBOF = TRUE;
+            fSawBOF = true;
         }
     }
 
@@ -569,7 +569,7 @@ void RBBISetBuilder::printSets() {
         RBBI_DEBUG_printUnicodeString(usetNode->fText);
         RBBIDebugPrintf("\n");
         if (usetNode->fLeftChild != NULL) {
-            RBBINode::printTree(usetNode->fLeftChild, TRUE);
+            RBBINode::printTree(usetNode->fLeftChild, true);
         }
     }
     RBBIDebugPrintf("\n");

@@ -282,14 +282,8 @@ typedef int8_t UBool;
  */
 #ifdef U_DEFINE_FALSE_AND_TRUE
     // Use the predefined value.
-#elif defined(U_COMBINED_IMPLEMENTATION) || \
-        defined(U_COMMON_IMPLEMENTATION) || defined(U_I18N_IMPLEMENTATION) || \
-        defined(U_IO_IMPLEMENTATION) || defined(U_LAYOUTEX_IMPLEMENTATION) || \
-        defined(U_TOOLUTIL_IMPLEMENTATION)
-    // Inside ICU: Keep FALSE & TRUE available.
-#   define U_DEFINE_FALSE_AND_TRUE 1
 #else
-    // Outside ICU: Avoid collision with non-macro definitions of FALSE & TRUE.
+    // Default to avoiding collision with non-macro definitions of FALSE & TRUE.
 #   define U_DEFINE_FALSE_AND_TRUE 0
 #endif
 

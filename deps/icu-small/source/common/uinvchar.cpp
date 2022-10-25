@@ -207,7 +207,7 @@ u_UCharsToChars(const UChar *us, char *cs, int32_t length) {
     while(length>0) {
         u=*us++;
         if(!UCHAR_IS_INVARIANT(u)) {
-            U_ASSERT(FALSE); /* Variant characters were used. These are not portable in ICU. */
+            U_ASSERT(false); /* Variant characters were used. These are not portable in ICU. */
             u=0;
         }
         *cs++=(char)UCHAR_TO_CHAR(u);
@@ -245,18 +245,18 @@ uprv_isInvariantString(const char *s, int32_t length) {
          */
 #if U_CHARSET_FAMILY==U_ASCII_FAMILY
         if(!UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
 #elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
         c=CHAR_TO_UCHAR(c);
         if(c==0 || !UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
 #else
 #   error U_CHARSET_FAMILY is not valid
 #endif
     }
-    return TRUE;
+    return true;
 }
 
 U_CAPI UBool U_EXPORT2
@@ -284,10 +284,10 @@ uprv_isInvariantUString(const UChar *s, int32_t length) {
          * for strings with variant characters
          */
         if(!UCHAR_IS_INVARIANT(c)) {
-            return FALSE; /* found a variant char */
+            return false; /* found a variant char */
         }
     }
-    return TRUE;
+    return true;
 }
 
 /* UDataSwapFn implementations used in udataswp.c ------- */

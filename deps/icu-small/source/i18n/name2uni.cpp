@@ -127,7 +127,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
         return;
     }
 
-    UnicodeString openPat(TRUE, OPEN, -1);
+    UnicodeString openPat(true, OPEN, -1);
     UnicodeString str, name;
 
     int32_t cursor = offsets.start;
@@ -222,7 +222,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
             }
             
             // Check if c is a legal char.  We assume here that
-            // legal.contains(OPEN_DELIM) is FALSE, so when we abort a
+            // legal.contains(OPEN_DELIM) is false, so when we abort a
             // name, we don't have to go back to openPos+1.
             if (legal.contains(c)) {
                 name.append(c);

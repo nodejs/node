@@ -195,7 +195,7 @@ bocu1TrailToByte[BOCU1_TRAIL_CONTROLS_COUNT]={
  * what we need here.
  * This macro adjust the results so that the modulo-value m is always >=0.
  *
- * For positive n, the if() condition is always FALSE.
+ * For positive n, the if() condition is always false.
  *
  * @param n Number to be split into quotient and rest.
  *          Will be modified to contain the quotient.
@@ -1401,7 +1401,7 @@ static const UConverterStaticData _Bocu1StaticData={
     UCNV_IBM, UCNV_BOCU1,
     1, 4, /* one UChar generates at least 1 byte and at most 4 bytes */
     { 0x1a, 0, 0, 0 }, 1, /* BOCU-1 never needs to write a subchar */
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

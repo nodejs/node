@@ -31,7 +31,7 @@ void initParser();
 /* Parse a ResourceBundle text file */
 struct SRBRoot* parse(UCHARBUF *buf, const char* inputDir, const char* outputDir,
                       const char *filename,
-                      UBool makeBinaryCollation, UBool omitCollationRules, UErrorCode *status);
+                      UBool makeBinaryCollation, UBool omitCollationRules, UBool icu4xMode, UErrorCode *status);
 
 U_CDECL_END
 

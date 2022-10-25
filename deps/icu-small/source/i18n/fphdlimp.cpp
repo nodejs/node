@@ -39,7 +39,7 @@ FieldPositionOnlyHandler::~FieldPositionOnlyHandler() {
 void
 FieldPositionOnlyHandler::addAttribute(int32_t id, int32_t start, int32_t limit) {
   if (pos.getField() == id && (!acceptFirstOnly || !seenFirst)) {
-    seenFirst = TRUE;
+    seenFirst = true;
     pos.setBeginIndex(start + fShift);
     pos.setEndIndex(limit + fShift);
   }

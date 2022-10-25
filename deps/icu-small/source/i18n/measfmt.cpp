@@ -183,10 +183,10 @@ static UBool getString(
     int32_t len = 0;
     const UChar *resStr = ures_getString(resource, &len, &status);
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
-    result.setTo(TRUE, resStr, len);
-    return TRUE;
+    result.setTo(true, resStr, len);
+    return true;
 }
 
 static UnicodeString loadNumericDateFormatterPattern(
@@ -239,7 +239,7 @@ static NumericDateFormatters *loadNumericDateFormatters(
     return result;
 }
 
-template<> U_I18N_API
+template<> 
 const MeasureFormatCacheData *LocaleCacheKey<MeasureFormatCacheData>::createObject(
         const void * /*unused*/, UErrorCode &status) const {
     const char *localeId = fLoc.getName();
@@ -645,7 +645,7 @@ void MeasureFormat::adoptNumberFormat(
 
 UBool MeasureFormat::setMeasureFormatLocale(const Locale &locale, UErrorCode &status) {
     if (U_FAILURE(status) || locale == getLocale(status)) {
-        return FALSE;
+        return false;
     }
     initMeasureFormat(locale, fWidth, NULL, status);
     return U_SUCCESS(status);
@@ -769,7 +769,7 @@ UnicodeString &MeasureFormat::formatNumeric(
 
     FormattedStringBuilder fsb;
 
-    UBool protect = FALSE;
+    UBool protect = false;
     const int32_t patternLength = pattern.length();
     for (int32_t i = 0; i < patternLength; i++) {
         char16_t c = pattern[i];

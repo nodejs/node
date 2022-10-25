@@ -274,7 +274,7 @@ uprv_detectWindowsTimeZone()
 
     CharString winTZ;
     UErrorCode status = U_ZERO_ERROR;
-    winTZ.appendInvariantChars(UnicodeString(TRUE, windowsTimeZoneName, -1), status);
+    winTZ.appendInvariantChars(UnicodeString(true, windowsTimeZoneName, -1), status);
 
     // Map Windows Timezone name (non-localized) to ICU timezone ID (~ Olson timezone id).
     StackUResourceBundle winTZBundle;

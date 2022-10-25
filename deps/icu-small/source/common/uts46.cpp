@@ -53,10 +53,10 @@ isASCIIString(const UnicodeString &dest) {
     const UChar *limit=s+dest.length();
     while(s<limit) {
         if(*s++>0x7f) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 static UBool
@@ -224,19 +224,19 @@ UTS46::~UTS46() {}
 UnicodeString &
 UTS46::labelToASCII(const UnicodeString &label, UnicodeString &dest,
                     IDNAInfo &info, UErrorCode &errorCode) const {
-    return process(label, TRUE, TRUE, dest, info, errorCode);
+    return process(label, true, true, dest, info, errorCode);
 }
 
 UnicodeString &
 UTS46::labelToUnicode(const UnicodeString &label, UnicodeString &dest,
                       IDNAInfo &info, UErrorCode &errorCode) const {
-    return process(label, TRUE, FALSE, dest, info, errorCode);
+    return process(label, true, false, dest, info, errorCode);
 }
 
 UnicodeString &
 UTS46::nameToASCII(const UnicodeString &name, UnicodeString &dest,
                    IDNAInfo &info, UErrorCode &errorCode) const {
-    process(name, FALSE, TRUE, dest, info, errorCode);
+    process(name, false, true, dest, info, errorCode);
     if( dest.length()>=254 && (info.errors&UIDNA_ERROR_DOMAIN_NAME_TOO_LONG)==0 &&
         isASCIIString(dest) &&
         (dest.length()>254 || dest[253]!=0x2e)
@@ -249,31 +249,31 @@ UTS46::nameToASCII(const UnicodeString &name, UnicodeString &dest,
 UnicodeString &
 UTS46::nameToUnicode(const UnicodeString &name, UnicodeString &dest,
                      IDNAInfo &info, UErrorCode &errorCode) const {
-    return process(name, FALSE, FALSE, dest, info, errorCode);
+    return process(name, false, false, dest, info, errorCode);
 }
 
 void
 UTS46::labelToASCII_UTF8(StringPiece label, ByteSink &dest,
                          IDNAInfo &info, UErrorCode &errorCode) const {
-    processUTF8(label, TRUE, TRUE, dest, info, errorCode);
+    processUTF8(label, true, true, dest, info, errorCode);
 }
 
 void
 UTS46::labelToUnicodeUTF8(StringPiece label, ByteSink &dest,
                           IDNAInfo &info, UErrorCode &errorCode) const {
-    processUTF8(label, TRUE, FALSE, dest, info, errorCode);
+    processUTF8(label, true, false, dest, info, errorCode);
 }
 
 void
 UTS46::nameToASCII_UTF8(StringPiece name, ByteSink &dest,
                         IDNAInfo &info, UErrorCode &errorCode) const {
-    processUTF8(name, FALSE, TRUE, dest, info, errorCode);
+    processUTF8(name, false, true, dest, info, errorCode);
 }
 
 void
 UTS46::nameToUnicodeUTF8(StringPiece name, ByteSink &dest,
                          IDNAInfo &info, UErrorCode &errorCode) const {
-    processUTF8(name, FALSE, FALSE, dest, info, errorCode);
+    processUTF8(name, false, false, dest, info, errorCode);
 }
 
 // UTS #46 data for ASCII characters.
@@ -561,7 +561,7 @@ UTS46::processUnicode(const UnicodeString &src,
         } else if(c<0xdf) {
             // pass
         } else if(c<=0x200d && (c==0xdf || c==0x3c2 || c>=0x200c)) {
-            info.isTransDiff=TRUE;
+            info.isTransDiff=true;
             if(doMapDevChars) {
                 destLength=mapDevChars(dest, labelStart, labelLimit, errorCode);
                 if(U_FAILURE(errorCode)) {
@@ -569,7 +569,7 @@ UTS46::processUnicode(const UnicodeString &src,
                 }
                 destArray=dest.getBuffer();
                 // All deviation characters have been mapped, no need to check for them again.
-                doMapDevChars=FALSE;
+                doMapDevChars=false;
                 // Do not increment labelLimit in case c was removed.
                 continue;
             }
@@ -610,14 +610,14 @@ UTS46::mapDevChars(UnicodeString &dest, int32_t labelStart, int32_t mappingStart
         return length;
     }
     int32_t capacity=dest.getCapacity();
-    UBool didMapDevChars=FALSE;
+    UBool didMapDevChars=false;
     int32_t readIndex=mappingStart, writeIndex=mappingStart;
     do {
         UChar c=s[readIndex++];
         switch(c) {
         case 0xdf:
             // Map sharp s to ss.
-            didMapDevChars=TRUE;
+            didMapDevChars=true;
             s[writeIndex++]=0x73;  // Replace sharp s with first s.
             // Insert second s and account for possible buffer reallocation.
             if(writeIndex==readIndex) {
@@ -637,12 +637,12 @@ UTS46::mapDevChars(UnicodeString &dest, int32_t labelStart, int32_t mappingStart
             ++length;
             break;
         case 0x3c2:  // Map final sigma to nonfinal sigma.
-            didMapDevChars=TRUE;
+            didMapDevChars=true;
             s[writeIndex++]=0x3c3;
             break;
         case 0x200c:  // Ignore/remove ZWNJ.
         case 0x200d:  // Ignore/remove ZWJ.
-            didMapDevChars=TRUE;
+            didMapDevChars=true;
             --length;
             break;
         default:
@@ -724,7 +724,7 @@ UTS46::processLabel(UnicodeString &dest,
             info.labelErrors|=UIDNA_ERROR_INVALID_ACE_LABEL;
             return markBadACELabel(dest, labelStart, labelLength, toASCII, info, errorCode);
         }
-        wasPunycode=TRUE;
+        wasPunycode=true;
         UChar *unicodeBuffer=fromPunycode.getBuffer(-1);  // capacity==-1: most labels should fit
         if(unicodeBuffer==NULL) {
             // Should never occur if we used capacity==-1 which uses the internal buffer.
@@ -772,7 +772,7 @@ UTS46::processLabel(UnicodeString &dest,
         labelStart=0;
         labelLength=fromPunycode.length();
     } else {
-        wasPunycode=FALSE;
+        wasPunycode=false;
         labelString=&dest;
     }
     // Validity check
@@ -932,8 +932,8 @@ UTS46::markBadACELabel(UnicodeString &dest,
         return 0;
     }
     UBool disallowNonLDHDot=(options&UIDNA_USE_STD3_RULES)!=0;
-    UBool isASCII=TRUE;
-    UBool onlyLDH=TRUE;
+    UBool isASCII=true;
+    UBool onlyLDH=true;
     const UChar *label=dest.getBuffer()+labelStart;
     const UChar *limit=label+labelLength;
     // Start after the initial "xn--".
@@ -944,16 +944,16 @@ UTS46::markBadACELabel(UnicodeString &dest,
             if(c==0x2e) {
                 info.labelErrors|=UIDNA_ERROR_LABEL_HAS_DOT;
                 *s=0xfffd;
-                isASCII=onlyLDH=FALSE;
+                isASCII=onlyLDH=false;
             } else if(asciiData[c]<0) {
-                onlyLDH=FALSE;
+                onlyLDH=false;
                 if(disallowNonLDHDot) {
                     *s=0xfffd;
-                    isASCII=FALSE;
+                    isASCII=false;
                 }
             }
         } else {
-            isASCII=onlyLDH=FALSE;
+            isASCII=onlyLDH=false;
         }
     }
     if(onlyLDH) {
@@ -1008,7 +1008,7 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
     // or AL.  If it has the R or AL property, it is an RTL label; if it
     // has the L property, it is an LTR label.
     if((firstMask&~L_R_AL_MASK)!=0) {
-        info.isOkBiDi=FALSE;
+        info.isOkBiDi=false;
     }
     // Get the directionality of the last non-NSM character.
     uint32_t lastMask;
@@ -1034,7 +1034,7 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
             (lastMask&~L_EN_MASK)!=0 :
             (lastMask&~R_AL_EN_AN_MASK)!=0
     ) {
-        info.isOkBiDi=FALSE;
+        info.isOkBiDi=false;
     }
     // Add the directionalities of the intervening characters.
     uint32_t mask=firstMask|lastMask;
@@ -1046,18 +1046,18 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
         // 5. In an LTR label, only characters with the BIDI properties L, EN,
         // ES, CS, ET, ON, BN and NSM are allowed.
         if((mask&~L_EN_ES_CS_ET_ON_BN_NSM_MASK)!=0) {
-            info.isOkBiDi=FALSE;
+            info.isOkBiDi=false;
         }
     } else {
         // 2. In an RTL label, only characters with the BIDI properties R, AL,
         // AN, EN, ES, CS, ET, ON, BN and NSM are allowed.
         if((mask&~R_AL_AN_EN_ES_CS_ET_ON_BN_NSM_MASK)!=0) {
-            info.isOkBiDi=FALSE;
+            info.isOkBiDi=false;
         }
         // 4. In an RTL label, if an EN is present, no AN may be present, and
         // vice versa.
         if((mask&EN_AN_MASK)==EN_AN_MASK) {
-            info.isOkBiDi=FALSE;
+            info.isOkBiDi=false;
         }
     }
     // An RTL label is a label that contains at least one character of type
@@ -1067,7 +1067,7 @@ UTS46::checkLabelBiDi(const UChar *label, int32_t labelLength, IDNAInfo &info) c
     // The following rule, consisting of six conditions, applies to labels
     // in BIDI domain names.
     if((mask&R_AL_AN_MASK)!=0) {
-        info.isBiDi=TRUE;
+        info.isBiDi=true;
     }
 }
 
@@ -1094,23 +1094,23 @@ isASCIIOkBiDi(const UChar *s, int32_t length) {
                 c=s[i-1];
                 if(!(0x61<=c && c<=0x7a) && !(0x30<=c && c<=0x39)) {
                     // Last character in the label is not an L or EN.
-                    return FALSE;
+                    return false;
                 }
             }
             labelStart=i+1;
         } else if(i==labelStart) {
             if(!(0x61<=c && c<=0x7a)) {
                 // First character in the label is not an L.
-                return FALSE;
+                return false;
             }
         } else {
             if(c<=0x20 && (c>=0x1c || (9<=c && c<=0xd))) {
                 // Intermediate character in the label is a B, S or WS.
-                return FALSE;
+                return false;
             }
         }
     }
-    return TRUE;
+    return true;
 }
 
 // UTF-8 version, called for source ASCII prefix.
@@ -1126,23 +1126,23 @@ isASCIIOkBiDi(const char *s, int32_t length) {
                 c=s[i-1];
                 if(!(0x61<=c && c<=0x7a) && !(0x41<=c && c<=0x5a) && !(0x30<=c && c<=0x39)) {
                     // Last character in the label is not an L or EN.
-                    return FALSE;
+                    return false;
                 }
             }
             labelStart=i+1;
         } else if(i==labelStart) {
             if(!(0x61<=c && c<=0x7a) && !(0x41<=c && c<=0x5a)) {
                 // First character in the label is not an L.
-                return FALSE;
+                return false;
             }
         } else {
             if(c<=0x20 && (c>=0x1c || (9<=c && c<=0xd))) {
                 // Intermediate character in the label is a B, S or WS.
-                return FALSE;
+                return false;
             }
         }
     }
-    return TRUE;
+    return true;
 }
 
 UBool
@@ -1158,7 +1158,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             //  If RegExpMatch((Joining_Type:{L,D})(Joining_Type:T)*\u200C
             //     (Joining_Type:T)*(Joining_Type:{R,D})) Then True;
             if(i==0) {
-                return FALSE;
+                return false;
             }
             UChar32 c;
             int32_t j=i;
@@ -1171,19 +1171,19 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
                 UJoiningType type=ubidi_getJoiningType(c);
                 if(type==U_JT_TRANSPARENT) {
                     if(j==0) {
-                        return FALSE;
+                        return false;
                     }
                     U16_PREV_UNSAFE(label, j, c);
                 } else if(type==U_JT_LEFT_JOINING || type==U_JT_DUAL_JOINING) {
                     break;  // precontext fulfilled
                 } else {
-                    return FALSE;
+                    return false;
                 }
             }
             // check postcontext (Joining_Type:T)*(Joining_Type:{R,D})
             for(j=i+1;;) {
                 if(j==labelLength) {
-                    return FALSE;
+                    return false;
                 }
                 U16_NEXT_UNSAFE(label, j, c);
                 UJoiningType type=ubidi_getJoiningType(c);
@@ -1192,7 +1192,7 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
                 } else if(type==U_JT_RIGHT_JOINING || type==U_JT_DUAL_JOINING) {
                     break;  // postcontext fulfilled
                 } else {
-                    return FALSE;
+                    return false;
                 }
             }
         } else if(label[i]==0x200d) {
@@ -1201,17 +1201,17 @@ UTS46::isLabelOkContextJ(const UChar *label, int32_t labelLength) const {
             //  False;
             //  If Canonical_Combining_Class(Before(cp)) .eq.  Virama Then True;
             if(i==0) {
-                return FALSE;
+                return false;
             }
             UChar32 c;
             int32_t j=i;
             U16_PREV_UNSAFE(label, j, c);
             if(uts46Norm2.getCombiningClass(c)!=9) {
-                return FALSE;
+                return false;
             }
         }
     }
-    return TRUE;
+    return true;
 }
 
 void
@@ -1338,23 +1338,23 @@ checkArgs(const void *label, int32_t length,
           void *dest, int32_t capacity,
           UIDNAInfo *pInfo, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
-        return FALSE;
+        return false;
     }
     // sizeof(UIDNAInfo)=16 in the first API version.
     if(pInfo==NULL || pInfo->size<16) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     if( (label==NULL ? length!=0 : length<-1) ||
         (dest==NULL ? capacity!=0 : capacity<0) ||
         (dest==label && label!=NULL)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     // Set all *pInfo bytes to 0 except for the size field itself.
     uprv_memset(&pInfo->size+1, 0, pInfo->size-sizeof(pInfo->size));
-    return TRUE;
+    return true;
 }
 
 static void

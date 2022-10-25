@@ -221,7 +221,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
             cnv,
             &pu, buffer+src.getCapacity(),
             &pb, bytes+bytesLength,
-            NULL, TRUE, &errorCode);
+            NULL, true, &errorCode);
         src.releaseBuffer(U_SUCCESS(errorCode) ? (int32_t)(pu-buffer) : 0);
         ucnv_close(cnv);
         cnv=NULL;
@@ -272,7 +272,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
     capacity=fileLength;        // estimated capacity
     src.getBuffer(capacity);
     src.releaseBuffer(0);       // zero length
-    flush=FALSE;
+    flush=false;
     for(;;) {
         // convert contents of bytes[bytesLength]
         pb=bytes;
@@ -289,7 +289,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
             ucnv_toUnicode(
                 cnv, &pu, buffer+src.getCapacity(),
                 &pb, bytes+bytesLength,
-                NULL, FALSE, &errorCode);
+                NULL, false, &errorCode);
             src.releaseBuffer(U_SUCCESS(errorCode) ? (int32_t)(pu-buffer) : 0);
             if(errorCode==U_BUFFER_OVERFLOW_ERROR) {
                 errorCode=U_ZERO_ERROR;
@@ -311,7 +311,7 @@ UXMLParser::parseFile(const char *filename, UErrorCode &errorCode) {
         bytesLength=T_FileStream_read(f, bytes, (int32_t)sizeof(bytes));
         if(bytesLength==0) {
             // reached end of file, convert once more to flush the converter
-            flush=TRUE;
+            flush=true;
         }
     }
 
@@ -373,7 +373,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
         root = createElement(mXMLElemEmpty, status);
         fPos = mXMLElemEmpty.end(status);
     } else {
-        if (mXMLElemStart.lookingAt(fPos, status) == FALSE) {
+        if (mXMLElemStart.lookingAt(fPos, status) == false) {
             error("Root Element expected", status);
             goto errorExit;
         }
@@ -403,7 +403,7 @@ UXMLParser::parse(const UnicodeString &src, UErrorCode &status) {
             UnicodeString s = scanContent(status);
             if (s.length() > 0) {
                 mXMLSP.reset(s);
-                if (mXMLSP.matches(status) == FALSE) {
+                if (mXMLSP.matches(status) == false) {
                     // This chunk of text contains something other than just
                     //  white space. Make a child node for it.
                     replaceCharRefs(s, status);

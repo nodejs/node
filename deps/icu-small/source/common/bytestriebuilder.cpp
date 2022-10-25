@@ -231,7 +231,7 @@ BytesTrieBuilder::buildBytes(UStringTrieBuildOption buildOption, UErrorCode &err
         }
         uprv_sortArray(elements, elementsLength, (int32_t)sizeof(BytesTrieElement),
                       compareElementStrings, strings,
-                      FALSE,  // need not be a stable sort
+                      false,  // need not be a stable sort
                       &errorCode);
         if(U_FAILURE(errorCode)) {
             return;
@@ -375,7 +375,7 @@ BytesTrieBuilder::createLinearMatchNode(int32_t i, int32_t byteIndex, int32_t le
 UBool
 BytesTrieBuilder::ensureCapacity(int32_t length) {
     if(bytes==NULL) {
-        return FALSE;  // previous memory allocation had failed
+        return false;  // previous memory allocation had failed
     }
     if(length>bytesCapacity) {
         int32_t newCapacity=bytesCapacity;
@@ -388,7 +388,7 @@ BytesTrieBuilder::ensureCapacity(int32_t length) {
             uprv_free(bytes);
             bytes=NULL;
             bytesCapacity=0;
-            return FALSE;
+            return false;
         }
         uprv_memcpy(newBytes+(newCapacity-bytesLength),
                     bytes+(bytesCapacity-bytesLength), bytesLength);
@@ -396,7 +396,7 @@ BytesTrieBuilder::ensureCapacity(int32_t length) {
         bytes=newBytes;
         bytesCapacity=newCapacity;
     }
-    return TRUE;
+    return true;
 }
 
 int32_t
@@ -463,7 +463,7 @@ int32_t
 BytesTrieBuilder::writeValueAndType(UBool hasValue, int32_t value, int32_t node) {
     int32_t offset=write(node);
     if(hasValue) {
-        offset=writeValueAndFinal(value, FALSE);
+        offset=writeValueAndFinal(value, false);
     }
     return offset;
 }

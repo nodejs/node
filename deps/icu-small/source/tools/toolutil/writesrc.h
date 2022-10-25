@@ -69,7 +69,7 @@ usrc_writeFileNameGeneratedBy(
         const char *generator);
 
 /**
- * Writes the contents of an array of 8/16/32-bit words.
+ * Writes the contents of an array of 8/16/32/64-bit words.
  * The prefix and postfix are optional (can be NULL) and are written first/last.
  * The prefix may contain a %ld or similar field for the array length.
  * The {} and declaration etc. need to be included in prefix/postfix or

@@ -332,7 +332,7 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
                     dest[destLen++]=(char)c;
                 }
             }else{
-                UBool isError = FALSE;
+                UBool isError = false;
                 U8_APPEND((unsigned char*)dest,destLen,destCap,c,isError);
                 if(isError){
                     *status = U_ILLEGAL_CHAR_FOUND;
@@ -584,7 +584,7 @@ static char *printContainer(SResource *res, const char *container, const char *r
     tabCount += 1;
     if (res->fComment.fLength > 0) {
         /* printComments will print the closing ">\n" */
-        printComments(&res->fComment, resname, TRUE, status);
+        printComments(&res->fComment, resname, true, status);
     } else {
         write_utf8_file(out, UnicodeString(">\n"));
     }
@@ -706,7 +706,7 @@ array_write_xml(ArrayResource *res, const char* id, const char* language, UError
         index += 1;
         subId = getID(sid, c, subId);
 
-        res_write_xml(current, subId, language, FALSE, status);
+        res_write_xml(current, subId, language, false, status);
         uprv_free(subId);
         subId = NULL;
 
@@ -940,7 +940,7 @@ table_write_xml(TableResource *res, const char* id, const char* language, UBool 
     current = res->fFirst;
 
     while (current != NULL) {
-        res_write_xml(current, sid, language, FALSE, status);
+        res_write_xml(current, sid, language, false, status);
 
         if(U_FAILURE(*status)){
             return;
@@ -1185,7 +1185,7 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
     write_utf8_file(out, UnicodeString(bodyStart));
 
 
-    res_write_xml(bundle->fRoot, bundle->fLocale, lang, TRUE, status);
+    res_write_xml(bundle->fRoot, bundle->fLocale, lang, true, status);
 
     tabCount -= 1;
     write_tabs(out);

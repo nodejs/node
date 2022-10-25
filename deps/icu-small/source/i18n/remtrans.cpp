@@ -37,14 +37,14 @@ static Transliterator* RemoveTransliterator_create(const UnicodeString& /*ID*/,
  */
 void RemoveTransliterator::registerIDs() {
 
-    Transliterator::_registerFactory(UnicodeString(TRUE, ::CURR_ID, -1),
+    Transliterator::_registerFactory(UnicodeString(true, ::CURR_ID, -1),
                                      RemoveTransliterator_create, integerToken(0));
 
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("Remove"),
-                                            UNICODE_STRING_SIMPLE("Null"), FALSE);
+                                            UNICODE_STRING_SIMPLE("Null"), false);
 }
 
-RemoveTransliterator::RemoveTransliterator() : Transliterator(UnicodeString(TRUE, ::CURR_ID, -1), 0) {}
+RemoveTransliterator::RemoveTransliterator() : Transliterator(UnicodeString(true, ::CURR_ID, -1), 0) {}
 
 RemoveTransliterator::~RemoveTransliterator() {}
 

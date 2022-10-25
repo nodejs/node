@@ -205,7 +205,7 @@ CollationData::getEquivalentScripts(int32_t script,
 void
 CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
                                  UVector32 &ranges, UErrorCode &errorCode) const {
-    makeReorderRanges(reorder, length, FALSE, ranges, errorCode);
+    makeReorderRanges(reorder, length, false, ranges, errorCode);
 }
 
 void
@@ -277,12 +277,12 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
 
     // Reorder according to the input scripts, continuing from the bottom of the primary range.
     int32_t originalLength = length;  // length will be decremented if "others" is in the list.
-    UBool hasReorderToEnd = FALSE;
+    UBool hasReorderToEnd = false;
     for(int32_t i = 0; i < length;) {
         int32_t script = reorder[i++];
         if(script == USCRIPT_UNKNOWN) {
             // Put the remaining scripts at the top.
-            hasReorderToEnd = TRUE;
+            hasReorderToEnd = true;
             while(i < length) {
                 script = reorder[--length];
                 if(script == USCRIPT_UNKNOWN ||  // Must occur at most once.
@@ -329,7 +329,7 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
     if(lowStart > highLimit) {
         if((lowStart - (skippedReserved & 0xff00)) <= highLimit) {
             // Try not skipping the before-Latin reserved range.
-            makeReorderRanges(reorder, originalLength, TRUE, ranges, errorCode);
+            makeReorderRanges(reorder, originalLength, true, ranges, errorCode);
             return;
         }
         // We need more primary lead bytes than available, despite the reserved ranges.

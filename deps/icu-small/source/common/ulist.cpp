@@ -160,12 +160,12 @@ U_CAPI UBool U_EXPORT2 ulist_containsString(const UList *list, const char *data,
         for (pointer = list->head; pointer != NULL; pointer = pointer->next) {
             if (length == (int32_t)uprv_strlen((const char *)pointer->data)) {
                 if (uprv_memcmp(data, pointer->data, length) == 0) {
-                    return TRUE;
+                    return true;
                 }
             }
         }
     }
-    return FALSE;
+    return false;
 }
 
 U_CAPI UBool U_EXPORT2 ulist_removeString(UList *list, const char *data) {
@@ -175,11 +175,11 @@ U_CAPI UBool U_EXPORT2 ulist_removeString(UList *list, const char *data) {
             if (uprv_strcmp(data, (const char *)pointer->data) == 0) {
                 ulist_removeItem(list, pointer);
                 // Remove only the first occurrence, like Java LinkedList.remove(Object).
-                return TRUE;
+                return true;
             }
         }
     }
-    return FALSE;
+    return false;
 }
 
 U_CAPI void *U_EXPORT2 ulist_getNext(UList *list) {

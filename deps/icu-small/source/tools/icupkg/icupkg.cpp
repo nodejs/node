@@ -278,7 +278,7 @@ main(int argc, char *argv[]) {
     argc=u_parseArgs(argc, argv, UPRV_LENGTHOF(options), options);
     isHelp=options[OPT_HELP_H].doesOccur || options[OPT_HELP_QUESTION_MARK].doesOccur;
     if(isHelp) {
-        printUsage(pname, TRUE);
+        printUsage(pname, true);
         return U_ZERO_ERROR;
     }
 
@@ -287,7 +287,7 @@ main(int argc, char *argv[]) {
         fprintf(stderr, "icupkg: not enough memory\n");
         return U_MEMORY_ALLOCATION_ERROR;
     }
-    isModified=FALSE;
+    isModified=false;
 
     int autoPrefix=0;
     if(options[OPT_AUTO_TOC_PREFIX].doesOccur) {
@@ -297,14 +297,14 @@ main(int argc, char *argv[]) {
     if(options[OPT_AUTO_TOC_PREFIX_WITH_TYPE].doesOccur) {
         if(options[OPT_TOC_PREFIX].doesOccur) {
             fprintf(stderr, "icupkg: --auto_toc_prefix_with_type and also --toc_prefix\n");
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
         pkg->setAutoPrefixWithType();
         ++autoPrefix;
     }
     if(argc<2 || 3<argc || autoPrefix>1) {
-        printUsage(pname, FALSE);
+        printUsage(pname, false);
         return U_ILLEGAL_ARGUMENT_ERROR;
     }
 
@@ -324,27 +324,27 @@ main(int argc, char *argv[]) {
     if(0==strcmp(argv[1], "new")) {
         if(autoPrefix) {
             fprintf(stderr, "icupkg: --auto_toc_prefix[_with_type] but no input package\n");
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
         inFilename=NULL;
-        isPackage=TRUE;
+        isPackage=true;
     } else {
         inFilename=argv[1];
         if(isPackageName(inFilename)) {
             pkg->readPackage(inFilename);
-            isPackage=TRUE;
+            isPackage=true;
         } else {
             /* swap a single file (icuswap replacement) rather than work on a package */
             pkg->addFile(sourcePath, inFilename);
-            isPackage=FALSE;
+            isPackage=false;
         }
     }
 
     if(argc>=3) {
         outFilename=argv[2];
         if(0!=strcmp(argv[1], argv[2])) {
-            isModified=TRUE;
+            isModified=true;
         }
     } else if(isPackage) {
         outFilename=NULL;
@@ -358,7 +358,7 @@ main(int argc, char *argv[]) {
         const char *type=options[OPT_OUT_TYPE].value;
         if(type[0]==0 || type[1]!=0) {
             /* the type must be exactly one letter */
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
         outType=type[0];
@@ -368,7 +368,7 @@ main(int argc, char *argv[]) {
         case 'e':
             break;
         default:
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
 
@@ -386,7 +386,7 @@ main(int argc, char *argv[]) {
     }
 
     if(options[OPT_WRITEPKG].doesOccur) {
-        isModified=TRUE;
+        isModified=true;
     }
 
     if(!isPackage) {
@@ -402,7 +402,7 @@ main(int argc, char *argv[]) {
             options[OPT_EXTRACT_LIST].doesOccur ||
             options[OPT_LIST_ITEMS].doesOccur
         ) {
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
         if(isModified) {
@@ -427,7 +427,7 @@ main(int argc, char *argv[]) {
         if(0==strcmp(options[OPT_MATCHMODE].value, "noslash")) {
             pkg->setMatchMode(Package::MATCH_NOSLASH);
         } else {
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
     }
@@ -439,12 +439,12 @@ main(int argc, char *argv[]) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
-        if(readList(NULL, options[OPT_REMOVE_LIST].value, FALSE, listPkg)) {
+        if(readList(NULL, options[OPT_REMOVE_LIST].value, false, listPkg)) {
             pkg->removeItems(*listPkg);
             delete listPkg;
-            isModified=TRUE;
+            isModified=true;
         } else {
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
     }
@@ -461,12 +461,12 @@ main(int argc, char *argv[]) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
-        if(readList(sourcePath, options[OPT_ADD_LIST].value, TRUE, addListPkg)) {
+        if(readList(sourcePath, options[OPT_ADD_LIST].value, true, addListPkg)) {
             pkg->addItems(*addListPkg);
             // delete addListPkg; deferred until after writePackage()
-            isModified=TRUE;
+            isModified=true;
         } else {
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
     }
@@ -478,11 +478,11 @@ main(int argc, char *argv[]) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
-        if(readList(NULL, options[OPT_EXTRACT_LIST].value, FALSE, listPkg)) {
+        if(readList(NULL, options[OPT_EXTRACT_LIST].value, false, listPkg)) {
             pkg->extractItems(destPath, *listPkg, outType);
             delete listPkg;
         } else {
-            printUsage(pname, FALSE);
+            printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
     }

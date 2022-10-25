@@ -65,7 +65,7 @@ LocaleKeyFactory::handlesKey(const ICUServiceKey& key, UErrorCode& status) const
         key.currentID(id);
         return supported->get(id) != NULL;
     }
-    return FALSE;
+    return false;
 }
 
 void

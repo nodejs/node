@@ -219,8 +219,8 @@ public:
     ~RBBIStateDescriptor();
 
 private:
-    RBBIStateDescriptor(const RBBIStateDescriptor &other); // forbid copying of this class
-    RBBIStateDescriptor &operator=(const RBBIStateDescriptor &other); // forbid copying of this class
+    RBBIStateDescriptor(const RBBIStateDescriptor &other) = delete; // forbid copying of this class
+    RBBIStateDescriptor &operator=(const RBBIStateDescriptor &other) = delete; // forbid copying of this class
 };
 
 

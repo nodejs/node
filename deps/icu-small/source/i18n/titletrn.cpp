@@ -87,7 +87,7 @@ void TitlecaseTransliterator::handleTransliterate(
 
     // Our mode; we are either converting letter toTitle or
     // toLower.
-    UBool doTitle = TRUE;
+    UBool doTitle = true;
     
     // Determine if there is a preceding context of cased case-ignorable*,
     // in which case we want to start in toLower mode.  If the
@@ -99,7 +99,7 @@ void TitlecaseTransliterator::handleTransliterate(
         c = text.char32At(start);
         type=ucase_getTypeOrIgnorable(c);
         if(type>0) { // cased
-            doTitle=FALSE;
+            doTitle=false;
             break;
         } else if(type==0) { // uncased but not ignorable
             break;
@@ -146,7 +146,7 @@ void TitlecaseTransliterator::handleTransliterate(
                 // see UCASE_MAX_STRING_LENGTH
                 if(result<=UCASE_MAX_STRING_LENGTH) {
                     // string s[result]
-                    tmp.setTo(FALSE, s, result);
+                    tmp.setTo(false, s, result);
                     delta=result-U16_LENGTH(c);
                 } else {
                     // single code point

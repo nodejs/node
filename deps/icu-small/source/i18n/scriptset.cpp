@@ -55,11 +55,11 @@ bool ScriptSet::operator == (const ScriptSet &other) const {
 
 UBool ScriptSet::test(UScriptCode script, UErrorCode &status) const {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     uint32_t index = script / 32;
     uint32_t bit   = 1 << (script & 31);
@@ -188,19 +188,19 @@ int32_t ScriptSet::nextSetBit(int32_t fromIndex) const {
 UBool ScriptSet::isEmpty() const {
     for (uint32_t i=0; i<UPRV_LENGTHOF(bits); i++) {
         if (bits[i] != 0) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 UnicodeString &ScriptSet::displayScripts(UnicodeString &dest) const {
-    UBool firstTime = TRUE;
+    UBool firstTime = true;
     for (int32_t i = nextSetBit(0); i >= 0; i = nextSetBit(i + 1)) {
         if (!firstTime) {
             dest.append((UChar)0x20);
         }
-        firstTime = FALSE;
+        firstTime = false;
         const char *scriptName = uscript_getShortName((UScriptCode(i)));
         dest.append(UnicodeString(scriptName, -1, US_INV));
     }
@@ -248,7 +248,7 @@ void ScriptSet::setScriptExtensions(UChar32 codePoint, UErrorCode& status) {
     UErrorCode internalStatus = U_ZERO_ERROR;
     int32_t script_count = -1;
 
-    while (TRUE) {
+    while (true) {
         script_count = uscript_getScriptExtensions(
             codePoint, scripts.getAlias(), scripts.getCapacity(), &internalStatus);
         if (internalStatus == U_BUFFER_OVERFLOW_ERROR) {

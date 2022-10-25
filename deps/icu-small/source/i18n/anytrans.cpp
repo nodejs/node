@@ -101,7 +101,7 @@ public:
     ScriptRunIterator(const Replaceable& text, int32_t start, int32_t limit);
 
     /**
-     * Returns TRUE if there are any more runs.  TRUE is always
+     * Returns true if there are any more runs.  true is always
      * returned at least once.  Upon return, the caller should
      * examine scriptCode, start, and limit.
      */
@@ -137,7 +137,7 @@ UBool ScriptRunIterator::next() {
 
     // Are we done?
     if (start == textLimit) {
-        return FALSE;
+        return false;
     }
 
     // Move start back to include adjacent COMMON or INHERITED
@@ -167,9 +167,9 @@ UBool ScriptRunIterator::next() {
         ++limit;
     }
 
-    // Return TRUE even if the entire text is COMMON / INHERITED, in
+    // Return true even if the entire text is COMMON / INHERITED, in
     // which case scriptCode will be USCRIPT_INVALID_CODE.
-    return TRUE;
+    return true;
 }
 
 void ScriptRunIterator::adjustLimit(int32_t delta) {
@@ -358,7 +358,7 @@ static UScriptCode scriptNameToCode(const UnicodeString& name) {
 void AnyTransliterator::registerIDs() {
 
     UErrorCode ec = U_ZERO_ERROR;
-    Hashtable seen(TRUE, ec);
+    Hashtable seen(true, ec);
 
     int32_t sourceCount = Transliterator::_countAvailableSources();
     for (int32_t s=0; s<sourceCount; ++s) {
@@ -389,7 +389,7 @@ void AnyTransliterator::registerIDs() {
                 Transliterator::_getAvailableVariant(v, source, target, variant);
 
                 UnicodeString id;
-                TransliteratorIDParser::STVtoID(UnicodeString(TRUE, ANY, 3), target, variant, id);
+                TransliteratorIDParser::STVtoID(UnicodeString(true, ANY, 3), target, variant, id);
                 ec = U_ZERO_ERROR;
                 AnyTransliterator* tl = new AnyTransliterator(id, target, variant,
                                                              targetScript, ec);
@@ -397,7 +397,7 @@ void AnyTransliterator::registerIDs() {
                     delete tl;
                 } else {
                     Transliterator::_registerInstance(tl);
-                    Transliterator::_registerSpecialInverse(target, UnicodeString(TRUE, NULL_ID, 4), FALSE);
+                    Transliterator::_registerSpecialInverse(target, UnicodeString(true, NULL_ID, 4), false);
                 }
             }
         }

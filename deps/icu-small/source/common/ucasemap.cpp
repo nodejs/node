@@ -157,7 +157,7 @@ appendResult(int32_t cpLength, int32_t result, const UChar *s,
             ByteSinkUtil::appendCodePoint(cpLength, result, sink, edits);
         }
     }
-    return TRUE;
+    return true;
 }
 
 // See unicode/utf8.h U8_APPEND_UNSAFE().
@@ -525,14 +525,14 @@ ucasemap_internalUTF8ToTitle(
     csc.p=(void *)src;
     csc.limit=srcLength;
     int32_t prev=0;
-    UBool isFirstIndex=TRUE;
+    UBool isFirstIndex=true;
 
     /* titlecasing loop */
     while(prev<srcLength) {
         /* find next index where to titlecase */
         int32_t index;
         if(isFirstIndex) {
-            isFirstIndex=FALSE;
+            isFirstIndex=false;
             index=iter->first();
         } else {
             index=iter->next();
@@ -643,12 +643,12 @@ UBool isFollowedByCasedLetter(const uint8_t *s, int32_t i, int32_t length) {
         if ((type & UCASE_IGNORABLE) != 0) {
             // Case-ignorable, continue with the loop.
         } else if (type != UCASE_NONE) {
-            return TRUE;  // Followed by cased letter.
+            return true;  // Followed by cased letter.
         } else {
-            return FALSE;  // Uncased and not case-ignorable.
+            return false;  // Uncased and not case-ignorable.
         }
     }
-    return FALSE;  // Not followed by cased letter.
+    return false;  // Not followed by cased letter.
 }
 
 // Keep this consistent with the UTF-16 version in ustrcase.cpp and the Java version in CaseMap.java.
@@ -707,7 +707,7 @@ void toUpper(uint32_t options,
                 nextState |= AFTER_VOWEL_WITH_ACCENT;
             }
             // Map according to Greek rules.
-            UBool addTonos = FALSE;
+            UBool addTonos = false;
             if (upper == 0x397 &&
                     (data & HAS_ACCENT) != 0 &&
                     numYpogegrammeni == 0 &&
@@ -718,7 +718,7 @@ void toUpper(uint32_t options,
                 if (i == nextIndex) {
                     upper = 0x389;  // Preserve the precomposed form.
                 } else {
-                    addTonos = TRUE;
+                    addTonos = true;
                 }
             } else if ((data & HAS_DIALYTIKA) != 0) {
                 // Preserve a vowel with dialytika in precomposed form if it exists.
@@ -733,7 +733,7 @@ void toUpper(uint32_t options,
 
             UBool change;
             if (edits == nullptr && (options & U_OMIT_UNCHANGED_TEXT) == 0) {
-                change = TRUE;  // common, simple usage
+                change = true;  // common, simple usage
             } else {
                 // Find out first whether we are changing the text.
                 U_ASSERT(0x370 <= upper && upper <= 0x3ff);  // 2-byte UTF-8, main Greek block

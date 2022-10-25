@@ -42,19 +42,19 @@ static UBool copyAsSuperscript(
         UnicodeString &result,
         UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     for (int32_t i = beginIndex; i < endIndex;) {
         UChar32 c = s.char32At(i);
         int32_t digit = u_charDigitValue(c);
         if (digit < 0) {
             status = U_INVALID_CHAR_FOUND;
-            return FALSE;
+            return false;
         }
         result.append(kSuperscriptDigits[digit]);
         i += U16_LENGTH(c);
     }
-    return TRUE;
+    return true;
 }
 
 ScientificNumberFormatter *ScientificNumberFormatter::createSuperscriptInstance(

@@ -637,7 +637,7 @@ static const UConverterStaticData _UTF16BEStaticData={
     sizeof(UConverterStaticData),
     "UTF-16BE",
     1200, UCNV_IBM, UCNV_UTF16_BigEndian, 2, 2,
-    { 0xff, 0xfd, 0, 0 },2,FALSE,FALSE,
+    { 0xff, 0xfd, 0, 0 },2,false,false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -1239,7 +1239,7 @@ static const UConverterStaticData _UTF16LEStaticData={
     sizeof(UConverterStaticData),
     "UTF-16LE",
     1202, UCNV_IBM, UCNV_UTF16_LittleEndian, 2, 2,
-    { 0xfd, 0xff, 0, 0 },2,FALSE,FALSE,
+    { 0xfd, 0xff, 0, 0 },2,false,false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -1526,7 +1526,7 @@ static const UConverterStaticData _UTF16StaticData = {
 #else
     { 0xfd, 0xff, 0, 0 }, 2,
 #endif
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -1567,7 +1567,7 @@ static const UConverterStaticData _UTF16v2StaticData = {
     1204, /* CCSID for BOM sensitive UTF-16 */
     UCNV_IBM, UCNV_UTF16, 2, 2,
     { 0xff, 0xfd, 0, 0 }, 2,
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

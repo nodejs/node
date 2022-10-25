@@ -65,7 +65,7 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
         int32_t min, int32_t max,
         UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     // Parse consistent with MessagePattern, but
     // - support only simple numbered arguments
@@ -76,7 +76,7 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
     compiledPattern.setTo((UChar)0);
     int32_t textLength = 0;
     int32_t maxArg = -1;
-    UBool inQuote = FALSE;
+    UBool inQuote = false;
     for (int32_t i = 0; i < patternLength;) {
         UChar c = patternBuffer[i++];
         if (c == APOS) {
@@ -85,12 +85,12 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
                 ++i;
             } else if (inQuote) {
                 // skip the quote-ending apostrophe
-                inQuote = FALSE;
+                inQuote = false;
                 continue;
             } else if (c == OPEN_BRACE || c == CLOSE_BRACE) {
                 // Skip the quote-starting apostrophe, find the end of the quoted literal text.
                 ++i;
-                inQuote = TRUE;
+                inQuote = true;
             } else {
                 // The apostrophe is part of literal text.
                 c = APOS;
@@ -123,7 +123,7 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
                 }
                 if (argNumber < 0 || c != CLOSE_BRACE) {
                     errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-                    return FALSE;
+                    return false;
                 }
             }
             if (argNumber > maxArg) {
@@ -149,10 +149,10 @@ UBool SimpleFormatter::applyPatternMinMaxArguments(
     int32_t argCount = maxArg + 1;
     if (argCount < min || max < argCount) {
         errorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     compiledPattern.setCharAt(0, (UChar)argCount);
-    return TRUE;
+    return true;
 }
 
 UnicodeString& SimpleFormatter::format(
@@ -192,7 +192,7 @@ UnicodeString& SimpleFormatter::formatAndAppend(
         return appendTo;
     }
     return format(compiledPattern.getBuffer(), compiledPattern.length(), values,
-                  appendTo, NULL, TRUE,
+                  appendTo, NULL, true,
                   offsets, offsetsLength, errorCode);
 }
 
@@ -241,7 +241,7 @@ UnicodeString &SimpleFormatter::formatAndReplace(
         result.remove();
     }
     return format(cp, cpLength, values,
-                  result, &resultCopy, FALSE,
+                  result, &resultCopy, false,
                   offsets, offsetsLength, errorCode);
 }
 
