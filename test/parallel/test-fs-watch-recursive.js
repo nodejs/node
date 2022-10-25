@@ -29,21 +29,13 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
-  if (common.isOSX || common.isLinux) {
-    clearInterval(interval);
-  }
   watcher.close();
   watcherClosed = true;
 });
 
-let interval;
-if (common.isOSX || common.isLinux) {
-  interval = setInterval(function() {
-    fs.writeFileSync(filepathOne, 'world');
-  }, 10);
-} else {
+setTimeout(common.mustCall(() => {
   fs.writeFileSync(filepathOne, 'world');
-}
+}), common.platformTimeout(100));
 
 process.on('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');
