@@ -740,8 +740,8 @@ private:
   // Private functions
   //-------------------------------------------------------------------------
 
-  Normalizer(); // default constructor not implemented
-  Normalizer &operator=(const Normalizer &that); // assignment operator not implemented
+  Normalizer() = delete; // default constructor not implemented
+  Normalizer &operator=(const Normalizer &that) = delete; // assignment operator not implemented
 
   // Private utility methods for iteration
   // For documentation, see the source code

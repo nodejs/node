@@ -16,7 +16,7 @@
 
 /**
  * \file
- * \brief C-compatible API for localized number formatting; not recommended for C++.
+ * \brief C API: Localized number formatting; not recommended for C++.
  *
  * This is the C-compatible version of the NumberFormatter API introduced in ICU 60. C++ users should
  * include unicode/numberformatter.h and use the proper C++ APIs.

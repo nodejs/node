@@ -221,7 +221,8 @@ public:
         /**
          * Points to contraction data.
          * Bits 31..13: Index into prefix/contraction data.
-         * Bits 12..11: Unused, 0.
+         * Bit      12: Unused, 0.
+         * Bit      11: CONTRACT_HAS_STARTER flag. (Used by ICU4X only.)
          * Bit      10: CONTRACT_TRAILING_CCC flag.
          * Bit       9: CONTRACT_NEXT_CCC flag.
          * Bit       8: CONTRACT_SINGLE_CP_NO_MATCH flag.
@@ -298,6 +299,8 @@ public:
     static const uint32_t CONTRACT_NEXT_CCC = 0x200;
     /** Set if any contraction suffix ends with lccc!=0. */
     static const uint32_t CONTRACT_TRAILING_CCC = 0x400;
+    /** Set if any contraction suffix contains a starter. (Used by ICU4X only.) */
+    static const uint32_t CONTRACT_HAS_STARTER = 0x800;
 
     /** For HANGUL_TAG: None of its Jamo CE32s isSpecialCE32(). */
     static const uint32_t HANGUL_NO_SPECIAL_JAMO = 0x100;
@@ -491,7 +494,7 @@ public:
     }
 
 private:
-    Collation();  // No instantiation.
+    Collation() = delete;  // No instantiation.
 };
 
 U_NAMESPACE_END

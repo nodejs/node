@@ -39,7 +39,7 @@ public:
                                   UErrorCode &errorCode);
 
 private:
-    CollationDataWriter();  // no constructor
+    CollationDataWriter() = delete;  // no constructor
 
     static int32_t write(UBool isBase, const UVersionInfo dataVersion,
                          const CollationData &data, const CollationSettings &settings,

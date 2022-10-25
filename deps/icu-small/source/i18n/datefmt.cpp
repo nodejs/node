@@ -46,7 +46,7 @@
 
 U_NAMESPACE_BEGIN
 
-class U_I18N_API DateFmtBestPattern : public SharedObject {
+class DateFmtBestPattern : public SharedObject {
 public:
     UnicodeString fPattern;
 
@@ -58,14 +58,14 @@ public:
 DateFmtBestPattern::~DateFmtBestPattern() {
 }
 
-template<> U_I18N_API
+template<> 
 const DateFmtBestPattern *LocaleCacheKey<DateFmtBestPattern>::createObject(
         const void * /*creationContext*/, UErrorCode &status) const {
     status = U_UNSUPPORTED_ERROR;
     return NULL;
 }
 
-class U_I18N_API DateFmtBestPatternKey : public LocaleCacheKey<DateFmtBestPattern> { 
+class DateFmtBestPatternKey : public LocaleCacheKey<DateFmtBestPattern> { 
 private:
     UnicodeString fSkeleton;
 protected:
@@ -588,8 +588,8 @@ DateFormat::adoptNumberFormat(NumberFormat* newNumberFormat)
 {
     delete fNumberFormat;
     fNumberFormat = newNumberFormat;
-    newNumberFormat->setParseIntegerOnly(TRUE);
-    newNumberFormat->setGroupingUsed(FALSE);
+    newNumberFormat->setParseIntegerOnly(true);
+    newNumberFormat->setGroupingUsed(false);
 }
 //----------------------------------------------------------------------
 
@@ -660,7 +660,7 @@ DateFormat::setLenient(UBool lenient)
 UBool
 DateFormat::isLenient() const
 {
-    UBool lenient = TRUE;
+    UBool lenient = true;
     if (fCalendar != NULL) {
         lenient = fCalendar->isLenient();
     }
@@ -687,7 +687,7 @@ DateFormat::isCalendarLenient() const
         return fCalendar->isLenient();
     }
     // fCalendar is rarely null
-    return FALSE;
+    return false;
 }
 
 

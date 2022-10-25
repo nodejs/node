@@ -39,7 +39,7 @@
 #include "uvectr32.h"
 
 #ifdef RBBI_DEBUG
-static UBool gTrace = FALSE;
+static UBool gTrace = false;
 #endif
 
 U_NAMESPACE_BEGIN
@@ -267,7 +267,7 @@ RuleBasedBreakIterator::operator=(const RuleBasedBreakIterator& that) {
     }
     // TODO: clone fLanguageBreakEngines from "that"
     UErrorCode status = U_ZERO_ERROR;
-    utext_clone(&fText, &that.fText, FALSE, TRUE, &status);
+    utext_clone(&fText, &that.fText, false, true, &status);
 
     if (fCharIter != &fSCharIter) {
         delete fCharIter;
@@ -354,13 +354,13 @@ void RuleBasedBreakIterator::init(UErrorCode &status) {
     }
 
 #ifdef RBBI_DEBUG
-    static UBool debugInitDone = FALSE;
-    if (debugInitDone == FALSE) {
+    static UBool debugInitDone = false;
+    if (debugInitDone == false) {
         char *debugEnv = getenv("U_RBBIDEBUG");
         if (debugEnv && uprv_strstr(debugEnv, "trace")) {
-            gTrace = TRUE;
+            gTrace = true;
         }
-        debugInitDone = TRUE;
+        debugInitDone = true;
     }
 #endif
 }
@@ -439,7 +439,7 @@ void RuleBasedBreakIterator::setText(UText *ut, UErrorCode &status) {
     }
     fBreakCache->reset();
     fDictionaryCache->reset();
-    utext_clone(&fText, ut, FALSE, TRUE, &status);
+    utext_clone(&fText, ut, false, true, &status);
 
     // Set up a dummy CharacterIterator to be returned if anyone
     //   calls getText().  With input from UText, there is no reasonable
@@ -460,7 +460,7 @@ void RuleBasedBreakIterator::setText(UText *ut, UErrorCode &status) {
 
 
 UText *RuleBasedBreakIterator::getUText(UText *fillIn, UErrorCode &status) const {
-    UText *result = utext_clone(fillIn, &fText, FALSE, TRUE, &status);
+    UText *result = utext_clone(fillIn, &fText, false, true, &status);
     return result;
 }
 
@@ -548,7 +548,7 @@ RuleBasedBreakIterator &RuleBasedBreakIterator::refreshInputText(UText *input, U
     }
     int64_t pos = utext_getNativeIndex(&fText);
     //  Shallow read-only clone of the new UText into the existing input UText
-    utext_clone(&fText, input, FALSE, TRUE, &status);
+    utext_clone(&fText, input, false, true, &status);
     if (U_FAILURE(status)) {
         return *this;
     }
@@ -696,7 +696,7 @@ UBool RuleBasedBreakIterator::isBoundary(int32_t offset) {
     // out-of-range indexes are never boundary positions
     if (offset < 0) {
         first();       // For side effects on current position, tag values.
-        return FALSE;
+        return false;
     }
 
     // Adjust offset to be on a code point boundary and not beyond the end of the text.
@@ -713,9 +713,9 @@ UBool RuleBasedBreakIterator::isBoundary(int32_t offset) {
     }
 
     if (result && adjustedOffset < offset && utext_char32At(&fText, offset) == U_SENTINEL) {
-        // Original offset is beyond the end of the text. Return FALSE, it's not a boundary,
+        // Original offset is beyond the end of the text. Return false, it's not a boundary,
         // but the iteration position remains set to the end of the text, which is a boundary.
-        return FALSE;
+        return false;
     }
     if (!result) {
         // Not on a boundary. isBoundary() must leave iterator on the following boundary.
@@ -838,7 +838,7 @@ int32_t RuleBasedBreakIterator::handleNext() {
     result          = initialPosition;
     c               = UTEXT_NEXT32(&fText);
     if (c==U_SENTINEL) {
-        fDone = TRUE;
+        fDone = true;
         return UBRK_DONE;
     }
 
@@ -1153,8 +1153,8 @@ U_NAMESPACE_END
 
 static icu::UStack *gLanguageBreakFactories = nullptr;
 static const icu::UnicodeString *gEmptyString = nullptr;
-static icu::UInitOnce gLanguageBreakFactoriesInitOnce = U_INITONCE_INITIALIZER;
-static icu::UInitOnce gRBBIInitOnce = U_INITONCE_INITIALIZER;
+static icu::UInitOnce gLanguageBreakFactoriesInitOnce {};
+static icu::UInitOnce gRBBIInitOnce {};
 
 /**
  * Release all static memory held by breakiterator.
@@ -1167,7 +1167,7 @@ UBool U_CALLCONV rbbi_cleanup(void) {
     gEmptyString = nullptr;
     gLanguageBreakFactoriesInitOnce.reset();
     gRBBIInitOnce.reset();
-    return TRUE;
+    return true;
 }
 U_CDECL_END
 

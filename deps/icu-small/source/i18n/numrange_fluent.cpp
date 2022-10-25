@@ -354,6 +354,7 @@ LocalizedNumberRangeFormatter::getFormatter(UErrorCode& status) const {
     // Try computing the formatter on our own
     auto* temp = new NumberRangeFormatterImpl(fMacros, status);
     if (U_FAILURE(status)) {
+        delete temp;
         return nullptr;
     }
     if (temp == nullptr) {

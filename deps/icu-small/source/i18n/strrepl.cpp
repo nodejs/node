@@ -41,9 +41,9 @@ StringReplacer::StringReplacer(const UnicodeString& theOutput,
                                const TransliterationRuleData* theData) {
     output = theOutput;
     cursorPos = theCursorPos;
-    hasCursor = TRUE;
+    hasCursor = true;
     data = theData;
-    isComplex = TRUE;
+    isComplex = true;
 }
 
 /**
@@ -59,9 +59,9 @@ StringReplacer::StringReplacer(const UnicodeString& theOutput,
                                const TransliterationRuleData* theData) {
     output = theOutput;
     cursorPos = 0;
-    hasCursor = FALSE;
+    hasCursor = false;
     data = theData;
-    isComplex = TRUE;
+    isComplex = true;
 }
 
 /**
@@ -131,7 +131,7 @@ int32_t StringReplacer::replace(Replaceable& text,
          */
         UnicodeString buf;
         int32_t oOutput; // offset into 'output'
-        isComplex = FALSE;
+        isComplex = false;
 
         // The temporary buffer starts at tempStart, and extends
         // to destLimit.  The start of the buffer has a single
@@ -166,7 +166,7 @@ int32_t StringReplacer::replace(Replaceable& text,
                 // Accumulate straight (non-segment) text.
                 buf.append(c);
             } else {
-                isComplex = TRUE;
+                isComplex = true;
 
                 // Insert any accumulated straight text.
                 if (buf.length() > 0) {
@@ -249,27 +249,27 @@ UnicodeString& StringReplacer::toReplacerPattern(UnicodeString& rule,
     // Handle a cursor preceding the output
     if (hasCursor && cursor < 0) {
         while (cursor++ < 0) {
-            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, TRUE, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
         }
         // Fall through and append '|' below
     }
 
     for (int32_t i=0; i<output.length(); ++i) {
         if (hasCursor && i == cursor) {
-            ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, TRUE, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
         }
         UChar c = output.charAt(i); // Ok to use 16-bits here
 
         UnicodeReplacer* r = data->lookupReplacer(c);
         if (r == NULL) {
-            ICU_Utility::appendToRule(rule, c, FALSE, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, c, false, escapeUnprintable, quoteBuf);
         } else {
             UnicodeString buf;
             r->toReplacerPattern(buf, escapeUnprintable);
             buf.insert(0, (UChar)0x20);
             buf.append((UChar)0x20);
             ICU_Utility::appendToRule(rule, buf,
-                                      TRUE, escapeUnprintable, quoteBuf);
+                                      true, escapeUnprintable, quoteBuf);
         }
     }
 
@@ -279,13 +279,13 @@ UnicodeString& StringReplacer::toReplacerPattern(UnicodeString& rule,
     if (hasCursor && cursor > output.length()) {
         cursor -= output.length();
         while (cursor-- > 0) {
-            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, TRUE, escapeUnprintable, quoteBuf);
+            ICU_Utility::appendToRule(rule, (UChar)0x0040 /*@*/, true, escapeUnprintable, quoteBuf);
         }
-        ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, TRUE, escapeUnprintable, quoteBuf);
+        ICU_Utility::appendToRule(rule, (UChar)0x007C /*|*/, true, escapeUnprintable, quoteBuf);
     }
     // Flush quoteBuf out to result
     ICU_Utility::appendToRule(rule, -1,
-                              TRUE, escapeUnprintable, quoteBuf);
+                              true, escapeUnprintable, quoteBuf);
 
     return rule;
 }

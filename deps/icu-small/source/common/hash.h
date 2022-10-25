@@ -115,8 +115,8 @@ public:
 
     inline UBool equals(const Hashtable& that) const;
 private:
-    Hashtable(const Hashtable &other); // forbid copying of this class
-    Hashtable &operator=(const Hashtable &other); // forbid copying of this class
+    Hashtable(const Hashtable &other) = delete; // forbid copying of this class
+    Hashtable &operator=(const Hashtable &other) = delete; // forbid copying of this class
 };
 
 /*********************************************************************

@@ -218,7 +218,9 @@ class U_I18N_API FormattedStringBuilder : public UMemory {
 };
 
 static_assert(
-    std::is_pod<FormattedStringBuilder::Field>::value,
+    // std::is_pod<> is deprecated.
+    std::is_standard_layout<FormattedStringBuilder::Field>::value &&
+        std::is_trivial<FormattedStringBuilder::Field>::value,
     "Field should be a POD type for efficient initialization");
 
 constexpr FormattedStringBuilder::Field::Field(uint8_t category, uint8_t field)

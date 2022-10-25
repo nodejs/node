@@ -103,7 +103,7 @@ CopticCalendar::handleComputeFields(int32_t julianDay, UErrorCode &/*status*/)
  */
 static UDate           gSystemDefaultCenturyStart       = DBL_MIN;
 static int32_t         gSystemDefaultCenturyStartYear   = -1;
-static icu::UInitOnce  gSystemDefaultCenturyInit        = U_INITONCE_INITIALIZER;
+static icu::UInitOnce  gSystemDefaultCenturyInit        {};
 
 
 static void U_CALLCONV initializeSystemDefaultCentury() {
