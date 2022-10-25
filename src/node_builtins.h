@@ -44,24 +44,24 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   BuiltinLoader& operator=(const BuiltinLoader&) = delete;
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void CreatePerIsolateProperties(
+      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
 
   // The parameters used to compile the scripts are detected based on
   // the pattern of the id.
   static v8::MaybeLocal<v8::Function> LookupAndCompile(
-      v8::Local<v8::Context> context,
-      const char* id,
-      Environment* optional_env);
+      v8::Local<v8::Context> context, const char* id, Realm* optional_realm);
 
   static v8::MaybeLocal<v8::Value> CompileAndCall(
       v8::Local<v8::Context> context,
       const char* id,
       int argc,
       v8::Local<v8::Value> argv[],
-      Environment* optional_env);
+      Realm* optional_realm);
 
   static v8::MaybeLocal<v8::Value> CompileAndCall(
       v8::Local<v8::Context> context, const char* id, Realm* realm);
@@ -118,7 +118,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   static void RecordResult(const char* id,
                            BuiltinLoader::Result result,
-                           Environment* env);
+                           Realm* realm);
   static void GetBuiltinCategories(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& info);
