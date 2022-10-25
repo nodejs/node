@@ -348,7 +348,7 @@ public:
 private:
     friend class MessageFormat;
 
-    SelectFormat();   // default constructor not implemented.
+    SelectFormat() = delete;   // default constructor not implemented.
 
     /**
      * Finds the SelectFormat sub-message for the given keyword, or the "other" sub-message.

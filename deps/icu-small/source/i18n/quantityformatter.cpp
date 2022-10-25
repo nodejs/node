@@ -81,22 +81,22 @@ UBool QuantityFormatter::addIfAbsent(
         UErrorCode &status) {
     int32_t pluralIndex = StandardPlural::indexFromString(variant, status);
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
     if (formatters[pluralIndex] != NULL) {
-        return TRUE;
+        return true;
     }
     SimpleFormatter *newFmt = new SimpleFormatter(rawPattern, 0, 1, status);
     if (newFmt == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
     if (U_FAILURE(status)) {
         delete newFmt;
-        return FALSE;
+        return false;
     }
     formatters[pluralIndex] = newFmt;
-    return TRUE;
+    return true;
 }
 
 UBool QuantityFormatter::isValid() const {

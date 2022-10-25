@@ -29,7 +29,7 @@
 #include "unicode/udata.h"
 #include "putilimp.h"
 
-U_CFUNC UBool uprv_mapFile(UDataMemory *pdm, const char *path, UErrorCode *status);
+U_CAPI  UBool U_EXPORT2 uprv_mapFile(UDataMemory *pdm, const char *path, UErrorCode *status);
 U_CFUNC void  uprv_unmapFile(UDataMemory *pData);
 
 /* MAP_NONE: no memory mapping, no file access at all */

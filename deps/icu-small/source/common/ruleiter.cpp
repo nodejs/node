@@ -39,7 +39,7 @@ UChar32 RuleCharacterIterator::next(int32_t options, UBool& isEscaped, UErrorCod
     if (U_FAILURE(ec)) return DONE;
 
     UChar32 c = DONE;
-    isEscaped = FALSE;
+    isEscaped = false;
 
     for (;;) {
         c = _current();
@@ -75,7 +75,7 @@ UChar32 RuleCharacterIterator::next(int32_t options, UBool& isEscaped, UErrorCod
             int32_t offset = 0;
             c = lookahead(tempEscape, MAX_U_NOTATION_LEN).unescapeAt(offset);
             jumpahead(offset);
-            isEscaped = TRUE;
+            isEscaped = true;
             if (c < 0) {
                 ec = U_MALFORMED_UNICODE_ESCAPE;
                 return DONE;

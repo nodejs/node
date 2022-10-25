@@ -25,7 +25,7 @@ U_CAPI int32_t U_EXPORT2
 parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, const char ** flagNames, int32_t numOfFlags, UErrorCode *status) {
     char* buffer = NULL;
     char* tmpFlagBuffer = NULL;
-    UBool allocateMoreSpace = FALSE;
+    UBool allocateMoreSpace = false;
     int32_t idx, i;
     int32_t result = 0;
 
@@ -45,7 +45,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
 
     do {
         if (allocateMoreSpace) {
-            allocateMoreSpace = FALSE;
+            allocateMoreSpace = false;
             currentBufferSize *= 2;
             uprv_free(buffer);
             buffer = (char *)uprv_malloc(sizeof(char) * currentBufferSize);
@@ -65,7 +65,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
 
             if ((int32_t)uprv_strlen(buffer) == (currentBufferSize - 1) && buffer[currentBufferSize-2] != '\n') {
                 /* Allocate more space for buffer if it did not read the entire line */
-                allocateMoreSpace = TRUE;
+                allocateMoreSpace = true;
                 T_FileStream_rewind(f);
                 break;
             } else {
@@ -118,7 +118,7 @@ static int32_t extractFlag(char* buffer, int32_t bufferSize, char* flag, int32_t
     int32_t i, idx = -1;
     char *pBuffer;
     int32_t offset=0;
-    UBool bufferWritten = FALSE;
+    UBool bufferWritten = false;
 
     if (buffer[0] != 0) {
         /* Get the offset (i.e. position after the '=') */
@@ -137,7 +137,7 @@ static int32_t extractFlag(char* buffer, int32_t bufferSize, char* flag, int32_t
 
             flag[i] = pBuffer[i];
             if (i == 0) {
-                bufferWritten = TRUE;
+                bufferWritten = true;
             }
         }
     }

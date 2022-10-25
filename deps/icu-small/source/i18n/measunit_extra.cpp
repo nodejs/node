@@ -312,7 +312,7 @@ class CategoriesSink : public icu::ResourceSink {
     int32_t outIndex;
 };
 
-icu::UInitOnce gUnitExtrasInitOnce = U_INITONCE_INITIALIZER;
+icu::UInitOnce gUnitExtrasInitOnce {};
 
 // Array of simple unit IDs.
 //
@@ -349,7 +349,7 @@ UBool U_CALLCONV cleanupUnitExtras() {
     uprv_free(gSimpleUnits);
     gSimpleUnits = nullptr;
     gUnitExtrasInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 void U_CALLCONV initUnitExtras(UErrorCode& status) {
@@ -718,7 +718,7 @@ private:
             case COMPOUND_PART_PER:
                 if (sawAnd) {
                     // Mixed compound units not yet supported,
-                    // TODO(CLDR-13700).
+                    // TODO(CLDR-13701).
                     status = kUnitIdentifierSyntaxError;
                     return result;
                 }
@@ -735,7 +735,7 @@ private:
             case COMPOUND_PART_AND:
                 if (fAfterPer) {
                     // Can't start with "-and-", and mixed compound units
-                    // not yet supported, TODO(CLDR-13700).
+                    // not yet supported, TODO(CLDR-13701).
                     status = kUnitIdentifierSyntaxError;
                     return result;
                 }

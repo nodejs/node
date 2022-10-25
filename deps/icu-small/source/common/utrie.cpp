@@ -72,14 +72,14 @@ utrie_open(UNewTrie *fillIn,
 
     if(aliasData!=NULL) {
         trie->data=aliasData;
-        trie->isDataAllocated=FALSE;
+        trie->isDataAllocated=false;
     } else {
         trie->data=(uint32_t *)uprv_malloc(maxDataLength*4);
         if(trie->data==NULL) {
             uprv_free(trie);
             return NULL;
         }
-        trie->isDataAllocated=TRUE;
+        trie->isDataAllocated=true;
     }
 
     /* preallocate and reset the first data block (block index 0) */
@@ -108,7 +108,7 @@ utrie_open(UNewTrie *fillIn,
     trie->indexLength=UTRIE_MAX_INDEX_LENGTH;
     trie->dataCapacity=maxDataLength;
     trie->isLatin1Linear=latin1Linear;
-    trie->isCompacted=FALSE;
+    trie->isCompacted=false;
     return trie;
 }
 
@@ -124,14 +124,14 @@ utrie_clone(UNewTrie *fillIn, const UNewTrie *other, uint32_t *aliasData, int32_
 
     /* clone data */
     if(aliasData!=NULL && aliasDataCapacity>=other->dataCapacity) {
-        isDataAllocated=FALSE;
+        isDataAllocated=false;
     } else {
         aliasDataCapacity=other->dataCapacity;
         aliasData=(uint32_t *)uprv_malloc(other->dataCapacity*4);
         if(aliasData==NULL) {
             return NULL;
         }
-        isDataAllocated=TRUE;
+        isDataAllocated=true;
     }
 
     trie=utrie_open(fillIn, aliasData, aliasDataCapacity,
@@ -216,7 +216,7 @@ utrie_getDataBlock(UNewTrie *trie, UChar32 c) {
 }
 
 /**
- * @return TRUE if the value was successfully set
+ * @return true if the value was successfully set
  */
 U_CAPI UBool U_EXPORT2
 utrie_set32(UNewTrie *trie, UChar32 c, uint32_t value) {
@@ -224,16 +224,16 @@ utrie_set32(UNewTrie *trie, UChar32 c, uint32_t value) {
 
     /* valid, uncompacted trie and valid c? */
     if(trie==NULL || trie->isCompacted || (uint32_t)c>0x10ffff) {
-        return FALSE;
+        return false;
     }
 
     block=utrie_getDataBlock(trie, c);
     if(block<0) {
-        return FALSE;
+        return false;
     }
 
     trie->data[block+(c&UTRIE_MASK)]=value;
-    return TRUE;
+    return true;
 }
 
 U_CAPI uint32_t U_EXPORT2
@@ -243,7 +243,7 @@ utrie_get32(UNewTrie *trie, UChar32 c, UBool *pInBlockZero) {
     /* valid, uncompacted trie and valid c? */
     if(trie==NULL || trie->isCompacted || (uint32_t)c>0x10ffff) {
         if(pInBlockZero!=NULL) {
-            *pInBlockZero=TRUE;
+            *pInBlockZero=true;
         }
         return 0;
     }
@@ -294,10 +294,10 @@ utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, U
     if( trie==NULL || trie->isCompacted ||
         (uint32_t)start>0x10ffff || (uint32_t)limit>0x110000 || start>limit
     ) {
-        return FALSE;
+        return false;
     }
     if(start==limit) {
-        return TRUE; /* nothing to do */
+        return true; /* nothing to do */
     }
 
     initialValue=trie->data[0];
@@ -307,7 +307,7 @@ utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, U
         /* set partial block at [start..following block boundary[ */
         block=utrie_getDataBlock(trie, start);
         if(block<0) {
-            return FALSE;
+            return false;
         }
 
         nextStart=(start+UTRIE_DATA_BLOCK_LENGTH)&~UTRIE_MASK;
@@ -318,7 +318,7 @@ utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, U
         } else {
             utrie_fillBlock(trie->data+block, start&UTRIE_MASK, limit&UTRIE_MASK,
                             value, initialValue, overwrite);
-            return TRUE;
+            return true;
         }
     }
 
@@ -348,12 +348,12 @@ utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, U
                 /* create and set and fill the repeatBlock */
                 repeatBlock=utrie_getDataBlock(trie, start);
                 if(repeatBlock<0) {
-                    return FALSE;
+                    return false;
                 }
 
                 /* set the negative block number to indicate that it is a repeat block */
                 trie->index[start>>UTRIE_SHIFT]=-repeatBlock;
-                utrie_fillBlock(trie->data+repeatBlock, 0, UTRIE_DATA_BLOCK_LENGTH, value, initialValue, TRUE);
+                utrie_fillBlock(trie->data+repeatBlock, 0, UTRIE_DATA_BLOCK_LENGTH, value, initialValue, true);
             }
         }
 
@@ -364,13 +364,13 @@ utrie_setRange32(UNewTrie *trie, UChar32 start, UChar32 limit, uint32_t value, U
         /* set partial block at [last block boundary..limit[ */
         block=utrie_getDataBlock(trie, start);
         if(block<0) {
-            return FALSE;
+            return false;
         }
 
         utrie_fillBlock(trie->data+block, 0, rest, value, initialValue, overwrite);
     }
 
-    return TRUE;
+    return true;
 }
 
 static int32_t
@@ -437,7 +437,7 @@ utrie_fold(UNewTrie *trie, UNewTrieGetFoldedValue *getFoldedValue, UErrorCode *p
             *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        utrie_fillBlock(trie->data+block, 0, UTRIE_DATA_BLOCK_LENGTH, trie->leadUnitValue, trie->data[0], TRUE);
+        utrie_fillBlock(trie->data+block, 0, UTRIE_DATA_BLOCK_LENGTH, trie->leadUnitValue, trie->data[0], true);
         block=-block; /* negative block number to indicate that it is a repeat block */
     }
     for(c=(0xd800>>UTRIE_SHIFT); c<(0xdc00>>UTRIE_SHIFT); ++c) {
@@ -579,7 +579,7 @@ _findSameDataBlock(const uint32_t *data, int32_t dataLength,
  *
  * The compaction
  * - removes blocks that are identical with earlier ones
- * - overlaps adjacent blocks as much as possible (if overlap==TRUE)
+ * - overlaps adjacent blocks as much as possible (if overlap==true)
  * - moves blocks in steps of the data granularity
  * - moves and overlaps blocks that overlap with multiple values in the overlap region
  *
@@ -766,15 +766,15 @@ utrie_serialize(UNewTrie *trie, void *dt, int32_t capacity,
     /* fold and compact if necessary, also checks that indexLength is within limits */
     if(!trie->isCompacted) {
         /* compact once without overlap to improve folding */
-        utrie_compact(trie, FALSE, pErrorCode);
+        utrie_compact(trie, false, pErrorCode);
 
         /* fold the supplementary part of the index array */
         utrie_fold(trie, getFoldedValue, pErrorCode);
 
         /* compact again with overlap for minimum data array length */
-        utrie_compact(trie, TRUE, pErrorCode);
+        utrie_compact(trie, true, pErrorCode);
 
-        trie->isCompacted=TRUE;
+        trie->isCompacted=true;
         if(U_FAILURE(*pErrorCode)) {
             return 0;
         }
@@ -966,7 +966,7 @@ utrie_unserializeDummy(UTrie *trie,
         return actualLength;
     }
 
-    trie->isLatin1Linear=TRUE;
+    trie->isLatin1Linear=true;
     trie->initialValue=initialValue;
 
     /* fill the index and data arrays */

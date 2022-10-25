@@ -73,7 +73,7 @@ CompoundTransliterator::CompoundTransliterator(const UnicodeString& id,
     trans(0), numAnonymousRBTs(0) {
     // TODO add code for parseError...currently unused, but
     // later may be used by parsing code...
-    init(id, direction, TRUE, status);
+    init(id, direction, true, status);
 }
 
 CompoundTransliterator::CompoundTransliterator(const UnicodeString& id,
@@ -83,7 +83,7 @@ CompoundTransliterator::CompoundTransliterator(const UnicodeString& id,
     trans(0), numAnonymousRBTs(0) {
     // TODO add code for parseError...currently unused, but
     // later may be used by parsing code...
-    init(id, UTRANS_FORWARD, TRUE, status);
+    init(id, UTRANS_FORWARD, true, status);
 }
 
 
@@ -99,7 +99,7 @@ CompoundTransliterator::CompoundTransliterator(const UnicodeString& newID,
     Transliterator(newID, adoptedFilter),
     trans(0), numAnonymousRBTs(anonymousRBTs)
 {
-    init(list, UTRANS_FORWARD, FALSE, status);
+    init(list, UTRANS_FORWARD, false, status);
 }
 
 /**
@@ -115,7 +115,7 @@ CompoundTransliterator::CompoundTransliterator(UVector& list,
 {
     // TODO add code for parseError...currently unused, but
     // later may be used by parsing code...
-    init(list, UTRANS_FORWARD, FALSE, status);
+    init(list, UTRANS_FORWARD, false, status);
     // assume caller will fixup ID
 }
 
@@ -126,7 +126,7 @@ CompoundTransliterator::CompoundTransliterator(UVector& list,
     Transliterator(UnicodeString(), NULL),
     trans(0), numAnonymousRBTs(anonymousRBTs)
 {
-    init(list, UTRANS_FORWARD, FALSE, status);
+    init(list, UTRANS_FORWARD, false, status);
 }
 
 /**
@@ -140,7 +140,7 @@ CompoundTransliterator::CompoundTransliterator(UVector& list,
  * @param adoptedSplitTransliterator a transliterator to be inserted
  * before the entry at offset idSplitPoint in the id string.  May be
  * NULL to insert no entry.
- * @param fixReverseID if TRUE, then reconstruct the ID of reverse
+ * @param fixReverseID if true, then reconstruct the ID of reverse
  * entries by calling getID() of component entries.  Some constructors
  * do not require this because they apply a facade ID anyway.
  * @param status the error code indicating success or failure
@@ -182,7 +182,7 @@ void CompoundTransliterator::init(const UnicodeString& id,
  * is, it should be in the FORWARD order; if direction is REVERSE then
  * the list order will be reversed.
  * @param direction either FORWARD or REVERSE
- * @param fixReverseID if TRUE, then reconstruct the ID of reverse
+ * @param fixReverseID if true, then reconstruct the ID of reverse
  * entries by calling getID() of component entries.  Some constructors
  * do not require this because they apply a facade ID anyway.
  * @param status the error code indicating success or failure
@@ -285,7 +285,7 @@ CompoundTransliterator& CompoundTransliterator::operator=(
     if (this == &t) { return *this; }  // self-assignment: no-op
     Transliterator::operator=(t);
     int32_t i = 0;
-    UBool failed = FALSE;
+    UBool failed = false;
     if (trans != NULL) {
         for (i=0; i<count; ++i) {
             delete trans[i];
@@ -303,7 +303,7 @@ CompoundTransliterator& CompoundTransliterator::operator=(
         for (i=0; i<count; ++i) {
             trans[i] = t.trans[i]->clone();
             if (trans[i] == NULL) {
-                failed = TRUE;
+                failed = true;
                 break;
             }
         }
@@ -352,11 +352,11 @@ void CompoundTransliterator::setTransliterators(Transliterator* const transliter
         return;
     }
     int32_t i = 0;
-    UBool failed = FALSE;
+    UBool failed = false;
     for (i=0; i<transCount; ++i) {
         a[i] = transliterators[i]->clone();
         if (a[i] == NULL) {
-            failed = TRUE;
+            failed = true;
             break;
         }
     }

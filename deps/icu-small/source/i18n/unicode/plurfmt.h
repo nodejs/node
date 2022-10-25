@@ -561,7 +561,7 @@ private:
     double offset;
     PluralSelectorAdapter pluralRulesWrapper;
 
-    PluralFormat();   // default constructor not implemented
+    PluralFormat() = delete;   // default constructor not implemented
     void init(const PluralRules* rules, UPluralType type, UErrorCode& status);
     /**
      * Copies dynamically allocated values (pointer fields).

@@ -30,14 +30,14 @@ void ByteSink::Flush() {}
 
 CheckedArrayByteSink::CheckedArrayByteSink(char* outbuf, int32_t capacity)
     : outbuf_(outbuf), capacity_(capacity < 0 ? 0 : capacity),
-      size_(0), appended_(0), overflowed_(FALSE) {
+      size_(0), appended_(0), overflowed_(false) {
 }
 
 CheckedArrayByteSink::~CheckedArrayByteSink() {}
 
 CheckedArrayByteSink& CheckedArrayByteSink::Reset() {
   size_ = appended_ = 0;
-  overflowed_ = FALSE;
+  overflowed_ = false;
   return *this;
 }
 
@@ -48,14 +48,14 @@ void CheckedArrayByteSink::Append(const char* bytes, int32_t n) {
   if (n > (INT32_MAX - appended_)) {
     // TODO: Report as integer overflow, not merely buffer overflow.
     appended_ = INT32_MAX;
-    overflowed_ = TRUE;
+    overflowed_ = true;
     return;
   }
   appended_ += n;
   int32_t available = capacity_ - size_;
   if (n > available) {
     n = available;
-    overflowed_ = TRUE;
+    overflowed_ = true;
   }
   if (n > 0 && bytes != (outbuf_ + size_)) {
     uprv_memcpy(outbuf_ + size_, bytes, n);

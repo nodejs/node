@@ -389,8 +389,14 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
         factor.constantExponents[CONSTANT_GLUCOSE_MOLAR_MASS] += power * signum;
     } else if (baseStr == "item_per_mole") {
         factor.constantExponents[CONSTANT_ITEM_PER_MOLE] += power * signum;
+    } else if (baseStr == "meters_per_AU") {
+        factor.constantExponents[CONSTANT_METERS_PER_AU] += power * signum;
     } else if (baseStr == "PI") {
         factor.constantExponents[CONSTANT_PI] += power * signum;
+    } else if (baseStr == "sec_per_julian_year") {
+        factor.constantExponents[CONSTANT_SEC_PER_JULIAN_YEAR] += power * signum;
+    } else if (baseStr == "speed_of_light_meters_per_second") {
+        factor.constantExponents[CONSTANT_SPEED_OF_LIGHT_METERS_PER_SECOND] += power * signum;
     } else {
         if (signum == Signum::NEGATIVE) {
             factor.factorDen *= std::pow(strToDouble(baseStr, status), power);

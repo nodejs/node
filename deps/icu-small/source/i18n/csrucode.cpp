@@ -126,11 +126,11 @@ UBool CharsetRecog_UTF_32::match(InputText* textIn, CharsetMatch *results) const
     int32_t limit = (textIn->fRawLength / 4) * 4;
     int32_t numValid = 0;
     int32_t numInvalid = 0;
-    bool hasBOM = FALSE;
+    bool hasBOM = false;
     int32_t confidence = 0;
 
     if (limit > 0 && getChar(input, 0) == 0x0000FEFFUL) {
-        hasBOM = TRUE;
+        hasBOM = true;
     }
 
     for(int32_t i = 0; i < limit; i += 4) {

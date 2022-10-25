@@ -69,7 +69,7 @@ constexpr char16_t const *gGC_LVTPattern     = u"[\\p{Hangul_Syllable_Type=LVT}]
 
 
 RegexStaticSets *RegexStaticSets::gStaticSets = nullptr;
-UInitOnce gStaticSetsInitOnce = U_INITONCE_INITIALIZER;
+UInitOnce gStaticSetsInitOnce {};
 
 
 RegexStaticSets::RegexStaticSets(UErrorCode *status) {
@@ -77,13 +77,13 @@ RegexStaticSets::RegexStaticSets(UErrorCode *status) {
     fUnescapeCharSet.addAll(UnicodeString(true, gUnescapeChars, -1)).freeze();
     fPropSets[URX_ISWORD_SET].applyPattern(UnicodeString(true, gIsWordPattern, -1), *status).freeze();
     fPropSets[URX_ISSPACE_SET].applyPattern(UnicodeString(true, gIsSpacePattern, -1), *status).freeze();
-    fPropSets[URX_GC_EXTEND].applyPattern(UnicodeString(TRUE, gGC_ExtendPattern, -1), *status).freeze();
-    fPropSets[URX_GC_CONTROL].applyPattern(UnicodeString(TRUE, gGC_ControlPattern, -1), *status).freeze();
-    fPropSets[URX_GC_L].applyPattern(UnicodeString(TRUE, gGC_LPattern, -1), *status).freeze();
-    fPropSets[URX_GC_V].applyPattern(UnicodeString(TRUE, gGC_VPattern, -1), *status).freeze();
-    fPropSets[URX_GC_T].applyPattern(UnicodeString(TRUE, gGC_TPattern, -1), *status).freeze();
-    fPropSets[URX_GC_LV].applyPattern(UnicodeString(TRUE, gGC_LVPattern, -1), *status).freeze();
-    fPropSets[URX_GC_LVT].applyPattern(UnicodeString(TRUE, gGC_LVTPattern, -1), *status).freeze();
+    fPropSets[URX_GC_EXTEND].applyPattern(UnicodeString(true, gGC_ExtendPattern, -1), *status).freeze();
+    fPropSets[URX_GC_CONTROL].applyPattern(UnicodeString(true, gGC_ControlPattern, -1), *status).freeze();
+    fPropSets[URX_GC_L].applyPattern(UnicodeString(true, gGC_LPattern, -1), *status).freeze();
+    fPropSets[URX_GC_V].applyPattern(UnicodeString(true, gGC_VPattern, -1), *status).freeze();
+    fPropSets[URX_GC_T].applyPattern(UnicodeString(true, gGC_TPattern, -1), *status).freeze();
+    fPropSets[URX_GC_LV].applyPattern(UnicodeString(true, gGC_LVPattern, -1), *status).freeze();
+    fPropSets[URX_GC_LVT].applyPattern(UnicodeString(true, gGC_LVTPattern, -1), *status).freeze();
     
 
     //
@@ -147,7 +147,7 @@ regex_cleanup(void) {
     delete RegexStaticSets::gStaticSets;
     RegexStaticSets::gStaticSets = nullptr;
     gStaticSetsInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 static void U_CALLCONV initStaticSets(UErrorCode &status) {

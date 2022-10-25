@@ -294,8 +294,8 @@ namespace {
  * @param data a pointer to 32-bit-aligned memory containing the serialized form of a trie
  * @param length the number of bytes available at data;
  *               can be more than necessary (see return value)
- * @param anyEndianOk If FALSE, only platform-endian serialized forms are recognized.
- *                    If TRUE, opposite-endian serialized forms are recognized as well.
+ * @param anyEndianOk If false, only platform-endian serialized forms are recognized.
+ *                    If true, opposite-endian serialized forms are recognized as well.
  * @return the trie version of the serialized form, or 0 if it is not
  *         recognized as a serialized trie
  */
@@ -334,7 +334,7 @@ utrie_swapAnyVersion(const UDataSwapper *ds,
                      const void *inData, int32_t length, void *outData,
                      UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) { return 0; }
-    switch(getVersion(inData, length, TRUE)) {
+    switch(getVersion(inData, length, true)) {
     case 1:
         return utrie_swap(ds, inData, length, outData, pErrorCode);
     case 2:
