@@ -153,6 +153,7 @@ constexpr size_t kFsStatsBufferLength =
   V(napi_type_tag, "node:napi:type_tag")                                      \
   V(napi_wrapper, "node:napi:wrapper")                                        \
   V(untransferable_object_private_symbol, "node:untransferableObject")        \
+  V(require_private_symbol, "node:require_private_symbol")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
