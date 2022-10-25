@@ -12,6 +12,7 @@
 namespace node {
 
 struct RealmSerializeInfo {
+  std::vector<std::string> builtins;
   std::vector<PropInfo> persistent_values;
   std::vector<PropInfo> native_objects;
 
@@ -98,6 +99,13 @@ class Realm : public MemoryRetainer {
   inline void set_##PropertyName(v8::Local<TypeName> value);
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
+
+  std::set<struct node_module*> internal_bindings;
+  std::set<std::string> builtins_with_cache;
+  std::set<std::string> builtins_without_cache;
+  // This is only filled during deserialization. We use a vector since
+  // it's only used for tests.
+  std::vector<std::string> builtins_in_snapshot;
 
  private:
   void InitializeContext(v8::Local<v8::Context> context,
