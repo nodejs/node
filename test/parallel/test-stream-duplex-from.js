@@ -297,5 +297,5 @@ const { Blob } = require('buffer');
     res += data;
   }).on('end', common.mustCall(() => {
     assert.strictEqual(res, 'foobar');
-  }));
+  })).on('close', common.mustCall());
 }
