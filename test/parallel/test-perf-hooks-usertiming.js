@@ -19,15 +19,17 @@ assert(PerformanceMark);
 assert(performance.mark);
 assert(performance.measure);
 
-assert.deepStrictEqual(
-  Object.getOwnPropertyDescriptor(PerformanceMark.prototype, Symbol.toStringTag),
-  { configurable: true, enumerable: false, value: 'PerformanceMark', writable: false },
-);
-
-assert.deepStrictEqual(
-  Object.getOwnPropertyDescriptor(PerformanceMeasure.prototype, Symbol.toStringTag),
-  { configurable: true, enumerable: false, value: 'PerformanceMeasure', writable: false },
-);
+[PerformanceMark, PerformanceMeasure].forEach((c) => {
+  assert.deepStrictEqual(
+    Object.getOwnPropertyDescriptor(c.prototype, Symbol.toStringTag),
+    {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value: c.prototype.constructor.name,
+    }
+  );
+});
 
 [undefined, 'a', 'null', 1, true].forEach((i) => {
   const m = performance.mark(i);
