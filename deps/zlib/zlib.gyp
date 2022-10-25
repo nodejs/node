@@ -101,6 +101,13 @@
                 }]
               ],
             }],
+            ['target_arch in "arm64" and OS=="win"', {
+              'defines': [
+                'ARMV8_OS_WINDOWS',
+                '__ARM_NEON',
+              ],
+              'sources': ['cpu_features.c'],
+            }],
             ['arm_fpu=="neon"', {
               'defines': [
                 'ADLER32_SIMD_NEON',
