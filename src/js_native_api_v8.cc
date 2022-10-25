@@ -744,6 +744,7 @@ const char* error_messages[] = {nullptr,
                                 "An arraybuffer was expected",
                                 "A detachable arraybuffer was expected",
                                 "Main thread would deadlock",
+                                "External buffers are not allowed",
 };
 
 napi_status napi_get_last_error_info(napi_env env,
@@ -755,7 +756,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // message in the `napi_status` enum each time a new error message is added.
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
-  const int last_status = napi_would_deadlock;
+  const int last_status = napi_no_external_buffers_allowed;
 
   static_assert(
       NAPI_ARRAYSIZE(error_messages) == last_status + 1,
