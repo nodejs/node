@@ -792,7 +792,7 @@ function invalidArgTypeHelper(input) {
   if (typeof input === 'function' && input.name) {
     return ` Received function ${input.name}`;
   }
-  if (typeof input === 'object') {
+  if (toString.call(input) === '[object Object]') {
     if (input.constructor?.name) {
       return ` Received an instance of ${input.constructor.name}`;
     }
