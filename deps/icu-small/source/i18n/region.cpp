@@ -46,14 +46,14 @@ static UBool U_CALLCONV region_cleanup(void)
 {
     icu::Region::cleanupRegionData();
 
-    return TRUE;
+    return true;
 }
 
 U_CDECL_END
 
 U_NAMESPACE_BEGIN
 
-static UInitOnce gRegionDataInitOnce = U_INITONCE_INITIALIZER;
+static UInitOnce gRegionDataInitOnce {};
 static UVector* availableRegions[URGN_LIMIT];
 
 static UHashtable *regionAliases = NULL;
@@ -668,21 +668,21 @@ Region::contains(const Region &other) const {
     umtx_initOnce(gRegionDataInitOnce, &loadRegionData, status);
 
     if (!containedRegions) {
-          return FALSE;
+          return false;
     }
     if (containedRegions->contains((void *)&other.idStr)) {
-        return TRUE;
+        return true;
     } else {
         for ( int32_t i = 0 ; i < containedRegions->size() ; i++ ) {
             UnicodeString *crStr = (UnicodeString *)containedRegions->elementAt(i);
             Region *cr = (Region *) uhash_get(regionIDMap,(void *)crStr);
             if ( cr && cr->contains(other) ) {
-                return TRUE;
+                return true;
             }
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 /**

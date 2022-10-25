@@ -35,7 +35,7 @@
 
 /**
  * \file
- * \brief Unicode Security and Spoofing Detection, C API.
+ * \brief C API: Unicode Security and Spoofing Detection
  *
  * <p>
  * This class, based on <a href="http://unicode.org/reports/tr36">Unicode Technical Report #36</a> and

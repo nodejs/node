@@ -234,7 +234,7 @@ void LocalePriorityList::sort(UErrorCode &errorCode) {
     // The comparator forces a stable sort via the item index.
     if (U_FAILURE(errorCode) || getLength() <= 1 || !hasWeights) { return; }
     uprv_sortArray(list->array.getAlias(), listLength, sizeof(LocaleAndWeight),
-                   compareLocaleAndWeight, nullptr, FALSE, &errorCode);
+                   compareLocaleAndWeight, nullptr, false, &errorCode);
 }
 
 U_NAMESPACE_END

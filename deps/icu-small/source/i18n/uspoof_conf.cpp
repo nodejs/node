@@ -407,7 +407,7 @@ void ConfusabledataBuilder::build(const char * confusables, int32_t confusablesL
 //
 void ConfusabledataBuilder::outputData(UErrorCode &status) {
 
-    U_ASSERT(fSpoofImpl->fSpoofData->fDataOwned == TRUE);
+    U_ASSERT(fSpoofImpl->fSpoofData->fDataOwned == true);
 
     //  The Key Table
     //     While copying the keys to the runtime array,

@@ -45,13 +45,13 @@ void NormalizationTransliterator::registerIDs() {
     Transliterator::_registerFactory(UNICODE_STRING_SIMPLE("Any-FCC"),
                                      _create, cstrToken("nfc\0\3"));
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("NFC"),
-                                            UNICODE_STRING_SIMPLE("NFD"), TRUE);
+                                            UNICODE_STRING_SIMPLE("NFD"), true);
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("NFKC"),
-                                            UNICODE_STRING_SIMPLE("NFKD"), TRUE);
+                                            UNICODE_STRING_SIMPLE("NFKD"), true);
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("FCC"),
-                                            UNICODE_STRING_SIMPLE("NFD"), FALSE);
+                                            UNICODE_STRING_SIMPLE("NFD"), false);
     Transliterator::_registerSpecialInverse(UNICODE_STRING_SIMPLE("FCD"),
-                                            UNICODE_STRING_SIMPLE("FCD"), FALSE);
+                                            UNICODE_STRING_SIMPLE("FCD"), false);
 }
 
 /**

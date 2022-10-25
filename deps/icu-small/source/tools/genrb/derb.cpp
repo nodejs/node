@@ -40,7 +40,7 @@
 
 static const int32_t indentsize = 4;
 static int32_t truncsize = DERB_DEFAULT_TRUNC;
-static UBool opt_truncate = FALSE;
+static UBool opt_truncate = false;
 
 static const char *getEncodingName(const char *encoding);
 static void reportError(const char *pname, UErrorCode *status, const char *when);
@@ -66,8 +66,8 @@ static UOption options[]={
 /* 11 */   { "suppressAliases", NULL, NULL, NULL, 'A', UOPT_NO_ARG, 0 },
 };
 
-static UBool verbose = FALSE;
-static UBool suppressAliases = FALSE;
+static UBool verbose = false;
+static UBool suppressAliases = false;
 static UFILE *ustderr = NULL;
 
 extern int
@@ -140,18 +140,18 @@ main(int argc, char* argv[]) {
     }
 
     if(options[4].doesOccur) {
-        opt_truncate = TRUE;
+        opt_truncate = true;
         if(options[4].value != NULL) {
             truncsize = atoi(options[4].value); /* user defined printable size */
         } else {
             truncsize = DERB_DEFAULT_TRUNC; /* we'll use default omitting size */
         }
     } else {
-        opt_truncate = FALSE;
+        opt_truncate = false;
     }
 
     if(options[5].doesOccur) {
-        verbose = TRUE;
+        verbose = true;
     }
 
     if (options[6].doesOccur) {
@@ -171,7 +171,7 @@ main(int argc, char* argv[]) {
     }
 
     if (options[11].doesOccur) {
-      suppressAliases = TRUE;
+      suppressAliases = true;
     }
 
     fflush(stderr); // use ustderr now.
@@ -577,7 +577,7 @@ static void printOutBundle(UFILE *out, UResourceBundle *resource, int32_t indent
             }
             printString(out, cr, UPRV_LENGTHOF(cr));
 
-            if(suppressAliases == FALSE) {
+            if(suppressAliases == false) {
               while(U_SUCCESS(*status) && ures_hasNext(resource)) {
                   t = ures_getNextResource(resource, t, status);
                   if(U_SUCCESS(*status)) {
