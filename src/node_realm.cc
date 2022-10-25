@@ -46,6 +46,8 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
 
   tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
+  tracker->TrackField("builtins_with_cache", builtins_with_cache);
+  tracker->TrackField("builtins_without_cache", builtins_without_cache);
 
   ForEachBaseObject([&](BaseObject* obj) {
     if (obj->IsDoneInitializing()) {
@@ -102,6 +104,11 @@ RealmSerializeInfo Realm::Serialize(SnapshotCreator* creator) {
   RealmSerializeInfo info;
   Local<Context> ctx = context();
 
+  // Currently all modules are compiled without cache in builtin snapshot
+  // builder.
+  info.builtins = std::vector<std::string>(builtins_without_cache.begin(),
+                                           builtins_without_cache.end());
+
   uint32_t id = 0;
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
@@ -125,6 +132,8 @@ RealmSerializeInfo Realm::Serialize(SnapshotCreator* creator) {
 
 void Realm::DeserializeProperties(const RealmSerializeInfo* info) {
   Local<Context> ctx = context();
+
+  builtins_in_snapshot = info->builtins;
 
   const std::vector<PropInfo>& values = info->persistent_values;
   size_t i = 0;  // index to the array
@@ -305,6 +314,20 @@ void Realm::PrintInfoForSnapshot() {
     std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
               << "\n";
   });
+
+  fprintf(stderr, "\nnBuiltins without cache:\n");
+  for (const auto& s : builtins_without_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nBuiltins with cache:\n");
+  for (const auto& s : builtins_with_cache) {
+    fprintf(stderr, "%s\n", s.c_str());
+  }
+  fprintf(stderr, "\nStatic bindings (need to be registered):\n");
+  for (const auto mod : internal_bindings) {
+    fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
+  }
+
   fprintf(stderr, "End of the Realm.\n");
 }
 

@@ -881,6 +881,11 @@ void SetMethod(v8::Local<v8::Context> context,
                v8::Local<v8::Object> that,
                const char* name,
                v8::FunctionCallback callback);
+// Similar to SetProtoMethod but without receiver signature checks.
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const char* name,
+               v8::FunctionCallback callback);
 
 void SetFastMethod(v8::Local<v8::Context> context,
                    v8::Local<v8::Object> that,

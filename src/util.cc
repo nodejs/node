@@ -356,6 +356,23 @@ void SetMethod(Local<v8::Context> context,
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
+void SetMethod(v8::Isolate* isolate,
+               v8::Local<v8::Template> that,
+               const char* name,
+               v8::FunctionCallback callback) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(name_string, t);
+}
+
 void SetFastMethod(Local<v8::Context> context,
                    Local<v8::Object> that,
                    const char* name,
