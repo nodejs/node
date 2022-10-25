@@ -127,7 +127,7 @@ function define_tests() {
           promise_test(function(test) {
               return subtle.generateKey({name: "HMAC", hash: "SHA-256", length: 256}, true, ["sign", "verify"])
               .then(function(secretKey) {
-                  subtle.deriveKey({name: algorithmName, public: secretKey}, privateKeys[algorithmName], {name: "AES-CBC", length: 256}, true, ["sign", "verify"])
+                  return subtle.deriveKey({name: algorithmName, public: secretKey}, privateKeys[algorithmName], {name: "AES-CBC", length: 256}, true, ["sign", "verify"])
                   .then(function(key) {return crypto.subtle.exportKey("raw", key);})
                   .then(function(exportedKey) {
                       assert_unreached("deriveKey succeeded but should have failed with InvalidAccessError");
@@ -151,6 +151,8 @@ function define_tests() {
                                           false, ["deriveBits", "deriveKey"])
                           .then(function(key) {
                               privateKeys[algorithmName] = key;
+                          }, function (err) {
+                            privateKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });
@@ -160,6 +162,8 @@ function define_tests() {
                                           false, ["deriveBits"])
                           .then(function(key) {
                               noDeriveKeyKeys[algorithmName] = key;
+                          }, function (err) {
+                            noDeriveKeyKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });
@@ -169,6 +173,8 @@ function define_tests() {
                                           false, [])
                           .then(function(key) {
                               publicKeys[algorithmName] = key;
+                          }, function (err) {
+                            publicKeys[algorithmName] = null;
                           });
           promises.push(operation);
       });

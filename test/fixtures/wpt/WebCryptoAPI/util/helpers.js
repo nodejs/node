@@ -110,7 +110,22 @@ function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
     assert_equals(key.extractable, extractable, "Extractability is correct");
 
     assert_equals(key.algorithm.name, registeredAlgorithmName, "Correct algorithm name");
-    assert_equals(key.algorithm.length, algorithm.length, "Correct length");
+    if (key.algorithm.name.toUpperCase() === "HMAC" && algorithm.length === undefined) {
+        switch (key.algorithm.hash.name.toUpperCase()) {
+            case 'SHA-1':
+            case 'SHA-256':
+                assert_equals(key.algorithm.length, 512, "Correct length");
+                break;
+            case 'SHA-384':
+            case 'SHA-512':
+                assert_equals(key.algorithm.length, 1024, "Correct length");
+                break;
+            default:
+                assert_unreached("Unrecognized hash");
+        }
+    } else {
+        assert_equals(key.algorithm.length, algorithm.length, "Correct length");
+    }
     if (["HMAC", "RSASSA-PKCS1-v1_5", "RSA-PSS"].includes(registeredAlgorithmName)) {
         assert_equals(key.algorithm.hash.name.toUpperCase(), algorithm.hash.toUpperCase(), "Correct hash function");
     }
@@ -166,12 +181,16 @@ function allAlgorithmSpecifiersFor(algorithmName) {
         });
     } else if (algorithmName.toUpperCase() === "HMAC") {
         [
-            {name: "SHA-1", length: 160},
-            {name: "SHA-256", length: 256},
-            {name: "SHA-384", length: 384},
-            {name: "SHA-512", length: 512}
+            {hash: "SHA-1", length: 160},
+            {hash: "SHA-256", length: 256},
+            {hash: "SHA-384", length: 384},
+            {hash: "SHA-512", length: 512},
+            {hash: "SHA-1"},
+            {hash: "SHA-256"},
+            {hash: "SHA-384"},
+            {hash: "SHA-512"},
         ].forEach(function(hashAlgorithm) {
-            results.push({name: algorithmName, hash: hashAlgorithm.name, length: hashAlgorithm.length});
+            results.push({name: algorithmName, ...hashAlgorithm});
         });
     } else if (algorithmName.toUpperCase().substring(0, 3) === "RSA") {
         hashes.forEach(function(hashName) {
