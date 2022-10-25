@@ -1,0 +1,9 @@
+{
+  "onerror": "exit",
+  "scopes": {
+    "file:": {
+      "integrity": true,
+      "dependencies": {}
+    }
+  }
+}
