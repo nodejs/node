@@ -24,6 +24,8 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
               static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
+#define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V) V(builtins)
+
 #define NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
   static node::node_module _module = {                                         \
       NODE_MODULE_VERSION,                                                     \
@@ -44,8 +46,19 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
 
 namespace node {
 
+// Define a node internal binding that may be loaded in a context of
+// a node::Environment.
+// If an internal binding needs initializing per-isolate templates, define
+// with NODE_BINDING_PER_ISOLATE_INIT too.
 #define NODE_BINDING_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
   NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
+
+// Define a per-isolate initialization function for a node internal binding.
+#define NODE_BINDING_PER_ISOLATE_INIT(modname, per_isolate_func)               \
+  void _register_isolate_##modname(node::IsolateData* isolate_data,            \
+                                   v8::Local<v8::FunctionTemplate> target) {   \
+    per_isolate_func(isolate_data, target);                                    \
+  }
 
 // Globals per process
 // This is set by node::Init() which is used by embedders
@@ -87,6 +100,8 @@ class DLib {
 // use the __attribute__((constructor)). Need to
 // explicitly call the _register* functions.
 void RegisterBuiltinBindings();
+// Create per-isolate templates for the internal bindings.
+void CreateInternalBindingTemplates(IsolateData* isolate_data);
 void GetInternalBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetLinkedBinding(const v8::FunctionCallbackInfo<v8::Value>& args);
 void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -30,6 +30,10 @@ inline Realm* Realm::GetCurrent(const v8::PropertyCallbackInfo<T>& info) {
   return GetCurrent(info.GetIsolate()->GetCurrentContext());
 }
 
+inline IsolateData* Realm::isolate_data() const {
+  return env_->isolate_data();
+}
+
 inline Environment* Realm::env() const {
   return env_;
 }
