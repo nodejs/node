@@ -100,7 +100,7 @@ static const char *gNumberElementKeys[DecimalFormatSymbols::kFormatSymbolCount] 
 
 DecimalFormatSymbols::DecimalFormatSymbols(UErrorCode& status)
         : UObject(), locale(), currPattern(NULL) {
-    initialize(locale, status, TRUE);
+    initialize(locale, status, true);
 }
 
 // -------------------------------------
@@ -113,7 +113,7 @@ DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, UErrorCode& status
 
 DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, const NumberingSystem& ns, UErrorCode& status)
         : UObject(), locale(loc), currPattern(NULL) {
-    initialize(locale, status, FALSE, &ns);
+    initialize(locale, status, false, &ns);
 }
 
 DecimalFormatSymbols::DecimalFormatSymbols()
@@ -227,7 +227,7 @@ struct DecFmtSymDataSink : public ResourceSink {
 
     // Constructor/Destructor
     DecFmtSymDataSink(DecimalFormatSymbols& _dfs) : dfs(_dfs) {
-        uprv_memset(seenSymbol, FALSE, sizeof(seenSymbol));
+        uprv_memset(seenSymbol, false, sizeof(seenSymbol));
     }
     virtual ~DecFmtSymDataSink();
 
@@ -239,7 +239,7 @@ struct DecFmtSymDataSink : public ResourceSink {
             for (int32_t i=0; i<DecimalFormatSymbols::kFormatSymbolCount; i++) {
                 if (gNumberElementKeys[i] != NULL && uprv_strcmp(key, gNumberElementKeys[i]) == 0) {
                     if (!seenSymbol[i]) {
-                        seenSymbol[i] = TRUE;
+                        seenSymbol[i] = true;
                         dfs.setSymbol(
                             (DecimalFormatSymbols::ENumberFormatSymbol) i,
                             value.getUnicodeString(errorCode));
@@ -255,10 +255,10 @@ struct DecFmtSymDataSink : public ResourceSink {
     UBool seenAll() {
         for (int32_t i=0; i<DecimalFormatSymbols::kFormatSymbolCount; i++) {
             if (!seenSymbol[i]) {
-                return FALSE;
+                return false;
             }
         }
-        return TRUE;
+        return true;
     }
 
     // If monetary decimal or grouping were not explicitly set, then set them to be the
@@ -283,7 +283,7 @@ struct CurrencySpacingSink : public ResourceSink {
     UBool hasAfterCurrency;
 
     CurrencySpacingSink(DecimalFormatSymbols& _dfs)
-        : dfs(_dfs), hasBeforeCurrency(FALSE), hasAfterCurrency(FALSE) {}
+        : dfs(_dfs), hasBeforeCurrency(false), hasAfterCurrency(false) {}
     virtual ~CurrencySpacingSink();
 
     virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
@@ -292,11 +292,11 @@ struct CurrencySpacingSink : public ResourceSink {
         for (int32_t i = 0; spacingTypesTable.getKeyAndValue(i, key, value); ++i) {
             UBool beforeCurrency;
             if (uprv_strcmp(key, gBeforeCurrencyTag) == 0) {
-                beforeCurrency = TRUE;
-                hasBeforeCurrency = TRUE;
+                beforeCurrency = true;
+                hasBeforeCurrency = true;
             } else if (uprv_strcmp(key, gAfterCurrencyTag) == 0) {
-                beforeCurrency = FALSE;
-                hasAfterCurrency = TRUE;
+                beforeCurrency = false;
+                hasAfterCurrency = true;
             } else {
                 continue;
             }
@@ -329,7 +329,7 @@ struct CurrencySpacingSink : public ResourceSink {
         // both beforeCurrency and afterCurrency were found in CLDR.
         static const char* defaults[] = { "[:letter:]", "[:digit:]", " " };
         if (!hasBeforeCurrency || !hasAfterCurrency) {
-            for (UBool beforeCurrency = 0; beforeCurrency <= TRUE; beforeCurrency++) {
+            for (UBool beforeCurrency = 0; beforeCurrency <= true; beforeCurrency++) {
                 for (int32_t pattern = 0; pattern < UNUM_CURRENCY_SPACING_COUNT; pattern++) {
                     dfs.setPatternForCurrencySpacing((UCurrencySpacing)pattern,
                         beforeCurrency, UnicodeString(defaults[pattern], -1, US_INV));
@@ -499,7 +499,7 @@ DecimalFormatSymbols::initialize() {
     fSymbols[kPlusSignSymbol] = (UChar)0x002b;          // '+' plus sign
     fSymbols[kMinusSignSymbol] = (UChar)0x2d;           // '-' minus sign
     fSymbols[kCurrencySymbol] = (UChar)0xa4;            // 'OX' currency symbol
-    fSymbols[kIntlCurrencySymbol].setTo(TRUE, INTL_CURRENCY_SYMBOL_STR, 2);
+    fSymbols[kIntlCurrencySymbol].setTo(true, INTL_CURRENCY_SYMBOL_STR, 2);
     fSymbols[kMonetarySeparatorSymbol] = (UChar)0x2e;   // '.' monetary decimal separator
     fSymbols[kExponentialSymbol] = (UChar)0x45;         // 'E' exponential
     fSymbols[kPerMillSymbol] = (UChar)0x2030;           // '%o' per mill
@@ -510,8 +510,8 @@ DecimalFormatSymbols::initialize() {
     fSymbols[kMonetaryGroupingSeparatorSymbol].remove(); // 
     fSymbols[kExponentMultiplicationSymbol] = (UChar)0xd7; // 'x' multiplication symbol for exponents
     fSymbols[kApproximatelySignSymbol] = u'~';          // '~' approximately sign
-    fIsCustomCurrencySymbol = FALSE; 
-    fIsCustomIntlCurrencySymbol = FALSE;
+    fIsCustomCurrencySymbol = false; 
+    fIsCustomIntlCurrencySymbol = false;
     fCodePointZero = 0x30;
     U_ASSERT(fCodePointZero == fSymbols[kZeroDigitSymbol].char32At(0));
     currPattern = nullptr;
@@ -555,7 +555,7 @@ void DecimalFormatSymbols::setCurrency(const UChar* currency, UErrorCode& status
         if(U_SUCCESS(localStatus)){
             fSymbols[kMonetaryGroupingSeparatorSymbol] = groupingSep;
             fSymbols[kMonetarySeparatorSymbol] = decimalSep;
-            //pattern.setTo(TRUE, currPattern, currPatternLen);
+            //pattern.setTo(true, currPattern, currPatternLen);
         }
     }
     /* else An explicit currency was requested and is unknown or locale data is malformed. */

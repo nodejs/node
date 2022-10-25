@@ -134,8 +134,8 @@ private:
 
     UBool                 fSawBOF;
 
-    RBBISetBuilder(const RBBISetBuilder &other); // forbid copying of this class
-    RBBISetBuilder &operator=(const RBBISetBuilder &other); // forbid copying of this class
+    RBBISetBuilder(const RBBISetBuilder &other) = delete; // forbid copying of this class
+    RBBISetBuilder &operator=(const RBBISetBuilder &other) = delete; // forbid copying of this class
 };
 
 

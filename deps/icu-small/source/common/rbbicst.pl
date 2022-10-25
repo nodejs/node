@@ -111,9 +111,9 @@ line_loop: while (<>) {
     #
     # do the 'n' flag
     #
-    $state_flag[$num_states] = $javaOutput? "false" : "FALSE";
+    $state_flag[$num_states] = "false";
     if ($fields[0] eq "n") {
-        $state_flag[$num_states] = $javaOutput? "true": "TRUE";
+        $state_flag[$num_states] = "true";
         shift @fields;
     }
 
@@ -403,7 +403,7 @@ else
     # emit the state transition table
     #
     print "static const struct RBBIRuleTableEl gRuleParseStateTable[] = {\n";
-    print "    {doNOP, 0, 0, 0, TRUE}\n";    # State 0 is a dummy.  Real states start with index = 1.
+    print "    {doNOP, 0, 0, 0, true}\n";    # State 0 is a dummy.  Real states start with index = 1.
     for ($state=1; $state < $num_states; $state++) {
         print "    , {$state_func_name[$state],";
         if ($state_literal_chars[$state] ne "") {

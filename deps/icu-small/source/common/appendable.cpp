@@ -37,23 +37,23 @@ Appendable::appendString(const UChar *s, int32_t length) {
         UChar c;
         while((c=*s++)!=0) {
             if(!appendCodeUnit(c)) {
-                return FALSE;
+                return false;
             }
         }
     } else if(length>0) {
         const UChar *limit=s+length;
         do {
             if(!appendCodeUnit(*s++)) {
-                return FALSE;
+                return false;
             }
         } while(s<limit);
     }
-    return TRUE;
+    return true;
 }
 
 UBool
 Appendable::reserveAppendCapacity(int32_t /*appendCapacity*/) {
-    return TRUE;
+    return true;
 }
 
 UChar *

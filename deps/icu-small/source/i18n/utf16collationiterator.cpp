@@ -78,9 +78,9 @@ UBool
 UTF16CollationIterator::foundNULTerminator() {
     if(limit == NULL) {
         limit = --pos;
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -241,9 +241,9 @@ UBool
 FCDUTF16CollationIterator::foundNULTerminator() {
     if(limit == NULL) {
         limit = rawLimit = --pos;
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -361,7 +361,7 @@ FCDUTF16CollationIterator::switchToForward() {
             // Switch to checking forward from it.
             pos = start = segmentStart = segmentLimit;
             // Note: If this segment is at the end of the input text,
-            // then it might help to return FALSE to indicate that, so that
+            // then it might help to return false to indicate that, so that
             // we do not have to re-check and normalize when we turn around and go backwards.
             // However, that would complicate the call sites for an optimization of an unusual case.
         }
@@ -372,7 +372,7 @@ FCDUTF16CollationIterator::switchToForward() {
 
 UBool
 FCDUTF16CollationIterator::nextSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(checkDir > 0 && pos != limit);
     // The input text [segmentStart..pos[ passes the FCD check.
     const UChar *p = pos;
@@ -392,7 +392,7 @@ FCDUTF16CollationIterator::nextSegment(UErrorCode &errorCode) {
             do {
                 q = p;
             } while(p != rawLimit && nfcImpl.nextFCD16(p, rawLimit) > 0xff);
-            if(!normalize(pos, q, errorCode)) { return FALSE; }
+            if(!normalize(pos, q, errorCode)) { return false; }
             pos = start;
             break;
         }
@@ -405,7 +405,7 @@ FCDUTF16CollationIterator::nextSegment(UErrorCode &errorCode) {
     }
     U_ASSERT(pos != limit);
     checkDir = 0;
-    return TRUE;
+    return true;
 }
 
 void
@@ -436,7 +436,7 @@ FCDUTF16CollationIterator::switchToBackward() {
 
 UBool
 FCDUTF16CollationIterator::previousSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(checkDir < 0 && pos != start);
     // The input text [pos..segmentLimit[ passes the FCD check.
     const UChar *p = pos;
@@ -458,7 +458,7 @@ FCDUTF16CollationIterator::previousSegment(UErrorCode &errorCode) {
                 q = p;
             } while(fcd16 > 0xff && p != rawStart &&
                     (fcd16 = nfcImpl.previousFCD16(rawStart, p)) != 0);
-            if(!normalize(q, pos, errorCode)) { return FALSE; }
+            if(!normalize(q, pos, errorCode)) { return false; }
             pos = limit;
             break;
         }
@@ -471,7 +471,7 @@ FCDUTF16CollationIterator::previousSegment(UErrorCode &errorCode) {
     }
     U_ASSERT(pos != start);
     checkDir = 0;
-    return TRUE;
+    return true;
 }
 
 UBool
@@ -479,14 +479,14 @@ FCDUTF16CollationIterator::normalize(const UChar *from, const UChar *to, UErrorC
     // NFD without argument checking.
     U_ASSERT(U_SUCCESS(errorCode));
     nfcImpl.decompose(from, to, normalized, (int32_t)(to - from), errorCode);
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     // Switch collation processing into the FCD buffer
     // with the result of normalizing [segmentStart, segmentLimit[.
     segmentStart = from;
     segmentLimit = to;
     start = normalized.getBuffer();
     limit = start + normalized.length();
-    return TRUE;
+    return true;
 }
 
 U_NAMESPACE_END

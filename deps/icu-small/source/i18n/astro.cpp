@@ -69,7 +69,7 @@ static icu::UMutex ccLock;
 
 U_CDECL_BEGIN
 static UBool calendar_astro_cleanup(void) {
-  return TRUE;
+  return true;
 }
 U_CDECL_END
 
@@ -242,7 +242,7 @@ inline static  double normPI(double angle)  {
  * @deprecated ICU 2.4. This class may be removed or modified.
  */
 CalendarAstronomer::CalendarAstronomer():
-  fTime(Calendar::getNow()), fLongitude(0.0), fLatitude(0.0), fGmtOffset(0.0), moonPosition(0,0), moonPositionSet(FALSE) {
+  fTime(Calendar::getNow()), fLongitude(0.0), fLatitude(0.0), fGmtOffset(0.0), moonPosition(0,0), moonPositionSet(false) {
   clearCache();
 }
 
@@ -252,7 +252,7 @@ CalendarAstronomer::CalendarAstronomer():
  * @internal
  * @deprecated ICU 2.4. This class may be removed or modified.
  */
-CalendarAstronomer::CalendarAstronomer(UDate d): fTime(d), fLongitude(0.0), fLatitude(0.0), fGmtOffset(0.0), moonPosition(0,0), moonPositionSet(FALSE) {
+CalendarAstronomer::CalendarAstronomer(UDate d): fTime(d), fLongitude(0.0), fLatitude(0.0), fGmtOffset(0.0), moonPosition(0,0), moonPositionSet(false) {
   clearCache();
 }
 
@@ -272,7 +272,7 @@ CalendarAstronomer::CalendarAstronomer(UDate d): fTime(d), fLongitude(0.0), fLat
  * @deprecated ICU 2.4. This class may be removed or modified.
  */
 CalendarAstronomer::CalendarAstronomer(double longitude, double latitude) :
-  fTime(Calendar::getNow()), moonPosition(0,0), moonPositionSet(FALSE) {
+  fTime(Calendar::getNow()), moonPosition(0,0), moonPositionSet(false) {
   fLongitude = normPI(longitude * (double)DEG_RAD);
   fLatitude  = normPI(latitude  * (double)DEG_RAD);
   fGmtOffset = (double)(fLongitude * 24. * (double)HOUR_MS / (double)CalendarAstronomer_PI2);
@@ -1069,7 +1069,7 @@ const CalendarAstronomer::Equatorial& CalendarAstronomer::getMoonPosition()
     // See page 142 of "Practical Astronomy with your Calculator",
     // by Peter Duffet-Smith, for details on the algorithm.
     //
-    if (moonPositionSet == FALSE) {
+    if (moonPositionSet == false) {
         // Calculate the solar longitude.  Has the side effect of
         // filling in "meanAnomalySun" as well.
         getSunLongitude();
@@ -1138,7 +1138,7 @@ const CalendarAstronomer::Equatorial& CalendarAstronomer::getMoonPosition()
         double moonEclipLat = ::asin(y * ::sin(moonI));
 
         eclipticToEquatorial(moonPosition, moonEclipLong, moonEclipLat);
-        moonPositionSet = TRUE;
+        moonPositionSet = true;
     }
     return moonPosition;
 }
@@ -1446,7 +1446,7 @@ void CalendarAstronomer::clearCache() {
     eclipObliquity  = INVALID;
     siderealTime    = INVALID;
     siderealT0      = INVALID;
-    moonPositionSet = FALSE;
+    moonPositionSet = false;
 }
 
 //private static void out(String s) {
@@ -1471,7 +1471,7 @@ void CalendarAstronomer::clearCache() {
   int32_t rawOffset;
   int32_t dstOffset;
   UErrorCode status = U_ZERO_ERROR;
-  tz->getOffset(localMillis, TRUE, rawOffset, dstOffset, status);
+  tz->getOffset(localMillis, true, rawOffset, dstOffset, status);
   delete tz;
   return localMillis - rawOffset;
 }*/

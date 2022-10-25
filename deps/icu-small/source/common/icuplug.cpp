@@ -59,8 +59,8 @@ struct UPlugData {
   void *context;          /**< user context data */
   char name[UPLUG_NAME_MAX];   /**< name of plugin */
   UPlugLevel  level; /**< level of plugin */
-  UBool   awaitingLoad; /**< TRUE if the plugin is awaiting a load call */
-  UBool   dontUnload; /**< TRUE if plugin must stay resident (leak plugin and lib) */
+  UBool   awaitingLoad; /**< true if the plugin is awaiting a load call */
+  UBool   dontUnload; /**< true if plugin must stay resident (leak plugin and lib) */
   UErrorCode pluginStatus; /**< status code of plugin */
 };
 
@@ -304,11 +304,11 @@ static void uplug_queryPlug(UPlugData *plug, UErrorCode *status) {
   if(U_SUCCESS(*status)) { 
     if(plug->level == UPLUG_LEVEL_INVALID) {
       plug->pluginStatus = U_PLUGIN_DIDNT_SET_LEVEL;
-      plug->awaitingLoad = FALSE;
+      plug->awaitingLoad = false;
     }
   } else {
     plug->pluginStatus = U_INTERNAL_PROGRAM_ERROR;
-    plug->awaitingLoad = FALSE;
+    plug->awaitingLoad = false;
   }
 }
 
@@ -322,7 +322,7 @@ static void uplug_loadPlug(UPlugData *plug, UErrorCode *status) {
     return;
   }
   uplug_callPlug(plug, UPLUG_REASON_LOAD, status);
-  plug->awaitingLoad = FALSE;
+  plug->awaitingLoad = false;
   if(!U_SUCCESS(*status)) {
     plug->pluginStatus = U_INTERNAL_PROGRAM_ERROR;
   }
@@ -347,8 +347,8 @@ static UPlugData *uplug_allocateEmptyPlug(UErrorCode *status)
   plug->structSize = sizeof(UPlugData);
   plug->name[0]=0;
   plug->level = UPLUG_LEVEL_UNKNOWN; /* initialize to null state */
-  plug->awaitingLoad = TRUE;
-  plug->dontUnload = FALSE;
+  plug->awaitingLoad = true;
+  plug->dontUnload = false;
   plug->pluginStatus = U_ZERO_ERROR;
   plug->libName[0] = 0;
   plug->config[0]=0;
@@ -403,9 +403,9 @@ static void uplug_deallocatePlug(UPlugData *plug, UErrorCode *status) {
     pluginCount = uplug_removeEntryAt(pluginList, pluginCount, sizeof(plug[0]), uplug_pluginNumber(plug));
   } else {
     /* not ok- leave as a message. */
-    plug->awaitingLoad=FALSE;
+    plug->awaitingLoad=false;
     plug->entrypoint=0;
-    plug->dontUnload=TRUE;
+    plug->dontUnload=true;
   }
 }
 
@@ -558,8 +558,8 @@ uplug_initErrorPlug(const char *libName, const char *sym, const char *config, co
   if(U_FAILURE(*status)) return NULL;
 
   plug->pluginStatus = loadStatus;
-  plug->awaitingLoad = FALSE; /* Won't load. */
-  plug->dontUnload = TRUE; /* cannot unload. */
+  plug->awaitingLoad = false; /* Won't load. */
+  plug->dontUnload = true; /* cannot unload. */
 
   if(sym!=NULL) {
     uprv_strncpy(plug->sym, sym, UPLUG_NAME_MAX);
@@ -646,7 +646,7 @@ static UBool U_CALLCONV uplug_cleanup(void)
   }
   /* close other held libs? */
   gCurrentLevel = UPLUG_LEVEL_LOW;
-  return TRUE;
+  return true;
 }
 
 #if U_ENABLE_DYLOAD
@@ -678,7 +678,7 @@ static void uplug_loadWaitingPlugs(UErrorCode *status) {
             currentLevel = newLevel;
           }
         }
-        pluginToLoad->awaitingLoad = FALSE;
+        pluginToLoad->awaitingLoad = false;
       } 
     }
   }    
@@ -694,7 +694,7 @@ static void uplug_loadWaitingPlugs(UErrorCode *status) {
       } else {
         uplug_loadPlug(pluginToLoad, &subStatus);
       }
-      pluginToLoad->awaitingLoad = FALSE;
+      pluginToLoad->awaitingLoad = false;
     }
   }
     

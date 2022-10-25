@@ -21,9 +21,9 @@
 
 /**
  * \file
- * \brief  C API:misc definitions 
+ * \brief C API: Miscellaneous definitions
  *
- *  This file contains miscellaneous definitions for the C APIs. 
+ *  This file contains miscellaneous definitions for the C APIs.
  */
 
 U_CDECL_BEGIN

@@ -85,7 +85,7 @@ void  RBBITableBuilder::buildForwardTable() {
 #ifdef RBBI_DEBUG
     if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "ftree")) {
         RBBIDebugPuts("\nParse tree after flattening variable references.");
-        RBBINode::printTree(fTree, TRUE);
+        RBBINode::printTree(fTree, true);
     }
 #endif
 
@@ -143,7 +143,7 @@ void  RBBITableBuilder::buildForwardTable() {
 #ifdef RBBI_DEBUG
     if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "stree")) {
         RBBIDebugPuts("\nParse tree after flattening Unicode Set references.");
-        RBBINode::printTree(fTree, TRUE);
+        RBBINode::printTree(fTree, true);
     }
 #endif
 
@@ -209,14 +209,14 @@ void RBBITableBuilder::calcNullable(RBBINode *n) {
     if (n->fType == RBBINode::setRef ||
         n->fType == RBBINode::endMark ) {
         // These are non-empty leaf node types.
-        n->fNullable = FALSE;
+        n->fNullable = false;
         return;
     }
 
     if (n->fType == RBBINode::lookAhead || n->fType == RBBINode::tag) {
         // Lookahead marker node.  It's a leaf, so no recursion on children.
         // It's nullable because it does not match any literal text from the input stream.
-        n->fNullable = TRUE;
+        n->fNullable = true;
         return;
     }
 
@@ -234,10 +234,10 @@ void RBBITableBuilder::calcNullable(RBBINode *n) {
         n->fNullable = n->fLeftChild->fNullable && n->fRightChild->fNullable;
     }
     else if (n->fType == RBBINode::opStar || n->fType == RBBINode::opQuestion) {
-        n->fNullable = TRUE;
+        n->fNullable = true;
     }
     else {
-        n->fNullable = FALSE;
+        n->fNullable = false;
     }
 }
 
@@ -618,7 +618,7 @@ void RBBITableBuilder::buildStateTable() {
         for (tx=1; tx<fDStates->size(); tx++) {
             RBBIStateDescriptor *temp;
             temp = (RBBIStateDescriptor *)fDStates->elementAt(tx);
-            if (temp->fMarked == FALSE) {
+            if (temp->fMarked == false) {
                 T = temp;
                 break;
             }
@@ -628,7 +628,7 @@ void RBBITableBuilder::buildStateTable() {
         }
 
         // mark T;
-        T->fMarked = TRUE;
+        T->fMarked = true;
 
         // for each input symbol a do begin
         int32_t  a;
@@ -655,7 +655,7 @@ void RBBITableBuilder::buildStateTable() {
 
             // if U is not empty and not in DStates then
             int32_t  ux = 0;
-            UBool    UinDstates = FALSE;
+            UBool    UinDstates = false;
             if (U != NULL) {
                 U_ASSERT(U->size() > 0);
                 int  ix;
@@ -666,7 +666,7 @@ void RBBITableBuilder::buildStateTable() {
                         delete U;
                         U  = temp2->fPositions;
                         ux = ix;
-                        UinDstates = TRUE;
+                        UinDstates = true;
                         break;
                     }
                 }
@@ -1131,7 +1131,7 @@ void RBBITableBuilder::printPosSets(RBBINode *n) {
     printf("\n");
     RBBINode::printNodeHeader();
     RBBINode::printNode(n);
-    RBBIDebugPrintf("         Nullable:  %s\n", n->fNullable?"TRUE":"FALSE");
+    RBBIDebugPrintf("         Nullable:  %s\n", n->fNullable?"true":"false");
 
     RBBIDebugPrintf("         firstpos:  ");
     printSet(n->fFirstPosSet);
@@ -1773,7 +1773,7 @@ void RBBITableBuilder::printRuleStatusTable() {
 //-----------------------------------------------------------------------------
 
 RBBIStateDescriptor::RBBIStateDescriptor(int lastInputSymbol, UErrorCode *fStatus) {
-    fMarked    = FALSE;
+    fMarked    = false;
     fAccepting = 0;
     fLookAhead = 0;
     fTagsIdx   = 0;
