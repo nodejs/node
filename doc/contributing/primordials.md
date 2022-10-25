@@ -390,8 +390,10 @@ SafePromiseAllReturnArrayLike(array); // safe
 
 // Some key differences between `SafePromise[...]` and `Promise[...]` methods:
 
-// 1. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, and SafePromiseRace
-//    support passing a mapperFunction as second argument.
+// 1. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, SafePromiseRace,
+//    SafePromiseAllReturnArrayLike, SafePromiseAllReturnVoid, and
+//    SafePromiseAllSettledReturnVoid support passing a mapperFunction as second
+//    argument.
 SafePromiseAll(ArrayPrototypeMap(array, someFunction));
 SafePromiseAll(array, someFunction); // Same as the above, but more efficient.
 
@@ -405,8 +407,8 @@ SafePromiseAllReturnVoid(ArrayFrom(set)); // works
 // 3. SafePromiseAllReturnArrayLike is safer than SafePromiseAll, however you
 //    should not use them when its return value is passed to the user as it can
 //    be surprising for them not to receive a genuine array.
-SafePromiseAllReturnArrayLike(array).then((val) => Array.isArray(val)); // false
-SafePromiseAll(array).then((val) => Array.isArray(val)); // true
+SafePromiseAllReturnArrayLike(array).then((val) => val instanceof Array); // false
+SafePromiseAll(array).then((val) => val instanceof Array); // true
 ```
 
 </details>
