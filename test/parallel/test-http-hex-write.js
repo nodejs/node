@@ -27,12 +27,11 @@ const http = require('http');
 
 const expect = 'hex\nutf8\n';
 
-http.createServer(function(q, s) {
+const server = http.createServer(function(q, s) {
   s.setHeader('content-length', expect.length);
   s.write('6865780a', 'hex');
   s.write('utf8\n');
   s.end();
-  this.close();
 }).listen(0, common.mustCall(function() {
   http.request({ port: this.address().port })
     .on('response', common.mustCall(function(res) {
@@ -46,4 +45,15 @@ http.createServer(function(q, s) {
         assert.strictEqual(data, expect);
       }));
     })).end();
+
+  // Refs: https://github.com/nodejs/node/issues/45150
+  const invalidReq = http.request({ port: this.address().port });
+  assert.throws(
+    () => { invalidReq.write('boom!', 'hex'); },
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: 'The argument \'data\' is invalid hex string. Received \'boom!\''
+    }
+  );
+  invalidReq.end(() => server.close());
 }));
