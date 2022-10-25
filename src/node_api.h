@@ -153,6 +153,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_buffer(napi_env env,
                                                       size_t length,
                                                       void** data,
                                                       napi_value* result);
+#ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_external_buffer(napi_env env,
                             size_t length,
@@ -160,6 +161,7 @@ napi_create_external_buffer(napi_env env,
                             napi_finalize finalize_cb,
                             void* finalize_hint,
                             napi_value* result);
+#endif  // NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,
                                                            size_t length,
                                                            const void* data,

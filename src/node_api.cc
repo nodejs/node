@@ -950,6 +950,10 @@ napi_status NAPI_CDECL napi_create_external_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
+#if defined(V8_ENABLE_SANDBOX)
+  return napi_set_last_error(env, napi_no_external_buffers_allowed);
+#endif
+
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.

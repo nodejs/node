@@ -1,4 +1,9 @@
 #define NAPI_EXPERIMENTAL
+// we define NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED here to validate that it can
+// be used as a form of test itself. It is
+// not related to any of the other tests
+// defined in the file
+#define NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 #include <node_api.h>
 #include <stdlib.h>
 #include "../../js-native-api/common.h"
