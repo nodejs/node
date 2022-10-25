@@ -12,7 +12,7 @@ Error: an error!
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
     at Function.Module._load (node:internal/modules/cjs/loader:*)
-    at Module.require (node:internal/modules/cjs/loader:*)
+    at Module.internalRequire (node:internal/modules/cjs/loader:*)
 *enclosing-call-site-min.js:1
 var functionA=function(){functionB()};function functionB(){functionC()}var functionC=function(){functionD()},functionD=function(){if(0<Math.random())throw Error("an error!");},thrower=functionA;try{functionA()}catch(a){throw a;};
                                                                                                                                                                                                                            ^
@@ -27,4 +27,4 @@ Error: an error!
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
     at Function.Module._load (node:internal/modules/cjs/loader:*)
-    at Module.require (node:internal/modules/cjs/loader:*)
+    at Module.internalRequire (node:internal/modules/cjs/loader:*)

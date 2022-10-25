@@ -12,4 +12,4 @@ Error: an error!
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
     at Function.Module._load (node:internal/modules/cjs/loader:*)
-    at Module.require (node:internal/modules/cjs/loader:*)
+    at Module.internalRequire (node:internal/modules/cjs/loader:*)
