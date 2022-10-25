@@ -7,7 +7,10 @@ const assert = require('assert');
 const {
   PromisePrototypeThen,
   SafePromiseAll,
+  SafePromiseAllReturnArrayLike,
+  SafePromiseAllReturnVoid,
   SafePromiseAllSettled,
+  SafePromiseAllSettledReturnVoid,
   SafePromiseAny,
   SafePromisePrototypeFinally,
   SafePromiseRace,
@@ -34,9 +37,11 @@ Object.defineProperties(Promise.prototype, {
   },
 });
 Object.defineProperties(Array.prototype, {
-  // %Promise.all% and %Promise.allSettled% are depending on the value of
-  // `%Array.prototype%.then`.
-  then: {},
+  then: {
+    configurable: true,
+    set: common.mustNotCall('set %Array.prototype%.then'),
+    get: common.mustNotCall('get %Array.prototype%.then'),
+  },
 });
 Object.defineProperties(Object.prototype, {
   then: {
@@ -48,10 +53,23 @@ Object.defineProperties(Object.prototype, {
 assertIsPromise(PromisePrototypeThen(test(), common.mustCall()));
 assertIsPromise(SafePromisePrototypeFinally(test(), common.mustCall()));
 
-assertIsPromise(SafePromiseAll([test()]));
-assertIsPromise(SafePromiseAllSettled([test()]));
+assertIsPromise(SafePromiseAllReturnArrayLike([test()]));
+assertIsPromise(SafePromiseAllReturnVoid([test()]));
+assertIsPromise(SafePromiseAllSettledReturnVoid([test()]));
 assertIsPromise(SafePromiseAny([test()]));
 assertIsPromise(SafePromiseRace([test()]));
+
+Object.defineProperties(Array.prototype, {
+  // %Promise.all% and %Promise.allSettled% are depending on the value of
+  // `%Array.prototype%.then`.
+  then: {
+    __proto__: undefined,
+    value: undefined,
+  },
+});
+
+assertIsPromise(SafePromiseAll([test()]));
+assertIsPromise(SafePromiseAllSettled([test()]));
 
 async function test() {
   const catchFn = common.mustCall();
