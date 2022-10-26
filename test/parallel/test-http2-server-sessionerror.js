@@ -44,17 +44,21 @@ server.on('sessionError', common.mustCall((err, session) => {
 server.listen(0, common.mustCall(() => {
   const url = `http://localhost:${server.address().port}`;
   http2.connect(url)
-    .on('error', common.expectsError({
-      code: 'ERR_HTTP2_SESSION_ERROR',
-      message: 'Session closed with error code 2',
+    .on('error', common.mustCall((err) => {
+      if (err.code !== 'ECONNRESET') {
+        assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
+        assert.strictEqual(err.message, 'Session closed with error code 2');
+      }
     }))
     .on('close', () => {
       server.removeAllListeners('error');
       http2.connect(url)
-        .on('error', common.expectsError({
-          code: 'ERR_HTTP2_SESSION_ERROR',
-          message: 'Session closed with error code 2',
-        }))
+      .on('error', common.mustCall((err) => {
+        if (err.code !== 'ECONNRESET') {
+          assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
+          assert.strictEqual(err.message, 'Session closed with error code 2');
+        }
+      }))
         .on('close', () => server.close());
     });
 }));
