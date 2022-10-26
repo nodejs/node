@@ -2371,7 +2371,7 @@ described in this issue
 
 In order to maintain broadest compatibility with all runtimes
 you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
-includes for the node-api headers. Doing so will hide the 2 methods
+includes for the node-api headers. Doing so will hide the 2 functions
 that create external buffers. This will ensure a compilation error
 occurs if you accidentally use one of these methods.
 
