@@ -691,6 +691,9 @@ maintaining the Node.js project.
 * [VoltrexMaster](https://github.com/VoltrexMaster) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
+Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
+responding to new issues.
+
 ### Release keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
