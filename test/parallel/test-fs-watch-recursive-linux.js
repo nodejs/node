@@ -165,3 +165,16 @@ tmpdir.refresh();
     assert(watcherClosed, 'watcher Object was not closed');
   });
 })().then(common.mustCall());
+
+(async () => {
+  // Handle non-boolean values for options.recursive
+
+  if (!common.isWindows && !common.isOSX) {
+    assert.throws(() => {
+      const testsubdir = fs.mkdtempSync(testDir + path.sep);
+      fs.watch(testsubdir, { recursive: '1' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  }
+})().then(common.mustCall());
