@@ -3600,20 +3600,20 @@ request will be blocked.
 If `port` is omitted or is 0, the operating system will assign an arbitrary
 unused port, which it's output will be the standard output.
 
-Also accessible via `require('node:http/server')`.
+Also accessible via `require('node:http/static')`.
 
 ```bash
 # Starts serving the cwd on a random port:
-node -r node:http/server
+node -r node:http/static
 node -e 'http.createStaticServer()'
 
 # To start serving on the port 8080 using /path/to/dir as the root:
-node -r node:http/server /path/to/dir --port 8080
+node -r node:http/static /path/to/dir --port 8080
 node -e 'http.createStaticServer({directory: "/path/to/dir", port: 8080})'
 
 # Same as above, but exposing your local file system to the whole
 # IPv4 network:
-node -r node:http/server /path/to/dir --port 8080 --host 0.0.0.0
+node -r node:http/static /path/to/dir --port 8080 --host 0.0.0.0
 node -e 'http.createStaticServer({directory: "/path/to/dir", port: 8080, host: "0.0.0.0"})'
 ```
 
