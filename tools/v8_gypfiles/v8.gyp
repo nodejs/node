@@ -1639,7 +1639,7 @@
               }],
               ['_toolset == "host" and host_arch == "riscv64" or _toolset == "target" and target_arch=="riscv64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/riscv64/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/riscv/push_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "loong64" or _toolset == "target" and target_arch=="loong64"', {
