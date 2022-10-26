@@ -47,11 +47,12 @@ tmpdir.refresh();
     assert.ok(eventType === 'change' || eventType === 'rename');
 
     if (filename === file) {
-      clearInterval(interval);
-      interval = null;
       break;
     }
   }
+
+  clearInterval(interval);
+  interval = null;
 
   process.on('exit', function() {
     assert.ok(interval === null, 'watcher Object was not closed');
