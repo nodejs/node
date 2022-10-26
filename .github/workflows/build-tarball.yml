@@ -11,7 +11,7 @@ on:
       - v[0-9]+.x
 
 env:
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.11'
   FLAKY_TESTS: keep_retrying
 
 jobs:
