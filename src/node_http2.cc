@@ -703,6 +703,11 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
     Debug(this, "make done session callback");
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
+    if (stream_ != nullptr) {
+      // Start reading again to detect the other end finishing.
+      set_reading_stopped(false);
+      stream_->ReadStart();
+    }
   }
 
   // If there are outstanding pings, those will need to be canceled, do
@@ -1592,6 +1597,11 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   if (is_destroyed()) {
     HandleScope scope(env()->isolate());
     MakeCallback(env()->ondone_string(), 0, nullptr);
+    if (stream_ != nullptr) {
+      // Start reading again to detect the other end finishing.
+      set_reading_stopped(false);
+      stream_->ReadStart();
+    }
     return;
   }
 
@@ -1640,7 +1650,9 @@ void Http2Session::MaybeScheduleWrite() {
 }
 
 void Http2Session::MaybeStopReading() {
-  if (is_reading_stopped()) return;
+  // If the session is already closing we don't want to stop reading as we want
+  // to detect when the other peer is actually closed.
+  if (is_reading_stopped() || is_closing()) return;
   int want_read = nghttp2_session_want_read(session_.get());
   Debug(this, "wants read? %d", want_read);
   if (want_read == 0 || is_write_in_progress()) {
