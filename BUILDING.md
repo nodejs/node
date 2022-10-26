@@ -225,7 +225,7 @@ The Node.js project supports Python >= 3 for building and testing.
 
 * `gcc` and `g++` >= 8.3 or newer
 * GNU Make 3.81 or newer
-* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
+* Python >=3.6 <=3.11 (see note above)
   * For test coverage, your Python installation must include pip.
 
 Installation via Linux package manager can be achieved with:
@@ -241,7 +241,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 11 for macOS
-* Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
+* Python >=3.6 <=3.11 (see note above)
   * For test coverage, your Python installation must include pip.
 
 macOS users can install the `Xcode Command Line Tools` by running
@@ -565,7 +565,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.10](https://www.microsoft.com/en-us/p/python-310/9pjpw5ldxlz5)
+* [Python 3.11](https://apps.microsoft.com/store/detail/python-311/9NRWMJP3717K)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products) or
   the "C++ build tools" workload from the
