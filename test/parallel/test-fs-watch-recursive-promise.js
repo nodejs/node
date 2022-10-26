@@ -41,21 +41,15 @@ tmpdir.refresh();
     }, 500);
   }));
 
-  try {
-    for await (const payload of watcher) {
-      const { eventType, filename } = payload;
+  for await (const payload of watcher) {
+    const { eventType, filename } = payload;
 
-      assert.ok(eventType === 'change' || eventType === 'rename');
+    assert.ok(eventType === 'change' || eventType === 'rename');
 
-      if (filename === file) {
-        clearInterval(interval);
-        interval = null;
-        break;
-      }
-    }
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      assert.fail(error);
+    if (filename === file) {
+      clearInterval(interval);
+      interval = null;
+      break;
     }
   }
 
