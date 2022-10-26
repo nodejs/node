@@ -30,7 +30,7 @@ concurrency:
 
 env:
   ASAN_OPTIONS: intercept_tls_get_addr=0
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.11'
   FLAKY_TESTS: keep_retrying
 
 permissions:
