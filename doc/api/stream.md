@@ -1681,6 +1681,25 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable.compose(stream[, options])`
+
+<!-- YAML
+added:
+-->
+
+> Stability: 1 - Experimental
+
+* `stream` {Stream|Iterable|AsyncIterable|Function}
+* `options` {Object}
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Duplex} a stream composed with the stream `stream`.
+
+
+
+See [`stream.compose`][] for more information.
+
+
 ##### `readable.iterator([options])`
 
 <!-- YAML

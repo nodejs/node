@@ -116,12 +116,12 @@ const assert = require('assert');
   assert.throws(
     () => Readable.from(['a']).compose(Readable.from(['b'])),
     { code: 'ERR_INVALID_ARG_VALUE' }
-  )
+  );
 }
 
 {
   assert.throws(
     () => Readable.from(['a']).compose(),
     { code: 'ERR_INVALID_ARG_TYPE' }
-  )
+  );
 }
