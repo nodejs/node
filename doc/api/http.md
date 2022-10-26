@@ -3571,7 +3571,9 @@ server.listen(8000);
 added: REPLACEME
 -->
 
-> Stability: 0 - Experimental
+> Stability: 1 - Experimental. The implementation lacks support for partial
+> responses (Ranges) and conditional-GET negotiation (If-Match,
+> If-Unmodified-Since, If-None-Match, If-Modified-Since).
 
 * `options` {Object}
   * `directory` {string|URL} Root directory from which files would be served.
