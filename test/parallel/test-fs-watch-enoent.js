@@ -45,3 +45,29 @@ tmpdir.refresh();
     validateError
   );
 }
+
+{
+  if (common.isOSX || common.isWindows) {
+    const file = path.join(tmpdir.path, 'file-to-watch');
+    fs.writeFileSync(file, 'test');
+    const watcher = fs.watch(file, common.mustNotCall());
+
+    const validateError = (err) => {
+      assert.strictEqual(err.path, nonexistentFile);
+      assert.strictEqual(err.filename, nonexistentFile);
+      assert.strictEqual(
+        err.message,
+        `ENOENT: no such file or directory, watch '${nonexistentFile}'`);
+      assert.strictEqual(err.errno, UV_ENOENT);
+      assert.strictEqual(err.code, 'ENOENT');
+      assert.strictEqual(err.syscall, 'watch');
+      fs.unlinkSync(file);
+      return true;
+    };
+
+    watcher.on('error', common.mustCall(validateError));
+
+    // Simulate the invocation from the binding
+    watcher._handle.onchange(UV_ENOENT, 'ENOENT', nonexistentFile);
+  }
+}

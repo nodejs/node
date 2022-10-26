@@ -37,7 +37,7 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
 
   process.on('exit', function() {
@@ -63,7 +63,7 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.mkdirSync(filePath);
 
   process.on('exit', function() {
@@ -92,9 +92,9 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.mkdirSync(filePath);
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(childrenAbsolutePath, 'world');
 
   process.on('exit', function() {
@@ -131,7 +131,7 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(childrenAbsolutePath, 'world');
 
   process.on('exit', function() {
@@ -158,7 +158,7 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(100);
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
 
   process.on('exit', function() {
