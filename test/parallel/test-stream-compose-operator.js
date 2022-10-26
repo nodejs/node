@@ -112,5 +112,16 @@ const assert = require('assert');
   }).then(common.mustCall());
 }
 
+{
+  assert.throws(
+    () => Readable.from(['a']).compose(Readable.from(['b'])),
+    { code: 'ERR_INVALID_ARG_VALUE' }
+  )
+}
 
-// TODO - add tests for argument validation
+{
+  assert.throws(
+    () => Readable.from(['a']).compose(),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  )
+}
