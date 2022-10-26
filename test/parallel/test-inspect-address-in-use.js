@@ -5,6 +5,7 @@ common.skipIfInspectorDisabled();
 const { spawnSync } = require('child_process');
 const { createServer } = require('http');
 const assert = require('assert');
+const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const entry = fixtures.path('empty.js');
 const { Worker } = require('worker_threads');
@@ -21,10 +22,10 @@ function testOnServerListen(fn) {
   server.listen(0, '127.0.0.1');
 }
 
-function testChildProcess(getArgs, exitCode) {
+function testChildProcess(getArgs, exitCode, options) {
   testOnServerListen((server) => {
     const { port } = server.address();
-    const child = spawnSync(process.execPath, getArgs(port));
+    const child = spawnSync(process.execPath, getArgs(port), options);
     const stderr = child.stderr.toString().trim();
     const stdout = child.stdout.toString().trim();
     console.log('[STDERR]');
@@ -40,8 +41,12 @@ function testChildProcess(getArgs, exitCode) {
   });
 }
 
+tmpdir.refresh();
+
 testChildProcess(
-  (port) => [`--inspect=${port}`, '--build-snapshot', entry], 0);
+  (port) => [`--inspect=${port}`, '--build-snapshot', entry], 0,
+  { cwd: tmpdir.path });
+
 testChildProcess(
   (port) => [`--inspect=${port}`, entry], 0);
 
