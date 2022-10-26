@@ -240,7 +240,7 @@ test with Python 3.
 * GNU Make 3.81 or newer
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, 3.8, 3.9 or 3.10 (see note above)
+  * Python >=3.5 <=3.11 (see note above)
 
 Installation via Linux package manager can be achieved with:
 
@@ -257,7 +257,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 * Xcode Command Line Tools >= 10 for macOS
 * Python (see note above)
   * Python 2.7
-  * Python 3.6, 3.7, 3.8, 3.9, or 3.10 (see note above)
+  * Python >=3.5 <=3.11 (see note above)
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
@@ -561,7 +561,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.8](https://www.python.org/downloads/)
+* [Python 3.11](https://apps.microsoft.com/store/detail/python-311/9NRWMJP3717K)
 * The "Desktop development with C++" workload from
   [Visual Studio 2017 or 2019](https://visualstudio.microsoft.com/downloads/) or
   the "Visual C++ build tools" workload from the
