@@ -63,6 +63,8 @@ new RuleTester({
       'new Proxy({}, someFactory())',
       'new Proxy({}, { __proto__: null })',
       'new Proxy({}, { __proto__: null, ...{} })',
+      'async function name(){return await SafePromiseAll([])}',
+      'async function name(){const val = await SafePromiseAll([])}',
     ],
     invalid: [
       {
@@ -272,6 +274,14 @@ new RuleTester({
       {
         code: 'PromiseAll([])',
         errors: [{ message: /\bSafePromiseAll\b/ }]
+      },
+      {
+        code: 'async function fn(){await SafePromiseAll([])}',
+        errors: [{ message: /\bSafePromiseAllReturnVoid\b/ }]
+      },
+      {
+        code: 'async function fn(){await SafePromiseAllSettled([])}',
+        errors: [{ message: /\bSafePromiseAllSettledReturnVoid\b/ }]
       },
       {
         code: 'PromiseAllSettled([])',
