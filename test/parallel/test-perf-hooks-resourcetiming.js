@@ -17,6 +17,11 @@ assert(PerformanceResourceTiming);
 assert(performance.clearResourceTimings);
 assert(performance.markResourceTiming);
 
+assert.deepStrictEqual(
+  Object.getOwnPropertyDescriptor(PerformanceResourceTiming.prototype, Symbol.toStringTag),
+  { configurable: true, enumerable: false, value: 'PerformanceResourceTiming', writable: false },
+);
+
 function createTimingInfo({
   startTime = 0,
   redirectStartTime = 0,
