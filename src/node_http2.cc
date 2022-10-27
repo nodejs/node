@@ -3179,6 +3179,12 @@ void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
 #undef SET_FUNCTION
 }
 
+#ifdef NODE_DEBUG_NGHTTP2
+void NgHttp2Debug(const char* format, va_list args) {
+  vfprintf(stderr, format, args);
+}
+#endif
+
 void Http2State::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("root_buffer", root_buffer);
 }
@@ -3344,6 +3350,10 @@ void Initialize(Local<Object> target,
 #undef V
 
   target->Set(context, env->constants_string(), constants).Check();
+
+#ifdef NODE_DEBUG_NGHTTP2
+  nghttp2_set_debug_vprintf_callback(NgHttp2Debug);
+#endif
 }
 }  // namespace http2
 }  // namespace node
