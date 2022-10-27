@@ -302,7 +302,7 @@ void OptionsParser<Options>::Parse(
     const std::string arg = args.pop_first();
 
     if (arg == "--") {
-      if (required_env_settings == kAllowedInEnvironment)
+      if (required_env_settings == kAllowedInEnvvar)
         errors->push_back(NotAllowedInEnvErr("--"));
       break;
     }
@@ -374,8 +374,8 @@ void OptionsParser<Options>::Parse(
     auto it = options_.find(name);
 
     if ((it == options_.end() ||
-         it->second.env_setting == kDisallowedInEnvironment) &&
-        required_env_settings == kAllowedInEnvironment) {
+         it->second.env_setting == kDisallowedInEnvvar) &&
+        required_env_settings == kAllowedInEnvvar) {
       errors->push_back(NotAllowedInEnvErr(original_name));
       break;
     }

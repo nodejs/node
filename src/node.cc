@@ -790,15 +790,15 @@ static ExitCode InitializeNodeWithArgsInternal(
       env_argv.insert(env_argv.begin(), argv->at(0));
 
       const ExitCode exit_code = ProcessGlobalArgsInternal(
-          &env_argv, nullptr, errors, kAllowedInEnvironment);
+          &env_argv, nullptr, errors, kAllowedInEnvvar);
       if (exit_code != ExitCode::kNoFailure) return exit_code;
     }
   }
 #endif
 
   if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
-    const ExitCode exit_code = ProcessGlobalArgsInternal(
-        argv, exec_argv, errors, kDisallowedInEnvironment);
+    const ExitCode exit_code =
+        ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
 
