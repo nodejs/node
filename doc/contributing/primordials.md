@@ -363,33 +363,52 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
 // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
+// 4. Lookup `then` property on %Array.Prototype% (user-mutable).
+// 5. Lookup `then` property on %Object.Prototype% (user-mutable).
 PromiseAll([]); // unsafe
 
-PromiseAll(new SafeArrayIterator([])); // safe
+// 1. Lookup `then` property on %Array.Prototype% (user-mutable).
+// 2. Lookup `then` property on %Object.Prototype% (user-mutable).
+PromiseAll(new SafeArrayIterator([])); // still unsafe
+SafePromiseAll([]); // still unsafe
+
+SafePromiseAllReturnVoid([]); // safe
+SafePromiseAllReturnArrayLike([]); // safe
 
 const array = [promise];
 const set = new SafeSet().add(promise);
 // When running one of these functions on a non-empty iterable, it will also:
-// 4. Lookup `then` property on `promise` (user-mutable if user-provided).
-// 5. Lookup `then` property on `%Promise.prototype%` (user-mutable).
+// 1. Lookup `then` property on `promise` (user-mutable if user-provided).
+// 2. Lookup `then` property on `%Promise.prototype%` (user-mutable).
+// 3. Lookup `then` property on %Array.Prototype% (user-mutable).
+// 4. Lookup `then` property on %Object.Prototype% (user-mutable).
 PromiseAll(new SafeArrayIterator(array)); // unsafe
-
 PromiseAll(set); // unsafe
 
-SafePromiseAll(array); // safe
+SafePromiseAllReturnVoid(array); // safe
+SafePromiseAllReturnArrayLike(array); // safe
 
 // Some key differences between `SafePromise[...]` and `Promise[...]` methods:
 
-// 1. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, and SafePromiseRace
-//    support passing a mapperFunction as second argument.
+// 1. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, SafePromiseRace,
+//    SafePromiseAllReturnArrayLike, SafePromiseAllReturnVoid, and
+//    SafePromiseAllSettledReturnVoid support passing a mapperFunction as second
+//    argument.
 SafePromiseAll(ArrayPrototypeMap(array, someFunction));
 SafePromiseAll(array, someFunction); // Same as the above, but more efficient.
 
-// 2. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, and SafePromiseRace
-//    only support arrays, not iterables. Use ArrayFrom to convert an iterable
-//    to an array.
-SafePromiseAll(set); // ignores set content.
-SafePromiseAll(ArrayFrom(set)); // safe
+// 2. SafePromiseAll, SafePromiseAllSettled, SafePromiseAny, SafePromiseRace,
+//    SafePromiseAllReturnArrayLike, SafePromiseAllReturnVoid, and
+//    SafePromiseAllSettledReturnVoid only support arrays and array-like
+//    objects, not iterables. Use ArrayFrom to convert an iterable to an array.
+SafePromiseAllReturnVoid(set); // ignores set content.
+SafePromiseAllReturnVoid(ArrayFrom(set)); // works
+
+// 3. SafePromiseAllReturnArrayLike is safer than SafePromiseAll, however you
+//    should not use them when its return value is passed to the user as it can
+//    be surprising for them not to receive a genuine array.
+SafePromiseAllReturnArrayLike(array).then((val) => val instanceof Array); // false
+SafePromiseAll(array).then((val) => val instanceof Array); // true
 ```
 
 </details>
