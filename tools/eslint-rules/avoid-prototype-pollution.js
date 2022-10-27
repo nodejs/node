@@ -194,6 +194,13 @@ module.exports = {
         });
       },
 
+      [`ExpressionStatement>AwaitExpression>${CallExpression(/^(Safe)?PromiseAll(Settled)?$/)}`](node) {
+        context.report({
+          node,
+          message: `Use ${node.callee.name}ReturnVoid`,
+        });
+      },
+
       [CallExpression('PromisePrototypeCatch')](node) {
         context.report({
           node,
