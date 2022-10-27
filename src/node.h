@@ -349,10 +349,25 @@ inline std::unique_ptr<InitializationResult> InitializeOncePerProcess(
 }
 
 enum OptionEnvvarSettings {
-  kAllowedInEnvironment,
-  kDisallowedInEnvironment
+  // Allow the options to be set via the environment variable, like
+  // `NODE_OPTIONS`.
+  kAllowedInEnvvar = 0,
+  // Disallow the options to be set via the environment variable, like
+  // `NODE_OPTIONS`.
+  kDisallowedInEnvvar = 1,
+  // Deprecated, use kAllowedInEnvvar instead.
+  kAllowedInEnvironment = kAllowedInEnvvar,
+  // Deprecated, use kDisallowedInEnvvar instead.
+  kDisallowedInEnvironment = kDisallowedInEnvvar,
 };
 
+// Process the arguments and set up the per-process options.
+// If the `settings` is set as OptionEnvvarSettings::kAllowedInEnvvar, the
+// options that are allowed in the environment variable are processed. Options
+// that are disallowed to be set via environment variable are processed as
+// errors.
+// Otherwise all the options that are disallowed (and those are allowed) to be
+// set via environment variable are processed.
 NODE_EXTERN int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
                       std::vector<std::string>* errors,
