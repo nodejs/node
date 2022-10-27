@@ -401,8 +401,8 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_arraybuffer(napi_env env,
                                                            size_t byte_length,
                                                            void** data,
                                                            napi_value* result);
-NAPI_EXTERN napi_status NAPI_CDECL
 #ifndef NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
+NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_external_arraybuffer(napi_env env,
                                  void* external_data,
                                  size_t byte_length,
