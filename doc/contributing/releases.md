@@ -758,7 +758,7 @@ Then finish cherry-picking and push the commit upstream:
 $ git add src/node_version.h doc
 $ git diff --staged src doc # read output to validate that changes shows up as expected
 $ git cherry-pick --continue
-$ make lint
+$ make lint-md && make lint-cpp
 $ git push upstream main
 ```
 
