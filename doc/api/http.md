@@ -750,12 +750,15 @@ See [`writable.cork()`][].
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `data` parameter can now be a `Uint8Array`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ClientRequest`.
 -->
 
-* `data` {string|Buffer}
+* `data` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {this}
@@ -1205,9 +1208,13 @@ before the [`'finish'`][] event is emitted.
 
 <!-- YAML
 added: v0.1.29
+changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `chunk` parameter can now be a `Uint8Array`.
 -->
 
-* `chunk` {string|Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {boolean}
@@ -1740,12 +1747,15 @@ See [`writable.cork()`][].
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `data` parameter can now be a `Uint8Array`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ServerResponse`.
 -->
 
-* `data` {string|Buffer}
+* `data` {string|Buffer|Uint8Array}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {this}
@@ -2094,9 +2104,13 @@ before the [`'finish'`][] event is emitted.
 
 <!-- YAML
 added: v0.1.29
+changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `chunk` parameter can now be a `Uint8Array`.
 -->
 
-* `chunk` {string|Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
 * Returns: {boolean}
@@ -2784,11 +2798,14 @@ and is connected, that socket will be destroyed as well.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `chunk` parameter can now be a `Uint8Array`.
   - version: v0.11.6
     description: add `callback` argument.
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} Optional, **Default**: `utf8`
 * `callback` {Function} Optional
 * Returns: {this}
@@ -3044,11 +3061,14 @@ Always `false`.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33155
+    description: The `chunk` parameter can now be a `Uint8Array`.
   - version: v0.11.6
     description: The `callback` argument was added.
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer|Uint8Array}
 * `encoding` {string} **Default**: `utf8`
 * `callback` {Function}
 * Returns {boolean}
