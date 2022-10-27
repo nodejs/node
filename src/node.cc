@@ -817,7 +817,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       const int exit_code = ProcessGlobalArgs(&env_argv,
                                               nullptr,
                                               errors,
-                                              kAllowedInEnvironment);
+                                              kAllowedInEnvvar);
       if (exit_code != 0) return exit_code;
     }
   }
@@ -827,7 +827,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
     const int exit_code = ProcessGlobalArgs(argv,
                                             exec_argv,
                                             errors,
-                                            kDisallowedInEnvironment);
+                                            kDisallowedInEnvvar);
     if (exit_code != 0) return exit_code;
   }
 
