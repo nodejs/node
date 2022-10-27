@@ -419,7 +419,7 @@
       'target_name': 'genrb',
       'type': 'executable',
       'toolsets': [ 'host' ],
-      'dependencies': [ 'icutools' ],
+      'dependencies': [ 'icutools', 'icu_implementation' ],
       'sources': [
         '<@(icu_src_genrb)'
       ],
