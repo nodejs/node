@@ -35,6 +35,10 @@ tmpdir.refresh();
 
   let interval;
 
+  process.on('exit', function() {
+    assert.ok(interval === null, 'watcher Object was not closed');
+  });
+
   process.nextTick(common.mustCall(() => {
     interval = setInterval(() => {
       fsSync.writeFileSync(filePath, 'world');
@@ -53,8 +57,42 @@ tmpdir.refresh();
 
   clearInterval(interval);
   interval = null;
+})().then(common.mustCall());
 
+(async function() {
+  // Test that aborted AbortSignal are reported.
+  const testsubdir = await fs.mkdtemp(testDir + path.sep);
+  const error = new Error();
+  const watcher = fs.watch(testsubdir, { recursive: true, signal: AbortSignal.abort(error) });
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of watcher);
+  }, { code: 'ABORT_ERR', cause: error });
+})().then(common.mustCall());
+
+(async function() {
+  // Test that with AbortController.
+  const testsubdir = await fs.mkdtemp(testDir + path.sep);
+  const file = `${randomUUID()}.txt`;
+  const filePath = path.join(testsubdir, file);
+  const error = new Error();
+  const ac = new AbortController();
+  const watcher = fs.watch(testsubdir, { recursive: true, signal: ac.signal });
+  let interval;
   process.on('exit', function() {
     assert.ok(interval === null, 'watcher Object was not closed');
   });
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fsSync.writeFileSync(filePath, 'world');
+    }, 50);
+    ac.abort(error);
+  }));
+  await assert.rejects(async () => {
+    for await (const { eventType } of watcher) {
+      assert.ok(eventType === 'change' || eventType === 'rename');
+    }
+  }, { code: 'ABORT_ERR', cause: error });
+  clearInterval(interval);
+  interval = null;
 })().then(common.mustCall());
