@@ -933,6 +933,9 @@
             },
           ],
         }],
+        [ 'debug_nghttp2==1', {
+          'defines': [ 'NODE_DEBUG_NGHTTP2=1' ]
+        }],
       ],
       'actions': [
         {
