@@ -10,7 +10,9 @@ const { once } = require('events');
 async function main() {
   const blobWithEmptyFrame = readSync('emptyframe.http2');
   const server = net.createServer((socket) => {
-    socket.end(blobWithEmptyFrame);
+    socket.once('data', () => {
+      socket.end(blobWithEmptyFrame);
+    });
   }).listen(0);
   await once(server, 'listening');
 
