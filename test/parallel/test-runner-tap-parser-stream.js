@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { TapParser } = require('internal/test_runner/tap_parser');
+const { TapChecker } = require('internal/test_runner/tap_checker');
 
 const cases = [
   {
@@ -525,4 +526,104 @@ ok 1 - test 1
       expected.map((item) => ({ __proto__: null, ...item }))
     );
   }
+})().then(common.mustCall());
+
+(async () => {
+  const expected = [
+    {
+      kind: 'PlanKeyword',
+      node: { start: '1', end: '3' },
+      nesting: 0,
+      lexeme: '1..3',
+    },
+    {
+      nesting: 0,
+      kind: 'TestPointKeyword',
+      node: {
+        status: { fail: false, pass: true, todo: false, skip: false },
+        id: '1',
+        description: 'Input file opened',
+        reason: '',
+        time: 0,
+        diagnostics: [],
+      },
+      lexeme: 'ok 1 - Input file opened',
+    },
+    {
+      kind: 'TestPointKeyword',
+      node: {
+        status: { fail: true, pass: false, todo: false, skip: false },
+        id: '2',
+        description: '',
+        reason: '',
+        time: 0,
+        diagnostics: [],
+      },
+      nesting: 0,
+      lexeme: 'not ok    2 ',
+    },
+    {
+      kind: 'SubTestPointKeyword',
+      node: { name: 'foobar' },
+      nesting: 1,
+      lexeme: '    # Subtest: foobar',
+    },
+    {
+      __proto__: null,
+      kind: 'TestPointKeyword',
+      node: {
+        status: { fail: false, pass: true, todo: true, skip: false },
+        id: '3',
+        description: '',
+        reason: '',
+        time: 0.0001,
+        diagnostics: [
+          'foo: bar',
+          'duration_ms:   0.0001',
+          'prop: |-',
+          '  foo',
+          '  bar',
+        ],
+      },
+      nesting: 0,
+      lexeme: 'ok    3 # TODO',
+    },
+  ];
+
+  const parser = new TapParser({ specs: TapChecker.TAP14 });
+  parser.write('\n');
+  parser.write('1');
+  parser.write('.');
+  parser.write('.');
+  parser.write('3');
+  parser.write('\n');
+  parser.write('ok 1 ');
+  parser.write('- Input file opened\n');
+  parser.write('not');
+  parser.write(' ok');
+  parser.write('    2 \n');
+  parser.write('\n');
+  parser.write('    # ');
+  parser.write('Subtest: foo');
+  parser.write('bar');
+  parser.write('\n');
+  parser.write('');
+  parser.write('ok');
+  parser.write('    3 #');
+  parser.write(' TODO');
+  parser.write('\n');
+  parser.write('  ---\n');
+  parser.write('  foo: bar\n');
+  parser.write('  duration_ms: ');
+  parser.write('  0.0001\n');
+  parser.write('  prop: |-\n');
+  parser.write('    foo\n');
+  parser.write('    bar\n');
+  parser.write('  ...\n');
+  parser.end();
+  const actual = await parser.toArray();
+  assert.deepStrictEqual(
+    actual,
+    expected.map((item) => ({ __proto__: null, ...item }))
+  );
 })().then(common.mustCall());
