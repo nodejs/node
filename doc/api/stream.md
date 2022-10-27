@@ -1684,7 +1684,7 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
-added:
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -1695,10 +1695,26 @@ added:
     aborted.
 * Returns: {Duplex} a stream composed with the stream `stream`.
 
+```mjs
+import { Readable } from 'node:stream';
 
+async function* splitToWords(source) {
+  for await (const chunk of source) {
+    const words = String(chunk).split(' ');
 
-See [`stream.compose`][] for more information.
+    for (const word of words) {
+      yield word;
+    }
+  }
+}
 
+const wordsStream = Readable.from(['this is', 'compose as operator']).compose(splitToWords);
+const words = await wordsStream.toArray();
+
+console.log(words); // prints ['this', 'is', 'compose', 'as', 'operator']
+```
+
+See [`stream.compose`](#streamcomposestreams) for more information.
 
 ##### `readable.iterator([options])`
 
@@ -2733,6 +2749,8 @@ await finished(compose(s1, s2, s3));
 
 console.log(res); // prints 'HELLOWORLD'
 ```
+
+See [`readable.compose`](#readablecomposestream-options) for `stream.compose` as operator.
 
 ### `stream.Readable.from(iterable[, options])`
 
