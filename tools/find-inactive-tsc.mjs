@@ -198,7 +198,7 @@ async function moveTscToEmeritus(peopleToMove) {
         const currentLine = `${memberFirstLine}\n${line}\n`;
         // If textToMove is empty, this still works because when undefined is
         // used in a comparison with <, the result is always false.
-        while (textToMove[0] < currentLine) {
+        while (textToMove[0]?.toLowerCase() < currentLine.toLowerCase()) {
           fileContents += textToMove.shift();
         }
         fileContents += currentLine;
