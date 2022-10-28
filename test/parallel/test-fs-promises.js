@@ -12,6 +12,7 @@ const {
   chmod,
   chown,
   copyFile,
+  exists,
   lchown,
   link,
   lchmod,
@@ -479,6 +480,27 @@ async function executeOnHandle(dest, func) {
           code: 'ERR_INTERNAL_ASSERTION',
           message: /handle must be an instance of FileHandle/
         });
+      });
+    }
+
+    {
+      const newFile = path.resolve(tmpDir, 'foo');
+      await writeFile(newFile, '');
+      const fileExists = await exists(newFile);
+      assert.strictEqual(fileExists, true);
+      await unlink(newFile);
+    }
+
+    {
+      const nonExistFile = path.resolve(tmpDir, 'non-exist-file');
+      const fileExists = await exists(nonExistFile);
+      assert.strictEqual(fileExists, false);
+    }
+
+    {
+      await assert.rejects(() => exists({}), {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError'
       });
     }
   }
