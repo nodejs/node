@@ -10,8 +10,9 @@ on:
 
 concurrency: ${{ github.workflow }}
 
+# todo (node-fetch not working on 18, waiting for node-core-utils to fix)
 env:
-  NODE_VERSION: lts/*
+  NODE_VERSION: 16
 
 permissions:
   contents: read
