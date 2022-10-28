@@ -5,7 +5,6 @@ import tmpdir from '../common/tmpdir.js';
 import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
-import os from 'node:os';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
@@ -153,7 +152,7 @@ describe('watch mode file watcher', () => {
     const child = spawn(process.execPath, [file], { stdio: ['pipe', 'pipe', 'pipe', 'ipc'], encoding: 'utf8' });
     watcher.watchChildProcessModules(child);
     await once(child, 'exit');
-    let expected = [file, path.join(os.tmpdir(), 'file')];
+    let expected = [file, path.join(tmpdir.path, 'file')];
     if (supportsRecursiveWatching) {
       expected = expected.map((file) => path.dirname(file));
     }
