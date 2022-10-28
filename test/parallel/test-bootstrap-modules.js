@@ -70,7 +70,6 @@ const expectedModules = new Set([
   'NativeModule internal/fs/watchers',
   'NativeModule internal/heap_utils',
   'NativeModule internal/histogram',
-  'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
   'NativeModule internal/mime',
   'NativeModule internal/modules/cjs/helpers',
