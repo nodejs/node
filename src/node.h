@@ -228,6 +228,8 @@ class MultiIsolatePlatform;
 class InitializationResultImpl;
 
 namespace ProcessFlags {
+// TODO(addaleax): Switch to uint32_t to match std::atomic<uint32_t>
+// init_process_flags in node.cc
 enum Flags : uint64_t {
   kNoFlags = 0,
   // Enable stdio inheritance, which is disabled by default.

@@ -429,7 +429,7 @@ void ResetSignalHandlers() {
 #endif  // __POSIX__
 }
 
-static std::atomic<uint64_t> init_process_flags = 0;
+static std::atomic<uint32_t> init_process_flags = 0;
 
 static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   // init_process_flags is accessed in ResetStdio(),
