@@ -2,9 +2,6 @@
 
 const common = require('../common');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
@@ -15,7 +12,6 @@ if (common.isIBMi)
 if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
-const { randomUUID } = require('crypto');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs/promises');
@@ -29,7 +25,7 @@ tmpdir.refresh();
   // Add a file to already watching folder
 
   const testsubdir = await fs.mkdtemp(testDir + path.sep);
-  const file = `${randomUUID()}.txt`;
+  const file = '1.txt';
   const filePath = path.join(testsubdir, file);
   const watcher = fs.watch(testsubdir, { recursive: true });
 
@@ -73,7 +69,7 @@ tmpdir.refresh();
 (async function() {
   // Test that with AbortController.
   const testsubdir = await fs.mkdtemp(testDir + path.sep);
-  const file = `${randomUUID()}.txt`;
+  const file = '2.txt';
   const filePath = path.join(testsubdir, file);
   const error = new Error();
   const ac = new AbortController();

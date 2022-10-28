@@ -3,9 +3,6 @@
 const common = require('../common');
 const { setTimeout } = require('timers/promises');
 
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
@@ -16,7 +13,6 @@ if (common.isIBMi)
 if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
-const { randomUUID } = require('crypto');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -26,7 +22,7 @@ const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
 tmpdir.refresh();
 
-{
+(async () => {
   const filenameOne = 'watch.txt';
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
   const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
@@ -45,20 +41,19 @@ tmpdir.refresh();
     watcherClosed = true;
   });
 
-  setTimeout(common.mustCall(() => {
-    fs.writeFileSync(filepathOne, 'world');
-  }), common.platformTimeout(100));
+  await setTimeout(common.platformTimeout(100));
+  fs.writeFileSync(filepathOne, 'world');
 
-  process.on('exit', function() {
+  process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
-}
+})().then(common.mustCall());
 
 (async () => {
   // Add a file to already watching folder
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = `${randomUUID()}.txt`;
+  const file = 'file-1.txt';
   const filePath = path.join(testsubdir, file);
   const watcher = fs.watch(testsubdir, { recursive: true });
 
@@ -75,7 +70,7 @@ tmpdir.refresh();
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
 
-  process.on('exit', function() {
+  process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
 })().then(common.mustCall());
@@ -84,7 +79,7 @@ tmpdir.refresh();
   // Add a folder to already watching folder
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = `folder-${randomUUID()}`;
+  const file = 'folder-2';
   const filePath = path.join(testsubdir, file);
   const watcher = fs.watch(testsubdir, { recursive: true });
 
@@ -101,7 +96,7 @@ tmpdir.refresh();
   await setTimeout(common.platformTimeout(100));
   fs.mkdirSync(filePath);
 
-  process.on('exit', function() {
+  process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
 })().then(common.mustCall());
@@ -110,10 +105,10 @@ tmpdir.refresh();
   // Add a file to newly created folder to already watching folder
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = `folder-${randomUUID()}`;
+  const file = 'folder-3';
   const filePath = path.join(testsubdir, file);
   const watcher = fs.watch(testsubdir, { recursive: true });
-  const childrenFile = `file-${randomUUID()}.txt`;
+  const childrenFile = 'file-4.txt';
   const childrenAbsolutePath = path.join(filePath, childrenFile);
 
   let watcherClosed = false;
@@ -132,7 +127,7 @@ tmpdir.refresh();
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(childrenAbsolutePath, 'world');
 
-  process.on('exit', function() {
+  process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
 })().then(common.mustCall());
@@ -141,17 +136,17 @@ tmpdir.refresh();
   // Add a file to subfolder of a watching folder
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = `folder-${randomUUID()}`;
+  const file = 'folder-5';
   const filePath = path.join(testsubdir, file);
   fs.mkdirSync(filePath);
 
-  const subFolder = `subfolder-${randomUUID()}`;
+  const subFolder = 'subfolder-6';
   const subfolderPath = path.join(filePath, subFolder);
 
   fs.mkdirSync(subfolderPath);
 
   const watcher = fs.watch(testsubdir, { recursive: true });
-  const childrenFile = `file-${randomUUID()}.txt`;
+  const childrenFile = 'file-7.txt';
   const childrenAbsolutePath = path.join(subfolderPath, childrenFile);
   const relativePath = path.join(file, subFolder, childrenFile);
 
@@ -169,7 +164,7 @@ tmpdir.refresh();
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(childrenAbsolutePath, 'world');
 
-  process.on('exit', function() {
+  process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
 })().then(common.mustCall());
@@ -178,7 +173,7 @@ tmpdir.refresh();
   // Add a file to already watching folder, and use URL as the path
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = `${randomUUID()}.txt`;
+  const file = 'file-8.txt';
   const filePath = path.join(testsubdir, file);
   const url = pathToFileURL(testsubdir);
   const watcher = fs.watch(url, { recursive: true });
