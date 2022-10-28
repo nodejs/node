@@ -1,9 +1,9 @@
 const path = require('node:path');
 const url = require('node:url');
-const os = require('node:os');
 const fs = require('node:fs');
+const tmpdir = require('../../common/tmpdir');
 
-const tmpfile = path.join(os.tmpdir(), 'file');
+const tmpfile = path.join(tmpdir.path, 'file');
 fs.writeFileSync(tmpfile, '');
 
 process.send({ 'watch:require': path.resolve(__filename) });
