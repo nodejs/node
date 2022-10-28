@@ -991,6 +991,21 @@ const parseTests = {
     path: '/',
     href: 'https://evil.com$.example.com/'
   },
+
+  'https://%E4%BD%A0/fhqwhgads': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: 'xn--6qq',
+    port: null,
+    hostname: 'xn--6qq',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/fhqwhgads',
+    path: '/fhqwhgads',
+    href: 'https://xn--6qq/fhqwhgads'
+  }
 };
 
 for (const u in parseTests) {

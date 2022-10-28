@@ -79,6 +79,7 @@ if (common.hasIntl) {
   const badURLs = [
     'https://evil.com:.example.com',
     'git+ssh://git@github.com:npm/npm',
+    'http://a%b.com/fhqwhgads',
   ];
   badURLs.forEach((badURL) => {
     assert.throws(() => { url.parse(badURL); },
