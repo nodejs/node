@@ -103,7 +103,8 @@ struct V8Platform {
     platform_ = new NodePlatform(thread_pool_size, controller);
     v8::V8::InitializePlatform(platform_);
   }
-
+  // Make sure V8Platform don not call into Libuv threadpool,
+  // see DefaultProcessExitHandlerInternal in environment.cc
   inline void Dispose() {
     if (!initialized_)
       return;
