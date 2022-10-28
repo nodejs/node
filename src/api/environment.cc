@@ -773,8 +773,13 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();
-  DisposePlatform();
+  // When the process exits, the tasks in the thread pool may also need to
+  // access the data of V8Platform, such as trace agent, or a field
+  // added in the future. So make sure the thread pool exits first.
+  // And make sure V8Platform don not call into Libuv threadpool, see Dispose
+  // in node_v8_platform-inl.h
   uv_library_shutdown();
+  DisposePlatform();
   Exit(exit_code);
 }
 
