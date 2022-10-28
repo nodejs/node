@@ -89,6 +89,7 @@
                 'crc32_simd.c',
                 'crc32_simd.h',
                 'crc_folding.c',
+                'slide_hash_simd.h'
               ],
               'conditions': [
                 ['target_arch=="x64"', {
@@ -112,9 +113,6 @@
               'defines': [
                 'ADLER32_SIMD_NEON',
                 'INFLATE_CHUNK_SIMD_NEON',
-              ],
-              'sources': [
-                'contrib/optimizations/slide_hash_neon.h',
               ],
               'conditions': [
                 ['OS!="ios"', {
