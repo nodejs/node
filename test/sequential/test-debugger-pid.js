@@ -32,4 +32,4 @@ const runTest = async () => {
   }
 };
 
-runTest();
+runTest().then(common.mustCall());
