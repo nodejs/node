@@ -86,6 +86,7 @@
               ],
               'sources': [
                 'cpu_features.c',
+                'cpu_features.h',
                 'crc32_simd.c',
                 'crc32_simd.h',
                 'crc_folding.c',
@@ -118,8 +119,8 @@
                 ['OS!="ios"', {
                   'defines': [ 'CRC32_ARMV8_CRC32' ],
                   'sources': [
-                    'arm_features.c',
-                    'arm_features.h',
+                    'cpu_features.c',
+                    'cpu_features.h',
                     'crc32_simd.c',
                     'crc32_simd.h',
                   ],
