@@ -11,7 +11,7 @@
 struct node_napi_env__ : public napi_env__ {
   node_napi_env__(v8::Local<v8::Context> context,
                   const std::string& module_filename,
-                  napi_features* features);
+                  node_api_features* features);
 
   bool can_call_into_js() const override;
   v8::Maybe<bool> mark_arraybuffer_as_untransferable(

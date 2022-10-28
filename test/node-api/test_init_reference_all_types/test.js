@@ -1,15 +1,15 @@
 'use strict';
 // Flags: --expose-gc
-
-const { gcUntil, buildType } = require('../../common');
-const assert = require('assert');
-
+//
 // Testing API calls for references to all value types.
 // This test uses NAPI_MODULE_INIT macro to initialize module.
+//
+const { gcUntil, buildType } = require('../../common');
+const assert = require('assert');
 const addon = require(`./build/${buildType}/test_init_reference_all_types`);
 
 async function runTests() {
-  let entryCount = 0;
+  let allEntries = [];
 
   (() => {
     // Create values of all napi_valuetype types.
@@ -24,41 +24,40 @@ async function runTests() {
     const externalValue = addon.createExternal();
     const bigintValue = 9007199254740991n;
 
-    const allValues = [
-      undefinedValue,
-      nullValue,
-      booleanValue,
-      numberValue,
-      stringValue,
-      symbolValue,
-      objectValue,
-      functionValue,
-      externalValue,
-      bigintValue,
+    allEntries = [
+      { value: undefinedValue, canBeWeak: false },
+      { value: nullValue, canBeWeak: false },
+      { value: booleanValue, canBeWeak: false },
+      { value: numberValue, canBeWeak: false },
+      { value: stringValue, canBeWeak: false },
+      { value: symbolValue, canBeWeak: false },
+      { value: objectValue, canBeWeak: true },
+      { value: functionValue, canBeWeak: true },
+      { value: externalValue, canBeWeak: true },
+      { value: bigintValue, canBeWeak: false },
     ];
-    entryCount = allValues.length;
-    const objectValueIndex = allValues.indexOf(objectValue);
-    const functionValueIndex = allValues.indexOf(functionValue);
 
     // Go over all values of different types, create strong ref values for
     // them, read the stored values, and check how the ref count works.
-    for (const value of allValues) {
-      const index = addon.createRef(value);
+    for (const entry of allEntries) {
+      const index = addon.createRef(entry.value);
       const refValue = addon.getRefValue(index);
-      assert.strictEqual(value, refValue);
+      assert.strictEqual(entry.value, refValue);
       assert.strictEqual(addon.ref(index), 2);
       assert.strictEqual(addon.unref(index), 1);
       assert.strictEqual(addon.unref(index), 0);
     }
 
     // The references become weak pointers when the ref count is 0.
-    // To be compatible with the JavaScript spec we expect these
-    // types to be objects and functions.
     // Here we know that the GC is not run yet because the values are
-    // still in the allValues array.
-    assert.strictEqual(addon.getRefValue(objectValueIndex), objectValue);
-    assert.strictEqual(addon.getRefValue(functionValueIndex), functionValue);
+    // still in the allEntries array.
+    allEntries.forEach((entry, index) => {
+      assert.strictEqual(addon.getRefValue(index), entry.value);
+      // Set to undefined to allow GC collect the value.
+      entry.value = undefined;
+    });
 
+    // To check that GC pass is done.
     const objWithFinalizer = {};
     addon.addFinalizer(objWithFinalizer);
   })();
@@ -67,21 +66,25 @@ async function runTests() {
   await gcUntil('Wait until a finalizer is called',
                 () => (addon.getFinalizeCount() === 1));
 
-  // Create and call finalizer again to make sure that all finalizers are run.
+  // Create and call finalizer again to make sure that we had another GC pass.
   (() => {
     const objWithFinalizer = {};
     addon.addFinalizer(objWithFinalizer);
   })();
-
   await gcUntil('Wait until a finalizer is called again',
-                () => (addon.getFinalizeCount() === 1));
+                () => (addon.getFinalizeCount() === 2));
 
-  // After GC and finalizers run, all references with refCount==0 must return
-  // undefined value.
-  for (let i = 0; i < entryCount; ++i) {
-    const refValue = addon.getRefValue(i);
-    assert.strictEqual(refValue, undefined);
-    addon.deleteRef(i);
-  }
+  // After GC and finalizers run, all values that support weak reference
+  // semantic must return undefined value.
+  // It also includes the value at index 0 because it is the undefined value.
+  // Other value types are not collected by GC.
+  allEntries.forEach((entry, index) => {
+    if (entry.canBeWeak || index === 0) {
+      assert.strictEqual(addon.getRefValue(index), undefined);
+    } else {
+      assert.notStrictEqual(addon.getRefValue(index), undefined);
+    }
+    addon.deleteRef(index);
+  });
 }
 runTests();

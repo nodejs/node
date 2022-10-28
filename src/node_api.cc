@@ -21,7 +21,7 @@
 
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
                                  const std::string& module_filename,
-                                 napi_features* features)
+                                 node_api_features* features)
     : napi_env__(context, features), filename(module_filename) {
   CHECK_NOT_NULL(node_env());
 }
@@ -128,7 +128,7 @@ class BufferFinalizer : private Finalizer {
 
 inline napi_env NewEnv(v8::Local<v8::Context> context,
                        const std::string& module_filename,
-                       napi_features* features) {
+                       node_api_features* features) {
   node_napi_env result;
 
   result = new node_napi_env__(context, module_filename, features);
@@ -593,7 +593,7 @@ void napi_module_register_by_symbol_with_features(
     v8::Local<v8::Value> module,
     v8::Local<v8::Context> context,
     napi_addon_register_func init,
-    napi_features* features);
+    node_api_features* features);
 
 // Intercepts the Node-V8 module registration callback. Converts parameters
 // to NAPI equivalents and then calls the registration callback specified
@@ -623,7 +623,7 @@ void napi_module_register_by_symbol_with_features(
     v8::Local<v8::Value> module,
     v8::Local<v8::Context> context,
     napi_addon_register_func init,
-    napi_features* features) {
+    node_api_features* features) {
   node::Environment* node_env = node::Environment::GetCurrent(context);
   std::string module_filename = "";
   if (init == nullptr) {

@@ -74,10 +74,11 @@ static napi_status CheckFeature(napi_env env) {
   bool canReferenceAllTypes;
   NODE_API_CHECK_STATUS(
       env,
-      napi_is_feature_enabled(
-          env, napi_feature_reference_all_types, &canReferenceAllTypes));
-  NODE_API_ASSERT_STATUS(
-      env, !canReferenceAllTypes, "Must not be able to reference all value types.");
+      node_api_is_feature_enabled(
+          env, node_api_feature_reference_all_types, &canReferenceAllTypes));
+  NODE_API_ASSERT_STATUS(env,
+                         !canReferenceAllTypes,
+                         "Must not be able to reference all value types.");
   return napi_ok;
 }
 
@@ -185,6 +186,7 @@ NAPI_MODULE_INIT() {
 }
 
 // Make sure that this test uses the old napi_ref behavior.
-napi_features napi_module_features = napi_default_features & ~napi_feature_reference_all_types;
+node_api_features node_api_module_features =
+    node_api_default_features & ~node_api_feature_reference_all_types;
 
 EXTERN_C_END

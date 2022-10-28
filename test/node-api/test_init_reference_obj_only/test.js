@@ -1,19 +1,17 @@
 'use strict';
 // Flags: --expose-gc
-
+//
+// Testing API calls for references to only object, function, and symbol types.
+// This is the reference behavior without the napi_feature_reference_all_types
+// feature enabled.
+// This test uses NAPI_MODULE_INIT macro to initialize module.
+//
 const { gcUntil, buildType } = require('../../common');
 const assert = require('assert');
-
-// Testing API calls for references to only object, function, and symbol types.
-// This is the reference behavior before when the
-// napi_feature_reference_all_types feature is not enabled.
-// This test uses NAPI_MODULE_INIT macro to initialize module.
 const addon = require(`./build/${buildType}/test_init_reference_obj_only`);
 
 async function runTests() {
-  let entryCount = 0;
-  let refIndexes = [];
-  let symbolValueIndex = -1;
+  let allEntries = [];
 
   (() => {
     // Create values of all napi_valuetype types.
@@ -28,49 +26,52 @@ async function runTests() {
     const externalValue = addon.createExternal();
     const bigintValue = 9007199254740991n;
 
-    // true if the value can be a ref.
-    const allEntries = [
-      [ undefinedValue, false ],
-      [ nullValue, false ],
-      [ booleanValue, false ],
-      [ numberValue, false ],
-      [ stringValue, false ],
-      [ symbolValue, true ],
-      [ objectValue, true ],
-      [ functionValue, true ],
-      [ externalValue, true ],
-      [ bigintValue, false ],
+    allEntries = [
+      { value: undefinedValue, canBeWeak: false, canBeRef: false },
+      { value: nullValue, canBeWeak: false, canBeRef: false },
+      { value: booleanValue, canBeWeak: false, canBeRef: false },
+      { value: numberValue, canBeWeak: false, canBeRef: false },
+      { value: stringValue, canBeWeak: false, canBeRef: false },
+      { value: symbolValue, canBeWeak: false, canBeRef: true },
+      { value: objectValue, canBeWeak: true, canBeRef: true },
+      { value: functionValue, canBeWeak: true, canBeRef: true },
+      { value: externalValue, canBeWeak: true, canBeRef: true },
+      { value: bigintValue, canBeWeak: false, canBeRef: false },
     ];
-    entryCount = allEntries.length;
-    symbolValueIndex = allEntries.findIndex(entry => entry[0] === symbolValue);
 
     // Go over all values of different types, create strong ref values for
     // them, read the stored values, and check how the ref count works.
     for (const entry of allEntries) {
-      const value = entry[0];
-      if (entry[1]) {
-        const index = addon.createRef(value);
+      if (entry.canBeRef) {
+        const index = addon.createRef(entry.value);
         const refValue = addon.getRefValue(index);
-        assert.strictEqual(value, refValue);
+        assert.strictEqual(entry.value, refValue);
         assert.strictEqual(addon.ref(index), 2);
         assert.strictEqual(addon.unref(index), 1);
         assert.strictEqual(addon.unref(index), 0);
       } else {
-        assert.throws(() => addon.createRef(value));
+        assert.throws(() => { addon.createRef(entry.value); },
+                      {
+                        name: 'Error',
+                        message: 'Invalid argument'
+                      });
       }
     }
 
     // The references become weak pointers when the ref count is 0.
-    // The old reference were supported for objects, functions, and symbols.
+    // The old reference were supported for objects, external objects,
+    // functions, and symbols.
     // Here we know that the GC is not run yet because the values are
-    // still in the allValues array.
-    for (let i = 0; i < entryCount; ++i) {
-      if (allEntries[i][1]) {
-        assert.strictEqual(addon.getRefValue(i), allEntries[i][0]);
-        refIndexes.push(i);
+    // still in the allEntries array.
+    allEntries.forEach((entry, index) => {
+      if (entry.canBeRef) {
+        assert.strictEqual(addon.getRefValue(index), entry.value);
       }
-    }
+      // Set to undefined to allow GC collect the value.
+      entry.value = undefined;
+    });
 
+    // To check that GC pass is done.
     const objWithFinalizer = {};
     addon.addFinalizer(objWithFinalizer);
   })();
@@ -79,24 +80,27 @@ async function runTests() {
   await gcUntil('Wait until a finalizer is called',
                 () => (addon.getFinalizeCount() === 1));
 
-  // Create and call finalizer again to make sure that all finalizers are run.
+  // Create and call finalizer again to make sure that we had another GC pass.
   (() => {
     const objWithFinalizer = {};
     addon.addFinalizer(objWithFinalizer);
   })();
-
   await gcUntil('Wait until a finalizer is called again',
-                () => (addon.getFinalizeCount() === 1));
+                () => (addon.getFinalizeCount() === 2));
 
-  // After GC and finalizers run, all references with refCount==0 must return
-  // undefined value.
-  for (const index of refIndexes) {
-    const refValue = addon.getRefValue(index);
-    // Symbols do not support the weak semantic
-    if (symbolValueIndex !== 5) {
-      assert.strictEqual(refValue, undefined);
+  // After GC and finalizers run, all values that support weak reference
+  // semantic must return undefined value.
+  // It also includes the value at index 0 because it is the undefined value.
+  // Other value types are not collected by GC.
+  allEntries.forEach((entry, index) => {
+    if (entry.canBeRef) {
+      if (entry.canBeWeak || index === 0) {
+        assert.strictEqual(addon.getRefValue(index), undefined);
+      } else {
+        assert.notStrictEqual(addon.getRefValue(index), undefined);
+      }
+      addon.deleteRef(index);
     }
-    addon.deleteRef(index);
-  }
+  });
 }
 runTests();

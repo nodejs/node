@@ -39,7 +39,7 @@ typedef struct napi_module {
   const char* nm_modname;
   void* nm_priv;
 #ifdef NAPI_EXPERIMENTAL
-  napi_features* nm_features;
+  node_api_features* nm_features;
   void* reserved[3];
 #else
   void* reserved[4];
@@ -79,30 +79,30 @@ typedef struct napi_module {
 #endif
 
 #ifdef NAPI_EXPERIMENTAL
-#ifdef NAPI_CUSTOM_FEATURES
+#ifdef NODE_API_CUSTOM_FEATURES
 
-// Define value of napi_module_features variable in your module when
-// NAPI_CUSTOM_FEATURES is set in gyp file.
-extern napi_features napi_module_features;
-#define NAPI_DEFINE_DEFAULT_FEATURES
+// Define value of node_api_module_features variable in your module when
+// NODE_API_CUSTOM_FEATURES is set in gyp file.
+extern node_api_features node_api_module_features;
+#define NODE_API_DEFINE_DEFAULT_FEATURES
 
-#else  // NAPI_CUSTOM_FEATURES
+#else  // NODE_API_CUSTOM_FEATURES
 
-#define NAPI_DEFINE_DEFAULT_FEATURES                                           \
-  static napi_features napi_module_features = napi_default_features;
+#define NODE_API_DEFINE_DEFAULT_FEATURES                                       \
+  static node_api_features node_api_module_features = node_api_default_features;
 
-#endif  // NAPI_CUSTOM_FEATURES
+#endif  // NODE_API_CUSTOM_FEATURES
 
-#define NAPI_FEATURES_PTR /* NOLINT */ &napi_module_features,
+#define NODE_API_FEATURES_PTR /* NOLINT */ &node_api_module_features,
 
 #else  // NAPI_EXPERIMENTAL
-#define NAPI_DEFINE_DEFAULT_FEATURES
-#define NAPI_FEATURES_PTR
+#define NODE_API_DEFINE_DEFAULT_FEATURES
+#define NODE_API_FEATURES_PTR
 #endif  // NAPI_EXPERIMENTAL
 
 #define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
   EXTERN_C_START                                                               \
-  NAPI_DEFINE_DEFAULT_FEATURES                                                 \
+  NODE_API_DEFINE_DEFAULT_FEATURES                                             \
   static napi_module _module = {                                               \
       NAPI_MODULE_VERSION,                                                     \
       flags,                                                                   \
@@ -110,7 +110,7 @@ extern napi_features napi_module_features;
       regfunc,                                                                 \
       #modname,                                                                \
       priv,                                                                    \
-      NAPI_FEATURES_PTR{0},                                                    \
+      NODE_API_FEATURES_PTR{0},                                                \
   };                                                                           \
   NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
   EXTERN_C_END

@@ -576,9 +576,7 @@ Reference::Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
     : RefBase(env, std::forward<Args>(args)...),
       _persistent(env->isolate, value),
       _secondPassParameter(new SecondPassCallParameterRef(this)),
-      _secondPassScheduled(false),
-      _canBeWeak(!env->IsFeatureEnabled(napi_feature_reference_all_types) ||
-                 value->IsObject() || value->IsFunction()) {
+      _secondPassScheduled(false) {
   if (RefCount() == 0) {
     SetWeak();
   }
@@ -654,7 +652,7 @@ void Reference::Finalize(bool is_env_teardown) {
 // the secondPassParameter so that even if it has been
 // scheduled no Finalization will be run.
 void Reference::ClearWeak() {
-  if (!_persistent.IsEmpty() && _canBeWeak) {
+  if (!_persistent.IsEmpty()) {
     _persistent.ClearWeak();
   }
   if (_secondPassParameter != nullptr) {
@@ -671,13 +669,8 @@ void Reference::SetWeak() {
     // nothing
     return;
   }
-  if (_canBeWeak) {
-    _persistent.SetWeak(_secondPassParameter,
-                        FinalizeCallback,
-                        v8::WeakCallbackType::kParameter);
-  } else {
-    _persistent.Reset();
-  }
+  _persistent.SetWeak(
+      _secondPassParameter, FinalizeCallback, v8::WeakCallbackType::kParameter);
   *_secondPassParameter = this;
 }
 
@@ -2502,7 +2495,7 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> v8_value = v8impl::V8LocalValueFromJsValue(value);
-  if (!env->IsFeatureEnabled(napi_feature_reference_all_types)) {
+  if (!env->IsFeatureEnabled(node_api_feature_reference_all_types)) {
     if (!(v8_value->IsObject() || v8_value->IsFunction() ||
           v8_value->IsSymbol())) {
       return napi_set_last_error(env, napi_invalid_arg);
@@ -3267,9 +3260,9 @@ napi_status NAPI_CDECL napi_is_detached_arraybuffer(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_is_feature_enabled(napi_env env,
-                                               napi_features feature,
-                                               bool* result) {
+napi_status NAPI_CDECL node_api_is_feature_enabled(napi_env env,
+                                                   node_api_features feature,
+                                                   bool* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
   *result = env->IsFeatureEnabled(feature);

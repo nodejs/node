@@ -6,7 +6,7 @@
         "../entry_point.c",
         "test_reference.c"
       ],
-      'defines': [ 'NAPI_CUSTOM_FEATURES' ]
+      'defines': [ 'NODE_API_CUSTOM_FEATURES' ]
     }
   ]
 }

@@ -285,5 +285,7 @@ napi_value Init(napi_env env, napi_value exports) {
 }
 
 // Make sure that this test uses the old napi_ref behavior.
-napi_features napi_module_features = napi_default_features & ~napi_feature_reference_all_types;
+node_api_features node_api_module_features =
+  node_api_default_features & ~node_api_feature_reference_all_types;
+
 EXTERN_C_END

@@ -72,8 +72,8 @@ static napi_status CheckFeature(napi_env env) {
   bool canReferenceAllTypes;
   NODE_API_CHECK_STATUS(
       env,
-      napi_is_feature_enabled(
-          env, napi_feature_reference_all_types, &canReferenceAllTypes));
+      node_api_is_feature_enabled(
+          env, node_api_feature_reference_all_types, &canReferenceAllTypes));
   NODE_API_ASSERT_STATUS(
       env, canReferenceAllTypes, "Must be able to reference all value types.");
   return napi_ok;
@@ -157,6 +157,7 @@ static napi_value GetFinalizeCount(napi_env env, napi_callback_info info) {
 }
 
 EXTERN_C_START
+
 napi_value Init(napi_env env, napi_value exports) {
   finalizeCount = 0;
   NODE_API_CALL(env, CheckFeature(env));
