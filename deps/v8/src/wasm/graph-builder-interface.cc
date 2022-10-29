@@ -88,6 +88,7 @@ class WasmGraphBuildingInterface {
   struct TryInfo : public ZoneObject {
     SsaEnv* catch_env;
     TFNode* exception = nullptr;
+    bool first_catch = true;
 
     bool might_throw() const { return exception != nullptr; }
 
@@ -936,6 +937,10 @@ class WasmGraphBuildingInterface {
 
     TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
+    if (block->try_info->first_catch) {
+      LoadContextIntoSsa(ssa_env_, decoder);
+      block->try_info->first_catch = false;
+    }
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
@@ -1013,6 +1018,9 @@ class WasmGraphBuildingInterface {
     }
 
     SetEnv(block->try_info->catch_env);
+    if (block->try_info->first_catch) {
+      LoadContextIntoSsa(ssa_env_, decoder);
+    }
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode,
