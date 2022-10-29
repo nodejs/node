@@ -640,6 +640,7 @@ Environment::Environment(IsolateData* isolate_data,
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
       tick_info_(isolate, MAYBE_FIELD_PTR(env_info, tick_info)),
+      exit_info_(isolate, MAYBE_FIELD_PTR(env_info, exit_info)),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
@@ -1507,6 +1508,29 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
   ABORT_NO_BACKTRACE();
 }
 
+ExitInfo::SerializeInfo ExitInfo::Serialize(Local<Context> context,
+                                            SnapshotCreator* creator) {
+  return {fields_.Serialize(context, creator)};
+}
+
+void ExitInfo::Deserialize(Local<Context> context) {
+  fields_.Deserialize(context);
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const ExitInfo::SerializeInfo& i) {
+  output << "{ " << i.fields << " }";
+  return output;
+}
+
+void ExitInfo::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("fields", fields_);
+}
+
+ExitInfo::ExitInfo(Isolate* isolate, const SerializeInfo* info)
+    : fields_(
+          isolate, kFieldsCount, info == nullptr ? nullptr : &(info->fields)) {}
+
 void Environment::Exit(ExitCode exit_code) {
   if (options()->trace_exit) {
     HandleScope handle_scope(isolate());
@@ -1595,6 +1619,7 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
+  info.exit_info = exit_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
   info.exiting = exiting_.Serialize(ctx, creator);
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
@@ -1637,6 +1662,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
+  exit_info_.Deserialize(ctx);
   performance_state_->Deserialize(ctx);
   exiting_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
@@ -1833,6 +1859,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);
+  tracker->TrackField("exit_info", exit_info_);
   tracker->TrackField("principal_realm", principal_realm_);
 
   // FIXME(joyeecheung): track other fields in Environment.

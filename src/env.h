@@ -54,7 +54,6 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <set>
 #include <string>
@@ -460,6 +459,38 @@ class TickInfo : public MemoryRetainer {
   AliasedUint8Array fields_;
 };
 
+class ExitInfo : public MemoryRetainer {
+ public:
+  inline const AliasedInt32Array& fields();
+  inline bool has_exit_code() const;
+  inline int32_t exit_code() const;
+
+  SET_MEMORY_INFO_NAME(ExitInfo)
+  SET_SELF_SIZE(ExitInfo)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  ExitInfo(const ExitInfo&) = delete;
+  ExitInfo& operator=(const ExitInfo&) = delete;
+  ExitInfo(ExitInfo&&) = delete;
+  ExitInfo& operator=(ExitInfo&&) = delete;
+  ~ExitInfo() = default;
+
+  struct SerializeInfo {
+    AliasedBufferIndex fields;
+  };
+  SerializeInfo Serialize(v8::Local<v8::Context> context,
+                          v8::SnapshotCreator* creator);
+  void Deserialize(v8::Local<v8::Context> context);
+
+  enum Fields { kExitCode = 0, kHasExitCode, kFieldsCount };
+
+ private:
+  friend class Environment;  // So we can call the constructor.
+  explicit ExitInfo(v8::Isolate* isolate, const SerializeInfo* info);
+
+  AliasedInt32Array fields_;
+};
+
 class TrackingTraceStateObserver :
     public v8::TracingController::TraceStateObserver {
  public:
@@ -515,6 +546,7 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
+  ExitInfo::SerializeInfo exit_info;
   AliasedBufferIndex exiting;
   AliasedBufferIndex stream_base_state;
   AliasedBufferIndex should_abort_on_uncaught_toggle;
@@ -727,6 +759,8 @@ class Environment : public MemoryRetainer {
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
+  inline ExitInfo* exit_info();
+  inline int32_t maybe_exit_code(const int32_t default_code) const;
   inline uint64_t timer_base() const;
   inline std::shared_ptr<KVStore> env_vars();
   inline void set_env_vars(std::shared_ptr<KVStore> env_vars);
@@ -746,9 +780,6 @@ class Environment : public MemoryRetainer {
   // exiting.
   inline void set_exiting(bool value);
   inline AliasedUint32Array& exiting();
-
-  inline void set_exit_code(const std::optional<int32_t> value);
-  inline const std::optional<int32_t>& exit_code() const;
 
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
@@ -1058,6 +1089,7 @@ class Environment : public MemoryRetainer {
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
   TickInfo tick_info_;
+  ExitInfo exit_info_;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;
@@ -1105,8 +1137,8 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
+  // TODO(daeyeon): merge into `exit_info_`
   AliasedUint32Array exiting_;
-  std::optional<int32_t> exit_code_;
 
   AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;

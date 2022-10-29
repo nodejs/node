@@ -414,6 +414,8 @@ std::ostream& operator<<(std::ostream& output,
 std::ostream& operator<<(std::ostream& output,
                          const AsyncHooks::SerializeInfo& d);
 std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& d);
+std::ostream& operator<<(std::ostream& output,
+                         const ExitInfo::SerializeInfo& d);
 
 namespace performance {
 std::ostream& operator<<(std::ostream& output,

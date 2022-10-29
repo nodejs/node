@@ -14,7 +14,6 @@
 namespace node {
 using v8::Context;
 using v8::DEFAULT;
-using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -74,27 +73,6 @@ static void DebugPortSetter(Local<Name> property,
   host_port->set_port(static_cast<int>(port));
 }
 
-static void ExitCodeGetter(Local<Name> property,
-                           const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  std::optional<int32_t> maybe_exit_code = env->exit_code();
-  if (maybe_exit_code) {
-    info.GetReturnValue().Set(*maybe_exit_code);
-  }
-}
-
-static void ExitCodeSetter(Local<Name> property,
-                           Local<Value> value,
-                           const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  if (value->IsNullOrUndefined()) {
-    return env->set_exit_code(std::nullopt);
-  }
-  env->set_exit_code(
-      value->Int32Value(env->context())
-          .FromMaybe(static_cast<int32_t>(ExitCode::kNoFailure)));
-}
-
 static void GetParentProcessId(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(uv_os_getppid());
@@ -119,6 +97,15 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
           ->SetPrivate(context,
                        realm->env()->exiting_aliased_Uint32Array(),
                        realm->env()->exiting().GetJSArray())
+          .IsNothing()) {
+    return {};
+  }
+
+  // process[exit_info_private_symbol]
+  if (process
+          ->SetPrivate(context,
+                       realm->env()->exit_info_private_symbol(),
+                       realm->env()->exit_info()->fields().GetJSArray())
           .IsNothing()) {
     return {};
   }
@@ -238,17 +225,6 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
                           env->owns_process_state() ? DebugPortSetter : nullptr,
                           Local<Value>())
             .FromJust());
-
-  // process[exit_code_symbol]
-  CHECK(process
-            ->SetAccessor(context,
-                          env->exit_code_symbol(),
-                          ExitCodeGetter,
-                          ExitCodeSetter,
-                          Local<Value>(),
-                          DEFAULT,
-                          DontEnum)
-            .FromJust());
 }
 
 void RegisterProcessExternalReferences(ExternalReferenceRegistry* registry) {
@@ -258,8 +234,6 @@ void RegisterProcessExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DebugPortGetter);
   registry->Register(ProcessTitleSetter);
   registry->Register(ProcessTitleGetter);
-  registry->Register(ExitCodeSetter);
-  registry->Register(ExitCodeGetter);
 }
 
 }  // namespace node

@@ -171,6 +171,18 @@ inline bool TickInfo::has_rejection_to_warn() const {
   return fields_[kHasRejectionToWarn] == 1;
 }
 
+inline const AliasedInt32Array& ExitInfo::fields() {
+  return fields_;
+}
+
+inline bool ExitInfo::has_exit_code() const {
+  return fields_[kHasExitCode] == 1;
+}
+
+inline int32_t ExitInfo::exit_code() const {
+  return fields_[kExitCode];
+}
+
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
   if (UNLIKELY(!isolate->InContext())) return nullptr;
   v8::HandleScope handle_scope(isolate);
@@ -327,6 +339,14 @@ inline TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
 
+inline ExitInfo* Environment::exit_info() {
+  return &exit_info_;
+}
+
+inline int32_t Environment::maybe_exit_code(const int32_t default_code) const {
+  return exit_info_.has_exit_code() ? exit_info_.exit_code() : default_code;
+}
+
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
 }
@@ -369,14 +389,6 @@ inline void Environment::set_exiting(bool value) {
 
 inline AliasedUint32Array& Environment::exiting() {
   return exiting_;
-}
-
-inline void Environment::set_exit_code(const std::optional<int32_t> value) {
-  exit_code_ = value;
-}
-
-inline const std::optional<int32_t>& Environment::exit_code() const {
-  return exit_code_;
 }
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {

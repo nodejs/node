@@ -1152,8 +1152,8 @@ void TriggerUncaughtException(Isolate* isolate,
 
   // If the global uncaught exception handler sets process.exitCode,
   // exit with that code. Otherwise, exit with `ExitCode::kGenericUserError`.
-  env->Exit(static_cast<ExitCode>(env->exit_code().value_or(
-      static_cast<int32_t>(ExitCode::kGenericUserError))));
+  env->Exit(static_cast<ExitCode>(
+      env->maybe_exit_code(static_cast<int>(ExitCode::kGenericUserError))));
 }
 
 void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {

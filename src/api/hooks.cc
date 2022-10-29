@@ -37,12 +37,11 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
 
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(env->context());
 
   Local<Integer> exit_code = v8::Integer::New(
       isolate,
-      env->exit_code().value_or(static_cast<int32_t>(ExitCode::kNoFailure)));
+      env->maybe_exit_code(static_cast<int32_t>(ExitCode::kNoFailure)));
 
   return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ?
       Nothing<bool>() : Just(true);
@@ -60,21 +59,19 @@ Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
   // process.emit('exit')
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
+  Context::Scope context_scope(env->context());
 
   env->set_exiting(true);
 
-  const std::optional<int32_t>& exit_code = env->exit_code();
   const int no_failure = static_cast<int32_t>(ExitCode::kNoFailure);
 
   if (ProcessEmit(
-          env, "exit", Integer::New(isolate, exit_code.value_or(no_failure)))
+          env, "exit", Integer::New(isolate, env->maybe_exit_code(no_failure)))
           .IsEmpty()) {
     return Nothing<ExitCode>();
   }
   // Reload exit code, it may be changed by `emit('exit')`
-  return Just(static_cast<ExitCode>(exit_code.value_or(no_failure)));
+  return Just(static_cast<ExitCode>(env->maybe_exit_code(no_failure)));
 }
 
 Maybe<int> EmitProcessExit(Environment* env) {

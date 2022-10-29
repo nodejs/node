@@ -25,7 +25,8 @@
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
-  V(exiting_aliased_Uint32Array, "node:exiting_aliased_Uint32Array")
+  V(exiting_aliased_Uint32Array, "node:exiting_aliased_Uint32Array")           \
+  V(exit_info_private_symbol, "node:exit_info_private_symbol")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
@@ -41,8 +42,7 @@
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
-  V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
-  V(exit_code_symbol, "exit_code_symbol")
+  V(trigger_async_id_symbol, "trigger_async_id_symbol")
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
