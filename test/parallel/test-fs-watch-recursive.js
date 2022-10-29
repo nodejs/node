@@ -23,31 +23,6 @@ const testDir = tmpdir.path;
 tmpdir.refresh();
 
 (async () => {
-  const filenameOne = 'watch.txt';
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
-  const filepathOne = path.join(testsubdir, filenameOne);
-  const watcher = fs.watch(testDir, { recursive: true });
-
-  let watcherClosed = false;
-  watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
-
-    if (filename === relativePathOne) {
-      watcher.close();
-      watcherClosed = true;
-    }
-  });
-
-  await setTimeout(common.platformTimeout(100));
-  fs.writeFileSync(filepathOne, 'world');
-
-  process.once('exit', function() {
-    assert(watcherClosed, 'watcher Object was not closed');
-  });
-})().then(common.mustCall());
-
-(async () => {
   // Add a file to already watching folder
 
   const testsubdir = fs.mkdtempSync(testDir + path.sep);
