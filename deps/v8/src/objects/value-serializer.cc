@@ -64,6 +64,17 @@ static const uint32_t kLatestVersion = 15;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
 
+namespace {
+// For serializing JSArrayBufferView flags. Instead of serializing /
+// deserializing the flags directly, we serialize them bit by bit. This is for
+// ensuring backwards compatilibity in the case where the representation
+// changes. Note that the ValueSerializer data can be stored on disk.
+using JSArrayBufferViewIsLengthTracking = base::BitField<bool, 0, 1>;
+using JSArrayBufferViewIsBackedByRab =
+    JSArrayBufferViewIsLengthTracking::Next<bool, 1>;
+
+}  // namespace
+
 template <typename T>
 static size_t BytesNeededForVarint(T value) {
   static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
@@ -922,6 +933,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
+  // TODO(v8:11111): Support RAB / GSAB. The wire version will need to be
+  // bumped.
   WriteTag(SerializationTag::kArrayBuffer);
   WriteVarint<uint32_t>(byte_length);
   WriteRawBytes(array_buffer->backing_store(), byte_length);
@@ -950,7 +963,10 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(static_cast<uint32_t>(view.byte_offset()));
   WriteVarint(static_cast<uint32_t>(view.byte_length()));
-  WriteVarint(static_cast<uint32_t>(view.bit_field()));
+  uint32_t flags =
+      JSArrayBufferViewIsLengthTracking::encode(view.is_length_tracking()) |
+      JSArrayBufferViewIsBackedByRab::encode(view.is_backed_by_rab());
+  WriteVarint(flags);
   return ThrowIfOutOfMemory();
 }
 
@@ -1979,7 +1995,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     Handle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->byte_length());
+  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->GetByteLength());
   uint8_t tag = 0;
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
@@ -2004,7 +2020,9 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       Handle<JSDataView> data_view =
           isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
       AddObjectWithID(id, data_view);
-      data_view->set_bit_field(flags);
+      if (!ValidateAndSetJSArrayBufferViewFlags(*data_view, *buffer, flags)) {
+        return MaybeHandle<JSArrayBufferView>();
+      }
       return data_view;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -2021,9 +2039,37 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   }
   Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
       external_array_type, buffer, byte_offset, byte_length / element_size);
-  typed_array->set_bit_field(flags);
+  if (!ValidateAndSetJSArrayBufferViewFlags(*typed_array, *buffer, flags)) {
+    return MaybeHandle<JSArrayBufferView>();
+  }
   AddObjectWithID(id, typed_array);
   return typed_array;
+}
+
+bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
+    JSArrayBufferView view, JSArrayBuffer buffer, uint32_t serialized_flags) {
+  bool is_length_tracking =
+      JSArrayBufferViewIsLengthTracking::decode(serialized_flags);
+  bool is_backed_by_rab =
+      JSArrayBufferViewIsBackedByRab::decode(serialized_flags);
+
+  // TODO(marja): When the version number is bumped the next time, check that
+  // serialized_flags doesn't contain spurious 1-bits.
+
+  if (is_backed_by_rab || is_length_tracking) {
+    if (!FLAG_harmony_rab_gsab) {
+      return false;
+    }
+    if (!buffer.is_resizable()) {
+      return false;
+    }
+    if (is_backed_by_rab && buffer.is_shared()) {
+      return false;
+    }
+  }
+  view.set_is_length_tracking(is_length_tracking);
+  view.set_is_backed_by_rab(is_backed_by_rab);
+  return true;
 }
 
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
