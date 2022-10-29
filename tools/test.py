@@ -909,10 +909,11 @@ class LiteralTestSuite(TestSuite):
 
 
 TIMEOUT_SCALEFACTOR = {
-    'arm'   : { 'debug' :  8, 'release' : 3 }, # The ARM buildbots are slow.
-    'ia32'  : { 'debug' :  4, 'release' : 1 },
-    'ppc'   : { 'debug' :  4, 'release' : 1 },
-    's390'  : { 'debug' :  4, 'release' : 1 } }
+    'arm'       : { 'debug' :  8, 'release' : 3 }, # The ARM buildbots are slow.
+    'riscv64'   : { 'debug' :  8, 'release' : 3 }, # The riscv devices are slow.
+    'ia32'      : { 'debug' :  4, 'release' : 1 },
+    'ppc'       : { 'debug' :  4, 'release' : 1 },
+    's390'      : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
