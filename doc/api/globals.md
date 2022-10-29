@@ -463,6 +463,10 @@ This variable may appear to be global but is not. See [`exports`][].
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -476,6 +480,10 @@ A browser-compatible implementation of the [`fetch()`][] function.
 added:
   - v17.6.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -504,6 +512,10 @@ Node.js this is different. The top-level scope is not the global scope;
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -737,6 +749,10 @@ This variable may appear to be global but is not. See [`require()`][].
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -750,6 +766,10 @@ A browser-compatible implementation of {Response}.
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41811
+    description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
