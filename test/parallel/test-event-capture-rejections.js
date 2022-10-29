@@ -9,6 +9,21 @@ const { inherits } = require('util');
 function NoConstructor() {
 }
 
+// captureRejections param validation
+{
+  [1, [], function() {}, {}, Infinity, Math.PI, 'meow'].forEach((arg) => {
+    assert.throws(
+      () => new EventEmitter({ captureRejections: arg }),
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "options.captureRejections" property must be of type boolean.' +
+                 common.invalidArgTypeHelper(arg)
+      }
+    );
+  });
+}
+
 inherits(NoConstructor, EventEmitter);
 
 function captureRejections() {
