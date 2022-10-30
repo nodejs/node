@@ -91,7 +91,7 @@ licenseText="$(cat "${rootdir}/tools/inspector_protocol/markupsafe/LICENSE")"
 addlicense "markupsafe" "tools/inspector_protocol/markupsafe" "$licenseText"
 
 # Testing tools
-licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/cpplint.py | tail -n +3")"
+licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/cpplint.py" | tail -n +3)"
 addlicense "cpplint.py" "tools/cpplint.py" "$licenseText"
 licenseText="$(cat "${rootdir}/tools/node_modules/eslint/LICENSE")"
 addlicense "ESLint" "tools/node_modules/eslint" "$licenseText"
