@@ -109,6 +109,7 @@ class RedirectHandler {
     this.opts.path = path
     this.opts.origin = origin
     this.opts.maxRedirections = 0
+    this.opts.query = null
 
     // https://tools.ietf.org/html/rfc7231#section-6.4.4
     // In case of HTTP 303, always replace method to be either HEAD or GET

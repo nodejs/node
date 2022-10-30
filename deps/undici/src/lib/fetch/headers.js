@@ -147,20 +147,10 @@ class HeadersList {
     return this[kHeadersMap].has(name)
   }
 
-  keys () {
-    return this[kHeadersMap].keys()
-  }
-
-  values () {
-    return this[kHeadersMap].values()
-  }
-
-  entries () {
-    return this[kHeadersMap].entries()
-  }
-
-  [Symbol.iterator] () {
-    return this[kHeadersMap][Symbol.iterator]()
+  * [Symbol.iterator] () {
+    for (const pair of this[kHeadersMap]) {
+      yield pair
+    }
   }
 }
 
@@ -413,7 +403,11 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeIterator(this[kHeadersSortedMap].keys(), 'Headers')
+    return makeIterator(
+      () => [...this[kHeadersSortedMap].entries()],
+      'Headers',
+      'key'
+    )
   }
 
   values () {
@@ -421,7 +415,11 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeIterator(this[kHeadersSortedMap].values(), 'Headers')
+    return makeIterator(
+      () => [...this[kHeadersSortedMap].entries()],
+      'Headers',
+      'value'
+    )
   }
 
   entries () {
@@ -429,7 +427,11 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeIterator(this[kHeadersSortedMap].entries(), 'Headers')
+    return makeIterator(
+      () => [...this[kHeadersSortedMap].entries()],
+      'Headers',
+      'key+value'
+    )
   }
 
   /**
@@ -478,7 +480,8 @@ Object.defineProperties(Headers.prototype, {
   keys: kEnumerableProperty,
   values: kEnumerableProperty,
   entries: kEnumerableProperty,
-  forEach: kEnumerableProperty
+  forEach: kEnumerableProperty,
+  [Symbol.iterator]: { enumerable: false }
 })
 
 webidl.converters.HeadersInit = function (V) {

@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.11.0",
+  "version": "5.12.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -53,7 +53,7 @@
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
     "test:typescript": "tsd",
-    "test:wpt": "node scripts/verifyVersion 18 || node test/wpt/runner/start.mjs",
+    "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs)",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
     "bench": "PORT=3042 concurrently -k -s first npm:bench:server npm:bench:run",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "^9.1.2",
-    "@types/node": "^17.0.45",
+    "@types/node": "^18.0.3",
     "abort-controller": "^3.0.0",
     "atomic-sleep": "^1.0.0",
     "chai": "^4.3.4",
@@ -116,7 +116,8 @@
     "compilerOptions": {
       "esModuleInterop": true,
       "lib": [
-        "esnext"
+        "esnext",
+        "DOM"
       ]
     }
   },
