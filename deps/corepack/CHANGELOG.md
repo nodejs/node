@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.0](https://github.com/nodejs/corepack/compare/v0.14.2...v0.15.0) (2022-10-28)
+
+
+### Features
+
+* add support for configurable registries and applicable auth options ([#186](https://github.com/nodejs/corepack/issues/186)) ([662ae90](https://github.com/nodejs/corepack/commit/662ae9057c7360cb05e9476914e611a9bf0074db))
+* update package manager versions ([#193](https://github.com/nodejs/corepack/issues/193)) ([0ec3a73](https://github.com/nodejs/corepack/commit/0ec3a7384729c5cf4ac566d91f1a4bb74e08a64f))
+* when strict checking is off, treat like transparent ([#197](https://github.com/nodejs/corepack/issues/197)) ([5eadc50](https://github.com/nodejs/corepack/commit/5eadc50192e205c60bfb1cad91854e9014a747b8))
+
+
+### Bug Fixes
+
+* **doc:** add package configuration instruction to readme ([#188](https://github.com/nodejs/corepack/issues/188)) ([0b7abb9](https://github.com/nodejs/corepack/commit/0b7abb9833d332bad97902260d31652482c274a0))
+* recreate cache folder if necessary ([#200](https://github.com/nodejs/corepack/issues/200)) ([7b5f2f9](https://github.com/nodejs/corepack/commit/7b5f2f9fcb24fe3fe517a96deaac7f32854f3124))
+
 ## [0.14.2](https://github.com/nodejs/corepack/compare/v0.14.1...v0.14.2) (2022-09-24)
 
 ### Features
