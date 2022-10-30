@@ -16,6 +16,9 @@
   "transform-template-literals": [
     "bugfix/transform-tagged-template-caching"
   ],
+  "transform-optional-chaining": [
+    "bugfix/transform-v8-spread-parameters-in-optional-chaining"
+  ],
   "proposal-optional-chaining": [
     "bugfix/transform-v8-spread-parameters-in-optional-chaining"
   ]
