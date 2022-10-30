@@ -2,23 +2,22 @@
 
 const Busboy = require('busboy')
 const util = require('../core/util')
-const { ReadableStreamFrom, toUSVString, isBlobLike } = require('./util')
+const { ReadableStreamFrom, toUSVString, isBlobLike, isReadableStreamLike, readableStreamClose } = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
-const { DOMException } = require('./constants')
+const { DOMException, structuredClone } = require('./constants')
 const { Blob } = require('buffer')
 const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
 const { isErrored } = require('../core/util')
 const { isUint8Array, isArrayBuffer } = require('util/types')
 const { File } = require('./file')
+const { StringDecoder } = require('string_decoder')
+const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 
+/** @type {globalThis['ReadableStream']} */
 let ReadableStream
-
-async function * blobGen (blob) {
-  yield * blob.stream()
-}
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 function extractBody (object, keepalive = false) {
@@ -26,23 +25,47 @@ function extractBody (object, keepalive = false) {
     ReadableStream = require('stream/web').ReadableStream
   }
 
-  // 1. Let stream be object if object is a ReadableStream object.
-  // Otherwise, let stream be a new ReadableStream, and set up stream.
+  // 1. Let stream be null.
   let stream = null
 
-  // 2. Let action be null.
+  // 2. If object is a ReadableStream object, then set stream to object.
+  if (object instanceof ReadableStream) {
+    stream = object
+  } else if (isBlobLike(object)) {
+    // 3. Otherwise, if object is a Blob object, set stream to the
+    //    result of running object’s get stream.
+    stream = object.stream()
+  } else {
+    // 4. Otherwise, set stream to a new ReadableStream object, and set
+    //    up stream.
+    stream = new ReadableStream({
+      async pull (controller) {
+        controller.enqueue(
+          typeof source === 'string' ? new TextEncoder().encode(source) : source
+        )
+        queueMicrotask(() => readableStreamClose(controller))
+      },
+      start () {},
+      type: undefined
+    })
+  }
+
+  // 5. Assert: stream is a ReadableStream object.
+  assert(isReadableStreamLike(stream))
+
+  // 6. Let action be null.
   let action = null
 
-  // 3. Let source be null.
+  // 7. Let source be null.
   let source = null
 
-  // 4. Let length be null.
+  // 8. Let length be null.
   let length = null
 
-  // 5. Let Content-Type be null.
-  let contentType = null
+  // 9. Let type be null.
+  let type = null
 
-  // 6. Switch on object:
+  // 10. Switch on object:
   if (object == null) {
     // Note: The IDL processor cannot handle this situation. See
     // https://crbug.com/335871.
@@ -57,8 +80,8 @@ function extractBody (object, keepalive = false) {
     // Set source to the result of running the application/x-www-form-urlencoded serializer with object’s list.
     source = object.toString()
 
-    // Set Content-Type to `application/x-www-form-urlencoded;charset=UTF-8`.
-    contentType = 'application/x-www-form-urlencoded;charset=UTF-8'
+    // Set type to `application/x-www-form-urlencoded;charset=UTF-8`.
+    type = 'application/x-www-form-urlencoded;charset=UTF-8'
   } else if (isArrayBuffer(object)) {
     // BufferSource/ArrayBuffer
 
@@ -101,7 +124,7 @@ function extractBody (object, keepalive = false) {
               }\r\n\r\n`
           )
 
-          yield * blobGen(value)
+          yield * value.stream()
 
           yield enc.encode('\r\n')
         }
@@ -116,15 +139,12 @@ function extractBody (object, keepalive = false) {
     // Set length to unclear, see html/6424 for improving this.
     // TODO
 
-    // Set Content-Type to `multipart/form-data; boundary=`,
+    // Set type to `multipart/form-data; boundary=`,
     // followed by the multipart/form-data boundary string generated
     // by the multipart/form-data encoding algorithm.
-    contentType = 'multipart/form-data; boundary=' + boundary
+    type = 'multipart/form-data; boundary=' + boundary
   } else if (isBlobLike(object)) {
     // Blob
-
-    // Set action to this step: read object.
-    action = blobGen
 
     // Set source to object.
     source = object
@@ -133,9 +153,9 @@ function extractBody (object, keepalive = false) {
     length = object.size
 
     // If object’s type attribute is not the empty byte sequence, set
-    // Content-Type to its value.
+    // type to its value.
     if (object.type) {
-      contentType = object.type
+      type = object.type
     }
   } else if (typeof object[Symbol.asyncIterator] === 'function') {
     // If keepalive is true, then throw a TypeError.
@@ -157,17 +177,17 @@ function extractBody (object, keepalive = false) {
     // TODO: scalar value string?
     // TODO: else?
     source = toUSVString(object)
-    contentType = 'text/plain;charset=UTF-8'
+    type = 'text/plain;charset=UTF-8'
   }
 
-  // 7. If source is a byte sequence, then set action to a
+  // 11. If source is a byte sequence, then set action to a
   // step that returns source and length to source’s length.
   // TODO: What is a "byte sequence?"
   if (typeof source === 'string' || util.isBuffer(source)) {
     length = Buffer.byteLength(source)
   }
 
-  // 8. If action is non-null, then run these steps in in parallel:
+  // 12. If action is non-null, then run these steps in in parallel:
   if (action != null) {
     // Run action.
     let iterator
@@ -194,28 +214,17 @@ function extractBody (object, keepalive = false) {
       },
       async cancel (reason) {
         await iterator.return()
-      }
-    })
-  } else if (!stream) {
-    // TODO: Spec doesn't say anything about this?
-    stream = new ReadableStream({
-      async pull (controller) {
-        controller.enqueue(
-          typeof source === 'string' ? new TextEncoder().encode(source) : source
-        )
-        queueMicrotask(() => {
-          controller.close()
-        })
-      }
+      },
+      type: undefined
     })
   }
 
-  // 9. Let body be a body whose stream is stream, source is source,
+  // 13. Let body be a body whose stream is stream, source is source,
   // and length is length.
   const body = { stream, source, length }
 
-  // 10. Return body and Content-Type.
-  return [body, contentType]
+  // 14. Return (body, type).
+  return [body, type]
 }
 
 // https://fetch.spec.whatwg.org/#bodyinit-safely-extract
@@ -248,13 +257,17 @@ function cloneBody (body) {
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
   const [out1, out2] = body.stream.tee()
+  const out2Clone = structuredClone(out2, { transfer: [out2] })
+  // This, for whatever reasons, unrefs out2Clone which allows
+  // the process to exit by itself.
+  const [, finalClone] = out2Clone.tee()
 
   // 2. Set body’s stream to out1.
   body.stream = out1
 
   // 3. Return a body whose stream is out2 and other members are copied from body.
   return {
-    stream: out2,
+    stream: finalClone,
     length: body.length,
     source: body.source
   }
@@ -291,117 +304,28 @@ function throwIfAborted (state) {
 
 function bodyMixinMethods (instance) {
   const methods = {
-    async blob () {
-      if (!(this instanceof instance)) {
-        throw new TypeError('Illegal invocation')
-      }
-
-      throwIfAborted(this[kState])
-
-      const chunks = []
-
-      for await (const chunk of consumeBody(this[kState].body)) {
-        if (!isUint8Array(chunk)) {
-          throw new TypeError('Expected Uint8Array chunk')
-        }
-
-        // Assemble one final large blob with Uint8Array's can exhaust memory.
-        // That's why we create create multiple blob's and using references
-        chunks.push(new Blob([chunk]))
-      }
-
-      return new Blob(chunks, { type: this.headers.get('Content-Type') || '' })
+    blob () {
+      // The blob() method steps are to return the result of
+      // running consume body with this and Blob.
+      return specConsumeBody(this, 'Blob', instance)
     },
 
-    async arrayBuffer () {
-      if (!(this instanceof instance)) {
-        throw new TypeError('Illegal invocation')
-      }
-
-      throwIfAborted(this[kState])
-
-      const contentLength = this.headers.get('content-length')
-      const encoded = this.headers.has('content-encoding')
-
-      // if we have content length and no encoding, then we can
-      // pre allocate the buffer and just read the data into it
-      if (!encoded && contentLength) {
-        const buffer = new Uint8Array(contentLength)
-        let offset = 0
-
-        for await (const chunk of consumeBody(this[kState].body)) {
-          if (!isUint8Array(chunk)) {
-            throw new TypeError('Expected Uint8Array chunk')
-          }
-
-          buffer.set(chunk, offset)
-          offset += chunk.length
-        }
-
-        return buffer.buffer
-      }
-
-      // if we don't have content length, then we have to allocate 2x the
-      // size of the body, once for consumed data, and once for the final buffer
-
-      // This could be optimized by using growable ArrayBuffer, but it's not
-      // implemented yet. https://github.com/tc39/proposal-resizablearraybuffer
-
-      const chunks = []
-      let size = 0
-
-      for await (const chunk of consumeBody(this[kState].body)) {
-        if (!isUint8Array(chunk)) {
-          throw new TypeError('Expected Uint8Array chunk')
-        }
-
-        chunks.push(chunk)
-        size += chunk.byteLength
-      }
-
-      const buffer = new Uint8Array(size)
-      let offset = 0
-
-      for (const chunk of chunks) {
-        buffer.set(chunk, offset)
-        offset += chunk.byteLength
-      }
-
-      return buffer.buffer
+    arrayBuffer () {
+      // The arrayBuffer() method steps are to return the
+      // result of running consume body with this and ArrayBuffer.
+      return specConsumeBody(this, 'ArrayBuffer', instance)
     },
 
-    async text () {
-      if (!(this instanceof instance)) {
-        throw new TypeError('Illegal invocation')
-      }
-
-      throwIfAborted(this[kState])
-
-      let result = ''
-      const textDecoder = new TextDecoder()
-
-      for await (const chunk of consumeBody(this[kState].body)) {
-        if (!isUint8Array(chunk)) {
-          throw new TypeError('Expected Uint8Array chunk')
-        }
-
-        result += textDecoder.decode(chunk, { stream: true })
-      }
-
-      // flush
-      result += textDecoder.decode()
-
-      return result
+    text () {
+      // The text() method steps are to return the result of
+      // running consume body with this and text.
+      return specConsumeBody(this, 'text', instance)
     },
 
-    async json () {
-      if (!(this instanceof instance)) {
-        throw new TypeError('Illegal invocation')
-      }
-
-      throwIfAborted(this[kState])
-
-      return JSON.parse(await this.text())
+    json () {
+      // The json() method steps are to return the result of
+      // running consume body with this and JSON.
+      return specConsumeBody(this, 'JSON', instance)
     },
 
     async formData () {
@@ -463,7 +387,7 @@ function bodyMixinMethods (instance) {
 
         const busboyResolve = new Promise((resolve, reject) => {
           busboy.on('finish', resolve)
-          busboy.on('error', (err) => reject(err))
+          busboy.on('error', (err) => reject(new TypeError(err)))
         })
 
         if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk)
@@ -520,32 +444,180 @@ function bodyMixinMethods (instance) {
   return methods
 }
 
-const properties = {
-  body: {
-    enumerable: true,
-    get () {
-      if (!this || !this[kState]) {
-        throw new TypeError('Illegal invocation')
+function mixinBody (prototype) {
+  Object.assign(prototype.prototype, bodyMixinMethods(prototype))
+}
+
+// https://fetch.spec.whatwg.org/#concept-body-consume-body
+async function specConsumeBody (object, type, instance) {
+  if (!(object instanceof instance)) {
+    throw new TypeError('Illegal invocation')
+  }
+
+  // TODO: why is this needed?
+  throwIfAborted(object[kState])
+
+  // 1. If object is unusable, then return a promise rejected
+  //    with a TypeError.
+  if (bodyUnusable(object[kState].body)) {
+    throw new TypeError('Body is unusable')
+  }
+
+  // 2. Let promise be a promise resolved with an empty byte
+  //    sequence.
+  let promise
+
+  // 3. If object’s body is non-null, then set promise to the
+  //    result of fully reading body as promise given object’s
+  //    body.
+  if (object[kState].body != null) {
+    promise = await fullyReadBodyAsPromise(object[kState].body)
+  } else {
+    // step #2
+    promise = { size: 0, bytes: [new Uint8Array()] }
+  }
+
+  // 4. Let steps be to return the result of package data with
+  //    the first argument given, type, and object’s MIME type.
+  const mimeType = type === 'Blob' || type === 'FormData'
+    ? bodyMimeType(object)
+    : undefined
+
+  // 5. Return the result of upon fulfillment of promise given
+  //    steps.
+  return packageData(promise, type, mimeType)
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-body-package-data
+ * @param {{ size: number, bytes: Uint8Array[] }} bytes
+ * @param {string} type
+ * @param {ReturnType<typeof parseMIMEType>|undefined} mimeType
+ */
+function packageData ({ bytes, size }, type, mimeType) {
+  switch (type) {
+    case 'ArrayBuffer': {
+      // Return a new ArrayBuffer whose contents are bytes.
+      const uint8 = new Uint8Array(size)
+      let offset = 0
+
+      for (const chunk of bytes) {
+        uint8.set(chunk, offset)
+        offset += chunk.byteLength
       }
 
-      return this[kState].body ? this[kState].body.stream : null
+      return uint8.buffer
     }
-  },
-  bodyUsed: {
-    enumerable: true,
-    get () {
-      if (!this || !this[kState]) {
-        throw new TypeError('Illegal invocation')
+    case 'Blob': {
+      if (mimeType === 'failure') {
+        mimeType = ''
+      } else if (mimeType) {
+        mimeType = serializeAMimeType(mimeType)
       }
 
-      return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
+      // Return a Blob whose contents are bytes and type attribute
+      // is mimeType.
+      return new Blob(bytes, { type: mimeType })
+    }
+    case 'JSON': {
+      // Return the result of running parse JSON from bytes on bytes.
+      return JSON.parse(utf8DecodeBytes(bytes))
+    }
+    case 'text': {
+      // 1. Return the result of running UTF-8 decode on bytes.
+      return utf8DecodeBytes(bytes)
     }
   }
 }
 
-function mixinBody (prototype) {
-  Object.assign(prototype.prototype, bodyMixinMethods(prototype))
-  Object.defineProperties(prototype.prototype, properties)
+// https://fetch.spec.whatwg.org/#body-unusable
+function bodyUnusable (body) {
+  // An object including the Body interface mixin is
+  // said to be unusable if its body is non-null and
+  // its body’s stream is disturbed or locked.
+  return body != null && (body.stream.locked || util.isDisturbed(body.stream))
+}
+
+// https://fetch.spec.whatwg.org/#fully-reading-body-as-promise
+async function fullyReadBodyAsPromise (body) {
+  // 1. Let reader be the result of getting a reader for body’s
+  //    stream. If that threw an exception, then return a promise
+  //    rejected with that exception.
+  const reader = body.stream.getReader()
+
+  // 2. Return the result of reading all bytes from reader.
+  /** @type {Uint8Array[]} */
+  const bytes = []
+  let size = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+
+    if (done) {
+      break
+    }
+
+    // https://streams.spec.whatwg.org/#read-loop
+    // If chunk is not a Uint8Array object, reject promise with
+    // a TypeError and abort these steps.
+    if (!isUint8Array(value)) {
+      throw new TypeError('Value is not a Uint8Array.')
+    }
+
+    bytes.push(value)
+    size += value.byteLength
+  }
+
+  return { size, bytes }
+}
+
+/**
+ * @see https://encoding.spec.whatwg.org/#utf-8-decode
+ * @param {Uint8Array[]} ioQueue
+ */
+function utf8DecodeBytes (ioQueue) {
+  if (ioQueue.length === 0) {
+    return ''
+  }
+
+  // 1. Let buffer be the result of peeking three bytes
+  //    from ioQueue, converted to a byte sequence.
+  const buffer = ioQueue[0]
+
+  // 2. If buffer is 0xEF 0xBB 0xBF, then read three
+  //    bytes from ioQueue. (Do nothing with those bytes.)
+  if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    ioQueue[0] = ioQueue[0].subarray(3)
+  }
+
+  // 3. Process a queue with an instance of UTF-8’s
+  //    decoder, ioQueue, output, and "replacement".
+  const decoder = new StringDecoder('utf-8')
+  let output = ''
+
+  for (const chunk of ioQueue) {
+    output += decoder.write(chunk)
+  }
+
+  output += decoder.end()
+
+  // 4. Return output.
+  return output
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-body-mime-type
+ * @param {import('./response').Response|import('./request').Request} object
+ */
+function bodyMimeType (object) {
+  const { headersList } = object[kState]
+  const contentType = headersList.get('content-type')
+
+  if (contentType === null) {
+    return 'failure'
+  }
+
+  return parseMIMEType(contentType)
 }
 
 module.exports = {

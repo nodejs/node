@@ -21,7 +21,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
   timeout = timeout == null ? 10e3 : timeout
   maxCachedSessions = maxCachedSessions == null ? 100 : maxCachedSessions
 
-  return function connect ({ hostname, host, protocol, port, servername, httpSocket }, callback) {
+  return function connect ({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
     let socket
     if (protocol === 'https:') {
       if (!tls) {
@@ -39,6 +39,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         ...options,
         servername,
         session,
+        localAddress,
         socket: httpSocket, // upgrade socket connection
         port: port || 443,
         host: hostname
@@ -70,6 +71,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
       socket = net.connect({
         highWaterMark: 64 * 1024, // Same as nodejs fs streams.
         ...options,
+        localAddress,
         port: port || 80,
         host: hostname
       })

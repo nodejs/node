@@ -11,11 +11,11 @@ class FormData {
   static name = 'FormData'
 
   constructor (form) {
-    if (arguments.length > 0 && form != null) {
+    if (form !== undefined) {
       webidl.errors.conversionFailed({
         prefix: 'FormData constructor',
         argument: 'Argument 1',
-        types: ['null']
+        types: ['undefined']
       })
     }
 
@@ -206,8 +206,9 @@ class FormData {
     }
 
     return makeIterator(
-      makeIterable(this[kState], 'entries'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'key+value'
     )
   }
 
@@ -217,8 +218,9 @@ class FormData {
     }
 
     return makeIterator(
-      makeIterable(this[kState], 'keys'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'key'
     )
   }
 
@@ -228,8 +230,9 @@ class FormData {
     }
 
     return makeIterator(
-      makeIterable(this[kState], 'values'),
-      'FormData'
+      () => this[kState].map(pair => [pair.name, pair.value]),
+      'FormData',
+      'value'
     )
   }
 
@@ -294,28 +297,20 @@ function makeEntry (name, value, filename) {
     // 2. If filename is given, then set value to a new File object,
     //    representing the same bytes, whose name attribute is filename.
     if (filename !== undefined) {
+      /** @type {FilePropertyBag} */
+      const options = {
+        type: value.type,
+        lastModified: value.lastModified
+      }
+
       value = value instanceof File
-        ? new File([value], filename, { type: value.type })
-        : new FileLike(value, filename, { type: value.type })
+        ? new File([value], filename, options)
+        : new FileLike(value, filename, options)
     }
   }
 
   // 4. Return an entry whose name is name and whose value is value.
   return { name, value }
-}
-
-function * makeIterable (entries, type) {
-  // The value pairs to iterate over are this’s entry list’s entries
-  // with the key being the name and the value being the value.
-  for (const { name, value } of entries) {
-    if (type === 'entries') {
-      yield [name, value]
-    } else if (type === 'values') {
-      yield value
-    } else {
-      yield name
-    }
-  }
 }
 
 module.exports = { FormData }

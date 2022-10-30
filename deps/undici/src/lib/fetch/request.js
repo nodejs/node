@@ -24,6 +24,7 @@ const { kEnumerableProperty } = util
 const { kHeaders, kSignal, kState, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
 const { getGlobalOrigin } = require('./global')
+const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 
@@ -472,7 +473,13 @@ class Request {
     // 38. If inputOrInitBody is non-null and inputOrInitBody’s source is
     // null, then:
     if (inputOrInitBody != null && inputOrInitBody.source == null) {
-      // 1. If this’s request’s mode is neither "same-origin" nor "cors",
+      // 1. If initBody is non-null and init["duplex"] does not exist,
+      //    then throw a TypeError.
+      if (initBody != null && init.duplex == null) {
+        throw new TypeError('RequestInit: duplex option is required when sending a body.')
+      }
+
+      // 2. If this’s request’s mode is neither "same-origin" nor "cors",
       // then throw a TypeError.
       if (request.mode !== 'same-origin' && request.mode !== 'cors') {
         throw new TypeError(
@@ -480,7 +487,7 @@ class Request {
         )
       }
 
-      // 2. Set this’s request’s use-CORS-preflight flag.
+      // 3. Set this’s request’s use-CORS-preflight flag.
       request.useCORSPreflightFlag = true
     }
 
@@ -536,7 +543,7 @@ class Request {
     }
 
     // The url getter steps are to return this’s request’s URL, serialized.
-    return this[kState].url.toString()
+    return URLSerializer(this[kState].url)
   }
 
   // Returns a Headers object consisting of the headers associated with request.
@@ -705,6 +712,30 @@ class Request {
     return this[kSignal]
   }
 
+  get body () {
+    if (!this || !this[kState]) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return this[kState].body ? this[kState].body.stream : null
+  }
+
+  get bodyUsed () {
+    if (!this || !this[kState]) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
+  }
+
+  get duplex () {
+    if (!(this instanceof Request)) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return 'half'
+  }
+
   // Returns a clone of request.
   clone () {
     if (!(this instanceof Request)) {
@@ -821,7 +852,21 @@ Object.defineProperties(Request.prototype, {
   headers: kEnumerableProperty,
   redirect: kEnumerableProperty,
   clone: kEnumerableProperty,
-  signal: kEnumerableProperty
+  signal: kEnumerableProperty,
+  duplex: kEnumerableProperty,
+  destination: kEnumerableProperty,
+  body: kEnumerableProperty,
+  bodyUsed: kEnumerableProperty,
+  isHistoryNavigation: kEnumerableProperty,
+  isReloadNavigation: kEnumerableProperty,
+  keepalive: kEnumerableProperty,
+  integrity: kEnumerableProperty,
+  cache: kEnumerableProperty,
+  credentials: kEnumerableProperty,
+  attribute: kEnumerableProperty,
+  referrerPolicy: kEnumerableProperty,
+  referrer: kEnumerableProperty,
+  mode: kEnumerableProperty
 })
 
 webidl.converters.Request = webidl.interfaceConverter(
@@ -929,6 +974,11 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'window',
     converter: webidl.converters.any
+  },
+  {
+    key: 'duplex',
+    converter: webidl.converters.DOMString,
+    allowedValues: ['half']
   }
 ])
 

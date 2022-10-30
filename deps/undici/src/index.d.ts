@@ -18,6 +18,7 @@ import { request, pipeline, stream, connect, upgrade } from './types/api'
 
 export * from './types/fetch'
 export * from './types/file'
+export * from './types/filereader'
 export * from './types/formdata'
 export * from './types/diagnostics-channel'
 export { Interceptable } from './types/mock-interceptor'

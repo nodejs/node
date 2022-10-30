@@ -17,7 +17,8 @@ const {
   SocketError,
   InformationalError,
   BodyTimeoutError,
-  HTTPParserError
+  HTTPParserError,
+  ResponseExceededMaxSizeError
 } = require('./core/errors')
 const buildConnector = require('./core/connect')
 const {
@@ -60,7 +61,9 @@ const {
   kClose,
   kDestroy,
   kDispatch,
-  kInterceptors
+  kInterceptors,
+  kLocalAddress,
+  kMaxResponseSize
 } = require('./core/symbols')
 
 const kClosedResolve = Symbol('kClosedResolve')
@@ -102,7 +105,9 @@ class Client extends DispatcherBase {
     maxCachedSessions,
     maxRedirections,
     connect,
-    maxRequestsPerClient
+    maxRequestsPerClient,
+    localAddress,
+    maxResponseSize
   } = {}) {
     super()
 
@@ -170,6 +175,14 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxRequestsPerClient must be a positive number')
     }
 
+    if (localAddress != null && (typeof localAddress !== 'string' || net.isIP(localAddress) === 0)) {
+      throw new InvalidArgumentError('localAddress must be valid string IP address')
+    }
+
+    if (maxResponseSize != null && (!Number.isInteger(maxResponseSize) || maxResponseSize < -1)) {
+      throw new InvalidArgumentError('maxResponseSize must be a positive number')
+    }
+
     if (typeof connect !== 'function') {
       connect = buildConnector({
         ...tls,
@@ -193,6 +206,7 @@ class Client extends DispatcherBase {
     this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold
     this[kKeepAliveTimeoutValue] = this[kKeepAliveDefaultTimeout]
     this[kServerName] = null
+    this[kLocalAddress] = localAddress != null ? localAddress : null
     this[kResuming] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kNeedDrain] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}\r\n`
@@ -202,6 +216,7 @@ class Client extends DispatcherBase {
     this[kMaxRedirections] = maxRedirections
     this[kMaxRequests] = maxRequestsPerClient
     this[kClosedResolve] = null
+    this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -426,6 +441,7 @@ class Parser {
 
     this.keepAlive = ''
     this.contentLength = ''
+    this.maxResponseSize = client[kMaxResponseSize]
   }
 
   setTimeout (value, type) {
@@ -539,19 +555,6 @@ class Parser {
       }
     } catch (err) {
       util.destroy(socket, err)
-    }
-  }
-
-  finish () {
-    try {
-      try {
-        currentParser = this
-      } finally {
-        currentParser = null
-      }
-    } catch (err) {
-      /* istanbul ignore next: difficult to make a test case for */
-      util.destroy(this.socket, err)
     }
   }
 
@@ -783,7 +786,7 @@ class Parser {
   }
 
   onBody (buf) {
-    const { client, socket, statusCode } = this
+    const { client, socket, statusCode, maxResponseSize } = this
 
     if (socket.destroyed) {
       return -1
@@ -801,6 +804,11 @@ class Parser {
     }
 
     assert(statusCode >= 200)
+
+    if (maxResponseSize > -1 && this.bytesRead + buf.length > maxResponseSize) {
+      util.destroy(socket, new ResponseExceededMaxSizeError())
+      return -1
+    }
 
     this.bytesRead += buf.length
 
@@ -917,7 +925,7 @@ function onSocketError (err) {
   // to the user.
   if (err.code === 'ECONNRESET' && parser.statusCode && !parser.shouldKeepAlive) {
     // We treat all incoming data so for as a valid response.
-    parser.finish()
+    parser.onMessageComplete()
     return
   }
 
@@ -951,7 +959,7 @@ function onSocketEnd () {
 
   if (parser.statusCode && !parser.shouldKeepAlive) {
     // We treat all incoming data so far as a valid response.
-    parser.finish()
+    parser.onMessageComplete()
     return
   }
 
@@ -960,6 +968,11 @@ function onSocketEnd () {
 
 function onSocketClose () {
   const { [kClient]: client } = this
+
+  if (!this[kError] && this[kParser].statusCode && !this[kParser].shouldKeepAlive) {
+    // We treat all incoming data so far as a valid response.
+    this[kParser].onMessageComplete()
+  }
 
   this[kParser].destroy()
   this[kParser] = null
@@ -1020,7 +1033,8 @@ async function connect (client) {
         hostname,
         protocol,
         port,
-        servername: client[kServerName]
+        servername: client[kServerName],
+        localAddress: client[kLocalAddress]
       },
       connector: client[kConnector]
     })
@@ -1033,7 +1047,8 @@ async function connect (client) {
         hostname,
         protocol,
         port,
-        servername: client[kServerName]
+        servername: client[kServerName],
+        localAddress: client[kLocalAddress]
       }, (err, socket) => {
         if (err) {
           reject(err)
@@ -1076,7 +1091,8 @@ async function connect (client) {
           hostname,
           protocol,
           port,
-          servername: client[kServerName]
+          servername: client[kServerName],
+          localAddress: client[kLocalAddress]
         },
         connector: client[kConnector],
         socket
@@ -1093,7 +1109,8 @@ async function connect (client) {
           hostname,
           protocol,
           port,
-          servername: client[kServerName]
+          servername: client[kServerName],
+          localAddress: client[kLocalAddress]
         },
         connector: client[kConnector],
         error: err

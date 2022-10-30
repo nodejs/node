@@ -250,30 +250,64 @@ webidl.sequenceConverter = function (converter) {
   }
 }
 
+// https://webidl.spec.whatwg.org/#es-to-record
 webidl.recordConverter = function (keyConverter, valueConverter) {
-  return (V) => {
-    const record = {}
-    const type = webidl.util.Type(V)
-
-    if (type === 'Undefined' || type === 'Null') {
-      return record
-    }
-
-    if (type !== 'Object') {
+  return (O) => {
+    // 1. If Type(O) is not Object, throw a TypeError.
+    if (webidl.util.Type(O) !== 'Object') {
       webidl.errors.exception({
         header: 'Record',
-        message: `Expected ${V} to be an Object type.`
+        message: `Value of type ${webidl.util.Type(O)} is not an Object.`
       })
     }
 
-    for (let [key, value] of Object.entries(V)) {
-      key = keyConverter(key)
-      value = valueConverter(value)
+    // 2. Let result be a new empty instance of record<K, V>.
+    const result = {}
 
-      record[key] = value
+    if (!types.isProxy(O)) {
+      // Object.keys only returns enumerable properties
+      const keys = Object.keys(O)
+
+      for (const key of keys) {
+        // 1. Let typedKey be key converted to an IDL value of type K.
+        const typedKey = keyConverter(key)
+
+        // 2. Let value be ? Get(O, key).
+        // 3. Let typedValue be value converted to an IDL value of type V.
+        const typedValue = valueConverter(O[key])
+
+        // 4. Set result[typedKey] to typedValue.
+        result[typedKey] = typedValue
+      }
+
+      // 5. Return result.
+      return result
     }
 
-    return record
+    // 3. Let keys be ? O.[[OwnPropertyKeys]]().
+    const keys = Reflect.ownKeys(O)
+
+    // 4. For each key of keys.
+    for (const key of keys) {
+      // 1. Let desc be ? O.[[GetOwnProperty]](key).
+      const desc = Reflect.getOwnPropertyDescriptor(O, key)
+
+      // 2. If desc is not undefined and desc.[[Enumerable]] is true:
+      if (desc?.enumerable) {
+        // 1. Let typedKey be key converted to an IDL value of type K.
+        const typedKey = keyConverter(key)
+
+        // 2. Let value be ? Get(O, key).
+        // 3. Let typedValue be value converted to an IDL value of type V.
+        const typedValue = valueConverter(O[key])
+
+        // 4. Set result[typedKey] to typedValue.
+        result[typedKey] = typedValue
+      }
+    }
+
+    // 5. Return result.
+    return result
   }
 }
 
@@ -305,7 +339,9 @@ webidl.dictionaryConverter = function (converters) {
     const type = webidl.util.Type(dictionary)
     const dict = {}
 
-    if (type !== 'Null' && type !== 'Undefined' && type !== 'Object') {
+    if (type === 'Null' || type === 'Undefined') {
+      return dict
+    } else if (type !== 'Object') {
       webidl.errors.exception({
         header: 'Dictionary',
         message: `Expected ${dictionary} to be one of: Null, Undefined, Object.`
@@ -401,7 +437,7 @@ webidl.converters.ByteString = function (V) {
 
     if (charCode > 255) {
       throw new TypeError(
-        'Cannot convert argument to a ByteString because the character at' +
+        'Cannot convert argument to a ByteString because the character at ' +
         `index ${index} has a value of ${charCode} which is greater than 255.`
       )
     }
@@ -439,6 +475,16 @@ webidl.converters['long long'] = function (V, opts) {
 
   // 2. Return the IDL long long value that represents
   //    the same numeric value as x.
+  return x
+}
+
+// https://webidl.spec.whatwg.org/#es-unsigned-long-long
+webidl.converters['unsigned long long'] = function (V) {
+  // 1. Let x be ? ConvertToInt(V, 64, "unsigned").
+  const x = webidl.util.ConvertToInt(V, 64, 'unsigned')
+
+  // 2. Return the IDL unsigned long long value that
+  //    represents the same numeric value as x.
   return x
 }
 

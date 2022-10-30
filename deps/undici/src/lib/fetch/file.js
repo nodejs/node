@@ -5,6 +5,8 @@ const { types } = require('util')
 const { kState } = require('./symbols')
 const { isBlobLike } = require('./util')
 const { webidl } = require('./webidl')
+const { parseMIMEType, serializeAMimeType } = require('./dataURL')
+const { kEnumerableProperty } = require('../core/util')
 
 class File extends Blob {
   constructor (fileBits, fileName, options = {}) {
@@ -34,13 +36,29 @@ class File extends Blob {
     //    outside the range U+0020 to U+007E, then set t to the empty string
     //    and return from these substeps.
     //    2. Convert every character in t to ASCII lowercase.
-    // Note: Blob handles both of these steps for us
+    let t = options.type
+    let d
 
-    //    3. If the lastModified member is provided, let d be set to the
-    //    lastModified dictionary member. If it is not provided, set d to the
-    //    current date and time represented as the number of milliseconds since
-    //    the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
-    const d = options.lastModified
+    // eslint-disable-next-line no-labels
+    substep: {
+      if (t) {
+        t = parseMIMEType(t)
+
+        if (t === 'failure') {
+          t = ''
+          // eslint-disable-next-line no-labels
+          break substep
+        }
+
+        t = serializeAMimeType(t).toLowerCase()
+      }
+
+      //    3. If the lastModified member is provided, let d be set to the
+      //    lastModified dictionary member. If it is not provided, set d to the
+      //    current date and time represented as the number of milliseconds since
+      //    the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
+      d = options.lastModified
+    }
 
     // 4. Return a new File object F such that:
     // F refers to the bytes byte sequence.
@@ -49,10 +67,11 @@ class File extends Blob {
     // F.type is set to t.
     // F.lastModified is set to d.
 
-    super(processBlobParts(fileBits, options), { type: options.type })
+    super(processBlobParts(fileBits, options), { type: t })
     this[kState] = {
       name: n,
-      lastModified: d
+      lastModified: d,
+      type: t
     }
   }
 
@@ -70,6 +89,14 @@ class File extends Blob {
     }
 
     return this[kState].lastModified
+  }
+
+  get type () {
+    if (!(this instanceof File)) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return this[kState].type
   }
 
   get [Symbol.toStringTag] () {
@@ -194,6 +221,11 @@ class FileLike {
   }
 }
 
+Object.defineProperties(File.prototype, {
+  name: kEnumerableProperty,
+  lastModified: kEnumerableProperty
+})
+
 webidl.converters.Blob = webidl.interfaceConverter(Blob)
 
 webidl.converters.BlobPart = function (V, opts) {
@@ -202,10 +234,15 @@ webidl.converters.BlobPart = function (V, opts) {
       return webidl.converters.Blob(V, { strict: false })
     }
 
-    return webidl.converters.BufferSource(V, opts)
-  } else {
-    return webidl.converters.USVString(V, opts)
+    if (
+      ArrayBuffer.isView(V) ||
+      types.isAnyArrayBuffer(V)
+    ) {
+      return webidl.converters.BufferSource(V, opts)
+    }
   }
+
+  return webidl.converters.USVString(V, opts)
 }
 
 webidl.converters['sequence<BlobPart>'] = webidl.sequenceConverter(

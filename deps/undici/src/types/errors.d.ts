@@ -87,4 +87,10 @@ declare namespace Errors {
     name: 'NotSupportedError';
     code: 'UND_ERR_NOT_SUPPORTED';
   }
+
+  /** The response exceed the length allowed */
+  export class ResponseExceededMaxSizeError extends UndiciError {
+    name: 'ResponseExceededMaxSizeError';
+    code: 'UND_ERR_RES_EXCEEDED_MAX_SIZE';
+  }
 }

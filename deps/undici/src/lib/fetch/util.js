@@ -532,8 +532,11 @@ function bytesMatch (bytes, metadataList) {
 
   // 4. Let metadata be the result of getting the strongest
   //    metadata from parsedMetadata.
-  // Note: this will only work for SHA- algorithms and it's lazy *at best*.
-  const metadata = parsedMetadata.sort((c, d) => d.algo.localeCompare(c.algo))
+  const list = parsedMetadata.sort((c, d) => d.algo.localeCompare(c.algo))
+  // get the strongest algorithm
+  const strongest = list[0].algo
+  // get all entries that use the strongest algorithm; ignore weaker
+  const metadata = list.filter((item) => item.algo === strongest)
 
   // 5. For each item in metadata:
   for (const item of metadata) {
@@ -544,7 +547,6 @@ function bytesMatch (bytes, metadataList) {
     const expectedValue = item.hash
 
     // 3. Let actualValue be the result of applying algorithm to bytes.
-    // Note: "applying algorithm to bytes" converts the result to base64
     const actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
 
     // 4. If actualValue is a case-sensitive match for expectedValue,
@@ -559,10 +561,9 @@ function bytesMatch (bytes, metadataList) {
 }
 
 // https://w3c.github.io/webappsec-subresource-integrity/#grammardef-hash-with-options
-// hash-algo is defined in Content Security Policy 2 Section 4.2
-// base64-value is similary defined there
-// VCHAR is defined https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
-const parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={1,2}))( +[\x21-\x7e]?)?/i
+// https://www.w3.org/TR/CSP2/#source-list-syntax
+// https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
+const parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={0,2}))( +[\x21-\x7e]?)?/i
 
 /**
  * @see https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
@@ -684,17 +685,61 @@ function serializeJavascriptValueToJSONString (value) {
 // https://tc39.es/ecma262/#sec-%25iteratorprototype%25-object
 const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
 
-// https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
-function makeIterator (iterator, name) {
+/**
+ * @see https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
+ * @param {() => unknown[]} iterator
+ * @param {string} name name of the instance
+ * @param {'key'|'value'|'key+value'} kind
+ */
+function makeIterator (iterator, name, kind) {
+  const object = {
+    index: 0,
+    kind,
+    target: iterator
+  }
+
   const i = {
     next () {
+      // 1. Let interface be the interface for which the iterator prototype object exists.
+
+      // 2. Let thisValue be the this value.
+
+      // 3. Let object be ? ToObject(thisValue).
+
+      // 4. If object is a platform object, then perform a security
+      //    check, passing:
+
+      // 5. If object is not a default iterator object for interface,
+      //    then throw a TypeError.
       if (Object.getPrototypeOf(this) !== i) {
         throw new TypeError(
           `'next' called on an object that does not implement interface ${name} Iterator.`
         )
       }
 
-      return iterator.next()
+      // 6. Let index be object’s index.
+      // 7. Let kind be object’s kind.
+      // 8. Let values be object’s target's value pairs to iterate over.
+      const { index, kind, target } = object
+      const values = target()
+
+      // 9. Let len be the length of values.
+      const len = values.length
+
+      // 10. If index is greater than or equal to len, then return
+      //     CreateIterResultObject(undefined, true).
+      if (index >= len) {
+        return { value: undefined, done: true }
+      }
+
+      // 11. Let pair be the entry in values at index index.
+      const pair = values[index]
+
+      // 12. Set object’s index to index + 1.
+      object.index = index + 1
+
+      // 13. Return the iterator result for pair and kind.
+      return iteratorResult(pair, kind)
     },
     // The class string of an iterator prototype object for a given interface is the
     // result of concatenating the identifier of the interface and the string " Iterator".
@@ -706,6 +751,48 @@ function makeIterator (iterator, name) {
   // esIteratorPrototype needs to be the prototype of i
   // which is the prototype of an empty object. Yes, it's confusing.
   return Object.setPrototypeOf({}, i)
+}
+
+// https://webidl.spec.whatwg.org/#iterator-result
+function iteratorResult (pair, kind) {
+  let result
+
+  // 1. Let result be a value determined by the value of kind:
+  switch (kind) {
+    case 'key': {
+      // 1. Let idlKey be pair’s key.
+      // 2. Let key be the result of converting idlKey to an
+      //    ECMAScript value.
+      // 3. result is key.
+      result = pair[0]
+      break
+    }
+    case 'value': {
+      // 1. Let idlValue be pair’s value.
+      // 2. Let value be the result of converting idlValue to
+      //    an ECMAScript value.
+      // 3. result is value.
+      result = pair[1]
+      break
+    }
+    case 'key+value': {
+      // 1. Let idlKey be pair’s key.
+      // 2. Let idlValue be pair’s value.
+      // 3. Let key be the result of converting idlKey to an
+      //    ECMAScript value.
+      // 4. Let value be the result of converting idlValue to
+      //    an ECMAScript value.
+      // 5. Let array be ! ArrayCreate(2).
+      // 6. Call ! CreateDataProperty(array, "0", key).
+      // 7. Call ! CreateDataProperty(array, "1", value).
+      // 8. result is array.
+      result = pair
+      break
+    }
+  }
+
+  // 2. Return CreateIterResultObject(result, false).
+  return { value: result, done: false }
 }
 
 /**
@@ -755,6 +842,34 @@ async function fullyReadBody (body, processBody, processBodyError) {
   // 5. React to promise with fulfilledSteps and rejectedSteps.
 }
 
+/** @type {ReadableStream} */
+let ReadableStream = globalThis.ReadableStream
+
+function isReadableStreamLike (stream) {
+  if (!ReadableStream) {
+    ReadableStream = require('stream/web').ReadableStream
+  }
+
+  return stream instanceof ReadableStream || (
+    stream[Symbol.toStringTag] === 'ReadableStream' &&
+    typeof stream.tee === 'function'
+  )
+}
+
+/**
+ * @param {ReadableStreamController<Uint8Array>} controller
+ */
+function readableStreamClose (controller) {
+  try {
+    controller.close()
+  } catch (err) {
+    // TODO: add comment explaining why this error occurs.
+    if (!err.message.includes('Controller is already closed')) {
+      throw err
+    }
+  }
+}
+
 /**
  * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
  */
@@ -795,5 +910,7 @@ module.exports = {
   hasOwn,
   isErrorLike,
   fullyReadBody,
-  bytesMatch
+  bytesMatch,
+  isReadableStreamLike,
+  readableStreamClose
 }

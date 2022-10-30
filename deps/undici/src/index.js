@@ -98,9 +98,9 @@ if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
     if (!fetchImpl) {
       fetchImpl = require('./lib/fetch').fetch
     }
-    const dispatcher = (arguments[1] && arguments[1].dispatcher) || getGlobalDispatcher()
+
     try {
-      return await fetchImpl.apply(dispatcher, arguments)
+      return await fetchImpl(...arguments)
     } catch (err) {
       Error.captureStackTrace(err, this)
       throw err
@@ -111,6 +111,7 @@ if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 8)) {
   module.exports.Request = require('./lib/fetch/request').Request
   module.exports.FormData = require('./lib/fetch/formdata').FormData
   module.exports.File = require('./lib/fetch/file').File
+  module.exports.FileReader = require('./lib/fileapi/filereader').FileReader
 
   const { setGlobalOrigin, getGlobalOrigin } = require('./lib/fetch/global')
 
