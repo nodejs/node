@@ -183,6 +183,16 @@ class HTTPParserError extends Error {
   }
 }
 
+class ResponseExceededMaxSizeError extends UndiciError {
+  constructor (message) {
+    super(message)
+    Error.captureStackTrace(this, ResponseExceededMaxSizeError)
+    this.name = 'ResponseExceededMaxSizeError'
+    this.message = message || 'Response content exceeded max size'
+    this.code = 'UND_ERR_RES_EXCEEDED_MAX_SIZE'
+  }
+}
+
 module.exports = {
   HTTPParserError,
   UndiciError,
@@ -201,5 +211,6 @@ module.exports = {
   SocketError,
   NotSupportedError,
   ResponseContentLengthMismatchError,
-  BalancedPoolMissingUpstreamError
+  BalancedPoolMissingUpstreamError,
+  ResponseExceededMaxSizeError
 }

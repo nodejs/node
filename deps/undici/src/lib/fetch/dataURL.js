@@ -135,7 +135,7 @@ function URLSerializer (url, excludeFragment = false) {
     }
 
     // 3. Append url’s host, serialized, to output.
-    output += decodeURIComponent(url.host)
+    output += decodeURIComponent(url.hostname)
 
     // 4. If url’s port is non-null, append U+003A (:) followed by url’s port,
     // serialized, to output.
@@ -305,7 +305,7 @@ function parseMIMEType (input) {
   )
 
   // 8. Remove any trailing HTTP whitespace from subtype.
-  subtype = subtype.trim()
+  subtype = subtype.trimEnd()
 
   // 9. If subtype is the empty string or does not solely
   // contain HTTP token code points, then return failure.
@@ -321,7 +321,11 @@ function parseMIMEType (input) {
     type: type.toLowerCase(),
     subtype: subtype.toLowerCase(),
     /** @type {Map<string, string>} */
-    parameters: new Map()
+    parameters: new Map(),
+    // https://mimesniff.spec.whatwg.org/#mime-type-essence
+    get essence () {
+      return `${this.type}/${this.subtype}`
+    }
   }
 
   // 11. While position is not past the end of input:

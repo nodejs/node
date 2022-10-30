@@ -5,7 +5,6 @@ const { extractBody, cloneBody, mixinBody } = require('./body')
 const util = require('../core/util')
 const { kEnumerableProperty } = util
 const {
-  responseURL,
   isValidReasonPhrase,
   isCancelled,
   isAborted,
@@ -22,6 +21,7 @@ const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
 const { getGlobalOrigin } = require('./global')
+const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
 const { types } = require('util')
@@ -48,7 +48,7 @@ class Response {
   }
 
   // https://fetch.spec.whatwg.org/#dom-response-json
-  static json (data, init = {}) {
+  static json (data = undefined, init = {}) {
     if (arguments.length === 0) {
       throw new TypeError(
         'Failed to execute \'json\' on \'Response\': 1 argument required, but 0 present.'
@@ -189,21 +189,18 @@ class Response {
       throw new TypeError('Illegal invocation')
     }
 
+    const urlList = this[kState].urlList
+
     // The url getter steps are to return the empty string if this’s
     // response’s URL is null; otherwise this’s response’s URL,
     // serialized with exclude fragment set to true.
-    let url = responseURL(this[kState])
+    const url = urlList[urlList.length - 1] ?? null
 
-    if (url == null) {
+    if (url === null) {
       return ''
     }
 
-    if (url.hash) {
-      url = new URL(url)
-      url.hash = ''
-    }
-
-    return url.toString()
+    return URLSerializer(url, true)
   }
 
   // Returns whether response was obtained through a redirect.
@@ -259,6 +256,22 @@ class Response {
     return this[kHeaders]
   }
 
+  get body () {
+    if (!this || !this[kState]) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return this[kState].body ? this[kState].body.stream : null
+  }
+
+  get bodyUsed () {
+    if (!this || !this[kState]) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
+  }
+
   // Returns a clone of response.
   clone () {
     if (!(this instanceof Response)) {
@@ -299,7 +312,15 @@ Object.defineProperties(Response.prototype, {
   redirected: kEnumerableProperty,
   statusText: kEnumerableProperty,
   headers: kEnumerableProperty,
-  clone: kEnumerableProperty
+  clone: kEnumerableProperty,
+  body: kEnumerableProperty,
+  bodyUsed: kEnumerableProperty
+})
+
+Object.defineProperties(Response, {
+  json: kEnumerableProperty,
+  redirect: kEnumerableProperty,
+  error: kEnumerableProperty
 })
 
 // https://fetch.spec.whatwg.org/#concept-response-clone
