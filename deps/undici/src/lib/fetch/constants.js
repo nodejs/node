@@ -1,5 +1,7 @@
 'use strict'
 
+const { MessageChannel, receiveMessageOnPort } = require('worker_threads')
+
 const corsSafeListedMethods = ['GET', 'HEAD', 'POST']
 
 const nullBodyStatus = [101, 204, 205, 304]
@@ -71,8 +73,30 @@ const DOMException = globalThis.DOMException ?? (() => {
   }
 })()
 
+let channel
+
+/** @type {globalThis['structuredClone']} */
+const structuredClone =
+  globalThis.structuredClone ??
+  // https://github.com/nodejs/node/blob/b27ae24dcc4251bad726d9d84baf678d1f707fed/lib/internal/structured_clone.js
+  // structuredClone was added in v17.0.0, but fetch supports v16.8
+  function structuredClone (value, options = undefined) {
+    if (arguments.length === 0) {
+      throw new TypeError('missing argument')
+    }
+
+    if (!channel) {
+      channel = new MessageChannel()
+    }
+    channel.port1.unref()
+    channel.port2.unref()
+    channel.port1.postMessage(value, options?.transfer)
+    return receiveMessageOnPort(channel.port2).message
+  }
+
 module.exports = {
   DOMException,
+  structuredClone,
   subresource,
   forbiddenMethods,
   requestBodyHeader,

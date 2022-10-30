@@ -17,6 +17,7 @@ module.exports = {
   kHeadersTimeout: Symbol('headers timeout'),
   kBodyTimeout: Symbol('body timeout'),
   kServerName: Symbol('server name'),
+  kLocalAddress: Symbol('local address'),
   kHost: Symbol('host'),
   kNoRef: Symbol('no ref'),
   kBodyUsed: Symbol('used'),
@@ -49,5 +50,6 @@ module.exports = {
   kMaxRequests: Symbol('maxRequestsPerClient'),
   kProxy: Symbol('proxy agent options'),
   kCounter: Symbol('socket request counter'),
-  kInterceptors: Symbol('dispatch interceptors')
+  kInterceptors: Symbol('dispatch interceptors'),
+  kMaxResponseSize: Symbol('max response size')
 }
