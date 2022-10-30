@@ -213,6 +213,7 @@ function addDeclaredGlobals(globalScope, configGlobals, { exportedVariables, ena
 
         if (variable) {
             variable.eslintUsed = true;
+            variable.eslintExported = true;
         }
     });
 

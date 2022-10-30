@@ -77,6 +77,11 @@ module.exports = {
                         return;
                     }
 
+                    // Variables exported by "exported" block comments
+                    if (variable.eslintExported) {
+                        return;
+                    }
+
                     variable.defs.forEach(def => {
                         const defNode = def.node;
 

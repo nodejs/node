@@ -52,7 +52,7 @@ exports.defaultConfig = [
     {
         ignores: [
             "**/node_modules/**",
-            ".git/**"
+            ".git/"
         ]
     },
 

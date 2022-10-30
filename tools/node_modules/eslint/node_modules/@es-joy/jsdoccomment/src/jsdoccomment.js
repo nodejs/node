@@ -119,6 +119,7 @@ const invokedExpression = new Set(
   ['CallExpression', 'OptionalCallExpression', 'NewExpression']
 );
 const allowableCommentNode = new Set([
+  'AssignmentPattern',
   'VariableDeclaration',
   'ExpressionStatement',
   'MethodDefinition',
