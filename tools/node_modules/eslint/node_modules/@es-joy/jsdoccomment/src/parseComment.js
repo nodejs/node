@@ -15,14 +15,19 @@ export const hasSeeWithLink = (spec) => {
   return spec.tag === 'see' && (/\{@link.+?\}/u).test(spec.source[0].source);
 };
 
-export const defaultNoTypes = ['default', 'defaultvalue', 'see'];
+export const defaultNoTypes = [
+  'default', 'defaultvalue', 'description', 'example',
+  'file', 'fileoverview', 'license',
+  'overview', 'see', 'summary'
+];
 
 export const defaultNoNames = [
   'access', 'author',
   'default', 'defaultvalue',
   'description',
-  'example', 'exception', 'kind',
-  'license',
+  'example', 'exception', 'file', 'fileoverview',
+  'kind',
+  'license', 'overview',
   'return', 'returns',
   'since', 'summary',
   'throws',
