@@ -36,6 +36,8 @@ We do acknowledge the irony and overhead of using npm to install Corepack, which
 
 ## Usage
 
+### When Building Packages
+
 Just use your package managers as you usually would. Run `yarn install` in Yarn projects, `pnpm install` in pnpm projects, and `npm` in npm projects. Corepack will catch these calls, and depending on the situation:
 
 - **If the local project is configured for the package manager you're using**, Corepack will silently download and cache the latest compatible version.
@@ -43,6 +45,18 @@ Just use your package managers as you usually would. Run `yarn install` in Yarn 
 - **If the local project is configured for a different package manager**, Corepack will request you to run the command again using the right package manager - thus avoiding corruptions of your install artifacts.
 
 - **If the local project isn't configured for any package manager**, Corepack will assume that you know what you're doing, and will use whatever package manager version has been pinned as "known good release". Check the relevant section for more details.
+
+### When Authoring Packages
+
+Set your package's manager with the `packageManager` field in `package.json`:
+
+```json
+{
+  "packageManager": "yarn@3.2.3+sha224.953c8233f7a92884eee2de69a1b92d1f2ec1655e66d08071ba9a02fa"
+}
+```
+
+Here, `yarn` is the name of the package manager, specified at version `3.2.3`, along with the SHA-224 hash of this version for validation. `packageManager@x.y.z` is required. The hash is optional but strongly recommended as a security practice. Permitted values for the package manager are `yarn`, `npm`, and `pnpm`.
 
 ## Known Good Releases
 
@@ -120,8 +134,17 @@ This command will retrieve the given package manager from the specified archive 
   manager versions that will be required for the projects you'll run, using
   `corepack hydrate`).
 
-- `COREPACK_ENABLE_STRICT` can be set to `0` to prevent Corepack from checking
+- `COREPACK_ENABLE_STRICT` can be set to `0` to prevent Corepack from throwing error
+  if the package manager does not correspond to the one defined for the current project.
+  This means that if a user is using the package manager specified in the current project,
+  it will use the version specified by the project's `packageManager` field.
+  But if the user is using other package manager different from the one specified
+  for the current project, it will use the system-wide package manager version.
+
+- `COREPACK_ENABLE_PROJECT_SPEC` can be set to `0` to prevent Corepack from checking
   if the package manager corresponds to the one defined for the current project.
+  This means that it will always use the system-wide package manager regardless of
+  what is being specified in the project's `packageManager` field.
 
 - `COREPACK_HOME` can be set in order to define where Corepack should install
   the package managers. By default it is set to `%LOCALAPPDATA%\node\corepack`
@@ -129,29 +152,22 @@ This command will retrieve the given package manager from the specified archive 
 
 - `COREPACK_ROOT` has no functional impact on Corepack itself; it's automatically being set in your environment by Corepack when it shells out to the underlying package managers, so that they can feature-detect its presence (useful for commands like `yarn init`).
 
+- `COREPACK_NPM_REGISTRY` sets the registry base url used when retrieving package managers from npm. Default value is `https://registry.npmjs.org`
+
+- `COREPACK_NPM_TOKEN` sets a Bearer token authorization header when connecting to a npm type registry.
+
+- `COREPACK_NPM_USERNAME` and `COREPACK_NPM_PASSWORD` to set a Basic authorization header when connecting to a npm type registry. Note that both environment variables are required and as plain text. If you want to send an empty password, explicitly set `COREPACK_NPM_PASSWORD` to an empty string.
+
 - `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are supported through [`node-proxy-agent`](https://github.com/TooTallNate/node-proxy-agent).
 
 ## Contributing
 
-If you want to build corepack yourself, you can build the project like this:
-
-1. Clone this repository
-2. Run `yarn build` (no need for `yarn install`)
-3. The `dist/` directory now contains the corepack build and the shims
-4. Call `node ./dist/corepack --help` and behold
-
-You can also run the tests with `yarn jest` (still no install needed).
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Design
 
-Various tidbits about Corepack's design are explained in more details in [DESIGN.md](/DESIGN.md).
+See [`DESIGN.md`](/DESIGN.md).
 
 ## License (MIT)
 
-> **Copyright © Corepack contributors**
->
-> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
->
-> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
->
-> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+See [`LICENSE.md`](./LICENSE.md).
