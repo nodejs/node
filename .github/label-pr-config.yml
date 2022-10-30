@@ -31,8 +31,8 @@ subSystemLabels:
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
   /^src\/node_worker/: c++, worker
-  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x
+  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x
 
   # don't label python files as c++
   /^src\/.+\.py$/: python, needs-ci
@@ -54,7 +54,7 @@ subSystemLabels:
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # more specific tools
-  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x, dont-land-on-v12.x
+  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x
   /^tools\/doc\//: tools, doc
   /^tools\/icu\//: tools, i18n-api, icu, needs-ci
   /^tools\/(?:osx-pkg\.pmdoc|pkgsrc)\//: tools, macos, install
@@ -80,11 +80,11 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
   /^deps\/v8\//: v8 engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
-  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x
+  /^deps\/nghttp3\//: quic, dont-land-on-v14.x
   /^deps\/([^/]+)/: dependencies, $1
 
   ## JS subsystems
@@ -138,7 +138,7 @@ exlusiveLabels:
   # considered a subsystem of sorts
   /^doc\/api\/n-api.md$/: doc, node-api
   # quic
-  /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x, dont-land-on-v12.x
+  /^doc\/api\/quic.md$/: doc, quic, dont-land-on-v14.x
   # Add worker label to PRs that affect doc/api/worker_threads.md
   /^doc\/api\/worker_threads.md$/: doc, worker
   # test runner documentation
