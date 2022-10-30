@@ -69,7 +69,7 @@ tmpdir.refresh();
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
     assert.ok(event === 'change' || event === 'rename');
-    assert.ok(filename === 'symlink-folder' || filename === trackFolder || filename === acceptableFile);
+    assert.ok(filename === 'symlink-folder' || filename === trackFolder || filename === acceptableFile, `Received filename ${filename}`);
 
     if (filename === acceptableFile) {
       watcher.close();
