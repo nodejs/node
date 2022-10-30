@@ -51,6 +51,19 @@ assert(TextDecoder);
   });
 }
 
+// Invalid encoders
+{
+  ['meow', 'nonunicode', 'foo', 'bar'].forEach((fakeEncoding) => {
+    assert.throws(
+      () => { new TextDecoder(fakeEncoding); },
+      {
+        code: 'ERR_ENCODING_NOT_SUPPORTED',
+        name: 'RangeError'
+      }
+    );
+  });
+}
+
 // Test TextDecoder, UTF-8, fatal: true, ignoreBOM: false
 if (common.hasIntl) {
   ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
