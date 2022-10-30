@@ -201,8 +201,13 @@ if (common.hasIntl) {
 }
 
 if (common.hasIntl) {
-  const decoder = new TextDecoder('Shift_JIS');
-  const chunk = new Uint8Array([-1]);
-  const str = decoder.decode(chunk);
-  assert.strictEqual(str, '\ufffd');
+  try {
+    const decoder = new TextDecoder('Shift_JIS');
+    const chunk = new Uint8Array([-1]);
+    const str = decoder.decode(chunk);
+    assert.strictEqual(str, '\ufffd');
+  } catch (e) {
+    // Encoding may not be available, e.g. small-icu builds
+    assert.strictEqual(e.code, 'ERR_ENCODING_NOT_SUPPORTED');
+  }
 }
