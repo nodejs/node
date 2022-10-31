@@ -1075,11 +1075,15 @@ added:
  - v12.17.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44989
     description: Support options to configure the heap snapshot.
 -->
 
-* `options` {Object} See [`v8.getHeapSnapshot()`][] for more details.
+* `options` {Object}
+  * `exposeInternals` {boolean} If true, expose internals in the heap snapshot.
+    **Default:** `false`.
+  * `exposeNumericValues` {boolean} If true, expose numeric values in
+    artificial fields. **Default:** `false`.
 * Returns: {Promise} A promise for a Readable Stream containing
   a V8 heap snapshot
 

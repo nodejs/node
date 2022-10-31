@@ -239,7 +239,7 @@ function getHeapSnapshotOptionTests() {
       snapshot.validateSnapshot('Klass', expected, { loose: true });
     },
     cases,
-  }
+  };
 }
 
 module.exports = {
