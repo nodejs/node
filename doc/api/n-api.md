@@ -2362,7 +2362,7 @@ This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
 later by native code using [`napi_get_value_external`][].
 
-**Some runtimes other than Node.ja have dropped support for external buffers**.
+**Some runtimes other than Node.js have dropped support for external buffers**.
 On runtimes other than Node.js this method may return
 `napi_no_external_buffers_allowed` to indicate that external
 buffers are not supported. One such runtime is electron as
