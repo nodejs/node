@@ -6,9 +6,10 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { once } from 'node:events';
+import { setTimeout } from 'node:timers/promises';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -172,6 +173,41 @@ describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
       stdout,
       messages: { inner: '{}', restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
     });
+  });
+
+  it('should watch changes to previously loaded dependencies', async () => {
+    const dependencyContent = 'module.exports = {}';
+    const dependency = createTmpFile(dependencyContent);
+    const relativeDependencyPath = `./${path.basename(dependency)}`;
+    const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
+
+    let stderr = '';
+    let stdout = '';
+    const child = spawn(execPath, ['--watch', '--no-warnings', dependant], { encoding: 'utf8' });
+    child.stdout.on('data', (data) => { stdout += data; });
+    child.stderr.on('data', (data) => { stderr += data; });
+    child.on('error', (err) => { throw err; });
+
+    await once(child.stdout, 'data');
+    rmSync(dependency, { force: true });
+
+    await setTimeout(600); // throttle + 100
+    writeFileSync(dependency, dependencyContent);
+
+    await setTimeout(600); // throttle + 100
+    child.kill();
+    await once(child, 'exit');
+
+    // TODO(ruyadorno): fs.watch is flaky when removing files from a watched
+    // folder, in this test we want to assert the expected reload happened
+    // after a missing file is recreated so we'll skip the assertions in case
+    // the expected reload+failure never happened.
+    // This should be an assertion for the failure instead of an if block once
+    // the source of this flakyness gets resolved.
+    if (stdout.match(/Failed/g)?.length) {
+      assert.strictEqual(stdout.split('Failed')[1].match(/Restarting/g)?.length, 1, new Error('should have restarted after fail'));
+      assert.ok(stderr.match(/MODULE_NOT_FOUND/g)?.length, new Error('should have failed for not finding the removed file'));
+    }
   });
 
   it('should restart multiple times', async () => {
