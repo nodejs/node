@@ -25,23 +25,25 @@ tmpdir.refresh();
 (async () => {
   // Add a file to already watching folder
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'file-1.txt';
-  const filePath = path.join(testsubdir, file);
-  const watcher = fs.watch(testsubdir, { recursive: true });
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-1');
+  fs.mkdirSync(testDirectory);
 
+  const testFile = path.join(testDirectory, 'file-1.txt');
+
+  const watcher = fs.watch(testDirectory, { recursive: true });
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename');
 
-    if (filename === file) {
+    if (filename === path.basename(testFile)) {
       watcher.close();
       watcherClosed = true;
     }
   });
 
   await setTimeout(common.platformTimeout(100));
-  fs.writeFileSync(filePath, 'world');
+  fs.writeFileSync(testFile, 'world');
 
   process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
@@ -51,23 +53,25 @@ tmpdir.refresh();
 (async () => {
   // Add a folder to already watching folder
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'folder-2';
-  const filePath = path.join(testsubdir, file);
-  const watcher = fs.watch(testsubdir, { recursive: true });
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-2');
+  fs.mkdirSync(testDirectory);
 
+  const testFile = path.join(testDirectory, 'folder-2');
+
+  const watcher = fs.watch(testDirectory, { recursive: true });
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename');
 
-    if (filename === file) {
+    if (filename === path.basename(testFile)) {
       watcher.close();
       watcherClosed = true;
     }
   });
 
   await setTimeout(common.platformTimeout(100));
-  fs.mkdirSync(filePath);
+  fs.mkdirSync(testFile);
 
   process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
@@ -77,19 +81,23 @@ tmpdir.refresh();
 (async () => {
   // Add a file to newly created folder to already watching folder
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'folder-3';
-  const filePath = path.join(testsubdir, file);
-  const watcher = fs.watch(testsubdir, { recursive: true });
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-3');
+  fs.mkdirSync(testDirectory);
+
+  const filePath = path.join(testDirectory, 'folder-3');
+
   const childrenFile = 'file-4.txt';
   const childrenAbsolutePath = path.join(filePath, childrenFile);
+  const childrenRelativePath = path.join(path.basename(filePath), childrenFile);
 
+  const watcher = fs.watch(testDirectory, { recursive: true });
   let watcherClosed = false;
-
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename');
+    assert.ok(filename === path.basename(filePath) || filename === childrenRelativePath);
 
-    if (filename === path.join(file, childrenFile)) {
+    if (filename === childrenRelativePath) {
       watcher.close();
       watcherClosed = true;
     }
@@ -108,25 +116,25 @@ tmpdir.refresh();
 (async () => {
   // Add a file to subfolder of a watching folder
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-4');
+  fs.mkdirSync(testDirectory);
+
   const file = 'folder-5';
-  const filePath = path.join(testsubdir, file);
+  const filePath = path.join(testDirectory, file);
   fs.mkdirSync(filePath);
 
-  const subFolder = 'subfolder-6';
-  const subfolderPath = path.join(filePath, subFolder);
-
+  const subfolderPath = path.join(filePath, 'subfolder-6');
   fs.mkdirSync(subfolderPath);
 
-  const watcher = fs.watch(testsubdir, { recursive: true });
   const childrenFile = 'file-7.txt';
   const childrenAbsolutePath = path.join(subfolderPath, childrenFile);
-  const relativePath = path.join(file, subFolder, childrenFile);
+  const relativePath = path.join(file, path.basename(subfolderPath), childrenFile);
 
+  const watcher = fs.watch(testDirectory, { recursive: true });
   let watcherClosed = false;
-
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename');
 
     if (filename === relativePath) {
       watcher.close();
@@ -145,17 +153,19 @@ tmpdir.refresh();
 (async () => {
   // Add a file to already watching folder, and use URL as the path
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'file-8.txt';
-  const filePath = path.join(testsubdir, file);
-  const url = pathToFileURL(testsubdir);
-  const watcher = fs.watch(url, { recursive: true });
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-5');
+  fs.mkdirSync(testDirectory);
 
+  const filePath = path.join(testDirectory, 'file-8.txt');
+  const url = pathToFileURL(testDirectory);
+
+  const watcher = fs.watch(url, { recursive: true });
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename');
 
-    if (filename === file) {
+    if (filename === path.basename(filePath)) {
       watcher.close();
       watcherClosed = true;
     }
@@ -166,6 +176,40 @@ tmpdir.refresh();
 
   process.on('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
+  });
+})().then(common.mustCall());
+
+(async () => {
+  // Watch a file (not a folder) using fs.watch
+
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+  const testDirectory = path.join(rootDirectory, 'test-6');
+  fs.mkdirSync(testDirectory);
+
+  const filePath = path.join(testDirectory, 'only-file.txt');
+  fs.writeFileSync(filePath, 'hello');
+
+  const watcher = fs.watch(filePath, { recursive: true });
+  let watcherClosed = false;
+  let interval;
+  watcher.on('change', function(event, filename) {
+    assert.ok(event === 'change');
+
+    if (filename === path.basename(filePath)) {
+      clearInterval(interval);
+      interval = null;
+      watcher.close();
+      watcherClosed = true;
+    }
+  });
+
+  interval = setInterval(() => {
+    fs.writeFileSync(filePath, 'world');
+  }, common.platformTimeout(10));
+
+  process.on('exit', function() {
+    assert(watcherClosed, 'watcher Object was not closed');
+    assert.ok(interval === null, 'interval should have been null');
   });
 })().then(common.mustCall());
 

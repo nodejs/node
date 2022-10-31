@@ -24,19 +24,25 @@ tmpdir.refresh();
 (async () => {
   // Add a recursive symlink to the parent folder
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'file-1.txt';
-  const filePath = path.join(testsubdir, file);
-  const watcher = fs.watch(testsubdir, { recursive: true });
+  const testDirectory = fs.mkdtempSync(testDir + path.sep);
 
-  const symlinkFile = path.join(testsubdir, 'symlink-folder');
-  fs.symlinkSync(testsubdir, symlinkFile);
+  // Do not use `testDirectory` as base. It will hang the tests.
+  const rootDirectory = path.join(testDirectory, 'test-1');
+  fs.mkdirSync(rootDirectory);
 
+  const filePath = path.join(rootDirectory, 'file.txt');
+
+  const symlinkFolder = path.join(rootDirectory, 'symlink-folder');
+  fs.symlinkSync(rootDirectory, symlinkFolder);
+
+
+  const watcher = fs.watch(rootDirectory, { recursive: true });
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
+    assert.ok(event === 'rename', `Received ${event}`);
+    assert.ok(filename === path.basename(symlinkFolder) || filename === path.basename(filePath), `Received ${filename}`);
 
-    if (filename === file) {
+    if (filename === path.basename(filePath)) {
       watcher.close();
       watcherClosed = true;
     }
@@ -51,36 +57,42 @@ tmpdir.refresh();
 })().then(common.mustCall());
 
 (async () => {
-  // Add a recursive symlink outside the parent folder
+  // This test checks how a symlink to outside the tracking folder can trigger change
+  // tmp/sub-directory/tracking-folder/symlink-folder -> tmp/sub-directory
 
-  const testsubdir = fs.mkdtempSync(testDir + path.sep);
-  const file = 'file-1.txt';
-  const filePath = path.join(testsubdir, file);
+  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
 
-  const trackFolder = path.join(testsubdir, 'tracking-folder');
-  const acceptableFile = 'acceptable-1.txt';
-  const acceptableFilePath = path.join(trackFolder, acceptableFile);
-  fs.mkdirSync(trackFolder);
+  const subDirectory = path.join(rootDirectory, 'sub-directory');
+  fs.mkdirSync(subDirectory);
 
-  const symlinkFile = path.join(trackFolder, 'symlink-folder');
-  fs.symlinkSync(testsubdir, symlinkFile);
+  const trackingSubDirectory = path.join(subDirectory, 'tracking-folder');
+  fs.mkdirSync(trackingSubDirectory);
 
-  const watcher = fs.watch(trackFolder, { recursive: true });
+  const symlinkFolder = path.join(trackingSubDirectory, 'symlink-folder');
+  fs.symlinkSync(subDirectory, symlinkFolder);
+
+  const forbiddenFile = path.join(subDirectory, 'forbidden.txt');
+  const acceptableFile = path.join(trackingSubDirectory, 'acceptable.txt');
+
+  const watcher = fs.watch(trackingSubDirectory, { recursive: true });
   let watcherClosed = false;
   watcher.on('change', function(event, filename) {
-    assert.ok(event === 'change' || event === 'rename');
-    assert.ok(filename === 'symlink-folder' || filename === trackFolder || filename === acceptableFile, `Received filename ${filename}`);
+    // macOS will only change the following events:
+    // { event: 'rename', filename: 'symlink-folder' }
+    // { event: 'rename', filename: 'acceptable.txt' }
+    assert.ok(event === 'rename', `Received ${event}`);
+    assert.ok(filename === path.basename(symlinkFolder) || filename === path.basename(acceptableFile), `Received ${filename}`);
 
-    if (filename === acceptableFile) {
+    if (filename === path.basename(acceptableFile)) {
       watcher.close();
       watcherClosed = true;
     }
   });
 
   await setTimeout(common.platformTimeout(100));
-  fs.writeFileSync(filePath, 'world');
+  fs.writeFileSync(forbiddenFile, 'world');
   await setTimeout(common.platformTimeout(100));
-  fs.writeFileSync(acceptableFilePath, 'acceptable');
+  fs.writeFileSync(acceptableFile, 'acceptable');
 
   process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
