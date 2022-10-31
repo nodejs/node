@@ -264,7 +264,17 @@ function TestBadALPNCallback() {
     // Callback returns 'http/5' => doesn't match client ALPN => error & reset
     assert.strictEqual(results[0].server, undefined);
     assert.strictEqual(results[0].client.error.code, 'ECONNRESET');
+
+    TestALPNOptionsCallback();
   });
+}
+
+function TestALPNOptionsCallback() {
+  // Server sets two incompatible ALPN options:
+  assert.throws(() => tls.createServer({
+    ALPNCallback: () => 'a',
+    ALPNProtocols: ['b', 'c']
+  }), (error) => error.code === 'ERR_TLS_ALPN_CALLBACK_WITH_PROTOCOLS');
 }
 
 Test1();
