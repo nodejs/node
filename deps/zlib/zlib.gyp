@@ -19,6 +19,7 @@
             'compress.c',
             'contrib/optimizations/insert_string.h',
             'cpu_features.c',
+            'cpu_features.h',
             'crc32.c',
             'crc32.h',
             'deflate.c',
@@ -85,8 +86,6 @@
                 'CRC32_SIMD_SSE42_PCLMUL',
               ],
               'sources': [
-                'cpu_features.c',
-                'cpu_features.h',
                 'crc32_simd.c',
                 'crc32_simd.h',
                 'crc_folding.c',
@@ -103,13 +102,6 @@
                 }]
               ],
             }],
-            ['target_arch in "arm64" and OS=="win"', {
-              'defines': [
-                'ARMV8_OS_WINDOWS',
-                '__ARM_NEON',
-              ],
-              'sources': ['cpu_features.c'],
-            }],
             ['arm_fpu=="neon"', {
               'defines': [
                 'ADLER32_SIMD_NEON',
@@ -119,8 +111,6 @@
                 ['OS!="ios"', {
                   'defines': [ 'CRC32_ARMV8_CRC32' ],
                   'sources': [
-                    'cpu_features.c',
-                    'cpu_features.h',
                     'crc32_simd.c',
                     'crc32_simd.h',
                   ],
