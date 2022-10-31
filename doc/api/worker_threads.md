@@ -1388,7 +1388,7 @@ thread spawned will spawn another until the application crashes.
 [`require('node:worker_threads').threadId`]: #workerthreadid
 [`require('node:worker_threads').workerData`]: #workerworkerdata
 [`trace_events`]: tracing.md
-[`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshot
+[`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
 [`worker.on('message')`]: #event-message_1
