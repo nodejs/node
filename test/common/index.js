@@ -291,6 +291,9 @@ if (global.gc) {
   knownGlobals.push(global.gc);
 }
 
+if (global.Performance) {
+  knownGlobals.push(global.Performance);
+}
 if (global.performance) {
   knownGlobals.push(global.performance);
 }
@@ -301,16 +304,16 @@ if (global.PerformanceMeasure) {
   knownGlobals.push(global.PerformanceMeasure);
 }
 
-if (global.fetch) {
-  knownGlobals.push(
-    global.fetch,
-    global.FormData,
-    global.Request,
-    global.Response,
-    global.Headers,
-  );
+// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
+// until v16.x is EOL. Once all supported versions have structuredClone we
+// can add this to the list above instead.
+if (global.structuredClone) {
+  knownGlobals.push(global.structuredClone);
 }
 
+if (global.fetch) {
+  knownGlobals.push(fetch);
+}
 if (hasCrypto && global.crypto) {
   knownGlobals.push(global.crypto);
   knownGlobals.push(global.Crypto);
@@ -319,6 +322,27 @@ if (hasCrypto && global.crypto) {
 }
 if (global.CustomEvent) {
   knownGlobals.push(global.CustomEvent);
+}
+if (global.ReadableStream) {
+  knownGlobals.push(
+    global.ReadableStream,
+    global.ReadableStreamDefaultReader,
+    global.ReadableStreamBYOBReader,
+    global.ReadableStreamBYOBRequest,
+    global.ReadableByteStreamController,
+    global.ReadableStreamDefaultController,
+    global.TransformStream,
+    global.TransformStreamDefaultController,
+    global.WritableStream,
+    global.WritableStreamDefaultWriter,
+    global.WritableStreamDefaultController,
+    global.ByteLengthQueuingStrategy,
+    global.CountQueuingStrategy,
+    global.TextEncoderStream,
+    global.TextDecoderStream,
+    global.CompressionStream,
+    global.DecompressionStream,
+  );
 }
 
 function allowGlobals(...allowlist) {
