@@ -19395,7 +19395,7 @@ const { MAX_LENGTH: MAX_LENGTH$1, MAX_SAFE_INTEGER } = constants;
 const { re: re$1, t: t$1 } = re$2.exports;
 const parseOptions$1 = parseOptions_1;
 const { compareIdentifiers } = identifiers;
-class SemVer$2 {
+let SemVer$2 = class SemVer {
   constructor (version, options) {
     options = parseOptions$1(options);
     if (version instanceof SemVer$2) {
@@ -19617,7 +19617,7 @@ class SemVer$2 {
     this.raw = this.version;
     return this
   }
-}
+};
 var semver = SemVer$2;
 
 const { MAX_LENGTH } = constants;
