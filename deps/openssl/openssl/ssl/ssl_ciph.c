@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -1026,9 +1026,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
                  * alphanumeric, so we call this an error.
                  */
                 SSLerr(SSL_F_SSL_CIPHER_PROCESS_RULESTR, SSL_R_INVALID_COMMAND);
-                retval = found = 0;
-                l++;
-                break;
+                return 0;
             }
 
             if (rule == CIPHER_SPECIAL) {

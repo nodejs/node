@@ -33,7 +33,7 @@ EC_KEY objects
  const EC_GROUP *EC_KEY_get0_group(const EC_KEY *key);
  int EC_KEY_set_group(EC_KEY *key, const EC_GROUP *group);
  const BIGNUM *EC_KEY_get0_private_key(const EC_KEY *key);
- int EC_KEY_set_private_key(EC_KEY *key, const BIGNUM *prv);
+ int EC_KEY_set_private_key(EC_KEY *key, const BIGNUM *priv_key);
  const EC_POINT *EC_KEY_get0_public_key(const EC_KEY *key);
  int EC_KEY_set_public_key(EC_KEY *key, const EC_POINT *pub);
  point_conversion_form_t EC_KEY_get_conv_form(const EC_KEY *key);
@@ -102,7 +102,9 @@ that it is valid.
 The functions EC_KEY_get0_group(), EC_KEY_set_group(),
 EC_KEY_get0_private_key(), EC_KEY_set_private_key(), EC_KEY_get0_public_key(),
 and EC_KEY_set_public_key() get and set the EC_GROUP object, the private key,
-and the EC_POINT public key for the B<key> respectively.
+and the EC_POINT public key for the B<key> respectively. The function
+EC_KEY_set_private_key() accepts NULL as the priv_key argument to securely clear
+the private key component from the EC_KEY.
 
 The functions EC_KEY_get_conv_form() and EC_KEY_set_conv_form() get and set the
 point_conversion_form for the B<key>. For a description of
@@ -160,10 +162,14 @@ EC_KEY_copy() returns a pointer to the destination key, or NULL on error.
 
 EC_KEY_get0_engine() returns a pointer to an ENGINE, or NULL if it wasn't set.
 
-EC_KEY_up_ref(), EC_KEY_set_group(), EC_KEY_set_private_key(),
-EC_KEY_set_public_key(), EC_KEY_precompute_mult(), EC_KEY_generate_key(),
-EC_KEY_check_key(), EC_KEY_set_public_key_affine_coordinates(),
-EC_KEY_oct2key() and EC_KEY_oct2priv() return 1 on success or 0 on error.
+EC_KEY_up_ref(), EC_KEY_set_group(), EC_KEY_set_public_key(),
+EC_KEY_precompute_mult(), EC_KEY_generate_key(), EC_KEY_check_key(),
+EC_KEY_set_public_key_affine_coordinates(), EC_KEY_oct2key() and
+EC_KEY_oct2priv() return 1 on success or 0 on error.
+
+EC_KEY_set_private_key() returns 1 on success or 0 on error except when the
+priv_key argument is NULL, in that case it returns 0, for legacy compatibility,
+and should not be treated as an error.
 
 EC_KEY_get0_group() returns the EC_GROUP associated with the EC_KEY.
 
@@ -184,7 +190,7 @@ L<d2i_ECPKParameters(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

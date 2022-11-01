@@ -15,50 +15,58 @@ CMS_verify, CMS_get0_signers - verify a CMS SignedData structure
 
 =head1 DESCRIPTION
 
-CMS_verify() verifies a CMS SignedData structure. B<cms> is the CMS_ContentInfo
-structure to verify. B<certs> is a set of certificates in which to search for
-the signing certificate(s). B<store> is a trusted certificate store used for
-chain verification. B<indata> is the detached content if the content is not
-present in B<cms>. The content is written to B<out> if it is not NULL.
+CMS_verify() is very similar to L<PKCS7_verify(3)>. It verifies a
+B<CMS SignedData> structure contained in a structure of type B<CMS_ContentInfo>.
+I<cms> points to the B<CMS_ContentInfo> structure to verify.
+The optional I<certs> parameter refers to a set of certificates
+in which to search for signing certificates.
+I<cms> may contain extra untrusted CA certificates that may be used for
+chain building as well as CRLs that may be used for certificate validation.
+I<store> may be NULL or point to
+the trusted certificate store to use for chain verification.
+I<indata> refers to the signed data if the content is detached from I<cms>.
+Otherwise I<indata> should be NULL and the signed data must be in I<cms>.
+The content is written to the BIO I<out> unless it is NULL.
+I<flags> is an optional set of flags, which can be used to modify the operation.
 
-B<flags> is an optional set of flags, which can be used to modify the verify
-operation.
-
-CMS_get0_signers() retrieves the signing certificate(s) from B<cms>, it may only
+CMS_get0_signers() retrieves the signing certificate(s) from I<cms>, it may only
 be called after a successful CMS_verify() operation.
 
 =head1 VERIFY PROCESS
 
 Normally the verify process proceeds as follows.
 
-Initially some sanity checks are performed on B<cms>. The type of B<cms> must
+Initially some sanity checks are performed on I<cms>. The type of I<cms> must
 be SignedData. There must be at least one signature on the data and if
-the content is detached B<indata> cannot be B<NULL>.
+the content is detached I<indata> cannot be NULL.
 
 An attempt is made to locate all the signing certificate(s), first looking in
-the B<certs> parameter (if it is not NULL) and then looking in any
-certificates contained in the B<cms> structure itself. If any signing
-certificate cannot be located the operation fails.
+the I<certs> parameter (if it is not NULL) and then looking in any
+certificates contained in the I<cms> structure unless B<CMS_NOINTERN> is set.
+If any signing certificate cannot be located the operation fails.
 
-Each signing certificate is chain verified using the B<smimesign> purpose and
-the supplied trusted certificate store. Any internal certificates in the message
-are used as untrusted CAs. If CRL checking is enabled in B<store> any internal
-CRLs are used in addition to attempting to look them up in B<store>. If any
-chain verify fails an error code is returned.
+Each signing certificate is chain verified using the I<smimesign> purpose and
+using the trusted certificate store I<store> if supplied.
+Any internal certificates in the message, which may have been added using
+L<CMS_add1_cert(3)>, are used as untrusted CAs.
+If CRL checking is enabled in I<store> and B<CMS_NOCRL> is not set,
+any internal CRLs, which may have been added using L<CMS_add1_crl(3)>,
+are used in addition to attempting to look them up in I<store>.
+If I<store> is not NULL and any chain verify fails an error code is returned.
 
-Finally the signed content is read (and written to B<out> if it is not NULL)
-and the signature's checked.
+Finally the signed content is read (and written to I<out> unless it is NULL)
+and the signature is checked.
 
-If all signature's verify correctly then the function is successful.
+If all signatures verify correctly then the function is successful.
 
-Any of the following flags (ored together) can be passed in the B<flags>
+Any of the following flags (ored together) can be passed in the I<flags>
 parameter to change the default verify behaviour.
 
 If B<CMS_NOINTERN> is set the certificates in the message itself are not
-searched when locating the signing certificate(s). This means that all the
-signing certificates must be in the B<certs> parameter.
+searched when locating the signing certificate(s).
+This means that all the signing certificates must be in the I<certs> parameter.
 
-If B<CMS_NOCRL> is set and CRL checking is enabled in B<store> then any
+If B<CMS_NOCRL> is set and CRL checking is enabled in I<store> then any
 CRLs in the message itself are ignored.
 
 If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
@@ -66,7 +74,7 @@ from the content. If the content is not of type B<text/plain> then an error is
 returned.
 
 If B<CMS_NO_SIGNER_CERT_VERIFY> is set the signing certificates are not
-verified.
+chain verified.
 
 If B<CMS_NO_ATTR_VERIFY> is set the signed attributes signature is not
 verified.
@@ -77,20 +85,20 @@ If B<CMS_NO_CONTENT_VERIFY> is set then the content digest is not checked.
 
 One application of B<CMS_NOINTERN> is to only accept messages signed by
 a small number of certificates. The acceptable certificates would be passed
-in the B<certs> parameter. In this case if the signer is not one of the
-certificates supplied in B<certs> then the verify will fail because the
+in the I<certs> parameter. In this case if the signer certificate is not one
+of the certificates supplied in I<certs> then the verify will fail because the
 signer cannot be found.
 
 In some cases the standard techniques for looking up and validating
 certificates are not appropriate: for example an application may wish to
 lookup certificates in a database or perform customised verification. This
-can be achieved by setting and verifying the signers certificates manually
+can be achieved by setting and verifying the signer certificates manually
 using the signed data utility functions.
 
 Care should be taken when modifying the default verify behaviour, for example
 setting B<CMS_NO_CONTENT_VERIFY> will totally disable all content verification
 and any modified content will be considered valid. This combination is however
-useful if one merely wishes to write the content to B<out> and its validity
+useful if one merely wishes to write the content to I<out> and its validity
 is not considered important.
 
 Chain verification should arguably be performed using the signing time rather
@@ -100,8 +108,7 @@ timestamp).
 
 =head1 RETURN VALUES
 
-CMS_verify() returns 1 for a successful verification and zero if an error
-occurred.
+CMS_verify() returns 1 for a successful verification and 0 if an error occurred.
 
 CMS_get0_signers() returns all signers or NULL if an error occurred.
 
@@ -109,8 +116,8 @@ The error can be obtained from L<ERR_get_error(3)>
 
 =head1 BUGS
 
-The trusted certificate store is not searched for the signing certificate,
-this is primarily due to the inadequacies of the current B<X509_STORE>
+The trusted certificate store is not searched for the signing certificate.
+This is primarily due to the inadequacies of the current B<X509_STORE>
 functionality.
 
 The lack of single pass processing means that the signed content must all
@@ -118,11 +125,13 @@ be held in memory if it is not detached.
 
 =head1 SEE ALSO
 
+L<PKCS7_verify(3)>, L<CMS_add1_cert(3)>, L<CMS_add1_crl(3)>,
+L<OSSL_ESS_check_signing_certs(3)>,
 L<ERR_get_error(3)>, L<CMS_sign(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -621,7 +621,7 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
         (BIO_write(bp, "-----\n", 6) != 6))
         goto err;
 
-    i = strlen(header);
+    i = header != NULL ? strlen(header) : 0;
     if (i > 0) {
         if ((BIO_write(bp, header, i) != i) || (BIO_write(bp, "\n", 1) != 1))
             goto err;

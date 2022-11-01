@@ -400,7 +400,7 @@ int x509_main(int argc, char **argv)
             aliasout = ++num;
             break;
         case OPT_CACREATESERIAL:
-            CA_createserial = ++num;
+            CA_createserial = 1;
             break;
         case OPT_CLREXT:
             clrext = 1;
@@ -590,7 +590,7 @@ int x509_main(int argc, char **argv)
         xca = load_cert(CAfile, CAformat, "CA Certificate");
         if (xca == NULL)
             goto end;
-        if (!X509_set_issuer_name(x, X509_get_subject_name(xca)))
+        if (reqfile && !X509_set_issuer_name(x, X509_get_subject_name(xca)))
             goto end;
     }
 
@@ -916,6 +916,7 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
     char *buf = NULL;
     ASN1_INTEGER *bs = NULL;
     BIGNUM *serial = NULL;
+    int defaultfile = 0, file_exists;
 
     if (serialfile == NULL) {
         const char *p = strrchr(CAfile, '.');
@@ -925,9 +926,10 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
         memcpy(buf, CAfile, len);
         memcpy(buf + len, POSTFIX, sizeof(POSTFIX));
         serialfile = buf;
+        defaultfile = 1;
     }
 
-    serial = load_serial(serialfile, create, NULL);
+    serial = load_serial(serialfile, &file_exists, create || defaultfile, NULL);
     if (serial == NULL)
         goto end;
 
@@ -936,8 +938,10 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
         goto end;
     }
 
-    if (!save_serial(serialfile, NULL, serial, &bs))
-        goto end;
+    if (file_exists || create)
+        save_serial(serialfile, NULL, serial, &bs);
+    else
+        bs = BN_to_ASN1_INTEGER(serial, NULL);
 
  end:
     OPENSSL_free(buf);
@@ -989,6 +993,8 @@ static int x509_certify(X509_STORE *ctx, const char *CAfile, const EVP_MD *diges
         goto end;
     }
 
+    if (!X509_set_issuer_name(x, X509_get_subject_name(xca)))
+        goto end;
     if (!X509_set_serialNumber(x, bs))
         goto end;
 

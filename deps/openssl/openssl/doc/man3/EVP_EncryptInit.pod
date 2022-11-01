@@ -313,7 +313,7 @@ length.
 EVP_CIPHER_CTX_set_padding() always returns 1.
 
 EVP_CIPHER_iv_length() and EVP_CIPHER_CTX_iv_length() return the IV
-length or zero if the cipher does not use an IV.
+length, zero if the cipher does not use an IV and a negative value on error.
 
 EVP_CIPHER_type() and EVP_CIPHER_CTX_type() return the NID of the cipher's
 OBJECT IDENTIFIER or NID_undef if it has no defined OBJECT IDENTIFIER.
@@ -661,7 +661,7 @@ EVP_CIPHER_CTX_reset().
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

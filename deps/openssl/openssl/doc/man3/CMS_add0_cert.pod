@@ -19,25 +19,33 @@ CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_ge
 
 =head1 DESCRIPTION
 
-CMS_add0_cert() and CMS_add1_cert() add certificate B<cert> to B<cms>.
-must be of type signed data or enveloped data.
+CMS_add0_cert() and CMS_add1_cert() add certificate I<cert> to I<cms>.
+I<cms> must be of type signed data or (authenticated) enveloped data.
+For signed data, such a certificate can be used when signing or verifying
+to fill in the signer certificate or to provide an extra CA certificate
+that may be needed for chain building in certificate validation.
 
-CMS_get1_certs() returns all certificates in B<cms>.
+CMS_get1_certs() returns all certificates in I<cms>.
 
-CMS_add0_crl() and CMS_add1_crl() add CRL B<crl> to B<cms>. CMS_get1_crls()
-returns any CRLs in B<cms>.
+CMS_add0_crl() and CMS_add1_crl() add CRL I<crl> to I<cms>.
+I<cms> must be of type signed data or (authenticated) enveloped data.
+For signed data, such a CRL may be used in certificate validation.
+It may be given both for inclusion when signing a CMS message
+and when verifying a signed CMS message.
+
+CMS_get1_crls() returns all CRLs in I<cms>.
 
 =head1 NOTES
 
-The CMS_ContentInfo structure B<cms> must be of type signed data or enveloped
+The CMS_ContentInfo structure I<cms> must be of type signed data or enveloped
 data or an error will be returned.
 
-For signed data certificates and CRLs are added to the B<certificates> and
-B<crls> fields of SignedData structure. For enveloped data they are added to
+For signed data certificates and CRLs are added to the I<certificates> and
+I<crls> fields of SignedData structure. For enveloped data they are added to
 B<OriginatorInfo>.
 
-As the B<0> implies CMS_add0_cert() adds B<cert> internally to B<cms> and it
-must not be freed up after the call as opposed to CMS_add1_cert() where B<cert>
+As the I<0> implies CMS_add0_cert() adds I<cert> internally to I<cms> and it
+must not be freed up after the call as opposed to CMS_add1_cert() where I<cert>
 must be freed up.
 
 The same certificate or CRL must not be added to the same cms structure more
@@ -50,7 +58,7 @@ CMS_add0_cert(), CMS_add1_cert() and CMS_add0_crl() and CMS_add1_crl() return
 
 CMS_get1_certs() and CMS_get1_crls() return the STACK of certificates or CRLs
 or NULL if there are none or an error occurs. The only error which will occur
-in practice is if the B<cms> type is invalid.
+in practice is if the I<cms> type is invalid.
 
 =head1 SEE ALSO
 
@@ -60,7 +68,7 @@ L<CMS_encrypt(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

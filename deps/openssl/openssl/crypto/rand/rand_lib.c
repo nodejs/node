@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -172,8 +172,12 @@ size_t rand_drbg_get_entropy(RAND_DRBG *drbg,
             if (RAND_DRBG_generate(drbg->parent,
                                    buffer, bytes_needed,
                                    prediction_resistance,
-                                   (unsigned char *)&drbg, sizeof(drbg)) != 0)
+                                   (unsigned char *)&drbg, sizeof(drbg)) != 0) {
                 bytes = bytes_needed;
+                if (drbg->enable_reseed_propagation)
+                    tsan_store(&drbg->reseed_counter,
+                               tsan_load(&drbg->parent->reseed_counter));
+            }
             rand_drbg_unlock(drbg->parent);
 
             rand_pool_add_end(pool, bytes, 8 * bytes);

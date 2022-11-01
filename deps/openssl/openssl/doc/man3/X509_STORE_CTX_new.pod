@@ -175,14 +175,18 @@ It should not normally be necessary for end user applications to call
 X509_STORE_CTX_purpose_inherit() directly. Typically applications should call
 X509_STORE_CTX_set_purpose() or X509_STORE_CTX_set_trust() instead. Using this
 function it is possible to set the purpose and trust values for the I<ctx> at
-the same time. The I<def_purpose> and I<purpose> arguments can have the same
+the same time.
+Both I<ctx> and its internal verification parameter pointer must not be NULL.
+The I<def_purpose> and I<purpose> arguments can have the same
 purpose values as described for X509_STORE_CTX_set_purpose() above. The I<trust>
 argument can have the same trust values as described in
 X509_STORE_CTX_set_trust() above. Any of the I<def_purpose>, I<purpose> or
 I<trust> values may also have the value 0 to indicate that the supplied
 parameter should be ignored. After calling this function the purpose to be used
-for verification is set from the I<purpose> argument, and the trust is set from
-the I<trust> argument. If I<trust> is 0 then the trust value will be set from
+for verification is set from the I<purpose> argument unless the purpose was
+already set in I<ctx> before, and the trust is set from the I<trust> argument
+unless the trust was already set in I<ctx> before.
+If I<trust> is 0 then the trust value will be set from
 the default trust value for I<purpose>. If the default trust value for the
 purpose is I<X509_TRUST_DEFAULT> and I<trust> is 0 then the default trust value
 associated with the I<def_purpose> value is used for the trust setting instead.

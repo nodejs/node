@@ -81,7 +81,7 @@ B<OPENSSL_INIT_NO_ADD_ALL_CIPHERS> will be ignored.
 With this option the library will automatically load and make available all
 libcrypto digests. This option is a default option. Once selected subsequent
 calls to OPENSSL_init_crypto() with the option
-B<OPENSSL_INIT_NO_ADD_ALL_CIPHERS> will be ignored.
+B<OPENSSL_INIT_NO_ADD_ALL_DIGESTS> will be ignored.
 
 =item OPENSSL_INIT_NO_ADD_ALL_CIPHERS
 
@@ -264,7 +264,7 @@ and OPENSSL_INIT_free() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
