@@ -4,9 +4,11 @@
 
 Report security bugs in Node.js via [HackerOne](https://hackerone.com/nodejs).
 
-Your report will be acknowledged within 5 days, and you'll receive a more
-detailed response to your report within 10 days indicating the next steps in
-handling your submission.
+Normally your report will be acknowledged within 5 days, and you'll receive
+a more detailed response to your report within 10 days indicating the
+next steps in handling your submission. These timelines may extend when
+our triage volunteers are away on holiday, particularly at the end of the
+year.
 
 After the initial reply to your report, the security team will endeavor to keep
 you informed of the progress being made towards a fix and full announcement,
