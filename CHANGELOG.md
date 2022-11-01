@@ -54,7 +54,9 @@ release.
 <a href="doc/changelogs/CHANGELOG_V18.md#18.0.0">18.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V16.md#16.17.1">16.17.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V16.md#16.18.1">16.18.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V16.md#16.18.0">16.18.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V16.md#16.17.1">16.17.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.17.0">16.17.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.16.0">16.16.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.15.1">16.15.1</a><br/>

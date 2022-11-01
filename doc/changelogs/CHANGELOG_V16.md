@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.18.1">16.18.1</a><br/>
 <a href="#16.18.0">16.18.0</a><br/>
 <a href="#16.17.1">16.17.1</a><br/>
 <a href="#16.17.0">16.17.0</a><br/>
@@ -66,6 +67,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.18.1"></a>
+
+## 2022-11-04, Version 16.18.1 'Gallium' (LTS), @BethGriggs
+
+This is a security release.
+
+### Notable changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-43548](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-43548)**: DNS rebinding in --inspect via invalid octal IP address (Medium)
+
+More detailed information on each of the vulnerabilities can be found in [November 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/november-2022-security-releases/) blog post.
+
+### Commits
+
+* \[[`9ffddd7098`](https://github.com/nodejs/node/commit/9ffddd7098)] - **inspector**: harden IP address validation again (Tobias Nießen) [nodejs-private/node-private#354](https://github.com/nodejs-private/node-private/pull/354)
 
 <a id="16.18.0"></a>
 
