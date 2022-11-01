@@ -746,24 +746,26 @@ if (!isWindows) {
      }));
 }
 
-// Copy async should not throw exception if child folder is filtered out.
+// Copy should not throw exception if child folder is filtered out.
 {
   const src = nextdir();
-  mkdirSync(join(src, 'test-cp-async'), mustNotMutateObjectDeep({ recursive: true }));
+  mkdirSync(join(src, 'test-cp'), mustNotMutateObjectDeep({ recursive: true }));
 
   const dest = nextdir();
   mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
-  writeFileSync(join(dest, 'test-cp-async'), 'test-content', mustNotMutateObjectDeep({ mode: 0o444 }));
+  writeFileSync(join(dest, 'test-cp'), 'test-content', mustNotMutateObjectDeep({ mode: 0o444 }));
 
-  cp(src, dest, {
-    filter: (path) => !path.includes('test-cp-async'),
+  const opts = {
+    filter: (path) => !path.includes('test-cp'),
     recursive: true,
-  }, mustCall((err) => {
+  };
+  cp(src, dest, opts, mustCall((err) => {
     assert.strictEqual(err, null);
   }));
+  cpSync(src, dest, opts);
 }
 
-// Copy async should not throw exception if dest is invalid but filtered out.
+// Copy should not throw exception if dest is invalid but filtered out.
 {
   // Create dest as a file.
   // Expect: cp skips the copy logic entirely and won't throw any exception in path validation process.
@@ -775,12 +777,14 @@ if (!isWindows) {
   mkdirSync(destParent, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(dest, 'test-content', mustNotMutateObjectDeep({ mode: 0o444 }));
 
-  cp(src, dest, {
+  const opts = {
     filter: (path) => !path.includes('bar'),
     recursive: true,
-  }, mustCall((err) => {
+  };
+  cp(src, dest, opts, mustCall((err) => {
     assert.strictEqual(err, null);
   }));
+  cpSync(src, dest, opts);
 }
 
 // It throws if options is not object.
