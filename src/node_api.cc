@@ -950,7 +950,7 @@ napi_status NAPI_CDECL napi_create_external_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#if defined(V8_ENABLE_SANDBOX)
   return napi_set_last_error(env, napi_no_external_buffers_allowed);
 #endif
 
