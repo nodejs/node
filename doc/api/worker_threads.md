@@ -1074,7 +1074,7 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v19.1.0
     pr-url: https://github.com/nodejs/node/pull/44989
     description: Support options to configure the heap snapshot.
 -->

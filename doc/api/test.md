@@ -730,7 +730,7 @@ describe('tests', async () => {
 ## Class: `MockFunctionContext`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 The `MockFunctionContext` class is used to inspect or manipulate the behavior of
@@ -739,7 +739,7 @@ mocks created via the [`MockTracker`][] APIs.
 ### `ctx.calls`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * {Array}
@@ -761,7 +761,7 @@ mock. Each entry in the array is an object with the following properties.
 ### `ctx.callCount()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * Returns: {integer} The number of times that this mock has been invoked.
@@ -773,7 +773,7 @@ is a getter that creates a copy of the internal call tracking array.
 ### `ctx.mockImplementation(implementation)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
@@ -810,7 +810,7 @@ test('changes a mock behavior', (t) => {
 ### `ctx.mockImplementationOnce(implementation[, onCall])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
@@ -854,7 +854,7 @@ test('changes a mock behavior once', (t) => {
 ### `ctx.restore()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 Resets the implementation of the mock function to its original behavior. The
@@ -863,7 +863,7 @@ mock can still be used after calling this function.
 ## Class: `MockTracker`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 The `MockTracker` class is used to manage mocking functionality. The test runner
@@ -874,7 +874,7 @@ Each test also provides its own `MockTracker` instance via the test context's
 ### `mock.fn([original[, implementation]][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * `original` {Function|AsyncFunction} An optional function to create a mock on.
@@ -925,7 +925,7 @@ test('mocks a counting function', (t) => {
 ### `mock.method(object, methodName[, implementation][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 * `object` {Object} The object whose method is being mocked.
@@ -979,7 +979,7 @@ test('spies on an object method', (t) => {
 ### `mock.reset()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -995,7 +995,7 @@ function manually is recommended.
 ### `mock.restoreAll()`
 
 <!-- YAML
-added: REPLACEME
+added: v19.1.0
 -->
 
 This function restores the default behavior of all mocks that were previously
