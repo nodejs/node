@@ -2,8 +2,8 @@
 set -e
 # Shell script to update c-ares in the source tree to a specific version
 
-BASE_DIR="$( pwd )"/
-DEPS_DIR="$BASE_DIR"deps/
+BASE_DIR="$( pwd )"
+DEPS_DIR="$BASE_DIR/deps"
 ARES_VERSION=$1
 
 if [ "$#" -le 0 ]; then
