@@ -392,12 +392,14 @@ static int range_should_be_prefix(const unsigned char *min,
 /*
  * Construct a prefix.
  */
-static int make_addressPrefix(IPAddressOrRange **result,
-                              unsigned char *addr, const int prefixlen)
+static int make_addressPrefix(IPAddressOrRange **result, unsigned char *addr,
+                              const int prefixlen, const int afilen)
 {
     int bytelen = (prefixlen + 7) / 8, bitlen = prefixlen % 8;
     IPAddressOrRange *aor = IPAddressOrRange_new();
 
+    if (prefixlen < 0 || prefixlen > (afilen * 8))
+        return 0;
     if (aor == NULL)
         return 0;
     aor->type = IPAddressOrRange_addressPrefix;
@@ -437,7 +439,7 @@ static int make_addressRange(IPAddressOrRange **result,
         return 0;
 
     if ((prefixlen = range_should_be_prefix(min, max, length)) >= 0)
-        return make_addressPrefix(result, min, prefixlen);
+        return make_addressPrefix(result, min, prefixlen, length);
 
     if ((aor = IPAddressOrRange_new()) == NULL)
         return 0;
@@ -599,7 +601,9 @@ int X509v3_addr_add_prefix(IPAddrBlocks *addr,
 {
     IPAddressOrRanges *aors = make_prefix_or_range(addr, afi, safi);
     IPAddressOrRange *aor;
-    if (aors == NULL || !make_addressPrefix(&aor, a, prefixlen))
+
+    if (aors == NULL
+            || !make_addressPrefix(&aor, a, prefixlen, length_from_afi(afi)))
         return 0;
     if (sk_IPAddressOrRange_push(aors, aor))
         return 1;
@@ -996,7 +1000,10 @@ static void *v2i_IPAddrBlocks(const struct v3_ext_method *method,
         switch (delim) {
         case '/':
             prefixlen = (int)strtoul(s + i2, &t, 10);
-            if (t == s + i2 || *t != '\0') {
+            if (t == s + i2
+                    || *t != '\0'
+                    || prefixlen > (length * 8)
+                    || prefixlen < 0) {
                 X509V3err(X509V3_F_V2I_IPADDRBLOCKS,
                           X509V3_R_EXTENSION_VALUE_ERROR);
                 X509V3_conf_err(val);
