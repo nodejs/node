@@ -92,7 +92,7 @@ buffer size to hold the value.
 
  #include <openssl/evp.h>
 
- char *curve_name[64];
+ char curve_name[64];
  unsigned char pub[256];
  BIGNUM *bn_priv = NULL;
 
@@ -112,7 +112,6 @@ buffer size to hold the value.
  if (!EVP_PKEY_get_bn_param(key, OSSL_PKEY_PARAM_PRIV_KEY, &bn_priv)) {
      /* Error */
  }
-
 
  BN_clear_free(bn_priv);
 

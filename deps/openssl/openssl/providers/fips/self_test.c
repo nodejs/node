@@ -104,7 +104,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     return TRUE;
 }
 
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && !defined(_AIX)
 # undef DEP_INIT_ATTRIBUTE
 # undef DEP_FINI_ATTRIBUTE
 # define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
@@ -114,7 +114,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 # pragma init(init)
 # pragma fini(cleanup)
 
-#elif defined(_AIX)
+#elif defined(_AIX) && !defined(__GNUC__)
 void _init(void);
 void _cleanup(void);
 # pragma init(_init)

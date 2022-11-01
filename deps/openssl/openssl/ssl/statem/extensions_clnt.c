@@ -679,6 +679,10 @@ EXT_RETURN tls_construct_ctos_key_share(SSL *s, WPACKET *pkt,
             if (!tls_group_allowed(s, pgroups[i], SSL_SECOP_CURVE_SUPPORTED))
                 continue;
 
+            if (!tls_valid_group(s, pgroups[i], TLS1_3_VERSION, TLS1_3_VERSION,
+                                 0, NULL))
+                continue;
+
             curve_id = pgroups[i];
             break;
         }
@@ -974,7 +978,7 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
                                   X509 *x, size_t chainidx)
 {
 #ifndef OPENSSL_NO_TLS1_3
-    uint32_t now, agesec, agems = 0;
+    uint32_t agesec, agems = 0;
     size_t reshashsize = 0, pskhashsize = 0, binderoffset, msglen;
     unsigned char *resbinder = NULL, *pskbinder = NULL, *msgstart = NULL;
     const EVP_MD *handmd = NULL, *mdres = NULL, *mdpsk = NULL;
@@ -1030,8 +1034,7 @@ EXT_RETURN tls_construct_ctos_psk(SSL *s, WPACKET *pkt, unsigned int context,
          * this in multiple places in the code, so portability shouldn't be an
          * issue.
          */
-        now = (uint32_t)time(NULL);
-        agesec = now - (uint32_t)s->session->time;
+        agesec = (uint32_t)(time(NULL) - s->session->time);
         /*
          * We calculate the age in seconds but the server may work in ms. Due to
          * rounding errors we could overestimate the age by up to 1s. It is
@@ -1193,47 +1196,7 @@ EXT_RETURN tls_construct_ctos_post_handshake_auth(SSL *s, WPACKET *pkt,
 #endif
 }
 
-#ifndef OPENSSL_NO_QUIC
-EXT_RETURN tls_construct_ctos_quic_transport_params_draft(SSL *s, WPACKET *pkt,
-                                                          unsigned int context, X509 *x,
-                                                          size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
 
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters_draft)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-
-EXT_RETURN tls_construct_ctos_quic_transport_params(SSL *s, WPACKET *pkt,
-                                                    unsigned int context, X509 *x,
-                                                    size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-#endif
 /*
  * Parse the server's renegotiation binding and abort if it's not right
  */
@@ -1816,7 +1779,9 @@ int tls_parse_stoc_key_share(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
                 break;
         }
         if (i >= num_groups
-                || !tls_group_allowed(s, group_id, SSL_SECOP_CURVE_SUPPORTED)) {
+                || !tls_group_allowed(s, group_id, SSL_SECOP_CURVE_SUPPORTED)
+                || !tls_valid_group(s, group_id, TLS1_3_VERSION, TLS1_3_VERSION,
+                                    0, NULL)) {
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_BAD_KEY_SHARE);
             return 0;
         }
@@ -1934,17 +1899,6 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
             return 0;
         }
 
-#ifndef OPENSSL_NO_QUIC
-        /*
-         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
-         * per RFC9001 S4.6.1
-         */
-        if (SSL_IS_QUIC(s) && max_early_data != 0xFFFFFFFF) {
-            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_INVALID_MAX_EARLY_DATA);
-            return 0;
-        }
-#endif
-
         s->session->ext.max_early_data = max_early_data;
 
         return 1;
@@ -2027,37 +1981,3 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 
     return 1;
 }
-#ifndef OPENSSL_NO_QUIC
-int tls_parse_stoc_quic_transport_params_draft(SSL *s, PACKET *pkt,
-                                               unsigned int context, X509 *x,
-                                               size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    s->ext.peer_quic_transport_params_draft = NULL;
-    s->ext.peer_quic_transport_params_draft_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params_draft,
-                       &s->ext.peer_quic_transport_params_draft_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-
-int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
-                                         X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params,
-                       &s->ext.peer_quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-#endif

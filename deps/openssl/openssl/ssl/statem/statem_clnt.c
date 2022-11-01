@@ -904,14 +904,6 @@ int ossl_statem_client_construct_message(SSL *s, WPACKET *pkt,
         break;
 
     case TLS_ST_CW_END_OF_EARLY_DATA:
-#ifndef OPENSSL_NO_QUIC
-        /* QUIC does not send EndOfEarlyData, RFC9001 S8.3 */
-        if (SSL_IS_QUIC(s)) {
-            *confunc = NULL;
-            *mt = SSL3_MT_DUMMY;
-            break;
-        }
-#endif
         *confunc = tls_construct_end_of_early_data;
         *mt = SSL3_MT_END_OF_EARLY_DATA;
         break;
@@ -1354,12 +1346,14 @@ static int set_client_ciphersuite(SSL *s, const unsigned char *cipherchars)
         s->session->cipher_id = s->session->cipher->id;
     if (s->hit && (s->session->cipher_id != c->id)) {
         if (SSL_IS_TLS13(s)) {
+            const EVP_MD *md = ssl_md(s->ctx, c->algorithm2);
+
             /*
              * In TLSv1.3 it is valid for the server to select a different
              * ciphersuite as long as the hash is the same.
              */
-            if (ssl_md(s->ctx, c->algorithm2)
-                    != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
+            if (md == NULL
+                    || md != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
                 SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
                          SSL_R_CIPHERSUITE_DIGEST_HAS_CHANGED);
                 return 0;

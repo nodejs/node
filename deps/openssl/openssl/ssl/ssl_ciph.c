@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -532,7 +532,8 @@ int ssl_cipher_get_evp(SSL_CTX *ctx, const SSL_SESSION *s,
         ctmp.id = s->compress_meth;
         if (ssl_comp_methods != NULL) {
             i = sk_SSL_COMP_find(ssl_comp_methods, &ctmp);
-            *comp = sk_SSL_COMP_value(ssl_comp_methods, i);
+            if (i >= 0)
+                *comp = sk_SSL_COMP_value(ssl_comp_methods, i);
         }
         /* If were only interested in comp then return success */
         if ((enc == NULL) && (md == NULL))
@@ -555,11 +556,14 @@ int ssl_cipher_get_evp(SSL_CTX *ctx, const SSL_SESSION *s,
         if (c->algorithm_mac == SSL_AEAD)
             mac_pkey_type = NULL;
     } else {
-        if (!ssl_evp_md_up_ref(ctx->ssl_digest_methods[i])) {
+        const EVP_MD *digest = ctx->ssl_digest_methods[i];
+
+        if (digest == NULL
+                || !ssl_evp_md_up_ref(digest)) {
             ssl_evp_cipher_free(*enc);
             return 0;
         }
-        *md = ctx->ssl_digest_methods[i];
+        *md = digest;
         if (mac_pkey_type != NULL)
             *mac_pkey_type = ctx->ssl_mac_pkey_id[i];
         if (mac_secret_size != NULL)
@@ -1059,9 +1063,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
                  * alphanumeric, so we call this an error.
                  */
                 ERR_raise(ERR_LIB_SSL, SSL_R_INVALID_COMMAND);
-                retval = found = 0;
-                l++;
-                break;
+                return 0;
             }
 
             if (rule == CIPHER_SPECIAL) {
@@ -2237,37 +2239,3 @@ const char *OSSL_default_ciphersuites(void)
            "TLS_CHACHA20_POLY1305_SHA256:"
            "TLS_AES_128_GCM_SHA256";
 }
-
-#ifndef OPENSSL_NO_QUIC
-int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c)
-{
-    switch (c->algorithm2 & (0xFF << TLS1_PRF_DGST_SHIFT)) {
-    default:
-        break;
-    case TLS1_PRF_SHA1_MD5: /* TLS1_PRF */
-        return NID_md5_sha1;
-    case TLS1_PRF_SHA256:
-        return NID_sha256;
-    case TLS1_PRF_SHA384:
-        return NID_sha384;
-    case TLS1_PRF_GOST94:
-        return NID_id_GostR3411_94_prf;
-    case TLS1_PRF_GOST12_256:
-        return NID_id_GostR3411_2012_256;
-    case TLS1_PRF_GOST12_512:
-        return NID_id_GostR3411_2012_512;
-    }
-    /* TLSv1.3 ciphers don't specify separate PRF */
-    switch (c->algorithm2 & SSL_HANDSHAKE_MAC_MASK) {
-    default:
-        break;
-    case SSL_HANDSHAKE_MAC_MD5_SHA1: /* SSL_HANDSHAKE_MAC_DEFAULT */
-        return NID_md5_sha1;
-    case SSL_HANDSHAKE_MAC_SHA256:
-        return NID_sha256;
-    case SSL_HANDSHAKE_MAC_SHA384:
-        return NID_sha384;
-    }
-    return NID_undef;
-}
-#endif

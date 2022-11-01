@@ -1914,7 +1914,8 @@ static void get_current_time(struct timeval *t)
     t->tv_sec = (long)(now_ul / 10000000);
     t->tv_usec = ((int)(now_ul % 10000000)) / 10;
 # else
-    gettimeofday(t, NULL);
+    if (gettimeofday(t, NULL) < 0)
+        perror("gettimeofday");
 # endif
 }
 

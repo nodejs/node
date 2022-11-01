@@ -134,20 +134,6 @@ struct sslapitest_log_counts {
 };
 
 
-static unsigned char serverinfov1[] = {
-    0xff, 0xff, /* Dummy extension type */
-    0x00, 0x01, /* Extension length is 1 byte */
-    0xff        /* Dummy extension data */
-};
-
-static unsigned char serverinfov2[] = {
-    0x00, 0x00, 0x00,
-    (unsigned char)(SSL_EXT_CLIENT_HELLO & 0xff), /* Dummy context - 4 bytes */
-    0xff, 0xff, /* Dummy extension type */
-    0x00, 0x01, /* Extension length is 1 byte */
-    0xff        /* Dummy extension data */
-};
-
 static int hostname_cb(SSL *s, int *al, void *arg)
 {
     const char *hostname = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
@@ -2131,6 +2117,32 @@ static int execute_test_session(int maxprot, int use_int_cache,
                 goto end;
         }
     }
+    /*
+     * Make a small cache, force out all other sessions but
+     * sess2, try to add sess1, which should succeed. Then
+     * make sure it's there by checking the owners. Despite
+     * the timeouts, sess1 should have kicked out sess2
+     */
+
+    /* Make sess1 expire before sess2 */
+    if (!TEST_long_gt(SSL_SESSION_set_time(sess1, 1000), 0)
+            || !TEST_long_gt(SSL_SESSION_set_timeout(sess1, 1000), 0)
+            || !TEST_long_gt(SSL_SESSION_set_time(sess2, 2000), 0)
+            || !TEST_long_gt(SSL_SESSION_set_timeout(sess2, 2000), 0))
+        goto end;
+
+    if (!TEST_long_ne(SSL_CTX_sess_set_cache_size(sctx, 1), 0))
+        goto end;
+
+    /* Don't care about results - cache should only be sess2 at end */
+    SSL_CTX_add_session(sctx, sess1);
+    SSL_CTX_add_session(sctx, sess2);
+
+    /* Now add sess1, and make sure it remains, despite timeout */
+    if (!TEST_true(SSL_CTX_add_session(sctx, sess1))
+            || !TEST_ptr(sess1->owner)
+            || !TEST_ptr_null(sess2->owner))
+        goto end;
 
     testresult = 1;
 
@@ -5805,62 +5817,138 @@ end:
     return testresult;
 }
 
-/*
- * Test loading of serverinfo data in various formats. test_sslmessages actually
- * tests to make sure the extensions appear in the handshake
- */
-static int test_serverinfo(int tst)
-{
-    unsigned int version;
-    unsigned char *sibuf;
-    size_t sibuflen;
-    int ret, expected, testresult = 0;
-    SSL_CTX *ctx;
+#if !defined(OPENSSL_NO_TLS1_2) && !defined(OSSL_NO_USABLE_TLS1_3)
 
-    ctx = SSL_CTX_new_ex(libctx, NULL, TLS_method());
-    if (!TEST_ptr(ctx))
+#define  SYNTHV1CONTEXT     (SSL_EXT_TLS1_2_AND_BELOW_ONLY \
+                             | SSL_EXT_CLIENT_HELLO \
+                             | SSL_EXT_TLS1_2_SERVER_HELLO \
+                             | SSL_EXT_IGNORE_ON_RESUMPTION)
+
+#define TLS13CONTEXT (SSL_EXT_TLS1_3_CERTIFICATE \
+                      | SSL_EXT_TLS1_2_SERVER_HELLO \
+                      | SSL_EXT_CLIENT_HELLO)
+
+#define SERVERINFO_CUSTOM                                 \
+    0x00, (char)TLSEXT_TYPE_signed_certificate_timestamp, \
+    0x00, 0x03,                                           \
+    0x04, 0x05, 0x06                                      \
+
+static const unsigned char serverinfo_custom_tls13[] = {
+    0x00, 0x00, (TLS13CONTEXT >> 8) & 0xff, TLS13CONTEXT & 0xff,
+    SERVERINFO_CUSTOM
+};
+static const unsigned char serverinfo_custom_v2[] = {
+    0x00, 0x00, (SYNTHV1CONTEXT >> 8) & 0xff,  SYNTHV1CONTEXT & 0xff,
+    SERVERINFO_CUSTOM
+};
+static const unsigned char serverinfo_custom_v1[] = {
+    SERVERINFO_CUSTOM
+};
+static const size_t serverinfo_custom_tls13_len = sizeof(serverinfo_custom_tls13);
+static const size_t serverinfo_custom_v2_len = sizeof(serverinfo_custom_v2);
+static const size_t serverinfo_custom_v1_len = sizeof(serverinfo_custom_v1);
+
+static int serverinfo_custom_parse_cb(SSL *s, unsigned int ext_type,
+                                      unsigned int context,
+                                      const unsigned char *in,
+                                      size_t inlen, X509 *x,
+                                      size_t chainidx, int *al,
+                                      void *parse_arg)
+{
+    const size_t len = serverinfo_custom_v1_len;
+    const unsigned char *si = &serverinfo_custom_v1[len - 3];
+    int *p_cb_result = (int*)parse_arg;
+    *p_cb_result = TEST_mem_eq(in, inlen, si, 3);
+    return 1;
+}
+
+static int test_serverinfo_custom(const int idx)
+{
+    SSL_CTX *sctx = NULL, *cctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    int testresult = 0;
+    int cb_result = 0;
+
+    /*
+     * Following variables are set in the switch statement
+     *  according to the test iteration.
+     * Default values do not make much sense: test would fail with them.
+     */
+    int serverinfo_version = 0;
+    int protocol_version = 0;
+    unsigned int extension_context = 0;
+    const unsigned char *si = NULL;
+    size_t si_len = 0;
+
+    const int call_use_serverinfo_ex = idx > 0;
+    switch (idx) {
+    case 0: /* FALLTHROUGH */
+    case 1:
+        serverinfo_version = SSL_SERVERINFOV1;
+        protocol_version = TLS1_2_VERSION;
+        extension_context = SYNTHV1CONTEXT;
+        si = serverinfo_custom_v1;
+        si_len = serverinfo_custom_v1_len;
+        break;
+    case 2:
+        serverinfo_version = SSL_SERVERINFOV2;
+        protocol_version = TLS1_2_VERSION;
+        extension_context = SYNTHV1CONTEXT;
+        si = serverinfo_custom_v2;
+        si_len = serverinfo_custom_v2_len;
+        break;
+    case 3:
+        serverinfo_version = SSL_SERVERINFOV2;
+        protocol_version = TLS1_3_VERSION;
+        extension_context = TLS13CONTEXT;
+        si = serverinfo_custom_tls13;
+        si_len = serverinfo_custom_tls13_len;
+        break;
+    }
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx,
+                                       TLS_method(),
+                                       TLS_method(),
+                                       protocol_version,
+                                       protocol_version,
+                                       &sctx, &cctx, cert, privkey)))
         goto end;
 
-    if ((tst & 0x01) == 0x01)
-        version = SSL_SERVERINFOV2;
-    else
-        version = SSL_SERVERINFOV1;
-
-    if ((tst & 0x02) == 0x02) {
-        sibuf = serverinfov2;
-        sibuflen = sizeof(serverinfov2);
-        expected = (version == SSL_SERVERINFOV2);
+    if (call_use_serverinfo_ex) {
+        if (!TEST_true(SSL_CTX_use_serverinfo_ex(sctx, serverinfo_version,
+                                                 si, si_len)))
+            goto end;
     } else {
-        sibuf = serverinfov1;
-        sibuflen = sizeof(serverinfov1);
-        expected = (version == SSL_SERVERINFOV1);
+        if (!TEST_true(SSL_CTX_use_serverinfo(sctx, si, si_len)))
+            goto end;
     }
 
-    if ((tst & 0x04) == 0x04) {
-        ret = SSL_CTX_use_serverinfo_ex(ctx, version, sibuf, sibuflen);
-    } else {
-        ret = SSL_CTX_use_serverinfo(ctx, sibuf, sibuflen);
+    if (!TEST_true(SSL_CTX_add_custom_ext(cctx, TLSEXT_TYPE_signed_certificate_timestamp,
+                                          extension_context,
+                                          NULL, NULL, NULL,
+                                          serverinfo_custom_parse_cb,
+                                          &cb_result))
+        || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
+                                         NULL, NULL))
+        || !TEST_true(create_ssl_connection(serverssl, clientssl,
+                                            SSL_ERROR_NONE))
+        || !TEST_int_eq(SSL_do_handshake(clientssl), 1))
+        goto end;
 
-        /*
-         * The version variable is irrelevant in this case - it's what is in the
-         * buffer that matters
-         */
-        if ((tst & 0x02) == 0x02)
-            expected = 0;
-        else
-            expected = 1;
-    }
-
-    if (!TEST_true(ret == expected))
+    if (!TEST_true(cb_result))
         goto end;
 
     testresult = 1;
 
  end:
-    SSL_CTX_free(ctx);
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
 
     return testresult;
 }
+#endif
 
 /*
  * Test that SSL_export_keying_material() produces expected results. There are
@@ -7522,11 +7610,24 @@ static int tick_key_cb(SSL *s, unsigned char key_name[16],
 {
     const unsigned char tick_aes_key[16] = "0123456789abcdef";
     const unsigned char tick_hmac_key[16] = "0123456789abcdef";
-    EVP_CIPHER *aes128cbc = EVP_CIPHER_fetch(libctx, "AES-128-CBC", NULL);
-    EVP_MD *sha256 = EVP_MD_fetch(libctx, "SHA-256", NULL);
+    EVP_CIPHER *aes128cbc;
+    EVP_MD *sha256;
     int ret;
 
     tick_key_cb_called = 1;
+
+    if (tick_key_renew == -1)
+        return 0;
+
+    aes128cbc = EVP_CIPHER_fetch(libctx, "AES-128-CBC", NULL);
+    if (!TEST_ptr(aes128cbc))
+        return 0;
+    sha256 = EVP_MD_fetch(libctx, "SHA-256", NULL);
+    if (!TEST_ptr(sha256)) {
+        EVP_CIPHER_free(aes128cbc);
+        return 0;
+    }
+
     memset(iv, 0, AES_BLOCK_SIZE);
     memset(key_name, 0, 16);
     if (aes128cbc == NULL
@@ -7552,10 +7653,18 @@ static int tick_key_evp_cb(SSL *s, unsigned char key_name[16],
     const unsigned char tick_aes_key[16] = "0123456789abcdef";
     unsigned char tick_hmac_key[16] = "0123456789abcdef";
     OSSL_PARAM params[2];
-    EVP_CIPHER *aes128cbc = EVP_CIPHER_fetch(libctx, "AES-128-CBC", NULL);
+    EVP_CIPHER *aes128cbc;
     int ret;
 
     tick_key_cb_called = 1;
+
+    if (tick_key_renew == -1)
+        return 0;
+
+    aes128cbc = EVP_CIPHER_fetch(libctx, "AES-128-CBC", NULL);
+    if (!TEST_ptr(aes128cbc))
+        return 0;
+
     memset(iv, 0, AES_BLOCK_SIZE);
     memset(key_name, 0, 16);
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
@@ -7588,10 +7697,14 @@ static int tick_key_evp_cb(SSL *s, unsigned char key_name[16],
  * Test 9: TLSv1.3, old ticket key callback, ticket, no renewal
  * Test 10: TLSv1.2, old ticket key callback, ticket, renewal
  * Test 11: TLSv1.3, old ticket key callback, ticket, renewal
- * Test 12: TLSv1.2, ticket key callback, ticket, no renewal
- * Test 13: TLSv1.3, ticket key callback, ticket, no renewal
- * Test 14: TLSv1.2, ticket key callback, ticket, renewal
- * Test 15: TLSv1.3, ticket key callback, ticket, renewal
+ * Test 12: TLSv1.2, old ticket key callback, no ticket
+ * Test 13: TLSv1.3, old ticket key callback, no ticket
+ * Test 14: TLSv1.2, ticket key callback, ticket, no renewal
+ * Test 15: TLSv1.3, ticket key callback, ticket, no renewal
+ * Test 16: TLSv1.2, ticket key callback, ticket, renewal
+ * Test 17: TLSv1.3, ticket key callback, ticket, renewal
+ * Test 18: TLSv1.2, ticket key callback, no ticket
+ * Test 19: TLSv1.3, ticket key callback, no ticket
  */
 static int test_ticket_callbacks(int tst)
 {
@@ -7609,15 +7722,18 @@ static int test_ticket_callbacks(int tst)
         return 1;
 #endif
 #ifdef OPENSSL_NO_DEPRECATED_3_0
-    if (tst >= 8 && tst <= 11)
+    if (tst >= 8 && tst <= 13)
         return 1;
 #endif
 
     gen_tick_called = dec_tick_called = tick_key_cb_called = 0;
 
     /* Which tests the ticket key callback should request renewal for */
-    if (tst == 10 || tst == 11 || tst == 14 || tst == 15)
+    
+    if (tst == 10 || tst == 11 || tst == 16 || tst == 17)
         tick_key_renew = 1;
+    else if (tst == 12 || tst == 13 || tst == 18 || tst == 19)
+        tick_key_renew = -1; /* abort sending the ticket/0-length ticket */
     else
         tick_key_renew = 0;
 
@@ -7666,7 +7782,7 @@ static int test_ticket_callbacks(int tst)
                                                  NULL)))
         goto end;
 
-    if (tst >= 12) {
+    if (tst >= 14) {
         if (!TEST_true(SSL_CTX_set_tlsext_ticket_key_evp_cb(sctx, tick_key_evp_cb)))
             goto end;
 #ifndef OPENSSL_NO_DEPRECATED_3_0
@@ -7711,7 +7827,8 @@ static int test_ticket_callbacks(int tst)
         goto end;
 
     if (tick_dec_ret == SSL_TICKET_RETURN_IGNORE
-            || tick_dec_ret == SSL_TICKET_RETURN_IGNORE_RENEW) {
+            || tick_dec_ret == SSL_TICKET_RETURN_IGNORE_RENEW
+            || tick_key_renew == -1) {
         if (!TEST_false(SSL_session_reused(clientssl)))
             goto end;
     } else {
@@ -7724,7 +7841,8 @@ static int test_ticket_callbacks(int tst)
                       || tick_dec_ret == SSL_TICKET_RETURN_IGNORE_RENEW
                       || tick_dec_ret == SSL_TICKET_RETURN_USE_RENEW)
                      ? 1 : 0)
-            || !TEST_int_eq(dec_tick_called, 1))
+               /* There is no ticket to decrypt in tests 13 and 19 */
+            || !TEST_int_eq(dec_tick_called, (tst == 13 || tst == 19) ? 0 : 1))
         goto end;
 
     testresult = 1;
@@ -8411,7 +8529,7 @@ static int test_multiblock_write(int test_index)
      * Check if the cipher exists before attempting to use it since it only has
      * a hardware specific implementation.
      */
-    ciph = EVP_CIPHER_fetch(NULL, fetchable_ciphers[test_index], "");
+    ciph = EVP_CIPHER_fetch(libctx, fetchable_ciphers[test_index], "");
     if (ciph == NULL) {
         TEST_skip("Multiblock cipher is not available for %s", cipherlist);
         return 1;
@@ -9727,7 +9845,6 @@ static int test_inherit_verify_param(void)
     return testresult;
 }
 
-
 static int test_load_dhfile(void)
 {
 #ifndef OPENSSL_NO_DH
@@ -9762,365 +9879,6 @@ end:
     return TEST_skip("DH not supported by this build");
 #endif
 }
-
-#ifndef OPENSSL_NO_QUIC
-static int test_quic_set_encryption_secrets(SSL *ssl,
-                                            OSSL_ENCRYPTION_LEVEL level,
-                                            const uint8_t *read_secret,
-                                            const uint8_t *write_secret,
-                                            size_t secret_len)
-{
-    test_printf_stderr("quic_set_encryption_secrets() %s, lvl=%d, len=%zd\n",
-                       ssl->server ? "server" : "client", level, secret_len);
-    return 1;
-}
-
-static int test_quic_add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                                        const uint8_t *data, size_t len)
-{
-    SSL *peer = (SSL*)SSL_get_app_data(ssl);
-
-    TEST_info("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
-              ssl->server ? "server" : "client", level, (int)*data, len);
-    if (!TEST_ptr(peer))
-        return 0;
-
-    /* We're called with what is locally written; this gives it to the peer */
-    if (!TEST_true(SSL_provide_quic_data(peer, level, data, len))) {
-        ERR_print_errors_fp(stderr);
-        return 0;
-    }
-
-    return 1;
-}
-
-static int test_quic_flush_flight(SSL *ssl)
-{
-    test_printf_stderr("quic_flush_flight() %s\n", ssl->server ? "server" : "client");
-    return 1;
-}
-
-static int test_quic_send_alert(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert)
-{
-    test_printf_stderr("quic_send_alert() %s, lvl=%d, alert=%d\n",
-                       ssl->server ? "server" : "client", level, alert);
-    return 1;
-}
-
-static SSL_QUIC_METHOD quic_method = {
-    test_quic_set_encryption_secrets,
-    test_quic_add_handshake_data,
-    test_quic_flush_flight,
-    test_quic_send_alert,
-};
-
-static int test_quic_api_set_versions(SSL *ssl, int ver)
-{
-    SSL_set_quic_transport_version(ssl, ver);
-    return 1;
-}
-
-static int test_quic_api_version(int clnt, int srvr)
-{
-    SSL_CTX *cctx = NULL, *sctx = NULL;
-    SSL *clientssl = NULL, *serverssl = NULL;
-    int testresult = 0;
-
-    static const char *server_str = "SERVER";
-    static const char *client_str = "CLIENT";
-    const uint8_t *peer_str;
-    size_t peer_str_len;
-
-    TEST_info("original clnt=0x%X, srvr=0x%X\n", clnt, srvr);
-
-    if (!TEST_true(create_ssl_ctx_pair(libctx,
-                                       TLS_server_method(),
-                                       TLS_client_method(),
-                                       TLS1_3_VERSION, 0,
-                                       &sctx, &cctx, cert, privkey))
-            || !TEST_true(SSL_CTX_set_quic_method(sctx, &quic_method))
-            || !TEST_true(SSL_CTX_set_quic_method(cctx, &quic_method))
-            || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl,
-                                             &clientssl, NULL, NULL))
-            || !TEST_true(SSL_set_quic_transport_params(serverssl,
-                                                        (unsigned char*)server_str,
-                                                        strlen(server_str)+1))
-            || !TEST_true(SSL_set_quic_transport_params(clientssl,
-                                                        (unsigned char*)client_str,
-                                                        strlen(client_str)+1))
-            || !TEST_true(SSL_set_app_data(serverssl, clientssl))
-            || !TEST_true(SSL_set_app_data(clientssl, serverssl))
-            || !TEST_true(test_quic_api_set_versions(clientssl, clnt))
-            || !TEST_true(test_quic_api_set_versions(serverssl, srvr))
-            || !TEST_true(create_bare_ssl_connection(serverssl, clientssl,
-                                                     SSL_ERROR_NONE, 0))
-            || !TEST_true(SSL_version(serverssl) == TLS1_3_VERSION)
-            || !TEST_true(SSL_version(clientssl) == TLS1_3_VERSION)
-            || !(TEST_int_eq(SSL_quic_read_level(clientssl), ssl_encryption_application))
-            || !(TEST_int_eq(SSL_quic_read_level(serverssl), ssl_encryption_application))
-            || !(TEST_int_eq(SSL_quic_write_level(clientssl), ssl_encryption_application))
-            || !(TEST_int_eq(SSL_quic_write_level(serverssl), ssl_encryption_application)))
-        goto end;
-
-    SSL_get_peer_quic_transport_params(serverssl, &peer_str, &peer_str_len);
-    if (!TEST_mem_eq(peer_str, peer_str_len, client_str, strlen(client_str)+1))
-        goto end;
-    SSL_get_peer_quic_transport_params(clientssl, &peer_str, &peer_str_len);
-    if (!TEST_mem_eq(peer_str, peer_str_len, server_str, strlen(server_str)+1))
-        goto end;
-
-    /* Deal with two NewSessionTickets */
-    if (!TEST_true(SSL_process_quic_post_handshake(clientssl)))
-        goto end;
-
-    /* Dummy handshake call should succeed */
-    if (!TEST_true(SSL_do_handshake(clientssl)))
-        goto end;
-    /* Test that we (correctly) fail to send KeyUpdate */
-    if (!TEST_true(SSL_key_update(clientssl, SSL_KEY_UPDATE_NOT_REQUESTED))
-            || !TEST_int_le(SSL_do_handshake(clientssl), 0))
-        goto end;
-    if (!TEST_true(SSL_key_update(serverssl, SSL_KEY_UPDATE_NOT_REQUESTED))
-            || !TEST_int_le(SSL_do_handshake(serverssl), 0))
-        goto end;
-
-    TEST_info("original clnt=0x%X, srvr=0x%X\n", clnt, srvr);
-    if (srvr == 0 && clnt == 0)
-        srvr = clnt = TLSEXT_TYPE_quic_transport_parameters;
-    else if (srvr == 0)
-        srvr = clnt;
-    else if (clnt == 0)
-        clnt = srvr;
-    TEST_info("expected clnt=0x%X, srvr=0x%X\n", clnt, srvr);
-    if (!TEST_int_eq(SSL_get_peer_quic_transport_version(serverssl), clnt))
-        goto end;
-    if (!TEST_int_eq(SSL_get_peer_quic_transport_version(clientssl), srvr))
-        goto end;
-
-    testresult = 1;
-
- end:
-    SSL_free(serverssl);
-    SSL_free(clientssl);
-    SSL_CTX_free(sctx);
-    SSL_CTX_free(cctx);
-
-    return testresult;
-}
-
-static int test_quic_api(int tst)
-{
-    SSL_CTX *sctx = NULL;
-    SSL *serverssl = NULL;
-    int testresult = 0;
-    static int clnt_params[] = { 0,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters,
-                                 0,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters,
-                                 0,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters };
-    static int srvr_params[] = { 0,
-                                 0,
-                                 0,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters_draft,
-                                 TLSEXT_TYPE_quic_transport_parameters,
-                                 TLSEXT_TYPE_quic_transport_parameters,
-                                 TLSEXT_TYPE_quic_transport_parameters };
-    static int results[] = { 1, 1, 1, 1, 1, 0, 1, 0, 1 };
-
-    /* Failure cases:
-     * test 6/[5] clnt = parameters, srvr = draft
-     * test 8/[7] clnt = draft, srvr = parameters
-     */
-
-    /* Clean up logging space */
-    memset(client_log_buffer, 0, sizeof(client_log_buffer));
-    memset(server_log_buffer, 0, sizeof(server_log_buffer));
-    client_log_buffer_index = 0;
-    server_log_buffer_index = 0;
-    error_writing_log = 0;
-
-    if (!TEST_ptr(sctx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method()))
-            || !TEST_true(SSL_CTX_set_quic_method(sctx, &quic_method))
-            || !TEST_ptr(sctx->quic_method)
-            || !TEST_ptr(serverssl = SSL_new(sctx))
-            || !TEST_true(SSL_IS_QUIC(serverssl))
-            || !TEST_true(SSL_set_quic_method(serverssl, NULL))
-            || !TEST_false(SSL_IS_QUIC(serverssl))
-            || !TEST_true(SSL_set_quic_method(serverssl, &quic_method))
-            || !TEST_true(SSL_IS_QUIC(serverssl)))
-        goto end;
-
-    if (!TEST_int_eq(test_quic_api_version(clnt_params[tst], srvr_params[tst]), results[tst]))
-        goto end;
-
-    testresult = 1;
-
-end:
-    SSL_CTX_free(sctx);
-    sctx = NULL;
-    SSL_free(serverssl);
-    serverssl = NULL;
-    return testresult;
-}
-
-# ifndef OSSL_NO_USABLE_TLS1_3
-/*
- * Helper method to setup objects for QUIC early data test. Caller
- * frees objects on error.
- */
-static int quic_setupearly_data_test(SSL_CTX **cctx, SSL_CTX **sctx,
-                                     SSL **clientssl, SSL **serverssl,
-                                     SSL_SESSION **sess, int idx)
-{
-    static const char *server_str = "SERVER";
-    static const char *client_str = "CLIENT";
-
-    if (*sctx == NULL
-            && (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
-                                               TLS_client_method(),
-                                               TLS1_3_VERSION, 0,
-                                               sctx, cctx, cert, privkey))
-                || !TEST_true(SSL_CTX_set_quic_method(*sctx, &quic_method))
-                || !TEST_true(SSL_CTX_set_quic_method(*cctx, &quic_method))
-                || !TEST_true(SSL_CTX_set_max_early_data(*sctx, 0xffffffffu))))
-        return 0;
-
-    if (idx == 1) {
-        /* When idx == 1 we repeat the tests with read_ahead set */
-        SSL_CTX_set_read_ahead(*cctx, 1);
-        SSL_CTX_set_read_ahead(*sctx, 1);
-    } else if (idx == 2) {
-        /* When idx == 2 we are doing early_data with a PSK. Set up callbacks */
-        SSL_CTX_set_psk_use_session_callback(*cctx, use_session_cb);
-        SSL_CTX_set_psk_find_session_callback(*sctx, find_session_cb);
-        use_session_cb_cnt = 0;
-        find_session_cb_cnt = 0;
-        srvid = pskid;
-    }
-
-    if (!TEST_true(create_ssl_objects(*sctx, *cctx, serverssl, clientssl,
-                                      NULL, NULL))
-            || !TEST_true(SSL_set_quic_transport_params(*serverssl,
-                                                        (unsigned char*)server_str,
-                                                        strlen(server_str)+1))
-            || !TEST_true(SSL_set_quic_transport_params(*clientssl,
-                                                        (unsigned char*)client_str,
-                                                        strlen(client_str)+1))
-            || !TEST_true(SSL_set_app_data(*serverssl, *clientssl))
-            || !TEST_true(SSL_set_app_data(*clientssl, *serverssl)))
-        return 0;
-
-    /*
-     * For one of the run throughs (doesn't matter which one), we'll try sending
-     * some SNI data in the initial ClientHello. This will be ignored (because
-     * there is no SNI cb set up by the server), so it should not impact
-     * early_data.
-     */
-    if (idx == 1
-            && !TEST_true(SSL_set_tlsext_host_name(*clientssl, "localhost")))
-        return 0;
-
-    if (idx == 2) {
-        clientpsk = create_a_psk(*clientssl);
-        if (!TEST_ptr(clientpsk)
-                || !TEST_true(SSL_SESSION_set_max_early_data(clientpsk,
-                                                             0xffffffffu))
-                || !TEST_true(SSL_SESSION_up_ref(clientpsk))) {
-            SSL_SESSION_free(clientpsk);
-            clientpsk = NULL;
-            return 0;
-        }
-        serverpsk = clientpsk;
-
-        if (sess != NULL) {
-            if (!TEST_true(SSL_SESSION_up_ref(clientpsk))) {
-                SSL_SESSION_free(clientpsk);
-                SSL_SESSION_free(serverpsk);
-                clientpsk = serverpsk = NULL;
-                return 0;
-            }
-            *sess = clientpsk;
-        }
-
-        SSL_set_quic_early_data_enabled(*serverssl, 1);
-        SSL_set_quic_early_data_enabled(*clientssl, 1);
-
-        return 1;
-    }
-
-    if (sess == NULL)
-        return 1;
-
-    if (!TEST_true(create_bare_ssl_connection(*serverssl, *clientssl,
-                                              SSL_ERROR_NONE, 0)))
-        return 0;
-
-    /* Deal with two NewSessionTickets */
-    if (!TEST_true(SSL_process_quic_post_handshake(*clientssl)))
-        return 0;
-
-    *sess = SSL_get1_session(*clientssl);
-    SSL_shutdown(*clientssl);
-    SSL_shutdown(*serverssl);
-    SSL_free(*serverssl);
-    SSL_free(*clientssl);
-    *serverssl = *clientssl = NULL;
-
-    if (!TEST_true(create_ssl_objects(*sctx, *cctx, serverssl,
-                                      clientssl, NULL, NULL))
-            || !TEST_true(SSL_set_session(*clientssl, *sess))
-            || !TEST_true(SSL_set_quic_transport_params(*serverssl,
-                                                        (unsigned char*)server_str,
-                                                        strlen(server_str)+1))
-            || !TEST_true(SSL_set_quic_transport_params(*clientssl,
-                                                        (unsigned char*)client_str,
-                                                        strlen(client_str)+1))
-            || !TEST_true(SSL_set_app_data(*serverssl, *clientssl))
-            || !TEST_true(SSL_set_app_data(*clientssl, *serverssl)))
-        return 0;
-
-    SSL_set_quic_early_data_enabled(*serverssl, 1);
-    SSL_set_quic_early_data_enabled(*clientssl, 1);
-
-    return 1;
-}
-
-static int test_quic_early_data(int tst)
-{
-    SSL_CTX *cctx = NULL, *sctx = NULL;
-    SSL *clientssl = NULL, *serverssl = NULL;
-    int testresult = 0;
-    SSL_SESSION *sess = NULL;
-
-    if (!TEST_true(quic_setupearly_data_test(&cctx, &sctx, &clientssl,
-                                             &serverssl, &sess, tst)))
-        goto end;
-
-    if (!TEST_true(create_bare_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE, 0))
-            || !TEST_true(SSL_get_early_data_status(serverssl)))
-        goto end;
-
-    testresult = 1;
-
- end:
-    SSL_SESSION_free(sess);
-    SSL_SESSION_free(clientpsk);
-    SSL_SESSION_free(serverpsk);
-    clientpsk = serverpsk = NULL;
-    SSL_free(serverssl);
-    SSL_free(clientssl);
-    SSL_CTX_free(sctx);
-    SSL_CTX_free(cctx);
-    return testresult;
-}
-# endif /* OSSL_NO_USABLE_TLS1_3 */
-#endif /* OPENSSL_NO_QUIC */
 
 OPT_TEST_DECLARE_USAGE("certfile privkeyfile srpvfile tmpfile provider config dhfile\n")
 
@@ -10335,7 +10093,6 @@ int setup_tests(void)
 #else
     ADD_ALL_TESTS(test_custom_exts, 3);
 #endif
-    ADD_ALL_TESTS(test_serverinfo, 8);
     ADD_ALL_TESTS(test_export_key_mat, 6);
 #ifndef OSSL_NO_USABLE_TLS1_3
     ADD_ALL_TESTS(test_export_key_mat_early, 3);
@@ -10353,7 +10110,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_info_callback, 6);
     ADD_ALL_TESTS(test_ssl_pending, 2);
     ADD_ALL_TESTS(test_ssl_get_shared_ciphers, OSSL_NELEM(shared_ciphers_data));
-    ADD_ALL_TESTS(test_ticket_callbacks, 16);
+    ADD_ALL_TESTS(test_ticket_callbacks, 20);
     ADD_ALL_TESTS(test_shutdown, 7);
     ADD_ALL_TESTS(test_incorrect_shutdown, 2);
     ADD_ALL_TESTS(test_cert_cb, 6);
@@ -10387,11 +10144,8 @@ int setup_tests(void)
     ADD_TEST(test_set_verify_cert_store_ssl);
     ADD_ALL_TESTS(test_session_timeout, 1);
     ADD_TEST(test_load_dhfile);
-#ifndef OPENSSL_NO_QUIC
-    ADD_ALL_TESTS(test_quic_api, 9);
-# ifndef OSSL_NO_USABLE_TLS1_3
-    ADD_ALL_TESTS(test_quic_early_data, 3);
-# endif
+#if !defined(OPENSSL_NO_TLS1_2) && !defined(OSSL_NO_USABLE_TLS1_3)
+    ADD_ALL_TESTS(test_serverinfo_custom, 4);
 #endif
     return 1;
 

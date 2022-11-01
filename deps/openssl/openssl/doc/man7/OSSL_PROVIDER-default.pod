@@ -69,6 +69,8 @@ The OpenSSL default provider supports these operations and algorithms:
 
 =item MD5-SHA1, see L<EVP_MD-MD5-SHA1(7)>
 
+=item RIPEMD160, see L<EVP_MD-RIPEMD160(7)>
+
 =back
 
 =head2 Symmetric Ciphers
@@ -240,6 +242,10 @@ to allow them to be used together with the FIPS provider.
 
 L<openssl-core.h(7)>, L<openssl-core_dispatch.h(7)>, L<provider(7)>,
 L<OSSL_PROVIDER-base(7)>
+
+=head1 HISTORY
+
+The RIPEMD160 digest was added to the default provider in OpenSSL 3.0.7.
 
 =head1 COPYRIGHT
 
