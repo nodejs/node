@@ -174,24 +174,27 @@ DispatchResponse TracingAgent::getCategories(
     std::unique_ptr<protocol::Array<String>>* categories) {
   *categories = Array<String>::create();
   protocol::Array<String>* categories_list = categories->get();
+  // In alphabetical order
   categories_list->addItem("node");
   categories_list->addItem("node.async_hooks");
   categories_list->addItem("node.bootstrap");
   categories_list->addItem("node.console");
   categories_list->addItem("node.dns.native");
-  categories_list->addItem("node.net.native");
   categories_list->addItem("node.environment");
-  categories_list->addItem("node.fs.sync");
-  categories_list->addItem("node.fs_dir.sync");
   categories_list->addItem("node.fs.async");
+  categories_list->addItem("node.fs.sync");
   categories_list->addItem("node.fs_dir.async");
+  categories_list->addItem("node.fs_dir.sync");
+  categories_list->addItem("node.http");
+  categories_list->addItem("node.net.native");
   categories_list->addItem("node.perf");
-  categories_list->addItem("node.perf.usertiming");
   categories_list->addItem("node.perf.timerify");
+  categories_list->addItem("node.perf.usertiming");
   categories_list->addItem("node.promises.rejections");
+  categories_list->addItem("node.threadpoolwork.async");
+  categories_list->addItem("node.threadpoolwork.sync");
   categories_list->addItem("node.vm.script");
   categories_list->addItem("v8");
-  categories_list->addItem("node.http");
   return DispatchResponse::OK();
 }
 
