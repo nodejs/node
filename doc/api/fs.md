@@ -4320,7 +4320,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version: v19.1.0
     pr-url: https://github.com/nodejs/node/pull/45098
     description: Added recursive support for Linux, AIX and IBMi.
   - version:
