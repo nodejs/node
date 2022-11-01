@@ -2362,19 +2362,6 @@ This API allocates a JavaScript value with external data attached to it. This
 is used to pass external data through JavaScript code, so it can be retrieved
 later by native code using [`napi_get_value_external`][].
 
-**Some runtimes other than Node.js have dropped support for external buffers**.
-On runtimes other than Node.js this method may return
-`napi_no_external_buffers_allowed` to indicate that external
-buffers are not supported. One such runtime is electron as
-described in this issue
-[electron/issues/35801](https://github.com/electron/electron/issues/35801).
-
-In order to maintain broadest compatibility with all runtimes
-you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
-includes for the node-api headers. Doing so will hide the 2 functions
-that create external buffers. This will ensure a compilation error
-occurs if you accidentally use one of these methods.
-
 The API adds a `napi_finalize` callback which will be called when the JavaScript
 object just created is ready for garbage collection. It is similar to
 `napi_wrap()` except that:
@@ -2415,6 +2402,19 @@ napi_create_external_arraybuffer(napi_env env,
 * `[out] result`: A `napi_value` representing a JavaScript `ArrayBuffer`.
 
 Returns `napi_ok` if the API succeeded.
+
+**Some runtimes other than Node.js have dropped support for external buffers**.
+On runtimes other than Node.js this method may return
+`napi_no_external_buffers_allowed` to indicate that external
+buffers are not supported. One such runtime is Electron as
+described in this issue
+[electron/issues/35801](https://github.com/electron/electron/issues/35801).
+
+In order to maintain broadest compatibility with all runtimes
+you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
+includes for the node-api headers. Doing so will hide the 2 functions
+that create external buffers. This will ensure a compilation error
+occurs if you accidentally use one of these methods.
 
 This API returns a Node-API value corresponding to a JavaScript `ArrayBuffer`.
 The underlying byte buffer of the `ArrayBuffer` is externally allocated and
@@ -2459,6 +2459,19 @@ napi_status napi_create_external_buffer(napi_env env,
 * `[out] result`: A `napi_value` representing a `node::Buffer`.
 
 Returns `napi_ok` if the API succeeded.
+
+**Some runtimes other than Node.js have dropped support for external buffers**.
+On runtimes other than Node.js this method may return
+`napi_no_external_buffers_allowed` to indicate that external
+buffers are not supported. One such runtime is Electron as
+described in this issue
+[electron/issues/35801](https://github.com/electron/electron/issues/35801).
+
+In order to maintain broadest compatibility with all runtimes
+you may define `NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED` in your addon before
+includes for the node-api headers. Doing so will hide the 2 functions
+that create external buffers. This will ensure a compilation error
+occurs if you accidentally use one of these methods.
 
 This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
