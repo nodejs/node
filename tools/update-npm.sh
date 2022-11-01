@@ -2,8 +2,8 @@
 set -e
 # Shell script to update npm in the source tree to a specific version
 
-BASE_DIR="$( pwd )"/
-DEPS_DIR="$BASE_DIR"deps/
+BASE_DIR="$( pwd )"
+DEPS_DIR="$BASE_DIR/deps"
 NPM_VERSION=$1
 
 if [ "$#" -le 0 ]; then
@@ -40,7 +40,7 @@ rm -rf npm/
 
 echo "Copying new npm"
 
-tar zxf "$WORKSPACE"/cli/release/npm-"$NPM_VERSION".tgz
+tar zxf "$WORKSPACE/cli/release/npm-$NPM_VERSION.tgz"
 
 echo ""
 echo "All done!"
