@@ -139,7 +139,7 @@ our %config = (
         "providers/implementations/kem/build.info",
         "providers/implementations/rands/seeding/build.info"
     ],
-    "build_metadata" => "+quic",
+    "build_metadata" => "",
     "build_type" => "release",
     "builddir" => ".",
     "cflags" => [],
@@ -154,7 +154,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.5+quic",
+    "full_version" => "3.0.7",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -203,7 +203,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "5",
+    "patch" => "7",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.30.0",
@@ -222,7 +222,7 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => undef,
+        "CC" => "gcc",
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
@@ -256,11 +256,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "5 Jul 2022",
-    "shlib_version" => "81.3",
+    "release_date" => "1 Nov 2022",
+    "shlib_version" => "3",
     "sourcedir" => ".",
     "target" => "solaris64-x86_64-gcc",
-    "version" => "3.0.5"
+    "version" => "3.0.7"
 );
 our %target = (
     "AR" => "ar",
@@ -387,7 +387,6 @@ our @disablables = (
     "poly1305",
     "posix-io",
     "psk",
-    "quic",
     "rc2",
     "rc4",
     "rc5",
@@ -1041,9 +1040,6 @@ our %unified_info = (
             "test/buildtest_c_provider" => {
                 "noinst" => "1"
             },
-            "test/buildtest_c_quic" => {
-                "noinst" => "1"
-            },
             "test/buildtest_c_rand" => {
                 "noinst" => "1"
             },
@@ -1269,10 +1265,16 @@ our %unified_info = (
             "test/exptest" => {
                 "noinst" => "1"
             },
+            "test/ext_internal_test" => {
+                "noinst" => "1"
+            },
             "test/fatalerrtest" => {
                 "noinst" => "1"
             },
             "test/ffc_internal_test" => {
+                "noinst" => "1"
+            },
+            "test/fips_version_test" => {
                 "noinst" => "1"
             },
             "test/gmdifftest" => {
@@ -1387,6 +1389,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/provider_test" => {
+                "noinst" => "1"
+            },
+            "test/punycode_test" => {
                 "noinst" => "1"
             },
             "test/rand_status_test" => {
@@ -2818,6 +2823,9 @@ our %unified_info = (
         "doc/html/man3/OPENSSL_fork_prepare.html" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/html/man3/OPENSSL_gmtime.html" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/html/man3/OPENSSL_hexchar2int.html" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -3369,9 +3377,6 @@ our %unified_info = (
         ],
         "doc/html/man3/SSL_CTX_set_psk_client_callback.html" => [
             "doc/man3/SSL_CTX_set_psk_client_callback.pod"
-        ],
-        "doc/html/man3/SSL_CTX_set_quic_method.html" => [
-            "doc/man3/SSL_CTX_set_quic_method.pod"
         ],
         "doc/html/man3/SSL_CTX_set_quiet_shutdown.html" => [
             "doc/man3/SSL_CTX_set_quiet_shutdown.pod"
@@ -5164,6 +5169,9 @@ our %unified_info = (
         "doc/man/man3/OPENSSL_fork_prepare.3" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/man/man3/OPENSSL_gmtime.3" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/man/man3/OPENSSL_hexchar2int.3" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -5715,9 +5723,6 @@ our %unified_info = (
         ],
         "doc/man/man3/SSL_CTX_set_psk_client_callback.3" => [
             "doc/man3/SSL_CTX_set_psk_client_callback.pod"
-        ],
-        "doc/man/man3/SSL_CTX_set_quic_method.3" => [
-            "doc/man3/SSL_CTX_set_quic_method.pod"
         ],
         "doc/man/man3/SSL_CTX_set_quiet_shutdown.3" => [
             "doc/man3/SSL_CTX_set_quiet_shutdown.pod"
@@ -7287,10 +7292,6 @@ our %unified_info = (
             "libcrypto",
             "libssl"
         ],
-        "test/buildtest_c_quic" => [
-            "libcrypto",
-            "libssl"
-        ],
         "test/buildtest_c_rand" => [
             "libcrypto",
             "libssl"
@@ -7597,6 +7598,11 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
+        "test/ext_internal_test" => [
+            "libcrypto.a",
+            "libssl.a",
+            "test/libtestutil.a"
+        ],
         "test/fatalerrtest" => [
             "libcrypto",
             "libssl",
@@ -7604,6 +7610,10 @@ our %unified_info = (
         ],
         "test/ffc_internal_test" => [
             "libcrypto.a",
+            "test/libtestutil.a"
+        ],
+        "test/fips_version_test" => [
+            "libcrypto",
             "test/libtestutil.a"
         ],
         "test/gmdifftest" => [
@@ -7758,6 +7768,10 @@ our %unified_info = (
             "test/libtestutil.a"
         ],
         "test/provider_test" => [
+            "libcrypto.a",
+            "test/libtestutil.a"
+        ],
+        "test/punycode_test" => [
             "libcrypto.a",
             "test/libtestutil.a"
         ],
@@ -9815,6 +9829,7 @@ our %unified_info = (
                 "providers/implementations/digests/libdefault-lib-md5_prov.o",
                 "providers/implementations/digests/libdefault-lib-md5_sha1_prov.o",
                 "providers/implementations/digests/libdefault-lib-null_prov.o",
+                "providers/implementations/digests/libdefault-lib-ripemd_prov.o",
                 "providers/implementations/digests/libdefault-lib-sha2_prov.o",
                 "providers/implementations/digests/libdefault-lib-sha3_prov.o",
                 "providers/implementations/digests/libdefault-lib-sm3_prov.o",
@@ -10049,7 +10064,6 @@ our %unified_info = (
                 "ssl/libssl-lib-ssl_init.o",
                 "ssl/libssl-lib-ssl_lib.o",
                 "ssl/libssl-lib-ssl_mcnf.o",
-                "ssl/libssl-lib-ssl_quic.o",
                 "ssl/libssl-lib-ssl_rsa.o",
                 "ssl/libssl-lib-ssl_rsa_legacy.o",
                 "ssl/libssl-lib-ssl_sess.o",
@@ -10100,7 +10114,6 @@ our %unified_info = (
                 "ssl/statem/libssl-lib-statem_clnt.o",
                 "ssl/statem/libssl-lib-statem_dtls.o",
                 "ssl/statem/libssl-lib-statem_lib.o",
-                "ssl/statem/libssl-lib-statem_quic.o",
                 "ssl/statem/libssl-lib-statem_srvr.o"
             ],
             "products" => {
@@ -11721,6 +11734,9 @@ our %unified_info = (
         "doc/html/man3/OPENSSL_fork_prepare.html" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/html/man3/OPENSSL_gmtime.html" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/html/man3/OPENSSL_hexchar2int.html" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -12272,9 +12288,6 @@ our %unified_info = (
         ],
         "doc/html/man3/SSL_CTX_set_psk_client_callback.html" => [
             "doc/man3/SSL_CTX_set_psk_client_callback.pod"
-        ],
-        "doc/html/man3/SSL_CTX_set_quic_method.html" => [
-            "doc/man3/SSL_CTX_set_quic_method.pod"
         ],
         "doc/html/man3/SSL_CTX_set_quiet_shutdown.html" => [
             "doc/man3/SSL_CTX_set_quiet_shutdown.pod"
@@ -14067,6 +14080,9 @@ our %unified_info = (
         "doc/man/man3/OPENSSL_fork_prepare.3" => [
             "doc/man3/OPENSSL_fork_prepare.pod"
         ],
+        "doc/man/man3/OPENSSL_gmtime.3" => [
+            "doc/man3/OPENSSL_gmtime.pod"
+        ],
         "doc/man/man3/OPENSSL_hexchar2int.3" => [
             "doc/man3/OPENSSL_hexchar2int.pod"
         ],
@@ -14618,9 +14634,6 @@ our %unified_info = (
         ],
         "doc/man/man3/SSL_CTX_set_psk_client_callback.3" => [
             "doc/man3/SSL_CTX_set_psk_client_callback.pod"
-        ],
-        "doc/man/man3/SSL_CTX_set_quic_method.3" => [
-            "doc/man3/SSL_CTX_set_quic_method.pod"
         ],
         "doc/man/man3/SSL_CTX_set_quiet_shutdown.3" => [
             "doc/man3/SSL_CTX_set_quiet_shutdown.pod"
@@ -15968,10 +15981,6 @@ our %unified_info = (
             "test/generate_buildtest.pl",
             "provider"
         ],
-        "test/buildtest_quic.c" => [
-            "test/generate_buildtest.pl",
-            "quic"
-        ],
         "test/buildtest_rand.c" => [
             "test/generate_buildtest.pl",
             "rand"
@@ -16376,6 +16385,7 @@ our %unified_info = (
             "doc/html/man3/OPENSSL_LH_stats.html",
             "doc/html/man3/OPENSSL_config.html",
             "doc/html/man3/OPENSSL_fork_prepare.html",
+            "doc/html/man3/OPENSSL_gmtime.html",
             "doc/html/man3/OPENSSL_hexchar2int.html",
             "doc/html/man3/OPENSSL_ia32cap.html",
             "doc/html/man3/OPENSSL_init_crypto.html",
@@ -16560,7 +16570,6 @@ our %unified_info = (
             "doc/html/man3/SSL_CTX_set_num_tickets.html",
             "doc/html/man3/SSL_CTX_set_options.html",
             "doc/html/man3/SSL_CTX_set_psk_client_callback.html",
-            "doc/html/man3/SSL_CTX_set_quic_method.html",
             "doc/html/man3/SSL_CTX_set_quiet_shutdown.html",
             "doc/html/man3/SSL_CTX_set_read_ahead.html",
             "doc/html/man3/SSL_CTX_set_record_padding_callback.html",
@@ -18171,9 +18180,6 @@ our %unified_info = (
         "test/buildtest_c_provider" => [
             "include"
         ],
-        "test/buildtest_c_quic" => [
-            "include"
-        ],
         "test/buildtest_c_rand" => [
             "include"
         ],
@@ -18475,12 +18481,21 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/ext_internal_test" => [
+            ".",
+            "include",
+            "apps/include"
+        ],
         "test/fatalerrtest" => [
             "include",
             "apps/include"
         ],
         "test/ffc_internal_test" => [
             ".",
+            "include",
+            "apps/include"
+        ],
+        "test/fips_version_test" => [
             "include",
             "apps/include"
         ],
@@ -18773,6 +18788,10 @@ our %unified_info = (
             "include",
             "apps/include",
             "."
+        ],
+        "test/punycode_test" => [
+            "include",
+            "apps/include"
         ],
         "test/rand_status_test" => [
             "include",
@@ -19320,6 +19339,7 @@ our %unified_info = (
             "doc/man/man3/OPENSSL_LH_stats.3",
             "doc/man/man3/OPENSSL_config.3",
             "doc/man/man3/OPENSSL_fork_prepare.3",
+            "doc/man/man3/OPENSSL_gmtime.3",
             "doc/man/man3/OPENSSL_hexchar2int.3",
             "doc/man/man3/OPENSSL_ia32cap.3",
             "doc/man/man3/OPENSSL_init_crypto.3",
@@ -19504,7 +19524,6 @@ our %unified_info = (
             "doc/man/man3/SSL_CTX_set_num_tickets.3",
             "doc/man/man3/SSL_CTX_set_options.3",
             "doc/man/man3/SSL_CTX_set_psk_client_callback.3",
-            "doc/man/man3/SSL_CTX_set_quic_method.3",
             "doc/man/man3/SSL_CTX_set_quiet_shutdown.3",
             "doc/man/man3/SSL_CTX_set_read_ahead.3",
             "doc/man/man3/SSL_CTX_set_record_padding_callback.3",
@@ -19882,7 +19901,6 @@ our %unified_info = (
         "test/buildtest_c_pem2",
         "test/buildtest_c_prov_ssl",
         "test/buildtest_c_provider",
-        "test/buildtest_c_quic",
         "test/buildtest_c_rand",
         "test/buildtest_c_rc2",
         "test/buildtest_c_rc4",
@@ -19958,8 +19976,10 @@ our %unified_info = (
         "test/evp_test",
         "test/exdatatest",
         "test/exptest",
+        "test/ext_internal_test",
         "test/fatalerrtest",
         "test/ffc_internal_test",
+        "test/fips_version_test",
         "test/gmdifftest",
         "test/hexstr_test",
         "test/hmactest",
@@ -19998,6 +20018,7 @@ our %unified_info = (
         "test/provider_pkey_test",
         "test/provider_status_test",
         "test/provider_test",
+        "test/punycode_test",
         "test/rand_status_test",
         "test/rand_test",
         "test/rc2test",
@@ -24020,7 +24041,6 @@ our %unified_info = (
             "ssl/libssl-lib-ssl_init.o",
             "ssl/libssl-lib-ssl_lib.o",
             "ssl/libssl-lib-ssl_mcnf.o",
-            "ssl/libssl-lib-ssl_quic.o",
             "ssl/libssl-lib-ssl_rsa.o",
             "ssl/libssl-lib-ssl_rsa_legacy.o",
             "ssl/libssl-lib-ssl_sess.o",
@@ -24047,7 +24067,6 @@ our %unified_info = (
             "ssl/statem/libssl-lib-statem_clnt.o",
             "ssl/statem/libssl-lib-statem_dtls.o",
             "ssl/statem/libssl-lib-statem_lib.o",
-            "ssl/statem/libssl-lib-statem_quic.o",
             "ssl/statem/libssl-lib-statem_srvr.o"
         ],
         "providers/common/der/libcommon-lib-der_digests_gen.o" => [
@@ -24449,6 +24468,9 @@ our %unified_info = (
         ],
         "providers/implementations/digests/libdefault-lib-null_prov.o" => [
             "providers/implementations/digests/null_prov.c"
+        ],
+        "providers/implementations/digests/libdefault-lib-ripemd_prov.o" => [
+            "providers/implementations/digests/ripemd_prov.c"
         ],
         "providers/implementations/digests/libdefault-lib-sha2_prov.o" => [
             "providers/implementations/digests/sha2_prov.c"
@@ -24872,6 +24894,7 @@ our %unified_info = (
             "providers/implementations/digests/libdefault-lib-md5_prov.o",
             "providers/implementations/digests/libdefault-lib-md5_sha1_prov.o",
             "providers/implementations/digests/libdefault-lib-null_prov.o",
+            "providers/implementations/digests/libdefault-lib-ripemd_prov.o",
             "providers/implementations/digests/libdefault-lib-sha2_prov.o",
             "providers/implementations/digests/libdefault-lib-sha3_prov.o",
             "providers/implementations/digests/libdefault-lib-sm3_prov.o",
@@ -25287,9 +25310,6 @@ our %unified_info = (
         "ssl/libssl-lib-ssl_mcnf.o" => [
             "ssl/ssl_mcnf.c"
         ],
-        "ssl/libssl-lib-ssl_quic.o" => [
-            "ssl/ssl_quic.c"
-        ],
         "ssl/libssl-lib-ssl_rsa.o" => [
             "ssl/ssl_rsa.c"
         ],
@@ -25370,9 +25390,6 @@ our %unified_info = (
         ],
         "ssl/statem/libssl-lib-statem_lib.o" => [
             "ssl/statem/statem_lib.c"
-        ],
-        "ssl/statem/libssl-lib-statem_quic.o" => [
-            "ssl/statem/statem_quic.c"
         ],
         "ssl/statem/libssl-lib-statem_srvr.o" => [
             "ssl/statem/statem_srvr.c"
@@ -25809,12 +25826,6 @@ our %unified_info = (
         ],
         "test/buildtest_c_provider-bin-buildtest_provider.o" => [
             "test/buildtest_provider.c"
-        ],
-        "test/buildtest_c_quic" => [
-            "test/buildtest_c_quic-bin-buildtest_quic.o"
-        ],
-        "test/buildtest_c_quic-bin-buildtest_quic.o" => [
-            "test/buildtest_quic.c"
         ],
         "test/buildtest_c_rand" => [
             "test/buildtest_c_rand-bin-buildtest_rand.o"
@@ -26279,6 +26290,12 @@ our %unified_info = (
         "test/exptest-bin-exptest.o" => [
             "test/exptest.c"
         ],
+        "test/ext_internal_test" => [
+            "test/ext_internal_test-bin-ext_internal_test.o"
+        ],
+        "test/ext_internal_test-bin-ext_internal_test.o" => [
+            "test/ext_internal_test.c"
+        ],
         "test/fatalerrtest" => [
             "test/fatalerrtest-bin-fatalerrtest.o",
             "test/helpers/fatalerrtest-bin-ssltestlib.o"
@@ -26291,6 +26308,12 @@ our %unified_info = (
         ],
         "test/ffc_internal_test-bin-ffc_internal_test.o" => [
             "test/ffc_internal_test.c"
+        ],
+        "test/fips_version_test" => [
+            "test/fips_version_test-bin-fips_version_test.o"
+        ],
+        "test/fips_version_test-bin-fips_version_test.o" => [
+            "test/fips_version_test.c"
         ],
         "test/gmdifftest" => [
             "test/gmdifftest-bin-gmdifftest.o"
@@ -26637,6 +26660,12 @@ our %unified_info = (
         ],
         "test/provider_test-bin-provider_test.o" => [
             "test/provider_test.c"
+        ],
+        "test/punycode_test" => [
+            "test/punycode_test-bin-punycode_test.o"
+        ],
+        "test/punycode_test-bin-punycode_test.o" => [
+            "test/punycode_test.c"
         ],
         "test/rand_status_test" => [
             "test/rand_status_test-bin-rand_status_test.o"
