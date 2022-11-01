@@ -258,7 +258,8 @@ class DebugSealHandleScope {
 
 class ThreadPoolWork {
  public:
-  explicit inline ThreadPoolWork(Environment* env) : env_(env) {
+  explicit inline ThreadPoolWork(Environment* env, const char* type)
+      : env_(env), type_(type) {
     CHECK_NOT_NULL(env);
   }
   inline virtual ~ThreadPoolWork() = default;
@@ -274,6 +275,7 @@ class ThreadPoolWork {
  private:
   Environment* env_;
   uv_work_t work_req_;
+  const char* type_;
 };
 
 #define TRACING_CATEGORY_NODE "node"

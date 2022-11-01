@@ -109,7 +109,7 @@ struct V8Platform {
     if (!initialized_)
       return;
     initialized_ = false;
-
+    node::tracing::TraceEventHelper::SetAgent(nullptr);
     StopTracingAgent();
     platform_->Shutdown();
     delete platform_;
@@ -117,6 +117,7 @@ struct V8Platform {
     // Destroy tracing after the platform (and platform threads) have been
     // stopped.
     tracing_agent_.reset(nullptr);
+    // The observer remove itself in OnTraceEnabled
     trace_state_observer_.reset(nullptr);
   }
 

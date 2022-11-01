@@ -306,13 +306,12 @@ void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-FixedSizeBlobCopyJob::FixedSizeBlobCopyJob(
-    Environment* env,
-    Local<Object> object,
-    Blob* blob,
-    FixedSizeBlobCopyJob::Mode mode)
+FixedSizeBlobCopyJob::FixedSizeBlobCopyJob(Environment* env,
+                                           Local<Object> object,
+                                           Blob* blob,
+                                           FixedSizeBlobCopyJob::Mode mode)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_FIXEDSIZEBLOBCOPY),
-      ThreadPoolWork(env),
+      ThreadPoolWork(env, "blob"),
       mode_(mode) {
   if (mode == FixedSizeBlobCopyJob::Mode::SYNC) MakeWeak();
   source_ = blob->entries();

@@ -333,14 +333,13 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
  public:
   using AdditionalParams = typename CryptoJobTraits::AdditionalParameters;
 
-  explicit CryptoJob(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      AsyncWrap::ProviderType type,
-      CryptoJobMode mode,
-      AdditionalParams&& params)
+  explicit CryptoJob(Environment* env,
+                     v8::Local<v8::Object> object,
+                     AsyncWrap::ProviderType type,
+                     CryptoJobMode mode,
+                     AdditionalParams&& params)
       : AsyncWrap(env, object, type),
-        ThreadPoolWork(env),
+        ThreadPoolWork(env, "crypto"),
         mode_(mode),
         params_(std::move(params)) {
     // If the CryptoJob is async, then the instance will be
