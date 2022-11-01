@@ -211,3 +211,10 @@ if (common.hasIntl) {
     assert.strictEqual(e.code, 'ERR_ENCODING_NOT_SUPPORTED');
   }
 }
+
+{
+  const buffer = new ArrayBuffer(1);
+  new MessageChannel().port1.postMessage(buffer, [buffer]); // buffer is detached
+  const decoder = new TextDecoder();
+  assert.strictEqual(decoder.decode(buffer), '');
+}
