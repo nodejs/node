@@ -1,5 +1,5 @@
 
- OpenSSL 1.1.1q 5 Jul 2022
+ OpenSSL 1.1.1s 1 Nov 2022
 
  Copyright (c) 1998-2022 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson

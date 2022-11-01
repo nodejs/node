@@ -5,6 +5,16 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1r and OpenSSL 1.1.1s [1 Nov 2022]
+
+      o Fixed a regression introduced in OpenSSL 1.1.1r not refreshing the
+        certificate data to be signed before signing the certificate.
+
+  Major changes between OpenSSL 1.1.1q and OpenSSL 1.1.1r [11 Oct 2022]
+
+      o Added a missing header for memcmp that caused compilation failure on
+        some platforms
+
   Major changes between OpenSSL 1.1.1p and OpenSSL 1.1.1q [5 Jul 2022]
 
       o Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
