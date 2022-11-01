@@ -1069,7 +1069,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
             env->isolate,
             async_resource,
             *v8::String::Utf8Value(env->isolate, async_resource_name)),
-        ThreadPoolWork(env->node_env()),
+        ThreadPoolWork(env->node_env(), "node_api"),
         _env(env),
         _data(data),
         _execute(execute),
