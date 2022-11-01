@@ -13,29 +13,26 @@ PKCS7_sign - create a PKCS#7 signedData structure
 
 =head1 DESCRIPTION
 
-PKCS7_sign() creates and returns a PKCS#7 signedData structure. B<signcert> is
-the certificate to sign with, B<pkey> is the corresponding private key.
-B<certs> is an optional additional set of certificates to include in the PKCS#7
-structure (for example any intermediate CAs in the chain).
+PKCS7_sign() creates and returns a PKCS#7 signedData structure.
+I<signcert> is the certificate to sign with, I<pkey> is the corresponding
+private key. I<certs> is an optional set of extra certificates to include
+in the PKCS#7 structure (for example any intermediate CAs in the chain).
 
-The data to be signed is read from BIO B<data>.
+The data to be signed is read from BIO I<data>.
 
-B<flags> is an optional set of flags.
+I<flags> is an optional set of flags.
 
-=head1 NOTES
-
-Any of the following flags (ored together) can be passed in the B<flags>
-parameter.
+Any of the following flags (ored together) can be passed in the I<flags>
 
 Many S/MIME clients expect the signed content to include valid MIME headers. If
-the B<PKCS7_TEXT> flag is set MIME headers for type B<text/plain> are prepended
+the B<PKCS7_TEXT> flag is set MIME headers for type C<text/plain> are prepended
 to the data.
 
-If B<PKCS7_NOCERTS> is set the signer's certificate will not be included in the
-PKCS7 structure, the signer's certificate must still be supplied in the
-B<signcert> parameter though. This can reduce the size of the signature if the
-signers certificate can be obtained by other means: for example a previously
-signed message.
+If B<PKCS7_NOCERTS> is set the signer's certificate and the extra I<certs>
+will not be included in the PKCS7 structure.
+The signer's certificate must still be supplied in the I<signcert> parameter
+though. This can reduce the size of the signatures if the signer's certificates
+can be obtained by other means: for example a previously signed message.
 
 The data being signed is included in the PKCS7 structure, unless
 B<PKCS7_DETACHED> is set in which case it is omitted. This is used for PKCS7
@@ -59,7 +56,7 @@ these algorithms is disabled then it will not be included.
 
 If the flags B<PKCS7_STREAM> is set then the returned B<PKCS7> structure is
 just initialized ready to perform the signing operation. The signing is however
-B<not> performed and the data to be signed is not read from the B<data>
+B<not> performed and the data to be signed is not read from the I<data>
 parameter. Signing is deferred until after the data has been written. In this
 way data can be signed in a single pass.
 
@@ -80,17 +77,17 @@ BIO_new_PKCS7().
 If a signer is specified it will use the default digest for the signing
 algorithm. This is B<SHA1> for both RSA and DSA keys.
 
-The B<certs>, B<signcert> and B<pkey> parameters can all be
-B<NULL> if the B<PKCS7_PARTIAL> flag is set. One or more signers can be added
+The I<certs>, I<signcert> and I<pkey> parameters can all be
+NULL if the B<PKCS7_PARTIAL> flag is set. One or more signers can be added
 using the function PKCS7_sign_add_signer(). PKCS7_final() must also be
 called to finalize the structure if streaming is not enabled. Alternative
 signing digests can also be specified using this method.
 
-If B<signcert> and B<pkey> are NULL then a certificates only
+If I<signcert> and I<pkey> are NULL then a certificates only
 PKCS#7 structure is output.
 
-In versions of OpenSSL before 1.0.0 the B<signcert> and B<pkey> parameters must
-B<NOT> be NULL.
+In versions of OpenSSL before 1.0.0 the I<signcert> and I<pkey> parameters must
+not be NULL.
 
 =head1 BUGS
 
@@ -107,14 +104,14 @@ L<ERR_get_error(3)>, L<PKCS7_verify(3)>
 
 =head1 HISTORY
 
-The B<PKCS7_PARTIAL> flag, and the ability for B<certs>, B<signcert>,
-and B<pkey> parameters to be B<NULL> were added in OpenSSL 1.0.0.
+The B<PKCS7_PARTIAL> flag, and the ability for I<certs>, I<signcert>,
+and I<pkey> parameters to be NULL were added in OpenSSL 1.0.0.
 
 The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

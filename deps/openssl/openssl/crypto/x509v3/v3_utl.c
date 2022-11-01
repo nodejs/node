@@ -1087,11 +1087,16 @@ int a2i_ipadd(unsigned char *ipout, const char *ipasc)
 
 static int ipv4_from_asc(unsigned char *v4, const char *in)
 {
-    int a0, a1, a2, a3;
-    if (sscanf(in, "%d.%d.%d.%d", &a0, &a1, &a2, &a3) != 4)
+    const char *p;
+    int a0, a1, a2, a3, n;
+
+    if (sscanf(in, "%d.%d.%d.%d%n", &a0, &a1, &a2, &a3, &n) != 4)
         return 0;
     if ((a0 < 0) || (a0 > 255) || (a1 < 0) || (a1 > 255)
         || (a2 < 0) || (a2 > 255) || (a3 < 0) || (a3 > 255))
+        return 0;
+    p = in + n;
+    if (!(*p == '\0' || ossl_isspace(*p)))
         return 0;
     v4[0] = a0;
     v4[1] = a1;
