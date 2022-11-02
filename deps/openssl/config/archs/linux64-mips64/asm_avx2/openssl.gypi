@@ -840,6 +840,7 @@
       'openssl/providers/implementations/digests/md5_prov.c',
       'openssl/providers/implementations/digests/md5_sha1_prov.c',
       'openssl/providers/implementations/digests/null_prov.c',
+      'openssl/providers/implementations/digests/ripemd_prov.c',
       'openssl/providers/implementations/digests/sha2_prov.c',
       'openssl/providers/implementations/digests/sha3_prov.c',
       'openssl/providers/implementations/digests/sm3_prov.c',
