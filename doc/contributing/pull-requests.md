@@ -47,7 +47,7 @@ Node.js has many channels on the
 channels are:
 [#nodejs](https://openjs-foundation.slack.com/archives/CK9Q4MB53) for general
 help, questions, and discussions.
-[#nodejs-dev](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
+[#nodejs-core](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
 development of Node.js core specifically.
 
 Node.js also has an unofficial IRC channel:
