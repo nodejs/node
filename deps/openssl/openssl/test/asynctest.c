@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -409,6 +409,7 @@ static int test_ASYNC_start_job_ex(void)
     ret = 1;
  err:
     ASYNC_WAIT_CTX_free(waitctx);
+    ASYNC_cleanup_thread();
     OSSL_LIB_CTX_free(libctx);
     return ret;
 }

@@ -185,7 +185,7 @@ int dhparam_main(int argc, char **argv)
             BIO_printf(bio_err, "Warning, input file %s ignored\n", infile);
         }
 
-        ctx = EVP_PKEY_CTX_new_from_name(NULL, alg, NULL);
+        ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), alg, app_get0_propq());
         if (ctx == NULL) {
             BIO_printf(bio_err,
                         "Error, %s param generation context allocation failed\n",
@@ -313,7 +313,7 @@ int dhparam_main(int argc, char **argv)
         EVP_PKEY_print_params(out, pkey, 4, NULL);
 
     if (check) {
-        ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pkey, NULL);
+        ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey, app_get0_propq());
         if (ctx == NULL) {
             BIO_printf(bio_err, "Error, failed to check DH parameters\n");
             goto end;
@@ -385,7 +385,7 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
         goto err;
     }
 
-    ctx = EVP_PKEY_CTX_new_from_name(NULL, "DHX", NULL);
+    ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "DHX", app_get0_propq());
     if (ctx == NULL
             || EVP_PKEY_fromdata_init(ctx) <= 0
             || EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {

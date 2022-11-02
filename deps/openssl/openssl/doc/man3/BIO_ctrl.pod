@@ -100,7 +100,9 @@ BIO_get_close() returns the close flag value: BIO_CLOSE or BIO_NOCLOSE. It also
 returns other negative values if an error occurs.
 
 BIO_pending(), BIO_ctrl_pending(), BIO_wpending() and BIO_ctrl_wpending()
-return the amount of pending data.
+return the amount of pending data. BIO_pending() and BIO_wpending() return
+negative value or 0 on error. BIO_ctrl_pending() and BIO_ctrl_wpending() return
+0 on error.
 
 BIO_get_ktls_send() returns 1 if the BIO is using the Kernel TLS data-path for
 sending. Otherwise, it returns zero.
@@ -138,6 +140,9 @@ Some of the return values are ambiguous and care should be taken. In
 particular a return value of 0 can be returned if an operation is not
 supported, if an error occurred, if EOF has not been reached and in
 the case of BIO_seek() on a file BIO for a successful operation.
+
+In older versions of OpenSSL the BIO_ctrl_pending() and
+BIO_ctrl_wpending() could return values greater than INT_MAX on error.
 
 =head1 HISTORY
 

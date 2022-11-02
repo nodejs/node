@@ -922,7 +922,8 @@ end_of_options:
                 goto end;
             }
         } else {
-            if ((serial = load_serial(serialfile, create_ser, NULL)) == NULL) {
+            serial = load_serial(serialfile, NULL, create_ser, NULL);
+            if (serial == NULL) {
                 BIO_printf(bio_err, "error while loading serial number\n");
                 goto end;
             }
@@ -1162,7 +1163,8 @@ end_of_options:
 
         if ((crlnumberfile = NCONF_get_string(conf, section, ENV_CRLNUMBER))
             != NULL)
-            if ((crlnumber = load_serial(crlnumberfile, 0, NULL)) == NULL) {
+            if ((crlnumber = load_serial(crlnumberfile, NULL, 0, NULL))
+                == NULL) {
                 BIO_printf(bio_err, "error while loading CRL number\n");
                 goto end;
             }

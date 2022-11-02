@@ -67,7 +67,7 @@ sub pubfrompriv {
 
 }
 
-my $tsignverify_count = 8;
+my $tsignverify_count = 9;
 sub tsignverify {
     my $prefix = shift;
     my $fips_key = shift;
@@ -146,6 +146,18 @@ sub tsignverify {
                  '-verify', $nonfips_pub_key,
                  '-signature', $sigfile,
                  $tbs_data])),
+       $testtext);
+
+    $testtext = $prefix.': '.
+        'Verify something with a non-FIPS key'.
+		' in FIPS mode but with a non-FIPS property query';
+    ok(run(app(['openssl', 'dgst',
+				'-provider', 'default',
+				'-propquery', '?fips!=yes',
+				'-sha256',
+                '-verify', $nonfips_pub_key,
+                '-signature', $sigfile,
+                $tbs_data])),
        $testtext);
 
     $testtext = $prefix.': '.

@@ -227,6 +227,10 @@ int ciphers_main(int argc, char **argv)
     if (!verbose) {
         for (i = 0; i < sk_SSL_CIPHER_num(sk); i++) {
             const SSL_CIPHER *c = sk_SSL_CIPHER_value(sk, i);
+
+            if (!ossl_assert(c != NULL))
+                continue;
+
             p = SSL_CIPHER_get_name(c);
             if (p == NULL)
                 break;
@@ -241,6 +245,9 @@ int ciphers_main(int argc, char **argv)
             const SSL_CIPHER *c;
 
             c = sk_SSL_CIPHER_value(sk, i);
+
+            if (!ossl_assert(c != NULL))
+                continue;
 
             if (Verbose) {
                 unsigned long id = SSL_CIPHER_get_id(c);

@@ -238,7 +238,7 @@ int SSL_set_srp_server_param_pw(SSL *s, const char *user, const char *pass,
     BN_clear_free(s->srp_ctx.s);
     s->srp_ctx.s = NULL;
     if (!SRP_create_verifier_BN_ex(user, pass, &s->srp_ctx.s, &s->srp_ctx.v,
-                                   GN->N, GN->g, s->ctx->libctx,
+                                   s->srp_ctx.N, s->srp_ctx.g, s->ctx->libctx,
                                    s->ctx->propq))
         return -1;
 

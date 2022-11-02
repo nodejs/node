@@ -773,8 +773,8 @@ typedef enum tlsext_index_en {
     TLSEXT_IDX_cryptopro_bug,
     TLSEXT_IDX_early_data,
     TLSEXT_IDX_certificate_authorities,
-    TLSEXT_IDX_quic_transport_params_draft,
-    TLSEXT_IDX_quic_transport_params,
+    TLSEXT_IDX_quic_transport_parameters_draft,
+    TLSEXT_IDX_quic_transport_parameters,
     TLSEXT_IDX_padding,
     TLSEXT_IDX_psk,
     /* Dummy index - must always be the last entry */
@@ -2808,7 +2808,9 @@ __owur int ssl_log_secret(SSL *ssl, const char *label,
 #define CLIENT_HANDSHAKE_LABEL "CLIENT_HANDSHAKE_TRAFFIC_SECRET"
 #define SERVER_HANDSHAKE_LABEL "SERVER_HANDSHAKE_TRAFFIC_SECRET"
 #define CLIENT_APPLICATION_LABEL "CLIENT_TRAFFIC_SECRET_0"
+#define CLIENT_APPLICATION_N_LABEL "CLIENT_TRAFFIC_SECRET_N"
 #define SERVER_APPLICATION_LABEL "SERVER_TRAFFIC_SECRET_0"
+#define SERVER_APPLICATION_N_LABEL "SERVER_TRAFFIC_SECRET_N"
 #define EARLY_EXPORTER_SECRET_LABEL "EARLY_EXPORTER_SECRET"
 #define EXPORTER_SECRET_LABEL "EXPORTER_SECRET"
 

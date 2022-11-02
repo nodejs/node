@@ -7,18 +7,21 @@
 #
 #    LD_LIBRARY_PATH=../.. ./aesccm
 #    LD_LIBRARY_PATH=../.. ./aesgcm
+#    LD_LIBRARY_PATH=../.. ./aeskeywrap
+#    LD_LIBRARY_PATH=../.. ./ariacbc
 
 CFLAGS = $(OPENSSL_INCS_LOCATION)
 LDFLAGS = $(OPENSSL_LIBS_LOCATION) -lssl -lcrypto
 
-all: aesccm aesgcm ariacbc
+all: aesccm aesgcm aeskeywrap ariacbc
 
 aesccm: aesccm.o
 aesgcm: aesgcm.o
+aeskeywrap: aeskeywrap.o
 ariacbc: ariacbc.o
 
-aesccm aesgcm ariacbc:
+aesccm aesgcm aeskeywrap ariacbc:
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 clean:
-	$(RM) aesccm aesgcm ariacbc *.o
+	$(RM) aesccm aesgcm aeskeywrap ariacbc *.o

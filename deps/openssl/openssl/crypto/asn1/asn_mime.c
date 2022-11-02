@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -69,6 +69,8 @@ static void mime_hdr_free(MIME_HEADER *hdr);
 int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
                         const ASN1_ITEM *it)
 {
+    int rv = 1;
+
     /* If streaming create stream BIO and copy all content through it */
     if (flags & SMIME_STREAM) {
         BIO *bio, *tbio;
@@ -77,7 +79,10 @@ int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
             ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
             return 0;
         }
-        SMIME_crlf_copy(in, bio, flags);
+        if (!SMIME_crlf_copy(in, bio, flags)) {
+            rv = 0;
+        }
+
         (void)BIO_flush(bio);
         /* Free up successive BIOs until we hit the old output BIO */
         do {
@@ -92,7 +97,7 @@ int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
      */
     else
         ASN1_item_i2d_bio(it, out, val);
-    return 1;
+    return rv;
 }
 
 /* Base 64 read and write of ASN1 structure */
@@ -346,8 +351,7 @@ static int asn1_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
      * set up to finalise when it is written through.
      */
     if (!(flags & SMIME_DETACHED) || (flags & PKCS7_REUSE_DIGEST)) {
-        SMIME_crlf_copy(data, out, flags);
-        return 1;
+        return SMIME_crlf_copy(data, out, flags);
     }
 
     if (!aux || !aux->asn1_cb) {
@@ -365,7 +369,8 @@ static int asn1_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
         return 0;
 
     /* Copy data across, passing through filter BIOs for processing */
-    SMIME_crlf_copy(data, sarg.ndef_bio, flags);
+    if (!SMIME_crlf_copy(data, sarg.ndef_bio, flags))
+        rv = 0;
 
     /* Finalize structure */
     if (aux->asn1_cb(ASN1_OP_DETACHED_POST, &val, it, &sarg) <= 0)
@@ -515,8 +520,10 @@ int SMIME_crlf_copy(BIO *in, BIO *out, int flags)
      * when streaming as we don't end up with one OCTET STRING per line.
      */
     bf = BIO_new(BIO_f_buffer());
-    if (bf == NULL)
+    if (bf == NULL) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
     out = BIO_push(bf, out);
     if (flags & SMIME_BINARY) {
         while ((len = BIO_read(in, linebuf, MAX_SMLEN)) > 0)

@@ -17,7 +17,6 @@ use lib "$FindBin::Bin/util/perl";
 use File::Basename;
 use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs splitdir/;
 use File::Path qw/mkpath/;
-use File::Compare qw(compare_text);
 use OpenSSL::fallback "$FindBin::Bin/external/perl/MODULES.txt";
 use OpenSSL::Glob;
 use OpenSSL::Template;
@@ -1506,9 +1505,7 @@ unless ($disabled{asan} || defined $detected_sanitizers{asan}) {
 }
 
 unless ($disabled{ubsan} || defined $detected_sanitizers{ubsan}) {
-    # -DPEDANTIC or -fnosanitize=alignment may also be required on some
-    # platforms.
-    push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all";
+    push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all", "-DPEDANTIC";
 }
 
 unless ($disabled{msan} || defined $detected_sanitizers{msan}) {
@@ -1720,20 +1717,13 @@ unless ($disabled{devcryptoeng}) {
 
 unless ($disabled{ktls}) {
     $config{ktls}="";
+    my $cc = $config{CROSS_COMPILE}.$config{CC};
     if ($target =~ m/^linux/) {
-        my $usr = "/usr/$config{cross_compile_prefix}";
-        chop($usr);
-        if ($config{cross_compile_prefix} eq "") {
-            $usr = "/usr";
-        }
-        my $minver = (4 << 16) + (13 << 8) + 0;
-        my @verstr = split(" ",`cat $usr/include/linux/version.h | grep LINUX_VERSION_CODE`);
-
-        if ($verstr[2] < $minver) {
+        system("printf '#include <sys/types.h>\n#include <linux/tls.h>' | $cc -E - >/dev/null 2>&1");
+        if ($? != 0) {
             disable('too-old-kernel', 'ktls');
         }
     } elsif ($target =~ m/^BSD/) {
-        my $cc = $config{CROSS_COMPILE}.$config{CC};
         system("printf '#include <sys/types.h>\n#include <sys/ktls.h>' | $cc -E - >/dev/null 2>&1");
         if ($? != 0) {
             disable('too-old-freebsd', 'ktls');
@@ -2852,59 +2842,20 @@ $configdata_tmpl->fill_in(
 ) or die $Text::Template::ERROR;
 close CONFIGDATA;
 
-# When using stat() on Windows, we can get it to perform better by avoid some
-# data.  This doesn't affect the mtime field, so we're not losing anything...
-${^WIN32_SLOPPY_STAT} = 1;
-
-my $update_configdata = 0;
-my $run_configdata = 0;
-if (-f $configdata_outname) {
-    my $Configure_mtime = (stat($0))[9];
-    my $configdata_mtime = (stat($configdata_outname))[9];
-
-    # If this script was updated after the last configdata.pm, or if
-    # configdata.pm.new differs from configdata.pm, we update configdata.pm
-    if ($configdata_mtime < $Configure_mtime
-        || compare_text("$configdata_outname.new", $configdata_outname) != 0) {
-        $update_configdata = 1;
-    } else {
-        # If nothing has changed, let's just drop the new one and pretend
-        # like nothing happened
-        unlink "$configdata_outname.new";
-
-        # We still run configdata.pm if one of the build file (Makefile) or
-        # the configuration header file are missing
-        $run_configdata =
-            !( -f $target{build_file} )
-            || !( -f catfile('include', 'openssl', 'configuration.h') );
-    }
-} else {
-    $update_configdata = 1;
+rename "$configdata_outname.new", $configdata_outname;
+if ($builder_platform eq 'unix') {
+    my $mode = (0755 & ~umask);
+    chmod $mode, 'configdata.pm'
+        or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
 }
+print "Created $configdata_outname\n";
 
-if ($update_configdata) {
-    # If something did change, or there was no previous configdata.pm, we
-    # rename the new one, set permissions as needed, and run it.
-    rename "$configdata_outname.new", $configdata_outname;
-    if ($builder_platform eq 'unix') {
-        my $mode = (0755 & ~umask);
-        chmod $mode, 'configdata.pm'
-            or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
-    }
-    $run_configdata = 1;
-    print "Created $configdata_outname\n";
-}
-
-if ($run_configdata) {
-    print "Running $configdata_outname\n";
-    my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
-    my $cmd = "$perlcmd $configdata_outname";
-    #print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
-    system($cmd);
-    exit 1 if $? != 0;
-} else {
-    print "No changes in $configdata_outname, no need to run it\n";
-}
+print "Running $configdata_outname\n";
+my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
+my $cmd = "$perlcmd $configdata_outname";
+#print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
+system($cmd);
+exit 1 if $? != 0;
 
 $SIG{__DIE__} = $orig_death_handler;
 

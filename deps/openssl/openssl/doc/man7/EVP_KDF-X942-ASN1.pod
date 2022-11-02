@@ -30,7 +30,7 @@ The supported parameters are:
 
 These parameters work as described in L<EVP_KDF(3)/PARAMETERS>.
 
-=item "key" (B<OSSL_KDF_PARAM_KEY>) <octet string>
+=item "secret" (B<OSSL_KDF_PARAM_SECRET>) <octet string>
 
 The shared secret used for key derivation.  This parameter sets the secret.
 
@@ -60,7 +60,7 @@ An optional octet string containing public info contributed by the responder.
 An optional octet string containing some additional, mutually-known public
 information. Setting this value also sets "use-keybits" to 0.
 
-=item "use-keybits" (B<OSSL_KDF_PARAM_X942_SUPP_PRIVINFO>) <integer>
+=item "use-keybits" (B<OSSL_KDF_PARAM_X942_USE_KEYBITS>) <integer>
 
 The default value of 1 will use the KEK key length (in bits) as the
 "supp-pubinfo". A value of 0 disables setting the "supp-pubinfo".
@@ -141,7 +141,7 @@ This functionality was added to OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

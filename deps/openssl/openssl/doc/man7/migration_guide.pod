@@ -1194,7 +1194,7 @@ Use the respective non-deprecated _ex() functions.
 
 BN_is_prime_ex(), BN_is_prime_fasttest_ex()
 
-Use L<BN_check_prime(3)> which that avoids possible misuse and always uses at least
+Use L<BN_check_prime(3)> which avoids possible misuse and always uses at least
 64 rounds of the Miller-Rabin primality test.
 
 =item *

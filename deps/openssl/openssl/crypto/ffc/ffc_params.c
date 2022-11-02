@@ -196,6 +196,7 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
     dst->h = src->h;
     dst->gindex = src->gindex;
     dst->flags = src->flags;
+    dst->keylength = src->keylength;
     return 1;
 }
 

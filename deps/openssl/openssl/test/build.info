@@ -40,7 +40,7 @@ IF[{- !$disabled{tests} -}]
           exptest pbetest localetest evp_pkey_ctx_new_from_name\
           evp_pkey_provided_test evp_test evp_extra_test evp_extra_test2 \
           evp_fetch_prov_test evp_libctx_test ossl_store_test \
-          v3nametest v3ext \
+          v3nametest v3ext punycode_test \
           evp_pkey_provided_test evp_test evp_extra_test evp_extra_test2 \
           evp_fetch_prov_test v3nametest v3ext \
           crltest danetest bad_dtls_test lhash_test sparse_array_test \
@@ -62,7 +62,7 @@ IF[{- !$disabled{tests} -}]
           context_internal_test aesgcmtest params_test evp_pkey_dparams_test \
           keymgmt_internal_test hexstr_test provider_status_test defltfips_test \
           bio_readbuffer_test user_property_test pkcs7_test upcallstest \
-          provfetchtest prov_config_test rand_test
+          provfetchtest prov_config_test rand_test fips_version_test
 
   IF[{- !$disabled{'deprecated-3.0'} -}]
     PROGRAMS{noinst}=enginetest
@@ -185,9 +185,6 @@ IF[{- !$disabled{tests} -}]
   SOURCE[evp_fetch_prov_test]=evp_fetch_prov_test.c
   INCLUDE[evp_fetch_prov_test]=../include ../apps/include
   DEPEND[evp_fetch_prov_test]=../libcrypto libtestutil.a
-  IF[{- $disabled{fips} || !$target{dso_scheme} -}]
-    DEFINE[evp_extra_test]=NO_FIPS_MODULE
-  ENDIF
 
   SOURCE[provfetchtest]=provfetchtest.c
   INCLUDE[provfetchtest]=../include ../apps/include
@@ -293,6 +290,10 @@ IF[{- !$disabled{tests} -}]
   INCLUDE[pkcs7_test]=../include ../apps/include
   DEPEND[pkcs7_test]=../libcrypto libtestutil.a
 
+  SOURCE[punycode_test]=punycode_test.c
+  INCLUDE[punycode_test]=../include ../apps/include
+  DEPEND[punycode_test]=../libcrypto.a libtestutil.a
+
   SOURCE[stack_test]=stack_test.c
   INCLUDE[stack_test]=../include ../apps/include
   DEPEND[stack_test]=../libcrypto libtestutil.a
@@ -393,6 +394,10 @@ IF[{- !$disabled{tests} -}]
   SOURCE[defltfips_test]=defltfips_test.c
   INCLUDE[defltfips_test]=../include  ../apps/include
   DEPEND[defltfips_test]=../libcrypto libtestutil.a
+
+  SOURCE[fips_version_test]=fips_version_test.c
+  INCLUDE[fips_version_test]=../include  ../apps/include
+  DEPEND[fips_version_test]=../libcrypto libtestutil.a
 
   SOURCE[ocspapitest]=ocspapitest.c
   INCLUDE[ocspapitest]=../include ../apps/include
@@ -776,6 +781,11 @@ IF[{- !$disabled{tests} -}]
     SOURCE[ssl_old_test]=ssl_old_test.c helpers/predefined_dhparams.c
     INCLUDE[ssl_old_test]=.. ../include ../apps/include
     DEPEND[ssl_old_test]=../libcrypto.a ../libssl.a libtestutil.a
+
+    PROGRAMS{noinst}=ext_internal_test
+    SOURCE[ext_internal_test]=ext_internal_test.c
+    INCLUDE[ext_internal_test]=.. ../include ../apps/include
+    DEPEND[ext_internal_test]=../libcrypto.a ../libssl.a libtestutil.a
 
     PROGRAMS{noinst}=algorithmid_test
     SOURCE[algorithmid_test]=algorithmid_test.c

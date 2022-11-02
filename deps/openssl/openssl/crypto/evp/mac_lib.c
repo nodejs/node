@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -226,7 +226,7 @@ const char *EVP_MAC_get0_description(const EVP_MAC *mac)
 
 int EVP_MAC_is_a(const EVP_MAC *mac, const char *name)
 {
-    return evp_is_a(mac->prov, mac->name_id, NULL, name);
+    return mac != NULL && evp_is_a(mac->prov, mac->name_id, NULL, name);
 }
 
 int EVP_MAC_names_do_all(const EVP_MAC *mac,

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <openssl/crypto.h>
+#include "internal/numbers.h"
 #include "bio_local.h"
 
 /*
@@ -620,12 +621,28 @@ long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
  */
 size_t BIO_ctrl_pending(BIO *bio)
 {
-    return BIO_ctrl(bio, BIO_CTRL_PENDING, 0, NULL);
+    long ret = BIO_ctrl(bio, BIO_CTRL_PENDING, 0, NULL);
+
+    if (ret < 0)
+        ret = 0;
+#if LONG_MAX > SIZE_MAX
+    if (ret > SIZE_MAX)
+        ret = SIZE_MAX;
+#endif
+    return (size_t)ret;
 }
 
 size_t BIO_ctrl_wpending(BIO *bio)
 {
-    return BIO_ctrl(bio, BIO_CTRL_WPENDING, 0, NULL);
+    long ret = BIO_ctrl(bio, BIO_CTRL_WPENDING, 0, NULL);
+
+    if (ret < 0)
+        ret = 0;
+#if LONG_MAX > SIZE_MAX
+    if (ret > SIZE_MAX)
+        ret = SIZE_MAX;
+#endif
+    return (size_t)ret;
 }
 
 /* put the 'bio' on the end of b's list of operators */

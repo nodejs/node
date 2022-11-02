@@ -15,7 +15,11 @@ $MD2_GOAL=../../liblegacy.a
 $MD4_GOAL=../../liblegacy.a
 $MDC2_GOAL=../../liblegacy.a
 $WHIRLPOOL_GOAL=../../liblegacy.a
-$RIPEMD_GOAL=../../liblegacy.a
+IF[{- !$disabled{module} -}]
+  $RIPEMD_GOAL=../../libdefault.a ../../liblegacy.a
+ELSE
+  $RIPEMD_GOAL=../../libdefault.a
+ENDIF
 
 # This source is common for all digests in all our providers.
 SOURCE[$COMMON_GOAL]=digestcommon.c

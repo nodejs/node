@@ -18,13 +18,24 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.6 and OpenSSL 3.0.7 [1 Nov 2022]
+
+  * Added RIPEMD160 to the default provider.
+  * Fixed regressions introduced in 3.0.6 version.
+  * Fixed two buffer overflows in punycode decoding functions.
+    ([CVE-2022-3786]) and ([CVE-2022-3602])
+
+### Major changes between OpenSSL 3.0.5 and OpenSSL 3.0.6 [11 Oct 2022]
+
+  * Fix for custom ciphers to prevent accidental use of NULL encryption
+    ([CVE-2022-3358])
+
 ### Major changes between OpenSSL 3.0.4 and OpenSSL 3.0.5 [5 Jul 2022]
 
   * Fixed heap memory corruption with RSA private key operation
     ([CVE-2022-2274])
   * Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
     ([CVE-2022-2097])
-
 
 ### Major changes between OpenSSL 3.0.3 and OpenSSL 3.0.4 [21 Jun 2022]
 

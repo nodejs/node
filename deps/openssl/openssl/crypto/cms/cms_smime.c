@@ -432,7 +432,8 @@ int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs,
          * Don't use SMIME_TEXT for verify: it adds headers and we want to
          * remove them.
          */
-        SMIME_crlf_copy(dcont, cmsbio, flags & ~SMIME_TEXT);
+        if (!SMIME_crlf_copy(dcont, cmsbio, flags & ~SMIME_TEXT))
+            goto err;
 
         if (flags & CMS_TEXT) {
             if (!SMIME_text(tmpout, out)) {
@@ -882,7 +883,9 @@ int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags)
         return 0;
     }
 
-    ret = SMIME_crlf_copy(data, cmsbio, flags);
+    if (!SMIME_crlf_copy(data, cmsbio, flags)) {
+        goto err;
+    }
 
     (void)BIO_flush(cmsbio);
 
@@ -890,6 +893,9 @@ int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags)
         ERR_raise(ERR_LIB_CMS, CMS_R_CMS_DATAFINAL_ERROR);
         goto err;
     }
+
+    ret = 1;
+
 err:
     do_free_upto(cmsbio, dcont);
 
