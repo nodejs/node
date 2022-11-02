@@ -45,12 +45,14 @@ the first available value of these:
 
 =over 4
 
-=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)>,
+=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)> -
+if it is the NULL-DN (i.e., any empty sequence of RDNs), no subject is included,
 
-=item the subject field of any PKCS#10 CSR is given in I<ctx>, or
+=item the subject field of any PKCS#10 CSR set in I<ctx>
+via L<OSSL_CMP_CTX_set1_p10CSR(3)>,
 
 =item the subject field of any reference certificate given in I<ctx>
-(see L<OSSL_CMP_CTX_set1_oldCert(3)>), if I<for_KUR> is nonzero
+(see L<OSSL_CMP_CTX_set1_oldCert(3)>), but only if I<for_KUR> is nonzero
 or the I<ctx> does not include a Subject Alternative Name.
 
 =back
@@ -61,9 +63,9 @@ The public key included is the first available value of these:
 
 =item the public key derived from any key set via L<OSSL_CMP_CTX_set0_newPkey(3)>,
 
-=item the public key of any PKCS#10 CSR is given in I<ctx>,
+=item the public key of any PKCS#10 CSR given in I<ctx>,
 
-=item the public key of any reference certificate given in I<ctx>, or
+=item the public key of any reference certificate given in I<ctx>,
 
 =item the public key derived from any client's private key
 set via L<OSSL_CMP_CTX_set1_pkey(3)>.
@@ -108,7 +110,7 @@ or NULL if the respective entry does not exist and on error.
 
 OSSL_CMP_MSG_get_bodytype() returns the body type or -1 on error.
 
-OSSL_CMP_CTX_setup_CRM() returns a pointer to a OSSL_CRMF_MSG on success,
+OSSL_CMP_CTX_setup_CRM() returns a pointer to a B<OSSL_CRMF_MSG> on success,
 NULL on error.
 
 d2i_OSSL_CMP_MSG_bio() returns the parsed message or NULL on error.
@@ -120,6 +122,13 @@ OSSL_CMP_MSG_write() and i2d_OSSL_CMP_MSG_bio() return
 the number of bytes successfully encoded or a negative value if an error occurs.
 
 OSSL_CMP_MSG_update_transactionID() returns 1 on success, 0 on error.
+
+=head1 SEE ALSO
+
+L<OSSL_CMP_CTX_set1_subjectName(3)>, L<OSSL_CMP_CTX_set1_p10CSR(3)>,
+L<OSSL_CMP_CTX_set1_oldCert(3)>, L<OSSL_CMP_CTX_set0_newPkey(3)>,
+L<OSSL_CMP_CTX_set1_pkey(3)>, L<OSSL_CMP_CTX_set0_reqExtensions(3)>,
+L<OSSL_CMP_CTX_push1_subjectAltName(3)>, L<OSSL_CMP_CTX_push0_policy(3)>
 
 =head1 HISTORY
 

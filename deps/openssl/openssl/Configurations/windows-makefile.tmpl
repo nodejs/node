@@ -500,8 +500,8 @@ uninstall_docs: uninstall_html_docs
 {- output_off() if $disabled{fips}; "" -}
 install_fips: build_sw $(INSTALL_FIPSMODULECONF)
 #	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
-	@$(PERL) $(SRCDIR)\util\mkdir-p.pl $(MODULESDIR)
-	@$(PERL) $(SRCDIR)\util\mkdir-p.pl $(OPENSSLDIR)
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(MODULESDIR)"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)"
 	@$(ECHO) "*** Installing FIPS module"
 	@$(ECHO) "install $(INSTALL_FIPSMODULE) -> $(MODULESDIR)\$(FIPSMODULENAME)"
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(INSTALL_FIPSMODULE)" "$(MODULESDIR)"
@@ -742,7 +742,7 @@ EOF
                               rel2abs($config{builddir}));
           my $ord_ver = $args{intent} eq 'lib' ? ' --version $(VERSION_NUMBER)' : '';
           my $ord_name =
-              $args{generator}->[1] || platform->dsoname($args{product});
+              $args{generator}->[1] || basename(platform->dsoname($args{product}));
           return <<"EOF";
 $target: $gen0 $deps $mkdef
 	"\$(PERL)" "$mkdef"$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name --OS windows > $target
