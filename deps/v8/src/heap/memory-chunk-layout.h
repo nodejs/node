@@ -37,8 +37,13 @@ using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
-  static const int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
-  static const int kNumTypes = ExternalBackingStoreType::kNumTypes;
+  static constexpr int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
+  static constexpr int kNumTypes = ExternalBackingStoreType::kNumTypes;
+#if V8_CC_MSVC && V8_TARGET_ARCH_IA32
+  static constexpr int kMemoryChunkAlignment = 8;
+#else
+  static constexpr int kMemoryChunkAlignment = sizeof(size_t);
+#endif  // V8_CC_MSVC && V8_TARGET_ARCH_IA32
 #define FIELD(Type, Name) \
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
   enum Header {
@@ -74,11 +79,17 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     FIELD(size_t, WasUsedForAllocation),
     kMarkingBitmapOffset,
-    kMemoryChunkHeaderSize = kMarkingBitmapOffset,
+    kMemoryChunkHeaderSize =
+        kMarkingBitmapOffset +
+        ((kMarkingBitmapOffset % kMemoryChunkAlignment) == 0
+             ? 0
+             : kMemoryChunkAlignment -
+                   (kMarkingBitmapOffset % kMemoryChunkAlignment)),
     kMemoryChunkHeaderStart = kSlotSetOffset,
     kBasicMemoryChunkHeaderSize = kMemoryChunkHeaderStart,
     kBasicMemoryChunkHeaderStart = 0,
   };
+#undef FIELD
   static size_t CodePageGuardStartOffset();
   static size_t CodePageGuardSize();
   static intptr_t ObjectStartOffsetInCodePage();
