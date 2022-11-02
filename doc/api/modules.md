@@ -272,15 +272,10 @@ LOAD_PACKAGE_SELF(X, DIR)
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
-1. let { RESOLVED, EXACT } = MATCH
-2. let RESOLVED_PATH = fileURLToPath(RESOLVED)
-3. If EXACT is true,
-   a. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
-      format. STOP
-4. Otherwise, if EXACT is false,
-   a. LOAD_AS_FILE(RESOLVED_PATH)
-   b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
-5. THROW "not found"
+1. let RESOLVED_PATH = fileURLToPath(MATCH)
+2. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
+   format. STOP
+3. THROW "not found"
 </pre>
 
 ## Caching
