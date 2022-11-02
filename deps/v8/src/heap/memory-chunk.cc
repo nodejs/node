@@ -496,6 +496,17 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->possibly_empty_buckets_) -
                 chunk->address(),
             MemoryChunkLayout::kPossiblyEmptyBucketsOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
+                chunk->address(),
+            MemoryChunkLayout::kActiveSystemPagesOffset);
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->object_start_bitmap_) -
+                chunk->address(),
+            MemoryChunkLayout::kObjectStartBitmapOffset);
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->was_used_for_allocation_) -
+                chunk->address(),
+            MemoryChunkLayout::kWasUsedForAllocationOffset);
 }
 #endif
 
