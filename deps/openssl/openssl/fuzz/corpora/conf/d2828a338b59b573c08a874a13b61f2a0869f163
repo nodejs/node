@@ -1,0 +1,22 @@
+.include	..
+.include	.
+.include	..
+.include	./.
+.include	.
+.include	..
+.include	..
+.includee	.
+
+.include	.
+.include	..
+.include	.
+.include	.
+.includee	.
+.include	.
+.include\=`/
+.include	.
+.include	.
+.include	.
+.include	.
+.include	.
+.in

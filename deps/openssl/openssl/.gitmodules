@@ -1,0 +1,15 @@
+[submodule "pyca.cryptography"]
+	path = pyca-cryptography
+	url = https://github.com/pyca/cryptography.git
+
+[submodule "krb5"]
+	path = krb5
+	url = https://github.com/krb5/krb5
+
+[submodule "gost-engine"]
+	path = gost-engine
+	url = https://github.com/gost-engine/engine
+	update = rebase
+[submodule "wycheproof"]
+	path = wycheproof
+	url = https://github.com/google/wycheproof

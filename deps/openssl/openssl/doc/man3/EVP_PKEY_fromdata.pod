@@ -53,6 +53,9 @@ the settable parameters that can be used with EVP_PKEY_fromdata().
 I<selection> is described in L</Selections>.
 See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
 
+Parameters in the I<params> array that are not among the settable parameters
+for the given I<selection> are ignored.
+
 =head2 Selections
 
 The following constants can be used for I<selection>:
@@ -267,7 +270,7 @@ These functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,0 +1,51 @@
+# Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Jobs run per pull request submission
+name: Run-checker CI
+on: [pull_request, push]
+permissions:
+  contents: read
+
+jobs:
+  run-checker:
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [
+          no-cmp,
+          no-cms,
+          no-ct,
+          no-dtls,
+          no-ec,
+          no-ec2m,
+          no-legacy,
+          no-rfc3779,
+          no-sock,
+          no-srp,
+          no-srtp,
+          enable-ssl-trace,
+          no-tests,
+          no-threads,
+          no-tls,
+          no-tls1_2,
+          no-tls1_3,
+          enable-trace enable-fips,
+          no-ts,
+          no-ui,
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: CC=clang ./config --banner=Configured --strict-warnings ${{ matrix.opt }}
+    - name: config dump
+      run: ./configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}

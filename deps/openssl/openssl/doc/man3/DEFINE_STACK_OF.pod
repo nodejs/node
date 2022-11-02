@@ -229,6 +229,13 @@ A failed search is indicated by a B<-1> return value.
 STACK_OF(), DEFINE_STACK_OF(), DEFINE_STACK_OF_CONST(), and
 DEFINE_SPECIAL_STACK_OF() are implemented as macros.
 
+It is not an error to call B<sk_I<TYPE>_num>(), B<sk_I<TYPE>_value>(),
+B<sk_I<TYPE>_free>(), B<sk_I<TYPE>_zero>(), B<sk_I<TYPE>_pop_free>(),
+B<sk_I<TYPE>_delete>(), B<sk_I<TYPE>_delete_ptr>(), B<sk_I<TYPE>_pop>(),
+B<sk_I<TYPE>_shift>(), B<sk_I<TYPE>_find>(), B<sk_I<TYPE>_find_ex>(),
+and B<sk_I<TYPE>_find_all>() on a NULL stack, empty stack, or with
+an invalid index. An error is not raised in these conditions.
+
 The underlying utility B<OPENSSL_sk_> API should not be used directly.
 It defines these functions: OPENSSL_sk_deep_copy(),
 OPENSSL_sk_delete(), OPENSSL_sk_delete_ptr(), OPENSSL_sk_dup(),
@@ -290,7 +297,7 @@ B<sk_I<TYPE>_reserve>() and B<sk_I<TYPE>_new_reserve>() were added in OpenSSL
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

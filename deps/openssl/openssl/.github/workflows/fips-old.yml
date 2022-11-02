@@ -1,0 +1,74 @@
+# Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+name: Provider old versions compat
+on: [pull_request, push]
+
+permissions:
+  contents: read
+
+jobs:
+  fips-provider-validation:
+    strategy:
+      matrix:
+        module: [
+          {
+            dir: openssl-3.0.0,
+            tgz: openssl-3.0.0.tar.gz,
+            url: "https://www.openssl.org/source/old/3.0/openssl-3.0.0.tar.gz"
+          },
+        ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: create directory
+        run: mkdir ./current
+      - uses: actions/checkout@v2
+        with:
+          path: current
+      - name: download module source
+        run: wget --no-verbose ${{ matrix.module.url }}
+      - name: unpack module source
+        run: tar xzf ${{ matrix.module.tgz }}
+      - name: localegen
+        run: sudo locale-gen tr_TR.UTF-8
+      - name: config current
+        run: ./config --banner=Configured enable-shared enable-fips
+        working-directory: ./current
+      - name: config dump current
+        run: ./configdata.pm --dump
+        working-directory: ./current
+      - name: make current
+        run: make -s -j4
+        working-directory: ./current
+      - name: show module from current
+        run: |
+          ./util/wrap.pl -fips apps/openssl list -provider-path providers \
+                                                 -provider fips -providers
+        working-directory: ./current
+      - name: test current
+        run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+        working-directory: ./current
+      - name: config module
+        run: ./config --banner=Configured enable-shared enable-fips
+        working-directory: ${{ matrix.module.dir }}
+      - name: config dump module
+        run: ./configdata.pm --dump
+        working-directory: ${{ matrix.module.dir }}
+      - name: make module
+        run: make -s -j4
+        working-directory: ${{ matrix.module.dir }}
+      - name: setup module cross validation
+        run: cp providers/fips{module.cnf,.so} ../current/providers/
+        working-directory: ${{ matrix.module.dir }}
+      - name: show module used for cross validation
+        run: |
+          ./util/wrap.pl -fips apps/openssl list -provider-path providers \
+                                                 -provider fips -providers
+        working-directory: ./current
+      - name: test module cross validation
+        run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+        working-directory: ./current

@@ -1,0 +1,43 @@
+# Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+name: Run-checker merge
+# Jobs run per merge to master
+
+on: [push]
+permissions:
+  contents: read
+
+jobs:
+  run-checker:
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [
+          enable-asan no-shared no-asm -DOPENSSL_SMALL_FOOTPRINT,
+          no-dgram,
+          no-dso,
+          no-dynamic-engine,
+          no-engine no-shared,
+          no-err,
+          no-filenames,
+          enable-ubsan no-asm -DOPENSSL_SMALL_FOOTPRINT -fno-sanitize=alignment,
+          no-unit-test,
+          enable-weak-ssl-ciphers,
+          enable-zlib,
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: CC=clang ./config --banner=Configured --strict-warnings ${{ matrix.opt }}
+    - name: config dump
+      run: ./configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}

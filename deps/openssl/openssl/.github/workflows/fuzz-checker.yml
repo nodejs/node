@@ -1,0 +1,71 @@
+# Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+name: Fuzz-checker CI
+
+on: [push]
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-checker:
+    strategy:
+      fail-fast: false
+      matrix:
+        fuzzy: [
+          {
+            name: AFL,
+            config: enable-fuzz-afl no-module,
+            install: afl++-clang,
+            cc: afl-clang-fast
+          }, {
+            name: libFuzzer,
+            config: enable-fuzz-libfuzzer enable-asan enable-ubsan,
+            libs: --with-fuzzer-lib=/usr/lib/llvm-12/lib/libFuzzer.a --with-fuzzer-include=/usr/lib/llvm-12/build/lib/clang/12.0.0/include/fuzzer,
+            install: libfuzzer-12-dev,
+            cc: clang-12,
+            linker: clang++-12,
+            tests: -test_memleak
+          }, {
+            name: libFuzzer+,
+            config: enable-fuzz-libfuzzer enable-asan enable-ubsan -fsanitize-coverage=trace-cmp -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION,
+            libs: --with-fuzzer-lib=/usr/lib/llvm-12/lib/libFuzzer.a --with-fuzzer-include=/usr/lib/llvm-12/build/lib/clang/12.0.0/include/fuzzer,
+            extra: enable-fips enable-ec_nistp_64_gcc_128 -fno-sanitize=alignment enable-tls1_3 enable-weak-ssl-ciphers enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-nextprotoneg,
+            install: libfuzzer-12-dev,
+            cc: clang-12,
+            linker: clang++-12,
+            tests: -test_memleak
+          }
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: install packages
+      run: |
+        sudo apt-get update
+        sudo apt-get -yq --force-yes install ${{ matrix.fuzzy.install }}
+    - uses: actions/checkout@v2
+
+    - name: config
+      run: |
+        CC=${{ matrix.fuzzy.cc }} ./config --banner=Configured no-shared \
+            ${{ matrix.fuzzy.config }} ${{ matrix.fuzzy.libs }} ${{ matrix.fuzzy.extra }}
+
+    - name: config dump
+      run: ./configdata.pm --dump
+    - name: make with explicit linker
+      if: matrix.fuzzy.linker != ''
+      run: LDCMD=${{ matrix.fuzzy.linker }} make -s -j4
+    - name: make sans explicit linker
+      if: matrix.fuzzy.linker == ''
+      run: make -s -j4
+    - name: make test restricted
+      if: matrix.fuzzy.tests != ''
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4} TESTS="${{ matrix.fuzzy.tests }}"
+    - name: make test all
+      if: matrix.fuzzy.tests == ''
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}

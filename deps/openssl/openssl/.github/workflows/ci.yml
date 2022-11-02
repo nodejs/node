@@ -1,0 +1,311 @@
+# Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+name: GitHub CI
+
+on: [pull_request, push]
+
+# for some reason, this does not work:
+# variables:
+#   BUILDOPTS: "-j4"
+#   HARNESS_JOBS: "${HARNESS_JOBS:-4}"
+
+# for some reason, this does not work:
+# before_script:
+#     - make="make -s"
+
+permissions:
+  contents: read
+
+jobs:
+  check_update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: install unifdef
+      run: |
+        sudo apt-get update
+        sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install unifdef
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: config
+      run: ./config --banner=Configured --strict-warnings enable-fips && perl configdata.pm --dump
+    - name: make build_generated
+      run: make -s build_generated
+    - name: make update
+      run: make update
+    - name: git diff
+      run: git diff --exit-code
+
+  check_docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --strict-warnings enable-fips && perl configdata.pm --dump
+    - name: make build_generated
+      run: make -s build_generated
+    - name: make doc-nits
+      run: make doc-nits
+    - name: make md-nits
+      run: |
+          sudo gem install mdl
+          make md-nits
+
+  # This checks that we use ANSI C language syntax and semantics.
+  # We are not as strict with libraries, but rather adapt to what's
+  # expected to be available in a certain version of each platform.
+  check-ansi:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: CPPFLAGS=-ansi ./config --banner=Configured no-asm no-makedepend enable-buildtest-c++ enable-fips --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+
+  basic_gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: localegen
+      run: sudo locale-gen tr_TR.UTF-8
+    - name: config
+      run: CC=gcc ./config --banner=Configured enable-fips --strict-warnings && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  basic_clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: CC=clang ./config --banner=Configured no-fips --strict-warnings && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  minimal:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --strict-warnings no-bulk no-pic no-asm -DOPENSSL_NO_SECURE_MEMORY -DOPENSSL_SMALL_FOOTPRINT && perl configdata.pm --dump
+    - name: make
+      run: make -j4 # verbose, so no -s here
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  no-deprecated:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --strict-warnings no-deprecated enable-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  no-shared:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --strict-warnings no-shared no-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  non-caching:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --debug enable-asan enable-ubsan no-cached-fetch no-fips no-dtls no-tls1 no-tls1-method no-tls1_1 no-tls1_1-method no-async && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4} OPENSSL_TEST_RAND_ORDER=0 TESTS="-test_fuzz* -test_ssl_* -test_sslapi -test_evp -test_cmp_http -test_verify -test_cms -test_store -test_enc -[01][0-9]"
+
+  address_ub_sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4} OPENSSL_TEST_RAND_ORDER=0
+
+  memory_sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      # --debug -O1 is to produce a debug build that runs in a reasonable amount of time
+      run: CC=clang ./config --banner=Configured --debug -O1 -fsanitize=memory -DOSSL_SANITIZE_MEMORY -fno-optimize-sibling-calls enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4} OPENSSL_TEST_RAND_ORDER=0
+
+  threads_sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: CC=clang ./config --banner=Configured no-fips --strict-warnings -fsanitize=thread && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make V=1 TESTS="test_threads test_internal_provider test_provfetch test_provider test_pbe test_evp_kdf test_pkcs12 test_store test_evp" test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  enable_non-default_options:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: modprobe tls
+      run: sudo modprobe tls
+    - name: config
+      run: ./config --banner=Configured --strict-warnings no-ec enable-ssl-trace enable-zlib enable-zlib-dynamic enable-crypto-mdebug enable-crypto-mdebug-backtrace enable-egd enable-ktls enable-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  fips_and_ktls:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: modprobe tls
+      run: sudo modprobe tls
+    - name: config
+      run: ./config --banner=Configured --strict-warnings enable-ktls enable-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  no-legacy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured --strict-warnings no-legacy enable-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  legacy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured -Werror --debug no-afalgeng no-shared enable-crypto-mdebug enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-zlib enable-ec_nistp_64_gcc_128 no-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  buildtest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: config
+      run: ./config --banner=Configured no-asm no-makedepend enable-buildtest-c++ enable-fips --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+
+  out-of-source-and-install:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest ]
+    runs-on: ${{matrix.os}}
+    steps:
+    - uses: actions/checkout@v2
+    - name: extra preparations
+      run: |
+        mkdir ./build
+        mkdir ./install
+    - name: config
+      run: ../config --banner=Configured enable-fips enable-acvp-tests --strict-warnings --prefix=$(cd ../install; pwd) && perl configdata.pm --dump
+      working-directory: ./build
+    - name: make
+      run: make -s -j4
+      working-directory: ./build
+    - name: make test
+      run: make test HARNESS_JOBS=${HARNESS_JOBS:-4}
+      working-directory: ./build
+    - name: make install
+      run: make install
+      working-directory: ./build
+
+  external-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: package installs
+      run: |
+        sudo apt-get update
+        sudo apt-get -yq install bison gettext keyutils ldap-utils libldap2-dev libkeyutils-dev python3 python3-paste python3-pyrad slapd tcsh python3-virtualenv virtualenv python3-kdcproxy
+    - name: install cpanm and Test2::V0 for gost_engine testing
+      uses: perl-actions/install-with-cpanm@v1
+      with:
+        install: Test2::V0
+    - name: setup hostname workaround
+      run: sudo hostname localhost
+    - name: config
+      run: ./config --banner=Configured --strict-warnings --debug no-afalgeng enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-zlib enable-ec_nistp_64_gcc_128 enable-external-tests no-fips && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: test external gost-engine
+      run: make test TESTS="test_external_gost_engine"
+    - name: test external krb5
+      run: make test TESTS="test_external_krb5"
+
+  external-test-pyca:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        RUST:
+          - 1.51.0
+        PYTHON:
+          - 3.9
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Configure OpenSSL
+      run: ./config --banner=Configured --strict-warnings --debug enable-external-tests && perl configdata.pm --dump
+    - name: make
+      run: make -s -j4
+    - name: Setup Python
+      uses: actions/setup-python@v2.2.2
+      with:
+        python-version: ${{ matrix.PYTHON }}
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.RUST }}
+        override: true
+        default: true
+    - name: test external pyca
+      run: make test TESTS="test_external_pyca" VERBOSE=1
