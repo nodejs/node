@@ -18,8 +18,8 @@ OSSL_PROVIDER_self_test
 
  typedef struct ossl_provider_st OSSL_PROVIDER;
 
- void OSSL_PROVIDER_set_default_search_path(OSSL_LIB_CTX *libctx,
-                                            const char *path);
+ int OSSL_PROVIDER_set_default_search_path(OSSL_LIB_CTX *libctx,
+                                           const char *path);
 
  OSSL_PROVIDER *OSSL_PROVIDER_load(OSSL_LIB_CTX *libctx, const char *name);
  OSSL_PROVIDER *OSSL_PROVIDER_try_load(OSSL_LIB_CTX *libctx, const char *name,
@@ -157,7 +157,8 @@ L<provider-base(7)/CAPABILTIIES>.
 
 =head1 RETURN VALUES
 
-OSSL_PROVIDER_add(), OSSL_PROVIDER_unload(), OSSL_PROVIDER_get_params() and
+OSSL_PROVIDER_set_default_search_path(), OSSL_PROVIDER_add(),
+OSSL_PROVIDER_unload(), OSSL_PROVIDER_get_params() and
 OSSL_PROVIDER_get_capabilities() return 1 on success, or 0 on error.
 
 OSSL_PROVIDER_load() and OSSL_PROVIDER_try_load() return a pointer to a

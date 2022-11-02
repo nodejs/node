@@ -15,18 +15,20 @@ implementation (see L<EVP_MAC-KMAC(7)>).
 
 =head2 Identities
 
-This implementation is only available with the default provider, and
-includes the following varieties:
+This implementation is available in the FIPS provider as well as the default
+provider, and includes the following varieties:
 
 =over 4
 
 =item KECCAK-KMAC-128
 
 Known names are "KECCAK-KMAC-128" and "KECCAK-KMAC128"
+This is used by L<EVP_MAC-KMAC128(7)>
 
 =item KECCAK-KMAC-256
 
 Known names are "KECCAK-KMAC-256" and "KECCAK-KMAC256"
+This is used by L<EVP_MAC-KMAC256(7)>
 
 =item SHAKE-128
 
@@ -55,6 +57,14 @@ settable for an B<EVP_MD_CTX> with L<EVP_MD_CTX_set_params(3)>:
 Sets the digest length for extendable output functions.
 The length of the "xoflen" parameter should not exceed that of a B<size_t>.
 
+For backwards compatibility reasons the default xoflen length for SHAKE-128 is
+16 (bytes) which results in a security strength of only 64 bits. To ensure the
+maximum security strength of 128 bits, the xoflen should be set to at least 32.
+
+For backwards compatibility reasons the default xoflen length for SHAKE-256 is
+32 (bytes) which results in a security strength of only 128 bits. To ensure the
+maximum security strength of 256 bits, the xoflen should be set to at least 64.
+
 =back
 
 =head1 SEE ALSO
@@ -63,7 +73,7 @@ L<EVP_MD_CTX_set_params(3)>, L<provider-digest(7)>, L<OSSL_PROVIDER-default(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
