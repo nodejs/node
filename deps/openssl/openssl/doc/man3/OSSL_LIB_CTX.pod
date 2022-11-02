@@ -83,7 +83,7 @@ B<OSSL_provider_init> function returns then the new provider is available in the
 application's library context and will be similarly mirrored in the child
 library context.
 
-OSSL_LIB_CTX_load_config() loads a configuration file using the given C<ctx>.
+OSSL_LIB_CTX_load_config() loads a configuration file using the given I<ctx>.
 This can be used to associate a library context with providers that are loaded
 from a configuration.
 
@@ -118,13 +118,15 @@ on error.
 
 OSSL_LIB_CTX_free() doesn't return any value.
 
+OSSL_LIB_CTX_load_config() returns 1 on success, 0 on error.
+
 =head1 HISTORY
 
 All of the functions described on this page were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

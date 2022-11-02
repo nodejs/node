@@ -149,12 +149,12 @@ other allocations (until the program exits or crashes) have a 25% chance of
 failing.
 
 If the variable B<OPENSSL_MALLOC_FD> is parsed as a positive integer, then
-it is taken as an open file descriptor, and a record of all allocations is
-written to that descriptor.  If an allocation will fail, and the platform
-supports it, then a backtrace will be written to the descriptor.  This can
-be useful because a malloc may fail but not be checked, and problems will
-only occur later.  The following example in classic shell syntax shows how
-to use this (will not work on all platforms):
+it is taken as an open file descriptor. This is used in conjunction with
+B<OPENSSL_MALLOC_FAILURES> described above. For every allocation it will log
+details about how many allocations there have been so far, what percentage
+chance there is for this allocation failing, and whether it has actually failed.
+The following example in classic shell syntax shows how to use this (will not
+work on all platforms):
 
   OPENSSL_MALLOC_FAILURES='200;@10'
   export OPENSSL_MALLOC_FAILURES
@@ -179,10 +179,11 @@ CRYPTO_set_mem_functions() returns 1 on success or 0 on failure (almost
 always because allocations have already happened).
 
 CRYPTO_mem_leaks(), CRYPTO_mem_leaks_fp(), CRYPTO_mem_leaks_cb(),
-CRYPTO_set_mem_debug(), and CRYPTO_mem_ctrl() are deprecated and return -1.
+CRYPTO_set_mem_debug(), and CRYPTO_mem_ctrl() are deprecated and are no-ops that
+always return -1.
 OPENSSL_mem_debug_push(), OPENSSL_mem_debug_pop(),
 CRYPTO_mem_debug_push(), and CRYPTO_mem_debug_pop()
-are deprecated and return 0.
+are deprecated and are no-ops that always return 0.
 
 =head1 HISTORY
 
@@ -197,7 +198,7 @@ clang's memory and leak sanitizer.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -19,3 +19,4 @@ public-key:
     a8:ee:72:13:45:65:15:42:17:aa:d8:ab:cf:33:42:
     83:42
 GROUP: ffdhe2048
+recommended-private-length: 224 bits
