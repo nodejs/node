@@ -1495,6 +1495,10 @@ DEPEND[html/man3/OPENSSL_fork_prepare.html]=man3/OPENSSL_fork_prepare.pod
 GENERATE[html/man3/OPENSSL_fork_prepare.html]=man3/OPENSSL_fork_prepare.pod
 DEPEND[man/man3/OPENSSL_fork_prepare.3]=man3/OPENSSL_fork_prepare.pod
 GENERATE[man/man3/OPENSSL_fork_prepare.3]=man3/OPENSSL_fork_prepare.pod
+DEPEND[html/man3/OPENSSL_gmtime.html]=man3/OPENSSL_gmtime.pod
+GENERATE[html/man3/OPENSSL_gmtime.html]=man3/OPENSSL_gmtime.pod
+DEPEND[man/man3/OPENSSL_gmtime.3]=man3/OPENSSL_gmtime.pod
+GENERATE[man/man3/OPENSSL_gmtime.3]=man3/OPENSSL_gmtime.pod
 DEPEND[html/man3/OPENSSL_hexchar2int.html]=man3/OPENSSL_hexchar2int.pod
 GENERATE[html/man3/OPENSSL_hexchar2int.html]=man3/OPENSSL_hexchar2int.pod
 DEPEND[man/man3/OPENSSL_hexchar2int.3]=man3/OPENSSL_hexchar2int.pod
@@ -3109,6 +3113,7 @@ html/man3/OPENSSL_LH_COMPFUNC.html \
 html/man3/OPENSSL_LH_stats.html \
 html/man3/OPENSSL_config.html \
 html/man3/OPENSSL_fork_prepare.html \
+html/man3/OPENSSL_gmtime.html \
 html/man3/OPENSSL_hexchar2int.html \
 html/man3/OPENSSL_ia32cap.html \
 html/man3/OPENSSL_init_crypto.html \
@@ -3705,6 +3710,7 @@ man/man3/OPENSSL_LH_COMPFUNC.3 \
 man/man3/OPENSSL_LH_stats.3 \
 man/man3/OPENSSL_config.3 \
 man/man3/OPENSSL_fork_prepare.3 \
+man/man3/OPENSSL_gmtime.3 \
 man/man3/OPENSSL_hexchar2int.3 \
 man/man3/OPENSSL_ia32cap.3 \
 man/man3/OPENSSL_init_crypto.3 \

@@ -134,10 +134,12 @@ support nonnegative B<BIGNUM>s.  They return an error on negative B<BIGNUM>s.
 Both examples creating an OSSL_PARAM array that contains an RSA key.
 For both, the predefined key variables are:
 
-    BIGNUM *p, *q;  /* both prime */
-    BIGNUM *n;      /* = p * q */
-    unsigned int e; /* exponent, usually 65537 */
-    BIGNUM *d;      /* e^-1 */
+    BIGNUM *n;           /* modulus */
+    unsigned int e;      /* public exponent */
+    BIGNUM *d;           /* private exponent */
+    BIGNUM *p, *q;       /* first two prime factors */
+    BIGNUM *dmp1, *dmq1; /* first two CRT exponents */
+    BIGNUM *iqmp;        /* first CRT coefficient */
 
 =head2 Example 1
 
@@ -148,11 +150,14 @@ private key.
     OSSL_PARAM *params = NULL;
 
     if (bld == NULL
-        || !OSSL_PARAM_BLD_push_BN(bld, "p", p)
-        || !OSSL_PARAM_BLD_push_BN(bld, "q", q)
-        || !OSSL_PARAM_BLD_push_uint(bld, "e", e)
         || !OSSL_PARAM_BLD_push_BN(bld, "n", n)
+        || !OSSL_PARAM_BLD_push_uint(bld, "e", e)
         || !OSSL_PARAM_BLD_push_BN(bld, "d", d)
+        || !OSSL_PARAM_BLD_push_BN(bld, "rsa-factor1", p)
+        || !OSSL_PARAM_BLD_push_BN(bld, "rsa-factor2", q)
+        || !OSSL_PARAM_BLD_push_BN(bld, "rsa-exponent1", dmp1)
+        || !OSSL_PARAM_BLD_push_BN(bld, "rsa-exponent2", dmq1)
+        || !OSSL_PARAM_BLD_push_BN(bld, "rsa-coefficient1", iqmp)
         || (params = OSSL_PARAM_BLD_to_param(bld)) == NULL)
         goto err;
     OSSL_PARAM_BLD_free(bld);
@@ -170,7 +175,7 @@ public key.
 
     if (nld == NULL
         || !OSSL_PARAM_BLD_push_BN(bld, "n", n)
-        || !OSSL_PARAM_BLD_push_BN(bld, "e", e)
+        || !OSSL_PARAM_BLD_push_uint(bld, "e", e)
         || (params = OSSL_PARAM_BLD_to_param(bld)) == NULL)
         goto err;
     OSSL_PARAM_BLD_free(bld);
