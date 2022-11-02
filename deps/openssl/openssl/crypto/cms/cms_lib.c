@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,8 +34,11 @@ CMS_ContentInfo *d2i_CMS_ContentInfo(CMS_ContentInfo **a,
                                           (CMS_ContentInfo_it()),
                                           ossl_cms_ctx_get0_libctx(ctx),
                                           ossl_cms_ctx_get0_propq(ctx));
-    if (ci != NULL)
+    if (ci != NULL) {
+        ERR_set_mark();
         ossl_cms_resolve_libctx(ci);
+        ERR_pop_to_mark();
+    }
     return ci;
 }
 

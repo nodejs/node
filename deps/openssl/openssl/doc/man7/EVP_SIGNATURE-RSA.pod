@@ -49,10 +49,10 @@ The digest algorithm name to use for the maskGenAlgorithm used by "pss" mode.
 Sets the name of the property query associated with the "mgf1-digest" algorithm.
 NULL is used if this optional value is not set.
 
-=item "pss-saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <UTF8 string>
+=item "saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <integer> or <UTF8 string>
 
-Set or get the "pss" mode minimum salt length. The value can either be a string
-value representing a number or one of the following:
+The "pss" mode minimum salt length. The value can either be an integer,
+a string value representing a number or one of the following string values:
 
 =over 4
 
@@ -87,6 +87,8 @@ This common parameter is described in L<provider-signature(7)>.
 
 =item "mgf1-digest" (B<OSSL_SIGNATURE_PARAM_MGF1_DIGEST>) <UTF8 string>
 
+=item "saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <integer> or <UTF8 string>
+
 These parameters are as described above.
 
 =back
@@ -100,7 +102,7 @@ L<provider-signature(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

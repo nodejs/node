@@ -12,16 +12,16 @@
 #include "statem_local.h"
 #include "internal/cryptlib.h"
 
-#define COOKIE_STATE_FORMAT_VERSION     0
+#define COOKIE_STATE_FORMAT_VERSION     1
 
 /*
  * 2 bytes for packet length, 2 bytes for format version, 2 bytes for
  * protocol version, 2 bytes for group id, 2 bytes for cipher id, 1 byte for
- * key_share present flag, 4 bytes for timestamp, 2 bytes for the hashlen,
+ * key_share present flag, 8 bytes for timestamp, 2 bytes for the hashlen,
  * EVP_MAX_MD_SIZE for transcript hash, 1 byte for app cookie length, app cookie
  * length bytes, SHA256_DIGEST_LENGTH bytes for the HMAC of the whole thing.
  */
-#define MAX_COOKIE_SIZE (2 + 2 + 2 + 2 + 2 + 1 + 4 + 2 + EVP_MAX_MD_SIZE + 1 \
+#define MAX_COOKIE_SIZE (2 + 2 + 2 + 2 + 2 + 1 + 8 + 2 + EVP_MAX_MD_SIZE + 1 \
                          + SSL_COOKIE_LENGTH + SHA256_DIGEST_LENGTH)
 
 /*
@@ -648,7 +648,14 @@ int tls_parse_ctos_key_share(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         }
 
         /* Check if this share is for a group we can use */
-        if (!check_in_list(s, group_id, srvrgroups, srvr_num_groups, 1)) {
+        if (!check_in_list(s, group_id, srvrgroups, srvr_num_groups, 1)
+                || !tls_group_allowed(s, group_id, SSL_SECOP_CURVE_SUPPORTED)
+                   /*
+                    * We tolerate but ignore a group id that we don't think is
+                    * suitable for TLSv1.3
+                    */
+                || !tls_valid_group(s, group_id, TLS1_3_VERSION, TLS1_3_VERSION,
+                                    0, NULL)) {
             /* Share not suitable */
             continue;
         }
@@ -690,7 +697,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     unsigned char hmac[SHA256_DIGEST_LENGTH];
     unsigned char hrr[MAX_HRR_SIZE];
     size_t rawlen, hmaclen, hrrlen, ciphlen;
-    unsigned long tm, now;
+    uint64_t tm, now;
 
     /* Ignore any cookie if we're not set up to verify it */
     if (s->ctx->verify_stateless_cookie_cb == NULL
@@ -791,7 +798,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     }
 
     if (!PACKET_get_1(&cookie, &key_share)
-            || !PACKET_get_net_4(&cookie, &tm)
+            || !PACKET_get_net_8(&cookie, &tm)
             || !PACKET_get_length_prefixed_2(&cookie, &chhash)
             || !PACKET_get_length_prefixed_1(&cookie, &appcookie)
             || PACKET_remaining(&cookie) != SHA256_DIGEST_LENGTH) {
@@ -800,7 +807,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     }
 
     /* We tolerate a cookie age of up to 10 minutes (= 60 * 10 seconds) */
-    now = (unsigned long)time(NULL);
+    now = time(NULL);
     if (tm > now || (now - tm) > 600) {
         /* Cookie is stale. Ignore it */
         return 1;
@@ -1087,7 +1094,7 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
                 s->ext.early_data_ok = 1;
             s->ext.ticket_expected = 1;
         } else {
-            uint32_t ticket_age = 0, now, agesec, agems;
+            uint32_t ticket_age = 0, agesec, agems;
             int ret;
 
             /*
@@ -1127,8 +1134,7 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
             }
 
             ticket_age = (uint32_t)ticket_agel;
-            now = (uint32_t)time(NULL);
-            agesec = now - (uint32_t)sess->time;
+            agesec = (uint32_t)(time(NULL) - sess->time);
             agems = agesec * (uint32_t)1000;
             ticket_age -= sess->ext.tick_age_add;
 
@@ -1154,6 +1160,10 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         }
 
         md = ssl_md(s->ctx, sess->cipher->algorithm2);
+        if (md == NULL) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+            goto err;
+        }
         if (!EVP_MD_is_a(md,
                 EVP_MD_get0_name(ssl_md(s->ctx,
                                         s->s3.tmp.new_cipher->algorithm2)))) {
@@ -1771,7 +1781,7 @@ EXT_RETURN tls_construct_stoc_cookie(SSL *s, WPACKET *pkt, unsigned int context,
                                               &ciphlen)
                /* Is there a key_share extension present in this HRR? */
             || !WPACKET_put_bytes_u8(pkt, s->s3.peer_tmp == NULL)
-            || !WPACKET_put_bytes_u32(pkt, (unsigned int)time(NULL))
+            || !WPACKET_put_bytes_u64(pkt, time(NULL))
             || !WPACKET_start_sub_packet_u16(pkt)
             || !WPACKET_reserve_bytes(pkt, EVP_MAX_MD_SIZE, &hashval1)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
