@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.12.1">18.12.1</a><br/>
 <a href="#18.12.0">18.12.0</a><br/>
 </td>
 <td>
@@ -49,6 +50,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.12.1"></a>
+
+## 2022-11-03, Version 18.12.1 'Hydrogen' (LTS), @juanarbol
+
+This is a security release.
+
+### Notable changes
+
+The following CVEs are fixed in this release:
+
+* **[CVE-2022-3602](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-3602)**: X.509 Email Address 4-byte Buffer Overflow (High)
+* **[CVE-2022-3786](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-3786)**: X.509 Email Address Variable Length Buffer Overflow (High)
+* **[CVE-2022-43548](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-43548)**: DNS rebinding in --inspect via invalid octal IP address (Medium)
+
+More detailed information on each of the vulnerabilities can be found in [November 2022 Security Releases](https://nodejs.org/en/blog/vulnerability/november-2022-security-releases/) blog post.
+
+### Commits
+
+* \[[`39f8a672e3`](https://github.com/nodejs/node/commit/39f8a672e3)] - **deps**: update archs files for quictls/openssl-3.0.7+quic [nodejs/node#45286](https://github.com/nodejs/node/pull/45286)
+* \[[`80218127c8`](https://github.com/nodejs/node/commit/80218127c8)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.7+quic [nodejs/node#45286](https://github.com/nodejs/node/pull/45286)
+* \[[`165342beac`](https://github.com/nodejs/node/commit/165342beac)] - **inspector**: harden IP address validation again (Tobias Nießen) [nodejs-private/node-private#354](https://github.com/nodejs-private/node-private/pull/354)
 
 <a id="18.12.0"></a>
 
