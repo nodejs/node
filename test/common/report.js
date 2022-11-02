@@ -105,7 +105,7 @@ function _validateContent(report, fields = []) {
                         'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
                         'reportVersion', 'networkInterfaces', 'threadId'];
   checkForUnknownFields(header, headerFields);
-  assert.strictEqual(header.reportVersion, 2);  // Increment as needed.
+  assert.strictEqual(header.reportVersion, 3);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
@@ -232,19 +232,29 @@ function _validateContent(report, fields = []) {
   }
 
   // Verify the format of the resourceUsage section.
-  const usage = report.resourceUsage;
+  const usage = { ...report.resourceUsage };
+  // Delete it, otherwise checkForUnknownFields will throw error
+  delete usage.constrained_memory;
   const resourceUsageFields = ['userCpuSeconds', 'kernelCpuSeconds',
                                'cpuConsumptionPercent', 'userCpuConsumptionPercent',
-                               'kernelCpuConsumptionPercent', 'rss', 'maxRss',
-                               'pageFaults', 'fsActivity'];
+                               'kernelCpuConsumptionPercent',
+                               'maxRss', 'rss', 'free_memory', 'total_memory',
+                               'available_memory', 'pageFaults', 'fsActivity'];
   checkForUnknownFields(usage, resourceUsageFields);
   assert.strictEqual(typeof usage.userCpuSeconds, 'number');
   assert.strictEqual(typeof usage.kernelCpuSeconds, 'number');
   assert.strictEqual(typeof usage.cpuConsumptionPercent, 'number');
   assert.strictEqual(typeof usage.userCpuConsumptionPercent, 'number');
   assert.strictEqual(typeof usage.kernelCpuConsumptionPercent, 'number');
-  assert(Number.isSafeInteger(usage.rss));
-  assert(Number.isSafeInteger(usage.maxRss));
+  assert(typeof usage.rss, 'string');
+  assert(typeof usage.maxRss, 'string');
+  assert(typeof usage.free_memory, 'string');
+  assert(typeof usage.total_memory, 'string');
+  assert(typeof usage.available_memory, 'string');
+  // This field may not exsit
+  if (report.resourceUsage.constrained_memory) {
+    assert(typeof report.resourceUsage.constrained_memory, 'string');
+  }
   assert(typeof usage.pageFaults === 'object' && usage.pageFaults !== null);
   checkForUnknownFields(usage.pageFaults, ['IORequired', 'IONotRequired']);
   assert(Number.isSafeInteger(usage.pageFaults.IORequired));

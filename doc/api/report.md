@@ -23,7 +23,7 @@ is provided below for reference.
 ```json
 {
   "header": {
-    "reportVersion": 1,
+    "reportVersion": 3,
     "event": "exception",
     "trigger": "Exception",
     "filename": "report.20181221.005011.8974.0.001.json",
@@ -198,13 +198,17 @@ is provided below for reference.
     }
   },
   "resourceUsage": {
-    "rss": 45768704,
+    "rss": "35766272",
+    "free_memory": "1598337024",
+    "total_memory": "17179869184",
+    "available_memory": "1598337024",
+    "maxRss": "36624662528",
+    "constrained_memory": "36624662528",
     "userCpuSeconds": 0.040072,
     "kernelCpuSeconds": 0.016029,
     "cpuConsumptionPercent": 5.6101,
     "userCpuConsumptionPercent": 4.0072,
     "kernelCpuConsumptionPercent": 1.6029,
-    "maxRss": 45768704,
     "pageFaults": {
       "IORequired": 0,
       "IONotRequired": 4610
