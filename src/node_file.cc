@@ -796,6 +796,58 @@ void AfterNoArgs(uv_fs_t* req) {
     req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
 }
 
+struct OpenFileCtx {
+  char* fd;
+};
+
+void CleanOpenFileCtx(uv_fs_t* req) {
+  OpenFileCtx* of_ctx = static_cast<OpenFileCtx*>(req->data);
+  delete of_ctx;
+}
+
+void OpenFileAfterStat(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+  FS_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
+
+  if (after.Proceed()) {
+    req_wrap->ResolveStat(&req->statbuf);
+  }
+
+  if (req->data != nullptr) CleanOpenFileCtx(req);
+}
+
+void OpenFileAfterOpen(uv_fs_t* open_req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(open_req);
+  int result = static_cast<int>(open_req->result);
+  OpenFileCtx* of_ctx = static_cast<OpenFileCtx*>(open_req->data);
+
+  FS_ASYNC_TRACE_END1(
+      open_req->fs_type, req_wrap, "result", result)
+
+  if (result < 0) {
+    FSReqAfterScope after(req_wrap, open_req);
+    req_wrap->Reject(
+      UVException(req_wrap->env()->isolate(), result, "open"));
+
+    if (open_req->data != nullptr) {
+      CleanOpenFileCtx(open_req);
+    }
+    req_wrap = nullptr;
+    return;
+  }
+
+  char* fd = of_ctx->fd;
+  fd[0] = result;
+
+  FS_ASYNC_TRACE_BEGIN0(UV_FS_FSTAT, req_wrap)
+  uv_fs_fstat(req_wrap->env()->event_loop(),
+              req_wrap->req(),
+              open_req->result,
+              OpenFileAfterStat);
+}
+
 void AfterStat(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -2069,6 +2121,42 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void OpenFile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 4);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  CHECK(args[2]->IsInt32());
+  const int mode = args[2].As<Int32>()->Value();
+
+  CHECK(Buffer::HasInstance(args[3]));
+  Local<Object> buffer_obj = args[3].As<Object>();
+  char* fd_buffer = Buffer::Data(buffer_obj);
+
+  FSReqBase* req_wrap = GetReqWrap(args, 4, false);
+  if (req_wrap != nullptr) {
+    req_wrap->set_is_plain_open(true);
+
+    OpenFileCtx* of_ctx = new OpenFileCtx { fd_buffer };
+    req_wrap->req()->data = of_ctx;
+
+    FS_ASYNC_TRACE_BEGIN0(UV_FS_OPEN, req_wrap)
+    uv_fs_open(env->event_loop(),
+               req_wrap->req(),
+               *path,
+               flags,
+               mode,
+               OpenFileAfterOpen);
+  }
+}
+
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -3200,10 +3288,9 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-
-  SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
 
+  SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "chown", Chown);
   SetMethod(isolate, target, "fchown", FChown);
   SetMethod(isolate, target, "lchown", LChown);
@@ -3292,6 +3379,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Close);
   registry->Register(Open);
+  registry->Register(OpenFile);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadBuffers);
