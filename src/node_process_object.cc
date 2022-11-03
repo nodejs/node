@@ -92,20 +92,11 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
     return MaybeLocal<Object>();
   }
 
-  // process[exiting_aliased_Uint32Array]
-  if (process
-          ->SetPrivate(context,
-                       realm->env()->exiting_aliased_Uint32Array(),
-                       realm->env()->exiting().GetJSArray())
-          .IsNothing()) {
-    return {};
-  }
-
   // process[exit_info_private_symbol]
   if (process
           ->SetPrivate(context,
                        realm->env()->exit_info_private_symbol(),
-                       realm->env()->exit_info()->fields().GetJSArray())
+                       realm->env()->exit_info().GetJSArray())
           .IsNothing()) {
     return {};
   }

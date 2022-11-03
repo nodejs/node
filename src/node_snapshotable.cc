@@ -124,7 +124,6 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
          << i.performance_state << ",\n"
          << "// -- performance_state ends --\n"
          << i.exit_info << ",  // exit_info\n"
-         << i.exiting << ",  // exiting\n"
          << i.stream_base_state << ",  // stream_base_state\n"
          << i.should_abort_on_uncaught_toggle
          << ",  // should_abort_on_uncaught_toggle\n"
@@ -667,36 +666,6 @@ size_t FileWriter::Write(
   return written_total;
 }
 
-// Layout of ExitInfo::SerializeInfo
-// [ 4/8 bytes ]  snapshot index of fields
-template <>
-ExitInfo::SerializeInfo FileReader::Read() {
-  Debug("Read<ExitInfo::SerializeInfo>()\n");
-
-  ExitInfo::SerializeInfo result;
-  result.fields = Read<AliasedBufferIndex>();
-
-  if (is_debug) {
-    std::string str = ToStr(result);
-    Debug("Read<ExitInfo::SerializeInfo>() %s\n", str.c_str());
-  }
-
-  return result;
-}
-
-template <>
-size_t FileWriter::Write(const ExitInfo::SerializeInfo& data) {
-  if (is_debug) {
-    std::string str = ToStr(data);
-    Debug("Write<ExitInfo::SerializeInfo>() %s\n", str.c_str());
-  }
-
-  size_t written_total = Write<AliasedBufferIndex>(data.fields);
-
-  Debug("Write<ExitInfo::SerializeInfo>() wrote %d bytes\n", written_total);
-  return written_total;
-}
-
 // Layout of IsolateDataSerializeInfo
 // [ 4/8 bytes ]  length of primitive_values vector
 // [    ...    ]  |length| of primitive_values indices
@@ -767,8 +736,7 @@ EnvSerializeInfo FileReader::Read() {
   result.immediate_info = Read<ImmediateInfo::SerializeInfo>();
   result.performance_state =
       Read<performance::PerformanceState::SerializeInfo>();
-  result.exit_info = Read<ExitInfo::SerializeInfo>();
-  result.exiting = Read<AliasedBufferIndex>();
+  result.exit_info = Read<AliasedBufferIndex>();
   result.stream_base_state = Read<AliasedBufferIndex>();
   result.should_abort_on_uncaught_toggle = Read<AliasedBufferIndex>();
   result.principal_realm = Read<RealmSerializeInfo>();
@@ -789,8 +757,7 @@ size_t FileWriter::Write(const EnvSerializeInfo& data) {
   written_total += Write<ImmediateInfo::SerializeInfo>(data.immediate_info);
   written_total += Write<performance::PerformanceState::SerializeInfo>(
       data.performance_state);
-  written_total += Write<ExitInfo::SerializeInfo>(data.exit_info);
-  written_total += Write<AliasedBufferIndex>(data.exiting);
+  written_total += Write<AliasedBufferIndex>(data.exit_info);
   written_total += Write<AliasedBufferIndex>(data.stream_base_state);
   written_total +=
       Write<AliasedBufferIndex>(data.should_abort_on_uncaught_toggle);

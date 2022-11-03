@@ -39,7 +39,7 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
-  Local<Integer> exit_code = v8::Integer::New(
+  Local<Integer> exit_code = Integer::New(
       isolate,
       env->maybe_exit_code(static_cast<int32_t>(ExitCode::kNoFailure)));
 

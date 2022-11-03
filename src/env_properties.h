@@ -25,7 +25,6 @@
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
-  V(exiting_aliased_Uint32Array, "node:exiting_aliased_Uint32Array")           \
   V(exit_info_private_symbol, "node:exit_info_private_symbol")
 
 // Symbols are per-isolate primitives but Environment proxies them
