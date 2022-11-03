@@ -199,61 +199,66 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 
 void ReadSystemStoreCertificates(
     std::vector<std::string>* system_root_certificates) {
+#ifdef _WIN32
   const HCERTSTORE hStore = CertOpenSystemStoreW(0, L"ROOT");
-  CHECK_NE(hStore, NULLPTR);
+  CHECK_NE(hStore, nullptr);
 
   auto cleanup =
       OnScopeLeave([hStore]() { CHECK_EQ(CertCloseStore(hStore, 0), TRUE); });
 
-  PCCERT_CONTEXT pCtx = nullptr;
+  PCCERT_CONTEXT certificate_context_ptr = nullptr;
 
-  while ((pCtx = CertEnumCertificatesInStore(hStore, pCtx)) != nullptr) {
-    const DWORD cbSize = CertGetNameStringW(
-        pCtx, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, nullptr, 0);
+  std::vector<X509*> system_root_certificates_X509;
 
-    CHECK_GT(cbSize, 0);
+  while ((certificate_context_ptr = CertEnumCertificatesInStore(
+              hStore, certificate_context_ptr)) != nullptr) {
+    const DWORD certificate_buffer_size =
+        CertGetNameStringW(certificate_context_ptr,
+                           CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                           0,
+                           nullptr,
+                           nullptr,
+                           0);
 
-    std::vector<wchar_t> pszName(cbSize);
+    CHECK_GT(certificate_buffer_size, 0);
 
-    CHECK_GT(CertGetNameStringW(pCtx,
+    std::vector<wchar_t> certificate_name(certificate_buffer_size);
+
+    CHECK_GT(CertGetNameStringW(certificate_context_ptr,
                                 CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                 0,
                                 nullptr,
-                                pszName.data(),
-                                cbSize),
+                                certificate_name.data(),
+                                certificate_buffer_size),
              0);
+    const unsigned char* certificate_src_ptr =
+        reinterpret_cast<const unsigned char*>(
+            certificate_context_ptr->pbCertEncoded);
+    const size_t certificate_src_length =
+        certificate_context_ptr->cbCertEncoded;
 
-    const char* certificate_src_ptr =
-        reinterpret_cast<const char*>(pCtx->pbCertEncoded);
-    const size_t slen = pCtx->cbCertEncoded;
-    const size_t dlen = base64_encoded_size(slen);
+    X509* cert =
+        d2i_X509(nullptr, &certificate_src_ptr, certificate_src_length);
 
-    char* certificate_dst_ptr = UncheckedMalloc(dlen);
-
-    CHECK_NOT_NULL(certificate_dst_ptr);
-
-    auto cleanup =
-        OnScopeLeave([certificate_dst_ptr]() { free(certificate_dst_ptr); });
-
-    const size_t written =
-        base64_encode(certificate_src_ptr, slen, certificate_dst_ptr, dlen);
-    CHECK_EQ(written, dlen);
-
-    std::string base64_string_output(certificate_dst_ptr, dlen);
-
-    constexpr size_t distance = 72;
-    size_t pos = distance;
-
-    while (pos < base64_string_output.size()) {
-      base64_string_output.insert(pos, "\n");
-      pos += distance + 1;
-    }
-
-    base64_string_output = "-----BEGIN CERTIFICATE-----\n" +
-                           base64_string_output + "\n-----END CERTIFICATE-----";
-
-    system_root_certificates->emplace_back(std::move(base64_string_output));
+    system_root_certificates_X509.emplace_back(cert);
   }
+
+  for (size_t i = 0; i < system_root_certificates_X509.size(); i++) {
+    int result = 0;
+
+    BIOPointer bio(BIO_new(BIO_s_mem()));
+    CHECK(bio);
+
+    BUF_MEM* mem = nullptr;
+    result = PEM_write_bio_X509(bio.get(), system_root_certificates_X509[i]);
+
+    BIO_get_mem_ptr(bio.get(), &mem);
+    std::string certificate_string_pem(mem->data, mem->length);
+    system_root_certificates->emplace_back(certificate_string_pem);
+
+    bio.reset();
+  }
+#endif
 }
 
 X509_STORE* NewRootCertStore() {
