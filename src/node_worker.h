@@ -75,6 +75,7 @@ class Worker : public AsyncWrap {
   static void TakeHeapSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoopIdleTime(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ParentLoopIdleTime(const v8::FunctionCallbackInfo<v8::Value>&);
 
  private:
   bool CreateEnvMessagePort(Environment* env);
@@ -90,6 +91,8 @@ class Worker : public AsyncWrap {
   std::optional<uv_thread_t> tid_;  // Set while the thread is running
 
   std::unique_ptr<InspectorParentHandle> inspector_parent_handle_;
+
+  uv_loop_t* parent_loop_;
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;

@@ -56,6 +56,7 @@ Worker::Worker(Environment* env,
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
+      parent_loop_(env->event_loop()),
       thread_id_(AllocateEnvironmentThreadId()),
       env_vars_(env_vars),
       snapshot_data_(snapshot_data) {
@@ -867,6 +868,14 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
+void Worker::ParentLoopIdleTime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(!env->is_main_thread());
+  Worker* w = env->worker_context();
+  uint64_t idle_time = uv_metrics_idle_time(w->parent_loop_);
+  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -923,6 +932,7 @@ void InitWorker(Local<Object> target,
   }
 
   SetMethod(context, target, "getEnvMessagePort", GetEnvMessagePort);
+  SetMethod(context, target, "parentLoopIdleTime", Worker::ParentLoopIdleTime);
 
   target
       ->Set(env->context(),
@@ -969,6 +979,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::ParentLoopIdleTime);
 }
 
 }  // anonymous namespace
