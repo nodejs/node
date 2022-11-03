@@ -97,7 +97,6 @@ using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
-using v8::Uint8Array;
 using v8::Value;
 
 namespace i18n {
@@ -446,7 +445,6 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
 
   UErrorCode status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> result;
-  MaybeLocal<Object> ret;
 
   UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
 
@@ -502,31 +500,27 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
         converter->set_bom_seen(true);
       }
     }
-    ret = ToBufferEndian(env, &result);
 
-    if (!ret.IsEmpty()) {
-      CHECK(ret.ToLocalChecked()->IsUint8Array());
+    Local<Value> error;
+    const UChar* output = result.out();
+    size_t beginning = 0;
+    size_t length = result.length() * sizeof(UChar);
 
-      if (omit_initial_bom) {
-        // Perform `ret = ret.slice(2)`.
-        Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
-        ret = Buffer::New(env,
-                          orig_ret->Buffer(),
-                          orig_ret->ByteOffset() + 2,
-                          orig_ret->ByteLength() - 2)
-                  .FromMaybe(Local<Uint8Array>());
-      }
+    if (omit_initial_bom) {
+      // Perform `ret = ret.slice(2)`.
+      beginning += 2;
+      length -= 2;
+    }
 
-      Local<Value> error;
-      ArrayBufferViewContents<char> buf(ret.ToLocalChecked());
-      MaybeLocal<Value> encoded = StringBytes::Encode(
-          env->isolate(), buf.data(), buf.length(), encoding::UCS2, &error);
+    const char* value = reinterpret_cast<const char*>(output) + beginning;
+    MaybeLocal<Value> encoded =
+        StringBytes::Encode(env->isolate(), value, length, UCS2, &error);
 
-      if (!encoded.IsEmpty()) {
-        args.GetReturnValue().Set(encoded.ToLocalChecked());
-      } else {
-        args.GetReturnValue().Set(error);
-      }
+    Local<Value> ret;
+    if (encoded.ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    } else {
+      args.GetReturnValue().Set(error);
     }
 
     return;
