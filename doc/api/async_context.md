@@ -597,7 +597,7 @@ export default class WorkerPool extends EventEmitter {
   }
 
   addNewWorker() {
-    const worker = new Worker(new URL('task_processer.js', import.meta.url));
+    const worker = new Worker(new URL('task_processor.js', import.meta.url));
     worker.on('message', (result) => {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, and mark it as free
