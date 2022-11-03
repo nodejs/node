@@ -58,7 +58,7 @@ onboarding session.
 
 The project has a venue for real-time discussion:
 
-* [`#nodejs-dev`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
+* [`#nodejs-core`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
   the [OpenJS Foundation Slack](https://slack-invite.openjsf.org/)
 
 ## Project goals and values
