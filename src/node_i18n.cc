@@ -50,6 +50,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -502,18 +503,32 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
       }
     }
     ret = ToBufferEndian(env, &result);
-    if (omit_initial_bom && !ret.IsEmpty()) {
-      // Perform `ret = ret.slice(2)`.
+
+    if (!ret.IsEmpty()) {
       CHECK(ret.ToLocalChecked()->IsUint8Array());
-      Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
-      ret = Buffer::New(env,
-                        orig_ret->Buffer(),
-                        orig_ret->ByteOffset() + 2,
-                        orig_ret->ByteLength() - 2)
-                            .FromMaybe(Local<Uint8Array>());
+
+      if (omit_initial_bom) {
+        // Perform `ret = ret.slice(2)`.
+        Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
+        ret = Buffer::New(env,
+                          orig_ret->Buffer(),
+                          orig_ret->ByteOffset() + 2,
+                          orig_ret->ByteLength() - 2)
+                  .FromMaybe(Local<Uint8Array>());
+      }
+
+      Local<Value> error;
+      ArrayBufferViewContents<char> buf(ret.ToLocalChecked());
+      MaybeLocal<Value> encoded = StringBytes::Encode(
+          env->isolate(), buf.data(), buf.length(), encoding::UCS2, &error);
+
+      if (!encoded.IsEmpty()) {
+        args.GetReturnValue().Set(encoded.ToLocalChecked());
+      } else {
+        args.GetReturnValue().Set(error);
+      }
     }
-    if (!ret.IsEmpty())
-      args.GetReturnValue().Set(ret.ToLocalChecked());
+
     return;
   }
 
