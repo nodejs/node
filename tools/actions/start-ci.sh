@@ -18,7 +18,7 @@ for pr in "$@"; do
     gh pr edit "$pr" --add-label "$REQUEST_CI_FAILED_LABEL"
 
     # shellcheck disable=SC2154
-    cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+    cqurl="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
     body="<details><summary>Failed to start CI</summary><pre>$(cat output)</pre><a href='$cqurl'>$cqurl</a></details>"
     echo "$body"
 
