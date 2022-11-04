@@ -102,8 +102,8 @@ The callback function may modify the BIO provided in the I<bio> argument,
 whereby it may make use of a custom defined argument I<arg>,
 which may for instance point to an B<SSL_CTX> structure.
 During connection establishment, just after calling BIO_do_connect_retry(), the
-callback function is invoked with the I<connect> argument being 1 and the I<detail>
-argument being 1 if HTTPS is requested, i.e., SSL/TLS should be enabled, else 0.
+callback function is invoked with the I<connect> argument being 1 and
+I<detail> being 1 if I<use_ssl> is nonzero (i.e., HTTPS is requested), else 0.
 On disconnect I<connect> is 0 and I<detail> is 1 if no error occurred, else 0.
 For instance, on connect the callback may push an SSL BIO to implement HTTPS;
 after disconnect it may do some diagnostic output and pop and free the SSL BIO.
@@ -202,7 +202,7 @@ an ASN.1-encoded response is expected, which should include a total length,
 the length indications received are checked for consistency
 and for not exceeding any given maximum response length.
 If an ASN.1-encoded response is expected, the function returns on success
-the contents as a memory BIO, which does not support streaming.
+the contents buffered in a memory BIO, which does not support streaming.
 Otherwise it returns directly the read BIO that holds the response contents,
 which allows a response of indefinite length and may support streaming.
 The caller is responsible for freeing the BIO pointer obtained.
@@ -253,8 +253,8 @@ OSSL_HTTP_proxy_connect() and OSSL_HTTP_set1_request()
 return 1 on success, 0 on error.
 
 On success, OSSL_HTTP_exchange(), OSSL_HTTP_get(), and OSSL_HTTP_transfer()
-return a memory BIO containing the data received if an ASN.1-encoded response
-is expected, else a BIO that may support streaming.
+return a memory BIO that buffers all the data received if an ASN.1-encoded
+response is expected, otherwise a BIO that may support streaming.
 The BIO must be freed by the caller.
 On failure, they return NULL.
 Failure conditions include connection/transfer timeout, parse errors, etc.
@@ -274,7 +274,7 @@ All the functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

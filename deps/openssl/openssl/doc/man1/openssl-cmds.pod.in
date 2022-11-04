@@ -8,6 +8,7 @@
 asn1parse,
 ca,
 ciphers,
+cmp,
 cms,
 crl,
 crl2pkcs7,
@@ -88,6 +89,7 @@ L<openssl(1)>,
 L<openssl-asn1parse(1)>,
 L<openssl-ca(1)>,
 L<openssl-ciphers(1)>,
+L<openssl-cmp(1)>,
 L<openssl-cms(1)>,
 L<openssl-crl(1)>,
 L<openssl-crl2pkcs7(1)>,
@@ -150,7 +152,7 @@ deprecated in OpenSSL 3.0 and will be removed in OpenSSL 4.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
