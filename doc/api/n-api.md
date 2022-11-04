@@ -579,6 +579,7 @@ typedef enum {
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
   napi_would_deadlock,  /* unused */
+  napi_no_external_buffers_allowed
 } napi_status;
 ```
 
