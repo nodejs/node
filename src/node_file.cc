@@ -829,7 +829,7 @@ void OpenFileAfterOpen(uv_fs_t* open_req) {
   if (result < 0) {
     FSReqAfterScope after(req_wrap, open_req);
     req_wrap->Reject(
-      UVException(req_wrap->env()->isolate(), result, "open"));
+      UVException(req_wrap->env()->isolate(), result, "open", nullptr, open_req->path));
 
     if (open_req->data != nullptr) {
       CleanOpenFileCtx(open_req);
