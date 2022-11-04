@@ -7,30 +7,24 @@ const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 
 const {
-  getHiddenValue,
-  setHiddenValue,
-  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
+  privateSymbols: {
+    arrow_message_private_symbol,
+  },
 } = internalBinding('util');
 
-assert.strictEqual(
-  getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
-  undefined);
-
 const obj = {};
-assert.strictEqual(
-  setHiddenValue(obj, kArrowMessagePrivateSymbolIndex, 'bar'),
-  true);
-assert.strictEqual(
-  getHiddenValue(obj, kArrowMessagePrivateSymbolIndex),
-  'bar');
+assert.strictEqual(obj[arrow_message_private_symbol], undefined);
+
+obj[arrow_message_private_symbol] = 'bar';
+assert.strictEqual(obj[arrow_message_private_symbol], 'bar');
+assert.deepStrictEqual(Reflect.ownKeys(obj), []);
 
 let arrowMessage;
 
 try {
   require(fixtures.path('syntax', 'bad_syntax'));
 } catch (err) {
-  arrowMessage =
-      getHiddenValue(err, kArrowMessagePrivateSymbolIndex);
+  arrowMessage = err[arrow_message_private_symbol];
 }
 
 assert.match(arrowMessage, /bad_syntax\.js:1/);
