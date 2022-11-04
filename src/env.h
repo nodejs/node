@@ -1038,6 +1038,9 @@ class Environment : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  // Field identifiers for exit_info_
+  enum ExitInfoField { kExiting = 0, kExitCode, kHasExitCode };
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1103,7 +1106,6 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
-  enum ExitInfoFields { kExiting = 0, kExitCode, kHasExitCode };
   AliasedInt32Array exit_info_;
 
   AliasedUint32Array should_abort_on_uncaught_toggle_;
