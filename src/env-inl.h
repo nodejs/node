@@ -367,8 +367,10 @@ inline void Environment::set_exiting(bool value) {
   exit_info_[kExiting] = value ? 1 : 0;
 }
 
-inline int32_t Environment::maybe_exit_code(const int32_t default_code) const {
-  return exit_info_[kHasExitCode] == 0 ? default_code : exit_info_[kExitCode];
+inline ExitCode Environment::exit_code(const ExitCode default_code) const {
+  return exit_info_[kHasExitCode] == 0
+             ? default_code
+             : static_cast<ExitCode>(exit_info_[kExitCode]);
 }
 
 inline AliasedInt32Array& Environment::exit_info() {
