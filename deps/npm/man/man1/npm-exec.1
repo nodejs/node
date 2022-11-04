@@ -1,4 +1,4 @@
-.TH "NPM\-EXEC" "1" "September 2022" "" ""
+.TH "NPM\-EXEC" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-exec\fR \- Run a command from a local or remote npm package
 .SS Synopsis
@@ -129,7 +129,7 @@ Type: String (can be set multiple times)
 
 .RE
 .P
-The package or packages to install for npm help \fBexec\fP
+The package or packages to install for npm help exec
 .SS \fBcall\fP
 .RS 0
 .IP \(bu 2
@@ -250,7 +250,8 @@ $ npx \-c 'eslint && say "hooray, lint passed"'
 .RE
 .SS Workspaces support
 .P
-You may use the \fBworkspace\fP or \fBworkspaces\fP configs in order to run an
+You may use the \fBworkspace\fP \fI/using\-npm/config#workspace\fR or
+\fBworkspaces\fP \fI/using\-npm/config#workspaces\fR configs in order to run an
 arbitrary command from an npm package (either one installed locally, or fetched
 remotely) in the context of the specified workspaces\.
 If no positional argument or \fB\-\-call\fP option is provided, it will open an
@@ -285,9 +286,9 @@ Assuming the workspace configuration is properly set up at the root level
 .RE
 .P
 You can execute an arbitrary command from a package in the context of each of
-the configured workspaces when using the \fBworkspaces\fP configuration options,
-in this example we're using \fBeslint\fR to lint any js file found within each
-workspace folder:
+the configured workspaces when using the
+\fBworkspaces\fP config options \fI/using\-npm/config#workspace\fR, in this example
+we're using \fBeslint\fR to lint any js file found within each workspace folder:
 .P
 .RS 2
 .nf
@@ -361,7 +362,7 @@ in the \fBnpx\fP executable for backwards compatibility\.
 .P
 The npm cli utilizes its internal package cache when using the package
 name specified\.  You can use the following to change how and when the
-cli uses this cache\. See npm help \fBcache\fP for more on
+cli uses this cache\. See npm help cache for more on
 how the cache works\.
 .SS prefer\-online
 .P

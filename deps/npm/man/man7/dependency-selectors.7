@@ -1,9 +1,9 @@
-.TH "DEPENDENCY" "" "September 2022" "" ""
+.TH "DEPENDENCY" "" "October 2022" "" ""
 .SH "NAME"
 \fBDependency\fR
 .SS Description
 .P
-The npm help \fBquery\fP commmand exposes a new dependency selector syntax (informed by & respecting many aspects of the CSS Selectors 4 Spec \fIhttps://dev\.w3\.org/csswg/selectors4/#relational)\fR which:
+The npm help query commmand exposes a new dependency selector syntax (informed by & respecting many aspects of the CSS Selectors 4 Spec \fIhttps://dev\.w3\.org/csswg/selectors4/#relational)\fR which:
 .RS 0
 .IP \(bu 2
 Standardizes the shape of, & querying of, dependency graphs with a robust object model, metadata & selector syntax
@@ -95,11 +95,76 @@ the term "dependencies" is in reference to any \fBNode\fP found in a \fBtree\fP 
 .IP \(bu 2
 \fB:missing\fP when a dependency is not found on disk
 .IP \(bu 2
-\fB:semver(<spec>)\fP matching a valid \fBnode\-semver\fP \fIhttps://github\.com/npm/node\-semver\fR spec
+\fB:semver(<spec>, [selector], [function])\fP match a valid \fBnode\-semver\fP \fIhttps://github\.com/npm/node\-semver\fR version or range to a selector
 .IP \(bu 2
 \fB:path(<path>)\fP glob \fIhttps://www\.npmjs\.com/package/glob\fR matching based on dependencies path relative to the project
 .IP \(bu 2
 \fB:type(<type>)\fP based on currently recognized types \fIhttps://github\.com/npm/npm\-package\-arg#result\-object\fR
+.IP \(bu 2
+\fB:outdated(<type>)\fP when a dependency is outdated
+
+.RE
+.SS \fB:semver(<spec>, [selector], [function])\fP
+.P
+The \fB:semver()\fP pseudo selector allows comparing fields from each node's \fBpackage\.json\fP using semver \fIhttps://github\.com/npm/node\-semver#readme\fR methods\. It accepts up to 3 parameters, all but the first of which are optional\.
+.RS 0
+.IP \(bu 2
+\fBspec\fP a semver version or range
+.IP \(bu 2
+\fBselector\fP an attribute selector for each node (default \fB[version]\fP)
+.IP \(bu 2
+\fBfunction\fP a semver method to apply, one of: \fBsatisfies\fP, \fBintersects\fP, \fBsubset\fP, \fBgt\fP, \fBgte\fP, \fBgtr\fP, \fBlt\fP, \fBlte\fP, \fBltr\fP, \fBeq\fP, \fBneq\fP or the special function \fBinfer\fP (default \fBinfer\fP)
+
+.RE
+.P
+When the special \fBinfer\fP function is used the \fBspec\fP and the actual value from the node are compared\. If both are versions, according to \fBsemver\.valid()\fP, \fBeq\fP is used\. If both values are ranges, according to \fB!semver\.valid()\fP, \fBintersects\fP is used\. If the values are mixed types \fBsatisfies\fP is used\.
+.P
+Some examples:
+.RS 0
+.IP \(bu 2
+\fB:semver(^1\.0\.0)\fP returns every node that has a \fBversion\fP satisfied by the provided range \fB^1\.0\.0\fP
+.IP \(bu 2
+\fB:semver(16\.0\.0, :attr(engines, [node]))\fP returns every node which has an \fBengines\.node\fP property satisfying the version \fB16\.0\.0\fP
+.IP \(bu 2
+\fB:semver(1\.0\.0, [version], lt)\fP every node with a \fBversion\fP less than \fB1\.0\.0\fP
+
+.RE
+.SS \fB:outdated(<type>)\fP
+.P
+The \fB:outdated\fP pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated\. The type parameter may be one of the following:
+.RS 0
+.IP \(bu 2
+\fBany\fP (default) a version exists that is greater than the current one
+.IP \(bu 2
+\fBin\-range\fP a version exists that is greater than the current one, and satisfies at least one if its dependents
+.IP \(bu 2
+\fBout\-of\-range\fP a version exists that is greater than the current one, does not satisfy at least one of its dependents
+.IP \(bu 2
+\fBmajor\fP a version exists that is a semver major greater than the current one
+.IP \(bu 2
+\fBminor\fP a version exists that is a semver minor greater than the current one
+.IP \(bu 2
+\fBpatch\fP a version exists that is a semver patch greater than the current one
+
+.RE
+.P
+In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects\. The following data can be found under the \fBqueryContext\fP property of each node\.
+.RS 0
+.IP \(bu 2
+\fBversions\fP an array of every available version of the given node
+.IP \(bu 2
+\fBoutdated\.inRange\fP an array of objects, each with a \fBfrom\fP and \fBversions\fP, where \fBfrom\fP is the on\-disk location of the node that depends on the current node and \fBversions\fP is an array of all available versions that satisfies that dependency\. This is only populated if \fB:outdated(in\-range)\fP is used\.
+.IP \(bu 2
+\fBoutdated\.outOfRange\fP an array of objects, identical in shape to \fBinRange\fP, but where the \fBversions\fP array is every available version that does not satisfy the dependency\. This is only populated if \fB:outdated(out\-of\-range)\fP is used\.
+
+.RE
+.P
+Some examples:
+.RS 0
+.IP \(bu 2
+\fB:root > :outdated(major)\fP returns every direct dependency that has a new semver major release
+.IP \(bu 2
+\fB\|\.prod:outdated(in\-range)\fP returns production dependencies that have a new release that satisfies at least one of its edges in
 
 .RE
 .SS Attribute Selectors \fIhttps://developer\.mozilla\.org/en\-US/docs/Web/CSS/Attribute_selectors\fR

@@ -208,6 +208,16 @@ to override default configs in a standard and consistent manner.</p>
 <p>The settings <code>_auth</code>, <code>_authToken</code>, <code>username</code> and <code>_password</code> must all be
 scoped to a specific registry. This ensures that <code>npm</code> will never send
 credentials to the wrong host.</p>
+<p>The full list is:</p>
+<ul>
+<li><code>_auth</code> (base64 authentication string)</li>
+<li><code>_authToken</code> (authentication token)</li>
+<li><code>username</code></li>
+<li><code>_password</code></li>
+<li><code>email</code></li>
+<li><code>certfile</code> (path to certificate file)</li>
+<li><code>keyfile</code> (path to key file)</li>
+</ul>
 <p>In order to scope these values, they must be prefixed by a URI fragment.
 If the credential is meant for any request to a registry on a single host,
 the scope may look like <code>//registry.npmjs.org/:</code>. If it must be scoped to a

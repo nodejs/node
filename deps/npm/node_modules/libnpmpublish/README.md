@@ -44,8 +44,8 @@ A couple of options of note:
   defaults to `latest`.
 
 * `opts.access` - tells the registry whether this package should be
-  published as public or restricted. Only applies to scoped packages, which
-  default to restricted.
+  published as `public` or `restricted`. Only applies to scoped
+  packages.  Defaults to `public`.
 
 * `opts.token` - can be passed in and will be used as the authentication
   token for the registry. For other ways to pass in auth details, see the

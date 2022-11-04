@@ -1,4 +1,4 @@
-.TH "NPM\-ADDUSER" "1" "September 2022" "" ""
+.TH "NPM\-ADDUSER" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-adduser\fR \- Add a registry user account
 .SS Synopsis
@@ -7,29 +7,19 @@
 .nf
 npm adduser
 
-aliases: login, add\-user
+alias: add\-user
 .fi
 .RE
 .P
 Note: This command is unaware of workspaces\.
 .SS Description
 .P
-Create or verify a user named \fB<username>\fP in the specified registry, and
-save the credentials to the \fB\|\.npmrc\fP file\. If no registry is specified,
-the default registry will be used (see npm help \fBconfig\fP)\.
+Create a new user in the specified registry, and save the credentials to
+the \fB\|\.npmrc\fP file\. If no registry is specified, the default registry
+will be used (see npm help registry)\.
 .P
-The username, password, and email are read in from prompts\.
-.P
-To reset your password, go to https://www\.npmjs\.com/forgot
-.P
-To change your email address, go to https://www\.npmjs\.com/email\-edit
-.P
-You may use this command multiple times with the same user account to
-authorize on a new machine\.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record\.
-.P
-\fBnpm login\fP is an alias to \fBadduser\fP and behaves exactly the same way\.
+When using \fBlegacy\fP for your \fBauth\-type\fP, the username, password, and
+email are read in from prompts\.
 .SS Configuration
 .SS \fBregistry\fP
 .RS 0
@@ -80,14 +70,11 @@ npm init \-\-scope=@foo \-\-yes
 .SS \fBauth\-type\fP
 .RS 0
 .IP \(bu 2
-Default: "legacy"
+Default: "web"
 .IP \(bu 2
-Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
+Type: "legacy" or "web"
 
 .RE
-.P
-NOTE: auth\-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version\.
 .P
 What authentication strategy to use with \fBlogin\fP\|\.
 .SS See Also

@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "September 2022" "" ""
+.TH "NPM\-VERSION" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SS Synopsis
@@ -186,10 +186,10 @@ disabled on the command line by running \fBnpm \-\-no\-git\-tag\-version version
 It will fail if the working directory is not clean, unless the \fB\-f\fP or
 \fB\-\-force\fP flag is set\.
 .P
-If supplied with \fB\-m\fP or \fB\-\-message\fP config option, npm will use it as a
-commit message when creating a version commit\.  If the \fBmessage\fP config
-contains \fB%s\fP then that will be replaced with the resulting version number\.
-For example:
+If supplied with \fB\-m\fP or \fB\-\-message\fP config \fI/using\-npm/config#message\fR option,
+npm will use it as a commit message when creating a version commit\.  If the
+\fBmessage\fP config contains \fB%s\fP then that will be replaced with the resulting
+version number\. For example:
 .P
 .RS 2
 .nf
@@ -197,9 +197,9 @@ npm version patch \-m "Upgrade to %s for reasons"
 .fi
 .RE
 .P
-If the \fBsign\-git\-tag\fP config is set, then the tag will be signed using the
-\fB\-s\fP flag to git\.  Note that you must have a default GPG key set up in your
-git config for this to work properly\.  For example:
+If the \fBsign\-git\-tag\fP config \fI/using\-npm/config#sign\-git\-tag\fR is set, then the
+tag will be signed using the \fB\-s\fP flag to git\. Note that you must have a default
+GPG key set up in your git config for this to work properly\. For example:
 .P
 .RS 2
 .nf
@@ -272,7 +272,7 @@ npm help run\-script
 .IP \(bu 2
 npm help scripts
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help config
 

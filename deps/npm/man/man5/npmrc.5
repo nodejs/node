@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "September 2022" "" ""
+.TH "NPMRC" "5" "October 2022" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SS Description
@@ -99,6 +99,25 @@ The settings \fB_auth\fP, \fB_authToken\fP, \fBusername\fP and \fB_password\fP m
 scoped to a specific registry\. This ensures that \fBnpm\fP will never send
 credentials to the wrong host\.
 .P
+The full list is:
+.RS 0
+.IP \(bu 2
+\fB_auth\fP (base64 authentication string)
+.IP \(bu 2
+\fB_authToken\fP (authentication token)
+.IP \(bu 2
+\fBusername\fP
+.IP \(bu 2
+\fB_password\fP
+.IP \(bu 2
+\fBemail\fP
+.IP \(bu 2
+\fBcertfile\fP (path to certificate file)
+.IP \(bu 2
+\fBkeyfile\fP (path to key file)
+
+.RE
+.P
 In order to scope these values, they must be prefixed by a URI fragment\.
 If the credential is meant for any request to a registry on a single host,
 the scope may look like \fB//registry\.npmjs\.org/:\fP\|\. If it must be scoped to a
@@ -131,7 +150,7 @@ npm help config
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help npm
 

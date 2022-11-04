@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "1" "September 2022" "" ""
+.TH "NPM\-CONFIG" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
 .SS Synopsis
@@ -10,6 +10,7 @@ npm config get [<key> [<key> \.\.\.]]
 npm config delete <key> [<key> \.\.\.]
 npm config list [\-\-json]
 npm config edit
+npm config fix
 
 alias: c
 .fi
@@ -24,7 +25,7 @@ variables, \fBnpmrc\fP files, and in some cases, the \fBpackage\.json\fP file\.
 See npm help npmrc for more information about the npmrc
 files\.
 .P
-See npm help config(7) for a more thorough explanation of the
+See npm help config for a more thorough explanation of the
 mechanisms involved, and a full list of config options available\.
 .P
 The \fBnpm config\fP command can be used to update and edit the contents
@@ -186,7 +187,7 @@ npm help folders
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help npmrc
 .IP \(bu 2

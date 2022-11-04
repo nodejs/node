@@ -1,4 +1,4 @@
-.TH "NPM\-DIST\-TAG" "1" "September 2022" "" ""
+.TH "NPM\-DIST\-TAG" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-dist-tag\fR \- Modify package distribution tags
 .SS Synopsis
@@ -18,8 +18,8 @@ Add, remove, and enumerate distribution tags on a package:
 .RS 0
 .IP \(bu 2
 add: Tags the specified version of the package with the specified tag,
-or the \fB\-\-tag\fP config if not specified\. If you have two\-factor
-authentication on auth\-and\-writes then you’ll need to include a
+or the \fB\-\-tag\fP config \fI/using\-npm/config#tag\fR if not specified\. If you have
+two\-factor authentication on auth\-and\-writes then you’ll need to include a
 one\-time password on the command line with
 \fB\-\-otp <one\-time password>\fP, or at the OTP prompt\.
 .IP \(bu 2
@@ -164,7 +164,7 @@ This value is not exported to the environment for child processes\.
 .SS See Also
 .RS 0
 .IP \(bu 2
-npm help package spec
+npm help "package spec"
 .IP \(bu 2
 npm help publish
 .IP \(bu 2

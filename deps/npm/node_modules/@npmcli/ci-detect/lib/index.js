@@ -45,6 +45,7 @@ module.exports = () =>
   : process.env.TRAVIS ? 'travis-ci'
   // aws CodeBuild/CodePipeline
   : process.env.CODEBUILD_SRC_DIR ? 'aws-codebuild'
+  : process.env.CI === 'woodpecker' ? 'woodpecker'
   : process.env.CI === 'true' || process.env.CI === '1' ? 'custom'
   // Google Cloud Build - it sets almost nothing
   : process.env.BUILDER_OUTPUT ? 'builder'

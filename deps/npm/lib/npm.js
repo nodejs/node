@@ -1,9 +1,10 @@
+const Arborist = require('@npmcli/arborist')
 const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
 const chalk = require('chalk')
 const which = require('which')
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
@@ -32,12 +33,14 @@ class Npm extends EventEmitter {
   loadErr = null
   argv = []
 
+  #runId = new Date().toISOString().replace(/[.:]/g, '_')
   #loadPromise = null
   #tmpFolder = null
   #title = 'npm'
   #argvClean = []
   #chalk = null
 
+  #outputBuffer = []
   #logFile = new LogFile()
   #display = new Display()
   #timers = new Timers({
@@ -206,11 +209,8 @@ class Npm extends EventEmitter {
 
   writeTimingFile () {
     this.#timers.writeFile({
+      id: this.#runId,
       command: this.#argvClean,
-      // We used to only ever report a single log file
-      // so to be backwards compatible report the last logfile
-      // XXX: remove this in npm 9 or just keep it forever
-      logfile: this.logFiles[this.logFiles.length - 1],
       logfiles: this.logFiles,
       version: this.version,
     })
@@ -247,13 +247,13 @@ class Npm extends EventEmitter {
     // a cache dir, but we don't want to fail immediately since
     // the command might not need a cache dir (like `npm --version`)
     await this.time('npm:load:mkdirpcache', () =>
-      fs.mkdir(this.cache, { recursive: true, owner: 'inherit' })
+      fs.mkdir(this.cache, { recursive: true })
         .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
 
     // its ok if this fails. user might have specified an invalid dir
     // which we will tell them about at the end
     await this.time('npm:load:mkdirplogs', () =>
-      fs.mkdir(this.logsDir, { recursive: true, owner: 'inherit' })
+      fs.mkdir(this.logsDir, { recursive: true })
         .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
 
     // note: this MUST be shorter than the actual argv length, because it
@@ -290,7 +290,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:logFile', () => {
       this.#logFile.load({
-        dir: this.logsDir,
+        path: this.logPath,
         logsMax: this.config.get('logs-max'),
       })
       log.verbose('logfile', this.#logFile.files[0] || 'no logfile created')
@@ -298,7 +298,7 @@ class Npm extends EventEmitter {
 
     this.time('npm:load:timers', () =>
       this.#timers.load({
-        dir: this.config.get('timing') ? this.timingDir : null,
+        path: this.config.get('timing') ? this.logPath : null,
       })
     )
 
@@ -312,6 +312,12 @@ class Npm extends EventEmitter {
 
   get flatOptions () {
     const { flat } = this.config
+    // the Arborist constructor is used almost everywhere we call pacote, it's
+    // easiest to attach it to flatOptions so it goes everywhere without having
+    // to touch every call
+    flat.Arborist = Arborist
+    flat.nodeVersion = process.version
+    flat.npmVersion = pkg.version
     if (this.command) {
       flat.npmCommand = this.command
     }
@@ -372,13 +378,12 @@ class Npm extends EventEmitter {
     return this.config.get('logs-dir') || join(this.cache, '_logs')
   }
 
-  get timingFile () {
-    return this.#timers.file
+  get logPath () {
+    return resolve(this.logsDir, `${this.#runId}-`)
   }
 
-  get timingDir () {
-    // XXX(npm9): make this always in logs-dir
-    return this.config.get('logs-dir') || this.cache
+  get timingFile () {
+    return this.#timers.file
   }
 
   get cache () {
@@ -460,6 +465,37 @@ class Npm extends EventEmitter {
     // eslint-disable-next-line no-console
     console.log(...msg)
     log.showProgress()
+  }
+
+  outputBuffer (item) {
+    this.#outputBuffer.push(item)
+  }
+
+  flushOutput (jsonError) {
+    if (!jsonError && !this.#outputBuffer.length) {
+      return
+    }
+
+    if (this.config.get('json')) {
+      const jsonOutput = this.#outputBuffer.reduce((acc, item) => {
+        if (typeof item === 'string') {
+          // try to parse it as json in case its a string
+          try {
+            item = JSON.parse(item)
+          } catch {
+            return acc
+          }
+        }
+        return { ...acc, ...item }
+      }, {})
+      this.output(JSON.stringify({ ...jsonOutput, ...jsonError }, null, 2))
+    } else {
+      for (const item of this.#outputBuffer) {
+        this.output(item)
+      }
+    }
+
+    this.#outputBuffer.length = 0
   }
 
   outputError (...msg) {

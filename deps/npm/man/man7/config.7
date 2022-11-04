@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "September 2022" "" ""
+.TH "CONFIG" "7" "October 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -24,7 +24,7 @@ interpreted as a configuration parameter\.  For example, putting
 configuration parameter to \fBbar\fP\|\.  Any environment configurations that
 are not given a value will be given the value of \fBtrue\fP\|\.  Config
 values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fP will work the
-same\. However, please note that inside npm help \fBscripts\fP
+same\. However, please note that inside npm help scripts
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set\.
 For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
@@ -184,22 +184,22 @@ safer to use a registry\-provided authentication bearer token stored in the
 .SS \fBaccess\fP
 .RS 0
 .IP \(bu 2
-Default: 'restricted' for scoped packages, 'public' for unscoped packages
+Default: 'public' for new packages, existing packages it will not change the
+current level
 .IP \(bu 2
 Type: null, "restricted", or "public"
 
 .RE
 .P
-When publishing scoped packages, the access level defaults to \fBrestricted\fP\|\.
-If you want your scoped package to be publicly viewable (and installable)
-set \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
-\fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+If do not want your scoped package to be publicly viewable (and installable)
+set \fB\-\-access=restricted\fP\|\.
 .P
-Note: Using the \fB\-\-access\fP flag on the \fBnpm publish\fP command will only set
-the package access level on the initial publish of the package\. Any
-subsequent \fBnpm publish\fP commands using the \fB\-\-access\fP flag will not have an
-effect to the access level\. To make changes to the access level after the
-initial publish use \fBnpm access\fP\|\.
+Unscoped packages can not be set to \fBrestricted\fP\|\.
+.P
+Note: This defaults to not changing the current access level for existing
+packages\. Specifying a value of \fBrestricted\fP or \fBpublic\fP during publish will
+change the access for an existing package the same way that \fBnpm access set
+status\fP would\.
 .SS \fBall\fP
 .RS 0
 .IP \(bu 2
@@ -234,7 +234,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBaudit\-level\fP
 .RS 0
@@ -250,14 +250,11 @@ exit code\.
 .SS \fBauth\-type\fP
 .RS 0
 .IP \(bu 2
-Default: "legacy"
+Default: "web"
 .IP \(bu 2
-Type: "legacy", "web", "sso", "saml", "oauth", or "webauthn"
+Type: "legacy" or "web"
 
 .RE
-.P
-NOTE: auth\-type values "sso", "saml", "oauth", and "webauthn" will be
-removed in a future version\.
 .P
 What authentication strategy to use with \fBlogin\fP\|\.
 .SS \fBbefore\fP
@@ -350,8 +347,7 @@ Type: Path
 
 .RE
 .P
-The location of npm's cache directory\. See npm help \fBnpm
-cache\fP
+The location of npm's cache directory\.
 .SS \fBcafile\fP
 .RS 0
 .IP \(bu 2
@@ -381,28 +377,6 @@ custom command to be run along with the installed packages\.
 npm exec \-\-package yo \-\-package generator\-node \-\-call "yo node"
 .fi
 .RE
-.SS \fBcert\fP
-.RS 0
-.IP \(bu 2
-Default: null
-.IP \(bu 2
-Type: null or String
-
-.RE
-.P
-A client certificate to pass when accessing the registry\. Values should be
-in PEM format (Windows calls it "Base\-64 encoded X\.509 (\.CER)") with
-newlines replaced by the string "\\n"\. For example:
-.P
-.RS 2
-.nf
-cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
-.fi
-.RE
-.P
-It is \fInot\fR the path to a certificate file, though you can set a
-registry\-scoped "certfile" path like
-"//other\-registry\.tld/:certfile=/path/to/cert\.pem"\.
 .SS \fBci\-name\fP
 .RS 0
 .IP \(bu 2
@@ -729,8 +703,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBgit\fP
 .RS 0
 .IP \(bu 2
@@ -775,21 +748,6 @@ bin files are linked to \fB{prefix}/bin\fP
 man pages are linked to \fB{prefix}/share/man\fP
 
 .RE
-.SS \fBglobal\-style\fP
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Causes npm to install the package into your local \fBnode_modules\fP folder with
-the same layout it uses with the global \fBnode_modules\fP folder\. Only your
-direct dependencies will show in \fBnode_modules\fP and everything they depend
-on will be flattened in their \fBnode_modules\fP folders\. This obviously will
-eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP
-will be preferred\.
 .SS \fBglobalconfig\fP
 .RS 0
 .IP \(bu 2
@@ -968,15 +926,30 @@ number, if not already set in package\.json\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink\. This option has no effect on workspaces\.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink\. This option has no effect on
+workspaces\.
+.SS \fBinstall\-strategy\fP
+.RS 0
+.IP \(bu 2
+Default: "hoisted"
+.IP \(bu 2
+Type: "hoisted", "nested", or "shallow"
+
+.RE
+.P
+Sets the strategy for installing packages in node_modules\. hoisted
+(default): Install non\-duplicated in top\-level, and duplicated as necessary
+within directory structure\. nested: (formerly \-\-legacy\-bundling) install in
+place, no hoisting\. shallow (formerly \-\-global\-style) only install direct
+deps at top\-level\. linked: (coming soon) install in node_modules/\.store,
+link in place, unhoisted\.
 .SS \fBjson\fP
 .RS 0
 .IP \(bu 2
@@ -995,39 +968,6 @@ saving them to your \fBpackage\.json\fP\|\.
 .RE
 .P
 Not supported by all npm commands\.
-.SS \fBkey\fP
-.RS 0
-.IP \(bu 2
-Default: null
-.IP \(bu 2
-Type: null or String
-
-.RE
-.P
-A client key to pass when accessing the registry\. Values should be in PEM
-format with newlines replaced by the string "\\n"\. For example:
-.P
-.RS 2
-.nf
-key="\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-"
-.fi
-.RE
-.P
-It is \fInot\fR the path to a key file, though you can set a registry\-scoped
-"keyfile" path like "//other\-registry\.tld/:keyfile=/path/to/key\.pem"\.
-.SS \fBlegacy\-bundling\fP
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Causes npm to install the package such that versions of npm prior to 1\.4,
-such as the one included with node 0\.8, can install the package\. This
-eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
-will be preferred\.
 .SS \fBlegacy\-peer\-deps\fP
 .RS 0
 .IP \(bu 2
@@ -1098,8 +1038,8 @@ man pages are linked to \fB{prefix}/share/man\fP
 .SS \fBlockfile\-version\fP
 .RS 0
 .IP \(bu 2
-Default: Version 2 if no lockfile or current lockfile version less than or
-equal to 2, otherwise maintain current lockfile version
+Default: Version 3 if no lockfile, auto\-converting v1 lockfiles to v3,
+otherwise maintain current lockfile version\.
 .IP \(bu 2
 Type: null, 1, 2, 3, "1", "2", or "3"
 
@@ -1113,9 +1053,9 @@ is used during the install, resulting in slower and possibly less
 deterministic installs\. Prevents lockfile churn when interoperating with
 older npm versions\.
 .P
-2: The default lockfile version used by npm version 7\. Includes both the
-version 1 lockfile data and version 3 lockfile data, for maximum determinism
-and interoperability, at the expense of more bytes on disk\.
+2: The default lockfile version used by npm version 7 and 8\. Includes both
+the version 1 lockfile data and version 3 lockfile data, for maximum
+determinism and interoperability, at the expense of more bytes on disk\.
 .P
 3: Only the new lockfile information introduced in npm version 7\. Smaller on
 disk than lockfile version 2, but not interoperable with older npm versions\.
@@ -1125,8 +1065,8 @@ Ideal if all users are on npm version 7 and higher\.
 .IP \(bu 2
 Default: "notice"
 .IP \(bu 2
-Type: "silent", "error", "warn", "notice", "http", "timing", "info",
-"verbose", or "silly"
+Type: "silent", "error", "warn", "notice", "http", "info", "verbose", or
+"silly"
 
 .RE
 .P
@@ -1146,7 +1086,7 @@ Type: null or Path
 
 .RE
 .P
-The location of npm's log directory\. See npm help \fBlogging\fP
+The location of npm's log directory\. See npm help logging
 for more information\.
 .SS \fBlogs\-max\fP
 .RS 0
@@ -1205,16 +1145,6 @@ Type: null or String
 Options to pass through to Node\.js via the \fBNODE_OPTIONS\fP environment
 variable\. This does not impact how npm itself is executed but it does impact
 how lifecycle scripts are called\.
-.SS \fBnode\-version\fP
-.RS 0
-.IP \(bu 2
-Default: Node\.js \fBprocess\.version\fP value
-.IP \(bu 2
-Type: SemVer string
-
-.RE
-.P
-The node version to use when checking a package's \fBengines\fP setting\.
 .SS \fBnoproxy\fP
 .RS 0
 .IP \(bu 2
@@ -1227,16 +1157,6 @@ Type: String (can be set multiple times)
 Domain extensions that should bypass any proxies\.
 .P
 Also accepts a comma\-delimited string\.
-.SS \fBnpm\-version\fP
-.RS 0
-.IP \(bu 2
-Default: Output of \fBnpm \-\-version\fP
-.IP \(bu 2
-Type: SemVer string
-
-.RE
-.P
-The npm version to use when checking a package's \fBengines\fP setting\.
 .SS \fBoffline\fP
 .RS 0
 .IP \(bu 2
@@ -1315,7 +1235,7 @@ Type: String (can be set multiple times)
 
 .RE
 .P
-The package or packages to install for npm help \fBexec\fP
+The package or packages to install for npm help exec
 .SS \fBpackage\-lock\fP
 .RS 0
 .IP \(bu 2
@@ -1384,8 +1304,8 @@ look for updates immediately even for fresh package data\.
 .RS 0
 .IP \(bu 2
 Default: In global mode, the folder where the node executable is installed\.
-In local mode, the nearest parent folder containing either a package\.json
-file or a node_modules folder\.
+Otherwise, the nearest parent folder containing either a package\.json file
+or a node_modules folder\.
 .IP \(bu 2
 Type: Path
 
@@ -1769,7 +1689,7 @@ Type: String
 .RE
 .P
 If set, alters the prefix used when tagging a new version when performing a
-version increment using \fBnpm\-version\fP\|\. To remove the prefix altogether, set
+version increment using \fBnpm version\fP\|\. To remove the prefix altogether, set
 it to the empty string: \fB""\fP\|\.
 .P
 Because other tools may rely on the convention that npm version tags look
@@ -1784,12 +1704,14 @@ Type: Boolean
 
 .RE
 .P
-If true, writes a debug log to \fBlogs\-dir\fP and timing information to
-\fB_timing\.json\fP in the cache, even if the command completes successfully\.
-\fB_timing\.json\fP is a newline delimited list of JSON objects\.
+If true, writes timing information to a process specific json file in the
+cache or \fBlogs\-dir\fP\|\. The file name ends with \fB\-timing\.json\fP\|\.
 .P
 You can quickly view it with this json \fIhttps://npm\.im/json\fR command line:
-\fBnpm exec \-\- json \-g < ~/\.npm/_timing\.json\fP\|\.
+\fBcat ~/\.npm/_logs/*\-timing\.json | npm exec \-\- json \-g\fP\|\.
+.P
+Timing information will also be reported in the terminal\. To suppress this
+while still writing the timing file, use \fB\-\-silent\fP\|\.
 .SS \fBumask\fP
 .RS 0
 .IP \(bu 2
@@ -2049,6 +1971,33 @@ DEPRECATED: This option has been deprecated in favor of \fB\-\-prefer\-offline\f
 .RE
 .P
 \fB\-\-cache\-min=9999 (or bigger)\fP is an alias for \fB\-\-prefer\-offline\fP\|\.
+.SS \fBcert\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or String
+.IP \(bu 2
+DEPRECATED: \fBkey\fP and \fBcert\fP are no longer used for most registry
+operations\. Use registry scoped \fBkeyfile\fP and \fBcertfile\fP instead\. Example:
+//other\-registry\.tld/:keyfile=/path/to/key\.pem
+//other\-registry\.tld/:certfile=/path/to/cert\.crt
+
+.RE
+.P
+A client certificate to pass when accessing the registry\. Values should be
+in PEM format (Windows calls it "Base\-64 encoded X\.509 (\.CER)") with
+newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a certificate file, though you can set a
+registry\-scoped "certfile" path like
+"//other\-registry\.tld/:certfile=/path/to/cert\.pem"\.
 .SS \fBdev\fP
 .RS 0
 .IP \(bu 2
@@ -2061,6 +2010,20 @@ DEPRECATED: Please use \-\-include=dev instead\.
 .RE
 .P
 Alias for \fB\-\-include=dev\fP\|\.
+.SS \fBglobal\-style\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+DEPRECATED: This option has been deprecated in favor of
+\fB\-\-install\-strategy=shallow\fP
+
+.RE
+.P
+Only install direct dependencies in the top level \fBnode_modules\fP, but hoist
+on deeper dependendencies\. Sets \fB\-\-install\-strategy=shallow\fP\|\.
 .SS \fBinit\.author\.email\fP
 .RS 0
 .IP \(bu 2
@@ -2133,6 +2096,47 @@ DEPRECATED: Use \fB\-\-init\-version\fP instead\.
 .RE
 .P
 Alias for \fB\-\-init\-version\fP
+.SS \fBkey\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or String
+.IP \(bu 2
+DEPRECATED: \fBkey\fP and \fBcert\fP are no longer used for most registry
+operations\. Use registry scoped \fBkeyfile\fP and \fBcertfile\fP instead\. Example:
+//other\-registry\.tld/:keyfile=/path/to/key\.pem
+//other\-registry\.tld/:certfile=/path/to/cert\.crt
+
+.RE
+.P
+A client key to pass when accessing the registry\. Values should be in PEM
+format with newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+key="\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a key file, though you can set a registry\-scoped
+"keyfile" path like "//other\-registry\.tld/:keyfile=/path/to/key\.pem"\.
+.SS \fBlegacy\-bundling\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+DEPRECATED: This option has been deprecated in favor of
+\fB\-\-install\-strategy=nested\fP
+
+.RE
+.P
+Instead of hoisting package installs in \fBnode_modules\fP, install packages in
+the same manner that they are depended on\. This may cause very deep
+directory structures and duplicate package installs as there is no
+de\-duplicating\. Sets \fB\-\-install\-strategy=nested\fP\|\.
 .SS \fBonly\fP
 .RS 0
 .IP \(bu 2
@@ -2184,33 +2188,6 @@ DEPRECATED: Use the \-\-package\-lock setting instead\.
 .RE
 .P
 Alias for \-\-package\-lock
-.SS \fBsso\-poll\-frequency\fP
-.RS 0
-.IP \(bu 2
-Default: 500
-.IP \(bu 2
-Type: Number
-.IP \(bu 2
-DEPRECATED: The \-\-auth\-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web\-based login\.
-
-.RE
-.P
-When used with SSO\-enabled \fBauth\-type\fPs, configures how regularly the
-registry should be polled while the user is completing authentication\.
-.SS \fBsso\-type\fP
-.RS 0
-.IP \(bu 2
-Default: "oauth"
-.IP \(bu 2
-Type: null, "oauth", or "saml"
-.IP \(bu 2
-DEPRECATED: The \-\-auth\-type method of SSO/SAML/OAuth will be removed in a
-future version of npm in favor of web\-based login\.
-
-.RE
-.P
-If \fB\-\-auth\-type=sso\fP, the type of SSO type to use\.
 .SS \fBtmp\fP
 .RS 0
 .IP \(bu 2

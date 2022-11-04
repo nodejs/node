@@ -1,4 +1,4 @@
-.TH "NPM\-AUDIT" "1" "September 2022" "" ""
+.TH "NPM\-AUDIT" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
 .SS Synopsis
@@ -114,9 +114,9 @@ the path \fB/\-/npm/v1/security/advisories/bulk\fP\|\.
 .P
 Any packages in the tree that do not have a \fBversion\fP field in their
 package\.json file will be ignored\.  If any \fB\-\-omit\fP options are specified
-(either via the \fB\-\-omit\fP config, or one of the shorthands such as
-\fB\-\-production\fP, \fB\-\-only=dev\fP, and so on), then packages will be omitted
-from the submitted payload as appropriate\.
+(either via the \fB\-\-omit\fP config \fI/using\-npm/config#omit\fR, or one of the
+shorthands such as \fB\-\-production\fP, \fB\-\-only=dev\fP, and so on), then packages will
+be omitted from the submitted payload as appropriate\.
 .P
 If the registry responds with an error, or with an invalid response, then
 npm will attempt to load advisory data from the \fBQuick Audit\fP endpoint\.
@@ -196,7 +196,7 @@ vulnerabilities are found \fIor\fR if the remediation is able to successfully
 fix all vulnerabilities\.
 .P
 If vulnerabilities were found the exit code will depend on the
-\fBaudit\-level\fP configuration setting\.
+\fBaudit\-level\fP config \fI/using\-npm/config#audit\-level\fR\|\.
 .SS Examples
 .P
 Scan your project for vulnerabilities and automatically install any compatible
@@ -496,15 +496,15 @@ This value is not exported to the environment for child processes\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink\. This option has no effect on workspaces\.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink\. This option has no effect on
+workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2

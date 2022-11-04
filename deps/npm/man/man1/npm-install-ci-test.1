@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL\-CI\-TEST" "1" "September 2022" "" ""
+.TH "NPM\-INSTALL\-CI\-TEST" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-install-ci-test\fR \- Install a project with a clean slate and run tests
 .SS Synopsis
@@ -62,34 +62,51 @@ bin files are linked to \fB{prefix}/bin\fP
 man pages are linked to \fB{prefix}/share/man\fP
 
 .RE
-.SS \fBglobal\-style\fP
+.SS \fBinstall\-strategy\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: "hoisted"
 .IP \(bu 2
-Type: Boolean
+Type: "hoisted", "nested", or "shallow"
 
 .RE
 .P
-Causes npm to install the package into your local \fBnode_modules\fP folder with
-the same layout it uses with the global \fBnode_modules\fP folder\. Only your
-direct dependencies will show in \fBnode_modules\fP and everything they depend
-on will be flattened in their \fBnode_modules\fP folders\. This obviously will
-eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP
-will be preferred\.
+Sets the strategy for installing packages in node_modules\. hoisted
+(default): Install non\-duplicated in top\-level, and duplicated as necessary
+within directory structure\. nested: (formerly \-\-legacy\-bundling) install in
+place, no hoisting\. shallow (formerly \-\-global\-style) only install direct
+deps at top\-level\. linked: (coming soon) install in node_modules/\.store,
+link in place, unhoisted\.
 .SS \fBlegacy\-bundling\fP
 .RS 0
 .IP \(bu 2
 Default: false
 .IP \(bu 2
 Type: Boolean
+.IP \(bu 2
+DEPRECATED: This option has been deprecated in favor of
+\fB\-\-install\-strategy=nested\fP
 
 .RE
 .P
-Causes npm to install the package such that versions of npm prior to 1\.4,
-such as the one included with node 0\.8, can install the package\. This
-eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
-will be preferred\.
+Instead of hoisting package installs in \fBnode_modules\fP, install packages in
+the same manner that they are depended on\. This may cause very deep
+directory structures and duplicate package installs as there is no
+de\-duplicating\. Sets \fB\-\-install\-strategy=nested\fP\|\.
+.SS \fBglobal\-style\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+DEPRECATED: This option has been deprecated in favor of
+\fB\-\-install\-strategy=shallow\fP
+
+.RE
+.P
+Only install direct dependencies in the top level \fBnode_modules\fP, but hoist
+on deeper dependendencies\. Sets \fB\-\-install\-strategy=shallow\fP\|\.
 .SS \fBomit\fP
 .RS 0
 .IP \(bu 2
@@ -187,7 +204,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBbin\-links\fP
 .RS 0
@@ -214,8 +231,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2
@@ -305,15 +321,15 @@ This value is not exported to the environment for child processes\.
 .SS \fBinstall\-links\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: true
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink\. This option has no effect on workspaces\.
+When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink\. This option has no effect on
+workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2

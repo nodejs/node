@@ -4,7 +4,6 @@ section: 7
 description: Package name specifier
 ---
 
-
 ### Description
 
 Commands like `npm install` and the dependency sections in the
@@ -101,6 +100,6 @@ Examples:
 
 ### See also
 
-[npm-package-arg](https://npm.im/npm-package-arg)
-[scope](/using-npm/scope)
-[config](/using-npm/config)
+* [npm-package-arg](https://npm.im/npm-package-arg)
+* [scope](/using-npm/scope)
+* [config](/using-npm/config)

@@ -1,4 +1,4 @@
-.TH "NPM\-FUND" "1" "September 2022" "" ""
+.TH "NPM\-FUND" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-fund\fR \- Retrieve funding information
 .SS Synopsis
@@ -14,9 +14,10 @@ This command retrieves information on how to fund the dependencies of a
 given project\. If no package name is provided, it will list all
 dependencies that are looking for funding in a tree structure, listing
 the type of funding and the url to visit\. If a package name is provided
-then it tries to open its funding url using the \fB\-\-browser\fP config
-param; if there are multiple funding sources for the package, the user
-will be instructed to pass the \fB\-\-which\fP option to disambiguate\.
+then it tries to open its funding url using the
+\fB\-\-browser\fP config \fI/using\-npm/config#browser\fR param; if there are multiple
+funding sources for the package, the user will be instructed to pass the
+\fB\-\-which\fP option to disambiguate\.
 .P
 The list will avoid duplicated entries and will stack all packages that
 share the same url as a single entry\. Thus, the list does not have the
@@ -25,7 +26,8 @@ same shape of the output from \fBnpm ls\fP\|\.
 .SS Workspaces support
 .P
 It's possible to filter the results to only include a single workspace
-and its dependencies using the \fBworkspace\fP config option\.
+and its dependencies using the
+\fBworkspace\fP config \fI/using\-npm/config#workspace\fR option\.
 .SS Example:
 .P
 Here's an example running \fBnpm fund\fP in a project with a configured
@@ -148,7 +150,7 @@ If there are multiple funding sources, which 1\-indexed source URL to open\.
 .SH See Also
 .RS 0
 .IP \(bu 2
-npm help package spec
+npm help "package spec"
 .IP \(bu 2
 npm help install
 .IP \(bu 2

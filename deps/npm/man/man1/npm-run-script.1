@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "September 2022" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "October 2022" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SS Synopsis
@@ -63,7 +63,8 @@ The actual shell your script is run within is platform dependent\. By default,
 on Unix\-like systems it is the \fB/bin/sh\fP command, on Windows it is
 \fBcmd\.exe\fP\|\.
 The actual shell referred to by \fB/bin/sh\fP also depends on the system\.
-You can customize the shell with the \fBscript\-shell\fP configuration\.
+You can customize the shell with the
+\fBscript\-shell\fP config \fI/using\-npm/config#script\-shell\fR\|\.
 .P
 Scripts are run from the root of the package folder, regardless of what the
 current working directory is when \fBnpm run\fP is called\. If you want your
@@ -79,7 +80,8 @@ fails, you will be given a warning to run \fBnpm install\fP, just in case you've
 forgotten\.
 .SS Workspaces support
 .P
-You may use the \fBworkspace\fP or \fBworkspaces\fP configs in order to run an
+You may use the \fBworkspace\fP \fI/using\-npm/config#workspace\fR or
+\fBworkspaces\fP \fI/using\-npm/config#workspaces\fR configs in order to run an
 arbitrary command from a package's \fB"scripts"\fP object in the context of the
 specified workspaces\. If no \fB"command"\fP is provided, it will list the available
 scripts for each of these configured workspaces\.
@@ -112,7 +114,8 @@ Assuming the workspace configuration is properly set up at the root level
 .RE
 .P
 And that each of the configured workspaces has a configured \fBtest\fP script,
-we can run tests in all of them using the \fBworkspaces\fP config:
+we can run tests in all of them using the
+\fBworkspaces\fP config \fI/using\-npm/config#workspaces\fR:
 .P
 .RS 2
 .nf
