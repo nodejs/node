@@ -26,7 +26,6 @@ using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
 using v8::ONLY_WRITABLE;
-using v8::Private;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
@@ -157,44 +156,6 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   };
   return args.GetReturnValue().Set(
       Array::New(env->isolate(), ret, arraysize(ret)));
-}
-
-inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
-#define V(name, _) &Environment::name,
-  static Local<Private> (Environment::*const methods[])() const = {
-    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-  };
-#undef V
-  CHECK_LT(index, arraysize(methods));
-  return (env->*methods[index])();
-}
-
-static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
-
-  Local<Object> obj = args[0].As<Object>();
-  uint32_t index = args[1].As<Uint32>()->Value();
-  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
-  Local<Value> ret;
-  if (obj->GetPrivate(env->context(), private_symbol).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
-
-  Local<Object> obj = args[0].As<Object>();
-  uint32_t index = args[1].As<Uint32>()->Value();
-  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
-  bool ret;
-  if (obj->SetPrivate(env->context(), private_symbol, args[2]).To(&ret))
-    args.GetReturnValue().Set(ret);
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
@@ -379,8 +340,6 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetHiddenValue);
-  registry->Register(SetHiddenValue);
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
   registry->Register(PreviewEntries);
@@ -404,15 +363,21 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
-#define V(name, _)                                                            \
-  target->Set(context,                                                        \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::NewFromUnsigned(env->isolate(), index++)).Check();
   {
-    uint32_t index = 0;
+    Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #PropertyName),              \
+            env->PropertyName());
+
     PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-  }
 #undef V
+
+    target
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
+              tmpl->NewInstance(context).ToLocalChecked())
+        .Check();
+  }
 
 #define V(name)                                                               \
   target->Set(context,                                                        \
@@ -435,8 +400,6 @@ void Initialize(Local<Object> target,
   V(kHasExitCode);
 #undef V
 
-  SetMethodNoSideEffect(context, target, "getHiddenValue", GetHiddenValue);
-  SetMethod(context, target, "setHiddenValue", SetHiddenValue);
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
