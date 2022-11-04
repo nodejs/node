@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (!common.hasIntl) {
-  common.skip('missing intl');
+  common.skip('missing Intl');
 }
 
 const fixtures = require('../common/fixtures');
