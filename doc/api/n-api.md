@@ -2081,7 +2081,7 @@ A module can override the set of its enabled features by adding
 value of the global `node_api_module_features` variable.
 To check enabled features use the `node_api_is_feature_enabled` function.
 
-For example, to disables `node_api_feature_reference_all_types` feature we can
+For example, to disable `node_api_feature_reference_all_types` feature we can
 exclude its bit from the `node_api_default_features` set:
 
 ```c
@@ -5758,7 +5758,7 @@ NAPI_EXTERN napi_status node_api_is_feature_enabled(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] feature`: The feature that we want to test.
+* `[in] feature`: The features that we want to test.
 * `[out] result`: Whether the feature or a set of features are enabled.
 
 Returns `napi_ok` if the API succeeded.
