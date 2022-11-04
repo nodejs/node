@@ -6,6 +6,7 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
+// Refs: https://github.com/nodejs/node/blob/1af63a90ca3a59ca05b3a12ad7dbea04008db7d9/configure.py#L1694-L1711
 if (process.config.variables.icu_path !== 'deps/icu-small') {
   common.skip('not using the icu data file present in deps/icu-small/source/data/in/icudt##l.dat.bz2');
 }
