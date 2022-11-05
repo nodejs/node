@@ -146,16 +146,10 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm ls &lt;package-spec&gt;
 
 alias: list
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies when <code>--all</code> is specified, in a
@@ -166,7 +160,7 @@ tree at all, use <a href="../commands/npm-explain.html"><code>npm explain</code>
 the results to only the paths to the packages named.  Note that nested
 packages will <em>also</em> show the paths to the specified packages.  For
 example, running <code>npm ls promzard</code> in npm's source tree will show:</p>
-<pre lang="bash"><code>npm@8.19.2 /path/to/npm
+<pre lang="bash"><code>npm@8.19.3 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 </code></pre>
@@ -199,9 +193,6 @@ provided.</p>
 of this command, is currently underway.  Expect significant changes to at
 least the default human-readable <code>npm ls</code> output in npm v8.</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="all"><code>all</code></h4>
 <ul>
 <li>Default: false</li>
@@ -210,8 +201,6 @@ least the default human-readable <code>npm ls</code> output in npm v8.</p>
 <p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
 outdated or installed packages, rather than only those directly depended
 upon by the current project.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -223,16 +212,12 @@ upon by the current project.</p>
 saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="long"><code>long</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="parseable"><code>parseable</code></h4>
 <ul>
 <li>Default: false</li>
@@ -240,8 +225,6 @@ saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Output parseable results from commands that write to standard output. For
 <code>npm search</code>, this will be tab-separated table format.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
 <ul>
 <li>Default: false</li>
@@ -256,8 +239,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="depth"><code>depth</code></h4>
 <ul>
 <li>Default: <code>Infinity</code> if <code>--all</code> is set, otherwise <code>1</code></li>
@@ -266,8 +247,6 @@ of the current working directory.</li>
 <p>The depth to go when recursing packages for <code>npm ls</code>.</p>
 <p>If not set, <code>npm ls</code> will show only the immediate dependencies of the root
 project. If <code>--all</code> is set, then npm will show all dependencies by default.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -282,16 +261,12 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="link"><code>link</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Used with <code>npm ls</code>, limiting output to only those packages that are linked.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>
 <li>Default: false</li>
@@ -303,8 +278,6 @@ ignoring <code>node_modules</code>.</p>
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <p>For <code>list</code> this means the output will be based on the tree described by the
 <code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="unicode"><code>unicode</code></h4>
 <ul>
 <li>Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -313,8 +286,6 @@ as defined by the <code>LC_ALL</code>, <code>LC_CTYPE</code>, or <code>LANG</cod
 </ul>
 <p>When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -334,8 +305,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -352,8 +321,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -364,8 +331,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
@@ -374,9 +339,6 @@ the specified workspaces, and not on the root project.</p>
 <p>When set file: protocol dependencies that exist outside of the project root
 will be packed and installed as regular dependencies instead of creating a
 symlink. This option has no effect on workspaces.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>

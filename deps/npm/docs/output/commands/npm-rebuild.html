@@ -146,16 +146,10 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm rebuild [&lt;package-spec&gt;] ...]
 
 alias: rb
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command runs the <code>npm build</code> command on the matched folders.  This is
 useful when you install a new version of node, and must recompile all your
@@ -165,9 +159,6 @@ packages to build and/or link bins.</p>
 <p>If one or more package specs are provided, then only packages with a
 name and version matching one of the specifiers will be rebuilt.</p>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
 <ul>
 <li>Default: false</li>
@@ -182,8 +173,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -194,8 +183,6 @@ executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -206,8 +193,6 @@ scripts for installed packages in the foreground process, sharing standard
 input, output, and error with the main npm process.</p>
 <p>Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -218,8 +203,6 @@ but can be useful for debugging.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -239,8 +222,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -257,8 +238,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -269,8 +248,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
@@ -279,9 +256,6 @@ the specified workspaces, and not on the root project.</p>
 <p>When set file: protocol dependencies that exist outside of the project root
 will be packed and installed as regular dependencies instead of creating a
 symlink. This option has no effect on workspaces.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>

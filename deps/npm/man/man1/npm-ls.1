@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "September 2022" "" ""
+.TH "NPM\-LS" "1" "November 2022" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SS Synopsis
@@ -17,7 +17,7 @@ installed, as well as their dependencies when \fB\-\-all\fP is specified, in a
 tree structure\.
 .P
 Note: to get a "bottoms up" view of why a given package is included in the
-tree at all, use npm help \fBexplain\fP\|\.
+tree at all, use npm help explain\.
 .P
 Positional arguments are \fBname@version\-range\fP identifiers, which will limit
 the results to only the paths to the packages named\.  Note that nested
@@ -26,7 +26,7 @@ example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@8\.19\.2 /path/to/npm
+npm@8\.19\.3 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -301,7 +301,7 @@ symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2
-npm help package spec
+npm help "package spec"
 .IP \(bu 2
 npm help explain
 .IP \(bu 2
