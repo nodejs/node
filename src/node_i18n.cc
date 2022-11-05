@@ -502,7 +502,7 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Value> error;
-    const UChar* output = result.out();
+    UChar* output = result.out();
     size_t beginning = 0;
     size_t length = result.length() * sizeof(UChar);
 
@@ -512,7 +512,12 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
       length -= 2;
     }
 
-    const char* value = reinterpret_cast<const char*>(output) + beginning;
+    char* value = reinterpret_cast<char*>(output) + beginning;
+
+    if (IsBigEndian()) {
+      SwapBytes16(value, length);
+    }
+
     MaybeLocal<Value> encoded =
         StringBytes::Encode(env->isolate(), value, length, UCS2, &error);
 
