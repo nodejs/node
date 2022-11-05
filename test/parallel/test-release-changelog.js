@@ -27,7 +27,7 @@ if (!release) {
 const major = getDefine(versionText, 'NODE_MAJOR_VERSION');
 const minor = getDefine(versionText, 'NODE_MINOR_VERSION');
 const patch = getDefine(versionText, 'NODE_PATCH_VERSION');
-const version = `${major}.${minor}.${patch}`;
+const versionForRegex = `${major}\\.${minor}\\.${patch}`;
 
 const lts = getDefine(versionText, 'NODE_VERSION_IS_LTS') !== '0';
 const codename = getDefine(versionText, 'NODE_VERSION_LTS_CODENAME').slice(1, -1);
@@ -51,15 +51,15 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   }
   assert.match(changelog, tableHeader);
   // Check table contains link to this release.
-  assert.match(changelog, new RegExp(`<a href="#${version}">${version}</a>`));
+  assert.match(changelog, new RegExp(`<a href="#${versionForRegex}">${versionForRegex}</a>`));
   // Check anchor for this release.
-  assert.match(changelog, new RegExp(`<a id="${version}"></a>`));
+  assert.match(changelog, new RegExp(`<a id="${versionForRegex}"></a>`));
   // Check title for changelog entry.
   let title;
   if (lts) {
-    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${version} '${codename}' \\(LTS\\), @\\S+`);
+    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${versionForRegex} '${codename}' \\(LTS\\), @\\S+`);
   } else {
-    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${version} \\(Current\\), @\\S+`);
+    title = new RegExp(`## \\d{4}-\\d{2}-\\d{2}, Version ${versionForRegex} \\(Current\\), @\\S+`);
   }
   assert.match(changelog, title);
 }
@@ -84,6 +84,6 @@ const changelogPath = `doc/changelogs/CHANGELOG_V${major}.md`;
   }
   assert.match(mainChangelog, tableHeader);
   // Check the table contains a link to the release in the appropriate CHANGELOG_V*.md file.
-  const linkToVersion = new RegExp(`<b><a href="${changelogPath}#${version}">${version}</a></b><br/>`);
+  const linkToVersion = new RegExp(`<b><a href="${changelogPath}#${versionForRegex}">${versionForRegex}</a></b><br/>`);
   assert.match(mainChangelog, linkToVersion);
 }
