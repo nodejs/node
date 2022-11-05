@@ -459,8 +459,8 @@ class TickInfo : public MemoryRetainer {
   AliasedUint8Array fields_;
 };
 
-class TrackingTraceStateObserver
-    : public v8::TracingController::TraceStateObserver {
+class TrackingTraceStateObserver :
+    public v8::TracingController::TraceStateObserver {
  public:
   explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
 
@@ -1039,7 +1039,12 @@ class Environment : public MemoryRetainer {
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
   // Field identifiers for exit_info_
-  enum ExitInfoField { kExiting = 0, kExitCode, kHasExitCode };
+  enum ExitInfoField {
+    kExiting = 0,
+    kExitCode,
+    kHasExitCode,
+    kExitInfoFieldCount
+  };
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),

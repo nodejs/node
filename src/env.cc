@@ -644,7 +644,8 @@ Environment::Environment(IsolateData* isolate_data,
       exec_argv_(exec_args),
       argv_(args),
       exec_path_(GetExecPath(args)),
-      exit_info_(isolate_, 3, MAYBE_FIELD_PTR(env_info, exit_info)),
+      exit_info_(
+          isolate_, kExitInfoFieldCount, MAYBE_FIELD_PTR(env_info, exit_info)),
       should_abort_on_uncaught_toggle_(
           isolate_,
           1,
