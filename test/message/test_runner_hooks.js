@@ -82,6 +82,12 @@ describe('afterEach when test fails', () => {
   it('2', () => {});
 });
 
+describe('afterEach throws and test fails', () => {
+  afterEach(() => { throw new Error('afterEach'); });
+  it('1', () => { throw new Error('test'); });
+  it('2', () => {});
+});
+
 test('test hooks', async (t) => {
   const testArr = [];
   t.beforeEach((t) => testArr.push('beforeEach ' + t.name));
@@ -121,6 +127,12 @@ test('t.afterEach throws', async (t) => {
 
 test('afterEach when test fails', async (t) => {
   t.afterEach(common.mustCall(2));
+  await t.test('1', () => { throw new Error('test'); });
+  await t.test('2', () => {});
+});
+
+test('afterEach throws and test fails', async (t) => {
+  afterEach(() => { throw new Error('afterEach'); });
   await t.test('1', () => { throw new Error('test'); });
   await t.test('2', () => {});
 });
