@@ -6,7 +6,7 @@ const path = require('path')
 const util = require('util')
 const readJson = util.promisify(require('read-package-json'))
 
-const flatten = require('../utils/config/flatten.js')
+const { flatten } = require('../utils/config/index.js')
 const getIdentity = require('../utils/get-identity.js')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
@@ -42,11 +42,11 @@ class Unpublish extends BaseCommand {
       return []
     }
 
-    const access = await libaccess.lsPackages(username, opts)
+    const access = await libaccess.getPackages(username, opts)
     // do a bit of filtering at this point, so that we don't need
     // to fetch versions for more than one thing, but also don't
     // accidentally unpublish a whole project
-    let pkgs = Object.keys(access || {})
+    let pkgs = Object.keys(access)
     if (!partialWord || !pkgs.length) {
       return pkgs
     }

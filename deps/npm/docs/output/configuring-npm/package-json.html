@@ -402,12 +402,14 @@ rely on primitives that aren't available in Node.js modules. (e.g.
 install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable.)</p>
 <p>To use this, supply a <code>bin</code> field in your package.json which is a map of
-command name to local file name. When this package is installed
-globally, that file will be linked where global bins go so it is
-available to run by name.  When this package is installed as a
-dependency in another package, the file will be linked where it will be
-available to that package either directly by <code>npm exec</code> or by name in other
-scripts when invoking them via <code>npm run-script</code>.</p>
+command name to local file name. When this package is installed globally,
+that file will be either linked inside the global bins directory or
+a cmd (Windows Command File) will be created which executes the specified
+file in the <code>bin</code> field, so it is available to run by <code>name</code> or <code>name.cmd</code> (on
+Windows PowerShell). When this package is installed as a dependency in another
+package, the file will be linked where it will be available to that package
+either directly by <code>npm exec</code> or by name in other scripts when invoking them
+via <code>npm run-script</code>.</p>
 <p>For example, myapp could have this:</p>
 <pre lang="json"><code>{
   "bin": {
@@ -415,8 +417,10 @@ scripts when invoking them via <code>npm run-script</code>.</p>
   }
 }
 </code></pre>
-<p>So, when you install myapp, it'll create a symlink from the <code>cli.js</code> script
-to <code>/usr/local/bin/myapp</code>.</p>
+<p>So, when you install myapp, in case of unix-like OS it'll create a symlink
+from the <code>cli.js</code> script to <code>/usr/local/bin/myapp</code> and in case of windows it
+will create a cmd file usually at <code>C:\Users\{Username}\AppData\Roaming\npm\myapp.cmd</code>
+which runs the <code>cli.js</code> script.</p>
 <p>If you have a single executable, and its name should be the name of the
 package, then you can just supply it as a string.  For example:</p>
 <pre lang="json"><code>{
@@ -924,9 +928,10 @@ capable of properly installing your program.  For example:</p>
   }
 }
 </code></pre>
-<p>Unless the user has set the <code>engine-strict</code> config flag, this field is
-advisory only and will only produce warnings when your package is installed
-as a dependency.</p>
+<p>Unless the user has set the
+<a href="../using-npm/config#engine-strict.html"><code>engine-strict</code> config</a> flag, this field is
+advisory only and will only produce warnings when your package is installed as a
+dependency.</p>
 <h3 id="os">os</h3>
 <p>You can specify which operating systems your
 module will run on:</p>

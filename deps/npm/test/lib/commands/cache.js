@@ -4,7 +4,7 @@ const MockRegistry = require('../../fixtures/mock-registry.js')
 const mockGlobals = require('../../fixtures/mock-globals')
 
 const cacache = require('cacache')
-const fs = require('@npmcli/fs')
+const fs = require('fs')
 const path = require('path')
 
 const pkg = 'test-package'

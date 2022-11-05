@@ -85,7 +85,7 @@ t.test('npm init <arg>', async t => {
     libnpmexec: ({ args, cache, npxCache }) => {
       t.same(
         args,
-        ['create-react-app'],
+        ['create-react-app@*'],
         'should npx with listed packages'
       )
       t.same(cache, flatOptions.cache)
@@ -106,7 +106,7 @@ t.test('npm init <arg> -- other-args', async t => {
     libnpmexec: ({ args }) => {
       t.same(
         args,
-        ['create-react-app', 'my-path', '--some-option', 'some-value'],
+        ['create-react-app@*', 'my-path', '--some-option', 'some-value'],
         'should npm exec with expected args'
       )
     },
@@ -125,7 +125,7 @@ t.test('npm init @scope/name', async t => {
     libnpmexec: ({ args }) => {
       t.same(
         args,
-        ['@npmcli/create-something'],
+        ['@npmcli/create-something@*'],
         'should npx with scoped packages'
       )
     },
@@ -268,7 +268,7 @@ t.test('should not rewrite flatOptions', async t => {
     libnpmexec: async ({ args }) => {
       t.same(
         args,
-        ['create-react-app', 'my-app'],
+        ['create-react-app@*', 'my-app'],
         'should npx with extra args'
       )
     },
@@ -500,7 +500,7 @@ t.test('workspaces', t => {
       libnpmexec: ({ args, path }) => {
         t.same(
           args,
-          ['create-react-app'],
+          ['create-react-app@*'],
           'should npx with listed packages'
         )
         t.same(

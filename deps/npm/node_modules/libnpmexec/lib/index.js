@@ -1,12 +1,12 @@
 'use strict'
 
+const { mkdir } = require('fs/promises')
 const { promisify } = require('util')
 
 const Arborist = require('@npmcli/arborist')
 const ciDetect = require('@npmcli/ci-detect')
 const crypto = require('crypto')
 const log = require('proc-log')
-const mkdirp = require('mkdirp-infer-owner')
 const npa = require('npm-package-arg')
 const npmlog = require('npmlog')
 const pacote = require('pacote')
@@ -38,23 +38,21 @@ const getManifest = async (spec, flatOptions) => {
 // Returns the required manifest if the spec is missing from the tree
 // Returns the found node if it is in the tree
 const missingFromTree = async ({ spec, tree, flatOptions }) => {
-  if (spec.registry && (spec.rawSpec === '' || spec.type !== 'tag')) {
+  if (spec.registry && spec.type !== 'tag') {
     // registry spec that is not a specific tag.
     const nodesBySpec = tree.inventory.query('packageName', spec.name)
     for (const node of nodesBySpec) {
-      if (spec.type === 'tag') {
-        // package requested by name only
+      // package requested by name only (or name@*)
+      if (spec.rawSpec === '*') {
         return { node }
-      } else if (spec.type === 'version') {
-        // package requested by specific version
-        if (node.pkgid === spec.raw) {
-          return { node }
-        }
-      } else {
-        // package requested by version range, only remaining registry type
-        if (semver.satisfies(node.package.version, spec.rawSpec)) {
-          return { node }
-        }
+      }
+      // package requested by specific version
+      if (spec.type === 'version' && (node.pkgid === spec.raw)) {
+        return { node }
+      }
+      // package requested by version range, only remaining registry type
+      if (semver.satisfies(node.package.version, spec.rawSpec)) {
+        return { node }
       }
     }
     const manifest = await getManifest(spec, flatOptions)
@@ -205,7 +203,7 @@ const exec = async (opts) => {
       .digest('hex')
       .slice(0, 16)
     const installDir = resolve(npxCache, hash)
-    await mkdirp(installDir)
+    await mkdir(installDir, { recursive: true })
     const npxArb = new Arborist({
       ...flatOptions,
       path: installDir,

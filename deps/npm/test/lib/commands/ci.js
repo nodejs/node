@@ -3,7 +3,7 @@ const { load: _loadMockNpm } = require('../../fixtures/mock-npm')
 const MockRegistry = require('../../fixtures/mock-registry.js')
 
 const path = require('path')
-const fs = require('@npmcli/fs')
+const fs = require('fs')
 
 // t.cleanSnapshot = str => str.replace(/ in [0-9ms]+/g, ' in {TIME}')
 
@@ -73,16 +73,10 @@ t.test('reifies, audits, removes node_modules', async t => {
   registry.nock.post('/-/npm/v1/security/advisories/bulk').reply(200, {})
   await npm.exec('ci', [])
   t.match(joinedOutput(), 'added 1 package, and audited 2 packages in')
-  await t.resolveMatch(
-    fs.exists(path.join(npm.prefix, 'node_modules', 'test')),
-    false,
-    'existing node_modules is removed'
-  )
-  await t.resolveMatch(
-    fs.exists(path.join(npm.prefix, 'node_modules', 'abbrev')),
-    true,
-    'installs abbrev'
-  )
+  const nmTest = path.join(npm.prefix, 'node_modules', 'test')
+  t.equal(fs.existsSync(nmTest), false, 'existing node_modules is removed')
+  const nmAbbrev = path.join(npm.prefix, 'node_modules', 'abbrev')
+  t.equal(fs.existsSync(nmAbbrev), true, 'installs abbrev')
 })
 
 t.test('--no-audit and --ignore-scripts', async t => {
@@ -159,11 +153,8 @@ t.test('should throw if package-lock.json or npm-shrinkwrap missing', async t =>
     },
   })
   await t.rejects(npm.exec('ci', []), { code: 'EUSAGE', message: /package-lock.json/ })
-  await t.resolveMatch(
-    fs.exists(path.join(npm.prefix, 'node_modules', 'test-file')),
-    true,
-    'does not remove node_modules'
-  )
+  const nmTestFile = path.join(npm.prefix, 'node_modules', 'test-file')
+  t.equal(fs.existsSync(nmTestFile), true, 'does not remove node_modules')
 })
 
 t.test('should throw ECIGLOBAL', async t => {
@@ -193,9 +184,6 @@ t.test('should throw error when ideal inventory mismatches virtual', async t => 
     npm.exec('ci', []),
     { code: 'EUSAGE', message: /in sync/ }
   )
-  await t.resolveMatch(
-    fs.exists(path.join(npm.prefix, 'node_modules', 'test-file')),
-    true,
-    'does not remove node_modules'
-  )
+  const nmTestFile = path.join(npm.prefix, 'node_modules', 'test-file')
+  t.equal(fs.existsSync(nmTestFile), true, 'does not remove node_modules')
 })

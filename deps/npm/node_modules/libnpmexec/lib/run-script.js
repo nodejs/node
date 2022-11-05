@@ -68,7 +68,6 @@ const run = async ({
       banner: false,
       // we always run in cwd, not --prefix
       path: runPath,
-      stdioString: true,
       binPaths,
       event: 'npx',
       args,

@@ -43,11 +43,10 @@ class PlaceDep {
       explicitRequest,
       updateNames,
       auditReport,
-      legacyBundling,
       strictPeerDeps,
       installLinks,
       legacyPeerDeps,
-      globalStyle,
+      installStrategy,
     } = parent || options
     Object.assign(this, {
       preferDedupe,
@@ -55,11 +54,10 @@ class PlaceDep {
       explicitRequest,
       updateNames,
       auditReport,
-      legacyBundling,
       strictPeerDeps,
       installLinks,
+      installStrategy,
       legacyPeerDeps,
-      globalStyle,
     })
 
     this.children = []
@@ -78,10 +76,9 @@ class PlaceDep {
       edge,
       dep,
       preferDedupe,
-      globalStyle,
-      legacyBundling,
       explicitRequest,
       updateNames,
+      installStrategy,
       checks,
     } = this
 
@@ -170,13 +167,13 @@ class PlaceDep {
 
       // nest packages like npm v1 and v2
       // very disk-inefficient
-      if (legacyBundling) {
+      if (installStrategy === 'nested') {
         break
       }
 
       // when installing globally, or just in global style, we never place
       // deps above the first level.
-      if (globalStyle) {
+      if (installStrategy === 'shallow') {
         const rp = target.resolveParent
         if (rp && rp.isProjectRoot) {
           break
@@ -463,7 +460,7 @@ class PlaceDep {
   // prune all the nodes in a branch of the tree that can be safely removed
   // This is only the most basic duplication detection; it finds if there
   // is another satisfying node further up the tree, and if so, dedupes.
-  // Even in legacyBundling mode, we do this amount of deduplication.
+  // Even in installStategy is nested, we do this amount of deduplication.
   pruneDedupable (node, descend = true) {
     if (node.canDedupe(this.preferDedupe)) {
       // gather up all deps that have no valid edges in from outside

@@ -1,6 +1,6 @@
 'use strict'
 
-const fs = require('@npmcli/fs')
+const fs = require('fs/promises')
 const move = require('@npmcli/move-file')
 const pinflight = require('promise-inflight')
 

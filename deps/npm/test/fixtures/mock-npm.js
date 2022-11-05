@@ -66,6 +66,7 @@ const LoadMockNpm = async (t, {
   globalPrefixDir = { lib: {} },
   config = {},
   mocks = {},
+  otherDirs = {},
   globals = null,
 } = {}) => {
   // Mock some globals with their original values so they get torn down
@@ -107,6 +108,7 @@ const LoadMockNpm = async (t, {
     prefix: prefixDir,
     cache: cacheDir,
     global: globalPrefixDir,
+    other: otherDirs,
   })
   const dirs = {
     testdir: dir,
@@ -114,6 +116,7 @@ const LoadMockNpm = async (t, {
     cache: path.join(dir, 'cache'),
     globalPrefix: path.join(dir, 'global'),
     home: path.join(dir, 'home'),
+    other: path.join(dir, 'other'),
   }
 
   // Set cache to testdir via env var so it is available when load is run
@@ -171,8 +174,8 @@ const LoadMockNpm = async (t, {
         .join('\n')
     },
     timingFile: async () => {
-      const data = await fs.readFile(path.resolve(dirs.cache, '_timing.json'), 'utf8')
-      return JSON.parse(data) // XXX: this fails if multiple timings are written
+      const data = await fs.readFile(npm.timingFile, 'utf8')
+      return JSON.parse(data)
     },
   }
 }
@@ -213,6 +216,7 @@ class MockNpm {
         }
       },
       list: [{ ...realConfig.defaults, ...config }],
+      validate: () => {},
     }
 
     if (t && config.loglevel) {
@@ -233,6 +237,15 @@ class MockNpm {
       return this.base.output(msg)
     }
     this._mockOutputs.push(msg)
+  }
+
+  // with the older fake mock npm there is no
+  // difference between output and outputBuffer
+  // since it just collects the output and never
+  // calls the exit handler, so we just mock the
+  // method the same as output.
+  outputBuffer (...msg) {
+    this.output(...msg)
   }
 }
 

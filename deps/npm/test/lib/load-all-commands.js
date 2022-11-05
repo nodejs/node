@@ -5,12 +5,10 @@
 const t = require('tap')
 const util = require('util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const { cmdList, plumbing } = require('../../lib/utils/cmd-list.js')
-const allCmds = [...cmdList, ...plumbing]
+const { allCommands } = require('../../lib/utils/cmd-list.js')
 
 t.test('load each command', async t => {
-  t.plan(allCmds.length)
-  for (const cmd of allCmds.sort((a, b) => a.localeCompare(b, 'en'))) {
+  for (const cmd of allCommands) {
     t.test(cmd, async t => {
       const { npm, outputs } = await loadMockNpm(t, {
         config: { usage: true },
@@ -29,13 +27,11 @@ t.test('load each command', async t => {
       )
       t.ok(impl.description, 'implementation has a description')
       t.ok(impl.name, 'implementation has a name')
+      t.equal(cmd, impl.name, 'command list and name are the same')
       t.ok(impl.ignoreImplicitWorkspace !== undefined, 'implementation has ignoreImplictWorkspace')
       t.match(impl.usage, cmd, 'usage contains the command')
       await npm.exec(cmd, [])
       t.match(outputs[0][0], impl.usage, 'usage is what is output')
-      // This ties usage to a snapshot so we have to re-run snap if usage
-      // changes, which rebuilds the man pages
-      t.matchSnapshot(outputs[0][0])
     })
   }
 })
