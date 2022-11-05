@@ -1,8 +1,16 @@
 # Diagnostics Channel
 
+<!-- YAML
+added: v15.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45290
+    description: diagnostics_channel is now Stable.
+-->
+
 <!--introduced_in=v15.1.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- source_link=lib/diagnostics_channel.js -->
 
