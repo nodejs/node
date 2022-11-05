@@ -1478,8 +1478,8 @@ console.log(`from readable: ${data.byteLength}`);
 
 ```cjs
 const { arrayBuffer } = require('node:stream/consumers');
-const { Readable } = require('stream');
-const { TextEncoder } = require('util');
+const { Readable } = require('node:stream');
+const { TextEncoder } = require('node:util');
 
 const encoder = new TextEncoder();
 const dataArray = encoder.encode(['hello world from consumers!']);
