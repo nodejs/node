@@ -165,7 +165,7 @@ will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
@@ -173,7 +173,7 @@ diagnostics_channel.subscribe('my-channel', (message, name) => {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
@@ -196,7 +196,7 @@ Remove a message handler previously registered to this channel with
 [`diagnostics_channel.subscribe(name, onMessage)`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 function onMessage(message, name) {
   // Received data
@@ -208,7 +208,7 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 function onMessage(message, name) {
   // Received data
