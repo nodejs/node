@@ -48,6 +48,10 @@ function createMarkdownTable(data) {
   const md = ['| API | Stability |', '| --- | --------- |'];
 
   for (const mod of data) {
+    // Remove extra text after stability index.
+    if (mod.stabilityText) {
+      mod.stabilityText = mod.stabilityText.replace(/(\(\d\) \w+)[\s\S]*/m, '$1');
+    }
     md.push(`| [${mod.displayName}](${mod.link}) | ${mod.stabilityText} |`);
   }
 
