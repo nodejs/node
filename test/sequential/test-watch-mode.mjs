@@ -13,6 +13,12 @@ import { once } from 'node:events';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
+function deferred() {
+  let res;
+  const promise = new Promise((resolve) => res = resolve);
+  return { resolve: res, promise };
+}
+
 function restart(file) {
   // To avoid flakiness, we save the file repeatedly until test is done
   writeFileSync(file, readFileSync(file));
@@ -59,8 +65,8 @@ async function spawnWithRestarts({
 }
 
 let tmpFiles = 0;
-function createTmpFile(content = 'console.log("running");') {
-  const file = path.join(tmpdir.path, `${tmpFiles++}.js`);
+function createTmpFile(content = 'console.log("running");', ext = '.js') {
+  const file = path.join(tmpdir.path, `${tmpFiles++}${ext}`);
   writeFileSync(file, content);
   return file;
 }
@@ -72,6 +78,25 @@ function assertRestartedCorrectly({ stdout, messages: { inner, completed, restar
   const end = [restarted, inner, completed].filter(Boolean);
   assert.deepStrictEqual(lines.slice(0, start.length), start);
   assert.deepStrictEqual(lines.slice(-end.length), end);
+}
+
+async function failWriteSucceed({ file, watchedFile }) {
+  let stdout = '';
+  const notFound = deferred();
+  const completed = deferred();
+  const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
+
+  child.stdout.on('data', (data) => {
+    stdout += data;
+    if (data.toString().startsWith('Failed running')) notFound.resolve();
+    if (data.toString().startsWith('Completed running')) completed.resolve();
+  });
+
+  await notFound.promise;
+  writeFileSync(watchedFile, 'console.log("test has ran");');
+  await completed.promise;
+  child.kill();
+  assert.match(stdout, /test has ran/);
 }
 
 tmpdir.refresh();
@@ -102,14 +127,6 @@ describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
       stdout,
       messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
     });
-  });
-
-  it('should not watch when running an non-existing file', async () => {
-    const file = fixtures.path('watch-mode/non-existing.js');
-    const { stderr, stdout } = await spawnWithRestarts({ file, restarts: 0 });
-
-    assert.match(stderr, /code: 'MODULE_NOT_FOUND'/);
-    assert.strictEqual(stdout, `Failed running ${inspect(file)}\n`);
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path', {
@@ -219,5 +236,31 @@ describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
       stdout,
       messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
     });
+  });
+
+  it('should not watch when running an missing file', async () => {
+    const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.js`);
+    await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
+  });
+
+  it('should not watch when running an missing mjs file', async () => {
+    const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+    await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
+  });
+
+  it('should watch changes to previously missing dependency', async () => {
+    const dependency = path.join(tmpdir.path, `${tmpFiles++}.js`);
+    const relativeDependencyPath = `./${path.basename(dependency)}`;
+    const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
+
+    await failWriteSucceed({ file: dependant, watchedFile: dependency });
+  });
+
+  it('should watch changes to previously missing ESM dependency', async () => {
+    const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+    const relativeDependencyPath = `./${path.basename(dependency)}`;
+    const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
+
+    await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
 });
