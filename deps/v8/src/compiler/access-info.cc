@@ -451,9 +451,15 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
             map, descriptor, details_representation));
   } else if (details_representation.IsHeapObject()) {
     if (descriptors_field_type->IsNone()) {
-      // Store is not safe if the field type was cleared.
-      if (access_mode == AccessMode::kStore) {
-        return Invalid();
+      switch (access_mode) {
+        case AccessMode::kStore:
+        case AccessMode::kStoreInLiteral:
+        case AccessMode::kDefine:
+          // Store is not safe if the field type was cleared.
+          return Invalid();
+        case AccessMode::kLoad:
+        case AccessMode::kHas:
+          break;
       }
 
       // The field type was cleared by the GC, so we don't know anything
