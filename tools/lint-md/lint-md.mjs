@@ -11097,8 +11097,22 @@ const gfmStrikethroughFromMarkdown = {
   enter: {strikethrough: enterStrikethrough},
   exit: {strikethrough: exitStrikethrough}
 };
+const constructsWithoutStrikethrough = [
+  'autolink',
+  'destinationLiteral',
+  'destinationRaw',
+  'reference',
+  'titleQuote',
+  'titleApostrophe'
+];
 const gfmStrikethroughToMarkdown = {
-  unsafe: [{character: '~', inConstruct: 'phrasing'}],
+  unsafe: [
+    {
+      character: '~',
+      inConstruct: 'phrasing',
+      notInConstruct: constructsWithoutStrikethrough
+    }
+  ],
   handlers: {delete: handleDelete}
 };
 handleDelete.peek = peekDelete;
