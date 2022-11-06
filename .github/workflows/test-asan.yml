@@ -56,6 +56,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1
+        run: make build-ci -j2
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
+        run: make run-ci -j2 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
