@@ -32,6 +32,7 @@ function collectStability(data) {
 
       stability.push({
         api: mod.name,
+        displayName: mod.textRaw,
         link: link,
         stability: mod.stability,
         stabilityText: `(${mod.stability}) ${mod.stabilityText}`,
@@ -39,7 +40,7 @@ function collectStability(data) {
     }
   }
 
-  stability.sort((a, b) => a.api.localeCompare(b.api));
+  stability.sort((a, b) => a.displayName.localeCompare(b.displayName));
   return stability;
 }
 
@@ -47,7 +48,7 @@ function createMarkdownTable(data) {
   const md = ['| API | Stability |', '| --- | --------- |'];
 
   for (const mod of data) {
-    md.push(`| [${mod.api}](${mod.link}) | ${mod.stabilityText} |`);
+    md.push(`| [${mod.displayName}](${mod.link}) | ${mod.stabilityText} |`);
   }
 
   return md.join('\n');
