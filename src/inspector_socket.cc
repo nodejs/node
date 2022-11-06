@@ -162,11 +162,10 @@ static std::string TrimPort(const std::string& host) {
 }
 
 static bool IsIPAddress(const std::string& host) {
-  // TODO(tniessen): add CVEs to the following bullet points
   // To avoid DNS rebinding attacks, we are aware of the following requirements:
-  // * the host name must be an IP address,
-  // * the IP address must be routable, and
-  // * the IP address must be formatted unambiguously.
+  // * the host name must be an IP address (CVE-2018-7160, CVE-2022-32212),
+  // * the IP address must be routable (hackerone.com/reports/1632921), and
+  // * the IP address must be formatted unambiguously (CVE-2022-43548).
 
   // The logic below assumes that the string is null-terminated, so ensure that
   // we did not somehow end up with null characters within the string.
