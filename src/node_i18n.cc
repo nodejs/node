@@ -50,6 +50,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -96,7 +97,6 @@ using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
-using v8::Uint8Array;
 using v8::Value;
 
 namespace i18n {
@@ -445,7 +445,6 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
 
   UErrorCode status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> result;
-  MaybeLocal<Object> ret;
 
   UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
 
@@ -501,19 +500,34 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
         converter->set_bom_seen(true);
       }
     }
-    ret = ToBufferEndian(env, &result);
-    if (omit_initial_bom && !ret.IsEmpty()) {
+
+    Local<Value> error;
+    UChar* output = result.out();
+    size_t beginning = 0;
+    size_t length = result.length() * sizeof(UChar);
+
+    if (omit_initial_bom) {
       // Perform `ret = ret.slice(2)`.
-      CHECK(ret.ToLocalChecked()->IsUint8Array());
-      Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
-      ret = Buffer::New(env,
-                        orig_ret->Buffer(),
-                        orig_ret->ByteOffset() + 2,
-                        orig_ret->ByteLength() - 2)
-                            .FromMaybe(Local<Uint8Array>());
+      beginning += 2;
+      length -= 2;
     }
-    if (!ret.IsEmpty())
-      args.GetReturnValue().Set(ret.ToLocalChecked());
+
+    char* value = reinterpret_cast<char*>(output) + beginning;
+
+    if (IsBigEndian()) {
+      SwapBytes16(value, length);
+    }
+
+    MaybeLocal<Value> encoded =
+        StringBytes::Encode(env->isolate(), value, length, UCS2, &error);
+
+    Local<Value> ret;
+    if (encoded.ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    } else {
+      args.GetReturnValue().Set(error);
+    }
+
     return;
   }
 
