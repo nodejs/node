@@ -442,6 +442,8 @@ added: v15.9.0
 -->
 
 Returns an async iterator that generates values in an interval of `delay` ms.
+If `ref` is `true`, you need to call `next()` of async iterator explicitly
+or implicitly to keep the event loop alive.
 
 * `delay` {number} The number of milliseconds to wait between iterations.
   **Default:** `1`.
