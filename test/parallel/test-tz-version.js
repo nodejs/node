@@ -11,7 +11,7 @@ if (process.config.variables.icu_path !== 'deps/icu-small') {
   // If Node.js is configured to use its built-in ICU, it uses a strict subset
   // of ICU formed using `tools/icu/shrink-icu-src.py`, which is present in
   // `deps/icu-small`. It is not the same as configuring the build with
-  // `./configured --with-intl=small-icu`. The latter only uses a subset of the
+  // `./configure --with-intl=small-icu`. The latter only uses a subset of the
   // locales, i.e., it uses the English locale, `root,en`, by default and other
   // locales can also be specified using the `--with-icu-locales` option.
   common.skip('not using the icu data file present in deps/icu-small/source/data/in/icudt##l.dat.bz2');
