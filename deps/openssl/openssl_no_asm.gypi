@@ -42,7 +42,7 @@
       'includes': ['config/archs/linux64-mips64/no-asm/openssl.gypi'],
     }, 'target_arch=="riscv64" and OS=="linux"', {
       'includes': ['config/archs/linux64-riscv64/no-asm/openssl.gypi'],
-    }, 'target_arch=="loongarch64" and OS=="linux"', {
+    }, 'target_arch=="loong64" and OS=="linux"', {
       'includes': ['config/archs/linux64-loongarch64/no-asm/openssl.gypi'],
     }, {
       # Other architectures don't use assembly
