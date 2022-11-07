@@ -6,6 +6,14 @@
 
 <!-- source_link=lib/async_hooks.js -->
 
+This module will most likely never reach stable state. Please migrate to
+other APIs.
+
+* [`AsyncLocalStorage`][] is stable and designed to cover one of the
+main usecases to track async context
+* [`process.getActiveResourcesInfo()`][] might fit better to track active
+resources
+
 The `node:async_hooks` module provides an API to track asynchronous resources.
 It can be accessed using:
 
@@ -327,20 +335,11 @@ current Node.js instance.
 
 The `type` is a string identifying the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
-resource's constructor.
+resource's constructor. The `type` of resources created by Node.js itself
+can change in any Node.js release.
 
-Valid values are:
-
-```text
-FSEVENTWRAP, FSREQCALLBACK, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPINCOMINGMESSAGE,
-HTTPCLIENTREQUEST, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP,
-SHUTDOWNWRAP, SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPSERVERWRAP, TCPWRAP,
-TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
-RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
-```
-
-These values can change in any Node.js release. Furthermore users of [`AsyncResource`][]
-likely provide other values.
+Furthermore users of [`AsyncResource`][] create async resources independent
+of Node.js itself.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
 instances and asynchronous work scheduled by them.
@@ -414,18 +413,18 @@ of propagating what resource is responsible for the new resource's existence.
 ##### `resource`
 
 `resource` is an object that represents the actual async resource that has
-been initialized. This can contain useful information that can vary based on
-the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
-`resource` provides the host name used when looking up the IP address for the
-host in `net.Server.listen()`. The API for accessing this information is
-not supported, but using the Embedder API, users can provide
-and document their own resource objects. For example, such a resource object
-could contain the SQL query being executed.
+been initialized. The API to access the object may be specified by the
+creator of the resource. Resources created by Node.js itself are internal
+and may change at any time therefore no API is specified for these.
 
 In some cases the resource object is reused for performance reasons, it is
 thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
 ##### Asynchronous context example
+
+The context tracking use case is covered by the stable API [`AsyncLocalStorage`][].
+This example only illustrates async hooks operation but [`AsyncLocalStorage`][]
+fits better to this use case.
 
 The following is an example with additional information about the calls to
 `init` between the `before` and `after` calls, specifically what the
@@ -567,6 +566,9 @@ Some resources depend on garbage collection for cleanup, so if a reference is
 made to the `resource` object passed to `init` it is possible that `destroy`
 will never be called, causing a memory leak in the application. If the resource
 does not depend on garbage collection, then this will not be an issue.
+
+Using the destroy hook results in additional overhead because it enables
+tracking of `Promise` instances via garbage collector.
 
 #### `promiseResolve(asyncId)`
 
@@ -868,6 +870,7 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`AsyncResource`]: async_context.md#class-asyncresource
+[`process.getActiveResourcesInfo()`]: process.md#processgetActiveResourcesInfo
 [`Worker`]: worker_threads.md#class-worker
 [`after` callback]: #afterasyncid
 [`before` callback]: #beforeasyncid
