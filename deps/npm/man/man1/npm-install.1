@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "September 2022" "" ""
+.TH "NPM\-INSTALL" "1" "November 2022" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SS Synopsis
@@ -26,23 +26,23 @@ following order of precedence:
 
 .RE
 .P
-See npm help package\-lock\.json and
-npm help \fBshrinkwrap\fP\|\.
+See package\-lock\.json \fI/configuring\-npm/package\-lock\-json\fR and
+npm help shrinkwrap\.
 .P
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
 a) a folder containing a program described by a
-npm help \fBpackage\.json\fP file
+\fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
 c) a url that resolves to (b)
 .IP \(bu 2
 d) a \fB<name>@<version>\fP that is published on the registry (see
-npm help \fBregistry\fP) with (c)
+npm help registry) with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP (see npm help \fBdist\-tag\fP) that
+e) a \fB<name>@<tag>\fP (see npm help dist\-tag) that
 points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
@@ -63,7 +63,7 @@ into a tarball (b)\.
   it installs the current package context (ie, the current working
   directory) as a global package\.
   By default, \fBnpm install\fP will install all modules listed as
-  dependencies in npm help \fBpackage\.json\fP\|\.
+  dependencies in \fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment
   variable is set to \fBproduction\fP), npm will not install modules listed
   in \fBdevDependencies\fP\|\. To install all modules listed in both
@@ -97,7 +97,7 @@ NOTE: If you want to install the content of a directory like a package from the 
 \fBnpm install <tarball file>\fP:
   Install a package that is sitting on the filesystem\.  Note: if you just
   want to link a dev directory into your npm root, you can do this more
-  easily by using npm help \fBlink\fP\|\.
+  easily by using npm help link\.
   Tarball requirements:
 .RS
 .IP \(bu 2
@@ -134,7 +134,7 @@ npm install \./package\.tgz
 .IP \(bu 2
 \fBnpm install [<@scope>/]<name>\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help \fBconfig\fP\|\. The config's default value is \fBlatest\fP\|\.)
+  npm help config\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the version of the modules tagged as
   \fBlatest\fP on the npm registry\.
   Example:
@@ -171,7 +171,7 @@ then it will be updated as well\.
 \fB<scope>\fP is optional\. The package will be downloaded from the registry
 associated with the specified scope\. If no registry is associated with
 the given scope the default registry is assumed\. See
-npm help \fBscope\fP\|\.
+npm help scope\.
 Note: if you do not include the @\-symbol on your scope name, npm will
 interpret this as a GitHub repository instead, see below\. Scopes names
 must also be followed by a slash\.
@@ -242,7 +242,7 @@ fetch the package by name if it is not valid\.
 \fBnpm install [<@scope>/]<name>@<version range>\fP:
   Install a version of the package matching the specified version range\.
   This will follow the same rules for resolving dependencies described in
-  npm help \fBpackage\.json\fP\|\.
+  \fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR\|\.
   Note that most version ranges must be put in quotes so that your shell
   will treat it as a single argument\.
   Example:
@@ -421,7 +421,7 @@ npm install sax \-\-force
 .RE
 .SS Configuration
 .P
-See the npm help \fBconfig\fP help doc\.  Many of the configuration
+See the npm help config help doc\.  Many of the configuration
 params have some effect on installation, since that's most of what npm
 does\.
 .P
@@ -599,7 +599,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBbin\-links\fP
 .RS 0
@@ -626,8 +626,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2
@@ -792,7 +791,7 @@ npm help uninstall
 .IP \(bu 2
 npm help shrinkwrap
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help workspaces
 

@@ -16,7 +16,7 @@ const { getContents, logTar } = require('../utils/tar.js')
 // keys that npm supports in .npmrc files and elsewhere.  We *may* want to
 // revisit this at some point, and have a minimal set that's a SemVer-major
 // change that ought to get a RFC written on it.
-const flatten = require('../utils/config/flatten.js')
+const { flatten } = require('../utils/config/index.js')
 
 // this is the only case in the CLI where we want to use the old full slow
 // 'read-package-json' module, because we want to pull in all the defaults and

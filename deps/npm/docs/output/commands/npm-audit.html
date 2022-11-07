@@ -146,14 +146,8 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm audit [fix|signatures]
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
@@ -314,9 +308,6 @@ fixing anything:</p>
 <pre lang="bash"><code>$ npm audit --audit-level=moderate
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="audit-level"><code>audit-level</code></h4>
 <ul>
 <li>Default: null</li>
@@ -324,8 +315,6 @@ fixing anything:</p>
 </ul>
 <p>The minimum level of vulnerability for <code>npm audit</code> to exit with a non-zero
 exit code.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
@@ -337,8 +326,6 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
 <p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
 <code>owner</code>, etc.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="force"><code>force</code></h4>
 <ul>
 <li>Default: false</li>
@@ -364,8 +351,6 @@ range (including SemVer-major changes).</li>
 </ul>
 <p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -377,8 +362,6 @@ recommended that you do not use this option!</p>
 saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>
 <li>Default: false</li>
@@ -390,8 +373,6 @@ ignoring <code>node_modules</code>.</p>
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <p>For <code>list</code> this means the output will be based on the tree described by the
 <code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -406,8 +387,6 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -418,8 +397,6 @@ scripts for installed packages in the foreground process, sharing standard
 input, output, and error with the main npm process.</p>
 <p>Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -430,8 +407,6 @@ but can be useful for debugging.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -451,8 +426,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -469,8 +442,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -481,8 +452,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
@@ -491,9 +460,6 @@ the specified workspaces, and not on the root project.</p>
 <p>When set file: protocol dependencies that exist outside of the project root
 will be packed and installed as regular dependencies instead of creating a
 symlink. This option has no effect on workspaces.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-install.html">npm install</a></li>

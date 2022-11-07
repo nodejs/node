@@ -1,4 +1,5 @@
 const abbrev = require('abbrev')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 // plumbing should not have any aliases
 const aliases = {
@@ -69,8 +70,7 @@ const aliases = {
 }
 
 // these are filenames in .
-// Keep these sorted so that lib/utils/npm-usage.js outputs in order
-const cmdList = [
+const commands = [
   'access',
   'adduser',
   'audit',
@@ -141,11 +141,13 @@ const cmdList = [
 ]
 
 const plumbing = ['birthday', 'help-search']
-const abbrevs = abbrev(cmdList.concat(Object.keys(aliases)))
+const allCommands = [...commands, ...plumbing].sort(localeCompare)
+const abbrevs = abbrev(commands.concat(Object.keys(aliases)))
 
 module.exports = {
   abbrevs,
   aliases,
-  cmdList,
+  commands,
   plumbing,
+  allCommands,
 }

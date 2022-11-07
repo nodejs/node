@@ -66,6 +66,7 @@ const LoadMockNpm = async (t, {
   globalPrefixDir = { lib: {} },
   config = {},
   mocks = {},
+  otherDirs = {},
   globals = null,
 } = {}) => {
   // Mock some globals with their original values so they get torn down
@@ -107,6 +108,7 @@ const LoadMockNpm = async (t, {
     prefix: prefixDir,
     cache: cacheDir,
     global: globalPrefixDir,
+    other: otherDirs,
   })
   const dirs = {
     testdir: dir,
@@ -114,6 +116,7 @@ const LoadMockNpm = async (t, {
     cache: path.join(dir, 'cache'),
     globalPrefix: path.join(dir, 'global'),
     home: path.join(dir, 'home'),
+    other: path.join(dir, 'other'),
   }
 
   // Set cache to testdir via env var so it is available when load is run

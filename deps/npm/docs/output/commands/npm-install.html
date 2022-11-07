@@ -146,16 +146,10 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm install [&lt;package-spec&gt; ...]
 
 aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command installs a package and any packages that it depends on. If the
 package has a package-lock, or an npm shrinkwrap file, or a yarn lock file,
@@ -486,9 +480,6 @@ even if a local copy exists on disk.</p>
 params have some effect on installation, since that's most of what npm
 does.</p>
 <p>These are some of the most common options related to installation.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
 <li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
@@ -498,8 +489,6 @@ does.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
 <code>package.json</code>.</p>
 <p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-exact"><code>save-exact</code></h4>
 <ul>
 <li>Default: false</li>
@@ -507,8 +496,6 @@ does.</p>
 </ul>
 <p>Dependencies saved to package.json will be configured with an exact version
 rather than using npm's default semver range operator.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
 <ul>
 <li>Default: false</li>
@@ -523,8 +510,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global-style"><code>global-style</code></h4>
 <ul>
 <li>Default: false</li>
@@ -536,8 +521,6 @@ direct dependencies will show in <code>node_modules</code> and everything they d
 on will be flattened in their <code>node_modules</code> folders. This obviously will
 eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
 will be preferred.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
@@ -547,8 +530,6 @@ will be preferred.</p>
 such as the one included with node 0.8, can install the package. This
 eliminates all automatic deduping. If used with <code>global-style</code> this option
 will be preferred.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -563,8 +544,6 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -581,8 +560,6 @@ the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package-lock"><code>package-lock</code></h4>
 <ul>
 <li>Default: true</li>
@@ -591,8 +568,6 @@ this warning is treated as a failure.</p>
 <p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
 will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
 <p>This configuration does not affect <code>npm ci</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -603,8 +578,6 @@ scripts for installed packages in the foreground process, sharing standard
 input, output, and error with the main npm process.</p>
 <p>Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -615,8 +588,6 @@ but can be useful for debugging.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -626,8 +597,6 @@ will <em>not</em> run any pre- or post-scripts.</p>
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -638,8 +607,6 @@ executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fund"><code>fund</code></h4>
 <ul>
 <li>Default: true</li>
@@ -647,8 +614,6 @@ systems.</p>
 </ul>
 <p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
@@ -660,8 +625,6 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
 <p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
 <code>owner</code>, etc.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -681,8 +644,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -699,8 +660,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -711,8 +670,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
@@ -721,9 +678,6 @@ the specified workspaces, and not on the root project.</p>
 <p>When set file: protocol dependencies that exist outside of the project root
 will be packed and installed as regular dependencies instead of creating a
 symlink. This option has no effect on workspaces.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="algorithm">Algorithm</h3>
 <p>Given a <code>package{dep}</code> structure: <code>A{B,C}, B{C}, C{D}</code>,
 the npm install algorithm produces:</p>

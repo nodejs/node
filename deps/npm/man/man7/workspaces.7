@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "September 2022" "" ""
+.TH "WORKSPACES" "7" "November 2022" "" ""
 .SH "NAME"
 \fBworkspaces\fR \- Working with workspaces
 .SS Description
@@ -15,12 +15,12 @@ order to add references to packages that should be symlinked into the current
 .P
 We also refer to these packages being auto\-symlinked during \fBnpm install\fP as a
 single \fBworkspace\fR, meaning it's a nested package within the current local
-file system that is explicitly defined in the npm help \fBpackage\.json\fP
+file system that is explicitly defined in the \fBpackage\.json\fP \fI/configuring\-npm/package\-json#workspaces\fR
 \fBworkspaces\fP configuration\.
 .SS Defining workspaces
 .P
 Workspaces are usually defined via the \fBworkspaces\fP property of the
-npm help \fBpackage\.json\fP file, e\.g:
+\fBpackage\.json\fP \fI/configuring\-npm/package\-json#workspaces\fR file, e\.g:
 .P
 .RS 2
 .nf
@@ -84,7 +84,7 @@ file (if needed) while also making sure to properly configure the
 .SS Adding dependencies to a workspace
 .P
 It's possible to directly add/remove/update dependencies of your workspaces
-using the npm help \fBworkspace\fP config\.
+using the \fBworkspace\fP config \fI/using\-npm/config#workspace\fR\|\.
 .P
 For example, assuming the following structure:
 .P

@@ -155,10 +155,9 @@ settings described in <a href="../using-npm/config.html"><code>config</code></a>
 <p>If you plan to publish your package, the <em>most</em> important things in your
 package.json are the name and version fields as they will be required. The
 name and version together form an identifier that is assumed to be
-completely unique.  Changes to the package should come along with changes
-to the version. If you don't plan to publish your package, the name and
-version fields are optional.</p>
-<p>The name is what your thing is called.</p>
+completely unique. If you don't plan to publish your package, the name and
+version fields are optional.
+The name field contains your package name.</p>
 <p>Some rules:</p>
 <ul>
 <li>The name must be less than or equal to 214 characters. This includes the
@@ -185,12 +184,9 @@ that name already, before you get too attached to it.
 <p>A name can be optionally prefixed by a scope, e.g. <code>@myorg/mypackage</code>. See
 <a href="../using-npm/scope.html"><code>scope</code></a> for more detail.</p>
 <h3 id="version">version</h3>
-<p>If you plan to publish your package, the <em>most</em> important things in your
-package.json are the name and version fields as they will be required. The
-name and version together form an identifier that is assumed to be
-completely unique.  Changes to the package should come along with changes
-to the version. If you don't plan to publish your package, the name and
-version fields are optional.</p>
+<p>Changes to the package should come along with changes to the version.
+You can show developers how much they need to adjust on a new update by
+using <a href="../../about-semantic-versioning">semantic versioning</a></p>
 <p>Version must be parseable by
 <a href="https://github.com/npm/node-semver">node-semver</a>, which is bundled with
 npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>

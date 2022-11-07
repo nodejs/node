@@ -146,9 +146,6 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm exec -- &lt;pkg&gt;[@&lt;version&gt;] [args...]
 npm exec --package=&lt;pkg&gt;[@&lt;version&gt;] -- &lt;cmd&gt; [args...]
 npm exec -c '&lt;cmd&gt; [args...]'
@@ -156,9 +153,6 @@ npm exec --package=foo -c '&lt;cmd&gt; [args...]'
 
 alias: x
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command allows you to run an arbitrary command from an npm package
 (either one installed locally, or fetched remotely), in a similar context
@@ -228,17 +222,12 @@ thus be equivalent to the <code>npx</code> command above:</p>
 <pre><code>$ npm exec -- foo@latest bar --package=@npmcli/foo
 </code></pre>
 <h3 id="configuration">Configuration</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package"><code>package</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
 <p>The package or packages to install for <a href="../commands/npm-exec.html"><code>npm exec</code></a></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="call"><code>call</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -248,8 +237,6 @@ thus be equivalent to the <code>npx</code> command above:</p>
 custom command to be run along with the installed packages.</p>
 <pre lang="bash"><code>npm exec --package yo --package generator-node --call "yo node"
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -269,8 +256,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -287,8 +272,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -299,9 +282,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="examples">Examples</h3>
 <p>Run the version of <code>tap</code> in the local dependencies, with the provided
 arguments:</p>
