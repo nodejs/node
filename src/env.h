@@ -302,7 +302,8 @@ class AsyncHooks : public MemoryRetainer {
   // The `js_execution_async_resources` array contains the value in that case.
   inline v8::Local<v8::Object> native_execution_async_resource(size_t index);
 
-  void SetJSPromiseHooks(v8::Local<v8::Function> init,
+  void InstallPromiseHooks(v8::Local<v8::Context> ctx);
+  void ResetPromiseHooks(v8::Local<v8::Function> init,
                          v8::Local<v8::Function> before,
                          v8::Local<v8::Function> after,
                          v8::Local<v8::Function> resolve);
@@ -320,9 +321,6 @@ class AsyncHooks : public MemoryRetainer {
                           v8::Local<v8::Object> execution_async_resource);
   bool pop_async_context(double async_id);
   void clear_async_id_stack();  // Used in fatal exceptions.
-
-  void AddContext(v8::Local<v8::Context> ctx);
-  void RemoveContext(v8::Local<v8::Context> ctx);
 
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
@@ -385,8 +383,6 @@ class AsyncHooks : public MemoryRetainer {
 
   // Non-empty during deserialization
   const SerializeInfo* info_ = nullptr;
-
-  std::vector<v8::Global<v8::Context>> contexts_;
 
   std::array<v8::Global<v8::Function>, 4> js_promise_hooks_;
 };
@@ -696,9 +692,15 @@ class Environment : public MemoryRetainer {
   template <typename T, typename OnCloseCallback>
   inline void CloseHandle(T* handle, OnCloseCallback callback);
 
+  void ResetPromiseHooks(v8::Local<v8::Function> init,
+                         v8::Local<v8::Function> before,
+                         v8::Local<v8::Function> after,
+                         v8::Local<v8::Function> resolve);
   void AssignToContext(v8::Local<v8::Context> context,
                        Realm* realm,
                        const ContextInfo& info);
+  void TrackContext(v8::Local<v8::Context> context);
+  void UntrackContext(v8::Local<v8::Context> context);
 
   void StartProfilerIdleNotifier();
 
@@ -1130,6 +1132,7 @@ class Environment : public MemoryRetainer {
 
   EnabledDebugList enabled_debug_list_;
 
+  std::vector<v8::Global<v8::Context>> contexts_;
   std::list<node_module> extra_linked_bindings_;
   Mutex extra_linked_bindings_mutex_;
 
