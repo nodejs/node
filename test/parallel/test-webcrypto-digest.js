@@ -83,7 +83,7 @@ Promise.all([1, [], {}, null, undefined].map((i) =>
 // addition to the API, and is added as a support for future additional
 // hash algorithms that support variable digest output lengths.
 assert.rejects(subtle.digest({ name: 'SHA-512', length: 510 }, kData), {
-  message: /Digest method not supported/
+  name: 'OperationError',
 }).then(common.mustCall());
 
 const kSourceData = {
