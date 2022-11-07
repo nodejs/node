@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "September 2022" "" ""
+.TH "CONFIG" "7" "November 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -24,7 +24,7 @@ interpreted as a configuration parameter\.  For example, putting
 configuration parameter to \fBbar\fP\|\.  Any environment configurations that
 are not given a value will be given the value of \fBtrue\fP\|\.  Config
 values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fP will work the
-same\. However, please note that inside npm help \fBscripts\fP
+same\. However, please note that inside npm help scripts
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set\.
 For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
@@ -234,7 +234,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBaudit\-level\fP
 .RS 0
@@ -350,8 +350,7 @@ Type: Path
 
 .RE
 .P
-The location of npm's cache directory\. See npm help \fBnpm
-cache\fP
+The location of npm's cache directory\. See npm help cache
 .SS \fBcafile\fP
 .RS 0
 .IP \(bu 2
@@ -729,8 +728,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBgit\fP
 .RS 0
 .IP \(bu 2
@@ -1146,7 +1144,7 @@ Type: null or Path
 
 .RE
 .P
-The location of npm's log directory\. See npm help \fBlogging\fP
+The location of npm's log directory\. See npm help logging
 for more information\.
 .SS \fBlogs\-max\fP
 .RS 0
@@ -1315,7 +1313,7 @@ Type: String (can be set multiple times)
 
 .RE
 .P
-The package or packages to install for npm help \fBexec\fP
+The package or packages to install for npm help exec
 .SS \fBpackage\-lock\fP
 .RS 0
 .IP \(bu 2
