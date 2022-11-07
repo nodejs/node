@@ -556,7 +556,10 @@ Maybe<bool> AESCipherTraits::AdditionalConfig(
   }
 
   params->cipher = EVP_get_cipherbynid(cipher_nid);
-  CHECK_NOT_NULL(params->cipher);
+  if (params->cipher == nullptr) {
+    THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
+    return Nothing<bool>();
+  }
 
   if (params->iv.size() <
       static_cast<size_t>(EVP_CIPHER_iv_length(params->cipher))) {
