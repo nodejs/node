@@ -1,4 +1,4 @@
-.TH "NPM\-LINK" "1" "September 2022" "" ""
+.TH "NPM\-LINK" "1" "November 2022" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SS Synopsis
@@ -31,7 +31,7 @@ Note that \fBpackage\-name\fP is taken from \fBpackage\.json\fP, \fInot\fR from 
 directory name\.
 .P
 The package name can be optionally prefixed with a scope\. See
-npm help \fBscope\fP\|\.  The scope must be preceded by an @\-symbol and
+npm help scope\.  The scope must be preceded by an @\-symbol and
 followed by a slash\.
 .P
 When creating tarballs for \fBnpm publish\fP, the linked packages are
@@ -78,7 +78,7 @@ installation target into your project's \fBnode_modules\fP folder\.
 Note that in this case, you are referring to the directory name,
 \fBnode\-redis\fP, rather than the package name \fBredis\fP\|\.
 .P
-If your linked package is scoped (see npm help \fBscope\fP) your
+If your linked package is scoped (see npm help scope) your
 link command must include that scope, e\.g\.
 .P
 .RS 2
@@ -270,7 +270,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBbin\-links\fP
 .RS 0
@@ -297,8 +297,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2
@@ -400,11 +399,11 @@ symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2
-npm help package spec
+npm help "package spec"
 .IP \(bu 2
 npm help developers
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help install
 .IP \(bu 2

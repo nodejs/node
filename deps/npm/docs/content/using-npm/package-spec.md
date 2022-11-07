@@ -4,7 +4,6 @@ section: 7
 description: Package name specifier
 ---
 
-
 ### Description
 
 Commands like `npm install` and the dependency sections in the
