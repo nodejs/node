@@ -796,32 +796,19 @@ void AfterNoArgs(uv_fs_t* req) {
     req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
 }
 
-struct OpenFileCtx {
-  char* fd;
-};
-
-void CleanOpenFileCtx(uv_fs_t* req) {
-  OpenFileCtx* of_ctx = static_cast<OpenFileCtx*>(req->data);
-  delete of_ctx;
-}
-
-void OpenFileAfterStat(uv_fs_t* req) {
+void AfterStat(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-
   if (after.Proceed()) {
     req_wrap->ResolveStat(&req->statbuf);
   }
-
-  if (req->data != nullptr) CleanOpenFileCtx(req);
 }
 
 void OpenFileAfterOpen(uv_fs_t* open_req) {
   FSReqBase* req_wrap = FSReqBase::from_req(open_req);
   int result = static_cast<int>(open_req->result);
-  OpenFileCtx* of_ctx = static_cast<OpenFileCtx*>(open_req->data);
 
   FS_ASYNC_TRACE_END1(
       open_req->fs_type, req_wrap, "result", result)
@@ -831,31 +818,18 @@ void OpenFileAfterOpen(uv_fs_t* open_req) {
     req_wrap->Reject(
       UVException(req_wrap->env()->isolate(), result, "open", nullptr, open_req->path));
 
-    if (open_req->data != nullptr) {
-      CleanOpenFileCtx(open_req);
-    }
     req_wrap = nullptr;
     return;
   }
 
-  char* fd = of_ctx->fd;
+  char* fd = static_cast<char *>(open_req->data);
   fd[0] = result;
 
   FS_ASYNC_TRACE_BEGIN0(UV_FS_FSTAT, req_wrap)
   uv_fs_fstat(req_wrap->env()->event_loop(),
               req_wrap->req(),
               open_req->result,
-              OpenFileAfterStat);
-}
-
-void AfterStat(uv_fs_t* req) {
-  FSReqBase* req_wrap = FSReqBase::from_req(req);
-  FSReqAfterScope after(req_wrap, req);
-  FS_ASYNC_TRACE_END1(
-      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
-  if (after.Proceed()) {
-    req_wrap->ResolveStat(&req->statbuf);
-  }
+              AfterStat);
 }
 
 void AfterStatFs(uv_fs_t* req) {
@@ -2143,9 +2117,8 @@ static void OpenFile(const FunctionCallbackInfo<Value>& args) {
   FSReqBase* req_wrap = GetReqWrap(args, 4, false);
   if (req_wrap != nullptr) {
     req_wrap->set_is_plain_open(true);
-
-    OpenFileCtx* of_ctx = new OpenFileCtx { fd_buffer };
-    req_wrap->req()->data = of_ctx;
+    // Note: set fd in context
+    req_wrap->req()->data = fd_buffer;
 
     FS_ASYNC_TRACE_BEGIN0(UV_FS_OPEN, req_wrap)
     uv_fs_open(env->event_loop(),
