@@ -42,8 +42,6 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
     *
     *
     *
-    *
-    *
   ...
 # Subtest: sync skip pass
 ok 5 - sync skip pass # SKIP
