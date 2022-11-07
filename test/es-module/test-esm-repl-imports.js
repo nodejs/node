@@ -9,7 +9,7 @@ const { describe, it } = require('node:test');
 
 
 describe('ESM: REPL runs', { concurrency: true }, () => {
-  it((context, done) => {
+  it((done) => {
     const child = spawn(execPath, [
       '--interactive',
     ], {
