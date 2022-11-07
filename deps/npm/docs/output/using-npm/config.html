@@ -186,9 +186,6 @@ CLI option <code>--globalconfig</code> or environment variable <code>$NPM_CONFIG
 internal to npm, and are defaults if nothing else is specified.</p>
 <h3 id="shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</h3>
 <p>The following shorthands are parsed on the command-line:</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <ul>
 <li><code>-a</code>: <code>--all</code></li>
 <li><code>--enjoy-by</code>: <code>--before</code></li>
@@ -231,9 +228,6 @@ internal to npm, and are defaults if nothing else is specified.</p>
 <li><code>--ws</code>: <code>--workspaces</code></li>
 <li><code>-y</code>: <code>--yes</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <p>If the specified configuration param resolves unambiguously to a known
 configuration parameter, then it is expanded to that configuration
 parameter.  For example:</p>
@@ -250,9 +244,6 @@ example:</p>
 npm ls --global --parseable --long --loglevel info
 </code></pre>
 <h3 id="config-settings">Config Settings</h3>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="auth"><code>_auth</code></h4>
 <ul>
 <li>Default: null</li>
@@ -264,8 +255,6 @@ registries you will need to scope it like "//other-registry.tld/:_auth"</p>
 <p>Warning: This should generally not be set via a command-line option. It is
 safer to use a registry-provided authentication bearer token stored in the
 ~/.npmrc file by running <code>npm login</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="access"><code>access</code></h4>
 <ul>
 <li>Default: 'restricted' for scoped packages, 'public' for unscoped packages</li>
@@ -280,8 +269,6 @@ the package access level on the initial publish of the package. Any
 subsequent <code>npm publish</code> commands using the <code>--access</code> flag will not have an
 effect to the access level. To make changes to the access level after the
 initial publish use <code>npm access</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="all"><code>all</code></h4>
 <ul>
 <li>Default: false</li>
@@ -290,8 +277,6 @@ initial publish use <code>npm access</code>.</p>
 <p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
 outdated or installed packages, rather than only those directly depended
 upon by the current project.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="allow-same-version"><code>allow-same-version</code></h4>
 <ul>
 <li>Default: false</li>
@@ -299,8 +284,6 @@ upon by the current project.</p>
 </ul>
 <p>Prevents throwing an error when <code>npm version</code> is used to set the new version
 to the same value as the current version.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -310,8 +293,6 @@ to the same value as the current version.</p>
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="audit-level"><code>audit-level</code></h4>
 <ul>
 <li>Default: null</li>
@@ -319,8 +300,6 @@ submitted.</p>
 </ul>
 <p>The minimum level of vulnerability for <code>npm audit</code> to exit with a non-zero
 exit code.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="auth-type"><code>auth-type</code></h4>
 <ul>
 <li>Default: "legacy"</li>
@@ -329,8 +308,6 @@ exit code.</p>
 <p>NOTE: auth-type values "sso", "saml", "oauth", and "webauthn" will be
 removed in a future version.</p>
 <p>What authentication strategy to use with <code>login</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="before"><code>before</code></h4>
 <ul>
 <li>Default: null</li>
@@ -344,8 +321,6 @@ dependencies, the command will error.</p>
 <code>--before</code> filter, the most recent version less than or equal to that tag
 will be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though
 <code>latest</code> is <code>2.0</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -356,8 +331,6 @@ executables.</p>
 <p>Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="browser"><code>browser</code></h4>
 <ul>
 <li>Default: OS X: <code>"open"</code>, Windows: <code>"start"</code>, Others: <code>"xdg-open"</code></li>
@@ -367,8 +340,6 @@ systems.</p>
 <p>Set to <code>false</code> to suppress browser behavior and instead print urls to
 terminal.</p>
 <p>Set to <code>true</code> to use default system URL opener.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ca"><code>ca</code></h4>
 <ul>
 <li>Default: null</li>
@@ -387,16 +358,12 @@ trust only that specific signing authority.</p>
 ca[]="..."
 </code></pre>
 <p>See also the <code>strict-ssl</code> config.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cache"><code>cache</code></h4>
 <ul>
 <li>Default: Windows: <code>%LocalAppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: Path</li>
 </ul>
 <p>The location of npm's cache directory. See <a href="../commands/npm-cache.html"><code>npm cache</code></a></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cafile"><code>cafile</code></h4>
 <ul>
 <li>Default: null</li>
@@ -405,8 +372,6 @@ ca[]="..."
 <p>A path to a file containing one or multiple Certificate Authority signing
 certificates. Similar to the <code>ca</code> setting, but allows for multiple CA's, as
 well as for the CA information to be stored in a file on disk.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="call"><code>call</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -416,8 +381,6 @@ well as for the CA information to be stored in a file on disk.</p>
 custom command to be run along with the installed packages.</p>
 <pre lang="bash"><code>npm exec --package yo --package generator-node --call "yo node"
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cert"><code>cert</code></h4>
 <ul>
 <li>Default: null</li>
@@ -431,8 +394,6 @@ newlines replaced by the string "\n". For example:</p>
 <p>It is <em>not</em> the path to a certificate file, though you can set a
 registry-scoped "certfile" path like
 "//other-registry.tld/:certfile=/path/to/cert.pem".</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ci-name"><code>ci-name</code></h4>
 <ul>
 <li>Default: The name of the current CI system, or <code>null</code> when not on a known CI
@@ -442,8 +403,6 @@ platform.</li>
 <p>The name of a continuous integration system. If not set explicitly, npm will
 detect the current CI environment using the
 <a href="http://npm.im/@npmcli/ci-detect"><code>@npmcli/ci-detect</code></a> module.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cidr"><code>cidr</code></h4>
 <ul>
 <li>Default: null</li>
@@ -451,8 +410,6 @@ detect the current CI environment using the
 </ul>
 <p>This is a list of CIDR address to be used when configuring limited access
 tokens with the <code>npm token create</code> command.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="color"><code>color</code></h4>
 <ul>
 <li>Default: true unless the NO_COLOR environ is set to something other than '0'</li>
@@ -460,16 +417,12 @@ tokens with the <code>npm token create</code> command.</p>
 </ul>
 <p>If false, never shows colors. If <code>"always"</code> then always shows colors. If
 true, then only prints color codes for tty file descriptors.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="commit-hooks"><code>commit-hooks</code></h4>
 <ul>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Run git commit hooks when using the <code>npm version</code> command.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="depth"><code>depth</code></h4>
 <ul>
 <li>Default: <code>Infinity</code> if <code>--all</code> is set, otherwise <code>1</code></li>
@@ -478,48 +431,36 @@ true, then only prints color codes for tty file descriptors.</p>
 <p>The depth to go when recursing packages for <code>npm ls</code>.</p>
 <p>If not set, <code>npm ls</code> will show only the immediate dependencies of the root
 project. If <code>--all</code> is set, then npm will show all dependencies by default.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="description2"><code>description</code></h4>
 <ul>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Show the description in <code>npm search</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff"><code>diff</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
 <p>Define arguments to compare in <code>npm diff</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-dst-prefix"><code>diff-dst-prefix</code></h4>
 <ul>
 <li>Default: "b/"</li>
 <li>Type: String</li>
 </ul>
 <p>Destination prefix to be used in <code>npm diff</code> output.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-ignore-all-space"><code>diff-ignore-all-space</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Ignore whitespace when comparing lines in <code>npm diff</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-name-only"><code>diff-name-only</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Prints only filenames when using <code>npm diff</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-no-prefix"><code>diff-no-prefix</code></h4>
 <ul>
 <li>Default: false</li>
@@ -528,32 +469,24 @@ project. If <code>--all</code> is set, then npm will show all dependencies by de
 <p>Do not show any source or destination prefix in <code>npm diff</code> output.</p>
 <p>Note: this causes <code>npm diff</code> to ignore the <code>--diff-src-prefix</code> and
 <code>--diff-dst-prefix</code> configs.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-src-prefix"><code>diff-src-prefix</code></h4>
 <ul>
 <li>Default: "a/"</li>
 <li>Type: String</li>
 </ul>
 <p>Source prefix to be used in <code>npm diff</code> output.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-text"><code>diff-text</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Treat all files as text in <code>npm diff</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="diff-unified"><code>diff-unified</code></h4>
 <ul>
 <li>Default: 3</li>
 <li>Type: Number</li>
 </ul>
 <p>The number of lines of context to print in <code>npm diff</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="dry-run"><code>dry-run</code></h4>
 <ul>
 <li>Default: false</li>
@@ -565,8 +498,6 @@ commands that modify your local installation, eg, <code>install</code>, <code>up
 <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
 <p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
 <code>owner</code>, etc.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="editor"><code>editor</code></h4>
 <ul>
 <li>Default: The EDITOR or VISUAL environment variables, or 'notepad.exe' on
@@ -574,8 +505,6 @@ Windows, or 'vim' on Unix systems</li>
 <li>Type: String</li>
 </ul>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="engine-strict"><code>engine-strict</code></h4>
 <ul>
 <li>Default: false</li>
@@ -585,8 +514,6 @@ Windows, or 'vim' on Unix systems</li>
 installing) any package that claims to not be compatible with the current
 Node.js version.</p>
 <p>This can be overridden by setting the <code>--force</code> flag.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fetch-retries"><code>fetch-retries</code></h4>
 <ul>
 <li>Default: 2</li>
@@ -596,16 +523,12 @@ Node.js version.</p>
 from the registry.</p>
 <p>npm will retry idempotent read requests to the registry in the case of
 network failures or 5xx HTTP errors.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fetch-retry-factor"><code>fetch-retry-factor</code></h4>
 <ul>
 <li>Default: 10</li>
 <li>Type: Number</li>
 </ul>
 <p>The "factor" config for the <code>retry</code> module to use when fetching packages.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fetch-retry-maxtimeout"><code>fetch-retry-maxtimeout</code></h4>
 <ul>
 <li>Default: 60000 (1 minute)</li>
@@ -613,8 +536,6 @@ network failures or 5xx HTTP errors.</p>
 </ul>
 <p>The "maxTimeout" config for the <code>retry</code> module to use when fetching
 packages.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fetch-retry-mintimeout"><code>fetch-retry-mintimeout</code></h4>
 <ul>
 <li>Default: 10000 (10 seconds)</li>
@@ -622,16 +543,12 @@ packages.</p>
 </ul>
 <p>The "minTimeout" config for the <code>retry</code> module to use when fetching
 packages.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fetch-timeout"><code>fetch-timeout</code></h4>
 <ul>
 <li>Default: 300000 (5 minutes)</li>
 <li>Type: Number</li>
 </ul>
 <p>The maximum amount of time to wait for HTTP requests to complete.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="force"><code>force</code></h4>
 <ul>
 <li>Default: false</li>
@@ -657,8 +574,6 @@ range (including SemVer-major changes).</li>
 </ul>
 <p>If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -669,8 +584,6 @@ scripts for installed packages in the foreground process, sharing standard
 input, output, and error with the main npm process.</p>
 <p>Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="format-package-lock"><code>format-package-lock</code></h4>
 <ul>
 <li>Default: true</li>
@@ -678,8 +591,6 @@ but can be useful for debugging.</p>
 </ul>
 <p>Format <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> as a human readable
 file.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="fund"><code>fund</code></h4>
 <ul>
 <li>Default: true</li>
@@ -687,8 +598,6 @@ file.</p>
 </ul>
 <p>When "true" displays the message at the end of each <code>npm install</code>
 acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="git"><code>git</code></h4>
 <ul>
 <li>Default: "git"</li>
@@ -696,8 +605,6 @@ acknowledging the number of dependencies looking for funding. See <a href="../co
 </ul>
 <p>The command to use for git commands. If git is installed on the computer,
 but is not in the <code>PATH</code>, then set this to the full path to the git binary.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="git-tag-version"><code>git-tag-version</code></h4>
 <ul>
 <li>Default: true</li>
@@ -705,8 +612,6 @@ but is not in the <code>PATH</code>, then set this to the full path to the git b
 </ul>
 <p>Tag the commit when using the <code>npm version</code> command. Setting this to false
 results in no commit being made at all.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global"><code>global</code></h4>
 <ul>
 <li>Default: false</li>
@@ -721,8 +626,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="global-style"><code>global-style</code></h4>
 <ul>
 <li>Default: false</li>
@@ -734,8 +637,6 @@ direct dependencies will show in <code>node_modules</code> and everything they d
 on will be flattened in their <code>node_modules</code> folders. This obviously will
 eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
 will be preferred.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="globalconfig"><code>globalconfig</code></h4>
 <ul>
 <li>Default: The global --prefix setting plus 'etc/npmrc'. For example,
@@ -743,16 +644,12 @@ will be preferred.</p>
 <li>Type: Path</li>
 </ul>
 <p>The config file to read for global config options.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="heading"><code>heading</code></h4>
 <ul>
 <li>Default: "npm"</li>
 <li>Type: String</li>
 </ul>
 <p>The string that starts all the debugging log output.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="https-proxy"><code>https-proxy</code></h4>
 <ul>
 <li>Default: null</li>
@@ -762,8 +659,6 @@ will be preferred.</p>
 <code>https_proxy</code> or <code>HTTP_PROXY</code> or <code>http_proxy</code> environment variables are set,
 proxy settings will be honored by the underlying <code>make-fetch-happen</code>
 library.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="if-present"><code>if-present</code></h4>
 <ul>
 <li>Default: false</li>
@@ -776,8 +671,6 @@ it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
 <ul>
 <li>Default: false</li>
@@ -788,8 +681,6 @@ CI setup.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
 will still run their intended script if <code>ignore-scripts</code> is set, but they
 will <em>not</em> run any pre- or post-scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include"><code>include</code></h4>
 <ul>
 <li>Default:</li>
@@ -799,8 +690,6 @@ will <em>not</em> run any pre- or post-scripts.</p>
 <p>This is the inverse of <code>--omit=&lt;type&gt;</code>.</p>
 <p>Dependency types specified in <code>--include</code> will not be omitted, regardless of
 the order in which omit/include are specified on the command-line.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-staged"><code>include-staged</code></h4>
 <ul>
 <li>Default: false</li>
@@ -809,8 +698,6 @@ the order in which omit/include are specified on the command-line.</p>
 <p>Allow installing "staged" published packages, as defined by <a href="https://github.com/npm/rfcs/pull/92">npm RFC PR
 #92</a>.</p>
 <p>This is experimental, and not implemented by the npm public registry.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
 <ul>
 <li>Default: false</li>
@@ -821,24 +708,18 @@ the order in which omit/include are specified on the command-line.</p>
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-author-email"><code>init-author-email</code></h4>
 <ul>
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author's email.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-author-name"><code>init-author-name</code></h4>
 <ul>
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author's name.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-author-url"><code>init-author-url</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -846,16 +727,12 @@ the specified workspaces, and not on the root project.</p>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package author's
 homepage.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-license"><code>init-license</code></h4>
 <ul>
 <li>Default: "ISC"</li>
 <li>Type: String</li>
 </ul>
 <p>The value <code>npm init</code> should use by default for the package license.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-module"><code>init-module</code></h4>
 <ul>
 <li>Default: "~/.npm-init.js"</li>
@@ -865,8 +742,6 @@ homepage.</p>
 documentation for the
 <a href="https://github.com/npm/init-package-json">init-package-json</a> module for
 more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="init-version"><code>init-version</code></h4>
 <ul>
 <li>Default: "1.0.0"</li>
@@ -874,8 +749,6 @@ more information, or <a href="../commands/npm-init.html">npm init</a>.</p>
 </ul>
 <p>The value that <code>npm init</code> should use by default for the package version
 number, if not already set in package.json.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
 <li>Default: false</li>
@@ -884,8 +757,6 @@ number, if not already set in package.json.</p>
 <p>When set file: protocol dependencies that exist outside of the project root
 will be packed and installed as regular dependencies instead of creating a
 symlink. This option has no effect on workspaces.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="json"><code>json</code></h4>
 <ul>
 <li>Default: false</li>
@@ -897,8 +768,6 @@ symlink. This option has no effect on workspaces.</p>
 saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="key"><code>key</code></h4>
 <ul>
 <li>Default: null</li>
@@ -910,8 +779,6 @@ format with newlines replaced by the string "\n". For example:</p>
 </code></pre>
 <p>It is <em>not</em> the path to a key file, though you can set a registry-scoped
 "keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
@@ -921,8 +788,6 @@ format with newlines replaced by the string "\n". For example:</p>
 such as the one included with node 0.8, can install the package. This
 eliminates all automatic deduping. If used with <code>global-style</code> this option
 will be preferred.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="legacy-peer-deps"><code>legacy-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -937,16 +802,12 @@ that collide, it provides a way to move forward resolving the situation.</p>
 <code>peerDependencies</code> <em>could</em> be unpacked in a correct place.</p>
 <p>Use of <code>legacy-peer-deps</code> is not recommended, as it will not enforce the
 <code>peerDependencies</code> contract that meta-dependencies may rely on.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="link"><code>link</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Used with <code>npm ls</code>, limiting output to only those packages that are linked.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="local-address"><code>local-address</code></h4>
 <ul>
 <li>Default: null</li>
@@ -954,8 +815,6 @@ that collide, it provides a way to move forward resolving the situation.</p>
 </ul>
 <p>The IP address of the local interface to use when making connections to the
 npm registry. Must be IPv4 in versions of Node prior to 0.12.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="location"><code>location</code></h4>
 <ul>
 <li>Default: "user" unless <code>--global</code> is passed, which will also set this value
@@ -972,8 +831,6 @@ of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="lockfile-version"><code>lockfile-version</code></h4>
 <ul>
 <li>Default: Version 2 if no lockfile or current lockfile version less than or
@@ -992,8 +849,6 @@ and interoperability, at the expense of more bytes on disk.</p>
 <p>3: Only the new lockfile information introduced in npm version 7. Smaller on
 disk than lockfile version 2, but not interoperable with older npm versions.
 Ideal if all users are on npm version 7 and higher.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="loglevel"><code>loglevel</code></h4>
 <ul>
 <li>Default: "notice"</li>
@@ -1005,8 +860,6 @@ path to that file printed if the execution of a command fails.</p>
 <p>Any logs of a higher level than the setting are shown. The default is
 "notice".</p>
 <p>See also the <code>foreground-scripts</code> config.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="logs-dir"><code>logs-dir</code></h4>
 <ul>
 <li>Default: A directory named <code>_logs</code> inside the cache</li>
@@ -1014,8 +867,6 @@ path to that file printed if the execution of a command fails.</p>
 </ul>
 <p>The location of npm's log directory. See <a href="../using-npm/logging.html"><code>npm logging</code></a>
 for more information.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="logs-max"><code>logs-max</code></h4>
 <ul>
 <li>Default: 10</li>
@@ -1023,16 +874,12 @@ for more information.</p>
 </ul>
 <p>The maximum number of log files to store.</p>
 <p>If set to 0, no log files will be written for the current run.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="long"><code>long</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="maxsockets"><code>maxsockets</code></h4>
 <ul>
 <li>Default: 15</li>
@@ -1040,8 +887,6 @@ for more information.</p>
 </ul>
 <p>The maximum number of connections to use per origin (protocol/host/port
 combination).</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="message"><code>message</code></h4>
 <ul>
 <li>Default: "%s"</li>
@@ -1049,8 +894,6 @@ combination).</p>
 </ul>
 <p>Commit message which is used by <code>npm version</code> when creating version commit.</p>
 <p>Any "%s" in the message will be replaced with the version number.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="node-options"><code>node-options</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1059,16 +902,12 @@ combination).</p>
 <p>Options to pass through to Node.js via the <code>NODE_OPTIONS</code> environment
 variable. This does not impact how npm itself is executed but it does impact
 how lifecycle scripts are called.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="node-version"><code>node-version</code></h4>
 <ul>
 <li>Default: Node.js <code>process.version</code> value</li>
 <li>Type: SemVer string</li>
 </ul>
 <p>The node version to use when checking a package's <code>engines</code> setting.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="noproxy"><code>noproxy</code></h4>
 <ul>
 <li>Default: The value of the NO_PROXY environment variable</li>
@@ -1076,16 +915,12 @@ how lifecycle scripts are called.</p>
 </ul>
 <p>Domain extensions that should bypass any proxies.</p>
 <p>Also accepts a comma-delimited string.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="npm-version"><code>npm-version</code></h4>
 <ul>
 <li>Default: Output of <code>npm --version</code></li>
 <li>Type: SemVer string</li>
 </ul>
 <p>The npm version to use when checking a package's <code>engines</code> setting.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="offline"><code>offline</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1093,8 +928,6 @@ how lifecycle scripts are called.</p>
 </ul>
 <p>Force offline mode: no network requests will be done during install. To
 allow the CLI to fill in missing cache data, see <code>--prefer-offline</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
@@ -1109,8 +942,6 @@ physically installed on disk.</p>
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
 variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="omit-lockfile-registry-resolved"><code>omit-lockfile-registry-resolved</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1120,8 +951,6 @@ variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
 registry dependencies. Subsequent installs will need to resolve tarball
 endpoints with the configured registry, likely resulting in a longer install
 time.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="otp"><code>otp</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1131,24 +960,18 @@ time.</p>
 when publishing or changing package permissions with <code>npm access</code>.</p>
 <p>If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="pack-destination"><code>pack-destination</code></h4>
 <ul>
 <li>Default: "."</li>
 <li>Type: String</li>
 </ul>
 <p>Directory in which <code>npm pack</code> will save tarballs.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package"><code>package</code></h4>
 <ul>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
 <p>The package or packages to install for <a href="../commands/npm-exec.html"><code>npm exec</code></a></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package-lock"><code>package-lock</code></h4>
 <ul>
 <li>Default: true</li>
@@ -1157,8 +980,6 @@ password, npm will prompt on the command line for one.</p>
 <p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
 will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
 <p>This configuration does not affect <code>npm ci</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1170,8 +991,6 @@ ignoring <code>node_modules</code>.</p>
 instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <p>For <code>list</code> this means the output will be based on the tree described by the
 <code>package-lock.json</code>, rather than the contents of <code>node_modules</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="parseable"><code>parseable</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1179,8 +998,6 @@ instead of checking <code>node_modules</code> and downloading dependencies.</p>
 </ul>
 <p>Output parseable results from commands that write to standard output. For
 <code>npm search</code>, this will be tab-separated table format.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="prefer-offline"><code>prefer-offline</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1189,8 +1006,6 @@ instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <p>If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 <code>--offline</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="prefer-online"><code>prefer-online</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1198,8 +1013,6 @@ will be requested from the server. To force full offline mode, use
 </ul>
 <p>If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="prefix"><code>prefix</code></h4>
 <ul>
 <li>Default: In global mode, the folder where the node executable is installed.
@@ -1209,8 +1022,6 @@ file or a node_modules folder.</li>
 </ul>
 <p>The location to install global items. If set on the command line, then it
 forces non-global commands to run in the specified folder.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="preid"><code>preid</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -1218,8 +1029,6 @@ forces non-global commands to run in the specified folder.</p>
 </ul>
 <p>The "prerelease identifier" to use as a prefix for the "prerelease" part of
 a semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="progress"><code>progress</code></h4>
 <ul>
 <li>Default: <code>true</code> unless running in a known CI system</li>
@@ -1228,8 +1037,6 @@ a semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
 <p>When set to <code>true</code>, npm will display a progress bar during time intensive
 operations, if <code>process.stderr</code> is a TTY.</p>
 <p>Set to <code>false</code> to suppress the progress bar.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="proxy"><code>proxy</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1238,8 +1045,6 @@ operations, if <code>process.stderr</code> is a TTY.</p>
 <p>A proxy to use for outgoing http requests. If the <code>HTTP_PROXY</code> or
 <code>http_proxy</code> environment variables are set, proxy settings will be honored
 by the underlying <code>request</code> library.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="read-only"><code>read-only</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1247,24 +1052,18 @@ by the underlying <code>request</code> library.</p>
 </ul>
 <p>This is used to mark a token as unable to publish when configuring limited
 access tokens with the <code>npm token create</code> command.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="rebuild-bundle"><code>rebuild-bundle</code></h4>
 <ul>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Rebuild bundled dependencies after installation.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="registry"><code>registry</code></h4>
 <ul>
 <li>Default: "<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>"</li>
 <li>Type: URL</li>
 </ul>
 <p>The base URL of the npm registry.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="replace-registry-host"><code>replace-registry-host</code></h4>
 <ul>
 <li>Default: "npmjs"</li>
@@ -1277,8 +1076,6 @@ registry (<a href="https://registry.npmjs.org">https://registry.npmjs.org</a>) t
 "never", then use the registry value. If set to "always", then replace the
 registry host with the configured host every time.</p>
 <p>You may also specify a bare hostname (e.g., "registry.npmjs.org").</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
 <li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
@@ -1288,8 +1085,6 @@ registry host with the configured host every time.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
 <code>package.json</code>.</p>
 <p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-bundle"><code>save-bundle</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1299,16 +1094,12 @@ registry host with the configured host every time.</p>
 <code>--save-dev</code>, or <code>--save-optional</code>, then also put it in the
 <code>bundleDependencies</code> list.</p>
 <p>Ignored if <code>--save-peer</code> is set, since peerDependencies cannot be bundled.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-dev"><code>save-dev</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a package.json file as <code>devDependencies</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-exact"><code>save-exact</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1316,24 +1107,18 @@ registry host with the configured host every time.</p>
 </ul>
 <p>Dependencies saved to package.json will be configured with an exact version
 rather than using npm's default semver range operator.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-optional"><code>save-optional</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a package.json file as <code>optionalDependencies</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-peer"><code>save-peer</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a package.json file as <code>peerDependencies</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-prefix"><code>save-prefix</code></h4>
 <ul>
 <li>Default: "^"</li>
@@ -1344,8 +1129,6 @@ rather than using npm's default semver range operator.</p>
 <p>For example if a package has version <code>1.2.3</code>, by default its version is set
 to <code>^1.2.3</code> which allows minor upgrades for that package, but after <code>npm config set save-prefix='~'</code> it would be set to <code>~1.2.3</code> which only allows
 patch upgrades.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="save-prod"><code>save-prod</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1356,8 +1139,6 @@ a package already exists in <code>devDependencies</code> or <code>optionalDepend
 you want to move it to be a non-optional production dependency.</p>
 <p>This is the default behavior if <code>--save</code> is true, and neither <code>--save-dev</code>
 or <code>--save-optional</code> are true.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="scope"><code>scope</code></h4>
 <ul>
 <li>Default: the scope of the current project, if any, or ""</li>
@@ -1379,24 +1160,18 @@ installation of packages specified according to the pattern
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 </code></pre>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
 <li>Type: null or String</li>
 </ul>
 <p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;package-spec&gt;</code> commands.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="searchexclude"><code>searchexclude</code></h4>
 <ul>
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that limit the results from search.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="searchlimit"><code>searchlimit</code></h4>
 <ul>
 <li>Default: 20</li>
@@ -1404,16 +1179,12 @@ npm init --scope=@foo --yes
 </ul>
 <p>Number of items to limit search results to. Will not apply at all to legacy
 searches.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="searchopts"><code>searchopts</code></h4>
 <ul>
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that are always passed to search.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="searchstaleness"><code>searchstaleness</code></h4>
 <ul>
 <li>Default: 900</li>
@@ -1421,8 +1192,6 @@ searches.</p>
 </ul>
 <p>The age of the cache, in seconds, before another registry request is made if
 using legacy search endpoint.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="shell"><code>shell</code></h4>
 <ul>
 <li>Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe" on
@@ -1430,8 +1199,6 @@ Windows</li>
 <li>Type: String</li>
 </ul>
 <p>The shell to run for the <code>npm explore</code> command.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="sign-git-commit"><code>sign-git-commit</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1441,8 +1208,6 @@ Windows</li>
 version using <code>-S</code> to add a signature.</p>
 <p>Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="sign-git-tag"><code>sign-git-tag</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1452,8 +1217,6 @@ this to work properly.</p>
 <code>-s</code> to add a signature.</p>
 <p>Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1470,8 +1233,6 @@ the range set in their package's <code>peerDependencies</code> object.</p>
 <p>When such and override is performed, a warning is printed, explaining the
 conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
 this warning is treated as a failure.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="strict-ssl"><code>strict-ssl</code></h4>
 <ul>
 <li>Default: true</li>
@@ -1480,8 +1241,6 @@ this warning is treated as a failure.</p>
 <p>Whether or not to do SSL key validation when making requests to the registry
 via https.</p>
 <p>See also the <code>ca</code> config.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="tag"><code>tag</code></h4>
 <ul>
 <li>Default: "latest"</li>
@@ -1493,8 +1252,6 @@ then it will install the specified tag.</p>
 command, if no explicit tag is given.</p>
 <p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="tag-version-prefix"><code>tag-version-prefix</code></h4>
 <ul>
 <li>Default: "v"</li>
@@ -1506,8 +1263,6 @@ it to the empty string: <code>""</code>.</p>
 <p>Because other tools may rely on the convention that npm version tags look
 like <code>v1.0.0</code>, <em>only use this property if it is absolutely necessary</em>. In
 particular, use care when overriding this setting for public packages.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="timing"><code>timing</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1518,8 +1273,6 @@ particular, use care when overriding this setting for public packages.</p>
 <code>_timing.json</code> is a newline delimited list of JSON objects.</p>
 <p>You can quickly view it with this <a href="https://npm.im/json">json</a> command line:
 <code>npm exec -- json -g &lt; ~/.npm/_timing.json</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="umask"><code>umask</code></h4>
 <ul>
 <li>Default: 0</li>
@@ -1536,8 +1289,6 @@ rather adds the <code>--umask</code> config to it.</p>
 <p>Thus, the effective default umask value on most POSIX systems is 0o22,
 meaning that folders and executables are created with a mode of 0o755 and
 other files are created with a mode of 0o644.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="unicode"><code>unicode</code></h4>
 <ul>
 <li>Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -1546,8 +1297,6 @@ as defined by the <code>LC_ALL</code>, <code>LC_CTYPE</code>, or <code>LANG</cod
 </ul>
 <p>When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="update-notifier"><code>update-notifier</code></h4>
 <ul>
 <li>Default: true</li>
@@ -1555,16 +1304,12 @@ false, it uses ascii characters instead of unicode glyphs.</p>
 </ul>
 <p>Set to false to suppress the update notification when using an older version
 of npm than the latest.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="usage"><code>usage</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
 <p>Show short usage output about the command specified.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="user-agent"><code>user-agent</code></h4>
 <ul>
 <li>Default: "npm/{npm-version} node/{node-version} {platform} {arch}
@@ -1583,8 +1328,6 @@ are set.</li>
 <li><code>{ci}</code> - The value of the <code>ci-name</code> config, if set, prefixed with <code>ci/</code>, or
 an empty string if <code>ci-name</code> is empty.</li>
 </ul>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="userconfig"><code>userconfig</code></h4>
 <ul>
 <li>Default: "~/.npmrc"</li>
@@ -1594,8 +1337,6 @@ an empty string if <code>ci-name</code> is empty.</li>
 <p>This may be overridden by the <code>npm_config_userconfig</code> environment variable
 or the <code>--userconfig</code> command line option, but may <em>not</em> be overridden by
 settings in the <code>globalconfig</code> file.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="version"><code>version</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1603,8 +1344,6 @@ settings in the <code>globalconfig</code> file.</p>
 </ul>
 <p>If true, output the npm version and exit successfully.</p>
 <p>Only relevant when specified explicitly on the command line.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="versions"><code>versions</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1614,8 +1353,6 @@ settings in the <code>globalconfig</code> file.</p>
 the version in the current working directory's <code>package.json</code> file if one
 exists, and exit successfully.</p>
 <p>Only relevant when specified explicitly on the command line.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="viewer"><code>viewer</code></h4>
 <ul>
 <li>Default: "man" on Posix, "browser" on Windows</li>
@@ -1623,16 +1360,12 @@ exists, and exit successfully.</p>
 </ul>
 <p>The program to use to view help content.</p>
 <p>Set to <code>"browser"</code> to view html help content in the default web browser.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="which"><code>which</code></h4>
 <ul>
 <li>Default: null</li>
 <li>Type: null or Number</li>
 </ul>
 <p>If there are multiple funding sources, which 1-indexed source URL to open.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>
 <li>Default:</li>
@@ -1652,8 +1385,6 @@ workspaces within that folder)</li>
 workspace which does not yet exist, to create the folder and set it up as a
 brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1670,8 +1401,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="workspaces-update"><code>workspaces-update</code></h4>
 <ul>
 <li>Default: true</li>
@@ -1679,8 +1408,6 @@ other things (test, exec, publish, etc.) will operate on the root project,
 </ul>
 <p>If set to true, the npm cli will run an update after operations that may
 possibly change the workspaces installed to the <code>node_modules</code> folder.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="yes"><code>yes</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1688,8 +1415,6 @@ possibly change the workspaces installed to the <code>node_modules</code> folder
 </ul>
 <p>Automatically answer "yes" to any prompts that npm might print on the
 command line.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="also"><code>also</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1697,8 +1422,6 @@ command line.</p>
 <li>DEPRECATED: Please use --include=dev instead.</li>
 </ul>
 <p>When set to <code>dev</code> or <code>development</code>, this is an alias for <code>--include=dev</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cache-max"><code>cache-max</code></h4>
 <ul>
 <li>Default: Infinity</li>
@@ -1706,8 +1429,6 @@ command line.</p>
 <li>DEPRECATED: This option has been deprecated in favor of <code>--prefer-online</code></li>
 </ul>
 <p><code>--cache-max=0</code> is an alias for <code>--prefer-online</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="cache-min"><code>cache-min</code></h4>
 <ul>
 <li>Default: 0</li>
@@ -1715,8 +1436,6 @@ command line.</p>
 <li>DEPRECATED: This option has been deprecated in favor of <code>--prefer-offline</code>.</li>
 </ul>
 <p><code>--cache-min=9999 (or bigger)</code> is an alias for <code>--prefer-offline</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="dev"><code>dev</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1724,8 +1443,6 @@ command line.</p>
 <li>DEPRECATED: Please use --include=dev instead.</li>
 </ul>
 <p>Alias for <code>--include=dev</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initauthoremail"><code>init.author.email</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -1733,8 +1450,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-author-email</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-author-email</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initauthorname"><code>init.author.name</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -1742,8 +1457,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-author-name</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-author-name</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initauthorurl"><code>init.author.url</code></h4>
 <ul>
 <li>Default: ""</li>
@@ -1751,8 +1464,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-author-url</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-author-url</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initlicense"><code>init.license</code></h4>
 <ul>
 <li>Default: "ISC"</li>
@@ -1760,8 +1471,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-license</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-license</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initmodule"><code>init.module</code></h4>
 <ul>
 <li>Default: "~/.npm-init.js"</li>
@@ -1769,8 +1478,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-module</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-module</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="initversion"><code>init.version</code></h4>
 <ul>
 <li>Default: "1.0.0"</li>
@@ -1778,8 +1485,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--init-version</code> instead.</li>
 </ul>
 <p>Alias for <code>--init-version</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="only"><code>only</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1787,8 +1492,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--omit=dev</code> to omit dev dependencies from the install.</li>
 </ul>
 <p>When set to <code>prod</code> or <code>production</code>, this is an alias for <code>--omit=dev</code>.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="optional"><code>optional</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1798,8 +1501,6 @@ command line.</p>
 </ul>
 <p>Default value does install optional deps unless otherwise omitted.</p>
 <p>Alias for --include=optional or --omit=optional</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="production"><code>production</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1807,8 +1508,6 @@ command line.</p>
 <li>DEPRECATED: Use <code>--omit=dev</code> instead.</li>
 </ul>
 <p>Alias for <code>--omit=dev</code></p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="shrinkwrap"><code>shrinkwrap</code></h4>
 <ul>
 <li>Default: true</li>
@@ -1816,8 +1515,6 @@ command line.</p>
 <li>DEPRECATED: Use the --package-lock setting instead.</li>
 </ul>
 <p>Alias for --package-lock</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="sso-poll-frequency"><code>sso-poll-frequency</code></h4>
 <ul>
 <li>Default: 500</li>
@@ -1827,8 +1524,6 @@ future version of npm in favor of web-based login.</li>
 </ul>
 <p>When used with SSO-enabled <code>auth-type</code>s, configures how regularly the
 registry should be polled while the user is completing authentication.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="sso-type"><code>sso-type</code></h4>
 <ul>
 <li>Default: "oauth"</li>
@@ -1837,8 +1532,6 @@ registry should be polled while the user is completing authentication.</p>
 future version of npm in favor of web-based login.</li>
 </ul>
 <p>If <code>--auth-type=sso</code>, the type of SSO type to use.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h4 id="tmp"><code>tmp</code></h4>
 <ul>
 <li>Default: The value returned by the Node.js <code>os.tmpdir()</code> method
@@ -1850,9 +1543,6 @@ special location in the cache, and they are managed by
 </ul>
 <p>Historically, the location where temporary files were stored. No longer
 relevant.</p>
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../commands/npm-config.html">npm config</a></li>

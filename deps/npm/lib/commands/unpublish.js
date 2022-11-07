@@ -6,7 +6,7 @@ const path = require('path')
 const util = require('util')
 const readJson = util.promisify(require('read-package-json'))
 
-const flatten = require('../utils/config/flatten.js')
+const { flatten } = require('../utils/config/index.js')
 const getIdentity = require('../utils/get-identity.js')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')

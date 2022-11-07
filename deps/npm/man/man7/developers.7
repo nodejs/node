@@ -1,4 +1,4 @@
-.TH "DEVELOPERS" "7" "September 2022" "" ""
+.TH "DEVELOPERS" "7" "November 2022" "" ""
 .SH "NAME"
 \fBdevelopers\fR \- Developer Guide
 .SS Description
@@ -60,7 +60,7 @@ as its default branch\.
 You need to have a \fBpackage\.json\fP file in the root of your project to do
 much of anything with npm\.  That is basically the whole interface\.
 .P
-See npm help \fBpackage\.json\fP for details about what
+See \fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR for details about what
 goes in that file\.  At the very least, you need:
 .RS 0
 .IP \(bu 2
@@ -96,8 +96,7 @@ full of man pages, they'll get installed just like these ones\.
 .RE
 .P
 You can use \fBnpm init\fP in the root of your package in order to get you
-started with a pretty basic package\.json file\.  See npm help \fBnpm
-init\fP for more info\.
+started with a pretty basic package\.json file\.  See npm help init for more info\.
 .SS Keeping files \fIout\fR of your Package
 .P
 Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's no
@@ -193,7 +192,7 @@ changes in real time without having to keep re\-installing it\.  (You do
 need to either re\-link or \fBnpm rebuild \-g\fP to update compiled packages,
 of course\.)
 .P
-More info at npm help \fBlink\fP\|\.
+More info at npm help link\.
 .SS Before Publishing: Make Sure Your Package Installs and Works
 .P
 \fBThis is important\.\fR
@@ -277,7 +276,7 @@ npm help npm
 .IP \(bu 2
 npm help init
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help scripts
 .IP \(bu 2

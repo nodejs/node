@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "September 2022" "" ""
+.TH "SCRIPTS" "7" "November 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -142,13 +142,13 @@ other system tools on the target machines\.
 .P
 The \fBdependencies\fP script is run any time an \fBnpm\fP command causes changes to the \fBnode_modules\fP directory\. It is run AFTER the changes have been applied and the \fBpackage\.json\fP and \fBpackage\-lock\.json\fP files have been updated\.
 .SS Life Cycle Operation Order
-.SS npm help \fBcache add\fP
+.SS npm help "cache add"
 .RS 0
 .IP \(bu 2
 \fBprepare\fP
 
 .RE
-.SS npm help \fBci\fP
+.SS npm help ci
 .RS 0
 .IP \(bu 2
 \fBpreinstall\fP
@@ -168,13 +168,13 @@ These all run after the actual installation of modules into
 \fBnode_modules\fP, in order, with no internal actions happening in between
 
 .RE
-.SS npm help \fBdiff\fP
+.SS npm help diff
 .RS 0
 .IP \(bu 2
 \fBprepare\fP
 
 .RE
-.SS npm help \fBinstall\fP
+.SS npm help install
 .P
 These also run when you run \fBnpm install \-g <pkg\-name>\fP
 .RS 0
@@ -201,7 +201,7 @@ default the \fBinstall\fP command to compile using node\-gyp via \fBnode\-gyp
 rebuild\fP
 .P
 These are run from the scripts of \fB<pkg\-name>\fP
-.SS npm help \fBpack\fP
+.SS npm help pack
 .RS 0
 .IP \(bu 2
 \fBprepack\fP
@@ -211,7 +211,7 @@ These are run from the scripts of \fB<pkg\-name>\fP
 \fBpostpack\fP
 
 .RE
-.SS npm help \fBpublish\fP
+.SS npm help publish
 .RS 0
 .IP \(bu 2
 \fBprepublishOnly\fP
@@ -229,7 +229,7 @@ These are run from the scripts of \fB<pkg\-name>\fP
 .RE
 .P
 \fBprepare\fP will not run during \fB\-\-dry\-run\fP
-.SS npm help \fBrebuild\fP
+.SS npm help rebuild
 .RS 0
 .IP \(bu 2
 \fBpreinstall\fP
@@ -244,7 +244,7 @@ These are run from the scripts of \fB<pkg\-name>\fP
 .P
 \fBprepare\fP is only run if the current directory is a symlink (e\.g\. with
 linked packages)
-.SS npm help \fBrestart\fP
+.SS npm help restart
 .P
 If there is a \fBrestart\fP script defined, these events are run, otherwise
 \fBstop\fP and \fBstart\fP are both run if present, including their \fBpre\fP and
@@ -258,7 +258,7 @@ If there is a \fBrestart\fP script defined, these events are run, otherwise
 \fBpostrestart\fP
 
 .RE
-.SS npm help \fBrun <user defined>\fP
+.SS \fBnpm run <user defined>\fP \fI/commands/npm\-run\-script\fR
 .RS 0
 .IP \(bu 2
 \fBpre<user\-defined>\fP
@@ -268,7 +268,7 @@ If there is a \fBrestart\fP script defined, these events are run, otherwise
 \fBpost<user\-defined>\fP
 
 .RE
-.SS npm help \fBstart\fP
+.SS npm help start
 .RS 0
 .IP \(bu 2
 \fBprestart\fP
@@ -282,7 +282,7 @@ If there is a \fBrestart\fP script defined, these events are run, otherwise
 If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\fP and
 \fBpoststart\fP will still run in this case\.
-.SS npm help \fBstop\fP
+.SS npm help stop
 .RS 0
 .IP \(bu 2
 \fBprestop\fP
@@ -292,7 +292,7 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBpoststop\fP
 
 .RE
-.SS npm help \fBtest\fP
+.SS npm help test
 .RS 0
 .IP \(bu 2
 \fBpretest\fP
@@ -302,7 +302,7 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBposttest\fP
 
 .RE
-.SS npm help \fBversion\fP
+.SS npm help version
 .RS 0
 .IP \(bu 2
 \fBpreversion\fP
@@ -312,7 +312,7 @@ will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\f
 \fBpostversion\fP
 
 .RE
-.SS A Note on a lack of npm help \fBuninstall\fP scripts
+.SS A Note on a lack of npm help uninstall scripts
 .P
 While npm v6 had \fBuninstall\fP lifecycle scripts, npm v7 does not\. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful\.
 .P
@@ -373,7 +373,7 @@ package\.json file, then your package scripts would have the
 in your code with \fBprocess\.env\.npm_package_name\fP and
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .P
-See npm help \fBpackage\.json\fP for more on package configs\.
+See \fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR for more on package configs\.
 .SS current lifecycle event
 .P
 Lastly, the \fBnpm_lifecycle_event\fP environment variable is set to
@@ -447,7 +447,7 @@ only will prevent some optional features, then it's better to just
 print a warning and exit successfully\.
 .IP \(bu 2
 Try not to use scripts to do what npm can do for you\.  Read through
-npm help \fBpackage\.json\fP to see all the things that you can specify and enable
+\fBpackage\.json\fP \fI/configuring\-npm/package\-json\fR to see all the things that you can specify and enable
 by simply describing your package appropriately\.  In general, this
 will lead to a more robust and consistent state\.
 .IP \(bu 2
@@ -478,7 +478,7 @@ were in when you ran \fBnpm run\fP\|\.
 .IP \(bu 2
 npm help run\-script
 .IP \(bu 2
-npm help package\.json
+package\.json \fI/configuring\-npm/package\-json\fR
 .IP \(bu 2
 npm help developers
 .IP \(bu 2
