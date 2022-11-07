@@ -272,8 +272,8 @@ top level of the file's TAP output.
 
 The second `setImmediate()` creates an `uncaughtException` event.
 `uncaughtException` and `unhandledRejection` events originating from a completed
-test are handled by the `test` module and reported as diagnostic warnings in
-the top level of the file's TAP output.
+test are marked as failed by the `test` module and reported as diagnostic
+warnings in the top level of the file's TAP output.
 
 ```js
 test('a test that creates asynchronous activity', (t) => {
