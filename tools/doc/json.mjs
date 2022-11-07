@@ -104,10 +104,10 @@ export function jsonAPI({ filename }) {
           nodes.slice(0, i).every((node) => node.type === 'list')
         ) {
           const text = textJoin(node.children[0].children, file);
-          const stability = text.match(stabilityExpr);
+          const stability = stabilityExpr.exec(text);
           if (stability) {
             current.stability = parseInt(stability[1], 10);
-            current.stabilityText = stability[2].trim();
+            current.stabilityText = stability[2].replaceAll('\n', ' ').trim();
             delete nodes[i];
           }
         }
