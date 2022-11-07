@@ -14,6 +14,8 @@ function main({ encoding, len, n, ignoreBOM }) {
   const decoder = new TextDecoder(encoding, { ignoreBOM });
 
   bench.start();
-  decoder.decode(buf);
+  for (let i = 0; i < n; i++) {
+    decoder.decode(buf);
+  }
   bench.end(n);
 }
