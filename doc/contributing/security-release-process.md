@@ -26,7 +26,7 @@ The current security stewards are documented in the main Node.js
 | RH and IBM | Joe             | 2022-Mar-18  |
 | NearForm   | Matteo / Rafael | 2022-Jul-07  |
 | Datadog    | Vladimir        | 2022-Sep-23  |
-| NodeSource | Juan            |              |
+| NodeSource | Juan            | 2022-Nov-04  |
 | RH and IBM | Michael         |              |
 
 ## Planning
