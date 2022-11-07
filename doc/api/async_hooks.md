@@ -871,10 +871,10 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`AsyncResource`]: async_context.md#class-asyncresource
 [`Worker`]: worker_threads.md#class-worker
-[`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`after` callback]: #afterasyncid
 [`before` callback]: #beforeasyncid
 [`destroy` callback]: #destroyasyncid
 [`init` callback]: #initasyncid-type-triggerasyncid-resource
+[`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`promiseResolve` callback]: #promiseresolveasyncid
 [promise execution tracking]: #promise-execution-tracking
