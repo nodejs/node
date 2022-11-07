@@ -506,6 +506,7 @@ class ArrayBufferViewContents {
   explicit inline ArrayBufferViewContents(v8::Local<v8::Object> value);
   explicit inline ArrayBufferViewContents(v8::Local<v8::ArrayBufferView> abv);
   inline void Read(v8::Local<v8::ArrayBufferView> abv);
+  inline void ReadValue(v8::Local<v8::Value> buf);
 
   inline const T* data() const { return data_; }
   inline size_t length() const { return length_; }
