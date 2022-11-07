@@ -9,6 +9,7 @@ const semver = require('semver')
 const debug = require('../debug.js')
 const walkUp = require('walk-up-path')
 const log = require('proc-log')
+const hgi = require('hosted-git-info')
 
 const { dirname, resolve, relative } = require('path')
 const { depth: dfwalk } = require('treeverse')
@@ -638,10 +639,15 @@ module.exports = cls => class Reifier extends cls {
     // and no 'bundled: true' setting.
     // Do the best with what we have, or else remove it from the tree
     // entirely, since we can't possibly reify it.
-    const res = node.resolved ? `${node.name}@${this[_registryResolved](node.resolved)}`
-      : node.packageName && node.version
-        ? `${node.packageName}@${node.version}`
-        : null
+    let res = null
+    if (node.resolved) {
+      const registryResolved = this[_registryResolved](node.resolved)
+      if (registryResolved) {
+        res = `${node.name}@${registryResolved}`
+      }
+    } else if (node.packageName && node.version) {
+      res = `${node.packageName}@${node.version}`
+    }
 
     // no idea what this thing is.  remove it from the tree.
     if (!res) {
@@ -718,12 +724,20 @@ module.exports = cls => class Reifier extends cls {
     // ${REGISTRY} or something.  This has to be threaded through the
     // Shrinkwrap and Node classes carefully, so for now, just treat
     // the default reg as the magical animal that it has been.
-    const resolvedURL = new URL(resolved)
+    const resolvedURL = hgi.parseUrl(resolved)
+
+    if (!resolvedURL) {
+      // if we could not parse the url at all then returning nothing
+      // here means it will get removed from the tree in the next step
+      return
+    }
+
     if ((this.options.replaceRegistryHost === resolvedURL.hostname)
       || this.options.replaceRegistryHost === 'always') {
       // this.registry always has a trailing slash
-      resolved = `${this.registry.slice(0, -1)}${resolvedURL.pathname}${resolvedURL.searchParams}`
+      return `${this.registry.slice(0, -1)}${resolvedURL.pathname}${resolvedURL.searchParams}`
     }
+
     return resolved
   }
 

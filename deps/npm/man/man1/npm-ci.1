@@ -1,4 +1,4 @@
-.TH "NPM\-CI" "1" "September 2022" "" ""
+.TH "NPM\-CI" "1" "November 2022" "" ""
 .SH "NAME"
 \fBnpm-ci\fR \- Clean install a project
 .SS Synopsis
@@ -12,7 +12,7 @@ aliases: clean\-install, ic, install\-clean, isntall\-clean
 .RE
 .SS Description
 .P
-This command is similar to npm help \fBinstall\fP, except
+This command is similar to npm help install, except
 it's meant to be used in automated environments such as test platforms,
 continuous integration, and deployment \-\- or any situation where you want
 to make sure you're doing a clean install of your dependencies\.
@@ -253,7 +253,7 @@ Type: Boolean
 .P
 When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
-documentation for npm help \fBaudit\fP for details on what is
+documentation for npm help audit for details on what is
 submitted\.
 .SS \fBbin\-links\fP
 .RS 0
@@ -280,8 +280,7 @@ Type: Boolean
 .RE
 .P
 When "true" displays the message at the end of each \fBnpm install\fP
-acknowledging the number of dependencies looking for funding\. See npm help \fBnpm
-fund\fP for details\.
+acknowledging the number of dependencies looking for funding\. See npm help fund for details\.
 .SS \fBdry\-run\fP
 .RS 0
 .IP \(bu 2
@@ -385,6 +384,6 @@ symlink\. This option has no effect on workspaces\.
 .IP \(bu 2
 npm help install
 .IP \(bu 2
-npm help package\-lock\.json
+package\-lock\.json \fI/configuring\-npm/package\-lock\-json\fR
 
 .RE
