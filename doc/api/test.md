@@ -184,7 +184,7 @@ import { describe, it } from 'node:test';
 const { describe, it } = require('node:test');
 ```
 
-### `only` tests
+## `only` tests
 
 If Node.js is started with the [`--test-only`][] command-line option, it is
 possible to skip all top level tests except for a selected subset by passing
