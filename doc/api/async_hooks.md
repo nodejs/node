@@ -870,8 +870,8 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`AsyncResource`]: async_context.md#class-asyncresource
-[`process.getActiveResourcesInfo()`]: process.md#processgetActiveResourcesInfo
 [`Worker`]: worker_threads.md#class-worker
+[`process.getActiveResourcesInfo()`]: process.md#processgetActiveResourcesInfo
 [`after` callback]: #afterasyncid
 [`before` callback]: #beforeasyncid
 [`destroy` callback]: #destroyasyncid
