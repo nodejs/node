@@ -13,6 +13,8 @@
 # include "./archs/linux-armv4/no-asm/include/openssl/fipskey.h"
 #elif defined(OPENSSL_LINUX) && defined(__aarch64__)
 # include "./archs/linux-aarch64/no-asm/include/openssl/fipskey.h"
+#elif defined(OPENSSL_LINUX) && defined(__loongarch64)
+# include "./archs/linux64-loongarch64/no-asm/include/openssl/fipskey.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__i386__)
 # include "./archs/darwin-i386-cc/no-asm/include/openssl/fipskey.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__x86_64__)
