@@ -16,7 +16,7 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "9.4.0",
+  "version": "9.4.1",
   "files": [
     "lib",
     "dist/espree.cjs",

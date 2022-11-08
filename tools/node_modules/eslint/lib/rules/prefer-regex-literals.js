@@ -248,14 +248,14 @@ module.exports = {
 
         /**
          * Returns a ecmaVersion compatible for regexpp.
-         * @param {any} ecmaVersion The ecmaVersion to convert.
+         * @param {number} ecmaVersion The ecmaVersion to convert.
          * @returns {import("regexpp/ecma-versions").EcmaVersion} The resulting ecmaVersion compatible for regexpp.
          */
         function getRegexppEcmaVersion(ecmaVersion) {
-            if (typeof ecmaVersion !== "number" || ecmaVersion <= 5) {
+            if (ecmaVersion <= 5) {
                 return 5;
             }
-            return Math.min(ecmaVersion + 2009, REGEXPP_LATEST_ECMA_VERSION);
+            return Math.min(ecmaVersion, REGEXPP_LATEST_ECMA_VERSION);
         }
 
         /**
@@ -320,7 +320,7 @@ module.exports = {
                             flags = getStringValue(node.arguments[1]);
                         }
 
-                        const regexppEcmaVersion = getRegexppEcmaVersion(context.parserOptions.ecmaVersion);
+                        const regexppEcmaVersion = getRegexppEcmaVersion(context.languageOptions.ecmaVersion);
                         const RegExpValidatorInstance = new RegExpValidator({ ecmaVersion: regexppEcmaVersion });
 
                         try {

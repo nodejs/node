@@ -43,85 +43,110 @@ function pageTemplate(it) {
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PScwIDAgMjk0LjgyNSAyNTguOTgyJyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPg0KPHBhdGggZmlsbD0nIzgwODBGMicgZD0nTTk3LjAyMSw5OS4wMTZsNDguNDMyLTI3Ljk2MmMxLjIxMi0wLjcsMi43MDYtMC43LDMuOTE4LDBsNDguNDMzLDI3Ljk2MiBjMS4yMTEsMC43LDEuOTU5LDEuOTkzLDEuOTU5LDMuMzkzdjU1LjkyNGMwLDEuMzk5LTAuNzQ4LDIuNjkzLTEuOTU5LDMuMzk0bC00OC40MzMsMjcuOTYyYy0xLjIxMiwwLjctMi43MDYsMC43LTMuOTE4LDAgbC00OC40MzItMjcuOTYyYy0xLjIxMi0wLjctMS45NTktMS45OTQtMS45NTktMy4zOTR2LTU1LjkyNEM5NS4wNjMsMTAxLjAwOSw5NS44MSw5OS43MTYsOTcuMDIxLDk5LjAxNicvPg0KPHBhdGggZmlsbD0nIzRCMzJDMycgZD0nTTI3My4zMzYsMTI0LjQ4OEwyMTUuNDY5LDIzLjgxNmMtMi4xMDItMy42NC01Ljk4NS02LjMyNS0xMC4xODgtNi4zMjVIODkuNTQ1IGMtNC4yMDQsMC04LjA4OCwyLjY4NS0xMC4xOSw2LjMyNWwtNTcuODY3LDEwMC40NWMtMi4xMDIsMy42NDEtMi4xMDIsOC4yMzYsMCwxMS44NzdsNTcuODY3LDk5Ljg0NyBjMi4xMDIsMy42NCw1Ljk4Niw1LjUwMSwxMC4xOSw1LjUwMWgxMTUuNzM1YzQuMjAzLDAsOC4wODctMS44MDUsMTAuMTg4LTUuNDQ2bDU3Ljg2Ny0xMDAuMDEgQzI3NS40MzksMTMyLjM5NiwyNzUuNDM5LDEyOC4xMjgsMjczLjMzNiwxMjQuNDg4IE0yMjUuNDE5LDE3Mi44OThjMCwxLjQ4LTAuODkxLDIuODQ5LTIuMTc0LDMuNTlsLTczLjcxLDQyLjUyNyBjLTEuMjgyLDAuNzQtMi44ODgsMC43NC00LjE3LDBsLTczLjc2Ny00Mi41MjdjLTEuMjgyLTAuNzQxLTIuMTc5LTIuMTA5LTIuMTc5LTMuNTlWODcuODQzYzAtMS40ODEsMC44ODQtMi44NDksMi4xNjctMy41OSBsNzMuNzA3LTQyLjUyN2MxLjI4Mi0wLjc0MSwyLjg4Ni0wLjc0MSw0LjE2OCwwbDczLjc3Miw0Mi41MjdjMS4yODMsMC43NDEsMi4xODYsMi4xMDksMi4xODYsMy41OVYxNzIuODk4eicvPg0KPC9zdmc+">
         <style>
             body {
-                font-family:Arial, "Helvetica Neue", Helvetica, sans-serif;
-                font-size:16px;
-                font-weight:normal;
-                margin:0;
-                padding:0;
-                color:#333
+                font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+                font-size: 16px;
+                font-weight: normal;
+                margin: 0;
+                padding: 0;
+                color: #333;
             }
+
             #overview {
-                padding:20px 30px
+                padding: 20px 30px;
             }
-            td, th {
-                padding:5px 10px
-            }
-            h1 {
-                margin:0
-            }
-            table {
-                margin:30px;
-                width:calc(100% - 60px);
-                max-width:1000px;
-                border-radius:5px;
-                border:1px solid #ddd;
-                border-spacing:0px;
-            }
+
+            td,
             th {
-                font-weight:400;
-                font-size:medium;
-                text-align:left;
-                cursor:pointer
+                padding: 5px 10px;
             }
-            td.clr-1, td.clr-2, th span {
-                font-weight:700
+
+            h1 {
+                margin: 0;
             }
+
+            table {
+                margin: 30px;
+                width: calc(100% - 60px);
+                max-width: 1000px;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+                border-spacing: 0;
+            }
+
+            th {
+                font-weight: 400;
+                font-size: medium;
+                text-align: left;
+                cursor: pointer;
+            }
+
+            td.clr-1,
+            td.clr-2,
             th span {
-                float:right;
-                margin-left:20px
+                font-weight: 700;
             }
-            th span:after {
-                content:"";
-                clear:both;
-                display:block
+
+            th span {
+                float: right;
+                margin-left: 20px;
             }
+
+            th span::after {
+                content: "";
+                clear: both;
+                display: block;
+            }
+
             tr:last-child td {
-                border-bottom:none
+                border-bottom: none;
             }
-            tr td:first-child, tr td:last-child {
-                color:#9da0a4
+
+            tr td:first-child,
+            tr td:last-child {
+                color: #9da0a4;
             }
-            #overview.bg-0, tr.bg-0 th {
-                color:#468847;
-                background:#dff0d8;
-                border-bottom:1px solid #d6e9c6
+
+            #overview.bg-0,
+            tr.bg-0 th {
+                color: #468847;
+                background: #dff0d8;
+                border-bottom: 1px solid #d6e9c6;
             }
-            #overview.bg-1, tr.bg-1 th {
-                color:#f0ad4e;
-                background:#fcf8e3;
-                border-bottom:1px solid #fbeed5
+
+            #overview.bg-1,
+            tr.bg-1 th {
+                color: #f0ad4e;
+                background: #fcf8e3;
+                border-bottom: 1px solid #fbeed5;
             }
-            #overview.bg-2, tr.bg-2 th {
-                color:#b94a48;
-                background:#f2dede;
-                border-bottom:1px solid #eed3d7
+
+            #overview.bg-2,
+            tr.bg-2 th {
+                color: #b94a48;
+                background: #f2dede;
+                border-bottom: 1px solid #eed3d7;
             }
+
             td {
-                border-bottom:1px solid #ddd
+                border-bottom: 1px solid #ddd;
             }
+
             td.clr-1 {
-                color:#f0ad4e
+                color: #f0ad4e;
             }
+
             td.clr-2 {
-                color:#b94a48
+                color: #b94a48;
             }
+
             td a {
-                color:#3a33d1;
-                text-decoration:none
+                color: #3a33d1;
+                text-decoration: none;
             }
+
             td a:hover {
-                color:#272296;
-                text-decoration:underline
+                color: #272296;
+                text-decoration: underline;
             }
         </style>
     </head>
@@ -214,7 +239,7 @@ function messageTemplate(it) {
     } = it;
 
     return `
-<tr style="display:none" class="f-${parentIndex}">
+<tr style="display: none;" class="f-${parentIndex}">
     <td>${lineNumber}:${columnNumber}</td>
     <td class="clr-${severityNumber}">${severityName}</td>
     <td>${encodeHTML(message)}</td>

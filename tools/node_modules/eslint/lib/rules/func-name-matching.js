@@ -44,7 +44,7 @@ function isModuleExports(pattern) {
  * @returns {boolean} True if the string is a valid identifier
  */
 function isIdentifier(name, ecmaVersion) {
-    if (ecmaVersion >= 6) {
+    if (ecmaVersion >= 2015) {
         return esutils.keyword.isIdentifierES6(name);
     }
     return esutils.keyword.isIdentifierES5(name);
@@ -104,7 +104,7 @@ module.exports = {
         const nameMatches = typeof context.options[0] === "string" ? context.options[0] : "always";
         const considerPropertyDescriptor = options.considerPropertyDescriptor;
         const includeModuleExports = options.includeCommonJSModuleExports;
-        const ecmaVersion = context.parserOptions && context.parserOptions.ecmaVersion ? context.parserOptions.ecmaVersion : 5;
+        const ecmaVersion = context.languageOptions.ecmaVersion;
 
         /**
          * Check whether node is a certain CallExpression.

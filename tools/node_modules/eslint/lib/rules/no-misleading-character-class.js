@@ -193,15 +193,15 @@ module.exports = {
          * ecmaVersion doesn't support the `u` flag.
          */
         function isValidWithUnicodeFlag(pattern) {
-            const { ecmaVersion } = context.parserOptions;
+            const { ecmaVersion } = context.languageOptions;
 
-            // ecmaVersion is unknown or it doesn't support the 'u' flag
-            if (typeof ecmaVersion !== "number" || ecmaVersion <= 5) {
+            // ecmaVersion <= 5 doesn't support the 'u' flag
+            if (ecmaVersion <= 5) {
                 return false;
             }
 
             const validator = new RegExpValidator({
-                ecmaVersion: Math.min(ecmaVersion + 2009, REGEXPP_LATEST_ECMA_VERSION)
+                ecmaVersion: Math.min(ecmaVersion, REGEXPP_LATEST_ECMA_VERSION)
             });
 
             try {
