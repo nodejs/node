@@ -188,7 +188,7 @@ const der = Buffer.from(
 
   // Confirm failure of X509Certificate:verify() doesn't affect other functions that use OpenSSL.
   assert(!x509.verify(x509.publicKey));
-  // It should not throw
+  // This call should not throw.
   createPrivateKey(key);
 
   // X509Certificate can be cloned via MessageChannel/MessagePort
