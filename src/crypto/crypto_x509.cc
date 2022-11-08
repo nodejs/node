@@ -468,11 +468,12 @@ void X509Certificate::Verify(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePublic);
 
+  ClearErrorOnReturn clear_error_on_return;
+
   args.GetReturnValue().Set(
       X509_verify(
           cert->get(),
           key->Data()->GetAsymmetricKey().get()) > 0);
-  ERR_clear_error();
 }
 
 void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
