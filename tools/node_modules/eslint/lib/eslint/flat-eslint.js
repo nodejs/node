@@ -161,6 +161,16 @@ function createRulesMeta(rules) {
     }, {});
 }
 
+/**
+ * Return the absolute path of a file named `"__placeholder__.js"` in a given directory.
+ * This is used as a replacement for a missing file path.
+ * @param {string} cwd An absolute directory path.
+ * @returns {string} The absolute path of a file named `"__placeholder__.js"` in the given directory.
+ */
+function getPlaceholderPath(cwd) {
+    return path.join(cwd, "__placeholder__.js");
+}
+
 /** @type {WeakMap<ExtractedConfig, DeprecatedRuleInfo[]>} */
 const usedDeprecatedRulesCache = new WeakMap();
 
@@ -177,7 +187,7 @@ function getOrFindUsedDeprecatedRules(eslint, maybeFilePath) {
     } = privateMembers.get(eslint);
     const filePath = path.isAbsolute(maybeFilePath)
         ? maybeFilePath
-        : path.join(cwd, "__placeholder__.js");
+        : getPlaceholderPath(cwd);
     const config = configs.getConfig(filePath);
 
     // Most files use the same config, so cache it.
@@ -422,7 +432,7 @@ function verifyText({
      * `config.extractConfig(filePath)` requires an absolute path, but `linter`
      * doesn't know CWD, so it gives `linter` an absolute path always.
      */
-    const filePathToVerify = filePath === "<text>" ? path.join(cwd, "__placeholder__.js") : filePath;
+    const filePathToVerify = filePath === "<text>" ? getPlaceholderPath(cwd) : filePath;
     const { fixed, messages, output } = linter.verifyAndFix(
         text,
         configs,
@@ -517,6 +527,14 @@ function *iterateRuleDeprecationWarnings(configs) {
             };
         }
     }
+}
+
+/**
+ * Creates an error to be thrown when an array of results passed to `getRulesMetaForResults` was not created by the current engine.
+ * @returns {TypeError} An error object.
+ */
+function createExtraneousResultsError() {
+    return new TypeError("Results object was not created from this ESLint instance.");
 }
 
 //-----------------------------------------------------------------------------
@@ -655,7 +673,10 @@ class FlatESLint {
         }
 
         const resultRules = new Map();
-        const { configs } = privateMembers.get(this);
+        const {
+            configs,
+            options: { cwd }
+        } = privateMembers.get(this);
 
         /*
          * We can only accurately return rules meta information for linting results if the
@@ -664,7 +685,7 @@ class FlatESLint {
          * to let the user know we can't do anything here.
          */
         if (!configs) {
-            throw new TypeError("Results object was not created from this ESLint instance.");
+            throw createExtraneousResultsError();
         }
 
         for (const result of results) {
@@ -673,13 +694,7 @@ class FlatESLint {
              * Normalize filename for <text>.
              */
             const filePath = result.filePath === "<text>"
-                ? "__placeholder__.js" : result.filePath;
-
-            /*
-             * All of the plugin and rule information is contained within the
-             * calculated config for the given file.
-             */
-            const config = configs.getConfig(filePath);
+                ? getPlaceholderPath(cwd) : result.filePath;
             const allMessages = result.messages.concat(result.suppressedMessages);
 
             for (const { ruleId } of allMessages) {
@@ -687,6 +702,15 @@ class FlatESLint {
                     continue;
                 }
 
+                /*
+                 * All of the plugin and rule information is contained within the
+                 * calculated config for the given file.
+                 */
+                const config = configs.getConfig(filePath);
+
+                if (!config) {
+                    throw createExtraneousResultsError();
+                }
                 const rule = getRuleFromConfig(ruleId, config);
 
                 // ensure the rule exists
@@ -1024,7 +1048,7 @@ class FlatESLint {
                 const npmFormat = naming.normalizePackageName(normalizedFormatName, "eslint-formatter");
 
                 // TODO: This is pretty dirty...would be nice to clean up at some point.
-                formatterPath = ModuleResolver.resolve(npmFormat, path.join(cwd, "__placeholder__.js"));
+                formatterPath = ModuleResolver.resolve(npmFormat, getPlaceholderPath(cwd));
             } catch {
                 formatterPath = path.resolve(__dirname, "../", "cli-engine", "formatters", `${normalizedFormatName}.js`);
             }
