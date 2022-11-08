@@ -335,8 +335,13 @@ current Node.js instance.
 
 The `type` is a string identifying the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
-resource's constructor. The `type` of resources created by Node.js itself
-can change in any Node.js release.
+resource's constructor.
+
+The `type` of resources created by Node.js itself can change in any Node.js
+release. Valid values at the time of writing are for example `TLSWRAP`,
+`TCPWRAP`, `TCPSERVERWRAP`, `GETADDRINFOREQWRAP`, `FSREQCALLBACK`,
+`Microtask`, `Timeout`. Inspect the source code of the Node.js version used
+to get the full list.
 
 Furthermore users of [`AsyncResource`][] create async resources independent
 of Node.js itself.
