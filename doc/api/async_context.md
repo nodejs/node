@@ -125,7 +125,7 @@ added:
 -->
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
-`run()` call or after an `enterWith()` call.
+`run()` call or after an `set()` call.
 
 ### `asyncLocalStorage.disable()`
 
@@ -139,7 +139,7 @@ added:
 
 Disables the instance of `AsyncLocalStorage`. All subsequent calls
 to `asyncLocalStorage.getStore()` will return `undefined` until
-`asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()` is called again.
+`asyncLocalStorage.run()` or `asyncLocalStorage.set()` is called again.
 
 When calling `asyncLocalStorage.disable()`, all current contexts linked to the
 instance will be exited.
@@ -164,7 +164,7 @@ added:
 
 Returns the current store.
 If called outside of an asynchronous context initialized by
-calling `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()`, it
+calling `asyncLocalStorage.run()` or `asyncLocalStorage.set()`, it
 returns `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
@@ -173,13 +173,26 @@ returns `undefined`.
 added:
  - v13.11.0
  - v12.17.0
+deprecated:
+ - REPLACEME
+-->
+
+> Stability: 0 - Deprecated: Use [`asyncLocalStorage.set(store)`][]
+
+This is a deprecated alias for [`asyncLocalStorage.set(store)`][].
+
+### `asyncLocalStorage.set(store)`
+
+<!-- YAML
+added:
+ - REPLACEME
 -->
 
 > Stability: 1 - Experimental
 
 * `store` {any}
 
-Transitions into the context for the remainder of the current
+Sets `store` on current execution context for the remainder of the current
 synchronous execution and then persists the store through any following
 asynchronous calls.
 
@@ -188,7 +201,7 @@ Example:
 ```js
 const store = { id: 1 };
 // Replaces previous store with the given store object
-asyncLocalStorage.enterWith(store);
+asyncLocalStorage.set(store);
 asyncLocalStorage.getStore(); // Returns the store object
 someAsyncOperation(() => {
   asyncLocalStorage.getStore(); // Returns the same object
@@ -199,14 +212,14 @@ This transition will continue for the _entire_ synchronous execution.
 This means that if, for example, the context is entered within an event
 handler subsequent event handlers will also run within that context unless
 specifically bound to another context with an `AsyncResource`. That is why
-`run()` should be preferred over `enterWith()` unless there are strong reasons
+`run()` should be preferred over `set()` unless there are strong reasons
 to use the latter method.
 
 ```js
 const store = { id: 1 };
 
 emitter.on('my-event', () => {
-  asyncLocalStorage.enterWith(store);
+  asyncLocalStorage.set(store);
 });
 emitter.on('my-event', () => {
   asyncLocalStorage.getStore(); // Returns the same object
@@ -816,4 +829,5 @@ const server = createServer((req, res) => {
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker
+[`asyncLocalStorage.set(store)`]: #asynclocalstoragesetstore
 [`util.promisify()`]: util.md#utilpromisifyoriginal

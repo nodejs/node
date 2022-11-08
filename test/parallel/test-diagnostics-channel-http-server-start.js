@@ -11,7 +11,7 @@ let context;
 
 // Bind requests to an AsyncLocalStorage context
 dc.subscribe('http.server.request.start', common.mustCall((message) => {
-  als.enterWith(message);
+  als.set(message);
   context = message;
 }));
 

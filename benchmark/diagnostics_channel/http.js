@@ -42,7 +42,7 @@ function patch() {
   function wrappedEmit(...args) {
     const [name, req, res] = args;
     if (name === 'request') {
-      als.enterWith({
+      als.set({
         url: req.url,
         start: process.hrtime.bigint()
       });
@@ -72,7 +72,7 @@ function diagnostics_channel() {
   const finish = dc.channel('http.server.response.finish');
 
   function onStart(req) {
-    als.enterWith({
+    als.set({
       url: req.url,
       start: process.hrtime.bigint()
     });

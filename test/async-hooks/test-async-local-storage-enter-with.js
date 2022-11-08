@@ -5,9 +5,11 @@ const { AsyncLocalStorage } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
+assert.strictEqual(AsyncLocalStorage.prototype.enterWith, AsyncLocalStorage.prototype.set);
+
 setImmediate(() => {
   const store = { foo: 'bar' };
-  asyncLocalStorage.enterWith(store);
+  asyncLocalStorage.set(store);
 
   assert.strictEqual(asyncLocalStorage.getStore(), store);
   setTimeout(() => {
