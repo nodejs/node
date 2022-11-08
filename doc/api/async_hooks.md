@@ -2,7 +2,7 @@
 
 <!--introduced_in=v8.1.0-->
 
-> Stability: 1 - Experimental. This module will most likely never reach stable
+> Stability: 1 - Experimental
 > state. Please migrate to other APIs.
 
 <!-- source_link=lib/async_hooks.js -->
