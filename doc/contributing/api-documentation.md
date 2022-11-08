@@ -13,8 +13,8 @@ generate the following:
 
 These are published to nodejs.org for multiple versions of Node.js. As an
 example the latest version of the human-readable HTML is published to
-[nodejs.org/en/doc](https://nodejs.org/en/docs/), and the latest version json
-documentation is published to
+[nodejs.org/en/doc](https://nodejs.org/en/docs/), and the latest version
+of the json documentation is published to
 [nodejs.org/api/all.json](https://nodejs.org/api/all.json)
 
 <!-- TODO: Add docs about how the publishing process happens -->
