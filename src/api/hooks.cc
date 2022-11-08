@@ -39,6 +39,10 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
+  if (isolate->IsExecutionTerminating()) {
+    return Nothing<bool>();
+  }
+
   Local<Integer> exit_code = Integer::New(
       isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
 
@@ -61,6 +65,10 @@ Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
   Context::Scope context_scope(env->context());
 
   env->set_exiting(true);
+
+  if (isolate->IsExecutionTerminating()) {
+    return Nothing<ExitCode>();
+  }
 
   Local<Integer> exit_code = Integer::New(
       isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
