@@ -2,17 +2,16 @@
 
 <!--introduced_in=v8.1.0-->
 
-> Stability: 1 - Experimental
+> Stability: 1 - Experimental. This module will most likely never reach stable
+> state. Please migrate to other APIs.
 
 <!-- source_link=lib/async_hooks.js -->
 
-This module will most likely never reach stable state. Please migrate to
-other APIs.
+There are other APIs available to replace async_hooks at least for most use
+cases. Migrate/use them instead of using async_hooks. For example:
 
-* [`AsyncLocalStorage`][] is stable and designed to cover one of the
-main usecases to track async context
-* [`process.getActiveResourcesInfo()`][] might fit better to track active
-resources
+* [`AsyncLocalStorage`][] tracks async context
+* [`process.getActiveResourcesInfo()`][] tracks active resources
 
 The `node:async_hooks` module provides an API to track asynchronous resources.
 It can be accessed using:
