@@ -311,7 +311,6 @@ module.exports = {
     'jsdoc/require-param': 'off',
     'jsdoc/check-tag-names': 'off',
     'jsdoc/require-returns': 'off',
-    'jsdoc/require-property-description': 'off',
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
