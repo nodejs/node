@@ -186,7 +186,7 @@ const der = Buffer.from(
     code: 'ERR_INVALID_ARG_VALUE'
   });
 
-  // Confirm failure of X509Certificate:verify() doesn't affect other functions that use OpenSSL
+  // Confirm failure of X509Certificate:verify() doesn't affect other functions that use OpenSSL.
   assert(!x509.verify(x509.publicKey));
   // It should not throw
   createPrivateKey(key);
