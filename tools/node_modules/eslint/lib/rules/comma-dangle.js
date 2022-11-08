@@ -50,7 +50,7 @@ function normalizeOptions(optionValue, ecmaVersion) {
             objects: optionValue,
             imports: optionValue,
             exports: optionValue,
-            functions: (!ecmaVersion || ecmaVersion < 8) ? "ignore" : optionValue
+            functions: ecmaVersion < 2017 ? "ignore" : optionValue
         };
     }
     if (typeof optionValue === "object" && optionValue !== null) {
@@ -134,7 +134,7 @@ module.exports = {
     },
 
     create(context) {
-        const options = normalizeOptions(context.options[0], context.parserOptions.ecmaVersion);
+        const options = normalizeOptions(context.options[0], context.languageOptions.ecmaVersion);
 
         const sourceCode = context.getSourceCode();
 
