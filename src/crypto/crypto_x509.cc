@@ -472,6 +472,7 @@ void X509Certificate::Verify(const FunctionCallbackInfo<Value>& args) {
       X509_verify(
           cert->get(),
           key->Data()->GetAsymmetricKey().get()) > 0);
+  ERR_clear_error();
 }
 
 void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
