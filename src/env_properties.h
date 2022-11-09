@@ -57,6 +57,7 @@
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
   V(bytes_written_string, "bytesWritten")                                      \
+  V(ca_string, "ca")                                                           \
   V(cached_data_produced_string, "cachedDataProduced")                         \
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
