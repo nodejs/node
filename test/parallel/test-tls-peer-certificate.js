@@ -52,6 +52,8 @@ connect({
   debug('peerCert:\n', peerCert);
 
   assert.ok(peerCert.issuerCertificate);
+  assert.strictEqual(peerCert.ca, false);
+  assert.strictEqual(peerCert.issuerCertificate.ca, true);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
   assert.strictEqual(peerCert.serialNumber, '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
   assert.strictEqual(peerCert.exponent, '0x10001');

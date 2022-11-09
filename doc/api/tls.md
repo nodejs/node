@@ -1173,6 +1173,9 @@ certificate.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44935
+    description: Add "ca" property.
   - version:
       - v17.2.0
       - v16.14.0
@@ -1186,6 +1189,7 @@ changes:
 A certificate object has properties corresponding to the fields of the
 certificate.
 
+* `ca` {boolean} `true` if a Certificate Authority (CA), `false` otherwise.
 * `raw` {Buffer} The DER encoded X.509 certificate data.
 * `subject` {Object} The certificate subject, described in terms of
   Country (`C`), StateOrProvince (`ST`), Locality (`L`), Organization (`O`),
