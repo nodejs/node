@@ -7,8 +7,8 @@
 
 <!-- source_link=lib/async_hooks.js -->
 
-There are other APIs available to replace `async_hooks` at least for most use
-cases. Migrate/use them instead of using `async_hooks`. For example:
+We strongly discourage the use of the `async_hooks` API.
+Other APIs that can cover most of its use cases include:
 
 * [`AsyncLocalStorage`][] tracks async context
 * [`process.getActiveResourcesInfo()`][] tracks active resources
