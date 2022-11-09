@@ -2,7 +2,7 @@
 set -e
 # Shell script to update npm in the source tree to a specific version
 
-BASE_DIR="$( pwd )"
+BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 NPM_VERSION=$1
 
