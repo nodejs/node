@@ -571,7 +571,7 @@ will never be called, causing a memory leak in the application. If the resource
 does not depend on garbage collection, then this will not be an issue.
 
 Using the destroy hook results in additional overhead because it enables
-tracking of `Promise` instances via garbage collector.
+tracking of `Promise` instances via the garbage collector.
 
 #### `promiseResolve(asyncId)`
 
