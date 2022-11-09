@@ -1,6 +1,6 @@
 /* chunkcopy.h -- fast chunk copy and set operations
  * Copyright (C) 2017 ARM, Inc.
- * Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright 2017 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
@@ -29,11 +29,21 @@
 #include <arm_neon.h>
 typedef uint8x16_t z_vec128i_t;
 #elif defined(INFLATE_CHUNK_SIMD_SSE2)
-#pragma GCC target ("sse2")
 #include <emmintrin.h>
 typedef __m128i z_vec128i_t;
 #else
 #error chunkcopy.h inflate chunk SIMD is not defined for your build target
+#endif
+
+/*
+ * Suppress MSan errors about copying uninitialized bytes (crbug.com/1376033).
+ */
+#define Z_DISABLE_MSAN
+#if defined(__has_feature)
+  #if __has_feature(memory_sanitizer)
+    #undef Z_DISABLE_MSAN
+    #define Z_DISABLE_MSAN __attribute__((no_sanitize("memory")))
+  #endif
 #endif
 
 /*
@@ -83,7 +93,7 @@ static inline void storechunk(
 static inline unsigned char FAR* chunkcopy_core(
     unsigned char FAR* out,
     const unsigned char FAR* from,
-    unsigned len) {
+    unsigned len) Z_DISABLE_MSAN {
   const int bump = (--len % CHUNKCOPY_CHUNK_SIZE) + 1;
   storechunk(out, loadchunk(from));
   out += bump;
@@ -113,6 +123,10 @@ static inline unsigned char FAR* chunkcopy_core_safe(
   Assert(out + len <= limit, "chunk copy exceeds safety limit");
   if ((limit - out) < (ptrdiff_t)CHUNKCOPY_CHUNK_SIZE) {
     const unsigned char FAR* Z_RESTRICT rfrom = from;
+    Assert((uintptr_t)out - (uintptr_t)from >= len,
+           "invalid restrict in chunkcopy_core_safe");
+    Assert((uintptr_t)from - (uintptr_t)out >= len,
+           "invalid restrict in chunkcopy_core_safe");
     if (len & 8) {
       Z_BUILTIN_MEMCPY(out, rfrom, 8);
       out += 8;
@@ -149,7 +163,7 @@ static inline unsigned char FAR* chunkcopy_core_safe(
 static inline unsigned char FAR* chunkunroll_relaxed(
     unsigned char FAR* out,
     unsigned FAR* dist,
-    unsigned FAR* len) {
+    unsigned FAR* len) Z_DISABLE_MSAN {
   const unsigned char FAR* from = out - *dist;
   while (*dist < *len && *dist < CHUNKCOPY_CHUNK_SIZE) {
     storechunk(out, loadchunk(from));
@@ -339,6 +353,10 @@ static inline unsigned char FAR* chunkcopy_relaxed(
     unsigned char FAR* Z_RESTRICT out,
     const unsigned char FAR* Z_RESTRICT from,
     unsigned len) {
+  Assert((uintptr_t)out - (uintptr_t)from >= len,
+         "invalid restrict in chunkcopy_relaxed");
+  Assert((uintptr_t)from - (uintptr_t)out >= len,
+         "invalid restrict in chunkcopy_relaxed");
   return chunkcopy_core(out, from, len);
 }
 
@@ -361,6 +379,11 @@ static inline unsigned char FAR* chunkcopy_safe(
     unsigned len,
     unsigned char FAR* limit) {
   Assert(out + len <= limit, "chunk copy exceeds safety limit");
+  Assert((uintptr_t)out - (uintptr_t)from >= len,
+         "invalid restrict in chunkcopy_safe");
+  Assert((uintptr_t)from - (uintptr_t)out >= len,
+         "invalid restrict in chunkcopy_safe");
+
   return chunkcopy_core_safe(out, from, len, limit);
 }
 
@@ -407,6 +430,26 @@ static inline unsigned char FAR* chunkcopy_lapped_safe(
   return chunkcopy_lapped_relaxed(out, dist, len);
 }
 
+/* TODO(cavalcanti): see crbug.com/1110083. */
+static inline unsigned char FAR* chunkcopy_safe_ugly(unsigned char FAR* out,
+                                                     unsigned dist,
+                                                     unsigned len,
+                                                     unsigned char FAR* limit) {
+#if defined(__GNUC__) && !defined(__clang__)
+  /* Speed is the same as using chunkcopy_safe
+     w/ GCC on ARM (tested gcc 6.3 and 7.5) and avoids
+     undefined behavior.
+  */
+  return chunkcopy_core_safe(out, out - dist, len, limit);
+#elif defined(__clang__) && defined(ARMV8_OS_ANDROID) && !defined(__aarch64__)
+  /* Seems to perform better on 32bit (i.e. Android). */
+  return chunkcopy_core_safe(out, out - dist, len, limit);
+#else
+  /* Seems to perform better on 64bit. */
+  return chunkcopy_lapped_safe(out, dist, len, limit);
+#endif
+}
+
 /*
  * The chunk-copy code above deals with writing the decoded DEFLATE data to
  * the output with SIMD methods to increase decode speed. Reading the input
@@ -441,5 +484,6 @@ typedef unsigned long inflate_holder_t;
 #undef Z_STATIC_ASSERT
 #undef Z_RESTRICT
 #undef Z_BUILTIN_MEMCPY
+#undef Z_DISABLE_MSAN
 
 #endif /* CHUNKCOPY_H */

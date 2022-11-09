@@ -1,6 +1,6 @@
 /* adler32_simd.c
  *
- * Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright 2017 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  *
@@ -50,13 +50,9 @@
 #define NMAX 5552
 
 #if defined(ADLER32_SIMD_SSSE3)
-#ifndef __GNUC__
-#define __attribute__()
-#endif
 
 #include <tmmintrin.h>
 
-__attribute__((target("ssse3")))
 uint32_t ZLIB_INTERNAL adler32_simd_(  /* SSSE3 */
     uint32_t adler,
     const unsigned char *buf,
