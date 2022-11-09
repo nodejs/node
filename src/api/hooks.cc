@@ -39,7 +39,7 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(env->context());
 
-  if (isolate->IsExecutionTerminating()) {
+  if (!env->can_call_into_js()) {
     return Nothing<bool>();
   }
 
@@ -66,7 +66,7 @@ Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
 
   env->set_exiting(true);
 
-  if (isolate->IsExecutionTerminating()) {
+  if (!env->can_call_into_js()) {
     return Nothing<ExitCode>();
   }
 
