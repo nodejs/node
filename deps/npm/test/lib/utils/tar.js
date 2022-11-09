@@ -27,12 +27,17 @@ t.test('should log tarball contents', async (t) => {
       bundleDependencies: [
         'bundle-dep',
       ],
-    }, null, 2),
+      dependencies: {
+        'bundle-dep': '1.0.0',
+      },
+    }),
     cat: 'meow',
     chai: 'blub',
     dog: 'woof',
     node_modules: {
-      'bundle-dep': 'toto',
+      'bundle-dep': {
+        'package.json': '',
+      },
     },
   })
 

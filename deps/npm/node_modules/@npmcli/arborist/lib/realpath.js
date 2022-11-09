@@ -5,10 +5,7 @@
 // built-in fs.realpath, because we only care about symbolic links,
 // so we can handle many fewer edge cases.
 
-const fs = require('fs')
-const promisify = require('util').promisify
-const readlink = promisify(fs.readlink)
-const lstat = promisify(fs.lstat)
+const { lstat, readlink } = require('fs/promises')
 const { resolve, basename, dirname } = require('path')
 
 const realpathCached = (path, rpcache, stcache, depth) => {

@@ -163,13 +163,13 @@ user and global npmrc files.</p>
 <p>All npm config files are an ini-formatted list of <code>key = value</code> parameters.
 Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For
 example:</p>
-<pre lang="bash"><code>prefix = ${HOME}/.npm-packages
+<pre><code class="language-bash">prefix = ${HOME}/.npm-packages
 </code></pre>
 <p>Each of these files is loaded, and config options are resolved in priority
 order.  For example, a setting in the userconfig file would override the
 setting in the globalconfig file.</p>
 <p>Array values are specified by adding "[]" after the key name. For example:</p>
-<pre lang="bash"><code>key[] = "first value"
+<pre><code class="language-bash">key[] = "first value"
 key[] = "second value"
 </code></pre>
 <h4 id="comments">Comments</h4>
@@ -177,7 +177,7 @@ key[] = "second value"
 <code>;</code> or <code>#</code> character. <code>.npmrc</code> files are parsed by
 <a href="https://github.com/npm/ini">npm/ini</a>, which specifies this comment syntax.</p>
 <p>For example:</p>
-<pre lang="bash"><code># last modified: 01 Jan 2016
+<pre><code class="language-bash"># last modified: 01 Jan 2016
 ; Set a new registry for a scoped package
 @myscope:registry=https://mycustomregistry.example.org
 </code></pre>
@@ -208,6 +208,16 @@ to override default configs in a standard and consistent manner.</p>
 <p>The settings <code>_auth</code>, <code>_authToken</code>, <code>username</code> and <code>_password</code> must all be
 scoped to a specific registry. This ensures that <code>npm</code> will never send
 credentials to the wrong host.</p>
+<p>The full list is:</p>
+<ul>
+<li><code>_auth</code> (base64 authentication string)</li>
+<li><code>_authToken</code> (authentication token)</li>
+<li><code>username</code></li>
+<li><code>_password</code></li>
+<li><code>email</code></li>
+<li><code>certfile</code> (path to certificate file)</li>
+<li><code>keyfile</code> (path to key file)</li>
+</ul>
 <p>In order to scope these values, they must be prefixed by a URI fragment.
 If the credential is meant for any request to a registry on a single host,
 the scope may look like <code>//registry.npmjs.org/:</code>. If it must be scoped to a
@@ -234,8 +244,7 @@ _authToken=MYTOKEN
 <li><a href="../using-npm/config.html">config</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../commands/npm.html">npm</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/npmrc.md">

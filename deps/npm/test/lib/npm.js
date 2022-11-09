@@ -1,9 +1,10 @@
 const t = require('tap')
 const { resolve, dirname, join } = require('path')
-const fs = require('@npmcli/fs')
+const fs = require('fs')
 
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
 const mockGlobals = require('../fixtures/mock-globals')
+const { commands } = require('../../lib/utils/cmd-list.js')
 
 // delete this so that we don't have configs from the fact that it
 // is being run by 'npm test'
@@ -74,7 +75,7 @@ t.test('npm.load', async t => {
     t.equal(npm.loadErr, loadError)
   })
 
-  t.test('basic loading', async t => {
+  await t.test('basic loading', async t => {
     const { npm, logs, prefix: dir, cache, other } = await loadMockNpm(t, {
       prefixDir: { node_modules: {} },
       otherDirs: {
@@ -447,7 +448,7 @@ t.test('debug log', async t => {
     const logsDir = join(testdir, 'my_logs_dir')
 
     // make logs dir a file before load so it files
-    await fs.writeFile(logsDir, 'A_TEXT_FILE')
+    fs.writeFileSync(logsDir, 'A_TEXT_FILE')
     await t.resolves(npm.load(), 'loads with invalid logs dir')
 
     t.equal(npm.logFiles.length, 0, 'no log files array')
@@ -511,29 +512,48 @@ t.test('timings', async t => {
     process.emit('timeEnd', 'foo')
     process.emit('time', 'bar')
     npm.writeTimingFile()
-    t.equal(npm.timingFile, join(cache, '_timing.json'))
+    t.match(npm.timingFile, cache)
+    t.match(npm.timingFile, /-timing.json$/)
     const timings = await timingFile()
     t.match(timings, {
-      command: [],
-      logfile: String,
-      logfiles: [String],
-      version: String,
-      unfinished: {
+      metadata: {
+        command: [],
+        logfiles: [String],
+        version: String,
+      },
+      unfinishedTimers: {
         bar: [Number, Number],
         npm: [Number, Number],
       },
-      foo: Number,
-      'npm:load': Number,
+      timers: {
+        foo: Number,
+        'npm:load': Number,
+      },
     })
   })
 
   t.test('does not write timings file with timers:false', async t => {
     const { npm, timingFile } = await loadMockNpm(t, {
-      config: { false: true },
+      config: { timing: false },
     })
     npm.writeTimingFile()
     await t.rejects(() => timingFile())
   })
+
+  const timingDisplay = [
+    [{ loglevel: 'silly' }, true, false],
+    [{ loglevel: 'silly', timing: true }, true, true],
+    [{ loglevel: 'silent', timing: true }, false, false],
+  ]
+
+  for (const [config, expectedDisplay, expectedTiming] of timingDisplay) {
+    const msg = `${JSON.stringify(config)}, display:${expectedDisplay}, timing:${expectedTiming}`
+    await t.test(`timing display: ${msg}`, async t => {
+      const { display } = await loadMockNpm(t, { config })
+      t.equal(!!display.length, expectedDisplay, 'display')
+      t.equal(!!display.timing.length, expectedTiming, 'timing display')
+    })
+  }
 })
 
 t.test('output clears progress and console.logs the message', async t => {
@@ -571,10 +591,10 @@ t.test('aliases and typos', async t => {
   const { npm } = await loadMockNpm(t, { load: false })
   await t.rejects(npm.cmd('thisisnotacommand'), { code: 'EUNKNOWNCOMMAND' })
   await t.rejects(npm.cmd(''), { code: 'EUNKNOWNCOMMAND' })
-  await t.rejects(npm.cmd('birt'), { code: 'EUNKNOWNCOMMAND' })
+  await t.rejects(npm.cmd('birthday'), { code: 'EUNKNOWNCOMMAND' })
   await t.resolves(npm.cmd('it'), { name: 'install-test' })
   await t.resolves(npm.cmd('installTe'), { name: 'install-test' })
-  await t.resolves(npm.cmd('birthday'), { name: 'birthday' })
+  await t.resolves(npm.cmd('access'), { name: 'access' })
 })
 
 t.test('explicit workspace rejection', async t => {
@@ -675,59 +695,85 @@ t.test('implicit workspace accept', async t => {
 })
 
 t.test('usage', async t => {
-  const { npm } = await loadMockNpm(t)
-  t.afterEach(() => {
-    npm.config.set('viewer', null)
-    npm.config.set('long', false)
-    npm.config.set('userconfig', '/some/config/file/.npmrc')
-  })
-  const { dirname } = require('path')
-  const basedir = dirname(dirname(__dirname))
-  t.cleanSnapshot = str => str.split(basedir).join('{BASEDIR}')
-    .split(require('../../package.json').version).join('{VERSION}')
-
-  npm.config.set('viewer', null)
-  npm.config.set('long', false)
-  npm.config.set('userconfig', '/some/config/file/.npmrc')
-
-  t.test('basic usage', async t => {
-    t.matchSnapshot(await npm.usage)
-    t.end()
-  })
-
   t.test('with browser', async t => {
+    mockGlobals(t, { process: { platform: 'posix' } })
+    const { npm } = await loadMockNpm(t)
+    const usage = await npm.usage
     npm.config.set('viewer', 'browser')
-    t.matchSnapshot(await npm.usage)
-    t.end()
+    const browserUsage = await npm.usage
+    t.notMatch(usage, '(in a browser)')
+    t.match(browserUsage, '(in a browser)')
   })
 
-  t.test('with long', async t => {
+  t.test('windows always uses browser', async t => {
+    mockGlobals(t, { process: { platform: 'win32' } })
+    const { npm } = await loadMockNpm(t)
+    const usage = await npm.usage
+    npm.config.set('viewer', 'browser')
+    const browserUsage = await npm.usage
+    t.match(usage, '(in a browser)')
+    t.match(browserUsage, '(in a browser)')
+  })
+
+  t.test('includes commands', async t => {
+    const { npm } = await loadMockNpm(t)
+    const usage = await npm.usage
     npm.config.set('long', true)
-    t.matchSnapshot(await npm.usage)
-    t.end()
+    const longUsage = await npm.usage
+
+    const lastCmd = commands[commands.length - 1]
+    for (const cmd of commands) {
+      const isLast = cmd === lastCmd
+      const shortCmd = new RegExp(`\\s${cmd}${isLast ? '\\n' : ',[\\s\\n]'}`)
+      const longCmd = new RegExp(`^\\s+${cmd}\\s+\\w.*\n\\s+Usage:\\n`, 'm')
+
+      t.match(usage, shortCmd, `usage includes ${cmd}`)
+      t.notMatch(usage, longCmd, `usage does not include long ${cmd}`)
+
+      t.match(longUsage, longCmd, `long usage includes ${cmd}`)
+      if (!isLast) {
+        // long usage includes false positives for the last command since it is
+        // not followed by a comma
+        t.notMatch(longUsage, shortCmd, `long usage does not include short ${cmd}`)
+      }
+    }
   })
 
   t.test('set process.stdout.columns', async t => {
-    const { columns } = process.stdout
-    t.teardown(() => {
-      Object.defineProperty(process.stdout, 'columns', {
-        value: columns,
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      })
-    })
-    const cases = [0, 90]
-    for (const cols of cases) {
-      t.test(`columns=${cols}`, async t => {
-        Object.defineProperty(process.stdout, 'columns', {
-          value: cols,
-          enumerable: true,
-          configurable: true,
-          writable: true,
-        })
-        t.matchSnapshot(await npm.usage)
-      })
+    const { npm } = await loadMockNpm(t)
+
+    const colUsage = async (cols) => {
+      const usages = []
+      for (const col of cols) {
+        mockGlobals(t, { 'process.stdout.columns': col })
+        const usage = await npm.usage
+        usages.push(usage)
+      }
+      return usages
     }
+
+    t.test('max size', async t => {
+      const usages = await colUsage([0, 76, 90, 100])
+      t.equal(usages.filter(Boolean).length, 4)
+      t.equal(new Set([...usages]).size, 1)
+    })
+
+    t.test('across max boundary', async t => {
+      const usages = await colUsage([75, 76])
+      t.equal(usages.filter(Boolean).length, 2)
+      t.equal(new Set([...usages]).size, 2)
+    })
+
+    t.test('min size', async t => {
+      const usages = await colUsage([1, 10, 24, 40])
+      t.equal(usages.filter(Boolean).length, 4)
+      t.equal(new Set([...usages]).size, 1)
+    })
+
+    t.test('different cols within min/max', async t => {
+      const usages = await colUsage([40, 41])
+      t.equal(usages.filter(Boolean).length, 2)
+      t.equal(new Set([...usages]).size, 2)
+    })
   })
 })

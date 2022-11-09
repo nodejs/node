@@ -3,14 +3,15 @@
 // 0xff for negative, and 0x80 for positive.
 
 const encode = (num, buf) => {
-  if (!Number.isSafeInteger(num))
-    // The number is so large that javascript cannot represent it with integer
-    // precision.
+  if (!Number.isSafeInteger(num)) {
+  // The number is so large that javascript cannot represent it with integer
+  // precision.
     throw Error('cannot encode number outside of javascript safe integer range')
-  else if (num < 0)
+  } else if (num < 0) {
     encodeNegative(num, buf)
-  else
+  } else {
     encodePositive(num, buf)
+  }
   return buf
 }
 
@@ -30,11 +31,11 @@ const encodeNegative = (num, buf) => {
   for (var i = buf.length; i > 1; i--) {
     var byte = num & 0xff
     num = Math.floor(num / 0x100)
-    if (flipped)
+    if (flipped) {
       buf[i - 1] = onesComp(byte)
-    else if (byte === 0)
+    } else if (byte === 0) {
       buf[i - 1] = 0
-    else {
+    } else {
       flipped = true
       buf[i - 1] = twosComp(byte)
     }
@@ -46,13 +47,15 @@ const parse = (buf) => {
   const value = pre === 0x80 ? pos(buf.slice(1, buf.length))
     : pre === 0xff ? twos(buf)
     : null
-  if (value === null)
+  if (value === null) {
     throw Error('invalid base256 encoding')
+  }
 
-  if (!Number.isSafeInteger(value))
-    // The number is so large that javascript cannot represent it with integer
-    // precision.
+  if (!Number.isSafeInteger(value)) {
+  // The number is so large that javascript cannot represent it with integer
+  // precision.
     throw Error('parsed number outside of javascript safe integer range')
+  }
 
   return value
 }
@@ -64,16 +67,17 @@ const twos = (buf) => {
   for (var i = len - 1; i > -1; i--) {
     var byte = buf[i]
     var f
-    if (flipped)
+    if (flipped) {
       f = onesComp(byte)
-    else if (byte === 0)
+    } else if (byte === 0) {
       f = byte
-    else {
+    } else {
       flipped = true
       f = twosComp(byte)
     }
-    if (f !== 0)
+    if (f !== 0) {
       sum -= f * Math.pow(256, len - i - 1)
+    }
   }
   return sum
 }
@@ -83,8 +87,9 @@ const pos = (buf) => {
   var sum = 0
   for (var i = len - 1; i > -1; i--) {
     var byte = buf[i]
-    if (byte !== 0)
+    if (byte !== 0) {
       sum += byte * Math.pow(256, len - i - 1)
+    }
   }
   return sum
 }
