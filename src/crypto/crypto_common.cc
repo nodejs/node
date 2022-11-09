@@ -27,6 +27,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Integer;
@@ -1260,6 +1261,8 @@ MaybeLocal<Object> X509ToObject(
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
 
+  // X509_check_ca() returns a range of values. Only 1 means "is a CA"
+  auto is_ca = Boolean::New(env->isolate(), 1 == X509_check_ca(cert));
   if (!Set<Value>(context,
                   info,
                   env->subject_string(),
@@ -1275,7 +1278,8 @@ MaybeLocal<Object> X509ToObject(
       !Set<Value>(context,
                   info,
                   env->infoaccess_string(),
-                  GetInfoAccessString(env, bio, cert))) {
+                  GetInfoAccessString(env, bio, cert)) ||
+      !Set<Boolean>(context, info, env->ca_string(), is_ca)) {
     return MaybeLocal<Object>();
   }
 
