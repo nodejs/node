@@ -436,12 +436,24 @@ void ConverterObject::Create(const FunctionCallbackInfo<Value>& args) {
 void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_GE(args.Length(), 3);  // Converter, Buffer, Flags
+  CHECK_GE(args.Length(), 4);  // Converter, Buffer, Flags, Encoding
 
   ConverterObject* converter;
   ASSIGN_OR_RETURN_UNWRAP(&converter, args[0].As<Object>());
+
+  if (!(args[1]->IsArrayBuffer() || args[1]->IsSharedArrayBuffer() ||
+        args[1]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"input\" argument must be an instance of SharedArrayBuffer, "
+        "ArrayBuffer or ArrayBufferView.");
+  }
+
   ArrayBufferViewContents<char> input(args[1]);
   int flags = args[2]->Uint32Value(env->context()).ToChecked();
+
+  CHECK(args[3]->IsString());
+  Local<String> from_encoding = args[3].As<String>();
 
   UErrorCode status = U_ZERO_ERROR;
   MaybeStackBuffer<UChar> result;
@@ -524,14 +536,14 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     Local<Value> ret;
     if (encoded.ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
-    } else {
-      args.GetReturnValue().Set(error);
+      return;
     }
-
-    return;
   }
 
-  args.GetReturnValue().Set(status);
+  node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
+      env->isolate(),
+      "The encoded data was not valid for encoding %s",
+      *node::Utf8Value(env->isolate(), from_encoding));
 }
 
 ConverterObject::ConverterObject(
