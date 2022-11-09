@@ -124,8 +124,8 @@ added:
  - v12.17.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/?????
-   description: Add option onPropagateCb
+   pr-url: https://github.com/nodejs/node/pull/45386
+   description: Add option onPropagateCb.
 -->
 
 > Stability: 1 - `options.onPropagateCb` is experimental.
