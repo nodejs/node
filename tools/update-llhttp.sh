@@ -3,7 +3,7 @@ set -e
 
 # Shell script to update llhttp in the source tree to specific version
 
-BASE_DIR="$( pwd )"
+BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
 DEPS_DIR="${BASE_DIR}/deps"
 LLHTTP_VERSION="$1"
 
