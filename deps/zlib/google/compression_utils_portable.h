@@ -1,6 +1,6 @@
 /* compression_utils_portable.h
  *
- * Copyright 2019 The Chromium Authors. All rights reserved.
+ * Copyright 2019 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
@@ -9,10 +9,14 @@
 
 #include <stdint.h>
 
+/* TODO(cavalcantii): remove support for Chromium ever building with a system
+ * zlib.
+ */
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
+/* AOSP build requires relative paths. */
 #else
-#include "third_party/zlib/zlib.h"
+#include "zlib.h"
 #endif
 
 namespace zlib_internal {

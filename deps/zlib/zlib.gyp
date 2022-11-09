@@ -18,6 +18,8 @@
             'adler32.c',
             'compress.c',
             'contrib/optimizations/insert_string.h',
+            'cpu_features.c',
+            'cpu_features.h',
             'crc32.c',
             'crc32.h',
             'deflate.c',
@@ -37,7 +39,6 @@
             'trees.c',
             'trees.h',
             'uncompr.c',
-            'x86.h',
             'zconf.h',
             'zlib.h',
             'zutil.c',
@@ -57,7 +58,7 @@
               'cflags': [ '-Wno-implicit-fallthrough' ],
               'defines': [ 'HAVE_HIDDEN' ],
             }],
-            ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
+            ['OS=="mac" or OS=="freebsd" or OS=="android"', {
               # Mac, Android and the BSDs don't have fopen64, ftello64, or
               # fseeko64. We use fopen, ftell, and fseek instead on these
               # systems.
@@ -67,12 +68,11 @@
             }],
             ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
               'sources': [
-                'adler32_simd.c',
-                'adler32_simd.h',
                 'contrib/optimizations/chunkcopy.h',
                 'contrib/optimizations/inffast_chunk.c',
                 'contrib/optimizations/inffast_chunk.h',
                 'contrib/optimizations/inflate.c',
+                'slide_hash_simd.h'
               ],
             }, {
               'sources': [ 'inflate.c', ],
@@ -83,55 +83,68 @@
                 'ADLER32_SIMD_SSSE3',
                 'INFLATE_CHUNK_SIMD_SSE2',
                 'CRC32_SIMD_SSE42_PCLMUL',
+                'DEFLATE_SLIDE_HASH_SSE2'
               ],
               'sources': [
+                'adler32_simd.c',
+                'adler32_simd.h',
                 'crc32_simd.c',
                 'crc32_simd.h',
-                'crc_folding.c',
-                'fill_window_sse.c',
-                'x86.c',
+                'crc_folding.c'
               ],
               'conditions': [
                 ['target_arch=="x64"', {
                   'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
                 }],
+                ['OS=="win"', {
+                  'defines': [ 'X86_WINDOWS' ]
+                }, {
+                  'defines': [ 'X86_NOT_WINDOWS' ]
+                }]
               ],
-            }, {
-              'sources': [ 'simd_stub.c', ],
             }],
             ['arm_fpu=="neon"', {
-              'defines': [
-                'ADLER32_SIMD_NEON',
-                'INFLATE_CHUNK_SIMD_NEON',
-              ],
-              'sources': [
-                'contrib/optimizations/slide_hash_neon.h',
-              ],
+              'defines': [ '__ARM_NEON__' ],
               'conditions': [
-                ['OS!="ios"', {
-                  'defines': [ 'CRC32_ARMV8_CRC32' ],
-                  'sources': [
-                    'arm_features.c',
-                    'arm_features.h',
-                    'crc32_simd.c',
-                    'crc32_simd.h',
-                  ],
+                ['OS=="win"', {
+                  'defines': [
+                    'ARMV8_OS_WINDOWS',
+                    'DEFLATE_SLIDE_HASH_NEON',
+                    'INFLATE_CHUNK_SIMD_NEON'
+                  ]
+                }, {
                   'conditions': [
-                    ['OS=="android"', {
-                      'defines': [ 'ARMV8_OS_ANDROID' ],
-                    }],
-                    ['OS=="linux"', {
-                      'defines': [ 'ARMV8_OS_LINUX' ],
-                    }],
-                    ['OS=="win"', {
-                      'defines': [ 'ARMV8_OS_WINDOWS' ],
-                    }],
-                    ['OS!="android" and OS!="win" and llvm_version=="0.0"', {
-                      'cflags': [
-                        '-march=armv8-a+crc',
+                    ['OS!="ios"', {
+                      'defines': [
+                        'ADLER32_SIMD_NEON',
+                        'CRC32_ARMV8_CRC32',
+                        'DEFLATE_SLIDE_HASH_NEON',
+                        'INFLATE_CHUNK_SIMD_NEON'
                       ],
-                    }],
-                  ],
+                      'sources': [
+                        'adler32_simd.c',
+                        'adler32_simd.h',
+                        'crc32_simd.c',
+                        'crc32_simd.h',
+                      ],
+                      'conditions': [
+                        ['OS=="android"', {
+                          'defines': [ 'ARMV8_OS_ANDROID' ],
+                        }],
+                        ['OS=="linux"', {
+                          'defines': [ 'ARMV8_OS_LINUX' ],
+                        }],
+                        ['OS=="mac"', {
+                          'defines': [ 'ARMV8_OS_MACOS' ],
+                        }],
+                        ['llvm_version=="0.0"', {
+                          'cflags': [
+                            '-march=armv8-a+aes+crc',
+                          ],
+                        }],
+                      ],
+                    }]
+                  ]
                 }],
                 ['target_arch=="arm64"', {
                   'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
