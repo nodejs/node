@@ -834,5 +834,5 @@ const server = createServer((req, res) => {
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker
-[`async_hooks` Error handling]: async_hooks.md#errorhandling
+[`async_hooks` Error handling]: async_hooks.md#error-handling
 [`util.promisify()`]: util.md#utilpromisifyoriginal
