@@ -336,7 +336,7 @@ The `type` is a string identifying the type of resource that caused
 resource's constructor.
 
 The `type` of resources created by Node.js itself can change in any Node.js
-release. Valid values at the time of writing are for example `TLSWRAP`,
+release. Valid values are `TLSWRAP`,
 `TCPWRAP`, `TCPSERVERWRAP`, `GETADDRINFOREQWRAP`, `FSREQCALLBACK`,
 `Microtask`, `Timeout`. Inspect the source code of the Node.js version used
 to get the full list.
