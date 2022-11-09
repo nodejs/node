@@ -1266,6 +1266,7 @@ def configure_node(o):
   # Enable branch protection for arm64
   if target_arch == 'arm64':
     o['cflags']+=['-msign-return-address=all']
+    o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
 
   if options.node_snapshot_main is not None:
     if options.shared:
