@@ -338,7 +338,7 @@ resource's constructor.
 The `type` of resources created by Node.js itself can change in any Node.js
 release. Valid values are `TLSWRAP`,
 `TCPWRAP`, `TCPSERVERWRAP`, `GETADDRINFOREQWRAP`, `FSREQCALLBACK`,
-`Microtask`, `Timeout`. Inspect the source code of the Node.js version used
+`Microtask`, and `Timeout`. Inspect the source code of the Node.js version used
 to get the full list.
 
 Furthermore users of [`AsyncResource`][] create async resources independent
