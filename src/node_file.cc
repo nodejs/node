@@ -806,7 +806,7 @@ void AfterStat(uv_fs_t* req) {
   }
 }
 
-void OpenFileAfterOpen(uv_fs_t* open_req) {
+void OpenAndFstatAfterOpen(uv_fs_t* open_req) {
   FSReqBase* req_wrap = FSReqBase::from_req(open_req);
   int result = static_cast<int>(open_req->result);
 
@@ -818,7 +818,6 @@ void OpenFileAfterOpen(uv_fs_t* open_req) {
     req_wrap->Reject(
       UVException(req_wrap->env()->isolate(), result, "open", nullptr, open_req->path));
 
-    req_wrap = nullptr;
     return;
   }
 
@@ -2095,7 +2094,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void OpenFile(const FunctionCallbackInfo<Value>& args) {
+static void OpenAndFstat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
@@ -2126,7 +2125,7 @@ static void OpenFile(const FunctionCallbackInfo<Value>& args) {
                *path,
                flags,
                mode,
-               OpenFileAfterOpen);
+               OpenAndFstatAfterOpen);
   }
 }
 
@@ -3352,7 +3351,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Close);
   registry->Register(Open);
-  registry->Register(OpenFile);
+  registry->Register(OpenAndFstat);
   registry->Register(OpenFileHandle);
   registry->Register(Read);
   registry->Register(ReadBuffers);
