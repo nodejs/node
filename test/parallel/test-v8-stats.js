@@ -42,7 +42,6 @@ const expectedHeapSpaces = [
   'code_large_object_space',
   'code_space',
   'large_object_space',
-  'map_space',
   'new_large_object_space',
   'new_space',
   'old_space',
