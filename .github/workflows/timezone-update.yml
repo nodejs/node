@@ -33,6 +33,9 @@ jobs:
 
       - run: ./tools/update-timezone.mjs
 
+      - name: Update the expected timezone version in test
+        run: echo "${{ env.new_version }}" > test/fixtures/tz-version.txt
+
       - name: Open Pull Request
         uses: gr2m/create-or-update-pull-request-action@6720400cad8e74d7adc64640e4e6ea6748b83d8f  # Create a PR or update the Action's existing PR
         env:
