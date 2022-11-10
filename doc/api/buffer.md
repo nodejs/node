@@ -5013,6 +5013,56 @@ changes:
 
 See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 
+## Class: `File`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Extends: {Blob}
+
+A [`File`][] provides information about files.
+
+### `new buffer.File(sources, fileName[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `sources` {string\[]|ArrayBuffer\[]|TypedArray\[]|DataView\[]|Blob\[]|File\[]}
+  An array of string, {ArrayBuffer}, {TypedArray}, {DataView}, {File}, or {Blob}
+  objects, or any mix of such objects, that will be stored within the `File`.
+* `fileName` {string} The name of the file.
+* `options` {Object}
+  * `endings` {string} One of either `'transparent'` or `'native'`. When set
+    to `'native'`, line endings in string source parts will be converted to
+    the platform native line-ending as specified by `require('node:os').EOL`.
+  * `type` {string} The File content-type.
+  * `lastModified` {number} The last modified date of the file.
+    **Default:** `Date.now()`.
+
+### `file.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The name of the `File`.
+
+### `file.lastModified`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The last modified date of the `File`.
+
 ## `node:buffer` module APIs
 
 While, the `Buffer` object is available as a global, there are additional
@@ -5359,6 +5409,7 @@ introducing security vulnerabilities into an application.
 [`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
+[`File`]: https://developer.mozilla.org/en-US/docs/Web/API/File
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf

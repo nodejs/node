@@ -43,6 +43,7 @@ const customTypesMap = {
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 
   'Blob': 'buffer.html#class-blob',
+  'File': 'buffer.html#class-file',
 
   'BroadcastChannel':
     'worker_threads.html#class-broadcastchannel-' +

@@ -165,6 +165,7 @@ const expectedModules = new Set([
   'NativeModule internal/worker/js_transferable',
   'Internal Binding blob',
   'NativeModule internal/blob',
+  'NativeModule internal/file',
   'NativeModule async_hooks',
   'NativeModule net',
   'NativeModule path',
