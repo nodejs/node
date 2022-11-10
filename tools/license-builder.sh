@@ -37,7 +37,7 @@ addlicense "c-ares" "deps/cares" "$licenseText"
 licenseText="$(cat "${rootdir}"/deps/cjs-module-lexer/LICENSE)"
 addlicense "cjs-module-lexer" "deps/cjs-module-lexer" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/v8/third_party/ittapi/LICENSES/BSD-3-Clause.txt")"
-addlicense "ittapi" "deps/v8/third_party/ittapi/LICENSES/BSD-3-Clause.txt" "$licenseText"
+addlicense "ittapi" "deps/v8/third_party/ittapi" "$licenseText"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
   licenseText="$(sed -e '1s/^[^a-zA-Z ]*ICU/ICU/' -e :a -e 's/<[^>]*>//g;s/	/ /g;s/ +$//;/</N;//ba' "${rootdir}"/deps/icu/LICENSE)"
