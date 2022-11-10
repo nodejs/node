@@ -401,9 +401,6 @@ class FunctionCallbackWrapper : public CallbackWrapperBase {
   }
 };
 
-enum WrapType { retrievable, anonymous };
-
-template <WrapType wrap_type>
 inline napi_status Wrap(napi_env env,
                         napi_value js_object,
                         void* native_object,
@@ -419,17 +416,11 @@ inline napi_status Wrap(napi_env env,
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
   v8::Local<v8::Object> obj = value.As<v8::Object>();
 
-  if (wrap_type == retrievable) {
-    // If we've already wrapped this object, we error out.
-    RETURN_STATUS_IF_FALSE(
-        env,
-        !obj->HasPrivate(context, NAPI_PRIVATE_KEY(context, wrapper))
-             .FromJust(),
-        napi_invalid_arg);
-  } else if (wrap_type == anonymous) {
-    // If no finalize callback is provided, we error out.
-    CHECK_ARG(env, finalize_cb);
-  }
+  // If we've already wrapped this object, we error out.
+  RETURN_STATUS_IF_FALSE(
+      env,
+      !obj->HasPrivate(context, NAPI_PRIVATE_KEY(context, wrapper)).FromJust(),
+      napi_invalid_arg);
 
   v8impl::Reference* reference = nullptr;
   if (result != nullptr) {
@@ -458,12 +449,10 @@ inline napi_status Wrap(napi_env env,
         finalize_cb == nullptr ? nullptr : finalize_hint);
   }
 
-  if (wrap_type == retrievable) {
-    CHECK(obj->SetPrivate(context,
-                          NAPI_PRIVATE_KEY(context, wrapper),
-                          v8::External::New(env->isolate, reference))
-              .FromJust());
-  }
+  CHECK(obj->SetPrivate(context,
+                        NAPI_PRIVATE_KEY(context, wrapper),
+                        v8::External::New(env->isolate, reference))
+            .FromJust());
 
   return GET_RETURN_STATUS(env);
 }
@@ -2289,7 +2278,7 @@ napi_status NAPI_CDECL napi_wrap(napi_env env,
                                  napi_finalize finalize_cb,
                                  void* finalize_hint,
                                  napi_ref* result) {
-  return v8impl::Wrap<v8impl::retrievable>(
+  return v8impl::Wrap(
       env, js_object, native_object, finalize_cb, finalize_hint, result);
 }
 
@@ -3110,12 +3099,31 @@ napi_status NAPI_CDECL napi_run_script(napi_env env,
 
 napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
                                           napi_value js_object,
-                                          void* native_object,
+                                          void* finalize_data,
                                           napi_finalize finalize_cb,
                                           void* finalize_hint,
                                           napi_ref* result) {
-  return v8impl::Wrap<v8impl::anonymous>(
-      env, js_object, native_object, finalize_cb, finalize_hint, result);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, js_object);
+  CHECK_ARG(env, finalize_cb);
+
+  v8::Local<v8::Value> v8_value = v8impl::V8LocalValueFromJsValue(js_object);
+  RETURN_STATUS_IF_FALSE(env, v8_value->IsObject(), napi_invalid_arg);
+
+  // Create a self-deleting reference if the optional out-param result is not
+  // set.
+  v8impl::Ownership ownership = result == nullptr
+                                    ? v8impl::Ownership::kRuntime
+                                    : v8impl::Ownership::kUserland;
+  v8impl::Reference* reference = v8impl::Reference::New(
+      env, v8_value, 0, ownership, finalize_cb, finalize_data, finalize_hint);
+
+  if (result != nullptr) {
+    *result = reinterpret_cast<napi_ref>(reference);
+  }
+  return napi_clear_last_error(env);
 }
 
 napi_status NAPI_CDECL napi_adjust_external_memory(napi_env env,
