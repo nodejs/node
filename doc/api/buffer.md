@@ -888,6 +888,43 @@ socket.on('readable', () => {
 
 A `TypeError` will be thrown if `size` is not a number.
 
+### Static method: `Buffer.asString(list[, encoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `list` {ArrayBufferView|ArrayBuffer|SharedArrayBuffer} Resource
+* `encoding` {string} If `string` is a string, this is its encoding.
+  **Default** `'utf8'`
+* Returns: {string} The encoded string representation of `list`
+
+```mjs
+import { Buffer } from 'node:buffer';
+
+const buf = new Uint8Array([
+  104, 101, 108, 108,
+  111, 32, 119, 111,
+  114, 108, 100,
+]);
+
+console.log(Buffer.asString(buf));
+// Prints: 'hello world'
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+
+const buf = new Uint8Array([
+  104, 101, 108, 108,
+  111, 32, 119, 111,
+  114, 108, 100,
+]);
+
+console.log(Buffer.asString(buf));
+// Prints: 'hello world'
+```
+
 ### Static method: `Buffer.byteLength(string[, encoding])`
 
 <!-- YAML
