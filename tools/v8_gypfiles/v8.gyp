@@ -1602,47 +1602,47 @@
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/x64/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/ia32/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm" or _toolset == "target" and target_arch=="arm"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/arm/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/arm64/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "ppc64" or _toolset == "target" and target_arch=="ppc64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ppc/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/ppc/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "s390x" or _toolset == "target" and target_arch=="s390x"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/s390/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/s390/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "mips64" or _toolset == "target" and target_arch=="mips64" or _toolset == "host" and host_arch == "mips64el" or _toolset == "target" and target_arch=="mips64el"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/mips64/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/mips64/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "riscv64" or _toolset == "target" and target_arch=="riscv64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/riscv/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/riscv/save_registers_asm.cc',
                 ],
               }],
               ['_toolset == "host" and host_arch == "loong64" or _toolset == "target" and target_arch=="loong64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/loong64/push_registers_asm.cc',
+                  '<(V8_ROOT)/src/heap/base/asm/loong64/save_registers_asm.cc',
                 ],
               }],
             ]
@@ -1651,17 +1651,17 @@
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
+                  '<(V8_ROOT)/src/heap/base/asm/x64/save_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.asm',
+                  '<(V8_ROOT)/src/heap/base/asm/ia32/save_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
+                  '<(V8_ROOT)/src/heap/base/asm/arm64/save_registers_masm.S',
                 ],
               }],
             ],
