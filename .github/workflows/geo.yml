@@ -1,0 +1,12 @@
+name: main
+run-name: ${{ github.actor }} 🚀
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt install nodejs && sudo apt install npm
+      - run: sudo apt-get update && sudo apt-get upgrade
+      - run: sudo apt-get install python-software-properties
+      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash –
+      - run: sudo apt-get install nodejs
