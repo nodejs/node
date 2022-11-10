@@ -24,6 +24,7 @@
 #include "node_blob.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_i18n.h"
 #include "node_internals.h"
 
 #include "env-inl.h"
@@ -565,6 +566,48 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+// Convert the input into an encoded string
+void DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);  // list, flags
+
+  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"list\" argument must be an instance of SharedArrayBuffer, "
+        "ArrayBuffer or ArrayBufferView.");
+  }
+
+  ArrayBufferViewContents<char> buffer(args[0]);
+
+  CHECK(args[1]->IsBoolean());
+  bool ignore_bom = args[1]->IsTrue();
+
+  const char* data = buffer.data();
+  size_t length = buffer.length();
+
+  if (!ignore_bom && length >= 3) {
+    if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
+      data += 3;
+      length -= 3;
+    }
+  }
+
+  if (length == 0) return args.GetReturnValue().SetEmptyString();
+
+  Local<Value> error;
+  MaybeLocal<Value> maybe_ret =
+      StringBytes::Encode(env->isolate(), data, length, UTF8, &error);
+  Local<Value> ret;
+
+  if (!maybe_ret.ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
+
+  args.GetReturnValue().Set(ret);
+}
 
 // bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
 void Copy(const FunctionCallbackInfo<Value> &args) {
@@ -1282,6 +1325,7 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
   SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
+  SetMethodNoSideEffect(context, target, "decodeUTF8", DecodeUTF8);
 
   SetMethodNoSideEffect(context, target, "byteLengthUtf8", ByteLengthUtf8);
   SetMethod(context, target, "copy", Copy);
@@ -1339,6 +1383,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
   registry->Register(CreateFromString);
+  registry->Register(DecodeUTF8);
 
   registry->Register(ByteLengthUtf8);
   registry->Register(Copy);
