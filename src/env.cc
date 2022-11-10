@@ -655,7 +655,8 @@ Environment::Environment(IsolateData* isolate_data,
       exec_argv_(exec_args),
       argv_(args),
       exec_path_(GetExecPath(args)),
-      exiting_(isolate_, 1, MAYBE_FIELD_PTR(env_info, exiting)),
+      exit_info_(
+          isolate_, kExitInfoFieldCount, MAYBE_FIELD_PTR(env_info, exit_info)),
       should_abort_on_uncaught_toggle_(
           isolate_,
           1,
@@ -1608,7 +1609,7 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
   info.performance_state = performance_state_->Serialize(ctx, creator);
-  info.exiting = exiting_.Serialize(ctx, creator);
+  info.exit_info = exit_info_.Serialize(ctx, creator);
   info.stream_base_state = stream_base_state_.Serialize(ctx, creator);
   info.should_abort_on_uncaught_toggle =
       should_abort_on_uncaught_toggle_.Serialize(ctx, creator);
@@ -1654,7 +1655,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
   performance_state_->Deserialize(ctx);
-  exiting_.Deserialize(ctx);
+  exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 
@@ -1844,7 +1845,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("builtins_without_cache", builtins_without_cache);
   tracker->TrackField("destroy_async_id_list", destroy_async_id_list_);
   tracker->TrackField("exec_argv", exec_argv_);
-  tracker->TrackField("exiting", exiting_);
+  tracker->TrackField("exit_info", exit_info_);
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
