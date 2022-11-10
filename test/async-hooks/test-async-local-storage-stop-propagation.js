@@ -36,3 +36,15 @@ als.run(myStore, common.mustCall(() => {
     }));
   }));
 }));
+
+assert.throws(() => new AsyncLocalStorage(15), {
+  message: 'The "options" argument must be of type object. Received type number (15)',
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError'
+});
+
+assert.throws(() => new AsyncLocalStorage({ onPropagate: "bar" }), {
+  message: 'The "options.onPropagate" property must be of type function. Received type string (\'bar\')',
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError'
+});
