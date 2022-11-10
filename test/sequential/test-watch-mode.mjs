@@ -87,6 +87,7 @@ async function failWriteSucceed({ file, watchedFile }) {
   const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
 
   child.stdout.on('data', (data) => {
+    console.log(data.toString());
     stdout += data;
     if (data.toString().startsWith('Failed running')) notFound.resolve();
     if (data.toString().startsWith('Completed running')) completed.resolve();
