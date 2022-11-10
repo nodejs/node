@@ -15,6 +15,10 @@ you informed of the progress being made towards a fix and full announcement,
 and may ask for additional information or guidance surrounding the reported
 issue.
 
+Experimental features are eligible as a valid vulnerability report.
+Even though its usage in production is not recommended, those features are
+available to early adopters and security researchers.
+
 ### Node.js bug bounty program
 
 The Node.js project engages in an official bug bounty program for security
