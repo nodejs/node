@@ -510,7 +510,7 @@ struct EnvSerializeInfo {
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
   performance::PerformanceState::SerializeInfo performance_state;
-  AliasedBufferIndex exiting;
+  AliasedBufferIndex exit_info;
   AliasedBufferIndex stream_base_state;
   AliasedBufferIndex should_abort_on_uncaught_toggle;
 
@@ -743,10 +743,12 @@ class Environment : public MemoryRetainer {
   inline void set_force_context_aware(bool value);
   inline bool force_context_aware() const;
 
-  // This is a pseudo-boolean that keeps track of whether the process is
-  // exiting.
+  // This contains fields that are a pseudo-boolean that keeps track of whether
+  // the process is exiting, an integer representing the process exit code, and
+  // a pseudo-boolean to indicate whether the exit code is undefined.
+  inline AliasedInt32Array& exit_info();
   inline void set_exiting(bool value);
-  inline AliasedUint32Array& exiting();
+  inline ExitCode exit_code(const ExitCode default_code) const;
 
   // This stores whether the --abort-on-uncaught-exception flag was passed
   // to Node.
@@ -1038,6 +1040,14 @@ class Environment : public MemoryRetainer {
 
   inline void RemoveHeapSnapshotNearHeapLimitCallback(size_t heap_limit);
 
+  // Field identifiers for exit_info_
+  enum ExitInfoField {
+    kExiting = 0,
+    kExitCode,
+    kHasExitCode,
+    kExitInfoFieldCount
+  };
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1103,7 +1113,7 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
-  AliasedUint32Array exiting_;
+  AliasedInt32Array exit_info_;
 
   AliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;

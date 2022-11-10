@@ -364,11 +364,17 @@ inline bool Environment::force_context_aware() const {
 }
 
 inline void Environment::set_exiting(bool value) {
-  exiting_[0] = value ? 1 : 0;
+  exit_info_[kExiting] = value ? 1 : 0;
 }
 
-inline AliasedUint32Array& Environment::exiting() {
-  return exiting_;
+inline ExitCode Environment::exit_code(const ExitCode default_code) const {
+  return exit_info_[kHasExitCode] == 0
+             ? default_code
+             : static_cast<ExitCode>(exit_info_[kExitCode]);
+}
+
+inline AliasedInt32Array& Environment::exit_info() {
+  return exit_info_;
 }
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {

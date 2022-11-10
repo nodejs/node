@@ -16,7 +16,6 @@ using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
-using v8::Value;
 
 void RunAtExit(Environment* env) {
   env->RunAtExitCallbacks();
@@ -36,18 +35,16 @@ Maybe<bool> EmitProcessBeforeExit(Environment* env) {
   if (!env->destroy_async_id_list()->empty())
     AsyncWrap::DestroyAsyncIdsCallback(env);
 
-  HandleScope handle_scope(env->isolate());
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(env->context());
 
-  Local<Value> exit_code_v;
-  if (!env->process_object()->Get(context, env->exit_code_string())
-      .ToLocal(&exit_code_v)) return Nothing<bool>();
-
-  Local<Integer> exit_code;
-  if (!exit_code_v->ToInteger(context).ToLocal(&exit_code)) {
+  if (!env->can_call_into_js()) {
     return Nothing<bool>();
   }
+
+  Local<Integer> exit_code = Integer::New(
+      isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
 
   return ProcessEmit(env, "beforeExit", exit_code).IsEmpty() ?
       Nothing<bool>() : Just(true);
@@ -65,29 +62,22 @@ Maybe<ExitCode> EmitProcessExitInternal(Environment* env) {
   // process.emit('exit')
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Local<Context> context = env->context();
-  Context::Scope context_scope(context);
-  Local<Object> process_object = env->process_object();
+  Context::Scope context_scope(env->context());
 
-  // TODO(addaleax): It might be nice to share process.exitCode via
-  // getter/setter pairs that pass data directly to the native side, so that we
-  // don't manually have to read and write JS properties here. These getters
-  // could use e.g. a typed array for performance.
   env->set_exiting(true);
 
-  Local<String> exit_code = env->exit_code_string();
-  Local<Value> code_v;
-  int code;
-  if (!process_object->Get(context, exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(context).To(&code) ||
-      ProcessEmit(env, "exit", Integer::New(isolate, code)).IsEmpty() ||
-      // Reload exit code, it may be changed by `emit('exit')`
-      !process_object->Get(context, exit_code).ToLocal(&code_v) ||
-      !code_v->Int32Value(context).To(&code)) {
+  if (!env->can_call_into_js()) {
     return Nothing<ExitCode>();
   }
 
-  return Just(static_cast<ExitCode>(code));
+  Local<Integer> exit_code = Integer::New(
+      isolate, static_cast<int32_t>(env->exit_code(ExitCode::kNoFailure)));
+
+  if (ProcessEmit(env, "exit", exit_code).IsEmpty()) {
+    return Nothing<ExitCode>();
+  }
+  // Reload exit code, it may be changed by `emit('exit')`
+  return Just(env->exit_code(ExitCode::kNoFailure));
 }
 
 Maybe<int> EmitProcessExit(Environment* env) {

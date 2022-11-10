@@ -424,6 +424,17 @@ void Initialize(Local<Object> target,
   V(kRejected);
 #undef V
 
+#define V(name)                                                                \
+  target                                                                       \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(env->isolate(), #name),                      \
+            Integer::New(env->isolate(), Environment::ExitInfoField::name))    \
+      .FromJust()
+  V(kExiting);
+  V(kExitCode);
+  V(kHasExitCode);
+#undef V
+
   SetMethodNoSideEffect(context, target, "getHiddenValue", GetHiddenValue);
   SetMethod(context, target, "setHiddenValue", SetHiddenValue);
   SetMethodNoSideEffect(
