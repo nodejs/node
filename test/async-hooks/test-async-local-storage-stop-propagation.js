@@ -18,7 +18,7 @@ function onPropagate(type, store) {
 }
 
 const als = new AsyncLocalStorage({
-  onPropagateCb: common.mustCall(onPropagate, 2)
+  onPropagate: common.mustCall(onPropagate, 2)
 });
 
 const myStore = {};

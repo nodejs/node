@@ -125,20 +125,20 @@ added:
 changes:
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/45386
-   description: Add option onPropagateCb.
+   description: Add option onPropagate.
 -->
 
-> Stability: 1 - `options.onPropagateCb` is experimental.
+> Stability: 1 - `options.onPropagate` is experimental.
 
 * `options` {Object}
-  * `onPropagateCb` {Function} Optional callback invoked before a store is
+  * `onPropagate` {Function} Optional callback invoked before a store is
     propagated to a new async resource. Returning `true` allows propagation,
     returning `false` avoids it. Default is to propagate always.
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
 
-The `onPropagateCb` is called during creation of an async resource. Throwing at
+The `onPropagate` is called during creation of an async resource. Throwing at
 this time will print the stack trace and exit. See
 [`async_hooks` Error handling][] for details.
 
