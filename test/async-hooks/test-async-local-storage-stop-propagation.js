@@ -43,7 +43,7 @@ assert.throws(() => new AsyncLocalStorage(15), {
   name: 'TypeError'
 });
 
-assert.throws(() => new AsyncLocalStorage({ onPropagate: "bar" }), {
+assert.throws(() => new AsyncLocalStorage({ onPropagate: 'bar' }), {
   message: 'The "options.onPropagate" property must be of type function. Received type string (\'bar\')',
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
