@@ -103,7 +103,7 @@ tmpdir.refresh();
 
 // Warning: this suite can run safely with concurrency: true
 // only if tests do not watch/depend on the same files
-describe('watch mode', { concurrency: true, timeout: 60_0000 }, () => {
+describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
   it('should watch changes to a file - event loop ended', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await spawnWithRestarts({ file });
