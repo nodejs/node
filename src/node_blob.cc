@@ -107,7 +107,9 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
       CHECK_EQ(view->ByteOffset(), 0);
       std::shared_ptr<BackingStore> store = view->Buffer()->GetBackingStore();
       size_t byte_length = view->ByteLength();
-      view->Buffer()->Detach();  // The Blob will own the backing store now.
+      view->Buffer()
+          ->Detach(Local<Value>())
+          .Check();  // The Blob will own the backing store now.
       entries.emplace_back(BlobEntry{std::move(store), byte_length, 0});
       len += byte_length;
     } else {
