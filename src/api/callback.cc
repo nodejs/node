@@ -97,10 +97,11 @@ void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
 
+  if (!env_->can_call_into_js()) return;
+
   Isolate* isolate = env_->isolate();
   auto idle = OnScopeLeave([&]() { isolate->SetIdle(true); });
 
-  if (!env_->can_call_into_js()) return;
   auto perform_stopping_check = [&]() {
     if (env_->is_stopping()) {
       MarkAsFailed();
