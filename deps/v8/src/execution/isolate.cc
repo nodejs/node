@@ -1949,6 +1949,15 @@ Object Isolate::UnwindAndFindHandler() {
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
+  if (!catchable_by_js && !context().is_null()) {
+    // Because the array join stack will not pop the elements when throwing the
+    // uncatchable terminate exception, we need to clear the array join stack to
+    // avoid leaving the stack in an invalid state.
+    // See also CycleProtectedArrayJoin.
+    raw_native_context().set_array_join_stack(
+        ReadOnlyRoots(this).undefined_value());
+  }
+
   int visited_frames = 0;
 
 #if V8_ENABLE_WEBASSEMBLY
