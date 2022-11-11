@@ -3239,7 +3239,7 @@ napi_status NAPI_CDECL napi_detach_arraybuffer(napi_env env,
   RETURN_STATUS_IF_FALSE(
       env, it->IsDetachable(), napi_detachable_arraybuffer_expected);
 
-  it->Detach();
+  it->Detach(v8::Local<v8::Value>()).Check();
 
   return napi_clear_last_error(env);
 }
