@@ -71,6 +71,8 @@
       '<(V8_ROOT)/src/inspector/v8-debugger.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.h',
+      '<(V8_ROOT)/src/inspector/v8-debugger-barrier.cc',
+      '<(V8_ROOT)/src/inspector/v8-debugger-barrier.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-id.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-id.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-script.cc',
