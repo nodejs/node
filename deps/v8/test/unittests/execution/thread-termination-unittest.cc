@@ -33,6 +33,7 @@
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -887,6 +888,75 @@ TEST_F(ThreadTerminationTest, TerminateConsole) {
   CHECK(TryRunJS("terminate(); console.log(); fail();").IsEmpty());
   CHECK(try_catch.HasCaught());
   CHECK(isolate()->IsExecutionTerminating());
+}
+
+TEST_F(ThreadTerminationTest, TerminationClearArrayJoinStack) {
+  internal::v8_flags.allow_natives_syntax = true;
+  HandleScope scope(isolate());
+  Local<ObjectTemplate> global_template =
+      CreateGlobalTemplate(isolate(), TerminateCurrentThread, DoLoopNoCall);
+  {
+    Local<Context> context = Context::New(isolate(), nullptr, global_template);
+    Context::Scope context_scope(context);
+    {
+      TryCatch try_catch(isolate());
+      TryRunJS(
+          "var error = false;"
+          "var a = [{toString(){if(error)loop()}}];"
+          "function Join(){ return a.join();}; "
+          "%PrepareFunctionForOptimization(Join);"
+          "Join();"
+          "%OptimizeFunctionOnNextCall(Join);"
+          "error = true;"
+          "Join();");
+      CHECK(try_catch.HasTerminated());
+      CHECK(isolate()->IsExecutionTerminating());
+    }
+    EXPECT_THAT(RunJS("a[0] = 1; Join();"), testing::IsString("1"));
+  }
+  {
+    Local<Context> context = Context::New(isolate(), nullptr, global_template);
+    Context::Scope context_scope(context);
+    {
+      TryCatch try_catch(isolate());
+      TryRunJS(
+          "var a = [{toString(){loop()}}];"
+          "function Join(){ return a.join();}; "
+          "Join();");
+      CHECK(try_catch.HasTerminated());
+      CHECK(isolate()->IsExecutionTerminating());
+    }
+    EXPECT_THAT(RunJS("a[0] = 1; Join();"), testing::IsString("1"));
+  }
+  {
+    ConsoleImpl console;
+    debug::SetConsoleDelegate(isolate(), &console);
+    HandleScope scope(isolate());
+    Local<Context> context = Context::New(isolate(), nullptr, global_template);
+    Context::Scope context_scope(context);
+    {
+      // setup console global.
+      HandleScope scope(isolate());
+      Local<String> name = String::NewFromUtf8Literal(
+          isolate(), "console", NewStringType::kInternalized);
+      Local<Value> console = context->GetExtrasBindingObject()
+                                 ->Get(context, name)
+                                 .ToLocalChecked();
+      context->Global()->Set(context, name, console).FromJust();
+    }
+    CHECK(!isolate()->IsExecutionTerminating());
+    {
+      TryCatch try_catch(isolate());
+      CHECK(!isolate()->IsExecutionTerminating());
+      CHECK(TryRunJS("var a = [{toString(){terminate();console.log();fail()}}];"
+                     "function Join() {return a.join();}"
+                     "Join();")
+                .IsEmpty());
+      CHECK(try_catch.HasCaught());
+      CHECK(isolate()->IsExecutionTerminating());
+    }
+    EXPECT_THAT(RunJS("a[0] = 1; Join();"), testing::IsString("1"));
+  }
 }
 
 class TerminatorSleeperThread : public base::Thread {
