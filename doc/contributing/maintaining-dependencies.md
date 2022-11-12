@@ -67,7 +67,7 @@ shared library is available can added by:
   If there are additional libraries that are required it is
   possible to list more than one with the `pkgname` option.
 * in `node.gypi` guard the build for the dependency
-  with `node_shared_depname` so that is is only built if
+  with `node_shared_depname` so that it is only built if
   the dependency is being bundled into Node.js itself. For example:
 
 ```text
