@@ -113,7 +113,7 @@ if (common.hasIntl) {
       '  fatal: false,\n' +
       '  ignoreBOM: true,\n' +
       '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: Converter {}\n' +
+      '  [Symbol(handle)]: undefined\n' +
       '}'
     );
   } else {
