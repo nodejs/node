@@ -32,14 +32,24 @@ jobs:
     steps:
       - name: Get Pull Requests
         id: get_mergeable_prs
-        run: >
-          numbers=$(gh pr list \
+        run: |
+          prs=$(gh pr list \
                   --repo ${{ github.repository }} \
                   --base ${{ github.ref_name }} \
                   --label 'commit-queue' \
                   --json 'number' \
+                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z")" \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
+          fast_track_prs=$(gh pr list \
+                  --repo ${{ github.repository }} \
+                  --base ${{ github.ref_name }} \
+                  --label 'commit-queue' \
+                  --label 'fast-track' \
+                  --json 'number' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 100)
+          numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
           echo "numbers=$numbers" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
