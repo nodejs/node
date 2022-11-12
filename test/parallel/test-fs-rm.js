@@ -49,6 +49,15 @@ function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
       path.join(dirname, `link-${depth}-bad`),
       'file'
     );
+
+    // Symlinks that form a loop
+    [['a', 'b'], ['b', 'a']].forEach(([x, y]) => {
+      fs.symlinkSync(
+        `link-${depth}-loop-${x}`,
+        path.join(dirname, `link-${depth}-loop-${y}`),
+        'file'
+      );
+    });
   }
 
   // File with a name that looks like a glob
@@ -88,7 +97,7 @@ function removeAsync(dir) {
 
         // Attempted removal should fail now because the directory is gone.
         fs.rm(dir, common.mustCall((err) => {
-          assert.strictEqual(err.syscall, 'stat');
+          assert.strictEqual(err.syscall, 'lstat');
         }));
       }));
     }));
@@ -137,6 +146,48 @@ function removeAsync(dir) {
       fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
     }
   }));
+
+  // Should delete a valid symlink
+  const linkTarget = path.join(tmpdir.path, 'link-target-async.txt');
+  fs.writeFileSync(linkTarget, '');
+  const validLink = path.join(tmpdir.path, 'valid-link-async');
+  fs.symlinkSync(linkTarget, validLink);
+  fs.rm(validLink, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
+    try {
+      assert.strictEqual(err, null);
+      assert.strictEqual(fs.existsSync(validLink), false);
+    } finally {
+      fs.rmSync(linkTarget, common.mustNotMutateObjectDeep({ force: true }));
+      fs.rmSync(validLink, common.mustNotMutateObjectDeep({ force: true }));
+    }
+  }));
+
+  // Should delete an invalid symlink
+  const invalidLink = path.join(tmpdir.path, 'invalid-link-async');
+  fs.symlinkSync('definitely-does-not-exist-async', invalidLink);
+  fs.rm(invalidLink, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
+    try {
+      assert.strictEqual(err, null);
+      assert.strictEqual(fs.existsSync(invalidLink), false);
+    } finally {
+      fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
+    }
+  }));
+
+  // Should delete a symlink that is part of a loop
+  const loopLinkA = path.join(tmpdir.path, 'loop-link-async-a');
+  const loopLinkB = path.join(tmpdir.path, 'loop-link-async-b');
+  fs.symlinkSync(loopLinkA, loopLinkB);
+  fs.symlinkSync(loopLinkB, loopLinkA);
+  fs.rm(loopLinkA, common.mustNotMutateObjectDeep({ recursive: true }), common.mustCall((err) => {
+    try {
+      assert.strictEqual(err, null);
+      assert.strictEqual(fs.existsSync(loopLinkA), false);
+    } finally {
+      fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
+      fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
+    }
+  }));
 }
 
 // Removing a .git directory should not throw an EPERM.
@@ -168,7 +219,7 @@ if (isGitPresent) {
   }, {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
+    message: /^ENOENT: no such file or directory, lstat/
   });
 
   // Should delete a file
@@ -179,6 +230,39 @@ if (isGitPresent) {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
   } finally {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete a valid symlink
+  const linkTarget = path.join(tmpdir.path, 'link-target.txt');
+  fs.writeFileSync(linkTarget, '');
+  const validLink = path.join(tmpdir.path, 'valid-link');
+  fs.symlinkSync(linkTarget, validLink);
+  try {
+    fs.rmSync(validLink);
+  } finally {
+    fs.rmSync(linkTarget, common.mustNotMutateObjectDeep({ force: true }));
+    fs.rmSync(validLink, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete an invalid symlink
+  const invalidLink = path.join(tmpdir.path, 'invalid-link');
+  fs.symlinkSync('definitely-does-not-exist', invalidLink);
+  try {
+    fs.rmSync(invalidLink);
+  } finally {
+    fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete a symlink that is part of a loop
+  const loopLinkA = path.join(tmpdir.path, 'loop-link-a');
+  const loopLinkB = path.join(tmpdir.path, 'loop-link-b');
+  fs.symlinkSync(loopLinkA, loopLinkB);
+  fs.symlinkSync(loopLinkB, loopLinkA);
+  try {
+    fs.rmSync(loopLinkA);
+  } finally {
+    fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
+    fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
   }
 
   // Should accept URL
@@ -195,7 +279,7 @@ if (isGitPresent) {
   fs.rmSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
+  assert.throws(() => fs.rmSync(dir), { syscall: 'lstat' });
 }
 
 // Removing a .git directory should not throw an EPERM.
@@ -222,7 +306,7 @@ if (isGitPresent) {
   await fs.promises.rm(dir, common.mustNotMutateObjectDeep({ recursive: true }));
 
   // Attempted removal should fail now because the directory is gone.
-  await assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'lstat' });
 
   // Should fail if target does not exist
   await assert.rejects(fs.promises.rm(
@@ -231,7 +315,7 @@ if (isGitPresent) {
   ), {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
+    message: /^ENOENT: no such file or directory, lstat/
   });
 
   // Should not fail if target does not exist and force option is true
@@ -245,6 +329,39 @@ if (isGitPresent) {
     await fs.promises.rm(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
   } finally {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete a valid symlink
+  const linkTarget = path.join(tmpdir.path, 'link-target-prom.txt');
+  fs.writeFileSync(linkTarget, '');
+  const validLink = path.join(tmpdir.path, 'valid-link-prom');
+  fs.symlinkSync(linkTarget, validLink);
+  try {
+    await fs.promises.rm(validLink);
+  } finally {
+    fs.rmSync(linkTarget, common.mustNotMutateObjectDeep({ force: true }));
+    fs.rmSync(validLink, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete an invalid symlink
+  const invalidLink = path.join(tmpdir.path, 'invalid-link-prom');
+  fs.symlinkSync('definitely-does-not-exist-prom', invalidLink);
+  try {
+    await fs.promises.rm(invalidLink);
+  } finally {
+    fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
+  }
+
+  // Should delete a symlink that is part of a loop
+  const loopLinkA = path.join(tmpdir.path, 'loop-link-prom-a');
+  const loopLinkB = path.join(tmpdir.path, 'loop-link-prom-b');
+  fs.symlinkSync(loopLinkA, loopLinkB);
+  fs.symlinkSync(loopLinkB, loopLinkA);
+  try {
+    await fs.promises.rm(loopLinkA);
+  } finally {
+    fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
+    fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
   }
 
   // Should accept URL
