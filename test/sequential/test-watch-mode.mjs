@@ -9,15 +9,12 @@ import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { once } from 'node:events';
+import { createInterface } from 'node:readline/promises';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-function deferred() {
-  let res;
-  const promise = new Promise((resolve) => res = resolve);
-  return { resolve: res, promise };
-}
+const supportsRecursive = common.isOSX || common.isWindows;
 
 function restart(file) {
   // To avoid flakiness, we save the file repeatedly until test is done
@@ -81,23 +78,21 @@ function assertRestartedCorrectly({ stdout, messages: { inner, completed, restar
 }
 
 async function failWriteSucceed({ file, watchedFile }) {
-  let stdout = '';
-  const notFound = deferred();
-  const completed = deferred();
   const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
 
-  child.stdout.on('data', (data) => {
-    console.log(data.toString());
-    stdout += data;
-    if (data.toString().startsWith('Failed running')) notFound.resolve();
-    if (data.toString().startsWith('Completed running')) completed.resolve();
-  });
-
-  await notFound.promise;
-  writeFileSync(watchedFile, 'console.log("test has ran");');
-  await completed.promise;
-  child.kill();
-  assert.match(stdout, /test has ran/);
+  try {
+    // break the chunks into lines
+    for await(const data of createInterface({ input: child.stdout })) {
+        if (data.startsWith('Completed running')) {
+          break;
+        }
+        if (data.startsWith('Failed running')) {
+          writeFileSync(watchedFile, 'console.log("test has ran");');
+        }
+    };
+  } finally {
+    child.kill();
+  }
 }
 
 tmpdir.refresh();
@@ -131,7 +126,7 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path', {
-    skip: !common.isOSX && !common.isWindows
+    skip: !supportsRecursive
   }, async () => {
     const file = fixtures.path('watch-mode/subdir/non-existing.js');
     const watchedFile = fixtures.path('watch-mode/subdir/file.js');
@@ -238,18 +233,25 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
       messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
     });
   });
-
-  it('should not watch when running an missing file', async () => {
+ 
+  // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
+  it('should not watch when running an missing file', {
+    skip: !supportsRecursive
+  }, async () => {
     const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.js`);
     await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
   });
 
-  it('should not watch when running an missing mjs file', async () => {
+  it('should not watch when running an missing mjs file', {
+    skip: !supportsRecursive
+  }, async () => {
     const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
     await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
   });
 
-  it('should watch changes to previously missing dependency', async () => {
+  it('should watch changes to previously missing dependency', {
+    skip: !supportsRecursive
+  }, async () => {
     const dependency = path.join(tmpdir.path, `${tmpFiles++}.js`);
     const relativeDependencyPath = `./${path.basename(dependency)}`;
     const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
@@ -257,7 +259,9 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
     await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
 
-  it('should watch changes to previously missing ESM dependency', async () => {
+  it('should watch changes to previously missing ESM dependency', {
+    skip: !supportsRecursive
+  }, async () => {
     const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
     const relativeDependencyPath = `./${path.basename(dependency)}`;
     const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
