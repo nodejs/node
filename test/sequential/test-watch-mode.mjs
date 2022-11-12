@@ -81,15 +81,15 @@ async function failWriteSucceed({ file, watchedFile }) {
   const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
 
   try {
-    // break the chunks into lines
-    for await(const data of createInterface({ input: child.stdout })) {
-        if (data.startsWith('Completed running')) {
-          break;
-        }
-        if (data.startsWith('Failed running')) {
-          writeFileSync(watchedFile, 'console.log("test has ran");');
-        }
-    };
+    // Break the chunks into lines
+    for await (const data of createInterface({ input: child.stdout })) {
+      if (data.startsWith('Completed running')) {
+        break;
+      }
+      if (data.startsWith('Failed running')) {
+        writeFileSync(watchedFile, 'console.log("test has ran");');
+      }
+    }
   } finally {
     child.kill();
   }
@@ -233,7 +233,7 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
       messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
     });
   });
- 
+
   // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
   it('should not watch when running an missing file', {
     skip: !supportsRecursive
