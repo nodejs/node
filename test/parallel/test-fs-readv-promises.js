@@ -29,7 +29,6 @@ const allocateEmptyBuffers = (combinedLength) => {
     const filename = getFileName();
     await fs.writeFile(filename, exptectedBuff);
     const handle = await fs.open(filename, 'r');
-    // const buffer = Buffer.from(expected);
     const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
     const expectedLength = exptectedBuff.length;
 
@@ -49,7 +48,6 @@ const allocateEmptyBuffers = (combinedLength) => {
     const filename = getFileName();
     await fs.writeFile(filename, exptectedBuff);
     const handle = await fs.open(filename, 'r');
-    // const buffer = Buffer.from(expected);
     const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
     const expectedLength = exptectedBuff.length;
 
