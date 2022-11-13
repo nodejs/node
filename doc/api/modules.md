@@ -90,8 +90,8 @@ By default, Node.js will treat the following as CommonJS modules:
 * Files with an extension that is not `.mjs`, `.cjs`, `.json`, `.node`, or `.js`
   (when the nearest parent `package.json` file contains a top-level field
   [`"type"`][] with a value of `"module"`, those files will be recognized as
-  CommonJS modules only if they are being `require`d, not when used as the
-  command-line entry point of the program).
+  CommonJS modules only if they are being included via `require()`, not when
+  used as the command-line entry point of the program).
 
 See [Determining module system][] for more details.
 
