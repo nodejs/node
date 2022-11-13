@@ -291,6 +291,25 @@ test('a test that creates asynchronous activity', (t) => {
 });
 ```
 
+## Watch mode
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The Node.js test runner supports running in watch mode by passing the `--watch` flag:
+
+```bash
+node --test --watch
+```
+
+In watch mode, the test runner will watch for changes to test files and
+their dependencies. When a change is detected, the test runner will
+rerun the tests affected by the change.
+The test runner will continue to run until the process is terminated.
+
 ## Running tests from the command line
 
 The Node.js test runner can be invoked from the command line by passing the
