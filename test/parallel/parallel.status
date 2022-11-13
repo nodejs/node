@@ -5,8 +5,6 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/41123
-test-repl-sigint-nested-eval: PASS, FLAKY
 # https://github.com/nodejs/node/issues/43084
 test-worker-http2-stream-terminate: PASS, FLAKY
 
