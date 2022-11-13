@@ -1198,11 +1198,16 @@ status code 1.
 
 <!-- YAML
 added: v18.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45214
+    description: Test runner now supports running in watch mode.
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
-`--check`, `--eval`, `--interactive`, or the inspector. See the documentation
-on [running tests from the command line][] for more details.
+`--watch-path`, `--check`, `--eval`, `--interactive`, or the inspector.
+See the documentation on [running tests from the command line][]
+for more details.
 
 ### `--test-name-pattern`
 
@@ -1560,6 +1565,10 @@ will be chosen.
 
 <!-- YAML
 added: v18.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45214
+    description: Test runner now supports running in watch mode.
 -->
 
 > Stability: 1 - Experimental
@@ -1593,7 +1602,7 @@ This will turn off watching of required or imported modules, even when used in
 combination with `--watch`.
 
 This flag cannot be combined with
-`--check`, `--eval`, `--interactive`, or the REPL.
+`--check`, `--eval`, `--interactive`, `--test`, or the REPL.
 
 ```console
 $ node --watch-path=./src --watch-path=./tests index.js
