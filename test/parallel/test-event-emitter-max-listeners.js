@@ -24,45 +24,86 @@ const common = require('../common');
 const assert = require('assert');
 const events = require('events');
 const { inspect } = require('util');
-const e = new events.EventEmitter();
 
-e.on('maxListeners', common.mustCall());
+const throwInvalidType = [true, 'string'];
+const throwOutOfRange = [-1, NaN];
 
-// Should not corrupt the 'maxListeners' queue.
-e.setMaxListeners(42);
+// for EventEmitter.prototype.setMaxListeners
+{
+  const e = new events.EventEmitter();
 
-const throwsObjs = [NaN, -1, 'and even this'];
+  e.on('maxListeners', common.mustCall());
 
-for (const obj of throwsObjs) {
-  assert.throws(
-    () => e.setMaxListeners(obj),
-    {
-      code: 'ERR_OUT_OF_RANGE',
-      name: 'RangeError',
-      message: 'The value of "n" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`
-    }
-  );
+  // Should not corrupt the 'maxListeners' queue.
+  e.setMaxListeners(42);
 
-  assert.throws(
-    () => events.defaultMaxListeners = obj,
-    {
-      code: 'ERR_OUT_OF_RANGE',
-      name: 'RangeError',
-      message: 'The value of "defaultMaxListeners" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`
-    }
-  );
+  for (const obj of throwInvalidType) {
+    assert.throws(
+      () => e.setMaxListeners(obj),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: `The "n" argument must be of type number. Received type ${typeof obj} (${inspect(obj)})`
+      }
+    );
+  }
+
+  for (const obj of throwOutOfRange) {
+    assert.throws(
+      () => e.setMaxListeners(obj),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError',
+        message: 'The value of "n" is out of range. ' +
+                 `It must be >= 0. Received ${inspect(obj)}`
+      }
+    );
+  }
+
+  e.emit('maxListeners');
 }
 
-e.emit('maxListeners');
+// for EventEmitter.defaultMaxListeners
+{
+  for (const obj of throwInvalidType) {
+    assert.throws(
+      () => events.defaultMaxListeners = obj,
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: `The "defaultMaxListeners" argument must be of type number. Received type ${typeof obj} (${inspect(obj)})`
+      }
+    );
+  }
 
+  for (const obj of throwOutOfRange) {
+    assert.throws(
+      () => events.defaultMaxListeners = obj,
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'RangeError',
+        message: 'The value of "defaultMaxListeners" is out of range. ' +
+                 `It must be >= 0. Received ${inspect(obj)}`
+      }
+    );
+  }
+}
+
+// for EventEmitter.setMaxListeners
 {
   const { EventEmitter, defaultMaxListeners } = events;
-  for (const obj of throwsObjs) {
-    assert.throws(() => EventEmitter.setMaxListeners(obj), {
-      code: 'ERR_OUT_OF_RANGE',
-    });
+  for (const obj of throwInvalidType) {
+    assert.throws(
+      () => EventEmitter.setMaxListeners(obj),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+  }
+
+  for (const obj of throwOutOfRange) {
+    assert.throws(
+      () => EventEmitter.setMaxListeners(obj),
+      { code: 'ERR_OUT_OF_RANGE' }
+    );
   }
 
   assert.throws(
