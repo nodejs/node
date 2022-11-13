@@ -34,7 +34,8 @@ throws(() => require(vfsFile), { code: 'MODULE_NOT_FOUND' });
 
 common.expectWarning(
   'ExperimentalWarning',
-  'Module._stat is an experimental feature. This feature could change at any time');
+  'Module._stat is an experimental feature and might change at any time'
+);
 
 process.on('warning', common.mustCall());
 

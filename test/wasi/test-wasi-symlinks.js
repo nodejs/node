@@ -5,8 +5,7 @@ const path = require('path');
 
 if (process.argv[2] === 'wasi-child') {
   common.expectWarning('ExperimentalWarning',
-                       'WASI is an experimental feature. This feature could ' +
-                       'change at any time');
+                       'WASI is an experimental feature and might change at any time');
 
   const { WASI } = require('wasi');
   const wasmDir = path.join(__dirname, 'wasm');
