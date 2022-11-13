@@ -92,8 +92,7 @@ Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
 
   experimental_warnings.insert(warning);
   std::string message(warning);
-  message.append(
-      " is an experimental feature. This feature could change at any time");
+  message.append(" is an experimental feature and might change at any time");
   return ProcessEmitWarningGeneric(env, message.c_str(), "ExperimentalWarning");
 }
 
