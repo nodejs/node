@@ -297,6 +297,8 @@ test('a test that creates asynchronous activity', (t) => {
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 The Node.js test runner supports running in watch mode by passing the `--watch` flag:
 
 ```bash
