@@ -253,18 +253,8 @@ echo Looking for Visual Studio 2022
 if not defined target_env set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2019
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
-  echo Looking for WiX installation for Visual Studio 2022...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2022
-    echo VS2022 support for WiX is only present starting at version 3.XX
-    goto vs-set-2019
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2022 Extension
-    goto vs-set-2019
-  )
+  echo Using WiX4, no need for preinstallation
 )
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
@@ -293,18 +283,8 @@ echo Looking for Visual Studio 2019
 if not defined target_env set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" "prerelease"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
-  echo Looking for WiX installation for Visual Studio 2019...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2019
-    echo VS2019 support for WiX is only present starting at version 3.11
-    goto msbuild-not-found
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2019 Extension
-    goto msbuild-not-found
-  )
+  echo Using WiX4, no need for preinstallation
 )
 @rem check if VS2019 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
@@ -410,13 +390,13 @@ if not defined licensertf goto stage_package
 
 set "use_x64_node_exe=false"
 if "%target_arch%"=="arm64" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "use_x64_node_exe=true"
+set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
 if "%use_x64_node_exe%"=="true" (
   echo Cross-compilation to ARM64 detected. We'll use the x64 Node executable for license2rtf.
-  if not defined "%x64_node_exe%" set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
   if not exist "%x64_node_exe%" (
     echo Downloading x64 node.exe...
     if not exist "temp-vcbuild" mkdir temp-vcbuild
-    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile 'temp-vcbuild\node-x64-cross-compiling.exe'"
+    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile '%x64_node_exe%'"
   )
   if not exist "%x64_node_exe%" (
     echo Could not find the Node executable at the given x64_node_exe path. Aborting.
@@ -526,7 +506,7 @@ if not defined msi goto install-doctools
 echo Building node-v%FULLVERSION%-%target_arch%.msi
 set "msbsdk="
 if defined WindowsSDKVersion set "msbsdk=/p:WindowsTargetPlatformVersion=%WindowsSDKVersion:~0,-1%"
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:WixSdkDir="%WIXSDKDIR%" /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+powershell %~dp0tools\msvs\msi\nodemsi.ps1 -CustomActionsProjectFile "%~dp0tools\msvs\msi\custom_actions.vcxproj" -MsbSdk %msbsdk% -PlatformToolset %PLATFORM_TOOLSET% -Platform %target_arch% -NpmDirectory "%~dp0Release\node-v%FULLVERSION%-win-%target_arch%\node_modules\npm" -NpmWxs "%~dp0npm.wxs" -CorepackDirectory "%~dp0Release\node-v%FULLVERSION%-win-%target_arch%\node_modules\corepack" -CorepackWxs "%~dp0corepack.wxs" -ProductVersion %NODE_VERSION% -FullVersion %FULLVERSION% -DistTypeDir %DISTTYPEDIR% -ProjectDir %~dp0tools\msvs\msi\ -Configuration %config% -CustomActionsTargetDir %~dp0tools\msvs\msi\%target_arch%\%config%\ -ProductWxs %~dp0tools\msvs\msi\product.wxs -EnUsWxl %~dp0tools\msvs\msi\i18n\en-us.wxl -NodeMsi %~dp0node-v%FULLVERSION%-%target_arch%.msi > nul
 if errorlevel 1 goto exit
 
 if not defined sign goto upload
