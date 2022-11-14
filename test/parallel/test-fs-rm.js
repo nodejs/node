@@ -263,8 +263,8 @@ if (isGitPresent) {
   fs.symlinkSync(loopLinkB, loopLinkA);
   try {
     fs.rmSync(loopLinkA);
-  } finally {
     assert.strictEqual(fs.existsSync(loopLinkA), false);
+  } finally {
     fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
   }
