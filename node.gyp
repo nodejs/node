@@ -438,7 +438,7 @@
                'inputs': [ '<(opensslconfig)', ],
                'outputs': [ '<(opensslconfig_internal)', ],
                'action': [
-                 'python', 'tools/copyfile.py',
+                 '<(python)', 'tools/copyfile.py',
                  '<(opensslconfig)',
                  '<(opensslconfig_internal)',
                ],
