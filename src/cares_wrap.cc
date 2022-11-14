@@ -29,7 +29,8 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "req_wrap-inl.h"
-#include "util-inl.h"
+#include "util-inl.h"// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 #include "uv.h"
 #include "v8.h"
 
@@ -50,7 +51,8 @@
 #ifndef AI_V4MAPPED
 # define AI_V4MAPPED 0
 #endif
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace node {
 namespace cares_wrap {
@@ -84,7 +86,8 @@ inline uint16_t cares_get_16bit(const unsigned char* p) {
 void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
   NodeAresTask* task = ContainerOf(&NodeAresTask::poll_watcher, watcher);
   ChannelWrap* channel = task->channel;
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
   /* Reset the idle timer */
   uv_timer_again(channel->timer_handle());
 
@@ -118,7 +121,8 @@ void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
   auto it = channel->task_list()->find(&lookup_task);
 
   task = (it == channel->task_list()->end()) ? nullptr : *it;
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
   if (read || write) {
     if (!task) {
       /* New socket */
@@ -162,7 +166,8 @@ Local<Array> HostentToNames(Environment* env, struct hostent* host) {
 
   std::vector<Local<Value>> names;
 
-  for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i)
+  for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i)// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
     names.emplace_back(OneByteString(env->isolate(), host->h_aliases[i]));
 
   Local<Array> ret = Array::New(env->isolate(), names.data(), names.size());
@@ -195,7 +200,8 @@ Local<Array> AddrTTLToArray(
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
 
   return Array::New(env->isolate(), ttls.out(), naddrttls);
-}
+}// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 int ParseGeneralReply(
     Environment* env,
@@ -229,7 +235,8 @@ int ParseGeneralReply(
     case ns_t_ns:
       status = ares_parse_ns_reply(buf, len, &host);
       break;
-    case ns_t_ptr:
+    case ns_t_ptr:// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
       status = ares_parse_ptr_reply(buf, len, nullptr, 0, AF_INET, &host);
       break;
     default:
@@ -264,7 +271,8 @@ int ParseGeneralReply(
     HostentToNames(env, ptr.get(), ret);
   } else if (*type == ns_t_ptr) {
     uint32_t offset = ret->Length();
-    for (uint32_t i = 0; ptr->h_aliases[i] != nullptr; i++) {
+    for (uint32_t i = 0; ptr->h_aliases[i] != nullptr; i++) {// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
       auto alias = OneByteString(env->isolate(), ptr->h_aliases[i]);
       ret->Set(env->context(), i + offset, alias).Check();
     }
@@ -299,7 +307,8 @@ int ParseMxReply(
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> mx_record = Object::New(env->isolate());
     mx_record->Set(env->context(),
-                   env->exchange_string(),
+                   env->exchange_string(),// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
                    OneByteString(env->isolate(), current->host)).Check();
     mx_record->Set(env->context(),
                    env->priority_string(),
@@ -311,7 +320,8 @@ int ParseMxReply(
 
     ret->Set(env->context(), i + offset, mx_record).Check();
   }
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
   ares_free_data(mx_start);
   return ARES_SUCCESS;
 }
@@ -345,7 +355,8 @@ int ParseCaaReply(
                       env->type_string(),
                       env->dns_caa_string()).Check();
 
-    ret->Set(env->context(), i + offset, caa_record).Check();
+    ret->Set(env->context(), i + offset, caa_record).Check();// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
   }
 
   ares_free_data(caa_start);
@@ -380,7 +391,8 @@ int ParseTxtReply(
       if (!txt_chunk.IsEmpty()) {
         if (need_type) {
           Local<Object> elem = Object::New(env->isolate());
-          elem->Set(env->context(), env->entries_string(), txt_chunk).Check();
+          elem->Set(env->context(), env->entries_string(), txt_chunk).Check();// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
           elem->Set(env->context(),
                     env->type_string(),
                     env->dns_txt_string()).Check();
@@ -415,7 +427,8 @@ int ParseTxtReply(
   return ARES_SUCCESS;
 }
 
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 int ParseSrvReply(
     Environment* env,
     const unsigned char* buf,
@@ -426,7 +439,8 @@ int ParseSrvReply(
 
   struct ares_srv_reply* srv_start;
   int status = ares_parse_srv_reply(buf, len, &srv_start);
-  if (status != ARES_SUCCESS)
+  if (status != ARES_SUCCESS)// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
     return status;
 
   ares_srv_reply* current = srv_start;
@@ -470,7 +484,8 @@ int ParseNaptrReply(
   int status = ares_parse_naptr_reply(buf, len, &naptr_start);
 
   if (status != ARES_SUCCESS)
-    return status;
+    return status;// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
   ares_naptr_reply* current = naptr_start;
   int offset = ret->Length();
@@ -513,7 +528,8 @@ int ParseNaptrReply(
 
 int ParseSoaReply(
     Environment* env,
-    unsigned char* buf,
+    unsigned char* buf,// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
     int len,
     Local<Object>* ret) {
   EscapableHandleScope handle_scope(env->isolate());
@@ -540,7 +556,8 @@ int ParseSoaReply(
   if (ptr + temp_len + NS_QFIXEDSZ > buf + len) {
     return ARES_EBADRESP;
   }
-  ptr += temp_len + NS_QFIXEDSZ;
+  ptr += temp_len + NS_QFIXEDSZ;// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
   for (unsigned int i = 0; i < ancount; i++) {
     char* rr_name_temp = nullptr;
@@ -584,7 +601,8 @@ int ParseSoaReply(
         return status4 == ARES_EBADNAME ? ARES_EBADRESP : status4;
       }
       const ares_unique_ptr hostmaster(hostmaster_temp);
-      ptr += hostmaster_temp_len;
+      ptr += hostmaster_temp_len;// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
       if (ptr + 5 * 4 > buf + len) {
         return ARES_EBADRESP;
@@ -627,7 +645,8 @@ int ParseSoaReply(
       *ret = handle_scope.Escape(soa_record);
       break;
     }
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
     ptr += rr_len;
   }
 
@@ -666,7 +685,8 @@ void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(
-    Environment* env,
+    Environment* env,// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
     Local<Object> req_wrap_obj,
     bool verbatim)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP),
