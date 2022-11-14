@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const events = require('events');
-const { inspect } = require('util');
 
 const throwInvalidType = [true, 'string'];
 const throwOutOfRange = [-1, NaN];
@@ -42,8 +41,7 @@ const throwOutOfRange = [-1, NaN];
       () => e.setMaxListeners(obj),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError',
-        message: `The "n" argument must be of type number. Received type ${typeof obj} (${inspect(obj)})`
+        name: 'TypeError'
       }
     );
   }
@@ -53,9 +51,7 @@ const throwOutOfRange = [-1, NaN];
       () => e.setMaxListeners(obj),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError',
-        message: 'The value of "n" is out of range. ' +
-                 `It must be >= 0. Received ${inspect(obj)}`
+        name: 'RangeError'
       }
     );
   }
@@ -70,8 +66,7 @@ const throwOutOfRange = [-1, NaN];
       () => events.defaultMaxListeners = obj,
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError',
-        message: `The "defaultMaxListeners" argument must be of type number. Received type ${typeof obj} (${inspect(obj)})`
+        name: 'TypeError'
       }
     );
   }
@@ -81,9 +76,7 @@ const throwOutOfRange = [-1, NaN];
       () => events.defaultMaxListeners = obj,
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError',
-        message: 'The value of "defaultMaxListeners" is out of range. ' +
-                 `It must be >= 0. Received ${inspect(obj)}`
+        name: 'RangeError'
       }
     );
   }
