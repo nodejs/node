@@ -107,7 +107,7 @@ jobs:
       - name: Get release version numbers
         if: ${{ github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch }}
         id: get-released-versions
-        run: ./tools/lint-md/list-released-versions-from-changelogs.mjs
+        run: ./tools/lint-md/list-released-versions-from-changelogs.mjs >> $GITHUB_OUTPUT
       - name: Lint markdown files
         run: |
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"

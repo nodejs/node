@@ -20,6 +20,8 @@ async function getVersionsFromFile(file) {
       return;
     } else if (toc && line.startsWith('<a')) {
       result.push(line.slice(line.indexOf('>') + 1, -'</a><br/>'.length));
+    } else if (toc && line.startsWith('<b><a')) {
+      result.push(line.slice(line.indexOf('>', 3) + 1, -'</a></b><br/>'.length));
     }
   }
 }
@@ -30,11 +32,11 @@ const dir = await fs.promises.opendir(dataFolder);
 for await (const dirent of dir) {
   if (dirent.isFile()) {
     filesToCheck.push(
-      getVersionsFromFile(new URL(`./${dirent.name}`, dataFolder))
+      getVersionsFromFile(new URL(dirent.name, dataFolder))
     );
   }
 }
 
 await Promise.all(filesToCheck);
 
-console.log(`::set-output name=NODE_RELEASED_VERSIONS::${result.join(',')}`);
+console.log(`NODE_RELEASED_VERSIONS=${result.join(',')}`);
