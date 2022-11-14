@@ -265,7 +265,6 @@ if (isGitPresent) {
     fs.rmSync(loopLinkA);
   } finally {
     assert.strictEqual(fs.existsSync(loopLinkA), false);
-    assert.strictEqual(fs.existsSync(loopLinkB), true);
     fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -371,7 +370,6 @@ if (isGitPresent) {
   try {
     await fs.promises.rm(loopLinkA);
     assert.strictEqual(fs.existsSync(loopLinkA), false);
-    assert.strictEqual(fs.existsSync(loopLinkB), true);
   } finally {
     fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
