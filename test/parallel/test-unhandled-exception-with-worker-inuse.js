@@ -7,7 +7,7 @@ require('../common');
 //
 // The root cause of this issue is that before PerIsolateMessageListener()
 // is invoked by v8, v8 preserves the vm state, which is JS. However,
-// SetIdle() requires the vm state is either EXTERNEL or IDLE when embedder
+// SetIdle() requires the vm state is either EXTERNAL or IDLE when embedder
 // calling it.
 
 if (process.argv[2] === 'child') {
