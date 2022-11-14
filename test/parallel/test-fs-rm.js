@@ -228,6 +228,7 @@ if (isGitPresent) {
 
   try {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
+    assert.strictEqual(fs.existsSync(filePath), false);
   } finally {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -239,6 +240,7 @@ if (isGitPresent) {
   fs.symlinkSync(linkTarget, validLink);
   try {
     fs.rmSync(validLink);
+    assert.strictEqual(fs.existsSync(validLink), false);
   } finally {
     fs.rmSync(linkTarget, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(validLink, common.mustNotMutateObjectDeep({ force: true }));
@@ -249,6 +251,7 @@ if (isGitPresent) {
   fs.symlinkSync('definitely-does-not-exist', invalidLink);
   try {
     fs.rmSync(invalidLink);
+    assert.strictEqual(fs.existsSync(invalidLink), false);
   } finally {
     fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -261,6 +264,8 @@ if (isGitPresent) {
   try {
     fs.rmSync(loopLinkA);
   } finally {
+    assert.strictEqual(fs.existsSync(loopLinkA), false);
+    assert.strictEqual(fs.existsSync(loopLinkB), true);
     fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -271,12 +276,14 @@ if (isGitPresent) {
 
   try {
     fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ recursive: true }));
+    assert.strictEqual(fs.existsSync(fileURL), false);
   } finally {
     fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ force: true }));
   }
 
   // Recursive removal should succeed.
   fs.rmSync(dir, { recursive: true });
+  assert.strictEqual(fs.existsSync(dir), false);
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmSync(dir), { syscall: 'lstat' });
@@ -304,6 +311,7 @@ if (isGitPresent) {
 
   // Recursive removal should succeed.
   await fs.promises.rm(dir, common.mustNotMutateObjectDeep({ recursive: true }));
+  assert.strictEqual(fs.existsSync(dir), false);
 
   // Attempted removal should fail now because the directory is gone.
   await assert.rejects(fs.promises.rm(dir), { syscall: 'lstat' });
@@ -327,6 +335,7 @@ if (isGitPresent) {
 
   try {
     await fs.promises.rm(filePath, common.mustNotMutateObjectDeep({ recursive: true }));
+    assert.strictEqual(fs.existsSync(filePath), false);
   } finally {
     fs.rmSync(filePath, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -338,6 +347,7 @@ if (isGitPresent) {
   fs.symlinkSync(linkTarget, validLink);
   try {
     await fs.promises.rm(validLink);
+    assert.strictEqual(fs.existsSync(validLink), false);
   } finally {
     fs.rmSync(linkTarget, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(validLink, common.mustNotMutateObjectDeep({ force: true }));
@@ -348,6 +358,7 @@ if (isGitPresent) {
   fs.symlinkSync('definitely-does-not-exist-prom', invalidLink);
   try {
     await fs.promises.rm(invalidLink);
+    assert.strictEqual(fs.existsSync(invalidLink), false);
   } finally {
     fs.rmSync(invalidLink, common.mustNotMutateObjectDeep({ force: true }));
   }
@@ -359,6 +370,8 @@ if (isGitPresent) {
   fs.symlinkSync(loopLinkB, loopLinkA);
   try {
     await fs.promises.rm(loopLinkA);
+    assert.strictEqual(fs.existsSync(loopLinkA), false);
+    assert.strictEqual(fs.existsSync(loopLinkB), true);
   } finally {
     fs.rmSync(loopLinkA, common.mustNotMutateObjectDeep({ force: true }));
     fs.rmSync(loopLinkB, common.mustNotMutateObjectDeep({ force: true }));
@@ -370,6 +383,7 @@ if (isGitPresent) {
 
   try {
     await fs.promises.rm(fileURL, common.mustNotMutateObjectDeep({ recursive: true }));
+    assert.strictEqual(fs.existsSync(fileURL), false);
   } finally {
     fs.rmSync(fileURL, common.mustNotMutateObjectDeep({ force: true }));
   }
