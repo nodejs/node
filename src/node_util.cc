@@ -26,7 +26,6 @@ using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
 using v8::ONLY_WRITABLE;
-using v8::Private;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
