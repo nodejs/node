@@ -72,21 +72,21 @@ globals:
 
 overrides:
   - files:
-    - addons/*/*.js
-    - async-hooks/*.js
-    - common/*.js
-    - es-module/*.js
-    - es-module/*.mjs
-    - internet/*.js
-    - js-native-api/*/*.js
-    - known_issues/*.js
-    - message/*.js
-    - node-api/*/*.js
-    - parallel/*.js
-    - parallel/*.mjs
-    - pseudo-tty/*.js
-    - pummel/*.js
-    - sequential/*.js
-    - sequential/*.mjs
+      - addons/*/*.js
+      - async-hooks/*.js
+      - common/*.js
+      - es-module/*.js
+      - es-module/*.mjs
+      - internet/*.js
+      - js-native-api/*/*.js
+      - known_issues/*.js
+      - message/*.js
+      - node-api/*/*.js
+      - parallel/*.js
+      - parallel/*.mjs
+      - pseudo-tty/*.js
+      - pummel/*.js
+      - sequential/*.js
+      - sequential/*.mjs
     rules:
       comma-dangle: off
