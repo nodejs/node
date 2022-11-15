@@ -1929,6 +1929,7 @@ V8 options that are allowed are:
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-old-space-size`
+* `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
 * `--perf-basic-prof`
 * `--perf-prof-unwinding-info`

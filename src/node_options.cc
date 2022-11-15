@@ -713,6 +713,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "help system profilers to translate JavaScript interpreted frames",
             V8Option{}, kAllowedInEnvironment);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvironment);
+  AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvironment);
   AddOption("--perf-basic-prof-only-functions",
             "",
