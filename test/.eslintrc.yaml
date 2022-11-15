@@ -89,4 +89,10 @@ overrides:
       - sequential/*.js
       - sequential/*.mjs
     rules:
-      comma-dangle: off
+      comma-dangle: [error, {
+        arrays: always-multiline,
+        exports: only-multiline,
+        functions: only-multiline,
+        imports: only-multiline,
+        objects: only-multiline,
+      }]
