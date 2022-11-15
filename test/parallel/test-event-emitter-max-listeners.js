@@ -41,7 +41,7 @@ const throwOutOfRange = [-1, NaN];
       () => e.setMaxListeners(obj),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   }
@@ -51,7 +51,7 @@ const throwOutOfRange = [-1, NaN];
       () => e.setMaxListeners(obj),
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError'
+        name: 'RangeError',
       }
     );
   }
@@ -66,7 +66,7 @@ const throwOutOfRange = [-1, NaN];
       () => events.defaultMaxListeners = obj,
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError'
+        name: 'TypeError',
       }
     );
   }
@@ -76,7 +76,7 @@ const throwOutOfRange = [-1, NaN];
       () => events.defaultMaxListeners = obj,
       {
         code: 'ERR_OUT_OF_RANGE',
-        name: 'RangeError'
+        name: 'RangeError',
       }
     );
   }
