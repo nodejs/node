@@ -709,6 +709,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             V8Option{},
             kAllowedInEnvvar);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvvar);
   AddOption(
       "--perf-basic-prof-only-functions", "", V8Option{}, kAllowedInEnvvar);
