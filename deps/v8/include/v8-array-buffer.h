@@ -241,6 +241,11 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsDetachable() const;
 
   /**
+   * Returns true if this ArrayBuffer has been detached.
+   */
+  bool WasDetached() const;
+
+  /**
    * Detaches this ArrayBuffer and all its views (typed arrays).
    * Detaching sets the byte length of the buffer and all typed arrays to zero,
    * preventing JavaScript from ever accessing underlying backing store.
@@ -253,6 +258,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * pointer coordinates the lifetime management of the internal storage
    * with any live ArrayBuffers on the heap, even across isolates. The embedder
    * should not attempt to manage lifetime of the storage through other means.
+   *
+   * The returned shared pointer will not be empty, even if the ArrayBuffer has
+   * been detached. Use |WasDetached| to tell if it has been detached instead.
    */
   std::shared_ptr<BackingStore> GetBackingStore();
 
