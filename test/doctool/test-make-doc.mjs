@@ -21,7 +21,7 @@ const actualDocs = allDocs.filter(
   (name) => {
     const extension = path.extname(name);
     return extension === '.html' || extension === '.json';
-  }
+  },
 );
 
 for (const name of actualDocs) {
@@ -29,7 +29,7 @@ for (const name of actualDocs) {
 
   assert.ok(
     allMD.includes(name.replace(/\.\w+$/, '.md')),
-    `Unexpected output: out/doc/api/${name}, remove and rerun.`
+    `Unexpected output: out/doc/api/${name}, remove and rerun.`,
   );
 }
 
@@ -66,6 +66,6 @@ for (const actualDoc of actualDocs) {
   assert.notStrictEqual(
     fs.statSync(new URL(`./${actualDoc}`, apiURL)).size,
     0,
-    `${actualDoc} is empty`
+    `${actualDoc} is empty`,
   );
 }

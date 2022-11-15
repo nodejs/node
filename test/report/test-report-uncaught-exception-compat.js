@@ -17,7 +17,7 @@ const child = childProcess.spawn(process.execPath, [
   __filename,
   'child',
 ], {
-  cwd: tmpdir.path
+  cwd: tmpdir.path,
 });
 child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 1);
