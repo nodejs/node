@@ -1,3 +1,9 @@
+## 8.8.1 (2022-10-24)
+
+### Bug fixes
+
+Make type for `Comment` compatible with estree types.
+
 ## 8.8.0 (2022-07-21)
 
 ### Bug fixes

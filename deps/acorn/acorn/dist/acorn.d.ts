@@ -224,7 +224,7 @@ declare namespace acorn {
   }
 
   interface Comment extends AbstractToken {
-    type: string
+    type: 'Line' | 'Block'
     value: string
     start: number
     end: number

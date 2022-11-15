@@ -5527,7 +5527,7 @@
 
   // Acorn is a tiny, fast JavaScript parser written in JavaScript.
 
-  var version = "8.8.0";
+  var version = "8.8.1";
 
   Parser.acorn = {
     Parser: Parser,
