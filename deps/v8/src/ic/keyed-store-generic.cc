@@ -969,8 +969,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
             TNode<Object> prev_value =
                 LoadValueByKeyIndex(properties, var_name_index.value());
 
-            BranchIfSameValue(prev_value, p->value(), &done, slow,
-                              SameValueMode::kNumbersOnly);
+            Branch(TaggedEqual(prev_value, p->value()), &done, slow);
           } else {
             Goto(&overwrite);
           }
@@ -1129,7 +1128,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&not_internalized);
   {
-    if (FLAG_internalize_on_the_fly) {
+    if (v8_flags.internalize_on_the_fly) {
       TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                            &var_unique, &slow, &slow);
     } else {

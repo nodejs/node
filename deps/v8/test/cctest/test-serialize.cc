@@ -69,7 +69,7 @@ enum CodeCacheType { kLazy, kEager, kAfterExecute };
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
   // with the flag --always-turbofan.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 }
 
 // A convenience struct to simplify management of the blobs required to
@@ -210,7 +210,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   CcTest::CollectAllAvailableGarbage(i_isolate);
 
-  SafepointScope safepoint(i_isolate->heap());
+  IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
 
   DisallowGarbageCollection no_gc;
@@ -403,7 +403,7 @@ static void SerializeContext(base::Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(heap);
+    IsolateSafepointScope safepoint(heap);
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -572,7 +572,7 @@ static void SerializeCustomContext(
 
     env.Reset();
 
-    SafepointScope safepoint(isolate->heap());
+    IsolateSafepointScope safepoint(isolate->heap());
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -962,7 +962,7 @@ void TypedArrayTestHelper(
     const Int32Expectations& after_restore_expectations = Int32Expectations(),
     v8::ArrayBuffer::Allocator* allocator = nullptr) {
   DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -1133,7 +1133,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
                                     std::make_tuple("x.length", 0)};
 
   DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -1203,7 +1203,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
       std::make_tuple("y[2]", 48), std::make_tuple("z[0]", 96)};
 
   DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -1263,7 +1263,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
 UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
   const char* code = "var x = new Uint8Array(8);";
   DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -1671,8 +1671,8 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
 }
 
 TEST(CodeSerializerWithProfiler) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -1773,7 +1773,7 @@ TEST(CodeSerializerOnePlusOne) { TestCodeSerializerOnePlusOneImpl(); }
 
 // See bug v8:9122
 TEST(CodeSerializerOnePlusOneWithInterpretedFramesNativeStack) {
-  FLAG_interpreted_frames_native_stack = true;
+  v8_flags.interpreted_frames_native_stack = true;
   // We pass false because this test will create IET copies (which are
   // builtins).
   TestCodeSerializerOnePlusOneImpl(false);
@@ -2019,7 +2019,7 @@ TEST(CodeSerializerLargeCodeObject) {
 
   // The serializer only tests the shared code, which is always the unoptimized
   // code. Don't even bother generating optimized code to avoid timeouts.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   base::Vector<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
@@ -2064,13 +2064,13 @@ TEST(CodeSerializerLargeCodeObject) {
 }
 
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
-  if (!FLAG_incremental_marking) return;
-  if (!FLAG_compact) return;
+  if (!v8_flags.incremental_marking) return;
+  if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, strlen(filter_flag));
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
 
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -2665,8 +2665,8 @@ TEST(CodeSerializerIsolatesEager) {
 TEST(CodeSerializerAfterExecute) {
   // We test that no compilations happen when running this code. Forcing
   // to always optimize breaks this test.
-  bool prev_always_turbofan_value = FLAG_always_turbofan;
-  FLAG_always_turbofan = false;
+  bool prev_always_turbofan_value = v8_flags.always_turbofan;
+  v8_flags.always_turbofan = false;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache =
       CompileRunAndProduceCache(js_source, CodeCacheType::kAfterExecute);
@@ -2712,7 +2712,7 @@ TEST(CodeSerializerAfterExecute) {
   isolate2->Dispose();
 
   // Restore the flags.
-  FLAG_always_turbofan = prev_always_turbofan_value;
+  v8_flags.always_turbofan = prev_always_turbofan_value;
 }
 
 TEST(CodeSerializerFlagChange) {
@@ -2723,7 +2723,8 @@ TEST(CodeSerializerFlagChange) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
 
-  FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
+  v8_flags.allow_natives_syntax =
+      true;  // Flag change should trigger cache reject.
   FlagList::EnforceFlagImplications();
   {
     v8::Isolate::Scope iscope(isolate2);
@@ -2743,7 +2744,7 @@ TEST(CodeSerializerFlagChange) {
 }
 
 TEST(CodeSerializerBitFlip) {
-  i::FLAG_verify_snapshot_checksum = true;
+  i::v8_flags.verify_snapshot_checksum = true;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(js_source);
 
@@ -2844,7 +2845,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
 }
 
 TEST(Regress503552) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   // Test that the code serializer can deal with weak cells that form a linked
   // list during incremental marking.
   CcTest::InitializeVM();
@@ -2864,6 +2865,66 @@ TEST(Regress503552) {
   v8::ScriptCompiler::CachedData* cache_data =
       CodeSerializer::Serialize(shared);
   delete cache_data;
+}
+
+static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
+  v8_flags.stress_background_compile = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope outer_scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "(function () {return 123;})");
+  AlignedCachedData* cached_data = nullptr;
+  Handle<Script> script;
+  {
+    HandleScope first_compilation_scope(isolate);
+    Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
+        isolate, source, ScriptDetails(), &cached_data,
+        v8::ScriptCompiler::kNoCompileOptions);
+    Handle<BytecodeArray> bytecode =
+        handle(shared->GetBytecodeArray(isolate), isolate);
+    for (int i = 0; i <= v8_flags.bytecode_old_age; ++i) {
+      bytecode->MakeOlder();
+    }
+    Handle<Script> local_script =
+        handle(Script::cast(shared->script()), isolate);
+    script = first_compilation_scope.CloseAndEscape(local_script);
+  }
+
+  Handle<HeapObject> retained_toplevel_sfi;
+  if (retain_toplevel_sfi) {
+    retained_toplevel_sfi =
+        handle(script->shared_function_infos().Get(0).GetHeapObjectAssumeWeak(),
+               isolate);
+  }
+
+  // GC twice in case incremental marking had already marked the bytecode array.
+  // After this, the Isolate compilation cache contains a weak reference to the
+  // Script but not the top-level SharedFunctionInfo.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  Handle<SharedFunctionInfo> copy =
+      CompileScript(isolate, source, ScriptDetails(), cached_data,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+  delete cached_data;
+
+  // The existing Script was reused.
+  CHECK_EQ(*script, copy->script());
+
+  // The existing top-level SharedFunctionInfo was also reused.
+  if (retain_toplevel_sfi) {
+    CHECK_EQ(*retained_toplevel_sfi, *copy);
+  }
+}
+
+TEST(CodeSerializerMergeDeserializedScript) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/false);
+}
+
+TEST(CodeSerializerMergeDeserializedScriptRetainingToplevelSfi) {
+  CodeSerializerMergeDeserializedScript(/*retain_toplevel_sfi=*/true);
 }
 
 UNINITIALIZED_TEST(SnapshotCreatorBlobNotCreated) {
@@ -4111,9 +4172,9 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
 
 UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4141,7 +4202,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
     CHECK(blob.CanBeRehashed());
   }
 
-  i::FLAG_hash_seed = 1337;
+  i::v8_flags.hash_seed = 1337;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.snapshot_blob = &blob;
@@ -4166,9 +4227,9 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
 
 UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4209,7 +4270,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     CHECK(blob.CanBeRehashed());
   }
 
-  i::FLAG_hash_seed = 1337;
+  i::v8_flags.hash_seed = 1337;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.snapshot_blob = &blob;
@@ -4239,9 +4300,9 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
 
 UNINITIALIZED_TEST(ClassFields) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4320,9 +4381,9 @@ UNINITIALIZED_TEST(ClassFields) {
 
 UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4375,9 +4436,9 @@ UNINITIALIZED_TEST(ClassFieldsReferencePrivateInInitializer) {
 
 UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4426,9 +4487,9 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
 
 UNINITIALIZED_TEST(ClassFieldsNested) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4487,9 +4548,9 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
 
 UNINITIALIZED_TEST(ClassPrivateMethods) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4561,9 +4622,9 @@ UNINITIALIZED_TEST(ClassPrivateMethods) {
 
 UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4656,9 +4717,9 @@ UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
 
 UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4718,9 +4779,9 @@ UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
 
 UNINITIALIZED_TEST(ClassFieldsWithBindings) {
   DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -4842,7 +4903,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
 
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -5023,11 +5084,11 @@ UNINITIALIZED_TEST(SnapshotCreatorDontDeferByteArrayForTypedArray) {
 class V8_NODISCARD DisableLazySourcePositionScope {
  public:
   DisableLazySourcePositionScope()
-      : backup_value_(FLAG_enable_lazy_source_positions) {
-    FLAG_enable_lazy_source_positions = false;
+      : backup_value_(v8_flags.enable_lazy_source_positions) {
+    v8_flags.enable_lazy_source_positions = false;
   }
   ~DisableLazySourcePositionScope() {
-    FLAG_enable_lazy_source_positions = backup_value_;
+    v8_flags.enable_lazy_source_positions = backup_value_;
   }
 
  private:
@@ -5093,36 +5154,154 @@ UNINITIALIZED_TEST(SharedStrings) {
 
   // Make all the flags that require a shared heap false before creating the
   // isolate to serialize.
-  FLAG_shared_string_table = false;
-  FLAG_harmony_struct = false;
+  v8_flags.shared_string_table = false;
+  v8_flags.harmony_struct = false;
 
   v8::Isolate* isolate_to_serialize = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs = Serialize(isolate_to_serialize);
   isolate_to_serialize->Dispose();
 
-  FLAG_shared_string_table = true;
+  v8_flags.shared_string_table = true;
 
-  TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
+  if (!v8_flags.shared_space) {
+    TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
+  }
+
   v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
   v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   CHECK_EQ(i_isolate1->string_table(), i_isolate2->string_table());
-  CheckObjectsAreInSharedHeap(i_isolate1);
-  CheckObjectsAreInSharedHeap(i_isolate2);
+  {
+    ParkedScope parked(i_isolate2->main_thread_local_heap());
+    CheckObjectsAreInSharedHeap(i_isolate1);
+  }
+
+  {
+    ParkedScope parked(i_isolate1->main_thread_local_heap());
+    CheckObjectsAreInSharedHeap(i_isolate2);
+  }
 
   {
     // Because both isolate1 and isolate2 are considered running on the main
     // thread, one must be parked to avoid deadlock in the shared heap
     // verification that may happen on client heap disposal.
-    ParkedScope parked(i_isolate2->main_thread_local_isolate());
-    isolate1->Dispose();
+    ParkedScope parked(i_isolate1->main_thread_local_isolate());
+    isolate2->Dispose();
   }
-  isolate2->Dispose();
-  TestSerializer::DeleteProcessWideSharedIsolate();
+  isolate1->Dispose();
+
+  if (!v8_flags.shared_space) {
+    TestSerializer::DeleteProcessWideSharedIsolate();
+  }
 
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
+}
+
+namespace {
+
+class DebugBreakCounter : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
+    break_point_hit_count_++;
+  }
+
+  int break_point_hit_count() const { return break_point_hit_count_; }
+
+ private:
+  int break_point_hit_count_ = 0;
+};
+
+}  // namespace
+
+UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
+  // Tests that a breakpoint set in one deserialized context also gets hit in
+  // another for lazy accessors.
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      // Add a context to the snapshot that adds an object with an accessor to
+      // the global template.
+      v8::HandleScope scope(isolate);
+
+      auto accessor_tmpl =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      accessor_tmpl->SetClassName(v8_str("get f"));
+      auto object_tmpl = v8::ObjectTemplate::New(isolate);
+      object_tmpl->SetAccessorProperty(v8_str("f"), accessor_tmpl);
+
+      auto global_tmpl = v8::ObjectTemplate::New(isolate);
+      global_tmpl->Set(v8_str("o"), object_tmpl);
+
+      creator.SetDefaultContext(v8::Context::New(isolate));
+
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, nullptr, global_tmpl);
+      creator.AddContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &blob;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  params.external_references = original_external_references;
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+
+    DebugBreakCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+
+    {
+      // Create a new context from the snapshot, put a breakpoint on the
+      // accessor and make sure we hit the breakpoint.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+
+      // 1. Set the breakpoint
+      v8::Local<v8::Function> function =
+          CompileRun(context, "Object.getOwnPropertyDescriptor(o, 'f').get")
+              .ToLocalChecked()
+              .As<v8::Function>();
+      debug::BreakpointId id;
+      debug::SetFunctionBreakpoint(function, v8::Local<v8::String>(), &id);
+
+      // 2. Run and check that we hit the breakpoint
+      CompileRun(context, "o.f");
+      CHECK_EQ(1, delegate.break_point_hit_count());
+    }
+
+    {
+      // Create a second context from the snapshot and make sure we still hit
+      // the breakpoint without setting it again.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(context, "o.f");
+      CHECK_EQ(2, delegate.break_point_hit_count());
+    }
+
+    v8::debug::SetDebugDelegate(isolate, nullptr);
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
 

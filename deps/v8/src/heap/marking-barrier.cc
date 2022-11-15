@@ -29,57 +29,54 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
       incremental_marking_(heap_->incremental_marking()),
       major_worklist_(*major_collector_->marking_worklists()->shared()),
       minor_worklist_(*minor_collector_->marking_worklists()->shared()),
-      marking_state_(heap_->isolate()),
+      marking_state_(isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
-      is_shared_heap_(heap_->IsShared()) {}
+      uses_shared_heap_(isolate()->has_shared_heap()),
+      is_shared_heap_isolate_(isolate()->is_shared_heap_isolate()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
 void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
-  DCHECK(IsCurrentMarkingBarrier());
-  if (MarkValue(host, value)) {
-    if (is_compacting_ && slot.address()) {
-      DCHECK(is_major());
-      major_collector_->RecordSlot(host, slot, value);
+  DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  MarkValue(host, value);
+
+  if (slot.address()) {
+    if (is_compacting_ ||
+        (shared_heap_worklist_.has_value() && host.InSharedWritableHeap())) {
+      DCHECK_IMPLIES(is_compacting_, is_major());
+      MarkCompactCollector::RecordSlot(host, slot, value);
     }
   }
 }
 
 void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   DCHECK(is_main_thread_barrier_);
-  if (is_minor() && !Heap::InYoungGeneration(value)) return;
-
-  if (WhiteToGreyAndPush(value)) {
-    if (V8_UNLIKELY(v8_flags.track_retaining_path) && is_major()) {
-      heap_->AddRetainingRoot(Root::kWriteBarrier, value);
-    }
-  }
+  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  MarkValue(HeapObject(), value);
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
-  DCHECK(IsCurrentMarkingBarrier());
-  if (MarkValue(host, value)) {
-    if (is_compacting_) {
-      DCHECK(is_major());
-      if (is_main_thread_barrier_) {
-        // An optimization to avoid allocating additional typed slots for the
-        // main thread.
-        major_collector_->RecordRelocSlot(host, reloc_info, value);
-      } else {
-        RecordRelocSlot(host, reloc_info, value);
-      }
+  DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(!host.InSharedWritableHeap());
+  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  MarkValue(host, value);
+  if (is_compacting_) {
+    DCHECK(is_major());
+    if (is_main_thread_barrier_) {
+      // An optimization to avoid allocating additional typed slots for the
+      // main thread.
+      major_collector_->RecordRelocSlot(host, reloc_info, value);
+    } else {
+      RecordRelocSlot(host, reloc_info, value);
     }
   }
 }
 
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
-  DCHECK(IsCurrentMarkingBarrier());
-  if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
-    // The extension will be marked when the marker visits the host object.
-    return;
-  }
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
       extension->YoungMark();
@@ -91,7 +88,7 @@ void MarkingBarrier::Write(JSArrayBuffer host,
 
 void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(descriptor_array));
   DCHECK(IsReadOnlyHeapObject(descriptor_array.map()));
 
   if (is_minor() && !heap_->InYoungGeneration(descriptor_array)) return;
@@ -130,7 +127,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
 
 void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                      HeapObject target) {
-  DCHECK(IsCurrentMarkingBarrier());
+  DCHECK(IsCurrentMarkingBarrier(host));
   if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
 
   MarkCompactCollector::RecordRelocSlotInfo info =
@@ -143,30 +140,192 @@ void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
   typed_slots->Insert(info.slot_type, info.offset);
 }
 
+namespace {
+void ActivateSpace(PagedSpace* space) {
+  for (Page* p : *space) {
+    p->SetOldGenerationPageFlags(true);
+  }
+}
+
+void ActivateSpace(NewSpace* space) {
+  for (Page* p : *space) {
+    p->SetYoungGenerationPageFlags(true);
+  }
+}
+
+void ActivateSpaces(Heap* heap) {
+  ActivateSpace(heap->old_space());
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Modification of Code page header flags requires write access");
+    ActivateSpace(heap->code_space());
+  }
+  ActivateSpace(heap->new_space());
+  if (heap->shared_space()) {
+    ActivateSpace(heap->shared_space());
+  }
+
+  for (LargePage* p : *heap->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(true);
+    DCHECK(p->IsLargePage());
+  }
+
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(true);
+  }
+
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Modification of Code page header flags requires write access");
+    for (LargePage* p : *heap->code_lo_space()) {
+      p->SetOldGenerationPageFlags(true);
+    }
+  }
+
+  if (heap->shared_lo_space()) {
+    for (LargePage* p : *heap->shared_lo_space()) {
+      p->SetOldGenerationPageFlags(true);
+    }
+  }
+}
+
+void DeactivateSpace(PagedSpace* space) {
+  for (Page* p : *space) {
+    p->SetOldGenerationPageFlags(false);
+  }
+}
+
+void DeactivateSpace(NewSpace* space) {
+  for (Page* p : *space) {
+    p->SetYoungGenerationPageFlags(false);
+  }
+}
+
+void DeactivateSpaces(Heap* heap) {
+  DeactivateSpace(heap->old_space());
+  DeactivateSpace(heap->code_space());
+  DeactivateSpace(heap->new_space());
+  if (heap->shared_space()) {
+    DeactivateSpace(heap->shared_space());
+  }
+  for (LargePage* p : *heap->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(false);
+    DCHECK(p->IsLargePage());
+  }
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
+  for (LargePage* p : *heap->code_lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
+  if (heap->shared_lo_space()) {
+    for (LargePage* p : *heap->shared_lo_space()) {
+      p->SetOldGenerationPageFlags(false);
+    }
+  }
+}
+}  // namespace
+
 // static
 void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
                                  MarkingBarrierType marking_barrier_type) {
+  ActivateSpaces(heap);
+
   heap->safepoint()->IterateLocalHeaps(
       [is_compacting, marking_barrier_type](LocalHeap* local_heap) {
         local_heap->marking_barrier()->Activate(is_compacting,
                                                 marking_barrier_type);
       });
+
+  if (heap->isolate()->is_shared_heap_isolate()) {
+    heap->isolate()
+        ->shared_heap_isolate()
+        ->global_safepoint()
+        ->IterateClientIsolates([](Isolate* client) {
+          if (client->is_shared_heap_isolate()) return;
+          client->heap()->safepoint()->IterateLocalHeaps(
+              [](LocalHeap* local_heap) {
+                local_heap->marking_barrier()->ActivateShared();
+              });
+        });
+  }
+}
+
+void MarkingBarrier::Activate(bool is_compacting,
+                              MarkingBarrierType marking_barrier_type) {
+  DCHECK(!is_activated_);
+  DCHECK(major_worklist_.IsLocalEmpty());
+  DCHECK(minor_worklist_.IsLocalEmpty());
+  is_compacting_ = is_compacting;
+  marking_barrier_type_ = marking_barrier_type;
+  current_worklist_ = is_minor() ? &minor_worklist_ : &major_worklist_;
+  is_activated_ = true;
+}
+
+void MarkingBarrier::ActivateShared() {
+  DCHECK(!shared_heap_worklist_.has_value());
+  Isolate* shared_isolate = isolate()->shared_heap_isolate();
+  shared_heap_worklist_.emplace(*shared_isolate->heap()
+                                     ->mark_compact_collector()
+                                     ->marking_worklists()
+                                     ->shared());
 }
 
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
+  DeactivateSpaces(heap);
+
   heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->marking_barrier()->Deactivate();
   });
+
+  if (heap->isolate()->is_shared_heap_isolate()) {
+    heap->isolate()
+        ->shared_heap_isolate()
+        ->global_safepoint()
+        ->IterateClientIsolates([](Isolate* client) {
+          if (client->is_shared_heap_isolate()) return;
+          client->heap()->safepoint()->IterateLocalHeaps(
+              [](LocalHeap* local_heap) {
+                local_heap->marking_barrier()->DeactivateShared();
+              });
+        });
+  }
+}
+
+void MarkingBarrier::Deactivate() {
+  is_activated_ = false;
+  is_compacting_ = false;
+  DCHECK(typed_slots_map_.empty());
+  DCHECK(current_worklist_->IsLocalEmpty());
+}
+
+void MarkingBarrier::DeactivateShared() {
+  DCHECK(shared_heap_worklist_->IsLocalAndGlobalEmpty());
+  shared_heap_worklist_.reset();
 }
 
 // static
 void MarkingBarrier::PublishAll(Heap* heap) {
-  heap->safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->marking_barrier()->Publish(); });
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->PublishIfNeeded();
+  });
+
+  if (heap->isolate()->is_shared_heap_isolate()) {
+    heap->isolate()
+        ->shared_heap_isolate()
+        ->global_safepoint()
+        ->IterateClientIsolates([](Isolate* client) {
+          if (client->is_shared_heap_isolate()) return;
+          client->heap()->safepoint()->IterateLocalHeaps(
+              [](LocalHeap* local_heap) {
+                local_heap->marking_barrier()->PublishSharedIfNeeded();
+              });
+        });
+  }
 }
 
-void MarkingBarrier::Publish() {
+void MarkingBarrier::PublishIfNeeded() {
   if (is_activated_) {
     current_worklist_->Publish();
     base::Optional<CodePageHeaderModificationScope> optional_rwx_write_scope;
@@ -190,98 +349,18 @@ void MarkingBarrier::Publish() {
   }
 }
 
-void MarkingBarrier::DeactivateSpace(PagedSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(false);
+void MarkingBarrier::PublishSharedIfNeeded() {
+  if (shared_heap_worklist_) {
+    shared_heap_worklist_->Publish();
   }
 }
 
-void MarkingBarrier::DeactivateSpace(NewSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(false);
-  }
+bool MarkingBarrier::IsCurrentMarkingBarrier(
+    HeapObject verification_candidate) {
+  return WriteBarrier::CurrentMarkingBarrier(verification_candidate) == this;
 }
 
-void MarkingBarrier::Deactivate() {
-  is_activated_ = false;
-  is_compacting_ = false;
-  if (is_main_thread_barrier_) {
-    DeactivateSpace(heap_->old_space());
-    if (heap_->map_space()) DeactivateSpace(heap_->map_space());
-    DeactivateSpace(heap_->code_space());
-    DeactivateSpace(heap_->new_space());
-    for (LargePage* p : *heap_->new_lo_space()) {
-      p->SetYoungGenerationPageFlags(false);
-      DCHECK(p->IsLargePage());
-    }
-    for (LargePage* p : *heap_->lo_space()) {
-      p->SetOldGenerationPageFlags(false);
-    }
-    for (LargePage* p : *heap_->code_lo_space()) {
-      p->SetOldGenerationPageFlags(false);
-    }
-  }
-  DCHECK(typed_slots_map_.empty());
-  DCHECK(current_worklist_->IsLocalEmpty());
-}
-
-void MarkingBarrier::ActivateSpace(PagedSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(true);
-  }
-}
-
-void MarkingBarrier::ActivateSpace(NewSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(true);
-  }
-}
-
-void MarkingBarrier::Activate(bool is_compacting,
-                              MarkingBarrierType marking_barrier_type) {
-  DCHECK(!is_activated_);
-  DCHECK(major_worklist_.IsLocalEmpty());
-  DCHECK(minor_worklist_.IsLocalEmpty());
-  is_compacting_ = is_compacting;
-  marking_barrier_type_ = marking_barrier_type;
-  current_worklist_ = is_minor() ? &minor_worklist_ : &major_worklist_;
-  is_activated_ = true;
-  if (is_main_thread_barrier_) {
-    ActivateSpace(heap_->old_space());
-    if (heap_->map_space()) ActivateSpace(heap_->map_space());
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Modification of Code page header flags requires write access");
-      ActivateSpace(heap_->code_space());
-    }
-    ActivateSpace(heap_->new_space());
-
-    for (LargePage* p : *heap_->new_lo_space()) {
-      p->SetYoungGenerationPageFlags(true);
-      DCHECK(p->IsLargePage());
-    }
-
-    for (LargePage* p : *heap_->lo_space()) {
-      p->SetOldGenerationPageFlags(true);
-    }
-
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Modification of Code page header flags requires write access");
-      for (LargePage* p : *heap_->code_lo_space()) {
-        p->SetOldGenerationPageFlags(true);
-      }
-    }
-  }
-}
-
-bool MarkingBarrier::IsCurrentMarkingBarrier() {
-  return WriteBarrier::CurrentMarkingBarrier(heap_) == this;
-}
+Isolate* MarkingBarrier::isolate() const { return heap_->isolate(); }
 
 }  // namespace internal
 }  // namespace v8

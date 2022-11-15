@@ -12,11 +12,16 @@
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/processed-feedback.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/flags/flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-register.h"
@@ -25,12 +30,35 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+class CallArguments;
+
+template <typename NodeT>
+inline void MarkAsLazyDeoptResult(NodeT* value,
+                                  interpreter::Register result_location,
+                                  int result_size) {
+  DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
+            value->properties().can_lazy_deopt());
+  if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+}
+
+template <>
+inline void MarkAsLazyDeoptResult(ValueNode* value,
+                                  interpreter::Register result_location,
+                                  int result_size) {
+  if (value->properties().can_lazy_deopt()) {
+    value->lazy_deopt_info()->SetResultLocation(result_location, result_size);
+  }
+}
 
 class MaglevGraphBuilder {
  public:
@@ -66,6 +94,7 @@ class MaglevGraphBuilder {
 
   void BuildBody() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
+      local_isolate_->heap()->Safepoint();
       VisitSingleBytecode();
     }
   }
@@ -73,11 +102,31 @@ class MaglevGraphBuilder {
   Graph* graph() const { return graph_; }
 
  private:
-  BasicBlock* CreateEmptyBlock(int offset, BasicBlock* predecessor) {
+  bool CheckType(ValueNode* node, NodeType type);
+  NodeInfo* CreateInfoIfNot(ValueNode* node, NodeType type);
+  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  bool is_toptier() {
+    return v8_flags.lower_tier_as_toptier && !v8_flags.turbofan;
+  }
+  BasicBlock* CreateEdgeSplitBlock(int offset,
+                                   int interrupt_budget_correction) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "== New empty block ==" << std::endl;
+    }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr);
-    BasicBlock* result = CreateBlock<Jump>({}, &jump_targets_[offset]);
-    result->set_empty_block_predecessor(predecessor);
+    // Add an interrupt budget correction if necessary. This makes the edge
+    // split block no longer empty, which is unexpected, but we're not changing
+    // interpreter frame state, so that's ok.
+    if (!is_toptier() && interrupt_budget_correction != 0) {
+      DCHECK_GT(interrupt_budget_correction, 0);
+      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
+    }
+    BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
+    result->set_edge_split_block();
+#ifdef DEBUG
+    new_nodes_.clear();
+#endif
     return result;
   }
 
@@ -90,13 +139,13 @@ class MaglevGraphBuilder {
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     // Register exception phis.
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
-        if (FLAG_trace_maglev_graph_building) {
+        if (v8_flags.trace_maglev_graph_building) {
           std::cout << "  " << phi << "  "
                     << PrintNodeLabel(graph_labeller(), phi) << ": "
                     << PrintNode(graph_labeller(), phi) << std::endl;
@@ -112,7 +161,7 @@ class MaglevGraphBuilder {
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     if (merge_state.predecessor_count() == 1) return;
 
@@ -131,7 +180,8 @@ class MaglevGraphBuilder {
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEmptyBlock(offset, predecessor);
+        predecessor = CreateEdgeSplitBlock(
+            offset, old_jump_targets->interrupt_budget_correction());
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
@@ -147,7 +197,7 @@ class MaglevGraphBuilder {
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
-        if (FLAG_trace_maglev_graph_building) {
+        if (v8_flags.trace_maglev_graph_building) {
           std::cout << "  " << phi << "  "
                     << PrintNodeLabel(graph_labeller(), phi) << ": "
                     << PrintNode(graph_labeller(), phi) << std::endl;
@@ -166,15 +216,13 @@ class MaglevGraphBuilder {
   void EmitUnconditionalDeopt(DeoptimizeReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
-    BasicBlock* block = CreateBlock<Deopt>({}, reason);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
-
+    FinishBlock<Deopt>({}, reason);
     MarkBytecodeDead();
   }
 
   void MarkBytecodeDead() {
     DCHECK_NULL(current_block_);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== Dead ==\n"
                 << std::setw(4) << iterator_.current_offset() << " : ";
       interpreter::BytecodeDecoder::Decode(std::cout,
@@ -207,50 +255,42 @@ class MaglevGraphBuilder {
       // Any other bytecode that doesn't return or throw will merge into the
       // fallthrough.
       MergeDeadIntoFrameState(iterator_.next_offset());
-    } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
-      // Extra special case for SuspendGenerator, if the suspend is dead then
-      // the resume has to be dead too. However, the resume already has a merge
-      // state, with exactly one predecessor (the generator switch), so it will
-      // be revived along the standard path. This can cause havoc if e.g. the
-      // suspend/resume are inside a dead loop, because the JumpLoop can become
-      // live again.
-      //
-      // So, manually advance the iterator to the resume, go through the motions
-      // of processing the merge state, but immediately emit an unconditional
-      // deopt (which also kills the resume).
-      iterator_.Advance();
-      DCHECK_EQ(iterator_.current_bytecode(),
-                interpreter::Bytecode::kResumeGenerator);
-      int resume_offset = iterator_.current_offset();
-      DCHECK_EQ(NumPredecessors(resume_offset), 1);
-      ProcessMergePoint(resume_offset);
-      StartNewBlock(resume_offset);
-      // TODO(v8:7700): This approach is not ideal. We can create a deopt-reopt
-      // loop: the interpreted code runs, creates a generator while feedback is
-      // still not yet allocated, then suspends the generator, tiers up to
-      // maglev, and reaches this deopt. We then deopt, but since the generator
-      // is never created again, we re-opt without the suspend part and we loop!
-      EmitUnconditionalDeopt(DeoptimizeReason::kSuspendGeneratorIsDead);
-      return;
+    } else if (interpreter::Bytecodes::Returns(bytecode) && is_inline()) {
+      MergeDeadIntoFrameState(inline_exit_offset());
     }
 
     // TODO(leszeks): We could now continue iterating the bytecode
   }
 
+  void UpdateSourceAndBytecodePosition(int offset) {
+    if (source_position_iterator_.done()) return;
+    if (source_position_iterator_.code_offset() == offset) {
+      // TODO(leszeks): Add inlining support.
+      const int kInliningId = SourcePosition::kNotInlined;
+      current_source_position_ = SourcePosition(
+          source_position_iterator_.source_position().ScriptOffset(),
+          kInliningId);
+      source_position_iterator_.Advance();
+    } else {
+      DCHECK_GT(source_position_iterator_.code_offset(), offset);
+    }
+  }
+
   void VisitSingleBytecode() {
     int offset = iterator_.current_offset();
+    UpdateSourceAndBytecodePosition(offset);
+
     MergePointInterpreterFrameState* merge_state = merge_states_[offset];
     if (V8_UNLIKELY(merge_state != nullptr)) {
       if (current_block_ != nullptr) {
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
-        FinishBlock<Jump>(offset, {}, &jump_targets_[offset]);
-
-        merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
-                           graph()->last_block(), offset);
+        BasicBlock* predecessor = FinishBlock<Jump>({}, &jump_targets_[offset]);
+        merge_state->Merge(*compilation_unit_, graph_->smi(),
+                           current_interpreter_frame_, predecessor, offset);
       }
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         auto detail = merge_state->is_exception_handler() ? "exception handler"
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
@@ -316,7 +356,7 @@ class MaglevGraphBuilder {
     }
 
     DCHECK_NOT_NULL(current_block_);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << std::setw(4) << iterator_.current_offset() << " : ";
       interpreter::BytecodeDecoder::Decode(std::cout,
                                            iterator_.current_address());
@@ -352,7 +392,7 @@ class MaglevGraphBuilder {
     }
     current_block_->nodes().Add(node);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  " << node << "  "
                 << PrintNodeLabel(graph_labeller(), node) << ": "
                 << PrintNode(graph_labeller(), node) << std::endl;
@@ -377,12 +417,10 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNodeHelper(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
-                                  GetLatestCheckpointedState(),
+      return NodeBase::New<NodeT>(zone(), GetLatestCheckpointedFrame(),
                                   std::forward<Args>(args)...);
     } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
-                                  GetCheckpointedStateForLazyDeopt(),
+      return NodeBase::New<NodeT>(zone(), GetDeoptFrameForLazyDeopt(),
                                   std::forward<Args>(args)...);
     } else {
       return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
@@ -407,6 +445,15 @@ class MaglevGraphBuilder {
     }
     return node;
   }
+
+  enum ContextSlotMutability { kImmutable, kMutable };
+  bool TrySpecializeLoadContextSlotToFunctionContext(
+      ValueNode** context, size_t* depth, int slot_index,
+      ContextSlotMutability slot_mutability);
+  ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
+                                     ContextSlotMutability slot_mutability);
+  void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
+                            ContextSlotMutability slot_mutability);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
@@ -466,8 +513,7 @@ class MaglevGraphBuilder {
   void BuildAbort(AbortReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
-    BasicBlock* block = CreateBlock<Abort>({}, reason);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
+    FinishBlock<Abort>({}, reason);
     MarkBytecodeDead();
   }
 
@@ -556,6 +602,8 @@ class MaglevGraphBuilder {
   }
 
   Int32Constant* GetInt32Constant(int constant) {
+    // The constant must fit in a Smi, since it could be later tagged in a Phi.
+    DCHECK(Smi::IsValid(constant));
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {
       Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);
@@ -621,37 +669,38 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  template <typename NodeT>
-  ValueNode* AddNewConversionNode(interpreter::Register reg, ValueNode* node) {
-    // TODO(v8:7700): Use a canonical conversion node. Maybe like in Phi nodes
-    // where we always add a the conversion immediately after the ValueNode.
-    DCHECK(NodeT::kProperties.is_conversion());
-    ValueNode* result = AddNewNode<NodeT>({node});
-    current_interpreter_frame_.set(reg, result);
-    return result;
-  }
-
-  ValueNode* GetTaggedValueHelper(interpreter::Register reg, ValueNode* value) {
-    // TODO(victorgomes): Consider adding the representation in the
-    // InterpreterFrameState, so that we don't need to derefence a node.
+  ValueNode* GetTaggedValue(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32: {
-        if (value->Is<CheckedSmiUntag>()) {
-          return value->input(0).node();
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          if (NodeTypeIsSmi(node_info->type)) {
+            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+          } else {
+            node_info->tagged_alternative = AddNewNode<Int32ToNumber>({value});
+          }
         }
-        return AddNewConversionNode<CheckedSmiTag>(reg, value);
+        return node_info->tagged_alternative;
+      }
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          if (NodeTypeIsSmi(node_info->type)) {
+            node_info->tagged_alternative = AddNewNode<UnsafeSmiTag>({value});
+          } else {
+            node_info->tagged_alternative = AddNewNode<Uint32ToNumber>({value});
+          }
+        }
+        return node_info->tagged_alternative;
       }
       case ValueRepresentation::kFloat64: {
-        if (value->Is<CheckedFloat64Unbox>()) {
-          return value->input(0).node();
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->tagged_alternative == nullptr) {
+          node_info->tagged_alternative = AddNewNode<Float64Box>({value});
         }
-        if (value->Is<ChangeInt32ToFloat64>()) {
-          ValueNode* int32_value = value->input(0).node();
-          return GetTaggedValueHelper(reg, int32_value);
-        }
-        return AddNewConversionNode<Float64Box>(reg, value);
+        return node_info->tagged_alternative;
       }
     }
     UNREACHABLE();
@@ -659,65 +708,155 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTaggedValue(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
-    return GetTaggedValueHelper(reg, value);
+    return GetTaggedValue(value);
   }
 
-  template <typename ConversionNodeT>
-  ValueNode* GetValue(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    return AddNewConversionNode<ConversionNodeT>(reg, value);
+  void SetKnownType(ValueNode* node, NodeType type) {
+    NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+    known_info->type = type;
+  }
+
+  ValueNode* GetInternalizedString(interpreter::Register reg) {
+    ValueNode* node = GetTaggedValue(reg);
+    if (known_node_aspects()
+            .GetOrCreateInfoFor(node)
+            ->is_internalized_string()) {
+      return node;
+    }
+    if (Constant* constant = node->TryCast<Constant>()) {
+      if (constant->object().IsInternalizedString()) {
+        SetKnownType(constant, NodeType::kInternalizedString);
+        return constant;
+      }
+    }
+    node = AddNewNode<CheckedInternalizedString>({node});
+    SetKnownType(node, NodeType::kInternalizedString);
+    current_interpreter_frame_.set(reg, node);
+    return node;
+  }
+
+  ValueNode* GetTruncatedInt32FromNumber(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return GetInt32Constant(constant->value().value());
+        }
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          NodeType old_type;
+          EnsureType(value, NodeType::kNumber, &old_type);
+          if (NodeTypeIsSmi(old_type)) {
+            node_info->int32_alternative = AddNewNode<UnsafeSmiUntag>({value});
+          } else {
+            // TODO(leszeks): Cache this value somehow.
+            return AddNewNode<CheckedTruncateNumberToInt32>({value});
+          }
+        }
+        return node_info->int32_alternative;
+      }
+      case ValueRepresentation::kFloat64:
+        // TODO(leszeks): Cache this value somehow.
+        return AddNewNode<TruncateFloat64ToInt32>({value});
+      case ValueRepresentation::kInt32:
+        // Already good.
+        return value;
+      case ValueRepresentation::kUint32:
+        return AddNewNode<TruncateUint32ToInt32>({value});
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetTruncatedInt32(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+      case ValueRepresentation::kFloat64:
+        return GetInt32(value);
+      case ValueRepresentation::kInt32:
+        // Already good.
+        return value;
+      case ValueRepresentation::kUint32:
+        return AddNewNode<TruncateUint32ToInt32>({value});
+    }
+    UNREACHABLE();
+  }
+
+  ValueNode* GetTruncatedInt32(interpreter::Register reg) {
+    return GetTruncatedInt32(current_interpreter_frame_.get(reg));
+  }
+
+  ValueNode* GetInt32(ValueNode* value) {
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged: {
+        if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return GetInt32Constant(constant->value().value());
+        }
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative = BuildSmiUntag(value);
+        }
+        return node_info->int32_alternative;
+      }
+      case ValueRepresentation::kInt32:
+        return value;
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative =
+              AddNewNode<CheckedUint32ToInt32>({value});
+        }
+        return node_info->int32_alternative;
+      }
+      case ValueRepresentation::kFloat64: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->int32_alternative == nullptr) {
+          node_info->int32_alternative =
+              AddNewNode<CheckedTruncateFloat64ToInt32>({value});
+        }
+        return node_info->int32_alternative;
+      }
+    }
+    UNREACHABLE();
   }
 
   ValueNode* GetInt32(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
+    return GetInt32(value);
+  }
+
+  ValueNode* GetFloat64(ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged: {
-        if (value->Is<CheckedSmiTag>()) {
-          return value->input(0).node();
-        } else if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          return GetInt32Constant(constant->value().value());
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<CheckedFloat64Unbox>({value});
         }
-        return AddNewConversionNode<CheckedSmiUntag>(reg, value);
+        return node_info->float64_alternative;
       }
-      case ValueRepresentation::kInt32:
-        return value;
-      case ValueRepresentation::kFloat64:
-        // We should not be able to request an Int32 from a Float64 input,
-        // unless it's an unboxing of a tagged value or a conversion from int32.
-        if (value->Is<CheckedFloat64Unbox>()) {
-          // TODO(leszeks): Maybe convert the CheckedFloat64Unbox to
-          // ChangeInt32ToFloat64 with this CheckedSmiUntag as the input.
-          return AddNewConversionNode<CheckedSmiUntag>(reg,
-                                                       value->input(0).node());
-        } else if (value->Is<ChangeInt32ToFloat64>()) {
-          return value->input(0).node();
+      case ValueRepresentation::kInt32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<ChangeInt32ToFloat64>({value});
         }
-        UNREACHABLE();
+        return node_info->float64_alternative;
+      }
+      case ValueRepresentation::kUint32: {
+        NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(value);
+        if (node_info->float64_alternative == nullptr) {
+          node_info->float64_alternative =
+              AddNewNode<ChangeUint32ToFloat64>({value});
+        }
+        return node_info->float64_alternative;
+      }
+      case ValueRepresentation::kFloat64:
+        return value;
     }
     UNREACHABLE();
   }
 
   ValueNode* GetFloat64(interpreter::Register reg) {
-    ValueNode* value = current_interpreter_frame_.get(reg);
-    switch (value->properties().value_representation()) {
-      case ValueRepresentation::kTagged: {
-        if (value->Is<Float64Box>()) {
-          return value->input(0).node();
-        }
-        return AddNewConversionNode<CheckedFloat64Unbox>(reg, value);
-      }
-      case ValueRepresentation::kInt32:
-        return AddNewConversionNode<ChangeInt32ToFloat64>(reg, value);
-      case ValueRepresentation::kFloat64:
-        return value;
-    }
-    UNREACHABLE();
-  }
-
-  template <typename ConversionNodeT>
-  ValueNode* GetAccumulator() {
-    return GetValue<ConversionNodeT>(
-        interpreter::Register::virtual_accumulator());
+    return GetFloat64(current_interpreter_frame_.get(reg));
   }
 
   ValueNode* GetAccumulatorTagged() {
@@ -726,6 +865,10 @@ class MaglevGraphBuilder {
 
   ValueNode* GetAccumulatorInt32() {
     return GetInt32(interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorTruncatedInt32() {
+    return GetTruncatedInt32(interpreter::Register::virtual_accumulator());
   }
 
   ValueNode* GetAccumulatorFloat64() {
@@ -738,9 +881,8 @@ class MaglevGraphBuilder {
            current_interpreter_frame_.accumulator();
   }
 
-  template <typename ConversionNodeT>
-  ValueNode* LoadRegister(int operand_index) {
-    return GetValue<ConversionNodeT>(
+  ValueNode* LoadRegisterRaw(int operand_index) {
+    return current_interpreter_frame_.get(
         iterator_.GetRegisterOperand(operand_index));
   }
 
@@ -750,6 +892,10 @@ class MaglevGraphBuilder {
 
   ValueNode* LoadRegisterInt32(int operand_index) {
     return GetInt32(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterTruncatedInt32(int operand_index) {
+    return GetTruncatedInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterFloat64(int operand_index) {
@@ -776,6 +922,8 @@ class MaglevGraphBuilder {
     // would be emitted between these two nodes.
     if (result->opcode() == Opcode::kCallRuntime) {
       DCHECK_EQ(result->Cast<CallRuntime>()->ReturnCount(), 2);
+    } else if (result->opcode() == Opcode::kCallBuiltin) {
+      DCHECK_EQ(result->Cast<CallBuiltin>()->ReturnCount(), 2);
     } else {
       DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
     }
@@ -816,55 +964,57 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(target1, second_value);
   }
 
-  CheckpointedInterpreterState GetLatestCheckpointedState() {
-    if (!latest_checkpointed_state_) {
-      latest_checkpointed_state_.emplace(
-          BytecodeOffset(iterator_.current_offset()),
+  InterpretedDeoptFrame GetLatestCheckpointedFrame() {
+    if (!latest_checkpointed_frame_) {
+      latest_checkpointed_frame_.emplace(
+          *compilation_unit_,
           zone()->New<CompactInterpreterFrameState>(
               *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
-          parent_ == nullptr
-              ? nullptr
-              // TODO(leszeks): Don't always allocate for the parent state,
-              // maybe cache it on the graph builder?
-              : zone()->New<CheckpointedInterpreterState>(
-                    parent_->GetLatestCheckpointedState()));
+          BytecodeOffset(iterator_.current_offset()), current_source_position_,
+          // TODO(leszeks): Don't always allocate for the parent state,
+          // maybe cache it on the graph builder?
+          parent_
+              ? zone()->New<DeoptFrame>(parent_->GetLatestCheckpointedFrame())
+              : nullptr);
     }
-    return *latest_checkpointed_state_;
+    return *latest_checkpointed_frame_;
   }
 
-  CheckpointedInterpreterState GetCheckpointedStateForLazyDeopt() {
-    return CheckpointedInterpreterState(
-        BytecodeOffset(iterator_.current_offset()),
+  InterpretedDeoptFrame GetDeoptFrameForLazyDeopt() {
+    return InterpretedDeoptFrame(
+        *compilation_unit_,
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
-        // TODO(leszeks): Support lazy deopts in inlined functions.
+        BytecodeOffset(iterator_.current_offset()), current_source_position_,
+        // TODO(leszeks): Support inlining for lazy deopts.
         nullptr);
-  }
-
-  template <typename NodeT>
-  void MarkAsLazyDeoptResult(NodeT* value,
-                             interpreter::Register result_location,
-                             int result_size) {
-    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
-              value->properties().can_lazy_deopt());
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      DCHECK(result_location.is_valid());
-      DCHECK(!value->lazy_deopt_info()->result_location.is_valid());
-      value->lazy_deopt_info()->result_location = result_location;
-      value->lazy_deopt_info()->result_size = result_size;
-    }
   }
 
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
-    latest_checkpointed_state_.reset();
+    latest_checkpointed_frame_.reset();
 
     // A side effect could change existing objects' maps. For stable maps we
     // know this hasn't happened (because we added a dependency on the maps
     // staying stable and therefore not possible to transition away from), but
     // we can no longer assume that objects with unstable maps still have the
-    // same map.
-    known_node_aspects().unstable_maps.clear();
+    // same map. Unstable maps can also transition to stable ones, so the
+    // set of stable maps becomes invalid for a not that had a unstable map.
+    auto it = known_node_aspects().unstable_maps.begin();
+    while (it != known_node_aspects().unstable_maps.end()) {
+      if (it->second.size() == 0) {
+        it++;
+      } else {
+        known_node_aspects().stable_maps.erase(it->first);
+        it = known_node_aspects().unstable_maps.erase(it);
+      }
+    }
+    // Similarly, side-effects can change object contents, so we have to clear
+    // our known loaded properties -- however, constant properties are known
+    // to not change (and we added a dependency on this), so we don't have to
+    // clear those.
+    known_node_aspects().loaded_properties.clear();
+    known_node_aspects().loaded_context_slots.clear();
   }
 
   int next_offset() const {
@@ -886,11 +1036,11 @@ class MaglevGraphBuilder {
   void StartNewBlock(int offset) {
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(merge_states_[offset]);
-    block_offset_ = offset;
+    ResolveJumpsToBlockAtOffset(current_block_, offset);
   }
 
   template <typename ControlNodeT, typename... Args>
-  BasicBlock* CreateBlock(std::initializer_list<ValueNode*> control_inputs,
+  BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
     ControlNode* control_node = CreateNewNode<ControlNodeT>(
         control_inputs, std::forward<Args>(args)...);
@@ -902,7 +1052,7 @@ class MaglevGraphBuilder {
     graph()->Add(block);
     if (has_graph_labeller()) {
       graph_labeller()->RegisterBasicBlock(block);
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         bool kSkipTargets = true;
         std::cout << "  " << control_node << "  "
                   << PrintNodeLabel(graph_labeller(), control_node) << ": "
@@ -915,85 +1065,202 @@ class MaglevGraphBuilder {
 
   // Update all jumps which were targetting the not-yet-created block at the
   // given `block_offset`, to now point to the given `block`.
-  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) const {
+  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) {
+    int interrupt_budget_correction = 0;
     BasicBlockRef* jump_target_refs_head =
         jump_targets_[block_offset].SetToBlockAndReturnNext(block);
     while (jump_target_refs_head != nullptr) {
+      // Only one jump target should ever set the interrupt budget correction.
+      DCHECK_EQ(interrupt_budget_correction, 0);
+      interrupt_budget_correction =
+          jump_target_refs_head->interrupt_budget_correction();
       jump_target_refs_head =
           jump_target_refs_head->SetToBlockAndReturnNext(block);
+    }
+    if (!is_toptier() && interrupt_budget_correction != 0) {
+      DCHECK_GT(interrupt_budget_correction, 0);
+      AddNewNode<IncreaseInterruptBudget>({}, interrupt_budget_correction);
     }
     DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
   }
 
-  template <typename ControlNodeT, typename... Args>
-  BasicBlock* FinishBlock(int next_block_offset,
-                          std::initializer_list<ValueNode*> control_inputs,
-                          Args&&... args) {
-    BasicBlock* block =
-        CreateBlock<ControlNodeT>(control_inputs, std::forward<Args>(args)...);
-    ResolveJumpsToBlockAtOffset(block, block_offset_);
-
+  void StartFallthroughBlock(int next_block_offset, BasicBlock* predecessor) {
     // Start a new block for the fallthrough path, unless it's a merge point, in
     // which case we merge our state into it. That merge-point could also be a
     // loop header, in which case the merge state might not exist yet (if the
     // only predecessors are this path and the JumpLoop).
     DCHECK_NULL(current_block_);
-    if (std::is_base_of<ConditionalControlNode, ControlNodeT>::value) {
-      if (NumPredecessors(next_block_offset) == 1) {
-        if (FLAG_trace_maglev_graph_building) {
-          std::cout << "== New block (single fallthrough) ==" << std::endl;
-        }
-        StartNewBlock(next_block_offset);
-      } else {
-        MergeIntoFrameState(block, next_block_offset);
+
+    if (NumPredecessors(next_block_offset) == 1) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "== New block (single fallthrough) ==" << std::endl;
       }
+      StartNewBlock(next_block_offset);
+    } else {
+      MergeIntoFrameState(predecessor, next_block_offset);
     }
-    return block;
   }
 
   void InlineCallFromRegisters(int argc_count,
                                ConvertReceiverMode receiver_mode,
                                compiler::JSFunctionRef function);
 
+  ValueNode* GetTaggedOrUndefined(ValueNode* maybe_value) {
+    if (maybe_value == nullptr) {
+      return GetRootConstant(RootIndex::kUndefinedValue);
+    }
+    return GetTaggedValue(maybe_value);
+  }
+
+  ValueNode* GetConvertReceiver(compiler::JSFunctionRef function,
+                                CallArguments& args);
+
+  template <typename LoadNode>
+  ValueNode* TryBuildLoadDataView(const CallArguments& args,
+                                  ExternalArrayType type);
+  template <typename StoreNode, typename Function>
+  ValueNode* TryBuildStoreDataView(const CallArguments& args,
+                                   ExternalArrayType type, Function&& getValue);
+
+#define MAGLEV_REDUCED_BUILTIN(V) \
+  V(DataViewPrototypeGetInt8)     \
+  V(DataViewPrototypeSetInt8)     \
+  V(DataViewPrototypeGetInt16)    \
+  V(DataViewPrototypeSetInt16)    \
+  V(DataViewPrototypeGetInt32)    \
+  V(DataViewPrototypeSetInt32)    \
+  V(DataViewPrototypeGetFloat64)  \
+  V(DataViewPrototypeSetFloat64)  \
+  V(FunctionPrototypeCall)        \
+  V(StringFromCharCode)           \
+  V(StringPrototypeCharCodeAt)
+
+#define DEFINE_BUILTIN_REDUCER(Name)                                 \
+  ValueNode* TryReduce##Name(compiler::JSFunctionRef builtin_target, \
+                             CallArguments& args);
+  MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
+#undef DEFINE_BUILTIN_REDUCER
+
+  template <typename CallNode, typename... Args>
+  CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
+
+  ValueNode* TryReduceBuiltin(compiler::JSFunctionRef builtin_target,
+                              CallArguments& args);
+  ValueNode* TryBuildCallKnownJSFunction(compiler::JSFunctionRef function,
+                                         CallArguments& args);
+  ValueNode* BuildGenericCall(ValueNode* target, ValueNode* context,
+                              Call::TargetType target_type,
+                              const CallArguments& args,
+                              const compiler::FeedbackSource& feedback_source =
+                                  compiler::FeedbackSource());
+  ValueNode* ReduceCall(compiler::ObjectRef target, CallArguments& args);
+  void BuildCall(ValueNode* target_node, CallArguments& args,
+                 compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
+  bool TryBuildScriptContextConstantAccess(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
+  bool TryBuildScriptContextAccess(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
   bool TryBuildPropertyCellAccess(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
+  ValueNode* BuildSmiUntag(ValueNode* node);
+
   void BuildCheckSmi(ValueNode* object);
+  void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
-  void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
+  void BuildCheckMaps(ValueNode* object,
+                      ZoneVector<compiler::MapRef> const& maps);
+  // Emits an unconditional deopt and returns false if the node is a constant
+  // that doesn't match the ref.
+  bool BuildCheckValue(ValueNode* node, const compiler::ObjectRef& ref);
 
-  bool TryBuildMonomorphicLoad(ValueNode* receiver,
-                               ValueNode* lookup_start_object,
-                               const compiler::MapRef& map,
-                               MaybeObjectHandle handler);
-  bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* receiver,
-                                             ValueNode* lookup_start_object,
-                                             const compiler::MapRef& map,
-                                             int32_t handler);
-  bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* receiver,
-                                              ValueNode* lookup_start_object,
-                                              const compiler::MapRef& map,
-                                              LoadHandler handler);
+  ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
+    ValueNode* index_object = current_interpreter_frame_.get(reg);
+    return GetInt32ElementIndex(index_object);
+  }
+  ValueNode* GetInt32ElementIndex(ValueNode* index_object);
 
-  bool TryBuildMonomorphicElementLoad(ValueNode* object, ValueNode* index,
-                                      const compiler::MapRef& map,
-                                      MaybeObjectHandle handler);
-  bool TryBuildMonomorphicElementLoadFromSmiHandler(ValueNode* object,
-                                                    ValueNode* index,
-                                                    const compiler::MapRef& map,
-                                                    int32_t handler);
+  bool CanTreatHoleAsUndefined(
+      ZoneVector<compiler::MapRef> const& receiver_maps);
 
-  bool TryBuildMonomorphicStore(ValueNode* object, const compiler::MapRef& map,
-                                MaybeObjectHandle handler);
-  bool TryBuildMonomorphicStoreFromSmiHandler(ValueNode* object,
-                                              const compiler::MapRef& map,
-                                              int32_t handler);
+  bool TryFoldLoadDictPrototypeConstant(
+      compiler::PropertyAccessInfo access_info);
+  // Returns a ValueNode if the load could be folded, and nullptr otherwise.
+  ValueNode* TryFoldLoadConstantDataField(
+      compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object);
+
+  // Returns the loaded value node but doesn't update the accumulator yet.
+  ValueNode* BuildLoadField(compiler::PropertyAccessInfo access_info,
+                            ValueNode* lookup_start_object);
+  bool TryBuildStoreField(compiler::PropertyAccessInfo access_info,
+                          ValueNode* receiver,
+                          compiler::AccessMode access_mode);
+  bool TryBuildPropertyGetterCall(compiler::PropertyAccessInfo access_info,
+                                  ValueNode* receiver,
+                                  ValueNode* lookup_start_object);
+  bool TryBuildPropertySetterCall(compiler::PropertyAccessInfo access_info,
+                                  ValueNode* receiver, ValueNode* value);
+
+  bool TryBuildPropertyLoad(ValueNode* receiver, ValueNode* lookup_start_object,
+                            compiler::NameRef name,
+                            compiler::PropertyAccessInfo const& access_info);
+  bool TryBuildPropertyStore(ValueNode* receiver, compiler::NameRef name,
+                             compiler::PropertyAccessInfo const& access_info,
+                             compiler::AccessMode access_mode);
+  bool TryBuildPropertyAccess(ValueNode* receiver,
+                              ValueNode* lookup_start_object,
+                              compiler::NameRef name,
+                              compiler::PropertyAccessInfo const& access_info,
+                              compiler::AccessMode access_mode);
+
+  bool TryBuildElementAccessOnString(
+      ValueNode* object, ValueNode* index,
+      compiler::KeyedAccessMode const& keyed_mode);
+
+  bool TryBuildNamedAccess(ValueNode* receiver, ValueNode* lookup_start_object,
+                           compiler::NamedAccessFeedback const& feedback,
+                           compiler::AccessMode access_mode);
+  bool TryBuildElementAccess(ValueNode* object, ValueNode* index,
+                             compiler::ElementAccessFeedback const& feedback);
+
+  // Load elimination -- when loading or storing a simple property without
+  // side effects, record its value, and allow that value to be re-used on
+  // subsequent loads.
+  void RecordKnownProperty(ValueNode* lookup_start_object,
+                           compiler::NameRef name, ValueNode* value,
+                           bool is_const);
+  bool TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
+                                 compiler::NameRef name);
+
+  enum InferHasInPrototypeChainResult {
+    kMayBeInPrototypeChain,
+    kIsInPrototypeChain,
+    kIsNotInPrototypeChain
+  };
+  InferHasInPrototypeChainResult InferHasInPrototypeChain(
+      ValueNode* receiver, compiler::HeapObjectRef prototype);
+  bool TryBuildFastHasInPrototypeChain(ValueNode* object,
+                                       compiler::ObjectRef prototype);
+  void BuildHasInPrototypeChain(ValueNode* object,
+                                compiler::ObjectRef prototype);
+  bool TryBuildFastOrdinaryHasInstance(ValueNode* object,
+                                       compiler::JSObjectRef callable,
+                                       ValueNode* callable_node);
+  void BuildOrdinaryHasInstance(ValueNode* object,
+                                compiler::JSObjectRef callable,
+                                ValueNode* callable_node);
+  bool TryBuildFastInstanceOf(ValueNode* object,
+                              compiler::JSObjectRef callable_ref,
+                              ValueNode* callable_node);
+  bool TryBuildFastInstanceOfWithFeedback(
+      ValueNode* object, ValueNode* callable,
+      compiler::FeedbackSource feedback_source);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
@@ -1003,16 +1270,18 @@ class MaglevGraphBuilder {
   void BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
-  ValueNode* AddNewInt32BinaryOperationNode(
-      std::initializer_list<ValueNode*> inputs);
+  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
   template <Operation kOperation>
-  ValueNode* AddNewFloat64BinaryOperationNode(
-      std::initializer_list<ValueNode*> inputs);
+  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, int right);
 
   template <Operation kOperation>
   void BuildInt32BinaryOperationNode();
   template <Operation kOperation>
   void BuildInt32BinarySmiOperationNode();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinaryOperationNodeForNumber();
+  template <Operation kOperation>
+  void BuildTruncatingInt32BinarySmiOperationNodeForNumber();
   template <Operation kOperation>
   void BuildFloat64BinaryOperationNode();
   template <Operation kOperation>
@@ -1035,14 +1304,14 @@ class MaglevGraphBuilder {
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
-  void BuildBranchIfRootConstant(ValueNode* node, int true_target,
-                                 int false_target, RootIndex root_index);
-  void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
-  void BuildBranchIfNull(ValueNode* node, int true_target, int false_target);
-  void BuildBranchIfUndefined(ValueNode* node, int true_target,
-                              int false_target);
-  void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
-                                  int false_target);
+
+  enum JumpType { kJumpIfTrue, kJumpIfFalse };
+  void BuildBranchIfRootConstant(ValueNode* node, JumpType jump_type,
+                                 RootIndex root_index);
+  void BuildBranchIfTrue(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfNull(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfUndefined(ValueNode* node, JumpType jump_type);
+  void BuildBranchIfToBooleanTrue(ValueNode* node, JumpType jump_type);
 
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
@@ -1100,7 +1369,7 @@ class MaglevGraphBuilder {
     return compilation_unit_->bytecode();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis();
+    return bytecode_analysis_;
   }
   LocalIsolate* local_isolate() const { return local_isolate_; }
   Zone* zone() const { return compilation_unit_->zone(); }
@@ -1131,13 +1400,15 @@ class MaglevGraphBuilder {
   MaglevCompilationUnit* const compilation_unit_;
   MaglevGraphBuilder* const parent_;
   Graph* const graph_;
+  compiler::BytecodeAnalysis bytecode_analysis_;
   interpreter::BytecodeArrayIterator iterator_;
+  SourcePositionTableIterator source_position_iterator_;
   uint32_t* predecessors_;
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;
-  int block_offset_ = 0;
-  base::Optional<CheckpointedInterpreterState> latest_checkpointed_state_;
+  base::Optional<InterpretedDeoptFrame> latest_checkpointed_frame_;
+  SourcePosition current_source_position_;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;

@@ -9,13 +9,12 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/persistent-handles.h"
+#include "src/maglev/maglev-code-generator.h"
 #include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-compiler.h"
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/objects/js-function-inl.h"
 #include "src/utils/identity-map.h"
-#include "src/utils/locked-queue-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -52,14 +51,23 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
                                              Handle<JSFunction> function)
     : zone_(isolate->allocator(), kMaglevZoneName),
-      isolate_(isolate),
       broker_(new compiler::JSHeapBroker(
-          isolate, zone(), FLAG_trace_heap_broker, CodeKind::MAGLEV))
-#define V(Name) , Name##_(FLAG_##Name)
+          isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV))
+#define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
-{
-  DCHECK(FLAG_maglev);
+      ,
+      specialize_to_function_context_(
+          v8_flags.maglev_function_context_specialization &&
+          function->raw_feedback_cell().map() ==
+              ReadOnlyRoots(isolate).one_closure_cell_map()) {
+  DCHECK(v8_flags.maglev);
+
+  collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
+  if (collect_source_positions_) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, handle(function->shared(), isolate));
+  }
 
   MaglevCompilationHandleScope compilation(isolate, this);
 
@@ -89,12 +97,9 @@ void MaglevCompilationInfo::set_graph_labeller(
   graph_labeller_.reset(graph_labeller);
 }
 
-void MaglevCompilationInfo::set_translation_array_builder(
-    std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
-    std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-        deopt_literals) {
-  translation_array_builder_ = std::move(translation_array_builder);
-  deopt_literals_ = std::move(deopt_literals);
+void MaglevCompilationInfo::set_code_generator(
+    std::unique_ptr<MaglevCodeGenerator> code_generator) {
+  code_generator_ = std::move(code_generator);
 }
 
 void MaglevCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {}

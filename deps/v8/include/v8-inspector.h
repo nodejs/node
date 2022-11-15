@@ -365,9 +365,12 @@ class V8_EXPORT V8Inspector {
     virtual void flushProtocolNotifications() = 0;
   };
   enum ClientTrustLevel { kUntrusted, kFullyTrusted };
+  enum SessionPauseState { kWaitingForDebugger, kNotWaitingForDebugger };
+  // TODO(chromium:1352175): remove default value once downstream change lands.
   virtual std::unique_ptr<V8InspectorSession> connect(
       int contextGroupId, Channel*, StringView state,
-      ClientTrustLevel client_trust_level) {
+      ClientTrustLevel client_trust_level,
+      SessionPauseState = kNotWaitingForDebugger) {
     return nullptr;
   }
 

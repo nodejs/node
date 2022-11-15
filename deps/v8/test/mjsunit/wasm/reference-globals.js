@@ -162,7 +162,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kGCPrefix, kExprStructGet, composite_struct_index, 0])
     .exportFunc();
 
-  builder.addFunction("field_2_default", makeSig([], [kWasmDataRef]))
+  builder.addFunction("field_2_default", makeSig([], [kWasmStructRef]))
     .addBody([
       kExprGlobalGet, global_default.index,
       kGCPrefix, kExprStructGet, composite_struct_index, 1])
@@ -245,7 +245,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kGCPrefix, kExprStructGet, struct_index, 0])
     .exportFunc();
 
-  builder.addFunction("element1", makeSig([], [kWasmDataRef]))
+  builder.addFunction("element1", makeSig([], [kWasmStructRef]))
     .addBody([
       kExprGlobalGet, global.index,
       kExprI32Const, 1,
@@ -379,4 +379,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /i31.new\[0\] expected type i32, found i64.const of type i64/);
+})();
+
+(function TestConstantExprFuncIndexOutOfBounds() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_index = builder.addStruct([makeField(kWasmFuncRef, true)]);
+  let func = builder.addFunction("element", kSig_i_i)
+    .addBody([kExprLocalGet, 0])
+    .exportFunc()
+
+  builder.addGlobal(wasmRefType(struct_index), false,
+                    [kExprRefFunc, func.index + 1, kExprStructNew, struct_index]);
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /function index #1 is out of bounds/);
 })();

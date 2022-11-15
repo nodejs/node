@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/maglev/maglev-code-gen-state.h"
 
@@ -12,10 +13,13 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class MaglevAssembler;
+
 // Label allowed to be passed to deferred code.
 class ZoneLabelRef {
  public:
   explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
+  explicit inline ZoneLabelRef(MaglevAssembler* masm);
 
   static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
     // This is an unsafe operation, {label} must be zone allocated.
@@ -33,8 +37,8 @@ class ZoneLabelRef {
 
 class MaglevAssembler : public MacroAssembler {
  public:
-  explicit MaglevAssembler(MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(code_gen_state->isolate(), CodeObjectRequired::kNo),
+  explicit MaglevAssembler(Isolate* isolate, MaglevCodeGenState* code_gen_state)
+      : MacroAssembler(isolate, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
   inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
@@ -58,10 +62,64 @@ class MaglevAssembler : public MacroAssembler {
     return GetFramePointerOffsetForStackSlot(index);
   }
 
+  template <typename Dest, typename Source>
+  void MoveRepr(MachineRepresentation repr, Dest dst, Source src) {
+    switch (repr) {
+      case MachineRepresentation::kWord32:
+        return movl(dst, src);
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedPointer:
+      case MachineRepresentation::kTaggedSigned:
+        return movq(dst, src);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  void Allocate(RegisterSnapshot& register_snapshot, Register result,
+                int size_in_bytes,
+                AllocationType alloc_type = AllocationType::kYoung,
+                AllocationAlignment alignment = kTaggedAligned);
+
+  void AllocateHeapNumber(RegisterSnapshot register_snapshot, Register result,
+                          DoubleRegister value);
+
+  void AllocateTwoByteString(RegisterSnapshot register_snapshot,
+                             Register result, int length);
+
+  void LoadSingleCharacterString(Register result, int char_code);
+  void LoadSingleCharacterString(Register result, Register char_code,
+                                 Register scratch);
+
   inline void Branch(Condition condition, BasicBlock* if_true,
                      BasicBlock* if_false, BasicBlock* next_block);
   inline void PushInput(const Input& input);
   inline Register FromAnyToRegister(const Input& input, Register scratch);
+
+  inline void LoadBoundedSizeFromObject(Register result, Register object,
+                                        int offset);
+  inline void LoadExternalPointerField(Register result, Operand operand);
+
+  inline void LoadSignedField(Register result, Operand operand,
+                              int element_size);
+  inline void StoreField(Operand operand, Register value, int element_size);
+  inline void ReverseByteOrder(Register value, int element_size);
+
+  // Warning: Input registers {string} and {index} will be scratched.
+  // {result} is allowed to alias with one the other 3 input registers.
+  // {result} is an int32.
+  void StringCharCodeAt(RegisterSnapshot& register_snapshot, Register result,
+                        Register string, Register index, Register scratch,
+                        Label* result_fits_one_byte);
+  // Warning: Input {char_code} will be scratched.
+  void StringFromCharCode(RegisterSnapshot register_snapshot,
+                          Label* char_code_fits_one_byte, Register result,
+                          Register char_code, Register scratch);
+
+  void ToBoolean(Register value, ZoneLabelRef is_true, ZoneLabelRef is_false,
+                 bool fallthrough_when_true);
+
+  void TruncateDoubleToInt32(Register dst, DoubleRegister src);
 
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);
@@ -101,6 +159,48 @@ class MaglevAssembler : public MacroAssembler {
   }
 
   MaglevCodeGenState* const code_gen_state_;
+};
+
+class SaveRegisterStateForCall {
+ public:
+  SaveRegisterStateForCall(MaglevAssembler* masm, RegisterSnapshot snapshot)
+      : masm(masm), snapshot_(snapshot) {
+    masm->PushAll(snapshot_.live_registers);
+    masm->PushAll(snapshot_.live_double_registers, kDoubleSize);
+  }
+
+  ~SaveRegisterStateForCall() {
+    masm->PopAll(snapshot_.live_double_registers, kDoubleSize);
+    masm->PopAll(snapshot_.live_registers);
+  }
+
+  MaglevSafepointTableBuilder::Safepoint DefineSafepoint() {
+    // TODO(leszeks): Avoid emitting safepoints when there are no registers to
+    // save.
+    auto safepoint = masm->safepoint_table_builder()->DefineSafepoint(masm);
+    int pushed_reg_index = 0;
+    for (Register reg : snapshot_.live_registers) {
+      if (snapshot_.live_tagged_registers.has(reg)) {
+        safepoint.DefineTaggedRegister(pushed_reg_index);
+      }
+      pushed_reg_index++;
+    }
+    int num_pushed_double_reg = snapshot_.live_double_registers.Count();
+    safepoint.SetNumPushedRegisters(pushed_reg_index + num_pushed_double_reg);
+    return safepoint;
+  }
+
+  MaglevSafepointTableBuilder::Safepoint DefineSafepointWithLazyDeopt(
+      LazyDeoptInfo* lazy_deopt_info) {
+    lazy_deopt_info->set_deopting_call_return_pc(
+        masm->pc_offset_for_safepoint());
+    masm->code_gen_state()->PushLazyDeopt(lazy_deopt_info);
+    return DefineSafepoint();
+  }
+
+ private:
+  MaglevAssembler* masm;
+  RegisterSnapshot snapshot_;
 };
 
 }  // namespace maglev

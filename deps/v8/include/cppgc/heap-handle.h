@@ -12,12 +12,18 @@ namespace cppgc {
 namespace internal {
 class HeapBase;
 class WriteBarrierTypeForCagedHeapPolicy;
+class WriteBarrierTypeForNonCagedHeapPolicy;
 }  // namespace internal
 
 /**
  * Opaque handle used for additional heap APIs.
  */
 class HeapHandle {
+ public:
+  // Deleted copy ctor to avoid treating the type by value.
+  HeapHandle(const HeapHandle&) = delete;
+  HeapHandle& operator=(const HeapHandle&) = delete;
+
  private:
   HeapHandle() = default;
 
@@ -34,6 +40,7 @@ class HeapHandle {
 
   friend class internal::HeapBase;
   friend class internal::WriteBarrierTypeForCagedHeapPolicy;
+  friend class internal::WriteBarrierTypeForNonCagedHeapPolicy;
 };
 
 }  // namespace cppgc

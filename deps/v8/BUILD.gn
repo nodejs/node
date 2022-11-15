@@ -285,8 +285,11 @@ declare_args() {
       target_os == "fuchsia"
 
   # Enable control-flow integrity features, such as pointer authentication for
-  # ARM64.
-  v8_control_flow_integrity = false
+  # ARM64. Enable it by default for simulator builds and when native code
+  # supports it as well.
+  v8_control_flow_integrity =
+      v8_current_cpu == "arm64" &&
+      (target_is_simulator || arm_control_flow_integrity != "none")
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
@@ -465,6 +468,8 @@ if (v8_builtins_profiling_log_file == "default") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
     } else if (v8_current_cpu == "arm64") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/arm64.profile"
+    } else if (v8_current_cpu == "arm") {
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/arm.profile"
     }
   }
 }
@@ -496,14 +501,6 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
 
-# Check if it is a Chromium build and activate PAC/BTI if needed.
-# TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
-if (build_with_chromium && v8_current_cpu == "arm64" &&
-    (arm_control_flow_integrity == "standard" ||
-     arm_control_flow_integrity == "pac")) {
-  v8_control_flow_integrity = true
-}
-
 if (v8_enable_short_builtin_calls &&
     (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
   # Disable short calls when pointer compression is not enabled, except x64,
@@ -521,9 +518,8 @@ if (v8_enable_sandbox == "") {
   # once that is enabled everywhere by default.
   # TODO(chromium:1325784) the sandbox is not currently supported in Chromium
   # on Fuchsia.
-  v8_enable_sandbox =
-      build_with_chromium && v8_enable_pointer_compression_shared_cage &&
-      v8_enable_external_code_space && target_os != "fuchsia"
+  v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
+                      v8_enable_external_code_space && target_os != "fuchsia"
 }
 
 # Enable all available sandbox features if sandbox future is enabled.
@@ -1102,18 +1098,9 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
-    if (current_cpu == "arm64") {
-      # This will enable PAC+BTI in code generation and static code.
-      if (v8_control_flow_integrity &&
-          (!build_with_chromium || arm_control_flow_integrity == "standard")) {
-        cflags += [ "-mbranch-protection=standard" ]
-        asmflags = [ "-mmark-bti-property" ]
-      } else if (build_with_chromium && arm_control_flow_integrity == "pac") {
-        # This should enable PAC only in C++ code (and no CFI in runtime
-        # generated code). For details, see crbug.com/919548.
-        cflags += [ "-mbranch-protection=pac-ret" ]
-        asmflags = [ "-mbranch-protection=pac-ret" ]
-      }
+    if (current_cpu == "arm64" && v8_control_flow_integrity && is_clang) {
+      # Mark assembly code as BTI-compatible.
+      asmflags = [ "-mmark-bti-property" ]
     }
   }
 
@@ -1473,6 +1460,10 @@ config("toolchain") {
       "/wd4715",  # 'function' : not all control paths return a value'
                   # MSVC does not analyze switch (enum) for completeness.
     ]
+
+    # TODO(https://crbug.com/1377771): Keep MSVC on C++17 until source code is
+    # made compatible with C++20.
+    cflags_cc = [ "/std:c++17" ]
   }
 
   if (!is_clang && !is_win) {
@@ -1489,6 +1480,11 @@ config("toolchain") {
       # Disable gcc warnings for using enum constant in boolean context.
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97266
       "-Wno-int-in-bool-context",
+
+      # Disable gcc deprecation warnings, which are firing on implicit capture
+      # of `this` in capture-by-value lambdas and preventing a build roll which
+      # enables C++20 (see https://crbug.com/1374227).
+      "-Wno-deprecated",
     ]
   }
 
@@ -1619,6 +1615,9 @@ action("postmortem-metadata") {
     "src/objects/js-objects-inl.h",
     "src/objects/js-promise.h",
     "src/objects/js-promise-inl.h",
+    "src/objects/js-raw-json.cc",
+    "src/objects/js-raw-json.h",
+    "src/objects/js-raw-json-inl.h",
     "src/objects/js-regexp.cc",
     "src/objects/js-regexp.h",
     "src/objects/js-regexp-inl.h",
@@ -1790,6 +1789,7 @@ torque_files = [
   "src/builtins/typed-array-sort.tq",
   "src/builtins/typed-array-subarray.tq",
   "src/builtins/typed-array-to-reversed.tq",
+  "src/builtins/typed-array-to-sorted.tq",
   "src/builtins/typed-array-values.tq",
   "src/builtins/typed-array-with.tq",
   "src/builtins/typed-array.tq",
@@ -1824,6 +1824,7 @@ torque_files = [
   "src/objects/js-objects.tq",
   "src/objects/js-promise.tq",
   "src/objects/js-proxy.tq",
+  "src/objects/js-raw-json.tq",
   "src/objects/js-regexp-string-iterator.tq",
   "src/objects/js-regexp.tq",
   "src/objects/js-shadow-realm.tq",
@@ -1870,6 +1871,7 @@ if (v8_enable_i18n_support) {
     "src/objects/js-collator.tq",
     "src/objects/js-date-time-format.tq",
     "src/objects/js-display-names.tq",
+    "src/objects/js-duration-format.tq",
     "src/objects/js-list-format.tq",
     "src/objects/js-locale.tq",
     "src/objects/js-number-format.tq",
@@ -2275,6 +2277,8 @@ action("v8_dump_build_config") {
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
+    "v8_enable_conservative_stack_scanning=" +
+        "$v8_enable_conservative_stack_scanning",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_single_generation=$v8_enable_single_generation",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
@@ -2450,57 +2454,57 @@ v8_source_set("v8_initializers") {
 
   if (v8_current_cpu == "x86") {
     sources += [
-      ### gcmole(arch:ia32) ###
+      ### gcmole(ia32) ###
       "src/builtins/ia32/builtins-ia32.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
-      ### gcmole(arch:x64) ###
+      ### gcmole(x64) ###
       "src/builtins/x64/builtins-x64.cc",
     ]
   } else if (v8_current_cpu == "arm") {
     sources += [
-      ### gcmole(arch:arm) ###
+      ### gcmole(arm) ###
       "src/builtins/arm/builtins-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [
-      ### gcmole(arch:arm64) ###
+      ### gcmole(arm64) ###
       "src/builtins/arm64/builtins-arm64.cc",
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
-      ### gcmole(arch:mips64el) ###
+      ### gcmole(mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
     ]
   } else if (v8_current_cpu == "loong64") {
     sources += [
-      ### gcmole(arch:loong64) ###
+      ### gcmole(loong64) ###
       "src/builtins/loong64/builtins-loong64.cc",
     ]
   } else if (v8_current_cpu == "ppc") {
     sources += [
-      ### gcmole(arch:ppc) ###
+      ### gcmole(ppc) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
-      ### gcmole(arch:ppc64) ###
+      ### gcmole(ppc64) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
-      ### gcmole(arch:s390) ###
+      ### gcmole(s390) ###
       "src/builtins/s390/builtins-s390.cc",
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [
-      ### gcmole(arch:riscv64) ###
+      ### gcmole(riscv64) ###
       "src/builtins/riscv/builtins-riscv.cc",
     ]
   } else if (v8_current_cpu == "riscv32") {
     sources += [
-      ### gcmole(arch:riscv32) ###
+      ### gcmole(riscv32) ###
       "src/builtins/riscv/builtins-riscv.cc",
     ]
   }
@@ -2810,6 +2814,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/all-nodes.h",
     "src/compiler/allocation-builder-inl.h",
     "src/compiler/allocation-builder.h",
+    "src/compiler/backend/bitcast-elider.h",
     "src/compiler/backend/code-generator-impl.h",
     "src/compiler/backend/code-generator.h",
     "src/compiler/backend/frame-elider.h",
@@ -2930,17 +2935,24 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/machine-optimization-reducer.h",
+    "src/compiler/turboshaft/operation-matching.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
+    "src/compiler/turboshaft/representations.h",
+    "src/compiler/turboshaft/select-lowering-reducer.h",
     "src/compiler/turboshaft/sidetable.h",
+    "src/compiler/turboshaft/simplify-tf-loops.h",
+    "src/compiler/turboshaft/snapshot-table.h",
     "src/compiler/turboshaft/utils.h",
-    "src/compiler/turboshaft/value-numbering-assembler.h",
+    "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
     "src/compiler/typer.h",
     "src/compiler/types.h",
+    "src/compiler/use-info.h",
     "src/compiler/value-numbering-reducer.h",
     "src/compiler/verifier.h",
     "src/compiler/write-barrier-kind.h",
@@ -2956,7 +2968,6 @@ v8_header_set("v8_internal_headers") {
     "src/debug/debug-scope-iterator.h",
     "src/debug/debug-scopes.h",
     "src/debug/debug-stack-trace-iterator.h",
-    "src/debug/debug-type-profile.h",
     "src/debug/debug.h",
     "src/debug/interface-types.h",
     "src/debug/liveedit-diff.h",
@@ -3027,6 +3038,7 @@ v8_header_set("v8_internal_headers") {
     "src/handles/maybe-handles.h",
     "src/handles/persistent-handles.h",
     "src/handles/shared-object-conveyor-handles.h",
+    "src/handles/traced-handles.h",
     "src/heap/allocation-observer.h",
     "src/heap/allocation-result.h",
     "src/heap/allocation-stats.h",
@@ -3053,6 +3065,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/embedder-tracing.h",
     "src/heap/evacuation-allocator-inl.h",
     "src/heap/evacuation-allocator.h",
+    "src/heap/evacuation-verifier-inl.h",
+    "src/heap/evacuation-verifier.h",
     "src/heap/factory-base-inl.h",
     "src/heap/factory-base.h",
     "src/heap/factory-inl.h",
@@ -3090,6 +3104,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/mark-compact.h",
     "src/heap/marking-barrier-inl.h",
     "src/heap/marking-barrier.h",
+    "src/heap/marking-state-inl.h",
+    "src/heap/marking-state.h",
     "src/heap/marking-visitor-inl.h",
     "src/heap/marking-visitor.h",
     "src/heap/marking-worklist-inl.h",
@@ -3111,6 +3127,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/paged-spaces.h",
     "src/heap/parallel-work-item.h",
     "src/heap/parked-scope.h",
+    "src/heap/pretenuring-handler-inl.h",
+    "src/heap/pretenuring-handler.h",
     "src/heap/progress-bar.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.h",
@@ -3269,6 +3287,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-promise.h",
     "src/objects/js-proxy-inl.h",
     "src/objects/js-proxy.h",
+    "src/objects/js-raw-json-inl.h",
+    "src/objects/js-raw-json.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp-string-iterator-inl.h",
     "src/objects/js-regexp-string-iterator.h",
@@ -3417,6 +3437,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/heap-profiler.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
+    "src/profiler/output-stream-writer.h",
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.h",
     "src/profiler/profiler-listener.h",
@@ -3431,7 +3452,6 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/experimental/experimental-compiler.h",
     "src/regexp/experimental/experimental-interpreter.h",
     "src/regexp/experimental/experimental.h",
-    "src/regexp/property-sequences.h",
     "src/regexp/regexp-ast.h",
     "src/regexp/regexp-bytecode-generator-inl.h",
     "src/regexp/regexp-bytecode-generator.h",
@@ -3455,6 +3475,8 @@ v8_header_set("v8_internal_headers") {
     "src/roots/roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
+    "src/sandbox/bounded-size-inl.h",
+    "src/sandbox/bounded-size.h",
     "src/sandbox/external-pointer-inl.h",
     "src/sandbox/external-pointer-table-inl.h",
     "src/sandbox/external-pointer-table.h",
@@ -3625,7 +3647,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/module-instantiate.h",
       "src/wasm/names-provider.h",
       "src/wasm/object-access.h",
-      "src/wasm/signature-map.h",
+      "src/wasm/pgo.h",
       "src/wasm/simd-shuffle.h",
       "src/wasm/stacks.h",
       "src/wasm/streaming-decoder.h",
@@ -3682,6 +3704,8 @@ v8_header_set("v8_internal_headers") {
       "src/objects/js-date-time-format.h",
       "src/objects/js-display-names-inl.h",
       "src/objects/js-display-names.h",
+      "src/objects/js-duration-format-inl.h",
+      "src/objects/js-duration-format.h",
       "src/objects/js-list-format-inl.h",
       "src/objects/js-list-format.h",
       "src/objects/js-locale-inl.h",
@@ -3734,7 +3758,8 @@ v8_header_set("v8_internal_headers") {
   }
 
   if (v8_current_cpu == "x86") {
-    sources += [  ### gcmole(arch:ia32) ###
+    sources += [
+      ### gcmole(ia32) ###
       "src/baseline/ia32/baseline-assembler-ia32-inl.h",
       "src/baseline/ia32/baseline-compiler-ia32-inl.h",
       "src/codegen/ia32/assembler-ia32-inl.h",
@@ -3752,7 +3777,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [  ### gcmole(arch:x64) ###
+    sources += [
+      ### gcmole(x64) ###
       "src/baseline/x64/baseline-assembler-x64-inl.h",
       "src/baseline/x64/baseline-compiler-x64-inl.h",
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -3788,7 +3814,8 @@ v8_header_set("v8_internal_headers") {
       }
     }
   } else if (v8_current_cpu == "arm") {
-    sources += [  ### gcmole(arch:arm) ###
+    sources += [
+      ### gcmole(arm) ###
       "src/baseline/arm/baseline-assembler-arm-inl.h",
       "src/baseline/arm/baseline-compiler-arm-inl.h",
       "src/codegen/arm/assembler-arm-inl.h",
@@ -3806,7 +3833,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [  ### gcmole(arch:arm64) ###
+    sources += [
+      ### gcmole(arm64) ###
       "src/baseline/arm64/baseline-assembler-arm64-inl.h",
       "src/baseline/arm64/baseline-compiler-arm64-inl.h",
       "src/codegen/arm64/assembler-arm64-inl.h",
@@ -3848,7 +3876,8 @@ v8_header_set("v8_internal_headers") {
       sources += [ "src/diagnostics/unwinding-info-win64.h" ]
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    sources += [  ### gcmole(arch:mips64el) ###
+    sources += [
+      ### gcmole(mips64el) ###
       "src/baseline/mips64/baseline-assembler-mips64-inl.h",
       "src/baseline/mips64/baseline-compiler-mips64-inl.h",
       "src/codegen/mips64/assembler-mips64-inl.h",
@@ -3864,7 +3893,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
   } else if (v8_current_cpu == "loong64") {
-    sources += [  ### gcmole(arch:loong64) ###
+    sources += [
+      ### gcmole(loong64) ###
       "src/baseline/loong64/baseline-assembler-loong64-inl.h",
       "src/baseline/loong64/baseline-compiler-loong64-inl.h",
       "src/codegen/loong64/assembler-loong64-inl.h",
@@ -3880,7 +3910,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/loong64/liftoff-assembler-loong64.h",
     ]
   } else if (v8_current_cpu == "ppc") {
-    sources += [  ### gcmole(arch:ppc) ###
+    sources += [
+      ### gcmole(ppc) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
@@ -3896,7 +3927,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "ppc64") {
-    sources += [  ### gcmole(arch:ppc64) ###
+    sources += [
+      ### gcmole(ppc64) ###
       "src/baseline/ppc/baseline-assembler-ppc-inl.h",
       "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
@@ -3914,7 +3946,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
+    sources += [
+      ### gcmole(s390) ###
       "src/baseline/s390/baseline-assembler-s390-inl.h",
       "src/baseline/s390/baseline-compiler-s390-inl.h",
       "src/codegen/s390/assembler-s390-inl.h",
@@ -3932,7 +3965,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
   } else if (v8_current_cpu == "riscv64") {
-    sources += [  ### gcmole(arch:riscv64) ###
+    sources += [
+      ### gcmole(riscv64) ###
       "src/baseline/riscv/baseline-assembler-riscv-inl.h",
       "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv-inl.h",
@@ -3971,7 +4005,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
     ]
   } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
+    sources += [
+      ### gcmole(riscv32) ###
       "src/baseline/riscv/baseline-assembler-riscv-inl.h",
       "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv.h",
@@ -4033,6 +4068,7 @@ v8_compiler_sources = [
   "src/compiler/access-info.cc",
   "src/compiler/add-type-assertions-reducer.cc",
   "src/compiler/all-nodes.cc",
+  "src/compiler/backend/bitcast-elider.cc",
   "src/compiler/backend/code-generator.cc",
   "src/compiler/backend/frame-elider.cc",
   "src/compiler/backend/gap-resolver.cc",
@@ -4229,6 +4265,9 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
+    "src/compiler/turboshaft/representations.cc",
+    "src/compiler/turboshaft/simplify-tf-loops.cc",
+    "src/compiler/turboshaft/utils.cc",
   ]
 
   public_deps = [
@@ -4369,7 +4408,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/debug/debug-scope-iterator.cc",
     "src/debug/debug-scopes.cc",
     "src/debug/debug-stack-trace-iterator.cc",
-    "src/debug/debug-type-profile.cc",
     "src/debug/debug.cc",
     "src/debug/liveedit-diff.cc",
     "src/debug/liveedit.cc",
@@ -4419,6 +4457,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/local-handles.cc",
     "src/handles/persistent-handles.cc",
     "src/handles/shared-object-conveyor-handles.cc",
+    "src/handles/traced-handles.cc",
     "src/heap/allocation-observer.cc",
     "src/heap/array-buffer-sweeper.cc",
     "src/heap/base-space.cc",
@@ -4436,6 +4475,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/cppgc-js/unified-heap-marking-verifier.cc",
     "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
     "src/heap/embedder-tracing.cc",
+    "src/heap/evacuation-verifier.cc",
     "src/heap/factory-base.cc",
     "src/heap/factory.cc",
     "src/heap/finalization-registry-cleanup-task.cc",
@@ -4469,6 +4509,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/object-stats.cc",
     "src/heap/objects-visiting.cc",
     "src/heap/paged-spaces.cc",
+    "src/heap/pretenuring-handler.cc",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-spaces.cc",
     "src/heap/safepoint.cc",
@@ -4541,12 +4582,14 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-collator.cc",
     "src/objects/js-date-time-format.cc",
     "src/objects/js-display-names.cc",
+    "src/objects/js-duration-format.cc",
     "src/objects/js-function.cc",
     "src/objects/js-list-format.cc",
     "src/objects/js-locale.cc",
     "src/objects/js-number-format.cc",
     "src/objects/js-objects.cc",
     "src/objects/js-plural-rules.cc",
+    "src/objects/js-raw-json.cc",
     "src/objects/js-regexp.cc",
     "src/objects/js-relative-time-format.cc",
     "src/objects/js-segment-iterator.cc",
@@ -4615,7 +4658,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/experimental/experimental-compiler.cc",
     "src/regexp/experimental/experimental-interpreter.cc",
     "src/regexp/experimental/experimental.cc",
-    "src/regexp/property-sequences.cc",
     "src/regexp/regexp-ast.cc",
     "src/regexp/regexp-bytecode-generator.cc",
     "src/regexp/regexp-bytecode-peephole.cc",
@@ -4724,6 +4766,7 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-assembler.cc",
       "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
@@ -4739,7 +4782,8 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_webassembly) {
-    sources += [  ### gcmole(all) ###
+    sources += [
+      ### gcmole(all) ###
       "src/asmjs/asm-js.cc",
       "src/asmjs/asm-parser.cc",
       "src/asmjs/asm-scanner.cc",
@@ -4767,7 +4811,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/module-decoder.cc",
       "src/wasm/module-instantiate.cc",
       "src/wasm/names-provider.cc",
-      "src/wasm/signature-map.cc",
+      "src/wasm/pgo.cc",
       "src/wasm/simd-shuffle.cc",
       "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
@@ -4821,7 +4865,8 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_current_cpu == "x86") {
-    sources += [  ### gcmole(arch:ia32) ###
+    sources += [
+      ### gcmole(ia32) ###
       "src/codegen/ia32/assembler-ia32.cc",
       "src/codegen/ia32/cpu-ia32.cc",
       "src/codegen/ia32/macro-assembler-ia32.cc",
@@ -4836,7 +4881,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [  ### gcmole(arch:x64) ###
+    sources += [
+      ### gcmole(x64) ###
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.cc",
       "src/codegen/x64/assembler-x64.cc",
       "src/codegen/x64/cpu-x64.cc",
@@ -4874,7 +4920,8 @@ v8_source_set("v8_base_without_compiler") {
       }
     }
   } else if (v8_current_cpu == "arm") {
-    sources += [  ### gcmole(arch:arm) ###
+    sources += [
+      ### gcmole(arm) ###
       "src/codegen/arm/assembler-arm.cc",
       "src/codegen/arm/constants-arm.cc",
       "src/codegen/arm/cpu-arm.cc",
@@ -4892,7 +4939,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [  ### gcmole(arch:arm64) ###
+    sources += [
+      ### gcmole(arm64) ###
       "src/codegen/arm64/assembler-arm64.cc",
       "src/codegen/arm64/cpu-arm64.cc",
       "src/codegen/arm64/decoder-arm64.cc",
@@ -4939,7 +4987,8 @@ v8_source_set("v8_base_without_compiler") {
       sources += [ "src/diagnostics/unwinding-info-win64.cc" ]
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    sources += [  ### gcmole(arch:mips64el) ###
+    sources += [
+      ### gcmole(mips64el) ###
       "src/codegen/mips64/assembler-mips64.cc",
       "src/codegen/mips64/constants-mips64.cc",
       "src/codegen/mips64/cpu-mips64.cc",
@@ -4956,7 +5005,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "loong64") {
-    sources += [  ### gcmole(arch:loong64) ###
+    sources += [
+      ### gcmole(loong64) ###
       "src/codegen/loong64/assembler-loong64.cc",
       "src/codegen/loong64/constants-loong64.cc",
       "src/codegen/loong64/cpu-loong64.cc",
@@ -4973,7 +5023,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/loong64/regexp-macro-assembler-loong64.cc",
     ]
   } else if (v8_current_cpu == "ppc") {
-    sources += [  ### gcmole(arch:ppc) ###
+    sources += [
+      ### gcmole(ppc) ###
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/constants-ppc.cc",
       "src/codegen/ppc/cpu-ppc.cc",
@@ -4991,7 +5042,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
     ]
   } else if (v8_current_cpu == "ppc64") {
-    sources += [  ### gcmole(arch:ppc64) ###
+    sources += [
+      ### gcmole(ppc64) ###
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/constants-ppc.cc",
       "src/codegen/ppc/cpu-ppc.cc",
@@ -5009,7 +5061,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
+    sources += [
+      ### gcmole(s390) ###
       "src/codegen/s390/assembler-s390.cc",
       "src/codegen/s390/constants-s390.cc",
       "src/codegen/s390/cpu-s390.cc",
@@ -5027,7 +5080,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
     ]
   } else if (v8_current_cpu == "riscv64") {
-    sources += [  ### gcmole(arch:riscv64) ###
+    sources += [
+      ### gcmole(riscv64) ###
       "src/codegen/riscv/assembler-riscv.cc",
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
@@ -5053,7 +5107,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
     ]
   } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
+    sources += [
+      ### gcmole(riscv32) ###
       "src/codegen/riscv/assembler-riscv.cc",
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
@@ -5130,6 +5185,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/objects/js-collator.cc",
       "src/objects/js-date-time-format.cc",
       "src/objects/js-display-names.cc",
+      "src/objects/js-duration-format.cc",
       "src/objects/js-list-format.cc",
       "src/objects/js-locale.cc",
       "src/objects/js-number-format.cc",
@@ -5712,6 +5768,7 @@ v8_source_set("v8_bigint") {
 v8_header_set("v8_heap_base_headers") {
   sources = [
     "src/heap/base/active-system-pages.h",
+    "src/heap/base/basic-slot-set.h",
     "src/heap/base/stack.h",
     "src/heap/base/worklist.h",
   ]
@@ -5730,31 +5787,31 @@ v8_source_set("v8_heap_base") {
 
   if (is_clang || !is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_asm.cc" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_asm.cc" ]
     } else if (current_cpu == "arm") {
-      sources += [ "src/heap/base/asm/arm/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm/save_registers_asm.cc" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_asm.cc" ]
     } else if (current_cpu == "ppc64") {
-      sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ppc/save_registers_asm.cc" ]
     } else if (current_cpu == "s390x") {
-      sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/s390/save_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
-      sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/mips64/save_registers_asm.cc" ]
     } else if (current_cpu == "loong64") {
-      sources += [ "src/heap/base/asm/loong64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/loong64/save_registers_asm.cc" ]
     } else if (current_cpu == "riscv64" || current_cpu == "riscv32") {
-      sources += [ "src/heap/base/asm/riscv/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/riscv/save_registers_asm.cc" ]
     }
   } else if (is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_masm.asm" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_masm.asm" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_masm.S" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_masm.S" ]
     }
   }
 
@@ -5856,6 +5913,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/globals.h",
     "src/heap/cppgc/heap-base.cc",
     "src/heap/cppgc/heap-base.h",
+    "src/heap/cppgc/heap-config.h",
     "src/heap/cppgc/heap-consistency.cc",
     "src/heap/cppgc/heap-growing.cc",
     "src/heap/cppgc/heap-growing.h",
@@ -6253,7 +6311,7 @@ group("gn_all") {
 }
 
 group("v8_python_base") {
-  data = [ ".vpython" ]
+  data = [ ".vpython3" ]
 }
 
 group("v8_clusterfuzz") {

@@ -13,6 +13,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/operator-properties.h"
 #include "src/objects/feedback-cell.h"
 #include "src/runtime/runtime.h"
 
@@ -995,8 +996,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
       CallFeedbackRelation feedback_relation = CallFeedbackRelation::kTarget);
   const Operator* CallRuntime(Runtime::FunctionId id);
-  const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
-  const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
+  const Operator* CallRuntime(
+      Runtime::FunctionId id, size_t arity,
+      Operator::Properties properties = Operator::kNoProperties);
+  const Operator* CallRuntime(
+      const Runtime::Function* function, size_t arity,
+      Operator::Properties properties = Operator::kNoProperties);
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
@@ -1039,6 +1044,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* HasProperty(FeedbackSource const& feedback);
 
   const Operator* GetSuperConstructor();
+
+  const Operator* FindNonDefaultConstructorOrConstruct();
 
   const Operator* CreateGeneratorObject();
 
@@ -1753,6 +1760,22 @@ class JSForInNextNode final : public JSNodeWrapperBase {
   V(CacheType, cache_type, 2, Object)   \
   V(Index, index, 3, Smi)               \
   V(FeedbackVector, feedback_vector, 4, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSFindNonDefaultConstructorOrConstructNode final
+    : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSFindNonDefaultConstructorOrConstructNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSFindNonDefaultConstructorOrConstruct,
+              node->opcode());
+  }
+
+#define INPUTS(V)                           \
+  V(ThisFunction, this_function, 0, Object) \
+  V(NewTarget, new_target, 1, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

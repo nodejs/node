@@ -169,6 +169,9 @@ class V8_EXPORT Context : public Data {
   /** Returns the microtask queue associated with a current context. */
   MicrotaskQueue* GetMicrotaskQueue();
 
+  /** Sets the microtask queue associated with the current context. */
+  void SetMicrotaskQueue(MicrotaskQueue* queue);
+
   /**
    * The field at kDebugIdIndex used to be reserved for the inspector.
    * It now serves no purpose.
@@ -290,6 +293,7 @@ class V8_EXPORT Context : public Data {
                        Local<Function> after_hook,
                        Local<Function> resolve_hook);
 
+  bool HasTemplateLiteralObject(Local<Value> object);
   /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.

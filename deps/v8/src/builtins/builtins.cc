@@ -181,9 +181,6 @@ FullObjectSlot Builtins::builtin_tier0_slot(Builtin builtin) {
 
 void Builtins::set_code(Builtin builtin, CodeT code) {
   DCHECK_EQ(builtin, code.builtin_id());
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS && V8_EXTERNAL_CODE_SPACE_BOOL) {
-    DCHECK_EQ(builtin, FromCodeT(code).builtin_id());
-  }
   DCHECK(Internals::HasHeapObjectTag(code.ptr()));
   // The given builtin may be uninitialized thus we cannot check its type here.
   isolate_->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();

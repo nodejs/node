@@ -127,6 +127,8 @@ class PendingCompilationErrorHandler {
     }
 
     MessageLocation GetLocation(Handle<Script> script) const;
+    int start_pos() const { return start_position_; }
+    int end_pos() const { return end_position_; }
     MessageTemplate message() const { return message_; }
 
     template <typename IsolateT>

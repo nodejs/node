@@ -58,7 +58,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(local_register_count_, 0);
 
-  if (FLAG_ignition_reo) {
+  if (v8_flags.ignition_reo) {
     register_optimizer_ = zone->New<BytecodeRegisterOptimizer>(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
         zone->New<RegisterTransferWriter>(this));
@@ -138,7 +138,7 @@ BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     // throw (if expression position filtering is turned on). We only
     // invalidate the existing source position information if it is used.
     if (latest_source_info_.is_statement() ||
-        !FLAG_ignition_filter_expression_positions ||
+        !v8_flags.ignition_filter_expression_positions ||
         !Bytecodes::IsWithoutExternalSideEffects(bytecode)) {
       source_position = latest_source_info_;
       latest_source_info_.set_invalid();
@@ -526,9 +526,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetSuperConstructor(Register out) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::FindNonDefaultConstructor(
+BytecodeArrayBuilder&
+BytecodeArrayBuilder::FindNonDefaultConstructorOrConstruct(
     Register this_function, Register new_target, RegisterList output) {
-  OutputFindNonDefaultConstructor(this_function, new_target, output);
+  OutputFindNonDefaultConstructorOrConstruct(this_function, new_target, output);
   return *this;
 }
 
@@ -877,11 +878,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
     Register object, Register name, DefineKeyedOwnPropertyInLiteralFlags flags,
     int feedback_slot) {
   OutputDefineKeyedOwnPropertyInLiteral(object, name, flags, feedback_slot);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CollectTypeProfile(int position) {
-  OutputCollectTypeProfile(position);
   return *this;
 }
 

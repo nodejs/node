@@ -104,6 +104,9 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     utils->Set(isolate, "interruptForMessages",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::InterruptForMessages));
+    utils->Set(
+        isolate, "waitForDebugger",
+        v8::FunctionTemplate::New(isolate, &UtilsExtension::WaitForDebugger));
     global->Set(isolate, "utils", utils);
   }
 
@@ -404,6 +407,19 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     backend_runner_->InterruptForMessages();
   }
 
+  static void WaitForDebugger(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsFunction()) {
+      FATAL("Internal error: waitForDebugger(context_group_id, callback).");
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    RunSimpleAsyncTask(
+        backend_runner_,
+        [context_group_id](InspectorIsolateData* data) {
+          data->WaitForDebugger(context_group_id);
+        },
+        args[1].As<v8::Function>());
+  }
+
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
 };
 
@@ -512,6 +528,9 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     inspector->Set(isolate, "callbackForTests",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::CallbackForTests));
+    inspector->Set(isolate, "runNestedMessageLoop",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::RunNestedMessageLoop));
     global->Set(isolate, "inspector", inspector);
   }
 
@@ -788,13 +807,22 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         callback->Call(context, v8::Undefined(isolate), 0, nullptr);
     args.GetReturnValue().Set(result.ToLocalChecked());
   }
+
+  static void RunNestedMessageLoop(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
+
+    data->task_runner()->RunMessageLoop(true);
+  }
 };
 
 int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-  FLAG_abort_on_contradictory_flags = true;
+  v8_flags.abort_on_contradictory_flags = true;
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();

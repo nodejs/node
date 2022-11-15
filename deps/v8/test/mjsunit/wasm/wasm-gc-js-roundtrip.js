@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-gc --no-wasm-gc-structref-as-dataref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -16,11 +16,11 @@ let instance = (() => {
                  .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
                  .exportAs('inc');
 
-  builder.addFunction('struct_producer', makeSig([], [kWasmDataRef]))
+  builder.addFunction('struct_producer', makeSig([], [kWasmStructRef]))
       .addBody([kGCPrefix, kExprStructNewDefault, struct])
       .exportFunc();
 
-  builder.addFunction('array_producer', makeSig([], [kWasmDataRef]))
+  builder.addFunction('array_producer', makeSig([], [kWasmArrayRef]))
       .addBody([
         kExprI32Const, 10,
         kGCPrefix, kExprArrayNewDefault, array
@@ -36,12 +36,11 @@ let instance = (() => {
       .exportFunc();
 
   let test_types = {
-    struct: kWasmDataRef,
-    array: kWasmDataRef,
+    struct: kWasmStructRef,
+    array: kWasmArrayRef,
     raw_struct: struct,
     raw_array: array,
     typed_func: sig,
-    data: kWasmDataRef,
     eq: kWasmEqRef,
     func: kWasmFuncRef,
     any: kWasmAnyRef,
@@ -67,15 +66,18 @@ let instance = (() => {
 // Wasm-exposed null is the same as JS null.
 assertEquals(instance.exports.struct_null(), null);
 
-// We can roundtrip a struct as dataref.
-instance.exports.data_id(instance.exports.struct_producer());
-// We can roundtrip an array as dataref.
-instance.exports.data_id(instance.exports.array_producer());
-// We can roundtrip null as dataref.
-instance.exports.data_id(instance.exports.data_null());
-// We cannot roundtrip an i31 as dataref.
+// We can roundtrip a struct as structref.
+instance.exports.struct_id(instance.exports.struct_producer());
+// We cannot roundtrip an array as structref.
 assertThrows(
-    () => instance.exports.data_id(instance.exports.i31_as_eq_producer()),
+    () => instance.exports.struct_id(instance.exports.array_producer()),
+    TypeError,
+    'type incompatibility when transforming from/to JS');
+// We can roundtrip null as structref.
+instance.exports.struct_id(instance.exports.struct_null());
+// We cannot roundtrip an i31 as structref.
+assertThrows(
+    () => instance.exports.struct_id(instance.exports.i31_as_eq_producer()),
     TypeError,
     'type incompatibility when transforming from/to JS');
 
@@ -86,7 +88,7 @@ instance.exports.eq_id(instance.exports.array_producer());
 // We can roundtrip an i31 as eqref.
 instance.exports.eq_id(instance.exports.i31_as_eq_producer());
 // We can roundtrip any null as eqref.
-instance.exports.eq_id(instance.exports.data_null());
+instance.exports.eq_id(instance.exports.struct_null());
 instance.exports.eq_id(instance.exports.eq_null());
 instance.exports.eq_id(instance.exports.func_null());
 // We cannot roundtrip a func as eqref.

@@ -175,6 +175,32 @@ class V8_EXPORT CpuProfileNode {
   static const int kNoColumnNumberInfo = Message::kNoColumnInfo;
 };
 
+/**
+ * An interface for exporting data from V8, using "push" model.
+ */
+class V8_EXPORT OutputStream {
+ public:
+  enum WriteResult { kContinue = 0, kAbort = 1 };
+  virtual ~OutputStream() = default;
+  /** Notify about the end of stream. */
+  virtual void EndOfStream() = 0;
+  /** Get preferred output chunk size. Called only once. */
+  virtual int GetChunkSize() { return 1024; }
+  /**
+   * Writes the next chunk of snapshot data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
+  /**
+   * Writes the next chunk of heap stats data into the stream. Writing
+   * can be stopped by returning kAbort as function result. EndOfStream
+   * will not be called in case writing was aborted.
+   */
+  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
+    return kAbort;
+  }
+};
 
 /**
  * CpuProfile contains a CPU profile in a form of top-down call tree
@@ -182,6 +208,9 @@ class V8_EXPORT CpuProfileNode {
  */
 class V8_EXPORT CpuProfile {
  public:
+  enum SerializationFormat {
+    kJSON = 0  // See format description near 'Serialize' method.
+  };
   /** Returns CPU profile title. */
   Local<String> GetTitle() const;
 
@@ -235,6 +264,25 @@ class V8_EXPORT CpuProfile {
    * All pointers to nodes previously returned become invalid.
    */
   void Delete();
+
+  /**
+   * Prepare a serialized representation of the profile. The result
+   * is written into the stream provided in chunks of specified size.
+   *
+   * For the JSON format, heap contents are represented as an object
+   * with the following structure:
+   *
+   *  {
+   *    nodes: [nodes array],
+   *    startTime: number,
+   *    endTime: number
+   *    samples: [strings array]
+   *    timeDeltas: [numbers array]
+   *  }
+   *
+   */
+  void Serialize(OutputStream* stream,
+                 SerializationFormat format = kJSON) const;
 };
 
 enum CpuProfilingMode {
@@ -574,37 +622,6 @@ class V8_EXPORT HeapGraphNode {
 
   /** Retrieves a child by index. */
   const HeapGraphEdge* GetChild(int index) const;
-};
-
-
-/**
- * An interface for exporting data from V8, using "push" model.
- */
-class V8_EXPORT OutputStream {
- public:
-  enum WriteResult {
-    kContinue = 0,
-    kAbort = 1
-  };
-  virtual ~OutputStream() = default;
-  /** Notify about the end of stream. */
-  virtual void EndOfStream() = 0;
-  /** Get preferred output chunk size. Called only once. */
-  virtual int GetChunkSize() { return 1024; }
-  /**
-   * Writes the next chunk of snapshot data into the stream. Writing
-   * can be stopped by returning kAbort as function result. EndOfStream
-   * will not be called in case writing was aborted.
-   */
-  virtual WriteResult WriteAsciiChunk(char* data, int size) = 0;
-  /**
-   * Writes the next chunk of heap stats data into the stream. Writing
-   * can be stopped by returning kAbort as function result. EndOfStream
-   * will not be called in case writing was aborted.
-   */
-  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
-    return kAbort;
-  }
 };
 
 /**

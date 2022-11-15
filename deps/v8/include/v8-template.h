@@ -30,7 +30,9 @@ class Signature;
   F(AsyncIteratorPrototype, initial_async_iterator_prototype) \
   F(ErrorPrototype, initial_error_prototype)                  \
   F(IteratorPrototype, initial_iterator_prototype)            \
-  F(ObjProto_valueOf, object_value_of_function)
+  F(MapIteratorPrototype, initial_map_iterator_prototype)     \
+  F(ObjProto_valueOf, object_value_of_function)               \
+  F(SetIteratorPrototype, initial_set_iterator_prototype)
 
 enum Intrinsic {
 #define V8_DECL_INTRINSIC(name, iname) k##name,

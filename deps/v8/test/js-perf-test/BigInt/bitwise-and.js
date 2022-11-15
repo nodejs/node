@@ -54,7 +54,7 @@ function TestBitwiseAndZero() {
 function SetUpTestBitwiseAndSmall() {
   random_bigints = [];
   for (let i = 0; i < TEST_ITERATIONS; ++i) {
-    const bigint = RandomBigIntWithBits(64);
+    const bigint = RandomBigIntWithBits(60);
     random_bigints.push(Math.random() < 0.5 ? -bigint : bigint);
   }
 }

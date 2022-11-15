@@ -848,7 +848,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   j(not_zero, flags_need_processing);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, XMMRegister saved_feedback_vector) {
   ASM_CODE_COMMENT(this);
   Label maybe_has_optimized_code, maybe_needs_logging;
@@ -1398,13 +1398,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   DCHECK_EQ(actual_parameter_count, eax);
   DCHECK_EQ(expected_parameter_count, ecx);
   Label regular_invoke;
-
-  // If the expected parameter count is equal to the adaptor sentinel, no need
-  // to push undefined value as arguments.
-  if (kDontAdaptArgumentsSentinel != 0) {
-    cmp(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
-    j(equal, &regular_invoke, Label::kFar);
-  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.

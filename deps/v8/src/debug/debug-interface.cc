@@ -14,7 +14,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-stack-trace-iterator.h"
-#include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap.h"
@@ -341,10 +340,12 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakException,
-                                             type == BreakOnAnyException);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
-                                             type != NoBreakOnException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakCaughtException,
+      type == BreakOnCaughtException || type == BreakOnAnyException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakUncaughtException,
+      type == BreakOnUncaughtException || type == BreakOnAnyException);
 }
 
 void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
@@ -948,8 +949,8 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
             isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
-            i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                             : i::INSPECTOR_CODE);
+            i::v8_flags.expose_inspector_scripts ? i::NOT_NATIVES_CODE
+                                                 : i::INSPECTOR_CODE);
     has_pending_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }
@@ -1317,48 +1318,6 @@ void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }
 
-int TypeProfile::Entry::SourcePosition() const { return entry_->position; }
-
-std::vector<MaybeLocal<String>> TypeProfile::Entry::Types() const {
-  std::vector<MaybeLocal<String>> result;
-  for (const internal::Handle<internal::String>& type : entry_->types) {
-    result.emplace_back(ToApiHandle<String>(type));
-  }
-  return result;
-}
-
-TypeProfile::ScriptData::ScriptData(
-    size_t index, std::shared_ptr<i::TypeProfile> type_profile)
-    : script_(&type_profile->at(index)),
-      type_profile_(std::move(type_profile)) {}
-
-Local<Script> TypeProfile::ScriptData::GetScript() const {
-  return ToApiHandle<Script>(script_->script);
-}
-
-std::vector<TypeProfile::Entry> TypeProfile::ScriptData::Entries() const {
-  std::vector<TypeProfile::Entry> result;
-  for (const internal::TypeProfileEntry& entry : script_->entries) {
-    result.push_back(TypeProfile::Entry(&entry, type_profile_));
-  }
-  return result;
-}
-
-TypeProfile TypeProfile::Collect(Isolate* isolate) {
-  return TypeProfile(
-      i::TypeProfile::Collect(reinterpret_cast<i::Isolate*>(isolate)));
-}
-
-void TypeProfile::SelectMode(Isolate* isolate, TypeProfileMode mode) {
-  i::TypeProfile::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
-}
-
-size_t TypeProfile::ScriptCount() const { return type_profile_->size(); }
-
-TypeProfile::ScriptData TypeProfile::GetScriptData(size_t i) const {
-  return ScriptData(i, type_profile_);
-}
-
 MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1430,8 +1389,8 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
 }
 
-bool isExperimentalAsyncStackTaggingApiEnabled() {
-  return v8::internal::FLAG_experimental_async_stack_tagging_api;
+bool isExperimentalRemoveInternalScopesPropertyEnabled() {
+  return i::v8_flags.experimental_remove_internal_scopes_property;
 }
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
@@ -1439,10 +1398,15 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);
 }
 
+void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->debug()->NotifyDebuggerPausedEventSent();
+}
+
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
-      reinterpret_cast<i::Isolate*>(object->GetIsolate());
+      reinterpret_cast<i::Isolate*>(context->GetIsolate());
   if (isolate->is_execution_terminating()) {
     return nullptr;
   }

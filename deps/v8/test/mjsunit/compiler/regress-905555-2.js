@@ -22,6 +22,6 @@ delete this.global;
 %FinalizeOptimization();
 
 // boom should be deoptimized because the global property cell has changed.
-assertUnoptimized(boom, "sync");
+assertUnoptimized(boom);
 
 assertThrows(boom);

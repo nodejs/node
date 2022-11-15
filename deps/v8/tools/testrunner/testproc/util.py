@@ -7,6 +7,7 @@ import heapq
 import logging
 import os
 import platform
+import re
 import signal
 import subprocess
 
@@ -51,6 +52,43 @@ def kill_processes_linux():
       os.kill(pid, signal.SIGKILL)
     except:
       logging.exception('Failed to kill process')
+
+
+def strip_ascii_control_characters(unicode_string):
+  return re.sub(r'[^\x20-\x7E]', '?', str(unicode_string))
+
+
+def base_test_record(test, result, run):
+  record = {
+      'name': test.full_name,
+      'flags': result.cmd.args,
+      'run': run + 1,
+      'expected': test.expected_outcomes,
+      'random_seed': test.random_seed,
+      'target_name': test.get_shell(),
+      'variant': test.variant,
+      'variant_flags': test.variant_flags,
+  }
+  if result.output:
+    record.update(
+        exit_code=result.output.exit_code,
+        duration=result.output.duration,
+    )
+  return record
+
+
+def extract_tags(record):
+  tags = []
+  for k, v in record.items():
+    if type(v) == list:
+      tags += [sanitized_kv_dict(k, e) for e in v]
+    else:
+      tags.append(sanitized_kv_dict(k, v))
+  return tags
+
+
+def sanitized_kv_dict(k, v):
+  return dict(key=k, value=strip_ascii_control_characters(v))
 
 
 class FixedSizeTopList():

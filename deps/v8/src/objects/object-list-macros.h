@@ -15,7 +15,6 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
-class CachedTemplateObject;
 class Cell;
 class ClosureFeedbackCellArray;
 class ConsString;
@@ -158,6 +157,7 @@ class ZoneForwardList;
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \
   V(JSProxy)                                    \
+  V(JSRawJson)                                  \
   V(JSReceiver)                                 \
   V(JSRegExp)                                   \
   V(JSRegExpStringIterator)                     \
@@ -237,6 +237,7 @@ class ZoneForwardList;
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
   V(TemplateList)                               \
+  V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
   V(UncompiledData)                             \
@@ -279,6 +280,7 @@ class ZoneForwardList;
   V(JSCollator)                           \
   V(JSDateTimeFormat)                     \
   V(JSDisplayNames)                       \
+  V(JSDurationFormat)                     \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSNumberFormat)                       \

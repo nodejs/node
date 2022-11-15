@@ -73,6 +73,7 @@ enum Vlmul {
 #define DEFINE_FLAG(name) name,
   RVV_LMUL(DEFINE_FLAG)
 #undef DEFINE_FLAG
+      kVlInvalid
 };
 
 #define RVV_SEW(V) \
@@ -85,6 +86,7 @@ enum Vlmul {
 enum VSew {
   RVV_SEW(DEFINE_FLAG)
 #undef DEFINE_FLAG
+      kVsInvalid
 };
 
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 4094;

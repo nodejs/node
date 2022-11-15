@@ -627,7 +627,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         UseScratchRegisterScope temps(tasm());
         Register scratch = temps.Acquire();
         // Check the function's context matches the context argument.
@@ -692,7 +692,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int offset = __ root_array_available() ? 36 : 80;  // 9 or 20 instrs
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_HOST_ARCH_LOONG64
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         offset += 12;  // see CallCFunction
       }
 #endif
@@ -849,7 +849,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
       Register base_reg = offset.from_stack_pointer() ? sp : fp;
       __ Add_d(i.OutputRegister(), base_reg, Operand(offset.offset()));
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Verify that the output_register is properly aligned
         __ And(scratch, i.OutputRegister(), Operand(kSystemPointerSize - 1));
         __ Assert(eq, AbortReason::kAllocationIsNotDoubleAligned, scratch,
@@ -947,6 +947,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MulOverflow_w(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
+    case kLoong64MulOvf_d:
+      __ MulOverflow_d(i.OutputRegister(), i.InputRegister(0),
+                       i.InputOperand(1), t8);
+      break;
     case kLoong64Mulh_w:
       __ Mulh_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -955,6 +959,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Mulh_d:
       __ Mulh_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kLoong64Mulh_du:
+      __ Mulh_du(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kLoong64Div_w:
       __ Div_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1895,7 +1902,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
-  } else if (instr->arch_opcode() == kLoong64MulOvf_w) {
+  } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
+             instr->arch_opcode() == kLoong64MulOvf_d) {
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -1905,7 +1913,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         __ Branch(tlabel, eq, t8, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kLoong64MulOvf_w, condition);
+        UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
   } else if (instr->arch_opcode() == kLoong64Cmp) {
     Condition cc = FlagsConditionToConditionCmp(condition);
@@ -1996,7 +2004,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ stop();
         }
       }
@@ -2047,7 +2055,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kLoong64SubOvf_d) {
     // Overflow occurs if overflow register is negative
     __ slt(result, t8, zero_reg);
-  } else if (instr->arch_opcode() == kLoong64MulOvf_w) {
+  } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
+             instr->arch_opcode() == kLoong64MulOvf_d) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, t8, zero_reg);
   } else if (instr->arch_opcode() == kLoong64Cmp) {
@@ -2275,7 +2284,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         UseScratchRegisterScope temps(tasm());
         Register scratch = temps.Acquire();
         __ Ld_d(scratch, FieldMemOperand(
@@ -2292,7 +2301,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         __ stop();
       }
 
@@ -2358,7 +2367,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue,
                 g.ToRegister(additional_pop_count),
                 Operand(static_cast<int64_t>(0)));

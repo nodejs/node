@@ -20,7 +20,6 @@
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
@@ -60,17 +59,13 @@ class WireBytesRef {
 
 // Static representation of a wasm function.
 struct WasmFunction {
-  const FunctionSig* sig;  // signature of the function.
-  uint32_t func_index;     // index into the function table.
-  uint32_t sig_index;      // index into the signature table.
-  WireBytesRef code;       // code of this function.
-  // Required number of slots in a feedback vector. Marked {mutable} because
-  // this is computed late (by Liftoff compilation), when the rest of the
-  // {WasmFunction} is typically considered {const}.
-  mutable int feedback_slots;
-  bool imported;
-  bool exported;
-  bool declared;
+  const FunctionSig* sig = nullptr;  // signature of the function.
+  uint32_t func_index = 0;           // index into the function table.
+  uint32_t sig_index = 0;            // index into the signature table.
+  WireBytesRef code = {};            // code of this function.
+  bool imported = false;
+  bool exported = false;
+  bool declared = false;
 };
 
 // Static representation of a wasm global variable.
@@ -291,7 +286,7 @@ struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
-  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
+  WireBytesRef LookupFunctionName(ModuleWireBytes wire_bytes,
                                   uint32_t function_index);
 
   void AddForTesting(int function_index, WireBytesRef name);
@@ -499,9 +494,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // mutable.
   uint32_t untagged_globals_buffer_size = 0;
   uint32_t tagged_globals_buffer_size = 0;
+  uint32_t num_imported_globals = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_imported_tables = 0;
+  uint32_t num_imported_tags = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
@@ -513,12 +510,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef name_section = {0, 0};
 
+  AccountingAllocator* allocator() const { return signature_zone->allocator(); }
+
   void add_type(TypeDefinition type) {
     types.push_back(type);
-    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
-                                ? signature_map.FindOrInsert(*type.function_sig)
-                                : 0;
-    per_module_canonical_type_ids.push_back(canonical_id);
     // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
@@ -570,15 +565,47 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return supertype(index) != kNoSuperType;
   }
 
+  // Linear search. Returns -1 if types are empty.
+  int MaxCanonicalTypeIndex() const {
+    if (isorecursive_canonical_type_ids.empty()) return -1;
+    return *std::max_element(isorecursive_canonical_type_ids.begin(),
+                             isorecursive_canonical_type_ids.end());
+  }
+
+  bool function_was_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    static_assert(sizeof(validated_functions[0]) == 1);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    uint8_t byte =
+        validated_functions[pos >> 3].load(std::memory_order_relaxed);
+    return byte & (1 << (pos & 7));
+  }
+
+  void set_function_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    std::atomic<uint8_t>* atomic_byte = &validated_functions[pos >> 3];
+    uint8_t old_byte = atomic_byte->load(std::memory_order_relaxed);
+    uint8_t new_bit = 1 << (pos & 7);
+    while ((old_byte & new_bit) == 0 &&
+           !atomic_byte->compare_exchange_weak(old_byte, old_byte | new_bit,
+                                               std::memory_order_relaxed)) {
+      // Retry with updated {old_byte}.
+    }
+  }
+
+  base::Vector<const WasmFunction> declared_functions() const {
+    return base::VectorOf(functions) + num_imported_functions;
+  }
+
   std::vector<TypeDefinition> types;  // by type index
-  // TODO(7748): Unify the following two arrays.
-  // Maps each type index to a canonical index for purposes of call_indirect.
-  std::vector<uint32_t> per_module_canonical_type_ids;
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
-  // Canonicalizing map for signature indexes.
-  SignatureMap signature_map;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
@@ -601,6 +628,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Asm.js source position information. Only available for modules compiled
   // from asm.js.
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
+
+  // {validated_functions} is atomically updated when functions get validated
+  // (during compilation, streaming decoding, or via explicit validation).
+  static_assert(sizeof(std::atomic<uint8_t>) == 1);
+  static_assert(alignof(std::atomic<uint8_t>) == 1);
+  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
@@ -626,16 +659,9 @@ inline bool is_asmjs_module(const WasmModule* module) {
 
 size_t EstimateStoredSize(const WasmModule* module);
 
-// Returns the number of possible export wrappers for a given module.
-V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
-
-// Returns the wrapper index for a function in {module} with signature {sig}
-// or {sig_index} and origin defined by {is_import}.
-// Prefer to use the {sig_index} consuming version, as it is much faster.
-int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
-                          bool is_import);
-int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
-                          bool is_import);
+// Returns the wrapper index for a function with isorecursive canonical
+// signature index {canonical_sig_index}, and origin defined by {is_import}.
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.
@@ -663,6 +689,8 @@ V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
+// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const byte>},
+// it should generally be passed by value.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
   explicit ModuleWireBytes(base::Vector<const byte> module_bytes)
       : module_bytes_(module_bytes) {}
@@ -698,6 +726,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
  private:
   base::Vector<const byte> module_bytes_;
 };
+ASSERT_TRIVIALLY_COPYABLE(ModuleWireBytes);
 
 // A helper for printing out the names of functions.
 struct WasmFunctionName {
@@ -795,11 +824,8 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
 V8_EXPORT_PRIVATE size_t
 GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
 
-void DumpProfileToFile(const WasmModule* module,
-                       base::Vector<const uint8_t> wire_bytes);
-
-void LoadProfileFromFile(WasmModule* module,
-                         base::Vector<const uint8_t> wire_bytes);
+// Get the required number of feedback slots for a function.
+int NumFeedbackSlots(const WasmModule* module, int func_index);
 
 }  // namespace v8::internal::wasm
 

@@ -30,7 +30,7 @@ class MaglevCompiler : public AllStatic {
   // Called on the main thread after Compile has completed.
   // TODO(v8:7700): Move this to a different class?
   static MaybeHandle<CodeT> GenerateCode(
-      MaglevCompilationInfo* compilation_info);
+      Isolate* isolate, MaglevCompilationInfo* compilation_info);
 };
 
 }  // namespace maglev

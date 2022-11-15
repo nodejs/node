@@ -50,6 +50,8 @@ class V8_EXPORT_PRIVATE WasmError {
   bool empty() const { return message_.empty(); }
   bool has_error() const { return !message_.empty(); }
 
+  operator bool() const { return has_error(); }
+
   uint32_t offset() const { return offset_; }
   const std::string& message() const& { return message_; }
   std::string&& message() && { return std::move(message_); }

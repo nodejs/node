@@ -96,6 +96,8 @@ TEST_WITH_PLATFORM(AccountingAllocatorOOM, AllocationPlatform) {
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
 
+// We use |AllocateAtLeast| in the accounting allocator, so we check only that
+// we have _at least_ the expected amount of memory allocated.
 TEST_WITH_PLATFORM(AccountingAllocatorCurrentAndMax, AllocationPlatform) {
   v8::internal::AccountingAllocator allocator;
   static constexpr size_t kAllocationSizes[] = {51, 231, 27};
@@ -108,8 +110,8 @@ TEST_WITH_PLATFORM(AccountingAllocatorCurrentAndMax, AllocationPlatform) {
   for (size_t size : kAllocationSizes) {
     segments.push_back(allocator.AllocateSegment(size, support_compression));
     CHECK_NOT_NULL(segments.back());
-    CHECK_EQ(size, segments.back()->total_size());
-    expected_current += size;
+    CHECK_LE(size, segments.back()->total_size());
+    expected_current += segments.back()->total_size();
     if (expected_current > expected_max) expected_max = expected_current;
     CHECK_EQ(expected_current, allocator.GetCurrentMemoryUsage());
     CHECK_EQ(expected_max, allocator.GetMaxMemoryUsage());

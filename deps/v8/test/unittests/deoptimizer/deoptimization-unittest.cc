@@ -67,18 +67,18 @@ class DeoptimizationTest : public TestWithContext {
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
-      : always_turbofan_(i::FLAG_always_turbofan),
-        allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining) {
-    i::FLAG_always_turbofan = true;
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_inlining = false;
+      : always_turbofan_(i::v8_flags.always_turbofan),
+        allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+        turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.always_turbofan = true;
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.turbo_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
-    i::FLAG_always_turbofan = always_turbofan_;
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
-    i::FLAG_turbo_inlining = turbo_inlining_;
+    i::v8_flags.always_turbofan = always_turbofan_;
+    i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
+    i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
@@ -93,21 +93,35 @@ class AlwaysOptimizeAllowNativesSyntaxNoInlining {
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
-      : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining) {
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_inlining = false;
+      : allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+        turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.turbo_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
-    i::FLAG_turbo_inlining = turbo_inlining_;
+    i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
+    i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
   bool allow_natives_syntax_;
   bool turbo_inlining_;
 };
+
+namespace {
+void CheckJsInt32(int expected, const char* variable_name,
+                  v8::Local<v8::Context> context) {
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(context->GetIsolate(), variable_name)
+          .ToLocalChecked();
+  CHECK_EQ(expected, context->Global()
+                         ->Get(context, str)
+                         .ToLocalChecked()
+                         ->Int32Value(context)
+                         .FromJust());
+}
+}  // namespace
 
 TEST_F(DeoptimizationTest, DeoptimizeSimple) {
   ManualGCScope manual_gc_scope(i_isolate());
@@ -124,13 +138,8 @@ TEST_F(DeoptimizationTest, DeoptimizeSimple) {
         "f();");
   }
   CollectAllGarbage();
+  CheckJsInt32(1, "count", context());
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 
@@ -146,12 +155,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimple) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
@@ -172,12 +176,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleWithArguments) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 
@@ -194,12 +193,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleWithArguments) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
@@ -221,18 +215,8 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleNested) {
         "result = f(1, 2, 3);");
     CollectAllGarbage();
 
-    CHECK_EQ(1, context()
-                    ->Global()
-                    ->Get(context(), NewString("count"))
-                    .ToLocalChecked()
-                    ->Int32Value(context())
-                    .FromJust());
-    CHECK_EQ(6, context()
-                    ->Global()
-                    ->Get(context(), NewString("result"))
-                    .ToLocalChecked()
-                    ->Int32Value(context())
-                    .FromJust());
+    CheckJsInt32(1, "count", context());
+    CheckJsInt32(6, "result", context());
     CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
   }
@@ -255,18 +239,8 @@ TEST_F(DeoptimizationTest, DeoptimizeRecursive) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(11, context()
-                   ->Global()
-                   ->Get(context(), NewString("calls"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(11, "calls", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 
   v8::Local<v8::Function> fun = v8::Local<v8::Function>::Cast(
@@ -296,18 +270,8 @@ TEST_F(DeoptimizationTest, DeoptimizeMultiple) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(14, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(14, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -326,12 +290,7 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructor) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
   CHECK(context()
             ->Global()
             ->Get(context(), NewString("result"))
@@ -352,18 +311,8 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructor) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(3, context()
-                  ->Global()
-                  ->Get(context(), NewString("result"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(3, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -390,18 +339,8 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructorMultiple) {
   }
   CollectAllGarbage();
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(14, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(14, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -418,7 +357,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
         "  if (deopt) { count++; %DeoptimizeFunction(f); } return 8"
         "};");
   }
-  static void SetUpTestSuite() { i::FLAG_concurrent_recompilation = false; }
+  static void SetUpTestSuite() { i::v8_flags.concurrent_recompilation = false; }
   void TestDeoptimizeBinaryOp(const char* binary_op) {
     v8::base::EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
     v8::base::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
@@ -428,7 +367,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     CompileConstructorWithDeoptimizingValueOf();
     RunJS(f_source);
     RunJS(
@@ -437,7 +376,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f(7, new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -464,7 +403,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
   {
     // Compile function f and collect to type feedback to insert binary op
     // stub call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -480,7 +419,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f('a+', new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -494,12 +433,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
   CollectAllGarbage();
 
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
   v8::Local<v8::Value> result =
       context()->Global()->Get(context(), NewString("result")).ToLocalChecked();
   CHECK(result->IsString());
@@ -515,18 +449,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
 
   TestDeoptimizeBinaryOp("+");
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(15, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(15, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -537,18 +461,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
 
   TestDeoptimizeBinaryOp("-");
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(-1, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(-1, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -560,18 +474,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
 
   TestDeoptimizeBinaryOp("*");
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(56, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(56, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -582,18 +486,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
 
   TestDeoptimizeBinaryOp("/");
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(0, context()
-                  ->Global()
-                  ->Get(context(), NewString("result"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(0, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -604,18 +498,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
 
   TestDeoptimizeBinaryOp("%");
 
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(7, context()
-                  ->Global()
-                  ->Get(context(), NewString("result"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(7, "result", context());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -629,7 +513,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert compare ic
     // call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -645,7 +529,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f('a', new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -659,17 +543,13 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
   CollectAllGarbage();
 
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(true, context()
-                     ->Global()
-                     ->Get(context(), NewString("result"))
-                     .ToLocalChecked()
-                     ->BooleanValue(isolate()));
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(1, "result", context());
+  CHECK(context()
+            ->Global()
+            ->Get(context(), NewString("result"))
+            .ToLocalChecked()
+            ->IsTrue());
   CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate()));
 }
 
@@ -688,7 +568,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
     AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -721,7 +601,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of the functions.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f1_source);
     RunJS(g1_source);
     RunJS(f2_source);
@@ -751,18 +631,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
   CHECK(!GetJSFunction("g1")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("f2")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("g2")->HasAttachedOptimizedCode());
-  CHECK_EQ(4, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(13, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(4, "count", context());
+  CheckJsInt32(13, "result", context());
 }
 
 TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
@@ -780,7 +650,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
     AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -817,7 +687,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of the functions.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f1_source);
     RunJS(g1_source);
     RunJS(f2_source);
@@ -844,18 +714,8 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
   CHECK(!GetJSFunction("g1")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("f2")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("g2")->HasAttachedOptimizedCode());
-  CHECK_EQ(1, context()
-                  ->Global()
-                  ->Get(context(), NewString("count"))
-                  .ToLocalChecked()
-                  ->Int32Value(context())
-                  .FromJust());
-  CHECK_EQ(13, context()
-                   ->Global()
-                   ->Get(context(), NewString("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context())
-                   .FromJust());
+  CheckJsInt32(1, "count", context());
+  CheckJsInt32(13, "result", context());
 }
 
 }  // namespace internal

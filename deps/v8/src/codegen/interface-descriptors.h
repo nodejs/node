@@ -72,7 +72,7 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
   V(FastNewObject)                                   \
-  V(FindNonDefaultConstructor)                       \
+  V(FindNonDefaultConstructorOrConstruct)            \
   V(ForInPrepare)                                    \
   V(GetIteratorStackParameter)                       \
   V(GetProperty)                                     \
@@ -130,8 +130,6 @@ namespace internal {
   V(Void)                                            \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToNumber)                             \
-  V(WasmI32AtomicWait32)                             \
-  V(WasmI64AtomicWait32)                             \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
   IF_TSAN(V, TSANLoad)                               \
@@ -482,6 +480,7 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline int GetStackParameterCount();
   static constexpr inline Register* GetRegisterData();
   static constexpr inline Register GetRegisterParameter(int i);
+  static constexpr inline int GetStackParameterIndex(int i);
 
   // Interface descriptors don't really support double registers.
   // This reinterprets the i-th register as a double with the same code.
@@ -1817,9 +1816,9 @@ class InterpreterCEntry2Descriptor
   static constexpr auto registers();
 };
 
-class FindNonDefaultConstructorDescriptor
+class FindNonDefaultConstructorOrConstructDescriptor
     : public StaticCallInterfaceDescriptor<
-          FindNonDefaultConstructorDescriptor> {
+          FindNonDefaultConstructorOrConstructDescriptor> {
  public:
   DEFINE_RESULT_AND_PARAMETERS(2, kThisFunction, kNewTarget)
   DEFINE_RESULT_AND_PARAMETER_TYPES(
@@ -1827,7 +1826,7 @@ class FindNonDefaultConstructorDescriptor
       MachineType::AnyTagged(),  // result 2 (constructor_or_instance)
       MachineType::AnyTagged(),  // kThisFunction
       MachineType::AnyTagged())  // kNewTarget
-  DECLARE_DESCRIPTOR(FindNonDefaultConstructorDescriptor)
+  DECLARE_DESCRIPTOR(FindNonDefaultConstructorOrConstructDescriptor)
 };
 
 class ForInPrepareDescriptor
@@ -1980,38 +1979,6 @@ class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
                                     MachineType::Uint32(),     // result 2
                                     MachineType::AnyTagged())  // kArgument
   DECLARE_DESCRIPTOR(BigIntToI32PairDescriptor)
-};
-
-class WasmI32AtomicWait32Descriptor final
-    : public StaticCallInterfaceDescriptor<WasmI32AtomicWait32Descriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeoutLow,
-                               kTimeoutHigh)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
-                                    MachineType::Uint32(),  // kAddress
-                                    MachineType::Int32(),   // kExpectedValue
-                                    MachineType::Uint32(),  // kTimeoutLow
-                                    MachineType::Uint32())  // kTimeoutHigh
-  DECLARE_DESCRIPTOR(WasmI32AtomicWait32Descriptor)
-};
-
-class WasmI64AtomicWait32Descriptor final
-    : public StaticCallInterfaceDescriptor<WasmI64AtomicWait32Descriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValueLow, kExpectedValueHigh,
-                               kTimeoutLow, kTimeoutHigh)
-
-  static constexpr bool kNoStackScan = true;
-
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::Uint32(),  // result 1
-      MachineType::Uint32(),  // kAddress
-      MachineType::Uint32(),  // kExpectedValueLow
-      MachineType::Uint32(),  // kExpectedValueHigh
-      MachineType::Uint32(),  // kTimeoutLow
-      MachineType::Uint32())  // kTimeoutHigh
-
-  DECLARE_DESCRIPTOR(WasmI64AtomicWait32Descriptor)
 };
 
 class CloneObjectWithVectorDescriptor final

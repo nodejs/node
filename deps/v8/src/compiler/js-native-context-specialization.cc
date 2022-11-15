@@ -14,18 +14,23 @@
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/frame-states.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/string.h"
@@ -65,7 +70,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       dependencies_(dependencies),
       zone_(zone),
       shared_zone_(shared_zone),
-      type_cache_(TypeCache::Get()) {}
+      type_cache_(TypeCache::Get()),
+      created_strings_(zone) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -79,6 +85,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSAsyncFunctionResolve(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
+    case IrOpcode::kJSFindNonDefaultConstructorOrConstruct:
+      return ReduceJSFindNonDefaultConstructorOrConstruct(node);
     case IrOpcode::kJSInstanceOf:
       return ReduceJSInstanceOf(node);
     case IrOpcode::kJSHasInPrototypeChain:
@@ -135,7 +143,6 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
   HeapObjectMatcher matcher(node);
   if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
-    if (!input.IsContentAccessible()) return base::nullopt;
     return input.length();
   }
 
@@ -196,6 +203,13 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
             ->local_isolate_or_isolate()
             ->factory()
             ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
+    // Note that we do not store the result of NumberToString in
+    // {created_strings_}, because the latter is used to know if strings are
+    // safe to be used in the background, but we always have as additional
+    // information the node from which the string was created ({node} is that
+    // case), and if this node is a kHeapNumber, then we know that we must have
+    // created the string, and that there it is safe to read. So, we don't need
+    // {created_strings_} in that case.
     return broker()->local_isolate_or_isolate()->factory()->NumberToString(
         num_obj);
   } else {
@@ -212,6 +226,15 @@ namespace {
 bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
   return matcher.HasResolvedValue() && matcher.Ref(broker).IsString();
+}
+
+bool IsStringWithNonAccessibleContent(JSHeapBroker* broker, Node* node) {
+  HeapObjectMatcher matcher(node);
+  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
+    StringRef input = matcher.Ref(broker).AsString();
+    return !input.IsContentAccessible();
+  }
+  return false;
 }
 }  // namespace
 
@@ -321,16 +344,14 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   return Replace(promise);
 }
 
-namespace {
-
 // Concatenates {left} and {right}. The result is fairly similar to creating a
 // new ConsString with {left} and {right} and then flattening it, which we don't
 // do because String::Flatten does not support background threads. Rather than
 // implementing a full String::Flatten for background threads, we prefered to
 // implement this Concatenate function, which, unlike String::Flatten, doesn't
 // need to replace ConsStrings by ThinStrings.
-Handle<String> Concatenate(Handle<String> left, Handle<String> right,
-                           JSHeapBroker* broker) {
+Handle<String> JSNativeContextSpecialization::Concatenate(
+    Handle<String> left, Handle<String> right) {
   if (left->length() == 0) return right;
   if (right->length() == 0) return left;
 
@@ -357,7 +378,8 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
     // generational write-barrier supports background threads.
     if (!LocalHeap::Current() ||
         (!ObjectInYoungGeneration(*left) && !ObjectInYoungGeneration(*right))) {
-      return broker->local_isolate_or_isolate()
+      return broker()
+          ->local_isolate_or_isolate()
           ->factory()
           ->NewConsString(left, right, AllocationType::kOld)
           .ToHandleChecked();
@@ -367,19 +389,24 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   // If one of the string is not in readonly space, then we need a
   // SharedStringAccessGuardIfNeeded before accessing its content.
   bool require_guard = SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *left, broker->local_isolate_or_isolate()) ||
+                           *left, broker()->local_isolate_or_isolate()) ||
                        SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *right, broker->local_isolate_or_isolate());
+                           *right, broker()->local_isolate_or_isolate());
   SharedStringAccessGuardIfNeeded access_guard(
-      require_guard ? broker->local_isolate_or_isolate() : nullptr);
+      require_guard ? broker()->local_isolate_or_isolate() : nullptr);
 
   if (left->IsOneByteRepresentation() && right->IsOneByteRepresentation()) {
     // {left} and {right} are 1-byte ==> the result will be 1-byte.
-    Handle<SeqOneByteString> flat =
-        broker->local_isolate_or_isolate()
+    // Note that we need a canonical handle, because we insert in
+    // {created_strings_} the handle's address, which is kinda meaningless if
+    // the handle isn't canonical.
+    Handle<SeqOneByteString> flat = broker()->CanonicalPersistentHandle(
+        broker()
+            ->local_isolate_or_isolate()
             ->factory()
             ->NewRawOneByteString(length, AllocationType::kOld)
-            .ToHandleChecked();
+            .ToHandleChecked());
+    created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), GetPtrComprCageBase(*left),
@@ -391,11 +418,13 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   } else {
     // One (or both) of {left} and {right} is 2-byte ==> the result will be
     // 2-byte.
-    Handle<SeqTwoByteString> flat =
-        broker->local_isolate_or_isolate()
+    Handle<SeqTwoByteString> flat = broker()->CanonicalPersistentHandle(
+        broker()
+            ->local_isolate_or_isolate()
             ->factory()
             ->NewRawTwoByteString(length, AllocationType::kOld)
-            .ToHandleChecked();
+            .ToHandleChecked());
+    created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), GetPtrComprCageBase(*left),
@@ -407,7 +436,22 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
   }
 }
 
-}  // namespace
+bool JSNativeContextSpecialization::StringCanSafelyBeRead(Node* const node,
+                                                          Handle<String> str) {
+  DCHECK(node->opcode() == IrOpcode::kHeapConstant ||
+         node->opcode() == IrOpcode::kNumberConstant);
+  if (broker()->IsMainThread()) {
+    // All strings are safe to be read on the main thread.
+    return true;
+  }
+  if (node->opcode() == IrOpcode::kNumberConstant) {
+    // If {node} is a number constant, then {str} is the stringification of this
+    // number which we must have created ourselves.
+    return true;
+  }
+  return !IsStringWithNonAccessibleContent(broker(), node) ||
+         created_strings_.find(str) != created_strings_.end();
+}
 
 Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // TODO(turbofan): This has to run together with the inlining and
@@ -427,10 +471,45 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
       (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
-    Handle<String> left = CreateStringConstant(lhs);
-    Handle<String> right = CreateStringConstant(rhs);
+    // We need canonical handles for {left} and {right}, in order to be able to
+    // search {created_strings_} if needed.
+    Handle<String> left =
+        broker()->CanonicalPersistentHandle(CreateStringConstant(lhs));
+    Handle<String> right =
+        broker()->CanonicalPersistentHandle(CreateStringConstant(rhs));
 
-    Handle<String> concatenated = Concatenate(left, right, broker());
+    if (!(StringCanSafelyBeRead(lhs, left) &&
+          StringCanSafelyBeRead(rhs, right))) {
+      // One of {lhs} or {rhs} is not safe to be read in the background.
+
+      if (left->length() + right->length() > ConsString::kMinLength &&
+          (!LocalHeap::Current() || (!ObjectInYoungGeneration(*left) &&
+                                     !ObjectInYoungGeneration(*right)))) {
+        // We can create a ConsString with {left} and {right}, without needing
+        // to read their content (and this ConsString will not introduce
+        // old-to-new pointers from the background).
+        Handle<String> concatenated =
+            broker()
+                ->local_isolate_or_isolate()
+                ->factory()
+                ->NewConsString(left, right, AllocationType::kOld)
+                .ToHandleChecked();
+        Node* reduced = graph()->NewNode(common()->HeapConstant(
+            broker()->CanonicalPersistentHandle(concatenated)));
+        ReplaceWithValue(node, reduced);
+        return Replace(reduced);
+      } else {
+        // Concatenating those strings would not produce a ConsString but rather
+        // a flat string (because the result is small). And, since the strings
+        // are not safe to be read in the background, this wouldn't be safe.
+        // Or, one of the string is in the young generation, and since the
+        // generational barrier doesn't support background threads, we cannot
+        // create the ConsString.
+        return NoChange();
+      }
+    }
+
+    Handle<String> concatenated = Concatenate(left, right);
     Node* reduced = graph()->NewNode(common()->HeapConstant(
         broker()->CanonicalPersistentHandle(concatenated)));
 
@@ -466,6 +545,146 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
 
   return NoChange();
+}
+
+Reduction
+JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct(
+    Node* node) {
+  JSFindNonDefaultConstructorOrConstructNode n(node);
+  Node* this_function = n.this_function();
+  Node* new_target = n.new_target();
+  Node* effect = n.effect();
+  Control control = n.control();
+
+  // If the JSFindNonDefaultConstructorOrConstruct operation is inside a try
+  // catch, wiring up the graph is complex (reason: if
+  // JSFindNonDefaultConstructorOrConstruct reduces to a constant which is
+  // something else than a default base ctor, it cannot throw an exception, and
+  // the try-catch structure has to be rewired). As this use case is rare, give
+  // up optimizing it here.
+  if (NodeProperties::IsExceptionalCall(node)) {
+    return NoChange();
+  }
+
+  // TODO(v8:13091): Don't produce incomplete stack traces when debug is active.
+  // We already deopt when a breakpoint is set. But it would be even nicer to
+  // avoid producting incomplete stack traces when when debug is active, even if
+  // there are no breakpoints - then a user inspecting stack traces via Dev
+  // Tools would always see the full stack trace.
+
+  // Check if the input is a known JSFunction.
+  HeapObjectMatcher m(this_function);
+  if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSFunction()) {
+    return NoChange();
+  }
+
+  JSFunctionRef this_function_ref = m.Ref(broker()).AsJSFunction();
+  MapRef function_map = this_function_ref.map();
+  HeapObjectRef current = function_map.prototype();
+  // The uppermost JSFunction on the class hierarchy (above it, there can be
+  // other JSObjects, e.g., Proxies).
+  base::Optional<JSObjectRef> last_function;
+
+  Node* return_value;
+  Node* ctor_or_instance;
+
+  // Walk the class inheritance tree until we find a ctor which is not a default
+  // derived ctor.
+  while (true) {
+    if (!current.IsJSFunction()) {
+      return NoChange();
+    }
+    JSFunctionRef current_function = current.AsJSFunction();
+
+    // If there are class fields, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.shared().requires_instance_members_initializer()) {
+      return NoChange();
+    }
+
+    // If there are private methods, bail out. TODO(v8:13091): Handle them here.
+    if (current_function.context().scope_info().ClassScopeHasPrivateBrand()) {
+      return NoChange();
+    }
+
+    FunctionKind kind = current_function.shared().kind();
+
+    if (kind != FunctionKind::kDefaultDerivedConstructor) {
+      // The hierarchy walk will end here; this is the last change to bail out
+      // before creating new nodes.
+      if (!dependencies()->DependOnArrayIteratorProtector()) {
+        return NoChange();
+      }
+      last_function = current_function;
+
+      if (kind == FunctionKind::kDefaultBaseConstructor) {
+        return_value = jsgraph()->BooleanConstant(true);
+
+        // Generate a builtin call for creating the instance.
+        Node* constructor = jsgraph()->Constant(current_function);
+
+        // In the current FrameState setup, the two outputs of this bytecode are
+        // poked at indices slot(index(reg_2)) (boolean_output) and
+        // slot(index(reg_2) + 1) (object_output). Now we're reducing this
+        // bytecode to a builtin call which only has one output (object_output).
+        // Change where in the FrameState the output is poked at.
+
+        // The current poke location points to the location for boolean_ouput.
+        // We move the poke location by -1, since the poke location decreases
+        // when the register index increases (see
+        // BytecodeGraphBuilder::Environment::BindRegistersToProjections).
+
+        // The location for boolean_output is already hard-wired to true (which
+        // is the correct value here) in
+        // BytecodeGraphBuilder::VisitFindNonDefaultConstructorOrConstruct.
+
+        FrameState old_frame_state = n.frame_state();
+        auto old_poke_offset = old_frame_state.frame_state_info()
+                                   .state_combine()
+                                   .GetOffsetToPokeAt();
+        FrameState new_frame_state = CloneFrameState(
+            jsgraph(), old_frame_state,
+            OutputFrameStateCombine::PokeAt(old_poke_offset - 1));
+
+        effect = ctor_or_instance = graph()->NewNode(
+            jsgraph()->javascript()->Create(), constructor, new_target,
+            n.context(), new_frame_state, effect, control);
+      } else {
+        return_value = jsgraph()->BooleanConstant(false);
+        ctor_or_instance = jsgraph()->Constant(current_function);
+      }
+      break;
+    }
+
+    // Keep walking up the class tree.
+    current = current_function.map().prototype();
+  }
+
+  dependencies()->DependOnStablePrototypeChain(
+      function_map, WhereToStart::kStartAtReceiver, last_function);
+
+  // Update the uses of {node}.
+  for (Edge edge : node->use_edges()) {
+    Node* const user = edge.from();
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+    } else if (NodeProperties::IsControlEdge(edge)) {
+      edge.UpdateTo(control);
+    } else {
+      DCHECK(NodeProperties::IsValueEdge(edge));
+      switch (ProjectionIndexOf(user->op())) {
+        case 0:
+          Replace(user, return_value);
+          break;
+        case 1:
+          Replace(user, ctor_or_instance);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  node->Kill();
+  return Replace(return_value);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
@@ -1164,7 +1383,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
       simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
       receiver_map, effect, control);
 
-  if (FLAG_embedder_instance_types && range_start != 0) {
+  if (v8_flags.embedder_instance_types && range_start != 0) {
     // Embedder instance ID is set, doing a simple range check.
     Node* diff_to_start =
         graph()->NewNode(simplified()->NumberSubtract(), receiver_instance_type,
@@ -1251,7 +1470,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // lookup_start_object = the object where we start looking for the property.
   Node* lookup_start_object;
   if (node->opcode() == IrOpcode::kJSLoadNamedFromSuper) {
-    DCHECK(FLAG_super_ic);
+    DCHECK(v8_flags.super_ic);
     JSLoadNamedFromSuperNode n(node);
     // Lookup start object is the __proto__ of the home object.
     lookup_start_object = effect =
@@ -1904,6 +2123,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
+  Node* context = NodeProperties::GetContextInput(node);
 
   // TODO(neis): It's odd that we do optimizations below that don't really care
   // about the feedback, but we don't do them when the feedback is megamorphic.
@@ -2013,8 +2233,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
     // Access the actual element.
     ValueEffectControl continuation =
-        BuildElementAccess(receiver, index, value, effect, control, access_info,
-                           feedback.keyed_mode());
+        BuildElementAccess(receiver, index, value, effect, control, context,
+                           access_info, feedback.keyed_mode());
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -2078,9 +2298,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       }
 
       // Access the actual element.
-      ValueEffectControl continuation =
-          BuildElementAccess(this_receiver, this_index, this_value, this_effect,
-                             this_control, access_info, feedback.keyed_mode());
+      ValueEffectControl continuation = BuildElementAccess(
+          this_receiver, this_index, this_value, this_effect, this_control,
+          context, access_info, feedback.keyed_mode());
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -2438,10 +2658,11 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     if (receiver != lookup_start_object) {
       return nullptr;
     }
-    Node* holder = access_info.holder().has_value()
-                       ? jsgraph()->Constant(access_info.holder().value())
-                       : receiver;
-    value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
+    Node* api_holder =
+        access_info.api_holder().has_value()
+            ? jsgraph()->Constant(access_info.api_holder().value())
+            : receiver;
+    value = InlineApiCall(receiver, api_holder, frame_state, nullptr, effect,
                           control, constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -2472,10 +2693,11 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
         target, receiver, value, feedback, context, frame_state, *effect,
         *control);
   } else {
-    Node* holder = access_info.holder().has_value()
-                       ? jsgraph()->Constant(access_info.holder().value())
-                       : receiver;
-    InlineApiCall(receiver, holder, frame_state, value, effect, control,
+    Node* api_holder =
+        access_info.api_holder().has_value()
+            ? jsgraph()->Constant(access_info.api_holder().value())
+            : receiver;
+    InlineApiCall(receiver, api_holder, frame_state, value, effect, control,
                   constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -2490,8 +2712,9 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
-    Node** control, FunctionTemplateInfoRef const& function_template_info) {
+    Node* receiver, Node* api_holder, Node* frame_state, Node* value,
+    Node** effect, Node** control,
+    FunctionTemplateInfoRef const& function_template_info) {
   if (!function_template_info.call_code().has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);
@@ -2520,9 +2743,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
 
   // Add CallApiCallbackStub's register argument as well.
   Node* context = jsgraph()->Constant(native_context());
-  Node* inputs[11] = {
-      code,    function_reference, jsgraph()->Constant(argc), data, holder,
-      receiver};
+  Node* inputs[11] = {code, function_reference, jsgraph()->Constant(argc),
+                      data, api_holder,         receiver};
   int index = 6 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
@@ -2896,6 +3118,7 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
   switch (kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                           \
+  case RAB_GSAB_##TYPE##_ELEMENTS:                \
     return kExternal##Type##Array;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -2910,14 +3133,18 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
-    ElementAccessInfo const& access_info, KeyedAccessMode const& keyed_mode) {
+    Node* context, ElementAccessInfo const& access_info,
+    KeyedAccessMode const& keyed_mode) {
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
+  DCHECK_IMPLIES(IsRabGsabTypedArrayElementsKind(elements_kind),
+                 v8_flags.turbo_rab_gsab);
   ZoneVector<MapRef> const& receiver_maps =
       access_info.lookup_start_object_maps();
 
-  if (IsTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind) ||
+      IsRabGsabTypedArrayElementsKind(elements_kind)) {
     Node* buffer_or_receiver = receiver;
     Node* length;
     Node* base_pointer;
@@ -2927,7 +3154,9 @@ JSNativeContextSpecialization::BuildElementAccess(
     // for asm.js-like code patterns).
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
-    if (typed_array.has_value()) {
+    if (typed_array.has_value() &&
+        !IsRabGsabTypedArrayElementsKind(elements_kind)) {
+      // TODO(v8:11111): Add support for rab/gsab here.
       length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
       DCHECK(!typed_array->is_on_heap());
@@ -2940,9 +3169,14 @@ JSNativeContextSpecialization::BuildElementAccess(
       external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
     } else {
       // Load the {receiver}s length.
-      length = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()),
-          receiver, effect, control);
+      JSGraphAssembler assembler(jsgraph_, zone(), BranchSemantics::kJS,
+                                 [this](Node* n) { this->Revisit(n); });
+      assembler.InitializeEffectControl(effect, control);
+      length = assembler.TypedArrayLength(
+          TNode<JSTypedArray>::UncheckedCast(receiver), {elements_kind},
+          TNode<Context>::UncheckedCast(context));
+      std::tie(effect, control) =
+          ReleaseEffectAndControlFromAssembler(&assembler);
 
       // Load the base pointer for the {receiver}. This will always be Smi
       // zero unless we allow on-heap TypedArrays, which is only the case
@@ -3165,7 +3399,7 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Don't try to store to a copy-on-write backing store (unless supported by
     // the store mode).
-    if (keyed_mode.access_mode() == AccessMode::kStore &&
+    if (IsAnyStore(keyed_mode.access_mode()) &&
         IsSmiOrObjectElementsKind(elements_kind) &&
         !IsCOWHandlingStoreMode(keyed_mode.store_mode())) {
       effect = graph()->NewNode(
@@ -3711,6 +3945,27 @@ Node* JSNativeContextSpecialization::BuildLoadPrototypeFromObject(
   return graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForMapPrototype()), map, effect,
       control);
+}
+
+std::pair<Node*, Node*>
+JSNativeContextSpecialization::ReleaseEffectAndControlFromAssembler(
+    JSGraphAssembler* gasm) {
+  auto catch_scope = gasm->catch_scope();
+  DCHECK(catch_scope->is_outermost());
+
+  if (catch_scope->has_handler() &&
+      catch_scope->has_exceptional_control_flow()) {
+    TNode<Object> handler_exception;
+    Effect handler_effect{nullptr};
+    Control handler_control{nullptr};
+    gasm->catch_scope()->MergeExceptionalPaths(
+        &handler_exception, &handler_effect, &handler_control);
+
+    ReplaceWithValue(gasm->outermost_handler(), handler_exception,
+                     handler_effect, handler_control);
+  }
+
+  return {gasm->effect(), gasm->control()};
 }
 
 Graph* JSNativeContextSpecialization::graph() const {

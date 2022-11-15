@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_GLOBAL_HANDLE_MARKING_VISITOR_H_
 #define V8_HEAP_GLOBAL_HANDLE_MARKING_VISITOR_H_
 
-#include "src/handles/global-handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
@@ -18,7 +18,7 @@ namespace internal {
 // which requires them to be kept alive.
 class GlobalHandleMarkingVisitor final : public ::heap::base::StackVisitor {
  public:
-  GlobalHandleMarkingVisitor(Heap&, MarkingState&, MarkingWorklists::Local&);
+  GlobalHandleMarkingVisitor(Heap&, MarkingWorklists::Local&);
   ~GlobalHandleMarkingVisitor() override = default;
 
   void VisitPointer(const void*) override;
@@ -27,7 +27,7 @@ class GlobalHandleMarkingVisitor final : public ::heap::base::StackVisitor {
   Heap& heap_;
   MarkingState& marking_state_;
   MarkingWorklists::Local& local_marking_worklist_;
-  GlobalHandles::NodeBounds traced_node_bounds_;
+  const TracedHandles::NodeBounds traced_node_bounds_;
 };
 
 #endif  // V8_HEAP_GLOBAL_HANDLE_MARKING_VISITOR_H_

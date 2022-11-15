@@ -150,13 +150,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // module. If validation fails and {error_msg} is present, it is set to the
   // validation error.
   bool SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                    const ModuleWireBytes& bytes,
+                    ModuleWireBytes bytes,
                     std::string* error_message = nullptr);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
   MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
-      Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+      Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
       base::Vector<const byte> asm_js_offset_table_bytes,
       Handle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
@@ -168,7 +168,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
                                             const WasmFeatures& enabled,
                                             ErrorThrower* thrower,
-                                            const ModuleWireBytes& bytes);
+                                            ModuleWireBytes bytes);
 
   // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
@@ -184,7 +184,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, const WasmFeatures& enabled,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    const ModuleWireBytes& bytes, bool is_shared,
+                    ModuleWireBytes bytes, bool is_shared,
                     const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given Wasm module.
@@ -360,6 +360,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
 
+  // Returns either the compressed tagged pointer representing a null value or
+  // 0 if pointer compression is not available.
+  Tagged_t compressed_null_value_or_zero() const {
+    return null_tagged_compressed_;
+  }
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -394,6 +400,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::atomic<int> next_compilation_id_{0};
+
+  // Compressed tagged pointer to null value.
+  std::atomic<Tagged_t> null_tagged_compressed_{0};
 
   TypeCanonicalizer type_canonicalizer_;
 

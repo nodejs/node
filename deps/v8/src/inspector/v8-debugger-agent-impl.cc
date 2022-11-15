@@ -793,7 +793,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
       return Response::ServerError("Cannot retrive script context");
     }
     v8::Context::Scope contextScope(inspected->context());
-    v8::MicrotasksScope microtasks(m_isolate,
+    v8::MicrotasksScope microtasks(inspected->context(),
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
     it->second->getPossibleBreakpoints(
@@ -1328,9 +1328,16 @@ void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
 
 Response V8DebuggerAgentImpl::pause() {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
-  if (isPaused()) return Response::Success();
 
-  if (m_debugger->canBreakProgram()) {
+  if (m_debugger->isInInstrumentationPause()) {
+    // If we are inside an instrumentation pause, remember the pause request
+    // so that we can enter the requested pause once we are done
+    // with the instrumentation.
+    m_debugger->requestPauseAfterInstrumentation();
+  } else if (isPaused()) {
+    // Ignore the pause request if we are already paused.
+    return Response::Success();
+  } else if (m_debugger->canBreakProgram()) {
     m_debugger->interruptAndBreak(m_session->contextGroupId());
   } else {
     pushBreakDetails(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
@@ -1403,6 +1410,8 @@ Response V8DebuggerAgentImpl::setPauseOnExceptions(
     pauseState = v8::debug::NoBreakOnException;
   } else if (stringPauseState == "all") {
     pauseState = v8::debug::BreakOnAnyException;
+  } else if (stringPauseState == "caught") {
+    pauseState = v8::debug::BreakOnCaughtException;
   } else if (stringPauseState == "uncaught") {
     pauseState = v8::debug::BreakOnUncaughtException;
   } else {
@@ -2061,6 +2070,7 @@ void V8DebuggerAgentImpl::didPause(
   if (!response.IsSuccess())
     protocolCallFrames = std::make_unique<Array<CallFrame>>();
 
+  v8::debug::NotifyDebuggerPausedEventSent(m_debugger->isolate());
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace(), currentExternalStackTrace());

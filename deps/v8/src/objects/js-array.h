@@ -159,6 +159,17 @@ class JSArrayIterator
   TQ_OBJECT_CONSTRUCTORS(JSArrayIterator)
 };
 
+// Helper class for JSArrays that are template literal objects
+class TemplateLiteralObject
+    : public TorqueGeneratedTemplateLiteralObject<TemplateLiteralObject,
+                                                  JSArray> {
+ public:
+  DECL_CAST(TemplateLiteralObject)
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(TemplateLiteralObject)
+};
+
 }  // namespace internal
 }  // namespace v8
 

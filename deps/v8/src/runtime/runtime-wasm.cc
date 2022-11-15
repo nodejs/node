@@ -121,9 +121,10 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
 // type; if the check succeeds, returns the object in its wasm representation;
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                 !trap_handler::IsThreadInWasm());
+  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
+  // and runtime-strings.cc.
+  bool thread_in_wasm = trap_handler::IsThreadInWasm();
+  if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // 'raw_instance' can be either a WasmInstanceObject or undefined.
@@ -145,9 +146,13 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   bool success = internal::wasm::JSToWasmObject(isolate, module, value, type,
                                                 &error_message)
                      .ToHandle(&result);
-  if (success) return *result;
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
+  Object ret = success ? *result
+                       : isolate->Throw(*isolate->factory()->NewTypeError(
+                             MessageTemplate::kWasmTrapJSTypeError));
+  if (thread_in_wasm && !isolate->has_pending_exception()) {
+    trap_handler::SetThreadInWasm();
+  }
+  return ret;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
@@ -238,29 +243,52 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   ClearThreadInWasmScope wasm_flag(isolate);
+  DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
-                                      isolate);
+  DCHECK_EQ(2, args.length());
+  WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
   int func_index = args.smi_value_at(1);
-  wasm::NativeModule** native_module_stack_slot =
-      reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  *native_module_stack_slot = nullptr;
 
   DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
-  bool success = wasm::CompileLazy(isolate, instance, func_index,
-                                   native_module_stack_slot);
+  isolate->set_context(instance.native_context());
+  bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
-    {
-      wasm::ThrowLazyCompilationError(
-          isolate, instance->module_object().native_module(), func_index);
-    }
+    DCHECK(v8_flags.wasm_lazy_validation);
+    AllowHeapAllocation throwing_unwinds_the_stack;
+    wasm::ThrowLazyCompilationError(
+        isolate, instance.module_object().native_module(), func_index);
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
-  return Smi::FromInt(wasm::JumpTableOffset(instance->module(), func_index));
+  return Smi::FromInt(wasm::JumpTableOffset(instance.module(), func_index));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
+  ClearThreadInWasmScope wasm_flag(isolate);
+  DCHECK(v8_flags.wasm_speculative_inlining);
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
+                                      isolate);
+  int declared_func_index = args.smi_value_at(1);
+  wasm::NativeModule** native_module_stack_slot =
+      reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
+  wasm::NativeModule* native_module = instance->module_object().native_module();
+  // We have to save the native_module on the stack, in case the allocation
+  // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
+  *native_module_stack_slot = native_module;
+
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
+
+  const wasm::WasmModule* module = native_module->module();
+  int func_index = declared_func_index + module->num_imported_functions;
+  Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+      NumFeedbackSlots(module, func_index));
+  DCHECK_EQ(instance->feedback_vectors().get(declared_func_index), Smi::zero());
+  instance->feedback_vectors().set(declared_func_index, *vector);
+  return *vector;
 }
 
 namespace {
@@ -293,6 +321,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   const int function_index = function_data->function_index();
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
+  const uint32_t canonical_sig_index =
+      module->isorecursive_canonical_type_ids[function.sig_index];
 
   // The start function is not guaranteed to be registered as
   // an exported function (although it is called as one).
@@ -307,7 +337,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 
   Handle<CodeT> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-          isolate, sig, module);
+          isolate, sig, canonical_sig_index, module);
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to verify that the wrapper is replaced, even if the function
@@ -868,6 +898,27 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
   return *result;
 }
 
+#define RETURN_RESULT_OR_TRAP(call)                                            \
+  do {                                                                         \
+    Handle<Object> result;                                                     \
+    if (!(call).ToHandle(&result)) {                                           \
+      DCHECK(isolate->has_pending_exception());                                \
+      /* Mark any exception as uncatchable by Wasm. */                         \
+      Handle<JSObject> exception(JSObject::cast(isolate->pending_exception()), \
+                                 isolate);                                     \
+      Handle<Name> uncatchable =                                               \
+          isolate->factory()->wasm_uncatchable_symbol();                       \
+      LookupIterator it(isolate, exception, uncatchable, LookupIterator::OWN); \
+      if (!JSReceiver::HasProperty(&it).FromJust()) {                          \
+        JSObject::AddProperty(isolate, exception, uncatchable,                 \
+                              isolate->factory()->true_value(), NONE);         \
+      }                                                                        \
+      return ReadOnlyRoots(isolate).exception();                               \
+    }                                                                          \
+    DCHECK(!isolate->has_pending_exception());                                 \
+    return *result;                                                            \
+  } while (false)
+
 // Returns the new string if the operation succeeds.  Otherwise throws an
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
@@ -894,8 +945,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{instance.memory_start() + offset,
                                           size};
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf8(bytes, utf8_variant));
+  RETURN_RESULT_OR_TRAP(
+      isolate->factory()->NewStringFromUtf8(bytes, utf8_variant));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
@@ -911,8 +962,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
-                                        array, start, end, utf8_variant));
+  RETURN_RESULT_OR_TRAP(
+      isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
@@ -938,10 +989,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
 
   const byte* bytes = instance.memory_start() + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
-  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           isolate->factory()->NewStringFromTwoByteLittleEndian(
-                               {codeunits, size_in_codeunits}));
+  RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
+      {codeunits, size_in_codeunits}));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
@@ -952,9 +1001,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
   uint32_t start = NumberToUint32(args[1]);
   uint32_t end = NumberToUint32(args[2]);
 
-  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromUtf16(array, start, end));
+  RETURN_RESULT_OR_TRAP(
+      isolate->factory()->NewStringFromUtf16(array, start, end));
 }
 
 // Returns the new string if the operation succeeds.  Otherwise traps.
@@ -1289,9 +1337,12 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
   DCHECK_LT(start, end);
   DCHECK(base::IsInBounds<size_t>(start, end - start, array->length()));
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           isolate->factory()->NewStringFromUtf8(
-                               array, start, end, unibrow::Utf8Variant::kWtf8));
+  // This can't throw because the result can't be too long if the input wasn't,
+  // and encoding failures are ruled out too because {start}/{end} are aligned.
+  return *isolate->factory()
+              ->NewStringFromUtf8(array, start, end,
+                                  unibrow::Utf8Variant::kWtf8)
+              .ToHandleChecked();
 }
 
 }  // namespace internal

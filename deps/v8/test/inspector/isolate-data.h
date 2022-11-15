@@ -106,6 +106,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   bool AssociateExceptionData(v8::Local<v8::Value> exception,
                               v8::Local<v8::Name> key,
                               v8::Local<v8::Value> value);
+  void WaitForDebugger(int context_group_id);
 
  private:
   static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
@@ -126,6 +127,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate* isolate,
                                        v8::Local<v8::Context>) override;
   void runMessageLoopOnPause(int context_group_id) override;
+  void runIfWaitingForDebugger(int context_group_id) override;
   void quitMessageLoopOnPause() override;
   void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                        v8::Local<v8::Object>) override;
@@ -169,6 +171,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   double current_time_ = 0.0;
   bool log_console_api_message_calls_ = false;
   bool log_max_async_call_stack_depth_changed_ = false;
+  bool waiting_for_debugger_ = false;
   v8::Global<v8::Private> not_inspectable_private_;
   v8::Global<v8::String> resource_name_prefix_;
   v8::Global<v8::String> additional_console_api_;

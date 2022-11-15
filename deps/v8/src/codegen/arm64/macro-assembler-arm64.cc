@@ -1440,7 +1440,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   TestAndBranchIfAnySet(flags, kFlagsMask, flags_need_processing);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
@@ -2348,12 +2348,10 @@ void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // Given the fields layout we can read the Code reference as a full word.
-  static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
-                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  // Compute the Code object pointer from the code entry point.
   Ldr(destination, FieldMemOperand(code_data_container_object,
-                                   CodeDataContainer::kCodeOffset));
+                                   CodeDataContainer::kCodeEntryPointOffset));
+  Sub(destination, destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -2505,13 +2503,6 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   Label regular_invoke;
   DCHECK_EQ(actual_argument_count, x0);
   DCHECK_EQ(formal_parameter_count, x2);
-
-  // If the formal parameter count is equal to the adaptor sentinel, no need
-  // to push undefined value as arguments.
-  if (kDontAdaptArgumentsSentinel != 0) {
-    Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
-    B(eq, &regular_invoke);
-  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
@@ -2860,8 +2851,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
         fourth_reg = cp;
 #if V8_ENABLE_WEBASSEMBLY
       } else if (type == StackFrame::WASM ||
-                type == StackFrame::WASM_COMPILE_LAZY ||
-                type == StackFrame::WASM_EXIT) {
+                 type == StackFrame::WASM_LIFTOFF_SETUP ||
+                 type == StackFrame::WASM_EXIT) {
         fourth_reg = kWasmInstanceRegister;
 #endif  // V8_ENABLE_WEBASSEMBLY
       } else {
@@ -3291,16 +3282,6 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Bind(&done);
 }
 
-void TurboAssembler::EncodeSandboxedPointer(const Register& value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  Sub(value, value, kPtrComprCageBaseRegister);
-  Mov(value, Operand(value, LSL, kSandboxedPointerShift));
-#else
-  UNREACHABLE();
-#endif
-}
-
 void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
@@ -3313,19 +3294,27 @@ void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
 
 void TurboAssembler::LoadSandboxedPointerField(
     const Register& destination, const MemOperand& field_operand) {
+#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   Ldr(destination, field_operand);
   DecodeSandboxedPointer(destination);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void TurboAssembler::StoreSandboxedPointerField(
     const Register& value, const MemOperand& dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, value);
-  EncodeSandboxedPointer(scratch);
+  Sub(scratch, value, kPtrComprCageBaseRegister);
+  Mov(scratch, Operand(scratch, LSL, kSandboxedPointerShift));
   Str(scratch, dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void TurboAssembler::LoadExternalPointerField(Register destination,

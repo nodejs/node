@@ -243,6 +243,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
   if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
   if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
+  if (flags & v8::RegExp::Flags::kUnicodeSets) description.append('v');
   if (flags & v8::RegExp::Flags::kSticky) description.append('y');
   return description.toString();
 }
@@ -651,6 +652,18 @@ class SymbolMirror final : public ValueMirror {
                    .build();
   }
 
+  void buildEntryPreview(
+      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
+      std::unique_ptr<ObjectPreview>* preview) const override {
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Symbol)
+            .setDescription(descriptionForSymbol(context, m_symbol))
+            .setOverflow(false)
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
+  }
+
   v8::Local<v8::Value> v8Value() const override { return m_symbol; }
 
   std::unique_ptr<protocol::Runtime::WebDriverValue> buildWebDriverValue(
@@ -806,7 +819,7 @@ bool isArrayLike(v8::Local<v8::Context> context, v8::Local<v8::Value> value,
   if (!value->IsObject()) return false;
   v8::Isolate* isolate = context->GetIsolate();
   v8::TryCatch tryCatch(isolate);
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Object> object = value.As<v8::Object>();
   v8::Local<v8::Value> spliceValue;
@@ -961,6 +974,8 @@ void getInternalPropertiesForPreview(
     allowlist.emplace_back("[[PromiseResult]]");
   } else if (object->IsGeneratorObject()) {
     allowlist.emplace_back("[[GeneratorState]]");
+  } else if (object->IsWeakRef()) {
+    allowlist.emplace_back("[[WeakRefTarget]]");
   }
   for (auto& mirror : mirrors) {
     if (std::find(allowlist.begin(), allowlist.end(), mirror.name) ==
@@ -1349,7 +1364,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Set> set = v8::Set::New(isolate);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   V8InternalValueType internalType = v8InternalValueTypeFrom(context, object);
   if (internalType == V8InternalValueType::kScope) {
@@ -1497,7 +1512,7 @@ void ValueMirror::getInternalProperties(
     v8::Local<v8::Context> context, v8::Local<v8::Object> object,
     std::vector<InternalPropertyMirror>* mirrors) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
   if (object->IsFunction()) {
@@ -1552,7 +1567,7 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
     bool accessorPropertiesOnly) {
   std::vector<PrivatePropertyMirror> mirrors;
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Array> privateProperties;

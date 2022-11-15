@@ -86,8 +86,6 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
                                     SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    data_container.set_code_cage_base(impl()->isolate()->code_cage_base(),
-                                      kRelaxedStore);
     Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
     data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
     data_container.init_code_entry_point(isolate_for_sandbox, kNullAddress);
@@ -216,7 +214,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
     UNREACHABLE();
   }
   if (length == 0) return impl()->empty_byte_array();
-  int size = ByteArray::SizeFor(length);
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(ByteArray::SizeFor(length));
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().byte_array_map());
   DisallowGarbageCollection no_gc;
@@ -1128,7 +1126,7 @@ HeapObject FactoryBase<Impl>::AllocateRawWithImmortalMap(
     int size, AllocationType allocation, Map map,
     AllocationAlignment alignment) {
   // TODO(delphick): Potentially you could also pass a immortal immovable Map
-  // from MAP_SPACE here, like external_map or message_object_map, but currently
+  // from OLD_SPACE here, like external_map or message_object_map, but currently
   // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
   HeapObject result = AllocateRaw(size, allocation, alignment);

@@ -70,7 +70,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTypeProfile:
     case FeedbackSlotKind::kJumpLoop:
       return 1;
 
@@ -321,6 +320,8 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kBigInt:
       return BinaryOperationHint::kBigInt;
+    case BinaryOperationFeedback::kBigInt64:
+      return BinaryOperationHint::kBigInt64;
     default:
       return BinaryOperationHint::kAny;
   }

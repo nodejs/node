@@ -190,6 +190,14 @@ uint32_t Name::EnsureRawHash(
   return String::cast(*this).ComputeAndSetRawHash(access_guard);
 }
 
+uint32_t Name::RawHash() {
+  uint32_t field = raw_hash_field(kAcquireLoad);
+  if (V8_UNLIKELY(IsForwardingIndex(field))) {
+    return GetRawHashFromForwardingTable(field);
+  }
+  return field;
+}
+
 uint32_t Name::EnsureHash() { return HashBits::decode(EnsureRawHash()); }
 
 uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {

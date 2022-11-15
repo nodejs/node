@@ -66,8 +66,7 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
-         IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -92,11 +91,7 @@ Address RelocInfo::constant_pool_entry_address() {
 int RelocInfo::target_address_size() { return kPointerSize; }
 
 HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
-         IsDataEmbeddedObject(rmode_));
-  if (IsDataEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
-  }
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
@@ -105,8 +100,6 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_)) {
     return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
-  } else if (IsDataEmbeddedObject(rmode_)) {
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   }
   DCHECK(IsRelativeCodeTarget(rmode_));
   return origin->relative_code_target_object_handle_at(pc_);
@@ -115,15 +108,9 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
-         IsDataEmbeddedObject(rmode_));
-  if (IsDataEmbeddedObject(rmode_)) {
-    WriteUnalignedValue(pc_, target.ptr());
-    // No need to flush icache since no instructions were changed.
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                     icache_flush_mode);
-  }
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
+  Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
+                                   icache_flush_mode);
   if (!host().is_null() && !v8_flags.disable_write_barriers) {
     WriteBarrierForCode(host(), this, target, write_barrier_mode);
   }
@@ -153,19 +140,6 @@ Address RelocInfo::target_internal_reference_address() {
 
 Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return target_address();
-}
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode write_barrier_mode,
-                                         ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  if (target_address() != target)
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
-}
-
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
@@ -173,8 +147,8 @@ Address RelocInfo::target_off_heap_target() {
 
 void RelocInfo::WipeOut() {
   DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
-         IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsOffHeapTarget(rmode_));
+         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     Memory<Address>(pc_) = kNullAddress;
   } else {

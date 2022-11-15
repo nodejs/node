@@ -30,6 +30,7 @@ class CodeDataContainer;
   V(kHandleScope, "(Handle scope)")                     \
   V(kBuiltins, "(Builtins)")                            \
   V(kGlobalHandles, "(Global handles)")                 \
+  V(kTracedHandles, "(Traced handles)")                 \
   V(kEternalHandles, "(Eternal handles)")               \
   V(kThreadManager, "(Thread manager)")                 \
   V(kStrongRoots, "(Strong roots)")                     \
@@ -160,9 +161,6 @@ class ObjectVisitor {
 
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) = 0;
-
-  // Visits a runtime entry in the instruction stream.
-  virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}
 
   // Visits an external reference embedded into a code object.
   virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}

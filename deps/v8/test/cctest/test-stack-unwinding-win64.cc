@@ -79,8 +79,8 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
     return;
   }
 
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_win64_unwinding_info = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.win64_unwinding_info = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

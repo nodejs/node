@@ -33,11 +33,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         // while (true) {
         kExprLoop, kWasmVoid,
           // if (ref.test temp bottom1) {
-          kExprLocalGet, 2, kGCPrefix, kExprRefTest, bottom1,
+          kExprLocalGet, 2, kGCPrefix, kExprRefTestDeprecated, bottom1,
           kExprIf, kWasmVoid,
             // counter += ((bottom1) temp).field_2;
-            // TODO(manoskouk): Implement path-based type tracking so we can
-            // eliminate this check.
+            // Note: This cast should get optimized away with path-based type
+            // tracking.
             kExprLocalGet, 2, kGCPrefix, kExprRefCast, bottom1,
             kGCPrefix, kExprStructGet, bottom1, 2,
             kExprLocalGet, 3, kExprI32Add, kExprLocalSet, 3,

@@ -21,18 +21,19 @@ class JSArrayBuffer;
 
 namespace wasm {
 
-// An interface for WasmFullDecoder used to decode constant expressions. This
-// interface has two modes: only validation (when {isolate_ == nullptr}), which
-// is used in module-decoder, and code-generation (when {isolate_ != nullptr}),
-// which is used in module-instantiate. We merge two distinct functionalities
-// in one class to reduce the number of WasmFullDecoder instantiations, and thus
-// V8 binary code size.
+// An interface for WasmFullDecoder used to decode constant expressions.
+// This interface has two modes: only validation (when {isolate_ == nullptr}),
+// and code-generation (when {isolate_ != nullptr}). We merge two distinct
+// functionalities in one class to reduce the number of WasmFullDecoder
+// instantiations, and thus V8 binary code size.
+// In code-generation mode, the result can be retrieved with {computed_value()}
+// if {!has_error()}, or with {error()} otherwise.
 class V8_EXPORT_PRIVATE ConstantExpressionInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
 
-  struct Value : public ValueBase<validate> {
+  struct Value : public ValueBase<ValidationTag> {
     WasmValue runtime_value;
 
     template <typename... Args>
@@ -40,9 +41,10 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
         : ValueBase(std::forward<Args>(args)...) {}
   };
 
-  using Control = ControlBase<Value, validate>;
+  using Control = ControlBase<Value, ValidationTag>;
   using FullDecoder =
-      WasmFullDecoder<validate, ConstantExpressionInterface, decoding_mode>;
+      WasmFullDecoder<ValidationTag, ConstantExpressionInterface,
+                      decoding_mode>;
 
   ConstantExpressionInterface(const WasmModule* module, Isolate* isolate,
                               Handle<WasmInstanceObject> instance)

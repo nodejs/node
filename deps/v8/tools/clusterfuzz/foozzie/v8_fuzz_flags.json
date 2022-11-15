@@ -31,6 +31,5 @@
   [0.1, "--no-wasm-generic-wrapper"],
   [0.1, "--turbo-force-mid-tier-regalloc"],
   [0.0001, "--simulate-errors"],
-  [0.25, "--no-use-map-space"],
   [0.1, "--minor-mc"]
 ]

@@ -91,7 +91,9 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes,
                            kZonePageSize, PageAllocator::kReadWrite);
 
   } else {
-    memory = AllocWithRetry(bytes, zone_backing_malloc_);
+    auto result = AllocAtLeastWithRetry(bytes);
+    memory = result.ptr;
+    bytes = result.count;
   }
   if (memory == nullptr) return nullptr;
 
@@ -115,7 +117,7 @@ void AccountingAllocator::ReturnSegment(Segment* segment,
   if (COMPRESS_ZONES_BOOL && supports_compression) {
     FreePages(bounded_page_allocator_.get(), segment, segment_size);
   } else {
-    zone_backing_free_(segment);
+    free(segment);
   }
 }
 

@@ -20,29 +20,11 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-void RunSyncTask(TaskRunner* task_runner, T callback) {
-  class SyncTask : public TaskRunner::Task {
-   public:
-    SyncTask(v8::base::Semaphore* ready_semaphore, T callback)
-        : ready_semaphore_(ready_semaphore), callback_(callback) {}
-    ~SyncTask() override = default;
-    bool is_priority_task() final { return true; }
-
-   private:
-    void Run(InspectorIsolateData* data) override {
-      callback_(data);
-      if (ready_semaphore_) ready_semaphore_->Signal();
-    }
-
-    v8::base::Semaphore* ready_semaphore_;
-    T callback_;
-  };
-
-  v8::base::Semaphore ready_semaphore(0);
-  task_runner->Append(std::make_unique<SyncTask>(&ready_semaphore, callback));
-  ready_semaphore.Wait();
-}
+void RunSyncTask(TaskRunner* task_runner,
+                 std::function<void(InspectorIsolateData*)> callback);
+void RunSimpleAsyncTask(TaskRunner* task_runner,
+                        std::function<void(InspectorIsolateData* data)> task,
+                        v8::Local<v8::Function> callback);
 
 class SendMessageToBackendTask : public TaskRunner::Task {
  public:
@@ -129,10 +111,10 @@ class SetTimeoutTask : public TaskRunner::Task {
 
  private:
   void Run(InspectorIsolateData* data) override {
-    v8::MicrotasksScope microtasks_scope(data->isolate(),
-                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::HandleScope handle_scope(data->isolate());
     v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
+    v8::MicrotasksScope microtasks_scope(context,
+                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::Function> function = function_.Get(data->isolate());

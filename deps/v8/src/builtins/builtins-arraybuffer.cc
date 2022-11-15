@@ -24,7 +24,7 @@ namespace internal {
   }
 
 #define CHECK_RESIZABLE(expected, name, method)                             \
-  if (name->is_resizable() != expected) {                                   \
+  if (name->is_resizable_by_js() != expected) {                             \
     THROW_NEW_ERROR_RETURN_FAILURE(                                         \
         isolate,                                                            \
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,          \
@@ -53,7 +53,7 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   // Ensure that all fields are initialized because BackingStore::Allocate is
   // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer
   // after BackingStore::Allocate because of the spec.
-  array_buffer->Setup(shared, resizable, nullptr);
+  array_buffer->Setup(shared, resizable, nullptr, isolate);
 
   size_t byte_length;
   size_t max_byte_length = 0;
@@ -316,7 +316,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   if (new_len_size != 0) {
     size_t from_byte_length = array_buffer->GetByteLength();
-    if (V8_UNLIKELY(!is_shared && array_buffer->is_resizable())) {
+    if (V8_UNLIKELY(!is_shared && array_buffer->is_resizable_by_js())) {
       // The above steps might have resized the underlying buffer. In that case,
       // only copy the still-accessible portion of the underlying data.
       if (first_size > from_byte_length) {
@@ -558,7 +558,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
     // Nothing to do for steps 6-12.
 
     // 13. Perform ? DetachArrayBuffer(O).
-    array_buffer->Detach();
+    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+                 ReadOnlyRoots(isolate).exception());
 
     // 14. Return new.
     return *isolate->factory()
@@ -569,7 +570,7 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
 
   // Case 2: We can reuse the same BackingStore.
   auto from_backing_store = array_buffer->GetBackingStore();
-  if (!from_backing_store->is_resizable() &&
+  if (from_backing_store && !from_backing_store->is_resizable_by_js() &&
       (new_byte_length == array_buffer->GetByteLength() ||
        from_backing_store->CanReallocate())) {
     // Reallocate covers steps 6-12.
@@ -581,7 +582,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
     }
 
     // 13. Perform ? DetachArrayBuffer(O).
-    array_buffer->Detach();
+    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+                 ReadOnlyRoots(isolate).exception());
 
     // 14. Return new.
     return *isolate->factory()->NewJSArrayBuffer(std::move(from_backing_store));
@@ -623,7 +625,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
   }
 
   // 13. Perform ? DetachArrayBuffer(O).
-  array_buffer->Detach();
+  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+               ReadOnlyRoots(isolate).exception());
 
   // 14. Return new.
   return *new_;

@@ -49,6 +49,7 @@ class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
+class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
@@ -56,16 +57,15 @@ struct WasmModule;
 V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<FixedArray>* export_wrappers_out, int compilation_id,
-    v8::metrics::Recorder::ContextId context_id);
+    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
+    int compilation_id, v8::metrics::Recorder::ContextId context_id,
+    ProfileInformation* pgo_info);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
 
 V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
-                             Handle<FixedArray>* export_wrappers_out);
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
 
 // Compiles the wrapper for this (kind, sig) pair and sets the corresponding
 // cache entry. Assumes the key already exists in the cache but has not been
@@ -74,14 +74,13 @@ V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    int expected_arity, Suspend suspend,
+    uint32_t canonical_type_index, int expected_arity, Suspend suspend,
     WasmImportWrapperCache::ModificationScope* cache_scope);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index,
-                 NativeModule** out_native_module);
+bool CompileLazy(Isolate*, WasmInstanceObject, int func_index);
 
 // Throws the compilation error after failed lazy compilation.
 void ThrowLazyCompilationError(Isolate* isolate,
@@ -96,14 +95,14 @@ V8_EXPORT_PRIVATE void TriggerTierUp(WasmInstanceObject instance,
 void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
                          int func_index);
 
-template <typename Key, typename Hash>
+template <typename Key, typename KeyInfo, typename Hash>
 class WrapperQueue {
  public:
   // Removes an arbitrary key from the queue and returns it.
   // If the queue is empty, returns nullopt.
   // Thread-safe.
-  base::Optional<Key> pop() {
-    base::Optional<Key> key = base::nullopt;
+  base::Optional<std::pair<Key, KeyInfo>> pop() {
+    base::Optional<std::pair<Key, KeyInfo>> key = base::nullopt;
     base::MutexGuard lock(&mutex_);
     auto it = queue_.begin();
     if (it != queue_.end()) {
@@ -116,7 +115,9 @@ class WrapperQueue {
   // Add the given key to the queue and returns true iff the insert was
   // successful.
   // Not thread-safe.
-  bool insert(const Key& key) { return queue_.insert(key).second; }
+  bool insert(const Key& key, KeyInfo key_info) {
+    return queue_.insert({key, key_info}).second;
+  }
 
   size_t size() {
     base::MutexGuard lock(&mutex_);
@@ -125,7 +126,7 @@ class WrapperQueue {
 
  private:
   base::Mutex mutex_;
-  std::unordered_set<Key, Hash> queue_;
+  std::unordered_map<Key, KeyInfo, Hash> queue_;
 };
 
 // Encapsulates all the state and steps of an asynchronous compilation.
@@ -259,7 +260,6 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
   const DynamicTiering dynamic_tiering_;
-  const bool wasm_lazy_compilation_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.

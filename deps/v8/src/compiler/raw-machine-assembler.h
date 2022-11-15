@@ -514,6 +514,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Int64Mul(Node* a, Node* b) {
     return AddNode(machine()->Int64Mul(), a, b);
   }
+  Node* Int64MulHigh(Node* a, Node* b) {
+    return AddNode(machine()->Int64MulHigh(), a, b);
+  }
+  Node* Uint64MulHigh(Node* a, Node* b) {
+    return AddNode(machine()->Uint64MulHigh(), a, b);
+  }
+  Node* Int64MulWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int64MulWithOverflow(), a, b);
+  }
   Node* Int64Div(Node* a, Node* b) {
     return AddNode(machine()->Int64Div(), a, b);
   }
@@ -599,7 +608,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   INTPTR_BINOP(Int, Sub)
   INTPTR_BINOP(Int, SubWithOverflow)
   INTPTR_BINOP(Int, Mul)
+  INTPTR_BINOP(Int, MulHigh)
+  INTPTR_BINOP(Int, MulWithOverflow)
   INTPTR_BINOP(Int, Div)
+  INTPTR_BINOP(Int, Mod)
   INTPTR_BINOP(Int, LessThan)
   INTPTR_BINOP(Int, LessThanOrEqual)
   INTPTR_BINOP(Word, Equal)
@@ -619,6 +631,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   UINTPTR_BINOP(Uint, LessThanOrEqual)
   UINTPTR_BINOP(Uint, GreaterThanOrEqual)
   UINTPTR_BINOP(Uint, GreaterThan)
+  UINTPTR_BINOP(Uint, MulHigh)
 
 #undef UINTPTR_BINOP
 

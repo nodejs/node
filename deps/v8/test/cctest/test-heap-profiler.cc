@@ -32,6 +32,7 @@
 #include <memory>
 
 #include "include/v8-function.h"
+#include "include/v8-json.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/hashmap.h"
@@ -48,15 +49,16 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/jsonstream-helper.h"
 
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::SourceLocation;
+using i::heap::GrowNewSpaceToMaximumCapacity;
 using v8::base::ArrayVector;
 using v8::base::Optional;
 using v8::base::Vector;
-using v8::internal::heap::GrowNewSpaceToMaximumCapacity;
 
 namespace {
 
@@ -1043,52 +1045,6 @@ TEST(HeapEntryIdsAndGC) {
   CHECK_EQ(b1->GetId(), b2->GetId());
 }
 
-namespace {
-
-class TestJSONStream : public v8::OutputStream {
- public:
-  TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
-  explicit TestJSONStream(int abort_countdown)
-      : eos_signaled_(0), abort_countdown_(abort_countdown) {}
-  ~TestJSONStream() override = default;
-  void EndOfStream() override { ++eos_signaled_; }
-  WriteResult WriteAsciiChunk(char* buffer, int chars_written) override {
-    if (abort_countdown_ > 0) --abort_countdown_;
-    if (abort_countdown_ == 0) return kAbort;
-    CHECK_GT(chars_written, 0);
-    v8::base::Vector<char> chunk = buffer_.AddBlock(chars_written, '\0');
-    i::MemCopy(chunk.begin(), buffer, chars_written);
-    return kContinue;
-  }
-  virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
-    UNREACHABLE();
-  }
-  void WriteTo(v8::base::Vector<char> dest) { buffer_.WriteTo(dest); }
-  int eos_signaled() { return eos_signaled_; }
-  int size() { return buffer_.size(); }
-
- private:
-  i::Collector<char> buffer_;
-  int eos_signaled_;
-  int abort_countdown_;
-};
-
-class OneByteResource : public v8::String::ExternalOneByteStringResource {
- public:
-  explicit OneByteResource(v8::base::Vector<char> string)
-      : data_(string.begin()) {
-    length_ = string.length();
-  }
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
-};
-
-}  // namespace
-
 TEST(HeapSnapshotJSONSerialization) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -1105,7 +1061,7 @@ TEST(HeapSnapshotJSONSerialization) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  TestJSONStream stream;
+  v8::internal::TestJSONStream stream;
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(1, stream.eos_signaled());
@@ -1113,31 +1069,37 @@ TEST(HeapSnapshotJSONSerialization) {
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  OneByteResource* json_res = new OneByteResource(json);
+  v8::internal::OneByteResource* json_res =
+      new v8::internal::OneByteResource(json);
   v8::Local<v8::String> json_string =
       v8::String::NewExternalOneByte(env->GetIsolate(), json_res)
           .ToLocalChecked();
-  env->Global()
-      ->Set(env.local(), v8_str("json_snapshot"), json_string)
-      .FromJust();
-  v8::Local<v8::Value> snapshot_parse_result = CompileRun(
-      "var parsed = JSON.parse(json_snapshot); true;");
-  CHECK(!snapshot_parse_result.IsEmpty());
+  v8::Local<v8::Context> context = v8::Context::New(env->GetIsolate());
+  v8::Local<v8::Value> snapshot_parse_result =
+      v8::JSON::Parse(context, json_string).ToLocalChecked();
+  CHECK(snapshot_parse_result->IsObject());
 
   // Verify that snapshot object has required fields.
   v8::Local<v8::Object> parsed_snapshot =
-      env->Global()
-          ->Get(env.local(), v8_str("parsed"))
-          .ToLocalChecked()
-          ->ToObject(env.local())
-          .ToLocalChecked();
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("locations")).FromJust());
-  CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
+      snapshot_parse_result.As<v8::Object>();
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("snapshot"))
+            .ToLocalChecked()
+            ->IsObject());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("nodes"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("edges"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("locations"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(parsed_snapshot->Get(env.local(), v8_str("strings"))
+            .ToLocalChecked()
+            ->IsArray());
 
   // Get node and edge "member" offsets.
+  env->Global()->Set(env.local(), v8_str("parsed"), parsed_snapshot).FromJust();
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
       "var meta = parsed.snapshot.meta;\n"
       "var edge_count_offset = meta.node_fields.indexOf('edge_count');\n"
@@ -1224,7 +1186,7 @@ TEST(HeapSnapshotJSONSerializationAborting) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
-  TestJSONStream stream(5);
+  v8::internal::TestJSONStream stream(5);
   snapshot->Serialize(&stream, v8::HeapSnapshot::kJSON);
   CHECK_GT(stream.size(), 0);
   CHECK_EQ(0, stream.eos_signaled());
@@ -1296,8 +1258,10 @@ static TestStatsStream GetHeapStatsUpdate(
 
 
 TEST(HeapSnapshotObjectsStats) {
-  // Concurrent allocation might break results
-  v8::internal::v8_flags.stress_concurrent_allocation = false;
+  // Concurrent allocation and conservative stack scanning might break results.
+  i::v8_flags.stress_concurrent_allocation = false;
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
 
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2639,7 +2603,7 @@ TEST(ManyLocalsInSharedContext) {
       env->GetIsolate(), ok_object, v8::HeapGraphEdge::kInternal, "context");
   CHECK(context_object);
   // Check the objects are not duplicated in the context.
-  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
+  CHECK_EQ(i::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
@@ -2695,7 +2659,7 @@ TEST(AllocationSitesAreVisible) {
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
   CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
+  CHECK_EQ(i::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
   v8::Local<v8::Value> array_val =
@@ -2771,13 +2735,12 @@ TEST(CheckCodeNames) {
   CHECK(ValidateSnapshot(snapshot));
 
   const char* builtin_path1[] = {
-    "::(GC roots)",
-    "::(Builtins)",
+      "::(GC roots)",
+      "::(Builtins)",
 #ifdef V8_EXTERNAL_CODE_SPACE
-    "::(KeyedLoadIC_PolymorphicName builtin handle)",
-#endif
-#if !V8_REMOVE_BUILTINS_CODE_OBJECTS
-    "::(KeyedLoadIC_PolymorphicName builtin)"
+      "::(KeyedLoadIC_PolymorphicName builtin handle)",
+#else
+      "::(KeyedLoadIC_PolymorphicName builtin)",
 #endif
   };
   const v8::HeapGraphNode* node = GetNodeByPath(
@@ -2785,20 +2748,19 @@ TEST(CheckCodeNames) {
   CHECK(node);
 
   const char* builtin_path2[] = {
-    "::(GC roots)",
-    "::(Builtins)",
+      "::(GC roots)",
+      "::(Builtins)",
 #ifdef V8_EXTERNAL_CODE_SPACE
-    "::(CompileLazy builtin handle)",
-#endif
-#if !V8_REMOVE_BUILTINS_CODE_OBJECTS
-    "::(CompileLazy builtin)"
+      "::(CompileLazy builtin handle)",
+#else
+      "::(CompileLazy builtin)",
 #endif
   };
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env->GetIsolate(), node->GetName());
-  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
   } else {
     CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
@@ -3704,10 +3666,10 @@ TEST(SamplingHeapProfiler) {
 
   // Turn off always_turbofan. Inlining can cause stack traces to be shorter
   // than what we expect in this test.
-  v8::internal::v8_flags.always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Sample should be empty if requested before sampling has started.
   {
@@ -3788,16 +3750,16 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
 
   // Turn off always_turbofan. Inlining can cause stack traces to be shorter
   // than what we expect in this test.
-  v8::internal::v8_flags.always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
 
   // Disable compilation cache to force compilation in both cases
-  v8::internal::v8_flags.compilation_cache = false;
+  i::v8_flags.compilation_cache = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // stress_incremental_marking adds randomness to the test.
-  v8::internal::v8_flags.stress_incremental_marking = false;
+  i::v8_flags.stress_incremental_marking = false;
 
   // warmup compilation
   CompileRun(simple_sampling_heap_profiler_script);
@@ -3869,7 +3831,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(256);
 
@@ -3892,7 +3854,7 @@ TEST(SamplingHeapProfilerApiSamples) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(1024);
 
@@ -3937,7 +3899,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(64);
 
@@ -3950,7 +3912,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
       "      a.shift();\n"
       "}\n");
 
-  CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
   // Should not crash.
 
   heap_profiler->StopSamplingHeapProfiler();
@@ -3975,7 +3937,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
@@ -4037,7 +3999,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(512 * 1024);
 
@@ -4075,7 +4037,7 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Small sample interval to force each object to be sampled.
   heap_profiler->StartSamplingHeapProfiler(i::kTaggedSize);

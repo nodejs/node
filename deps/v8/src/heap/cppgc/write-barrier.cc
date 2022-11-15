@@ -187,24 +187,6 @@ void WriteBarrier::CheckParams(Type expected_type, const Params& params) {
 }
 #endif  // V8_ENABLE_CHECKS
 
-// static
-bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(const void* object,
-                                                      HeapHandle** handle) {
-  // Large objects cannot have mixins, so we are guaranteed to always have
-  // a pointer on the same page.
-  const auto* page = BasePage::FromPayload(object);
-  *handle = &page->heap();
-  const MarkerBase* marker = page->heap().marker();
-  return marker && marker->IsMarking();
-}
-
-// static
-bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(HeapHandle& heap_handle) {
-  const auto& heap_base = internal::HeapBase::From(heap_handle);
-  const MarkerBase* marker = heap_base.marker();
-  return marker && marker->IsMarking();
-}
-
 #if defined(CPPGC_YOUNG_GENERATION)
 
 // static

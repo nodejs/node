@@ -151,11 +151,6 @@ typedef struct internal_state {
      *   hash_shift * MIN_MATCH >= hash_bits
      */
 
-    uInt chromium_zlib_hash;
-    /* 0 if Rabin-Karp rolling hash is enabled, non-zero if chromium zlib
-     * hash is enabled.
-     */
-
     long block_start;
     /* Window position at the beginning of the current output block. Gets
      * negative when the window is moved backwards.
@@ -271,6 +266,11 @@ typedef struct internal_state {
      * this are set to zero in order to avoid memory check warnings when
      * longest match routines access bytes past the input.  This is then
      * updated to the new high water mark.
+     */
+
+    uInt chromium_zlib_hash;
+    /* 0 if Rabin-Karp rolling hash is enabled, non-zero if chromium zlib
+     * hash is enabled.
      */
 
 } FAR deflate_state;

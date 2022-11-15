@@ -42,8 +42,8 @@ class WithFinalizationRegistryMixin : public TMixin {
   static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_expose_gc = true;
-    FLAG_allow_natives_syntax = true;
+    v8_flags.expose_gc = true;
+    v8_flags.allow_natives_syntax = true;
     TMixin::SetUpTestSuite();
   }
 
@@ -146,9 +146,10 @@ TEST_P(MicrotaskQueueTest, EnqueueAndRun) {
   bool ran = false;
   EXPECT_EQ(0, microtask_queue()->capacity());
   EXPECT_EQ(0, microtask_queue()->size());
-  microtask_queue()->EnqueueMicrotask(*NewMicrotask([&ran] {
+  microtask_queue()->EnqueueMicrotask(*NewMicrotask([this, &ran] {
     EXPECT_FALSE(ran);
     ran = true;
+    EXPECT_TRUE(microtask_queue()->HasMicrotasksSuppressions());
   }));
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(1, microtask_queue()->size());

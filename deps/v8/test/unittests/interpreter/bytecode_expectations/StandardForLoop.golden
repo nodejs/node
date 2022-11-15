@@ -216,9 +216,9 @@ bytecode array length: 38
 bytecodes: [
   /*   37 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star3),
-  /*   28 S> */ B(GetNamedProperty), R(3), U8(1), U8(1),
+  /*   28 E> */ B(GetNamedProperty), R(3), U8(1), U8(1),
                 B(Star0),
-  /*   31 S> */ B(GetNamedProperty), R(3), U8(2), U8(3),
+  /*   31 E> */ B(GetNamedProperty), R(3), U8(2), U8(3),
                 B(Star1),
   /*   55 S> */ B(LdaZero),
   /*   55 E> */ B(TestGreaterThan), R(1), U8(5),

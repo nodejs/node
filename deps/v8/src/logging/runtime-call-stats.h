@@ -323,6 +323,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BitcastElision)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BranchConditionDuplication)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
@@ -368,6 +369,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Scheduling)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifyLoops)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildTurboshaft)                 \

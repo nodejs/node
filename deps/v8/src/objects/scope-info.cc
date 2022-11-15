@@ -22,9 +22,13 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo other) const {
+bool ScopeInfo::Equals(ScopeInfo other, bool is_live_edit_compare) const {
   if (length() != other.length()) return false;
   for (int index = 0; index < length(); ++index) {
+    if (is_live_edit_compare && HasPositionInfo() &&
+        index >= PositionInfoIndex() && index <= PositionInfoIndex() + 1) {
+      continue;
+    }
     Object entry = get(index);
     Object other_entry = other.get(index);
     if (entry.IsSmi()) {
@@ -39,12 +43,18 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
           return false;
         }
       } else if (entry.IsScopeInfo()) {
-        if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry))) {
+        if (!is_live_edit_compare && !ScopeInfo::cast(entry).Equals(
+                                         ScopeInfo::cast(other_entry), false)) {
           return false;
         }
       } else if (entry.IsSourceTextModuleInfo()) {
-        if (!SourceTextModuleInfo::cast(entry).Equals(
+        if (!is_live_edit_compare &&
+            !SourceTextModuleInfo::cast(entry).Equals(
                 SourceTextModuleInfo::cast(other_entry))) {
+          return false;
+        }
+      } else if (entry.IsOddball()) {
+        if (Oddball::cast(entry).kind() != Oddball::cast(other_entry).kind()) {
           return false;
         }
       } else {
@@ -1098,6 +1108,19 @@ void ScopeInfo::ModuleVariable(int i, String* name, int* index,
   if (maybe_assigned_flag != nullptr) {
     *maybe_assigned_flag = MaybeAssignedFlagBit::decode(properties);
   }
+}
+
+uint32_t ScopeInfo::Hash() {
+  // Hash ScopeInfo based on its start and end position.
+  // Note: Ideally we'd also have the script ID. But since we only use the
+  // hash in a debug-evaluate cache, we don't worry too much about collisions.
+  if (HasPositionInfo()) {
+    return static_cast<uint32_t>(
+        base::hash_combine(flags(), StartPosition(), EndPosition()));
+  }
+
+  return static_cast<uint32_t>(
+      base::hash_combine(flags(), context_local_count()));
 }
 
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {

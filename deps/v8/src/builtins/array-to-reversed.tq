@@ -8,8 +8,8 @@ macro FastPackedArrayToReversed<Accessor: type, T: type>(
     kind: constexpr ElementsKind, elements: FixedArrayBase,
     length: Smi): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
-  const copy: FixedArrayBase =
-      AllocateFixedArray(kind, SmiUntag(length), AllocationFlag::kNone);
+  const copy: FixedArrayBase = AllocateFixedArray(
+      kind, SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
 
   // 4. Let k be 0.
   let k: Smi = 0;
@@ -38,6 +38,8 @@ macro FastPackedArrayToReversed<Accessor: type, T: type>(
 macro TryFastPackedArrayToReversed(implicit context: Context)(receiver: JSAny):
     JSArray labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+
+  if (array.length < 1) return ArrayCreate(0);
 
   const kind: ElementsKind = array.map.elements_kind;
   if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {

@@ -128,13 +128,13 @@ class MemoryProtectionTest : public TestWithNativeContext {
                          DecodingMethod::kSync, GetWasmEngine()->allocator());
     CHECK(result.ok());
 
-    Handle<FixedArray> export_wrappers;
     ErrorThrower thrower(isolate(), "");
     constexpr int kNoCompilationId = 0;
+    constexpr ProfileInformation* kNoProfileInformation = nullptr;
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
         isolate(), WasmFeatures::All(), &thrower, std::move(result).value(),
-        ModuleWireBytes{base::ArrayVector(module_bytes)}, &export_wrappers,
-        kNoCompilationId, v8::metrics::Recorder::ContextId::Empty());
+        ModuleWireBytes{base::ArrayVector(module_bytes)}, kNoCompilationId,
+        v8::metrics::Recorder::ContextId::Empty(), kNoProfileInformation);
     CHECK(!thrower.error());
     CHECK_NOT_NULL(native_module);
 

@@ -121,6 +121,10 @@ bool GCTracer::IsInObservablePause() const {
   return 0.0 < start_of_observable_pause_;
 }
 
+bool GCTracer::IsInAtomicPause() const {
+  return current_.state == Event::State::ATOMIC;
+}
+
 bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
   return (collector == GarbageCollector::SCAVENGER &&
           current_.type == Event::SCAVENGER) ||
@@ -134,7 +138,9 @@ bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
 
 bool GCTracer::IsSweepingInProgress() const {
   return (current_.type == Event::MARK_COMPACTOR ||
-          current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
+          current_.type == Event::INCREMENTAL_MARK_COMPACTOR ||
+          current_.type == Event::MINOR_MARK_COMPACTOR ||
+          current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR) &&
          current_.state == Event::State::SWEEPING;
 }
 #endif

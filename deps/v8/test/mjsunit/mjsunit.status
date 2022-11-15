@@ -34,6 +34,8 @@
   'harmony/shadowrealm-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
+  'wasm/gc-js-interop-helpers': [SKIP],
+  'wasm/gc-js-interop-export': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
   'typedarray-helpers': [SKIP],
@@ -362,6 +364,9 @@
 
   # Flaky tests due to GC interferring with optimization.
   'compiler/regress-crbug-1323114': [SKIP],
+
+  # https://crbug.com/v8/13461
+  'maglev/inner-function': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -431,6 +436,10 @@
   'harmony/regexp-property-*': [PASS,FAIL],
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
+
+  # RegExp unicode tests relies on ICU for property classes and
+  # case-insensitive unicode patterns.
+  'harmony/regexp-unicode-sets': [PASS,FAIL],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
@@ -893,6 +902,14 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['system == macos and arch == arm64', {
+  # BUG(v8:13171): The following tests a function that shouldn't be optimized
+  # on M1 hardware, unless a proper fix for the stack corruption is
+  # implemented (see linked issue).
+  'compiler/fast-api-calls-8args': [FAIL],
+}],  # 'system == macos  and arch == arm64'
+
+##############################################################################
 ['system == windows', {
   # Too slow with turbo fan.
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
@@ -1073,6 +1090,12 @@
   'compiler/regress-1224277': [SKIP],
   'regress/regress-1220974': [SKIP],
   'regress/regress-992389': [SKIP],
+
+  # BUG(v8:13331) Skipped until issue is fixed to reduce noise on alerts.
+  'harmony/regress/regress-crbug-1367133': [SKIP],
+
+  # BUG(v8:13379) maglev-inlining flag isn't stable enough for fuzzing.
+  'maglev/eager-deopt-in-inline': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
@@ -1207,6 +1230,10 @@
 
   # Baseline tests don't make sense with optimization stressing.
   'baseline/*': [SKIP],
+
+  # This test uses --wasm-speculative-inlining which is incompatible with
+  # stressing.
+  'regress/wasm/regress-1364036': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1404,6 +1431,12 @@
   # it. In the slow path, this results in one runtime call per element, which
   # takes several minutes overall.
   'regress/wasm/regress-9017': [SKIP],
+
+  # These test Array#toReversed and Array#toSpliced on a big packed array, which
+  # is created by repeated calls to Array#push. In the slow path this is very
+  # slow.
+  'harmony/array-to-reversed-big': [SKIP],
+  'harmony/array-to-spliced-big': [SKIP],
 }],  # variant == slow_path
 
 ['((arch == mips64el or arch == mips64) and not simd_mips) or (arch in [ppc64])', {
@@ -1548,9 +1581,16 @@
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
 
-  'shared-memory/shared-string-promotion-minor': [SKIP],
-  'shared-memory/shared-string-promotion-major': [SKIP],
+  'shared-memory/*': [SKIP],
 }], # single_generation
+
+################################################################################
+['conservative_stack_scanning', {
+  # TODO(v8:13257): Conservative stack scanning is not currently compatible
+  # with stack switching.
+  'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
+}], # conservative_stack_scanning
 
 ################################################################################
 ['third_party_heap', {

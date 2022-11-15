@@ -88,12 +88,17 @@ MaglevCompilationJob::MaglevCompilationJob(
     std::unique_ptr<MaglevCompilationInfo>&& info)
     : OptimizedCompilationJob(kMaglevCompilerName, State::kReadyToPrepare),
       info_(std::move(info)) {
-  DCHECK(FLAG_maglev);
+  DCHECK(v8_flags.maglev);
 }
 
 MaglevCompilationJob::~MaglevCompilationJob() = default;
 
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
+  if (info()->collect_source_positions()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate,
+        info()->toplevel_compilation_unit()->shared_function_info().object());
+  }
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
@@ -108,7 +113,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   Handle<CodeT> codet;
-  if (!maglev::MaglevCompiler::GenerateCode(info()).ToHandle(&codet)) {
+  if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&codet)) {
     return CompilationJob::FAILED;
   }
   info()->toplevel_compilation_unit()->function().object()->set_code(*codet);
@@ -117,6 +122,10 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 
 Handle<JSFunction> MaglevCompilationJob::function() const {
   return info_->toplevel_compilation_unit()->function().object();
+}
+
+bool MaglevCompilationJob::specialize_to_function_context() const {
+  return info_->specialize_to_function_context();
 }
 
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for
@@ -134,6 +143,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       std::unique_ptr<MaglevCompilationJob> job;
       if (!incoming_queue()->Dequeue(&job)) break;
       DCHECK_NOT_NULL(job);
+      TRACE_EVENT_WITH_FLOW0(
+          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
+          job.get(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       RuntimeCallStats* rcs = nullptr;  // TODO(v8:7700): Implement.
       CompilationJob::Status status = job->ExecuteJob(rcs, &local_isolate);
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
@@ -157,7 +169,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
 
 MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
     : isolate_(isolate) {
-  if (FLAG_concurrent_recompilation && FLAG_maglev) {
+  if (v8_flags.concurrent_recompilation && v8_flags.maglev) {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
     DCHECK(is_enabled());
@@ -188,6 +200,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
+    TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                           "V8.MaglevConcurrentFinalize", job.get(),
+                           TRACE_EVENT_FLAG_FLOW_IN);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
   }
 }

@@ -59,7 +59,7 @@ class LoopPeelingTest : public GraphTest {
   MachineOperatorBuilder* machine() { return &machine_; }
 
   LoopTree* GetLoopTree() {
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     Zone zone(isolate()->allocator(), ZONE_NAME);
@@ -79,7 +79,7 @@ class LoopPeelingTest : public GraphTest {
   PeeledIteration* Peel(LoopPeeler peeler, LoopTree::Loop* loop) {
     EXPECT_TRUE(peeler.CanPeel(loop));
     PeeledIteration* peeled = peeler.Peel(loop);
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     return peeled;

@@ -7,6 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
+  print(arguments.callee.name);
   let table = new WebAssembly.Table({initial: 1, element: "externref"});
   let type = table.type();
   assertEquals(1, type.minimum);
@@ -22,6 +23,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestGlobalType() {
+  print(arguments.callee.name);
   let global = new WebAssembly.Global({value: "externref", mutable: true});
   let type = global.type();
   assertEquals("externref", type.value);
@@ -48,6 +50,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestFunctionGlobalGetAndSet() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
   let fun2 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 9);
@@ -80,6 +83,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestFunctionMultiTableSetAndCall() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let v1 = 7; let v2 = 9; let v3 = 0.0;
   let f1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => v1);

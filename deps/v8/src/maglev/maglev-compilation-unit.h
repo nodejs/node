@@ -42,7 +42,6 @@ class MaglevCompilationUnit : public ZoneObject {
   MaglevCompilationInfo* info() const { return info_; }
   const MaglevCompilationUnit* caller() const { return caller_; }
   compiler::JSHeapBroker* broker() const;
-  Isolate* isolate() const;
   LocalIsolate* local_isolate() const;
   Zone* zone() const;
   int register_count() const { return register_count_; }
@@ -56,9 +55,6 @@ class MaglevCompilationUnit : public ZoneObject {
   const compiler::JSFunctionRef& function() const { return function_; }
   const compiler::BytecodeArrayRef& bytecode() const { return bytecode_; }
   const compiler::FeedbackVectorRef& feedback() const { return feedback_; }
-  const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return bytecode_analysis_;
-  }
 
   void RegisterNodeInGraphLabeller(const Node* node);
 
@@ -69,7 +65,6 @@ class MaglevCompilationUnit : public ZoneObject {
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::BytecodeArrayRef bytecode_;
   const compiler::FeedbackVectorRef feedback_;
-  const compiler::BytecodeAnalysis bytecode_analysis_;
   const int register_count_;
   const int parameter_count_;
   const int inlining_depth_;

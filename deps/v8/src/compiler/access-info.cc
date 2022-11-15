@@ -139,18 +139,20 @@ PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
 
 // static
 PropertyAccessInfo PropertyAccessInfo::FastAccessorConstant(
-    Zone* zone, MapRef receiver_map, base::Optional<ObjectRef> constant,
-    base::Optional<JSObjectRef> holder) {
-  return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant, {},
-                            {{receiver_map}, zone});
+    Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
+    base::Optional<ObjectRef> constant,
+    base::Optional<JSObjectRef> api_holder) {
+  return PropertyAccessInfo(zone, kFastAccessorConstant, holder, constant,
+                            api_holder, {} /* name */, {{receiver_map}, zone});
 }
 
 // static
 PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
                                                     MapRef receiver_map,
                                                     CellRef cell) {
-  return PropertyAccessInfo(zone, kModuleExport, {}, cell, {},
-                            {{receiver_map}, zone});
+  return PropertyAccessInfo(zone, kModuleExport, {} /* holder */,
+                            cell /* constant */, {} /* api_holder */,
+                            {} /* name */, {{receiver_map}, zone});
 }
 
 // static
@@ -170,9 +172,11 @@ PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
 // static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoAccessorConstant(
     Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
-    ObjectRef constant, NameRef property_name) {
+    ObjectRef constant, base::Optional<JSObjectRef> api_holder,
+    NameRef property_name) {
   return PropertyAccessInfo(zone, kDictionaryProtoAccessorConstant, holder,
-                            constant, property_name, {{receiver_map}, zone});
+                            constant, api_holder, property_name,
+                            {{receiver_map}, zone});
 }
 
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
@@ -196,12 +200,13 @@ PropertyAccessInfo::PropertyAccessInfo(
 
 PropertyAccessInfo::PropertyAccessInfo(
     Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
-    base::Optional<ObjectRef> constant, base::Optional<NameRef> name,
-    ZoneVector<MapRef>&& lookup_start_object_maps)
+    base::Optional<ObjectRef> constant, base::Optional<JSObjectRef> api_holder,
+    base::Optional<NameRef> name, ZoneVector<MapRef>&& lookup_start_object_maps)
     : kind_(kind),
       lookup_start_object_maps_(lookup_start_object_maps),
       constant_(constant),
       holder_(holder),
+      api_holder_(api_holder),
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
       field_type_(Type::Any()),
@@ -387,15 +392,13 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
   for (auto const& group : feedback.transition_groups()) {
     DCHECK(!group.empty());
-    base::Optional<MapRef> target =
-        MakeRefAssumeMemoryFence(broker(), group.front());
+    base::Optional<MapRef> target = group.front();
     base::Optional<ElementAccessInfo> access_info =
         ComputeElementAccessInfo(target.value(), access_mode);
     if (!access_info.has_value()) return false;
 
     for (size_t i = 1; i < group.size(); ++i) {
-      base::Optional<MapRef> map_ref =
-          MakeRefAssumeMemoryFence(broker(), group[i]);
+      base::Optional<MapRef> map_ref = group[i];
       if (!map_ref.has_value()) continue;
       access_info->AddTransitionSource(map_ref.value());
     }
@@ -544,8 +547,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     DCHECK(!map.is_dictionary_map());
 
     // HasProperty checks don't call getter/setters, existence is sufficient.
-    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, {},
-                                                    holder);
+    return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, holder,
+                                                    {}, {});
   }
   Handle<Object> maybe_accessors = get_accessors();
   if (!maybe_accessors->IsAccessorPair()) {
@@ -559,6 +562,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   base::Optional<ObjectRef> accessor_ref = TryMakeRef(broker, accessor);
   if (!accessor_ref.has_value()) return PropertyAccessInfo::Invalid(zone);
 
+  base::Optional<JSObjectRef> api_holder_ref;
   if (!accessor->IsJSFunction()) {
     CallOptimization optimization(broker->local_isolate_or_isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
@@ -567,24 +571,22 @@ PropertyAccessInfo AccessorAccessInfoHelper(
       return PropertyAccessInfo::Invalid(zone);
     }
 
-    CallOptimization::HolderLookup lookup;
-    Handle<JSObject> holder_handle = broker->CanonicalPersistentHandle(
+    CallOptimization::HolderLookup holder_lookup;
+    Handle<JSObject> api_holder = broker->CanonicalPersistentHandle(
         optimization.LookupHolderOfExpectedType(
             broker->local_isolate_or_isolate(), receiver_map.object(),
-            &lookup));
-    if (lookup == CallOptimization::kHolderNotFound) {
+            &holder_lookup));
+    if (holder_lookup == CallOptimization::kHolderNotFound) {
       return PropertyAccessInfo::Invalid(zone);
     }
-    DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
-                   holder_handle.is_null());
-    DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound,
-                   !holder_handle.is_null());
+    DCHECK_IMPLIES(holder_lookup == CallOptimization::kHolderIsReceiver,
+                   api_holder.is_null());
+    DCHECK_IMPLIES(holder_lookup == CallOptimization::kHolderFound,
+                   !api_holder.is_null());
 
-    if (holder_handle.is_null()) {
-      holder = {};
-    } else {
-      holder = TryMakeRef(broker, holder_handle);
-      if (!holder.has_value()) return PropertyAccessInfo::Invalid(zone);
+    if (!api_holder.is_null()) {
+      api_holder_ref = TryMakeRef(broker, api_holder);
+      if (!api_holder_ref.has_value()) return PropertyAccessInfo::Invalid(zone);
     }
   }
   if (access_mode == AccessMode::kLoad) {
@@ -602,11 +604,12 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   }
 
   if (map.is_dictionary_map()) {
+    CHECK(!api_holder_ref.has_value());
     return PropertyAccessInfo::DictionaryProtoAccessorConstant(
-        zone, receiver_map, holder, accessor_ref.value(), name);
+        zone, receiver_map, holder, accessor_ref.value(), api_holder_ref, name);
   } else {
     return PropertyAccessInfo::FastAccessorConstant(
-        zone, receiver_map, accessor_ref.value(), holder);
+        zone, receiver_map, holder, accessor_ref.value(), api_holder_ref);
   }
 }
 
@@ -876,7 +879,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (!map_prototype_map.object()->IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
       if (!prototype.IsNull()) {
-        DCHECK(prototype.object()->IsJSProxy());
+        DCHECK(prototype.object()->IsJSProxy() ||
+               prototype.object()->IsWasmObject());
         return Invalid();
       }
 
@@ -1006,26 +1010,22 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
   if (feedback.transition_groups().empty()) return {};
 
   DCHECK(!feedback.transition_groups().front().empty());
-  Handle<Map> first_map = feedback.transition_groups().front().front();
-  base::Optional<MapRef> first_map_ref = TryMakeRef(broker(), first_map);
-  if (!first_map_ref.has_value()) return {};
-  InstanceType instance_type = first_map_ref->instance_type();
-  ElementsKind elements_kind = first_map_ref->elements_kind();
+  MapRef first_map = feedback.transition_groups().front().front();
+  InstanceType instance_type = first_map.instance_type();
+  ElementsKind elements_kind = first_map.elements_kind();
 
   ZoneVector<MapRef> maps(zone());
   for (auto const& group : feedback.transition_groups()) {
-    for (Handle<Map> map_handle : group) {
-      base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
-      if (!map.has_value()) return {};
-      if (map->instance_type() != instance_type ||
-          !map->CanInlineElementAccess()) {
+    for (MapRef map : group) {
+      if (map.instance_type() != instance_type ||
+          !map.CanInlineElementAccess()) {
         return {};
       }
-      if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
+      if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
                .To(&elements_kind)) {
         return {};
       }
-      maps.push_back(map.value());
+      maps.push_back(map);
     }
   }
 

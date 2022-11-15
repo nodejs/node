@@ -17,6 +17,7 @@ namespace internal {
 
 namespace wasm {
 struct CompilationEnv;
+struct DanglingExceptions;
 struct WasmModule;
 struct WasmFunction;
 class WireBytesStorage;
@@ -55,7 +56,12 @@ class WasmInliner final : public AdvancedReducer {
 
   const char* reducer_name() const override { return "WasmInliner"; }
 
+  // Registers (tail) calls to possibly be inlined, prioritized by inlining
+  // heuristics provided by {LexicographicOrdering}.
+  // Only locally defined functions are inlinable, and a limited number of
+  // inlinings of a specific function is allowed.
   Reduction Reduce(Node* node) final;
+  // Inlines calls registered by {Reduce}, until an inlining budget is exceeded.
   void Finalize() final;
 
   static bool graph_size_allows_inlining(size_t graph_size) {
@@ -88,7 +94,8 @@ class WasmInliner final : public AdvancedReducer {
   Reduction ReduceCall(Node* call);
   void InlineCall(Node* call, Node* callee_start, Node* callee_end,
                   const wasm::FunctionSig* inlinee_sig,
-                  size_t subgraph_min_node_id);
+                  size_t subgraph_min_node_id,
+                  wasm::DanglingExceptions* dangling_exceptions);
   void InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
   void RewireFunctionEntry(Node* call, Node* callee_start);
 

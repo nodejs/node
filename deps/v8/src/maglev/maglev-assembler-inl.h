@@ -5,6 +5,10 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -13,6 +17,9 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
+
+ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
+    : ZoneLabelRef(masm->compilation_info()->zone()) {}
 
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
@@ -68,7 +75,7 @@ Register MaglevAssembler::FromAnyToRegister(const Input& input,
 }
 
 inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
-  info->deopting_call_return_pc = pc_offset_for_safepoint();
+  info->set_deopting_call_return_pc(pc_offset_for_safepoint());
   code_gen_state()->PushLazyDeopt(info);
   safepoint_table_builder()->DefineSafepoint(this);
 }
@@ -84,6 +91,60 @@ inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
     NodeBase* node) {
   DefineExceptionHandlerPoint(node);
   DefineLazyDeoptPoint(node->lazy_deopt_info());
+}
+
+inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
+                                                       Register object,
+                                                       int offset) {
+  movq(result, FieldOperand(object, offset));
+#ifdef V8_ENABLE_SANDBOX
+  shrq(result, Immediate(kBoundedSizeShift));
+#endif  // V8_ENABLE_SANDBOX
+}
+
+inline void MaglevAssembler::LoadExternalPointerField(Register result,
+                                                      Operand operand) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadSandboxedPointerField(result, operand);
+#else
+  movq(result, operand);
+#endif
+}
+
+inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
+                                             int size) {
+  if (size == 1) {
+    movsxbl(result, operand);
+  } else if (size == 2) {
+    movsxwl(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(result, operand);
+  }
+}
+
+inline void MaglevAssembler::StoreField(Operand operand, Register value,
+                                        int size) {
+  DCHECK(size == 1 || size == 2 || size == 4);
+  if (size == 1) {
+    movb(operand, value);
+  } else if (size == 2) {
+    movw(operand, value);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(operand, value);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
+  if (size == 2) {
+    bswapl(value);
+    sarl(value, Immediate(16));
+  } else if (size == 4) {
+    bswapl(value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
 }
 
 // ---
@@ -131,6 +192,9 @@ struct CopyForDeferredHelper<MaglevCompilationInfo*>
 template <>
 struct CopyForDeferredHelper<Register>
     : public CopyForDeferredByValue<Register> {};
+template <>
+struct CopyForDeferredHelper<DoubleRegister>
+    : public CopyForDeferredByValue<DoubleRegister> {};
 // Bytecode offsets are copied by value.
 template <>
 struct CopyForDeferredHelper<BytecodeOffset>
@@ -187,10 +251,10 @@ struct FunctionArgumentsTupleHelper<R (&)(A...)> {
 };
 
 template <typename T>
-struct StripFirstTwoTupleArgs;
+struct StripFirstTupleArg;
 
-template <typename T1, typename T2, typename... T>
-struct StripFirstTwoTupleArgs<std::tuple<T1, T2, T...>> {
+template <typename T1, typename... T>
+struct StripFirstTupleArg<std::tuple<T1, T...>> {
   using Stripped = std::tuple<T...>;
 };
 
@@ -199,9 +263,8 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
  public:
   using FunctionPointer =
       typename FunctionArgumentsTupleHelper<Function>::FunctionPointer;
-  using Tuple = typename StripFirstTwoTupleArgs<
+  using Tuple = typename StripFirstTupleArg<
       typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped;
-  static constexpr size_t kSize = FunctionArgumentsTupleHelper<Function>::kSize;
 
   template <typename... InArgs>
   explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
@@ -213,18 +276,12 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
   DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
 
-  void Generate(MaglevAssembler* masm, Label* return_label) override {
-    DoCall(masm, return_label, std::make_index_sequence<kSize - 2>{});
+  void Generate(MaglevAssembler* masm) override {
+    std::apply(function,
+               std::tuple_cat(std::make_tuple(masm), std::move(args)));
   }
 
  private:
-  template <size_t... I>
-  auto DoCall(MaglevAssembler* masm, Label* return_label,
-              std::index_sequence<I...>) {
-    // TODO(leszeks): This could be replaced with std::apply in C++17.
-    return function(masm, return_label, std::get<I>(args)...);
-  }
-
   FunctionPointer function;
   Tuple args;
 };
@@ -234,6 +291,16 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
 template <typename Function, typename... Args>
 inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
     Function&& deferred_code_gen, Args&&... args) {
+  using FunctionPointer =
+      typename detail::FunctionArgumentsTupleHelper<Function>::FunctionPointer;
+  static_assert(
+      std::is_invocable_v<FunctionPointer, MaglevAssembler*,
+                          decltype(detail::CopyForDeferred(
+                              std::declval<MaglevCompilationInfo*>(),
+                              std::declval<Args>()))...>,
+      "Parameters of deferred_code_gen function should match arguments into "
+      "PushDeferredCode");
+
   using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
       compilation_info()->zone()->New<DeferredCodeInfoT>(
@@ -252,11 +319,10 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                                               Args&&... args) {
   DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
       std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     RecordComment("-- Jump to deferred code");
   }
   j(cond, &deferred_code->deferred_code_label);
-  bind(&deferred_code->return_label);
 }
 
 // ---
@@ -265,12 +331,12 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
 
 inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
                                                 DeoptimizeReason reason) {
-  if (deopt_info->reason != DeoptimizeReason::kUnknown) {
-    DCHECK_EQ(deopt_info->reason, reason);
+  if (deopt_info->reason() != DeoptimizeReason::kUnknown) {
+    DCHECK_EQ(deopt_info->reason(), reason);
   }
-  if (deopt_info->deopt_entry_label.is_unused()) {
+  if (deopt_info->deopt_entry_label()->is_unused()) {
     code_gen_state()->PushEagerDeopt(deopt_info);
-    deopt_info->reason = reason;
+    deopt_info->set_reason(reason);
   }
 }
 
@@ -280,7 +346,7 @@ inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
   static_assert(NodeT::kProperties.can_eager_deopt());
   RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  jmp(&node->eager_deopt_info()->deopt_entry_label);
+  jmp(node->eager_deopt_info()->deopt_entry_label());
 }
 
 template <typename NodeT>
@@ -290,7 +356,7 @@ inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
   static_assert(NodeT::kProperties.can_eager_deopt());
   RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  j(cond, &node->eager_deopt_info()->deopt_entry_label);
+  j(cond, node->eager_deopt_info()->deopt_entry_label());
 }
 
 }  // namespace maglev

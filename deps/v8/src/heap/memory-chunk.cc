@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -162,8 +163,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   categories_ = nullptr;
 
-  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(this,
-                                                                        0);
+  heap->non_atomic_marking_state()->SetLiveBytes(this, 0);
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
     if (heap->write_protect_code_memory()) {
@@ -195,7 +195,10 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
+  if (heap->IsShared() || owner()->identity() == SHARED_SPACE ||
+      owner()->identity() == SHARED_LO_SPACE) {
+    SetFlag(MemoryChunk::IN_SHARED_HEAP);
+  }
 
 #ifdef DEBUG
   ValidateOffsets(this);
@@ -233,6 +236,7 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
+  DCHECK(SweepingDone());
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;
@@ -452,6 +456,22 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
          invalidated_slots<type>()->end();
 }
 
+bool MemoryChunk::HasRecordedSlots() const {
+  for (int rs_type = 0; rs_type < NUMBER_OF_REMEMBERED_SET_TYPES; rs_type++) {
+    if (slot_set_[rs_type] || typed_slot_set_[rs_type] ||
+        invalidated_slots_[rs_type]) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool MemoryChunk::HasRecordedOldToNewSlots() const {
+  return slot_set_[OLD_TO_NEW] || typed_slot_set_[OLD_TO_NEW] ||
+         invalidated_slots_[OLD_TO_NEW];
+}
+
 #ifdef DEBUG
 void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   // Note that we cannot use offsetof because MemoryChunk is not a POD.
@@ -492,6 +512,17 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->possibly_empty_buckets_) -
                 chunk->address(),
             MemoryChunkLayout::kPossiblyEmptyBucketsOffset);
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
+                chunk->address(),
+            MemoryChunkLayout::kActiveSystemPagesOffset);
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->object_start_bitmap_) -
+                chunk->address(),
+            MemoryChunkLayout::kObjectStartBitmapOffset);
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  DCHECK_EQ(reinterpret_cast<Address>(&chunk->was_used_for_allocation_) -
+                chunk->address(),
+            MemoryChunkLayout::kWasUsedForAllocationOffset);
 }
 #endif
 

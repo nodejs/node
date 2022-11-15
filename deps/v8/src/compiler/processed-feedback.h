@@ -129,7 +129,7 @@ class ElementAccessFeedback : public ProcessedFeedback {
   // A transition group is a target and a possibly empty set of sources that can
   // transition to the target. It is represented as a non-empty vector with the
   // target at index 0.
-  using TransitionGroup = ZoneVector<Handle<Map>>;
+  using TransitionGroup = ZoneVector<MapRef>;
   ZoneVector<TransitionGroup> const& transition_groups() const;
 
   bool HasOnlyStringMaps(JSHeapBroker* broker) const;

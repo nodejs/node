@@ -7,6 +7,7 @@
 #include "src/base/functional.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/js-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/template-objects-inl.h"
@@ -14,91 +15,113 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+bool CachedTemplateMatches(Isolate* isolate, NativeContext native_context,
+                           JSArray entry, int function_literal_id, int slot_id,
+                           DisallowGarbageCollection& no_gc) {
+  if (native_context.is_js_array_template_literal_object_map(
+          entry.map(isolate))) {
+    TemplateLiteralObject template_object = TemplateLiteralObject::cast(entry);
+    return template_object.function_literal_id() == function_literal_id &&
+           template_object.slot_id() == slot_id;
+  }
+
+  Handle<JSArray> entry_handle(entry, isolate);
+  Smi cached_function_literal_id = Smi::cast(*JSReceiver::GetDataProperty(
+      isolate, entry_handle,
+      isolate->factory()->template_literal_function_literal_id_symbol()));
+  if (cached_function_literal_id.value() != function_literal_id) return false;
+
+  Smi cached_slot_id = Smi::cast(*JSReceiver::GetDataProperty(
+      isolate, entry_handle,
+      isolate->factory()->template_literal_slot_id_symbol()));
+  if (cached_slot_id.value() != slot_id) return false;
+
+  return true;
+}
+}  // namespace
+
 // static
 Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
     Handle<SharedFunctionInfo> shared_info, int slot_id) {
-  uint32_t hash = shared_info->Hash();
+  int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
-  Handle<EphemeronHashTable> template_weakmap;
+  Handle<Script> script(Script::cast(shared_info->script(isolate)), isolate);
+  int32_t hash =
+      EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
+  MaybeHandle<ArrayList> maybe_cached_templates;
 
-  if (native_context->template_weakmap().IsUndefined(isolate)) {
-    template_weakmap = EphemeronHashTable::New(isolate, 1);
-  } else {
+  if (!native_context->template_weakmap().IsUndefined(isolate)) {
     DisallowGarbageCollection no_gc;
+    // The no_gc keeps this safe, and gcmole is confused because
+    // CachedTemplateMatches calls JSReceiver::GetDataProperty.
+    DisableGCMole no_gcmole;
     ReadOnlyRoots roots(isolate);
-    template_weakmap = handle(
-        EphemeronHashTable::cast(native_context->template_weakmap()), isolate);
-    Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
-    while (!maybe_cached_template.IsTheHole(roots)) {
-      CachedTemplateObject cached_template =
-          CachedTemplateObject::cast(maybe_cached_template);
-      if (cached_template.slot_id() == slot_id) {
-        return handle(cached_template.template_object(), isolate);
+    EphemeronHashTable template_weakmap =
+        EphemeronHashTable::cast(native_context->template_weakmap());
+    Object cached_templates_lookup =
+        template_weakmap.Lookup(isolate, script, hash);
+    if (!cached_templates_lookup.IsTheHole(roots)) {
+      ArrayList cached_templates = ArrayList::cast(cached_templates_lookup);
+      maybe_cached_templates = handle(cached_templates, isolate);
+
+      // Linear search over the cached template array list for a template
+      // object matching the given function_literal_id + slot_id.
+      // TODO(leszeks): Consider keeping this list sorted for faster lookup.
+      for (int i = 0; i < cached_templates.Length(); i++) {
+        JSArray template_object = JSArray::cast(cached_templates.Get(i));
+        if (CachedTemplateMatches(isolate, *native_context, template_object,
+                                  function_literal_id, slot_id, no_gc)) {
+          return handle(template_object, isolate);
+        }
       }
-      maybe_cached_template = cached_template.next();
     }
   }
 
   // Create the raw object from the {raw_strings}.
   Handle<FixedArray> raw_strings(description->raw_strings(), isolate);
-  Handle<JSArray> raw_object = isolate->factory()->NewJSArrayWithElements(
-      raw_strings, PACKED_ELEMENTS, raw_strings->length(),
-      AllocationType::kOld);
-
-  // Create the template object from the {cooked_strings}.
   Handle<FixedArray> cooked_strings(description->cooked_strings(), isolate);
-  Handle<JSArray> template_object = isolate->factory()->NewJSArrayWithElements(
-      cooked_strings, PACKED_ELEMENTS, cooked_strings->length(),
-      AllocationType::kOld);
+  Handle<JSArray> template_object =
+      isolate->factory()->NewJSArrayForTemplateLiteralArray(
+          cooked_strings, raw_strings, function_literal_id, slot_id);
 
-  // Freeze the {raw_object}.
-  JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
+  // Insert the template object into the cached template array list.
+  Handle<ArrayList> cached_templates;
+  if (!maybe_cached_templates.ToHandle(&cached_templates)) {
+    cached_templates = isolate->factory()->NewArrayList(1);
+  }
+  cached_templates = ArrayList::Add(isolate, cached_templates, template_object);
 
-  // Install a "raw" data property for {raw_object} on {template_object}.
-  PropertyDescriptor raw_desc;
-  raw_desc.set_value(raw_object);
-  raw_desc.set_configurable(false);
-  raw_desc.set_enumerable(false);
-  raw_desc.set_writable(false);
-  JSArray::DefineOwnProperty(isolate, template_object,
-                             isolate->factory()->raw_string(), &raw_desc,
-                             Just(kThrowOnError))
-      .ToChecked();
+  // Compare the cached_templates to the original maybe_cached_templates loaded
+  // from the weakmap -- if it doesn't match, we need to update the weakmap.
+  Handle<ArrayList> old_cached_templates;
+  if (!maybe_cached_templates.ToHandle(&old_cached_templates) ||
+      *old_cached_templates != *cached_templates) {
+    HeapObject maybe_template_weakmap = native_context->template_weakmap();
+    Handle<EphemeronHashTable> template_weakmap;
+    if (maybe_template_weakmap.IsUndefined()) {
+      template_weakmap = EphemeronHashTable::New(isolate, 1);
+    } else {
+      template_weakmap =
+          handle(EphemeronHashTable::cast(maybe_template_weakmap), isolate);
+    }
+    template_weakmap = EphemeronHashTable::Put(isolate, template_weakmap,
+                                               script, cached_templates, hash);
+    native_context->set_template_weakmap(*template_weakmap);
+  }
 
-  // Freeze the {template_object} as well.
-  JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
-      .ToChecked();
-
-  // Insert the template object into the template weakmap.
-  Handle<HeapObject> previous_cached_templates = handle(
-      HeapObject::cast(template_weakmap->Lookup(shared_info, hash)), isolate);
-  Handle<CachedTemplateObject> cached_template = CachedTemplateObject::New(
-      isolate, slot_id, template_object, previous_cached_templates);
-  template_weakmap = EphemeronHashTable::Put(
-      isolate, template_weakmap, shared_info, cached_template, hash);
-  native_context->set_template_weakmap(*template_weakmap);
+  // Check that the list is in the appropriate location on the weakmap, and
+  // that the appropriate entry is in the right location in this list.
+  DCHECK_EQ(EphemeronHashTable::cast(native_context->template_weakmap())
+                .Lookup(isolate, script, hash),
+            *cached_templates);
+  DCHECK_EQ(cached_templates->Get(cached_templates->Length() - 1),
+            *template_object);
 
   return template_object;
-}
-
-Handle<CachedTemplateObject> CachedTemplateObject::New(
-    Isolate* isolate, int slot_id, Handle<JSArray> template_object,
-    Handle<HeapObject> next) {
-  DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
-  Handle<CachedTemplateObject> result_handle =
-      Handle<CachedTemplateObject>::cast(isolate->factory()->NewStruct(
-          CACHED_TEMPLATE_OBJECT_TYPE, AllocationType::kOld));
-  {
-    DisallowGarbageCollection no_gc;
-    auto result = *result_handle;
-    result.set_slot_id(slot_id);
-    result.set_template_object(*template_object);
-    result.set_next(*next);
-  }
-  return result_handle;
 }
 
 }  // namespace internal

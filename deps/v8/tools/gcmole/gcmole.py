@@ -222,56 +222,40 @@ def invoke_clang_plugin_for_each_file(filenames, plugin, plugin_args, options):
 # -----------------------------------------------------------------------------
 
 
-def parse_gn_file(options, for_test):
+def build_file_list(options, for_test):
+  """Calculates the list of source files to be checked with gcmole.
+
+  The list comprises all files from marked source sections in the
+  listed BUILD.gn files. All files preceeded by the following comment and
+  until the end of the source section are used:
+  ### gcmole(arch) ###
+  Where arch can either be all (all architectures) or one of the supported V8
+  architectures.
+
+  The structure of these directives is also checked by presubmit via:
+  tools/v8_presubmit.py::GCMoleProcessor.
+
+  Returns: List of file paths (of type Path).
+  """
   if for_test:
-    return {"all": [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]}
-  result = {}
+    return [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]
+  result = []
   gn_files = [
       ("BUILD.gn", re.compile('"([^"]*?\.cc)"'), ""),
       ("test/cctest/BUILD.gn", re.compile('"(test-[^"]*?\.cc)"'),
        Path("test/cctest/")),
   ]
-  for filename, pattern, prefix in gn_files:
+  gn_re = re.compile(f"### gcmole\((all|{options.v8_target_cpu})\) ###(.*?)\]",
+                     re.MULTILINE | re.DOTALL)
+  for filename, file_pattern, prefix in gn_files:
     path = options.v8_root_dir / filename
     with open(path) as gn_file:
       gn = gn_file.read()
-      for condition, sources in re.findall("### gcmole\((.*?)\) ###(.*?)\]", gn,
-                                           re.MULTILINE | re.DOTALL):
-        if condition not in result:
-          result[condition] = []
-        for file in pattern.findall(sources):
-          result[condition].append(options.v8_root_dir / prefix / file)
+      for _, sources in gn_re.findall(gn):
+        for file in file_pattern.findall(sources):
+          result.append(options.v8_root_dir / prefix / file)
 
   return result
-
-
-def evaluate_condition(cond, props):
-  if cond == "all":
-    return True
-
-  m = re.match("(\w+):(\w+)", cond)
-  if m is None:
-    fatal("failed to parse condition: {}", cond)
-  p, v = m.groups()
-  if p not in props:
-    fatal("undefined configuration property: {}", p)
-
-  return props[p] == v
-
-
-def build_file_list(options, for_test):
-  sources = parse_gn_file(options, for_test)
-  props = {
-      "os": "linux",
-      "arch": options.v8_target_cpu,
-      "mode": "debug",
-      "simulator": ""
-  }
-  ret = []
-  for condition, files in list(sources.items()):
-    if evaluate_condition(condition, props):
-      ret += files
-  return ret
 
 
 # -----------------------------------------------------------------------------

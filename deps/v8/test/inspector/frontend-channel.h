@@ -55,11 +55,11 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
 
    private:
     void Run(InspectorIsolateData* data) override {
-      v8::MicrotasksScope microtasks_scope(data->isolate(),
-                                           v8::MicrotasksScope::kRunMicrotasks);
       v8::HandleScope handle_scope(data->isolate());
       v8::Local<v8::Context> context =
           data->GetDefaultContext(channel_->context_group_id_);
+      v8::MicrotasksScope microtasks_scope(context,
+                                           v8::MicrotasksScope::kRunMicrotasks);
       v8::Context::Scope context_scope(context);
       v8::Local<v8::Value> message = ToV8String(data->isolate(), message_);
       v8::MaybeLocal<v8::Value> result;

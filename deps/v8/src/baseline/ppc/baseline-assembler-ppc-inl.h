@@ -8,6 +8,7 @@
 #include "src/baseline/baseline-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
+#include "src/codegen/ppc/register-ppc.h"
 #include "src/objects/literal-objects-inl.h"
 
 namespace v8 {
@@ -596,6 +597,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                                        uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -605,6 +607,7 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
 
 void BaselineAssembler::StaContextSlot(Register context, Register value,
                                        uint32_t index, uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -614,6 +617,7 @@ void BaselineAssembler::StaContextSlot(Register context, Register value,
 
 void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
                                           uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -636,6 +640,7 @@ void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
                                           int cell_index, uint32_t depth) {
+  ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedPointerField(context, context, Context::kPreviousOffset);
   }
@@ -650,6 +655,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+  ASM_CODE_COMMENT(masm_);
   if (rhs.value() == 0) return;
   __ LoadSmiLiteral(r0, rhs);
   if (SmiValuesAre31Bits()) {

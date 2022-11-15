@@ -55,7 +55,7 @@ class GrowingSidetable {
 
   // Returns `true` if the table never contained any values, even before
   // `Reset()`.
-  bool empty() { return table_.empty(); }
+  bool empty() const { return table_.empty(); }
 
  private:
   mutable ZoneVector<T> table_;

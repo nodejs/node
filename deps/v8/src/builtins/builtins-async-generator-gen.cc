@@ -602,7 +602,7 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
                      TrueConstant()));
 }
 
-TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
+TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
   const auto value = Parameter<Object>(Descriptor::kValue);
   const auto is_caught = Parameter<Oddball>(Descriptor::kIsCaught);
@@ -614,13 +614,14 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
       LoadPromiseFromAsyncGeneratorRequest(request);
 
   Await(context, generator, value, outer_promise,
-        AsyncGeneratorYieldResolveSharedFunConstant(),
+        AsyncGeneratorYieldWithAwaitResolveSharedFunConstant(),
         AsyncGeneratorAwaitRejectSharedFunConstant(), is_caught);
   SetGeneratorAwaiting(generator);
   Return(UndefinedConstant());
 }
 
-TF_BUILTIN(AsyncGeneratorYieldResolveClosure, AsyncGeneratorBuiltinsAssembler) {
+TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
+           AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
   const auto value = Parameter<Object>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =

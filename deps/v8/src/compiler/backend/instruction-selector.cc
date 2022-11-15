@@ -12,14 +12,12 @@
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/deoptimizer/deoptimizer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -1291,6 +1289,10 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
+      // TODO(nicohartmann@): Once all branches have explicitly specified
+      // semantics, we should allow only BranchSemantics::kMachine here.
+      DCHECK_NE(BranchSemantics::kJS,
+                BranchParametersOf(input->op()).semantics());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
       if (tbranch == fbranch) {
@@ -1566,6 +1568,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitInt32MulWithOverflow(node);
     case IrOpcode::kInt32MulHigh:
       return VisitInt32MulHigh(node);
+    case IrOpcode::kInt64MulHigh:
+      return VisitInt64MulHigh(node);
     case IrOpcode::kInt32Div:
       return MarkAsWord32(node), VisitInt32Div(node);
     case IrOpcode::kInt32Mod:
@@ -1584,6 +1588,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitUint32Mod(node);
     case IrOpcode::kUint32MulHigh:
       return VisitUint32MulHigh(node);
+    case IrOpcode::kUint64MulHigh:
+      return VisitUint64MulHigh(node);
     case IrOpcode::kInt64Add:
       return MarkAsWord64(node), VisitInt64Add(node);
     case IrOpcode::kInt64AddWithOverflow:
@@ -1594,6 +1600,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitInt64SubWithOverflow(node);
     case IrOpcode::kInt64Mul:
       return MarkAsWord64(node), VisitInt64Mul(node);
+    case IrOpcode::kInt64MulWithOverflow:
+      return MarkAsWord64(node), VisitInt64MulWithOverflow(node);
     case IrOpcode::kInt64Div:
       return MarkAsWord64(node), VisitInt64Div(node);
     case IrOpcode::kInt64Mod:
@@ -2570,6 +2578,14 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt64LessThan(Node* node) { UNIMPLEMENTED(); }
@@ -2887,6 +2903,7 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kInt32MulWithOverflow:
     case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64SubWithOverflow:
+    case IrOpcode::kInt64MulWithOverflow:
     case IrOpcode::kTryTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTryTruncateFloat32ToUint64:
@@ -3137,14 +3154,12 @@ void InstructionSelector::VisitSelect(Node* node) {
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->InputAt(1));
+  FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kEqual, trap_id, node->InputAt(1));
+  FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

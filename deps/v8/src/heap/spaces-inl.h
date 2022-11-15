@@ -103,10 +103,6 @@ OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
       state_(kOldSpaceState),
       old_iterator_(heap->old_space()->begin()),
       code_iterator_(heap->code_space()->begin()),
-      map_iterator_(heap->map_space() ? heap->map_space()->begin()
-                                      : PageRange::iterator(nullptr)),
-      map_iterator_end_(heap->map_space() ? heap->map_space()->end()
-                                          : PageRange::iterator(nullptr)),
       lo_iterator_(heap->lo_space()->begin()),
       code_lo_iterator_(heap->code_lo_space()->begin()) {}
 
@@ -114,11 +110,6 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
       if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
-      state_ = kMapState;
-      V8_FALLTHROUGH;
-    }
-    case kMapState: {
-      if (map_iterator_ != map_iterator_end_) return *(map_iterator_++);
       state_ = kCodeState;
       V8_FALLTHROUGH;
     }
@@ -149,6 +140,7 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
 
 AllocationResult LocalAllocationBuffer::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
   int aligned_size = filler_size + size_in_bytes;
@@ -164,6 +156,7 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
 
 AllocationResult LocalAllocationBuffer::AllocateRawUnaligned(
     int size_in_bytes) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   return allocation_info_.CanIncrementTop(size_in_bytes)
              ? AllocationResult::FromObject(HeapObject::FromAddress(
                    allocation_info_.IncrementTop(size_in_bytes)))
@@ -214,6 +207,7 @@ MemoryChunk* MemoryChunkIterator::Next() {
 
 AllocationResult SpaceWithLinearArea::AllocateFastUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   if (!allocation_info_.CanIncrementTop(size_in_bytes)) {
     return AllocationResult::Failure();
   }
@@ -253,6 +247,7 @@ AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
   DCHECK(!v8_flags.enable_third_party_heap);
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
   AllocationResult result;
 

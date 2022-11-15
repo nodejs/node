@@ -31,7 +31,7 @@ function handlePause(msg) {
   const url = session.getCallFrameUrl(top_frame);
   InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
   InspectorTest.log(
-      `Hit breakpoints: ${JSON.stringify(msg.params.hitBreakpoints)}`)
+      `Hit breakpoints: ${JSON.stringify(msg.params.hitBreakpoints)}`);
   return Protocol.Debugger.resume();
 };
 

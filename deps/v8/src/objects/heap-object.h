@@ -48,6 +48,10 @@ class HeapObject : public Object {
   inline void set_map_no_write_barrier(Map value,
                                        RelaxedStoreTag = kRelaxedStore);
   inline void set_map_no_write_barrier(Map value, ReleaseStoreTag);
+  inline void set_map_safe_transition_no_write_barrier(
+      Map value, RelaxedStoreTag = kRelaxedStore);
+  inline void set_map_safe_transition_no_write_barrier(Map value,
+                                                       ReleaseStoreTag);
 
   // Access the map using acquire load and release store.
   DECL_ACQUIRE_GETTER(map, Map)

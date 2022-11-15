@@ -238,8 +238,8 @@ ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
                    kIndirectFunctionTableRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_internal_functions, FixedArray,
-                   kWasmInternalFunctionsOffset)
+ACCESSORS(WasmInstanceObject, wasm_internal_functions, FixedArray,
+          kWasmInternalFunctionsOffset)
 ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
           kManagedObjectMapsOffset)
 ACCESSORS(WasmInstanceObject, feedback_vectors, FixedArray,

@@ -1121,6 +1121,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I16x8Eq)               \
   V(I16x8GtS)              \
   V(I16x8GtU)              \
+  V(I16x8AddSatS)          \
+  V(I16x8SubSatS)          \
+  V(I16x8AddSatU)          \
+  V(I16x8SubSatU)          \
+  V(I16x8SConvertI32x4)    \
+  V(I16x8UConvertI32x4)    \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -1129,13 +1135,142 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I8x16MaxU)             \
   V(I8x16Eq)               \
   V(I8x16GtS)              \
-  V(I8x16GtU)
+  V(I8x16GtU)              \
+  V(I8x16AddSatS)          \
+  V(I8x16SubSatS)          \
+  V(I8x16AddSatU)          \
+  V(I8x16SubSatU)          \
+  V(I8x16SConvertI16x8)    \
+  V(I8x16UConvertI16x8)    \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)               \
+  V(S128AndNot)
 
 #define PROTOTYPE_SIMD_BINOP(name) \
   void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
   SIMD_BINOP_LIST(PROTOTYPE_SIMD_BINOP)
 #undef PROTOTYPE_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_BINOP_WITH_SCRATCH_LIST(V) \
+  V(F64x2Ne)                            \
+  V(F64x2Pmin)                          \
+  V(F64x2Pmax)                          \
+  V(F32x4Ne)                            \
+  V(F32x4Pmin)                          \
+  V(F32x4Pmax)                          \
+  V(I64x2Ne)                            \
+  V(I64x2GeS)                           \
+  V(I64x2ExtMulLowI32x4S)               \
+  V(I64x2ExtMulHighI32x4S)              \
+  V(I64x2ExtMulLowI32x4U)               \
+  V(I64x2ExtMulHighI32x4U)              \
+  V(I32x4Ne)                            \
+  V(I32x4GeS)                           \
+  V(I32x4GeU)                           \
+  V(I32x4ExtMulLowI16x8S)               \
+  V(I32x4ExtMulHighI16x8S)              \
+  V(I32x4ExtMulLowI16x8U)               \
+  V(I32x4ExtMulHighI16x8U)              \
+  V(I16x8Ne)                            \
+  V(I16x8GeS)                           \
+  V(I16x8GeU)                           \
+  V(I16x8ExtMulLowI8x16S)               \
+  V(I16x8ExtMulHighI8x16S)              \
+  V(I16x8ExtMulLowI8x16U)               \
+  V(I16x8ExtMulHighI8x16U)              \
+  V(I8x16Ne)                            \
+  V(I8x16GeS)                           \
+  V(I8x16GeU)
+
+#define PROTOTYPE_SIMD_BINOP_WITH_SCRATCH(name)                              \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \
+            Simd128Register scratch);
+  SIMD_BINOP_WITH_SCRATCH_LIST(PROTOTYPE_SIMD_BINOP_WITH_SCRATCH)
+#undef PROTOTYPE_SIMD_BINOP_WITH_SCRATCH
+#undef SIMD_BINOP_WITH_SCRATCH_LIST
+
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)
+
+#define PROTOTYPE_SIMD_SHIFT(name)                                          \
+  void name(Simd128Register dst, Simd128Register src1, Register src2,       \
+            Simd128Register scratch);                                       \
+  void name(Simd128Register dst, Simd128Register src1, const Operand& src2, \
+            Register scratch1, Simd128Register scratch2);
+  SIMD_SHIFT_LIST(PROTOTYPE_SIMD_SHIFT)
+#undef PROTOTYPE_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
+#define SIMD_UNOP_LIST(V)   \
+  V(F64x2Abs)               \
+  V(F64x2Neg)               \
+  V(F64x2Sqrt)              \
+  V(F64x2Ceil)              \
+  V(F64x2Floor)             \
+  V(F64x2Trunc)             \
+  V(F32x4Abs)               \
+  V(F32x4Neg)               \
+  V(F32x4Sqrt)              \
+  V(F32x4Ceil)              \
+  V(F32x4Floor)             \
+  V(F32x4Trunc)             \
+  V(I64x2Neg)               \
+  V(F64x2ConvertLowI32x4S)  \
+  V(I64x2SConvertI32x4Low)  \
+  V(I64x2SConvertI32x4High) \
+  V(I32x4Neg)               \
+  V(I32x4SConvertI16x8Low)  \
+  V(I32x4SConvertI16x8High) \
+  V(I16x8SConvertI8x16Low)  \
+  V(I16x8SConvertI8x16High) \
+  V(I8x16Popcnt)            \
+  V(S128Not)
+
+#define PROTOTYPE_SIMD_UNOP(name) \
+  void name(Simd128Register dst, Simd128Register src);
+  SIMD_UNOP_LIST(PROTOTYPE_SIMD_UNOP)
+#undef PROTOTYPE_SIMD_UNOP
+#undef SIMD_UNOP_LIST
+
+#define SIMD_UNOP_WITH_SCRATCH_LIST(V) \
+  V(I64x2Abs)                          \
+  V(I32x4Abs)                          \
+  V(I16x8Abs)                          \
+  V(I16x8Neg)                          \
+  V(I8x16Abs)                          \
+  V(I8x16Neg)
+
+#define PROTOTYPE_SIMD_UNOP_WITH_SCRATCH(name) \
+  void name(Simd128Register dst, Simd128Register src, Simd128Register scratch);
+  SIMD_UNOP_WITH_SCRATCH_LIST(PROTOTYPE_SIMD_UNOP_WITH_SCRATCH)
+#undef PROTOTYPE_SIMD_UNOP_WITH_SCRATCH
+#undef SIMD_UNOP_WITH_SCRATCH_LIST
+
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue)             \
+  V(I32x4AllTrue)             \
+  V(I16x8AllTrue)             \
+  V(I8x16AllTrue)
+
+#define PROTOTYPE_SIMD_ALL_TRUE(name)                             \
+  void name(Register dst, Simd128Register src, Register scratch1, \
+            Register scratch2, Simd128Register scratch3);
+  SIMD_ALL_TRUE_LIST(PROTOTYPE_SIMD_ALL_TRUE)
+#undef PROTOTYPE_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
 
   void LoadSimd128(Simd128Register dst, const MemOperand& mem,
                    Register scratch);
@@ -1196,32 +1331,22 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                 Simd128Register scratch1, Simd128Register scratch2);
   void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
                 Simd128Register scratch1, Simd128Register scratch2);
-  void F64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void F32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I64x2Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I64x2GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I32x4Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I32x4GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I32x4GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I16x8Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I16x8GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I16x8GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I8x16Ne(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-               Simd128Register scratch);
-  void I8x16GeS(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
-  void I8x16GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
-                Simd128Register scratch);
+  void F64x2ConvertLowI32x4U(Simd128Register dst, Simd128Register src,
+                             Register scratch1, Simd128Register scratch2);
+  void I64x2UConvertI32x4Low(Simd128Register dst, Simd128Register src,
+                             Register scratch1, Simd128Register scratch2);
+  void I64x2UConvertI32x4High(Simd128Register dst, Simd128Register src,
+                              Register scratch1, Simd128Register scratch2);
+  void I32x4UConvertI16x8Low(Simd128Register dst, Simd128Register src,
+                             Register scratch1, Simd128Register scratch2);
+  void I32x4UConvertI16x8High(Simd128Register dst, Simd128Register src,
+                              Register scratch1, Simd128Register scratch2);
+  void I16x8UConvertI8x16Low(Simd128Register dst, Simd128Register src,
+                             Register scratch1, Simd128Register scratch2);
+  void I16x8UConvertI8x16High(Simd128Register dst, Simd128Register src,
+                              Register scratch1, Simd128Register scratch2);
+  void V128AnyTrue(Register dst, Simd128Register src, Register scratch1,
+                   Register scratch2, Simd128Register scratch3);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1404,8 +1529,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

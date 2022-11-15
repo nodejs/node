@@ -44,7 +44,9 @@ class Utf16CharacterStream {
   virtual ~Utf16CharacterStream() = default;
 
   V8_INLINE void set_parser_error() {
-    buffer_cursor_ = buffer_end_;
+    // source_pos() returns one previous position of the cursor.
+    // Offset 1 cancels this out and makes it return exactly buffer_end_.
+    buffer_cursor_ = buffer_end_ + 1;
     has_parser_error_ = true;
   }
   V8_INLINE void reset_parser_error_flag() { has_parser_error_ = false; }
@@ -245,7 +247,9 @@ class V8_EXPORT_PRIVATE Scanner {
     if (!has_parser_error()) {
       c0_ = kEndOfInput;
       source_->set_parser_error();
-      for (TokenDesc& desc : token_storage_) desc.token = Token::ILLEGAL;
+      for (TokenDesc& desc : token_storage_) {
+        if (desc.token != Token::UNINITIALIZED) desc.token = Token::ILLEGAL;
+      }
     }
   }
   V8_INLINE void reset_parser_error_flag() {

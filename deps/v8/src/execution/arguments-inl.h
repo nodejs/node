@@ -48,6 +48,14 @@ double Arguments<T>::number_value_at(int index) const {
   return (*this)[index].Number();
 }
 
+template <ArgumentsType T>
+Handle<Object> Arguments<T>::atOrUndefined(Isolate* isolate, int index) const {
+  if (index >= length_) {
+    return Handle<Object>::cast(isolate->factory()->undefined_value());
+  }
+  return at<Object>(index);
+}
+
 }  // namespace internal
 }  // namespace v8
 

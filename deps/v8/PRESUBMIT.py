@@ -85,6 +85,7 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from v8_presubmit import CppLintProcessor
+  from v8_presubmit import GCMoleProcessor
   from v8_presubmit import JSLintProcessor
   from v8_presubmit import TorqueLintProcessor
   from v8_presubmit import SourceProcessor
@@ -126,6 +127,9 @@ def _V8PresubmitChecks(input_api, output_api):
   if not StatusFilesProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=True)):
     results.append(output_api.PresubmitError("Status file check failed"))
+  if not GCMoleProcessor().RunOnFiles(
+      input_api.AffectedFiles(include_deletes=False)):
+    results.append(output_api.PresubmitError("GCMole pattern check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
       input_api, output_api, bot_allowlist=[
         'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com'

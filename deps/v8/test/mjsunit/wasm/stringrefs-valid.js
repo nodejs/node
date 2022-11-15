@@ -421,3 +421,7 @@ assertInvalid(
       ]);
   },
   /string.encode_wtf16_array\[1\] expected array of mutable i16, found local.get of type \(ref 0\)/);
+
+assertInvalid(builder => {
+  builder.addFunction(undefined, kSig_v_v).addBody([...GCInstr(0x790)]);
+}, /invalid stringref opcode: fb790/);

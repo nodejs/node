@@ -317,7 +317,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
       layout_desc.handler_table_offset =
           raw_data_size + static_cast<uint32_t>(code.handler_table_offset());
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
       layout_desc.constant_pool_offset =
           raw_data_size + static_cast<uint32_t>(code.constant_pool_offset());
 #endif

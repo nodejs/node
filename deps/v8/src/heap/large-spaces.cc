@@ -11,6 +11,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/list.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -132,6 +133,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
                                                   Executability executable) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
@@ -150,11 +152,10 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
       heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
   if (heap()->incremental_marking()->black_allocation()) {
-    heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
+    heap()->marking_state()->WhiteToBlack(object);
   }
-  DCHECK_IMPLIES(
-      heap()->incremental_marking()->black_allocation(),
-      heap()->incremental_marking()->marking_state()->IsBlack(object));
+  DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
+                 heap()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion(identity(), page);
   AdvanceAndInvokeAllocationObservers(object.address(),
@@ -169,6 +170,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
 
 AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size, Executability executable) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
@@ -183,11 +185,10 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   HeapObject object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
   if (heap()->incremental_marking()->black_allocation()) {
-    heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
+    heap()->marking_state()->WhiteToBlack(object);
   }
-  DCHECK_IMPLIES(
-      heap()->incremental_marking()->black_allocation(),
-      heap()->incremental_marking()->marking_state()->IsBlack(object));
+  DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
+                 heap()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
   if (identity() == CODE_LO_SPACE) {
     heap()->isolate()->AddCodeMemoryChunk(page);
@@ -273,6 +274,7 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
 }
+
 void LargeObjectSpace::RemovePage(LargePage* page) {
   size_ -= static_cast<int>(page->size());
   AccountUncommitted(page->size());
@@ -372,7 +374,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     Map map = object.map(cage_base);
     CHECK(map.IsMap(cage_base));
     CHECK(ReadOnlyHeap::Contains(map) ||
-          isolate->heap()->space_for_maps()->Contains(map));
+          isolate->heap()->old_space()->Contains(map));
 
     // We have only the following types in the large object space:
     const bool is_valid_lo_space_object =                         //
@@ -478,6 +480,7 @@ NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
       capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   // Do not allocate more objects if promoting the existing object would exceed
   // the old generation capacity.
@@ -501,10 +504,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_mc) {
-    heap()
-        ->minor_mark_compact_collector()
-        ->non_atomic_marking_state()
-        ->ClearLiveness(page);
+    heap()->non_atomic_marking_state()->ClearLiveness(page);
   }
   page->InitializationMemoryFence();
   DCHECK(page->IsLargePage());
@@ -580,6 +580,16 @@ void CodeLargeObjectSpace::RemovePage(LargePage* page) {
   RemoveChunkMapEntries(page);
   heap()->isolate()->RemoveCodeMemoryChunk(page);
   OldLargeObjectSpace::RemovePage(page);
+}
+
+SharedLargeObjectSpace::SharedLargeObjectSpace(Heap* heap)
+    : OldLargeObjectSpace(heap, SHARED_LO_SPACE) {}
+
+AllocationResult SharedLargeObjectSpace::AllocateRawBackground(
+    LocalHeap* local_heap, int object_size) {
+  DCHECK(!v8_flags.enable_third_party_heap);
+  return OldLargeObjectSpace::AllocateRawBackground(local_heap, object_size,
+                                                    NOT_EXECUTABLE);
 }
 
 }  // namespace internal

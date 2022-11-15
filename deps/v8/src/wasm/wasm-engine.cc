@@ -23,6 +23,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/pgo.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-debug.h"
@@ -461,7 +462,7 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              const ModuleWireBytes& bytes,
+                              ModuleWireBytes bytes,
                               std::string* error_message) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
@@ -481,7 +482,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
     base::Vector<const byte> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -510,14 +511,13 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
-  Handle<FixedArray> export_wrappers;
+  constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, &export_wrappers, compilation_id, context_id);
+      bytes, compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
-  return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
-                          uses_bitset);
+  return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
 }
 
 Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
@@ -525,16 +525,14 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Handle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
       asm_wasm_data->managed_native_module().get();
-  Handle<FixedArray> export_wrappers =
-      handle(asm_wasm_data->export_wrappers(), isolate);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script);
   return module_object;
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    const ModuleWireBytes& bytes) {
+    ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -553,16 +551,16 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // If experimental PGO via files is enabled, load profile information now.
-  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_from_file)) {
-    LoadProfileFromFile(module.get(), bytes.module_bytes());
+  std::unique_ptr<ProfileInformation> pgo_info;
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+    pgo_info = LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
-  Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
-                            &export_wrappers, compilation_id, context_id);
+                            compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -586,8 +584,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -640,9 +638,8 @@ void WasmEngine::AsyncInstantiate(
 
 void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::shared_ptr<CompilationResultResolver> resolver,
-    const ModuleWireBytes& bytes, bool is_shared,
-    const char* api_method_name_for_errors) {
+    std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
+    bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
   if (!v8_flags.wasm_async_compilation) {
@@ -870,10 +867,8 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   Handle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
-  Handle<FixedArray> export_wrappers;
-  CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(shared_native_module), script);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -1024,6 +1019,14 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
+#if defined(V8_COMPRESS_POINTERS)
+  // The null value is not accessible on mksnapshot runs.
+  if (isolate->snapshot_available()) {
+    null_tagged_compressed_ = V8HeapCompressionScheme::CompressTagged(
+        isolate->factory()->null_value()->ptr());
+  }
+#endif
+
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
@@ -1089,37 +1092,55 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
 void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   if (code_vec.empty()) return;
-  base::MutexGuard guard(&mutex_);
-  NativeModule* native_module = code_vec[0]->native_module();
-  DCHECK_EQ(1, native_modules_.count(native_module));
-  for (Isolate* isolate : native_modules_[native_module]->isolates) {
-    DCHECK_EQ(1, isolates_.count(isolate));
-    IsolateInfo* info = isolates_[isolate].get();
-    if (info->log_codes == false) continue;
-    if (info->log_codes_task == nullptr) {
-      auto new_task = std::make_unique<LogCodesTask>(
-          &mutex_, &info->log_codes_task, isolate, this);
-      info->log_codes_task = new_task.get();
-      info->foreground_task_runner->PostTask(std::move(new_task));
-    }
-    if (info->code_to_log.empty()) {
-      isolate->stack_guard()->RequestLogWasmCode();
-    }
-    for (WasmCode* code : code_vec) {
-      DCHECK_EQ(native_module, code->native_module());
-      code->IncRef();
-    }
+  using TaskToSchedule =
+      std::pair<std::shared_ptr<v8::TaskRunner>, std::unique_ptr<LogCodesTask>>;
+  std::vector<TaskToSchedule> to_schedule;
+  {
+    base::MutexGuard guard(&mutex_);
+    NativeModule* native_module = code_vec[0]->native_module();
+    DCHECK_EQ(1, native_modules_.count(native_module));
+    for (Isolate* isolate : native_modules_[native_module]->isolates) {
+      DCHECK_EQ(1, isolates_.count(isolate));
+      IsolateInfo* info = isolates_[isolate].get();
+      if (info->log_codes == false) continue;
+      if (info->log_codes_task == nullptr) {
+        auto new_task = std::make_unique<LogCodesTask>(
+            &mutex_, &info->log_codes_task, isolate, this);
+        info->log_codes_task = new_task.get();
+        // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
+        // Posting the task in the mutex can cause the following deadlock (only
+        // in d8): When d8 shuts down, it sets a terminate to the task runner.
+        // When the terminate flag in the taskrunner is set, all newly posted
+        // tasks get destroyed immediately. When the LogCodesTask gets
+        // destroyed, it takes the WasmEngine::mutex_ lock to deregister itself
+        // from the IsolateInfo. Therefore, as the LogCodesTask may get
+        // destroyed immediately when it gets posted, it cannot get posted when
+        // the WasmEngine::mutex_ lock is held.
+        to_schedule.emplace_back(info->foreground_task_runner,
+                                 std::move(new_task));
+      }
+      if (info->code_to_log.empty()) {
+        isolate->stack_guard()->RequestLogWasmCode();
+      }
+      for (WasmCode* code : code_vec) {
+        DCHECK_EQ(native_module, code->native_module());
+        code->IncRef();
+      }
 
-    auto script_it = info->scripts.find(native_module);
-    // If the script does not yet exist, logging will happen later. If the weak
-    // handle is cleared already, we also don't need to log any more.
-    if (script_it == info->scripts.end()) continue;
-    auto& log_entry = info->code_to_log[script_it->second.script_id()];
-    if (!log_entry.source_url) {
-      log_entry.source_url = script_it->second.source_url();
+      auto script_it = info->scripts.find(native_module);
+      // If the script does not yet exist, logging will happen later. If the
+      // weak handle is cleared already, we also don't need to log any more.
+      if (script_it == info->scripts.end()) continue;
+      auto& log_entry = info->code_to_log[script_it->second.script_id()];
+      if (!log_entry.source_url) {
+        log_entry.source_url = script_it->second.source_url();
+      }
+      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
+                            code_vec.end());
     }
-    log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                          code_vec.end());
+  }
+  for (auto& [runner, task] : to_schedule) {
+    runner->PostTask(std::move(task));
   }
 }
 

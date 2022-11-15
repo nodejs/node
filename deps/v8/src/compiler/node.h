@@ -98,6 +98,7 @@ class V8_EXPORT_PRIVATE Node final {
   void EnsureInputCount(Zone* zone, int new_input_count);
 
   int UseCount() const;
+  int BranchUseCount() const;
   void ReplaceUses(Node* replace_to);
 
   class InputEdges;
@@ -693,6 +694,13 @@ Node::Uses::const_iterator Node::Uses::begin() const {
 
 
 Node::Uses::const_iterator Node::Uses::end() const { return const_iterator(); }
+
+inline Node::Uses::const_iterator begin(const Node::Uses& uses) {
+  return uses.begin();
+}
+inline Node::Uses::const_iterator end(const Node::Uses& uses) {
+  return uses.end();
+}
 
 }  // namespace compiler
 }  // namespace internal

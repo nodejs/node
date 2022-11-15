@@ -522,7 +522,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
         CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
         int32_t byte_length = static_cast<int32_t>(byte_length_size);
         Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-        if (buffer.is_resizable()) {
+        if (buffer.is_resizable_by_js()) {
           CHECK_LE(buffer.max_byte_length(),
                    std::numeric_limits<int32_t>::max());
           max_byte_length =
@@ -558,7 +558,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
     int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
     Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-    if (buffer.is_resizable()) {
+    if (buffer.is_resizable_by_js()) {
       CHECK_LE(buffer.max_byte_length(), std::numeric_limits<int32_t>::max());
       max_byte_length = Just(static_cast<int32_t>(buffer.max_byte_length()));
     }
@@ -760,8 +760,6 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       return SnapshotSpace::kCode;
     } else if (ReadOnlyHeap::Contains(object)) {
       return SnapshotSpace::kReadOnlyHeap;
-    } else if (object.IsMap()) {
-      return SnapshotSpace::kMap;
     } else {
       return SnapshotSpace::kOld;
     }
@@ -783,11 +781,13 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       // detail and isn't relevant to the snapshot.
       case NEW_LO_SPACE:
       case LO_SPACE:
+      // Shared objects are currently encoded as 'old' snapshot objects. This
+      // basically duplicates shared heap objects for each isolate again.
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
         return SnapshotSpace::kOld;
       case CODE_SPACE:
         return SnapshotSpace::kCode;
-      case MAP_SPACE:
-        return SnapshotSpace::kMap;
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
@@ -1037,7 +1037,6 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 
   void VisitExternalReference(Code host, RelocInfo* rinfo) {}
   void VisitInternalReference(Code host, RelocInfo* rinfo) {}
-  void VisitRuntimeEntry(Code host, RelocInfo* reloc) { UNREACHABLE(); }
   void VisitOffHeapTarget(Code host, RelocInfo* target) {}
 
   int num_serialized_objects() const { return num_serialized_objects_; }
@@ -1122,12 +1121,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         (V8_EXTERNAL_CODE_SPACE_BOOL &&
          InstanceTypeChecker::IsCodeDataContainer(instance_type)));
   }
-}
-
-void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
-                                                     RelocInfo* rinfo) {
-  // We no longer serialize code that contains runtime entries.
-  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
@@ -1233,16 +1226,13 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sizeof(field_value), field_value);
     } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                object_->IsCodeDataContainer(cage_base)) {
-      // code_cage_base and code_entry_point fields contain raw values that
-      // will be recomputed after deserialization, so write zeros to keep the
-      // snapshot deterministic.
-      CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
-               CodeDataContainer::kCodeEntryPointOffset);
-      static byte field_value[kTaggedSize + kSystemPointerSize] = {0};
-      OutputRawWithCustomField(
-          sink_, object_start, base, bytes_to_output,
-          CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
-          sizeof(field_value), field_value);
+      // code_entry_point field contains a raw value that will be recomputed
+      // after deserialization, so write zeros to keep the snapshot
+      // deterministic.
+      static byte field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               CodeDataContainer::kCodeEntryPointOffset,
+                               sizeof(field_value), field_value);
     } else if (object_->IsSeqString()) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.
@@ -1268,8 +1258,7 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
   DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
   Handle<Code> on_heap_code = Handle<Code>::cast(object_);

@@ -63,7 +63,7 @@ int V8Regex::match(const String16& string, int startFrom,
     return -1;
   }
   v8::Context::Scope contextScope(context);
-  v8::MicrotasksScope microtasks(isolate,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
 

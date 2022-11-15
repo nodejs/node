@@ -536,6 +536,7 @@ class V8_EXPORT Isolate {
     kFunctionPrototypeCaller = 114,
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
+    kDurationFormat = 117,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -953,22 +954,20 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
+   *
    * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
-   * This is an experimental feature and may still change significantly.
+   * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
+   * CppHeap.
    */
   void AttachCppHeap(CppHeap*);
 
   /**
    * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
-   *
-   * This is an experimental feature and may still change significantly.
    */
   void DetachCppHeap();
 
   /**
-   * This is an experimental feature and may still change significantly.
-
    * \returns the C++ heap managed by V8. Only available if such a heap has been
    *   attached using `AttachCppHeap()`.
    */
@@ -1525,8 +1524,10 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
+  V8_DEPRECATED("Wasm SIMD is always enabled")
   void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
 
+  V8_DEPRECATED("Wasm exceptions are always enabled")
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(

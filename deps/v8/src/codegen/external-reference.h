@@ -98,7 +98,9 @@ class StatsCounter;
   V(abort_with_reason, "abort_with_reason")                                    \
   V(address_of_log_or_trace_osr, "v8_flags.log_or_trace_osr")                  \
   V(address_of_FLAG_harmony_regexp_unicode_sets,                               \
-    "v8_flags.harmony_regexp_unicdoe_sets")                                    \
+    "v8_flags.harmony_regexp_unicode_sets")                                    \
+  V(address_of_FLAG_harmony_symbol_as_weakmap_key,                             \
+    "v8_flags.harmony_symbol_as_weakmap_key")                                  \
   V(address_of_builtin_subclassing_flag, "v8_flags.builtin_subclassing")       \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
@@ -182,12 +184,26 @@ class StatsCounter;
     "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
   V(mutable_big_int_absolute_div_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteDivAndCanonicalize")                                \
+  V(mutable_big_int_absolute_mod_and_canonicalize_function,                    \
+    "MutableBigInt_AbsoluteModAndCanonicalize")                                \
   V(mutable_big_int_bitwise_and_pp_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosPosAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_nn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndNegNegAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_pn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_or_pp_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosPosAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_nn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrNegNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_pn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosPosAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorNegNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosNegAndCanonicalize")                           \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \
@@ -208,6 +224,19 @@ class StatsCounter;
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
   V(string_from_forward_table, "string_from_forward_table")                    \
+  V(raw_hash_from_forward_table, "raw_hash_from_forward_table")                \
+  V(name_dictionary_lookup_forwarded_string,                                   \
+    "name_dictionary_lookup_forwarded_string")                                 \
+  V(name_dictionary_find_insertion_entry_forwarded_string,                     \
+    "name_dictionary_find_insertion_entry_forwarded_string")                   \
+  V(global_dictionary_lookup_forwarded_string,                                 \
+    "global_dictionary_lookup_forwarded_string")                               \
+  V(global_dictionary_find_insertion_entry_forwarded_string,                   \
+    "global_dictionary_find_insertion_entry_forwarded_string")                 \
+  V(name_to_index_hashtable_lookup_forwarded_string,                           \
+    "name_to_index_hashtable_lookup_forwarded_string")                         \
+  V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
+    "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
   IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
           "wasm::call_trap_callback_for_testing")                              \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \
@@ -257,7 +286,8 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
-  IF_WASM(V, wasm_array_fill_with_zeroes, "wasm::array_fill_with_zeroes")      \
+  IF_WASM(V, wasm_array_fill_with_number_or_null,                              \
+          "wasm::array_fill_with_number_or_null")                              \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
@@ -322,6 +352,10 @@ class StatsCounter;
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
+    "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
+    "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #ifdef V8_INTL_SUPPORT

@@ -1,18 +1,5 @@
 Async generator stepping
 
-Running test: testStepOverFromInitialYield
-Setting breakpoint on implicit initial yield
-Calling callGenerator()
-
-async function* generator#() {
-  var a = 42;
-
-Stepping over while paused on the initial yield
-function callGenerator() {
-  return generator();#
-}
-
-
 Running test: testStepIntoInitialYield
 Setting breakpoint on call to generator()
 Calling callGenerator()
@@ -21,11 +8,6 @@ function callGenerator() {
 }
 
 Stepping into the generator()
-
-async function* generator#() {
-  var a = 42;
-
-Stepping into while paused on the initial yield
 function callGenerator() {
   return generator();#
 }

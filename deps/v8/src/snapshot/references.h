@@ -17,10 +17,9 @@ enum class SnapshotSpace : byte {
   kReadOnlyHeap,
   kOld,
   kCode,
-  kMap,
 };
 static constexpr int kNumberOfSnapshotSpaces =
-    static_cast<int>(SnapshotSpace::kMap) + 1;
+    static_cast<int>(SnapshotSpace::kCode) + 1;
 
 class SerializerReference {
  private:

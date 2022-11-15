@@ -359,6 +359,8 @@ class InConstructionObjectReferringToGlobalHandle final
   InConstructionObjectReferringToGlobalHandle(Heap* heap,
                                               v8::Local<v8::Object> wrapper)
       : wrapper_(reinterpret_cast<v8::Isolate*>(heap->isolate()), wrapper) {
+    ScanStackModeScopeForTesting no_stack_scanning(heap,
+                                                   Heap::ScanStackMode::kNone);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
   }
@@ -387,6 +389,37 @@ TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
     CHECK_NE(kGlobalHandleZapValue,
              *reinterpret_cast<Address*>(*cpp_obj->GetWrapper()));
   }
+}
+
+namespace {
+
+class ResetReferenceInDestructorObject final
+    : public cppgc::GarbageCollected<ResetReferenceInDestructorObject> {
+ public:
+  ResetReferenceInDestructorObject(Heap* heap, v8::Local<v8::Object> wrapper)
+      : wrapper_(reinterpret_cast<v8::Isolate*>(heap->isolate()), wrapper) {}
+  ~ResetReferenceInDestructorObject() { wrapper_.Reset(); }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(wrapper_); }
+
+ private:
+  TracedReference<v8::Object> wrapper_;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapTest, ResetReferenceInDestructor) {
+  v8::HandleScope handle_scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope inner_handle_scope(v8_isolate());
+    auto local = v8::Object::New(v8_isolate());
+    cppgc::MakeGarbageCollected<ResetReferenceInDestructorObject>(
+        allocation_handle(),
+        reinterpret_cast<i::Isolate*>(v8_isolate())->heap(), local);
+  }
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
 }
 
 }  // namespace internal

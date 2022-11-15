@@ -2276,14 +2276,15 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
       {FROZEN, factory->frozen_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {SEALED, factory->sealed_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
-                                               : DICTIONARY_ELEMENTS}};
+       v8_flags.enable_sealed_frozen_elements_kind
+           ? HOLEY_NONEXTENSIBLE_ELEMENTS
+           : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
@@ -2344,14 +2345,15 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
       {FROZEN, factory->frozen_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {SEALED, factory->sealed_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                               : DICTIONARY_ELEMENTS},
+       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                                   : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(),
-       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
-                                               : DICTIONARY_ELEMENTS}};
+       v8_flags.enable_sealed_frozen_elements_kind
+           ? HOLEY_NONEXTENSIBLE_ELEMENTS
+           : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
@@ -2905,16 +2907,16 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
 
-  // NaNs with different bit patters are treated as equal upon stores.
+  // NaNs with different bit patters are not treated as equal upon stores.
   TestStoreToConstantField(store_func_source, nan1, nan2,
-                           Representation::Double(), PropertyConstness::kConst,
-                           store_repetitions);
+                           Representation::Double(),
+                           PropertyConstness::kMutable, store_repetitions);
 }
 
 }  // namespace
 
 TEST(StoreToConstantField_PlusMinusZero) {
-  FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

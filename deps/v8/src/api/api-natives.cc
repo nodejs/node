@@ -83,6 +83,8 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(getter)),
         Object);
+    Handle<CodeT> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
   if (setter->IsFunctionTemplateInfo() &&
       FunctionTemplateInfo::cast(*setter).BreakAtEntry()) {
@@ -91,6 +93,8 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
         InstantiateFunction(isolate,
                             Handle<FunctionTemplateInfo>::cast(setter)),
         Object);
+    Handle<CodeT> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
+    Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
   RETURN_ON_EXCEPTION(
       isolate,
@@ -529,7 +533,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
   if (!data->needs_access_check() &&
       data->GetNamedPropertyHandler().IsUndefined(isolate) &&
       data->GetIndexedPropertyHandler().IsUndefined(isolate)) {
-    function_type = FLAG_embedder_instance_types && data->HasInstanceType()
+    function_type = v8_flags.embedder_instance_types && data->HasInstanceType()
                         ? static_cast<InstanceType>(data->InstanceType())
                         : JS_API_OBJECT_TYPE;
   }

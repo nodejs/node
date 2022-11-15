@@ -161,7 +161,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
     }
   }
 
-  if (FLAG_prof_browser_mode) {
+  if (v8_flags.prof_browser_mode) {
     bool no_symbolized_entries = true;
     for (auto e : stack_trace) {
       if (e.code_entry != nullptr) {

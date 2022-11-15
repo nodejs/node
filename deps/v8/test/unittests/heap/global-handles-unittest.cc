@@ -30,6 +30,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/objects-inl.h"
@@ -496,7 +497,8 @@ TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   if (v8_flags.single_generation) {
     FlagAndGlobal fp;
     ConstructJSApiObject(isolate, context, &fp);
-    CHECK(!InYoungGeneration(isolate, fp.handle));
+    CHECK_IMPLIES(!v8_flags.single_generation,
+                  !InYoungGeneration(isolate, fp.handle));
     fp.flag = false;
     fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
     CollectAllGarbage();
@@ -604,15 +606,15 @@ TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
   v8::HandleScope scope(isolate);
 
   v8::TracedReference<v8::Object>* handle = new TracedReference<v8::Object>();
-  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->used_size_bytes(), 0);
   ConstructJSObject(isolate, handle);
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_GT(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->used_size_bytes(), 0);
   delete handle;
   CollectAllGarbage();
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->used_size_bytes(), 0);
 }
 
 }  // namespace internal

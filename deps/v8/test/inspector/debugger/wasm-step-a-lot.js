@@ -4,7 +4,7 @@
 
 // Lower the maximum code space size to detect missed garbage collection
 // earlier.
-// Flags: --wasm-max-code-space=2
+// Flags: --wasm-max-committed-code-mb=2
 
 utils.load('test/inspector/wasm-inspector-test.js');
 

@@ -3,13 +3,14 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --experimental-wasm-stringref
+// Flags: --no-wasm-gc-structref-as-dataref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let tableTypes = {
   "anyref": kWasmAnyRef,
   "eqref": kWasmEqRef,
-  "dataref": kWasmDataRef,
+  "structref": kWasmStructRef,
   "arrayref": kWasmArrayRef,
 };
 
@@ -74,7 +75,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetStructVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsData,
+      kGCPrefix, kExprRefAsStruct,
       kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
@@ -82,7 +83,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetArrayVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsData,
+      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,
@@ -106,33 +107,10 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     ])
     .exportFunc();
 
-  let blockSig = builder.addType(makeSig([kWasmAnyRef], [kWasmEqRef]));
-  let castExternToEqRef = [
-    kGCPrefix, kExprExternInternalize,
-    kExprBlock, blockSig,
-      kGCPrefix, kExprBrOnI31, 0,
-      kGCPrefix, kExprBrOnData, 0,
-      // non-data, non-i31
-      kExprUnreachable, // conversion failure
-    kExprEnd,
-  ];
-  // TODO(7748): Directly compare the externrefs in JS once
-  // FLAG_wasm_gc_js_interop is supported.
-  builder.addFunction("eq",
-                      makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]))
-    .addBody([
-      kExprLocalGet, 0,
-      ...castExternToEqRef,
-      kExprLocalGet, 1,
-      ...castExternToEqRef,
-      kExprRefEq,
-    ])
-    .exportFunc();
-
   builder.addFunction("createNull", creatorSig)
     .addBody([kExprRefNull, kNullRefCode])
     .exportFunc();
-  let i31Sig = typeName != "dataref" && typeName != "arrayref"
+  let i31Sig = typeName != "structref" && typeName != "arrayref"
                ? creatorSig : creatorAnySig;
   builder.addFunction("createI31", i31Sig)
     .addBody([kExprI32Const, 12, kGCPrefix, kExprI31New])
@@ -141,7 +119,8 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("createStruct", structSig)
     .addBody([kExprI32Const, 12, kGCPrefix, kExprStructNew, struct])
     .exportFunc();
-  builder.addFunction("createArray", creatorSig)
+  let arraySig = typeName != "structref" ? creatorSig : creatorAnySig;
+  builder.addFunction("createArray", arraySig)
     .addBody([
       kExprI32Const, 12,
       kGCPrefix, kExprArrayNewFixed, array, 1
@@ -171,31 +150,33 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   assertEquals(null, wasm.tableGet(1));
   assertEquals(null, table.get(1));
   // Set i31.
-  if (typeName != "dataref" && typeName != "arrayref") {
+  if (typeName != "structref" && typeName != "arrayref") {
     table.set(2, wasm.exported(wasm.createI31));
-    assertEquals(1, wasm.eq(table.get(2), wasm.tableGet(2)));
+    assertSame(table.get(2), wasm.tableGet(2));
     wasm.tableSet(3, wasm.createI31);
-    assertEquals(1, wasm.eq(table.get(3), wasm.tableGet(3)));
-    assertEquals(1, wasm.eq(table.get(2), table.get(3))); // The same smi.
+    assertSame(table.get(3), wasm.tableGet(3));
+    assertSame(table.get(2), table.get(3)); // The same smi.
   }
   // Set struct.
   if (typeName != "arrayref") {
     table.set(4, wasm.exported(wasm.createStruct));
-    assertEquals(1, wasm.eq(table.get(4), wasm.tableGet(4)));
+    assertSame(table.get(4), wasm.tableGet(4));
     assertEquals(12, wasm.tableGetStructVal(4));
     wasm.tableSet(5, wasm.createStruct);
-    assertEquals(1, wasm.eq(table.get(5), wasm.tableGet(5)));
+    assertSame(table.get(5), wasm.tableGet(5));
     assertEquals(12, wasm.tableGetStructVal(5));
-    assertEquals(0, wasm.eq(table.get(4), table.get(5))); // Not the same.
+    assertNotSame(table.get(4), table.get(5));
   }
   // Set array.
-  table.set(6, wasm.exported(wasm.createArray));
-  assertEquals(1, wasm.eq(table.get(6), wasm.tableGet(6)));
-  assertEquals(12, wasm.tableGetArrayVal(6));
-  wasm.tableSet(7, wasm.createArray);
-  assertEquals(1, wasm.eq(table.get(7), wasm.tableGet(7)));
-  assertEquals(12, wasm.tableGetArrayVal(7));
-  assertEquals(0, wasm.eq(table.get(6), table.get(7))); // Not the same.
+  if (typeName != "structref") {
+    table.set(6, wasm.exported(wasm.createArray));
+    assertSame(table.get(6), wasm.tableGet(6));
+    assertEquals(12, wasm.tableGetArrayVal(6));
+    wasm.tableSet(7, wasm.createArray);
+    assertSame(table.get(7), wasm.tableGet(7));
+    assertEquals(12, wasm.tableGetArrayVal(7));
+    assertNotSame(table.get(6), table.get(7));
+  }
 
   // Set stringref.
   if (typeName == "anyref") {
@@ -207,11 +188,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     wasm.tableSetFromExtern(9, largeString);
     assertEquals(largeString, wasm.tableGet(9));
     assertEquals(largeString, table.get(9));
-  }
-
-  // Ensure all objects are externalized, so they can be handled by JS.
-  for (let i = 0; i < table.length; ++i) {
-    JSON.stringify(table.get(i));
   }
 
   if (typeName != "arrayref") {
@@ -234,7 +210,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let invalidValues = {
     "anyref": [],
     "eqref": [],
-    "dataref": ["I31"],
+    "structref": ["I31", "Array"],
     "arrayref": ["I31", "Struct"],
   };
   for (let invalidType of invalidValues[typeName]) {

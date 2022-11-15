@@ -10,7 +10,7 @@ let builder = new WasmModuleBuilder();
 
 builder.addFunction('repro', kSig_v_v)
   .exportFunc()
-  .addLocals(wasmRefNullType(kWasmDataRef), 1)
+  .addLocals(wasmRefNullType(kWasmStructRef), 1)
   .addBody([
     kExprI32Const, 0,
     kExprIf, kWasmVoid,

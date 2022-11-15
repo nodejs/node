@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rab-gsab --allow-natives-syntax
-// Flags: --harmony-relative-indexing-methods --harmony-array-find-last
+// Flags: --harmony-rab-gsab --allow-natives-syntax --harmony-array-find-last
 
 "use strict";
 
@@ -142,6 +141,25 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([3, 4, 5, 6],
                  ToNumbers(new targetCtor(lengthTrackingWithOffset)));
   });
+
+  AllBigIntUnmatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const gsab = CreateGrowableSharedArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(gsab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(gsab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { new targetCtor(fixedLength); }, TypeError);
+    assertThrows(() => { new targetCtor(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { new targetCtor(lengthTracking); }, TypeError);
+    assertThrows(() => { new targetCtor(lengthTrackingWithOffset); },
+                 TypeError);
+  });
+
 })();
 
 (function ConstructFromTypedArraySpeciesConstructorNotCalled() {
@@ -3906,4 +3924,73 @@ SortCallbackGrows(ArraySortHelper);
     assertEquals([2, 3, 0, 0],
                  ToNumbers(func.apply(null, lengthTrackingWithOffset)));
   }
+})();
+
+(function TypedArrayFrom() {
+  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const gsab = CreateGrowableSharedArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(gsab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(gsab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taFull = new sourceCtor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, ...] << lengthTracking
+    //                    [3, 4, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(fixedLength)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(lengthTracking)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(lengthTrackingWithOffset)));
+
+    // Grow.
+    gsab.grow(6 * sourceCtor.BYTES_PER_ELEMENT);
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4, 5, 6]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, 5, 6, ...] << lengthTracking
+    //                    [3, 4, 5, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(fixedLength)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4, 5, 6],
+                 ToNumbers(targetCtor.from(lengthTracking)));
+    assertEquals([3, 4, 5, 6],
+                 ToNumbers(targetCtor.from(lengthTrackingWithOffset)));
+  });
+
+  AllBigIntUnmatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const gsab = CreateGrowableSharedArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(gsab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(gsab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { targetCtor.from(fixedLength); }, TypeError);
+    assertThrows(() => { targetCtor.from(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { targetCtor.from(lengthTracking); }, TypeError);
+    assertThrows(() => { targetCtor.from(lengthTrackingWithOffset); },
+                 TypeError);
+  });
 })();

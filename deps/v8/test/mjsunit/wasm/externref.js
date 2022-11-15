@@ -336,10 +336,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function MultiReturnRefTest() {
   print("MultiReturnTest");
   let builder = new WasmModuleBuilder();
+  let gc_sig = builder.addType(kSig_v_v);
   let sig = makeSig([kWasmExternRef],
       [kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmExternRef]);
 
-  builder.addFunction("callee", sig)
+  let gc_index = builder.addImport('q', 'gc', gc_sig);
+  let callee = builder.addFunction("callee", sig)
     .addBody([
       kExprLocalGet, 0,
       kExprLocalGet, 0,
@@ -349,11 +351,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", sig)
     .addBody([
       kExprLocalGet, 0,
-      kExprCallFunction, 0
+      kExprCallFunction, callee.index,
+      kExprCallFunction, gc_index,
     ])
     .exportAs("main");
 
-  let module = new WebAssembly.Module(builder.toBuffer());
-  let instance = new WebAssembly.Instance(module);
+  let instance = builder.instantiate({
+    q: { gc: () => gc() }
+  });
   assertEquals(instance.exports.main(null), [null, null, null, null]);
 })();

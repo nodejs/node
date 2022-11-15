@@ -14,9 +14,9 @@
 #include "src/objects/map-inl.h"
 
 #ifdef DEBUG
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_turbo_escape) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_turbo_escape) PrintF(__VA_ARGS__); \
   } while (false)
 #else
 #define TRACE(...)
@@ -616,8 +616,11 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* value = current->ValueInput(1);
       const VirtualObject* vobject = current->GetVirtualObject(object);
       Variable var;
+      // BoundedSize fields cannot currently be materialized by the deoptimizer,
+      // so we must not dematerialze them.
       if (vobject && !vobject->HasEscaped() &&
-          vobject->FieldAt(OffsetOfFieldAccess(op)).To(&var)) {
+          vobject->FieldAt(OffsetOfFieldAccess(op)).To(&var) &&
+          !FieldAccessOf(op).is_bounded_size_access) {
         current->Set(var, value);
         current->MarkForDeletion();
       } else {

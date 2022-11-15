@@ -36,6 +36,7 @@ class HeapEntry;
 class HeapProfiler;
 class HeapSnapshot;
 class HeapSnapshotGenerator;
+class IsolateSafepointScope;
 class JSArrayBuffer;
 class JSCollection;
 class JSGeneratorObject;
@@ -43,7 +44,6 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSWeakCollection;
-class SafepointScope;
 
 struct SourceLocation {
   SourceLocation(int entry_index, int scriptId, int line, int col)
@@ -390,7 +390,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   uint32_t EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
-  void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
+  void MakeGlobalObjectTagMap(const IsolateSafepointScope& safepoint_scope);
   void TagBuiltinCodeObject(CodeT code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
@@ -591,7 +591,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
     HeapEntry* result =
         entries_map_.emplace(ptr, allocator->AllocateEntry(ptr)).first->second;
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
-    if (FLAG_heap_snapshot_verify) {
+    if (v8_flags.heap_snapshot_verify) {
       reverse_entries_map_.emplace(result, ptr);
     }
 #endif
@@ -602,7 +602,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapThing FindHeapThingForHeapEntry(HeapEntry* entry) {
     // The reverse lookup map is only populated if the verification flag is
     // enabled.
-    DCHECK(FLAG_heap_snapshot_verify);
+    DCHECK(v8_flags.heap_snapshot_verify);
 
     auto it = reverse_entries_map_.find(entry);
     return it == reverse_entries_map_.end() ? nullptr : it->second;

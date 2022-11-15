@@ -119,6 +119,7 @@ class WasmSerializationTest {
     // serialization (when the isolate is disposed).
     std::weak_ptr<NativeModule> weak_native_module;
     {
+      v8::Isolate::Scope isolate_scope(serialization_v8_isolate);
       HandleScope scope(serialization_isolate);
       v8::Local<v8::Context> serialization_context =
           v8::Context::New(serialization_v8_isolate);
@@ -269,6 +270,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
   std::vector<v8::CompiledWasmModule> store;
   std::shared_ptr<NativeModule> original_native_module;
   {
+    v8::Isolate::Scope isolate_scope(from_isolate);
     v8::HandleScope scope(from_isolate);
     LocalContext env(from_isolate);
 
@@ -292,6 +294,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
   {
     v8::Isolate* to_isolate = v8::Isolate::New(create_params);
     {
+      v8::Isolate::Scope isolate_scope(to_isolate);
       v8::HandleScope scope(to_isolate);
       LocalContext env(to_isolate);
 

@@ -607,7 +607,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
-  if (v8_flags.enable_embedded_constant_pool && constant_pool_address) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address) {
     *constant_pool_address = holder.constant_pool();
   }
 }
@@ -768,7 +768,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TO_JS:
     case WASM:
-    case WASM_COMPILE_LAZY:
+    case WASM_LIFTOFF_SETUP:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
     case JS_TO_WASM:
@@ -842,7 +842,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
   state->callee_pc_address = nullptr;
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
   }
@@ -1109,8 +1109,8 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
       // We don't need to update smi values or full pointers.
       was_compressed = true;
-      *spill_slot.location() =
-          DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+          cage_base, static_cast<Tagged_t>(value));
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
         HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
@@ -1144,8 +1144,8 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(compressed_value)) {
       was_compressed = slot_contents <= 0xFFFFFFFF;
       // We don't need to update smi values.
-      *spill_slot.location() =
-          DecompressTaggedPointer(cage_base, compressed_value);
+      *spill_slot.location() = V8HeapCompressionScheme::DecompressTaggedPointer(
+          cage_base, compressed_value);
     }
   }
 #endif
@@ -1154,7 +1154,8 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
   if (was_compressed) {
     // Restore compression. Generated code should be able to trust that
     // compressed spill slots remain compressed.
-    *spill_slot.location() = CompressTagged(*spill_slot.location());
+    *spill_slot.location() =
+        V8HeapCompressionScheme::CompressTagged(*spill_slot.location());
   }
 #endif
 }
@@ -1469,14 +1470,27 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
     // the stack guard in the prologue of the maglev function. This means that
     // we've set up the frame header, but not the spill slots yet.
 
-    // DCHECK the frame setup under the above assumption. Include one extra slot
-    // for the single argument into StackGuardWithGap, and another for the saved
-    // new.target register.
-    DCHECK_EQ(actual_frame_size, StandardFrameConstants::kFixedFrameSizeFromFp +
-                                     2 * kSystemPointerSize);
-    DCHECK_EQ(isolate()->c_function(),
-              Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
-    DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
+    if (v8_flags.maglev_ool_prologue) {
+      // DCHECK the frame setup under the above assumption. The
+      // MaglevOutOfLinePrologue builtin creates an INTERNAL frame for the
+      // StackGuardWithGap call (where extra slots and args are), so the MAGLEV
+      // frame itself is exactly kFixedFrameSizeFromFp.
+      DCHECK_EQ(actual_frame_size,
+                StandardFrameConstants::kFixedFrameSizeFromFp);
+      DCHECK_EQ(isolate()->c_function(),
+                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
+      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
+    } else {
+      // DCHECK the frame setup under the above assumption. Include one extra
+      // slot for the single argument into StackGuardWithGap, and another for
+      // the saved new.target register.
+      DCHECK_EQ(actual_frame_size,
+                StandardFrameConstants::kFixedFrameSizeFromFp +
+                    2 * kSystemPointerSize);
+      DCHECK_EQ(isolate()->c_function(),
+                Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
+      DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
+    }
     spill_slot_count = 0;
     tagged_slot_count = 0;
   }
@@ -2679,40 +2693,33 @@ void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
-int WasmCompileLazyFrame::GetFunctionIndex() const {
+int WasmLiftoffSetupFrame::GetDeclaredFunctionIndex() const {
   Object func_index(Memory<Address>(
-      sp() + WasmCompileLazyFrameConstants::kFunctionIndexOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kDeclaredFunctionIndexOffset));
   return Smi::ToInt(func_index);
 }
 
-wasm::NativeModule* WasmCompileLazyFrame::GetNativeModule() const {
+wasm::NativeModule* WasmLiftoffSetupFrame::GetNativeModule() const {
   return *reinterpret_cast<wasm::NativeModule**>(
-      sp() + WasmCompileLazyFrameConstants::kNativeModuleOffset);
+      sp() + WasmLiftoffSetupFrameConstants::kNativeModuleOffset);
 }
 
-FullObjectSlot WasmCompileLazyFrame::wasm_instance_slot() const {
+FullObjectSlot WasmLiftoffSetupFrame::wasm_instance_slot() const {
   return FullObjectSlot(&Memory<Address>(
-      sp() + WasmCompileLazyFrameConstants::kWasmInstanceOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kWasmInstanceOffset));
 }
 
-void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
+void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot spilled_instance_slot(&Memory<Address>(
-      fp() + WasmCompileLazyFrameConstants::kInstanceSpillOffset));
+      fp() + WasmLiftoffSetupFrameConstants::kInstanceSpillOffset));
   v->VisitRootPointer(Root::kStackRoots, "spilled wasm instance",
                       spilled_instance_slot);
   v->VisitRootPointer(Root::kStackRoots, "wasm instance parameter",
                       wasm_instance_slot());
 
-  int func_index = GetFunctionIndex();
   wasm::NativeModule* native_module = GetNativeModule();
-  if (!native_module) {
-    // This GC was triggered by lazy compilation, because otherwise this frame
-    // would not be on the stack. The native module gets set on the stack after
-    // a successful compilation. The native module being nullptr means that
-    // compilation failed, and we don't have to preserve any references because
-    // the stack will get unwound immediately after the GC.
-    return;
-  }
+  int func_index = GetDeclaredFunctionIndex() +
+                   native_module->module()->num_imported_functions;
 
   // Scan the spill slots of the parameter registers. Parameters in WebAssembly
   // get reordered such that first all value parameters get put into registers.
@@ -2737,15 +2744,17 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   // There are no reference parameters, there is nothing to scan.
   if (num_ref_params == 0) return;
 
-  int num_int_params_in_registers = std::min(
-      num_int_params, WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs);
-  int num_ref_params_in_registers = std::min(
-      num_ref_params, WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs -
-                          num_int_params_in_registers);
+  int num_int_params_in_registers =
+      std::min(num_int_params,
+               WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs);
+  int num_ref_params_in_registers =
+      std::min(num_ref_params,
+               WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs -
+                   num_int_params_in_registers);
 
   for (int i = 0; i < num_ref_params_in_registers; ++i) {
     FullObjectSlot spill_slot(
-        fp() + WasmCompileLazyFrameConstants::kParameterSpillsOffset
+        fp() + WasmLiftoffSetupFrameConstants::kParameterSpillsOffset
                    [num_int_params_in_registers + i]);
 
     v->VisitRootPointer(Root::kStackRoots, "register parameter", spill_slot);
@@ -2757,9 +2766,9 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   uint32_t num_tagged_stack_slots = wasm_code->num_tagged_parameter_slots();
 
   // Visit tagged parameters that have been passed to the function of this
-  // frame. Conceptionally these parameters belong to the parent frame. However,
-  // the exact count is only known by this frame (in the presence of tail calls,
-  // this information cannot be derived from the call site).
+  // frame. Conceptionally these parameters belong to the parent frame.
+  // However, the exact count is only known by this frame (in the presence of
+  // tail calls, this information cannot be derived from the call site).
   if (num_tagged_stack_slots > 0) {
     FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
     tagged_parameter_base += first_tagged_stack_slot;

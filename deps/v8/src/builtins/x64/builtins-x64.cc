@@ -1197,8 +1197,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ int3();  // Should not return.
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector,
-                                                  closure);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure);
 
   __ bind(&is_baseline);
   {
@@ -1627,8 +1626,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // return since we may do a runtime call along the way that requires the
     // stack to only contain valid frames.
     __ Drop(1);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-        flags, feedback_vector, closure, JumpMode::kPushAndReturn);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure,
+                                               JumpMode::kPushAndReturn);
     __ Trap();
   }
 
@@ -2697,13 +2696,326 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
-  using D = OnStackReplacementDescriptor;
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOnStackReplacement>::type;
   static_assert(D::kParameterCount == 1);
   OnStackReplacement(masm, OsrSourceTier::kMaglev,
                      D::MaybeTargetCodeRegister());
 }
 
+// Called immediately at the start of Maglev-generated functions, with all
+// state (register and stack) unchanged, except:
+//
+// - the stack slot byte size and
+// - the tagged stack slot byte size
+//
+// are pushed as untagged arguments to the stack. This prologue builtin takes
+// care of a few things that each Maglev function needs on entry:
+//
+// - the deoptimization check
+// - tiering support (checking FeedbackVector flags)
+// - the stack overflow / interrupt check
+// - and finally, setting up the Maglev frame.
+//
+// If this builtin returns, the Maglev frame is fully set up and we are
+// prepared for continued execution. Otherwise, we take one of multiple
+// possible non-standard exit paths (deoptimization, tailcalling other code, or
+// throwing a stack overflow exception).
+void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOutOfLinePrologue>::type;
+  static_assert(D::kParameterCount == 0);
+
+  // This builtin is called by Maglev code prior to any register mutations, and
+  // the only stack mutation is pushing the arguments for this builtin. In
+  // other words:
+  //
+  // - The register state is the same as when we entered the Maglev code object,
+  // i.e. set up for a standard JS call.
+  // - The caller has not yet set up a stack frame.
+  // - The caller has pushed the (untagged) stack parameters for this builtin.
+
+  static constexpr int kStackParameterCount = 2;
+  static constexpr int kReturnAddressCount = 1;
+  static constexpr int kReturnAddressOffset = 0 * kSystemPointerSize;
+  static constexpr int kTaggedStackSlotBytesOffset = 1 * kSystemPointerSize;
+  static constexpr int kTotalStackSlotBytesOffset = 2 * kSystemPointerSize;
+  USE(kReturnAddressOffset);
+  USE(kTaggedStackSlotBytesOffset);
+  USE(kTotalStackSlotBytesOffset);
+
+  // Scratch registers. Don't clobber regs related to the calling
+  // convention (e.g. kJavaScriptCallArgCountRegister).
+  const Register scratch0 = rcx;
+  const Register scratch1 = r9;
+  const Register scratch2 = rbx;
+
+  Label deoptimize, optimize, call_stack_guard, call_stack_guard_return;
+
+  // A modified version of BailoutIfDeoptimized that drops the builtin frame
+  // before deoptimizing.
+  {
+    static constexpr int kCodeStartToCodeDataContainerOffset =
+        Code::kCodeDataContainerOffset - Code::kHeaderSize;
+    __ LoadTaggedPointerField(scratch0,
+                              Operand(kJavaScriptCallCodeStartRegister,
+                                      kCodeStartToCodeDataContainerOffset));
+    __ testl(
+        FieldOperand(scratch0, CodeDataContainer::kKindSpecificFlagsOffset),
+        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+    __ j(not_zero, &deoptimize);
+  }
+
+  // Tiering support.
+  const Register flags = scratch0;
+  const Register feedback_vector = scratch1;
+  {
+    __ LoadTaggedPointerField(
+        feedback_vector,
+        FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedPointerField(
+        feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+    __ AssertFeedbackVector(feedback_vector);
+
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::MAGLEV, &optimize);
+  }
+
+  // Good to go - set up the MAGLEV stack frame and return.
+
+  // First, tear down to the caller frame.
+  const Register tagged_stack_slot_bytes = scratch1;
+  const Register total_stack_slot_bytes = scratch0;
+  const Register return_address = scratch2;
+  __ PopReturnAddressTo(return_address);
+  __ Pop(tagged_stack_slot_bytes);
+  __ Pop(total_stack_slot_bytes);
+
+  __ EnterFrame(StackFrame::MAGLEV);
+
+  // Save arguments in frame.
+  // TODO(leszeks): Consider eliding this frame if we don't make any calls
+  // that could clobber these registers.
+  __ Push(kContextRegister);
+  __ Push(kJSFunctionRegister);              // Callee's JS function.
+  __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+
+  {
+    ASM_CODE_COMMENT_STRING(masm, " Stack/interrupt check");
+    // Stack check. This folds the checks for both the interrupt stack limit
+    // check and the real stack limit into one by just checking for the
+    // interrupt limit. The interrupt limit is either equal to the real stack
+    // limit or tighter. By ensuring we have space until that limit after
+    // building the frame we can quickly precheck both at once.
+    // TODO(leszeks): Include a max call argument size here.
+    __ Move(kScratchRegister, rsp);
+    __ subq(kScratchRegister, total_stack_slot_bytes);
+    __ cmpq(kScratchRegister,
+            __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+    __ j(below, &call_stack_guard);
+    __ bind(&call_stack_guard_return);
+  }
+
+  // Initialize stack slots:
+  //
+  // - tagged slots are initialized with smi zero.
+  // - untagged slots are simply reserved without initialization.
+  //
+  // Tagged slots first.
+  const Register untagged_stack_slot_bytes = total_stack_slot_bytes;
+  {
+    Label next, loop_condition, loop_header;
+
+    DCHECK_EQ(total_stack_slot_bytes, untagged_stack_slot_bytes);
+    __ subq(total_stack_slot_bytes, tagged_stack_slot_bytes);
+
+    const Register smi_zero = rax;
+    DCHECK(!AreAliased(smi_zero, scratch0, scratch1, scratch2));
+    __ Move(smi_zero, Smi::zero());
+
+    __ jmp(&loop_condition, Label::kNear);
+
+    // TODO(leszeks): Consider filling with xmm + movdqa instead.
+    // TODO(v8:7700): Consider doing more than one push per loop iteration.
+    __ bind(&loop_header);
+    __ pushq(rax);
+    __ bind(&loop_condition);
+    __ subq(tagged_stack_slot_bytes, Immediate(kSystemPointerSize));
+    __ j(greater_equal, &loop_header, Label::kNear);
+
+    __ bind(&next);
+  }
+
+  // Untagged slots second.
+  __ subq(rsp, untagged_stack_slot_bytes);
+
+  // The "all-good" return location. This is the only spot where we actually
+  // return to the caller.
+  __ PushReturnAddressFrom(return_address);
+  __ ret(0);
+
+  __ bind(&deoptimize);
+  {
+    // Drop the frame and jump to CompileLazyDeoptimizedCode. This is slightly
+    // fiddly due to the CET shadow stack (otherwise we could do a conditional
+    // Jump to the builtin).
+    __ Drop(kStackParameterCount + kReturnAddressCount);
+    __ Move(scratch0,
+            BUILTIN_CODE(masm->isolate(), CompileLazyDeoptimizedCode));
+    __ LoadCodeObjectEntry(scratch0, scratch0);
+    __ PushReturnAddressFrom(scratch0);
+    __ ret(0);
+  }
+
+  __ bind(&optimize);
+  {
+    __ Drop(kStackParameterCount + kReturnAddressCount);
+    __ AssertFunction(kJSFunctionRegister);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+        flags, feedback_vector, kJSFunctionRegister, JumpMode::kPushAndReturn);
+    __ Trap();
+  }
+
+  __ bind(&call_stack_guard);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+
+    // Push the MAGLEV code return address now, as if it had been pushed by the
+    // call to this builtin.
+    __ PushReturnAddressFrom(return_address);
+
+    {
+      FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(total_stack_slot_bytes);
+      __ Push(total_stack_slot_bytes);
+      __ SmiTag(tagged_stack_slot_bytes);
+      __ Push(tagged_stack_slot_bytes);
+      // Save any registers that can be referenced by maglev::RegisterInput.
+      // TODO(leszeks): Only push those that are used by the graph.
+      __ Push(kJavaScriptCallNewTargetRegister);
+      // Push the frame size.
+      __ Push(total_stack_slot_bytes);
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+      __ Pop(kJavaScriptCallNewTargetRegister);
+      __ Pop(tagged_stack_slot_bytes);
+      __ SmiUntag(tagged_stack_slot_bytes);
+      __ Pop(total_stack_slot_bytes);
+      __ SmiUntag(total_stack_slot_bytes);
+    }
+
+    __ PopReturnAddressTo(return_address);
+    __ jmp(&call_stack_guard_return);
+  }
+}
+
 #if V8_ENABLE_WEBASSEMBLY
+
+// Returns the offset beyond the last saved FP register.
+int SaveWasmParams(MacroAssembler* masm) {
+  // Save all parameter registers (see wasm-linkage.h). They might be
+  // overwritten in the subsequent runtime call. We don't have any callee-saved
+  // registers in wasm, so no need to store anything else.
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
+                    arraysize(wasm::kGpParamRegisters),
+                "frame size mismatch");
+  for (Register reg : wasm::kGpParamRegisters) {
+    __ Push(reg);
+  }
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs ==
+                    arraysize(wasm::kFpParamRegisters),
+                "frame size mismatch");
+  __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
+  int offset = 0;
+  for (DoubleRegister reg : wasm::kFpParamRegisters) {
+    __ movdqu(Operand(rsp, offset), reg);
+    offset += kSimd128Size;
+  }
+  return offset;
+}
+
+// Consumes the offset beyond the last saved FP register (as returned by
+// {SaveWasmParams}).
+void RestoreWasmParams(MacroAssembler* masm, int offset) {
+  for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
+    offset -= kSimd128Size;
+    __ movdqu(reg, Operand(rsp, offset));
+  }
+  DCHECK_EQ(0, offset);
+  __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
+  for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
+    __ Pop(reg);
+  }
+}
+
+// When this builtin is called, the topmost stack entry is the calling pc.
+// This is replaced with the following:
+//
+// [    calling pc     ]  <-- rsp; popped by {ret}.
+// [  feedback vector  ]
+// [   Wasm instance   ]
+// [ WASM frame marker ]
+// [    saved rbp      ]  <-- rbp; this is where "calling pc" used to be.
+void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
+  Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
+  Register vector = r15;
+  Register calling_pc = rdi;
+
+  __ Pop(calling_pc);
+  __ Push(rbp);
+  __ Move(rbp, rsp);
+  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  __ LoadTaggedPointerField(
+      vector, FieldOperand(kWasmInstanceRegister,
+                           WasmInstanceObject::kFeedbackVectorsOffset));
+  __ LoadTaggedPointerField(vector,
+                            FieldOperand(vector, func_index, times_tagged_size,
+                                         FixedArray::kHeaderSize));
+  Label allocate_vector, done;
+  __ JumpIfSmi(vector, &allocate_vector);
+  __ bind(&done);
+  __ Push(kWasmInstanceRegister);
+  __ Push(vector);
+  __ Push(calling_pc);
+  __ ret(0);
+
+  __ bind(&allocate_vector);
+  // Feedback vector doesn't exist yet. Call the runtime to allocate it.
+  // We temporarily change the frame type for this, because we need special
+  // handling by the stack walker in case of GC.
+  // For the runtime call, we create the following stack layout:
+  //
+  // [ reserved slot for NativeModule ]  <-- arg[2]
+  // [  ("declared") function index   ]  <-- arg[1] for runtime func.
+  // [         Wasm instance          ]  <-- arg[0]
+  // [ ...spilled Wasm parameters...  ]
+  // [           calling pc           ]
+  // [   WASM_LIFTOFF_SETUP marker    ]
+  // [           saved rbp            ]
+  __ movq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP)));
+  __ set_has_frame(true);
+  __ Push(calling_pc);
+  int offset = SaveWasmParams(masm);
+
+  // Arguments to the runtime function: instance, func_index.
+  __ Push(kWasmInstanceRegister);
+  __ SmiTag(func_index);
+  __ Push(func_index);
+  // Allocate a stack slot where the runtime function can spill a pointer
+  // to the NativeModule.
+  __ Push(rsp);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
+  __ movq(vector, kReturnRegister0);
+
+  RestoreWasmParams(masm, offset);
+  __ Pop(calling_pc);
+  // Restore correct frame type.
+  __ movq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  __ jmp(&done);
+}
+
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was pushed to the stack by the caller as int32.
   __ Pop(r15);
@@ -2712,55 +3024,23 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
-    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    static_assert(
-        WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
-            arraysize(wasm::kGpParamRegisters),
-        "frame size mismatch");
-    for (Register reg : wasm::kGpParamRegisters) {
-      __ Push(reg);
-    }
-    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
-                      arraysize(wasm::kFpParamRegisters),
-                  "frame size mismatch");
-    __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
-    int offset = 0;
-    for (DoubleRegister reg : wasm::kFpParamRegisters) {
-      __ movdqu(Operand(rsp, offset), reg);
-      offset += kSimd128Size;
-    }
+    int offset = SaveWasmParams(masm);
 
-    // Push the Wasm instance as an explicit argument to the runtime function.
+    // Push arguments for the runtime function.
     __ Push(kWasmInstanceRegister);
-    // Push the function index as second argument.
     __ Push(r15);
-
-    // Allocate a stack slot, where the runtime function can spill a pointer to
-    // the the NativeModule.
-    __ Push(rsp);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in r15.
     __ SmiUntagUnsigned(kReturnRegister0);
     __ movq(r15, kReturnRegister0);
 
-    // Restore registers.
-    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-      offset -= kSimd128Size;
-      __ movdqu(reg, Operand(rsp, offset));
-    }
-    DCHECK_EQ(0, offset);
-    __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
-    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-      __ Pop(reg);
-    }
+    RestoreWasmParams(masm, offset);
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r15.
     __ addq(r15, MemOperand(kWasmInstanceRegister,
@@ -2871,7 +3151,7 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
 void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
                       wasm::JumpBuffer::StackState old_state,
                       wasm::JumpBuffer::StackState new_state) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
     Label ok;
     __ j(equal, &ok, Label::kNear);

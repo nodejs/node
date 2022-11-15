@@ -43,6 +43,8 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/roots/roots.h"
+#include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
@@ -262,26 +264,22 @@ DEF_GETTER(HeapObject, IsSeqString, bool) {
 
 DEF_GETTER(HeapObject, IsSeqOneByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsSequential() &&
-         String::cast(*this).IsOneByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsSequentialOneByte();
 }
 
 DEF_GETTER(HeapObject, IsSeqTwoByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsSequential() &&
-         String::cast(*this).IsTwoByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsSequentialTwoByte();
 }
 
 DEF_GETTER(HeapObject, IsExternalOneByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsExternal() &&
-         String::cast(*this).IsOneByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsExternalOneByte();
 }
 
 DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsExternal() &&
-         String::cast(*this).IsTwoByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsExternalTwoByte();
 }
 
 bool Object::IsNumber() const {
@@ -305,6 +303,10 @@ bool Object::IsNumeric() const {
 
 bool Object::IsNumeric(PtrComprCageBase cage_base) const {
   return IsNumber(cage_base) || IsBigInt(cage_base);
+}
+
+DEF_GETTER(HeapObject, IsTemplateLiteralObject, bool) {
+  return IsJSArray(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
@@ -663,6 +665,14 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                 PtrComprCageBase(isolate), value);
 }
 
+size_t Object::ReadBoundedSizeField(size_t offset) const {
+  return i::ReadBoundedSizeField(field_address(offset));
+}
+
+void Object::WriteBoundedSizeField(size_t offset, size_t value) {
+  i::WriteBoundedSizeField(field_address(offset), value);
+}
+
 template <ExternalPointerTag tag>
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
                                       Address value) {
@@ -733,14 +743,19 @@ HeapObject MapWord::ToForwardingAddress() {
 
 HeapObject MapWord::ToForwardingAddress(PtrComprCageBase host_cage_base) {
   DCHECK(IsForwardingAddress());
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Recompress value_ using proper host_cage_base since the map word
-    // has the upper 32 bits that correspond to the main cage base value.
-    Address value =
-        DecompressTaggedPointer(host_cage_base, CompressTagged(value_));
-    return HeapObject::FromAddress(value);
-  }
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Recompress value_ using proper host_cage_base and compression scheme
+  // since the map word is decompressed using the default compression scheme
+  // in an assumption it'll contain Map pointer.
+  // TODO(v8:11880): this code must be updated once a different scheme is used
+  // for external code fields.
+  Tagged_t compressed = V8HeapCompressionScheme::CompressTagged(value_);
+  Address value = V8HeapCompressionScheme::DecompressTaggedPointer(
+      host_cage_base, compressed);
+  return HeapObject::FromAddress(value);
+#else
   return HeapObject::FromAddress(value_);
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 #ifdef VERIFY_HEAP
@@ -805,6 +820,18 @@ void HeapObject::set_map_safe_transition(Map value) {
 void HeapObject::set_map_safe_transition(Map value, ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
                                   VerificationMode::kSafeMapTransition);
+}
+
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          RelaxedStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+                                 VerificationMode::kSafeMapTransition);
+}
+
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+                                 VerificationMode::kSafeMapTransition);
 }
 
 // Unsafe accessor omitting write barrier.
@@ -1135,6 +1162,12 @@ Object Object::GetSimpleHash(Object object) {
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     uint32_t hash = SharedFunctionInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
+  } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
+    uint32_t hash = ScopeInfo::cast(object).Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  } else if (InstanceTypeChecker::IsScript(instance_type)) {
+    int id = Script::cast(object).id();
+    return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
   DCHECK(object.IsJSReceiver());
   return object;
@@ -1196,6 +1229,23 @@ MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
   if (value->IsShared()) return value;
   return ShareSlow(isolate, Handle<HeapObject>::cast(value),
                    throw_if_cannot_be_shared);
+}
+
+// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
+bool Object::CanBeHeldWeakly() const {
+  if (IsJSReceiver()) {
+    // TODO(v8:12547) Shared structs and arrays should only be able to point
+    // to shared values in weak collections. For now, disallow them as weak
+    // collection keys.
+    if (v8_flags.harmony_struct) {
+      return !IsJSSharedStruct() && !IsJSSharedArray();
+    }
+    return true;
+  }
+  if (v8_flags.harmony_symbol_as_weakmap_key) {
+    return IsSymbol() && !Symbol::cast(*this).is_in_public_symbol_table();
+  }
+  return false;
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {

@@ -198,6 +198,11 @@ FrameState CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
     Node* context, Node* receiver, Node* outer_frame_state);
 
+// Creates a FrameState otherwise identical to `frame_state` except the
+// OutputFrameStateCombine is changed.
+FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
+                           OutputFrameStateCombine changed_state_combine);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

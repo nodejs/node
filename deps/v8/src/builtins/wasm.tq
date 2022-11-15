@@ -59,6 +59,8 @@ extern runtime WasmStringViewWtf8Encode(
     Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
 extern runtime WasmStringViewWtf8Slice(
     Context, ByteArray, Number, Number): String;
+extern runtime WasmJSToWasmObject(
+    Context, WasmInstanceObject, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
@@ -67,10 +69,8 @@ extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
-const kAnyTableType: constexpr int31
+const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
-const kAnyNonNullTableType: constexpr int31
-    generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
 const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 
@@ -484,30 +484,22 @@ builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
   return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmI32AtomicWait64(
-    offset: uintptr, expectedValue: int32, timeout: intptr): uint32 {
-  if constexpr (Is64()) {
-    const instance: WasmInstanceObject = LoadInstanceFromFrame();
-    const result: Smi = runtime::WasmI32AtomicWait(
-        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
-        WasmInt32ToNumber(expectedValue), I64ToBigInt(timeout));
-    return Unsigned(SmiToInt32(result));
-  } else {
-    unreachable;
-  }
+builtin WasmI32AtomicWait(
+    offset: uintptr, expectedValue: int32, timeout: BigInt): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmI32AtomicWait(
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+      WasmInt32ToNumber(expectedValue), timeout);
+  return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmI64AtomicWait64(
-    offset: uintptr, expectedValue: intptr, timeout: intptr): uint32 {
-  if constexpr (Is64()) {
-    const instance: WasmInstanceObject = LoadInstanceFromFrame();
-    const result: Smi = runtime::WasmI64AtomicWait(
-        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
-        I64ToBigInt(expectedValue), I64ToBigInt(timeout));
-    return Unsigned(SmiToInt32(result));
-  } else {
-    unreachable;
-  }
+builtin WasmI64AtomicWait(
+    offset: uintptr, expectedValue: BigInt, timeout: BigInt): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmI64AtomicWait(
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+      expectedValue, timeout);
+  return Unsigned(SmiToInt32(result));
 }
 
 // Type feedback collection support for `call_ref`.
@@ -746,14 +738,17 @@ macro IsWord16WasmArrayMap(map: Map): bool {
 }
 
 // Non-standard experimental feature.
+// Arguments: array, start, count.
 transitioning javascript builtin ExperimentalWasmConvertArrayToString(
-    js-implicit context: NativeContext)(
-    array: JSAny, start: JSAny, count: JSAny): String {
+    js-implicit context: NativeContext)(...arguments): String {
   try {
-    const start = TryNumberToIntptr(start) otherwise goto InvalidArgument;
-    const count = TryNumberToIntptr(count) otherwise goto InvalidArgument;
+    if (arguments.length != 3) goto InvalidArgument;
+    const array = Cast<WasmArray>(arguments[0]) otherwise goto InvalidArgument;
+    const start = TryNumberToIntptr(arguments[1])
+        otherwise goto InvalidArgument;
+    const count = TryNumberToIntptr(arguments[2])
+        otherwise goto InvalidArgument;
 
-    const array = Cast<WasmArray>(array) otherwise goto InvalidArgument;
     if (!IsWord16WasmArrayMap(array.map)) goto InvalidArgument;
     const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
         array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
@@ -768,16 +763,17 @@ transitioning javascript builtin ExperimentalWasmConvertArrayToString(
 }
 
 // Non-standard experimental feature.
+// Arguments: string, sampleArray.
 transitioning javascript builtin ExperimentalWasmConvertStringToArray(
-    js-implicit context: NativeContext)(
-    string: JSAny, sampleArray: JSAny): WasmArray {
+    js-implicit context: NativeContext)(...arguments): WasmArray {
   try {
+    if (arguments.length != 2) goto InvalidArgument;
+    const string = Cast<String>(arguments[0]) otherwise goto InvalidArgument;
     const sampleArray =
-        Cast<WasmArray>(sampleArray) otherwise goto InvalidArgument;
+        Cast<WasmArray>(arguments[1]) otherwise goto InvalidArgument;
     const arrayMap = sampleArray.map;
     if (!IsWord16WasmArrayMap(arrayMap)) goto InvalidArgument;
 
-    const string = Cast<String>(string) otherwise goto InvalidArgument;
     const length = string.length;
 
     const result =
@@ -1155,28 +1151,11 @@ builtin WasmStringViewIterSlice(
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
 }
 
-transitioning builtin WasmExternInternalize(implicit context: Context)(
-    externObject: JSAny): JSAny {
-  const innerObject =
-      WasmGetOwnProperty(externObject, WasmWrappedObjectSymbolConstant());
-  if (innerObject == Undefined) {
-    return externObject;
-  }
-  return innerObject;
-}
+builtin WasmExternInternalize(externObject: JSAny): JSAny {
+  const instance = LoadInstanceFromFrame();
+  const context = LoadContextFromInstance(instance);
 
-transitioning builtin WasmExternExternalize(implicit context: Context)(
-    anyObject: JSAny): JSAny {
-  typeswitch (anyObject) {
-    case (wasmArray: WasmArray): {
-      return WasmAllocateObjectWrapper(wasmArray);
-    }
-    case (wasmStruct: WasmStruct): {
-      return WasmAllocateObjectWrapper(wasmStruct);
-    }
-    case (JSAny): {
-      return anyObject;
-    }
-  }
+  tail runtime::WasmJSToWasmObject(
+      context, instance, externObject, SmiConstant(kAnyType));
 }
 }

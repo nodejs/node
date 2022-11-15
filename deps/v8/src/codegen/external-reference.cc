@@ -25,6 +25,7 @@
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
@@ -454,8 +455,8 @@ IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
         wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_zeroes,
-        wasm::array_fill_with_zeroes_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_number_or_null,
+        wasm::array_fill_with_number_or_null_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -583,6 +584,11 @@ ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets() {
 // called address_of_FLAG_foo (easier grep-ability).
 ExternalReference ExternalReference::address_of_log_or_trace_osr() {
   return ExternalReference(&v8_flags.log_or_trace_osr);
+}
+
+ExternalReference
+ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
+  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
@@ -945,6 +951,20 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const base::uc16, const base::uc16>();
 }
 
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_shifts() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindShifts());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_sizes() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindSizes());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 namespace {
 
 void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
@@ -1013,6 +1033,50 @@ static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
+
+enum LookupMode { kFindExisting, kFindInsertionEntry };
+template <typename Dictionary, LookupMode mode>
+static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
+                                                  Address raw_dict,
+                                                  Address raw_key) {
+  // This function cannot allocate, but there is a HandleScope because it needs
+  // to pass Handle<Name> to the dictionary methods.
+  DisallowGarbageCollection no_gc;
+  HandleScope handle_scope(isolate);
+
+  Handle<String> key(String::cast(Object(raw_key)), isolate);
+  // This function should only be used as the slow path for forwarded strings.
+  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
+
+  Dictionary dict = Dictionary::cast(Object(raw_dict));
+  ReadOnlyRoots roots(isolate);
+  uint32_t hash = key->hash();
+  InternalIndex entry = mode == kFindExisting
+                            ? dict.FindEntry(isolate, roots, key, hash)
+                            : dict.FindInsertionEntry(isolate, roots, hash);
+  return entry.raw_value();
+}
+
+FUNCTION_REFERENCE(
+    name_dictionary_lookup_forwarded_string,
+    (NameDictionaryLookupForwardedString<NameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(
+    name_dictionary_find_insertion_entry_forwarded_string,
+    (NameDictionaryLookupForwardedString<NameDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(
+    global_dictionary_lookup_forwarded_string,
+    (NameDictionaryLookupForwardedString<GlobalDictionary, kFindExisting>))
+FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedString<GlobalDictionary,
+                                                        kFindInsertionEntry>))
+FUNCTION_REFERENCE(
+    name_to_index_hashtable_lookup_forwarded_string,
+    (NameDictionaryLookupForwardedString<NameToIndexHashTable, kFindExisting>))
+FUNCTION_REFERENCE(
+    name_to_index_hashtable_find_insertion_entry_forwarded_string,
+    (NameDictionaryLookupForwardedString<NameToIndexHashTable,
+                                         kFindInsertionEntry>))
+
 FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
                    CopyFastNumberJSArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
@@ -1022,6 +1086,8 @@ FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
                    StringTable::TryStringToIndexOrLookupExisting)
 FUNCTION_REFERENCE(string_from_forward_table,
                    StringForwardingTable::GetForwardStringAddress)
+FUNCTION_REFERENCE(raw_hash_from_forward_table,
+                   StringForwardingTable::GetRawHashStatic)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 FUNCTION_REFERENCE(array_indexof_includes_smi_or_object,
                    ArrayIndexOfIncludesSmiOrObject)
@@ -1052,6 +1118,9 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
 FUNCTION_REFERENCE(mutable_big_int_absolute_div_and_canonicalize_function,
                    MutableBigInt_AbsoluteDivAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_absolute_mod_and_canonicalize_function,
+                   MutableBigInt_AbsoluteModAndCanonicalize)
+
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pp_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosPosAndCanonicalize)
 
@@ -1060,6 +1129,24 @@ FUNCTION_REFERENCE(mutable_big_int_bitwise_and_nn_and_canonicalize_function,
 
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pn_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosNegAndCanonicalize)
 
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 

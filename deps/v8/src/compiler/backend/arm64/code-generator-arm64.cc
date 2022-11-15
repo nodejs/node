@@ -433,7 +433,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
       : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() override {
-    DCHECK(FLAG_wasm_bounds_checks && !FLAG_wasm_enforce_bounds_checks);
+    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
     GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }
@@ -767,7 +767,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         UseScratchRegisterScope scope(tasm());
         Register temp = scope.AcquireX();
@@ -961,7 +961,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       Register value = i.InputRegister(2);
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
@@ -1163,6 +1163,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kArm64Smulh:
+      __ Smulh(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kArm64Umulh:
+      __ Umulh(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kArm64Mul32:
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
@@ -2874,6 +2880,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
+    case kArm64V128AnyTrue: {
+      UseScratchRegisterScope scope(tasm());
+      // For AnyTrue, the format does not matter; also, we would like to avoid
+      // an expensive horizontal reduction.
+      VRegister temp = scope.AcquireV(kFormat4S);
+      __ Umaxp(temp, i.InputSimd128Register(0).V4S(),
+               i.InputSimd128Register(0).V4S());
+      __ Fmov(i.OutputRegister64(), temp.D());
+      __ Cmp(i.OutputRegister64(), 0);
+      __ Cset(i.OutputRegister32(), ne);
+      break;
+    }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
     UseScratchRegisterScope scope(tasm());                 \
@@ -2884,8 +2902,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Cset(i.OutputRegister32(), ne);                     \
     break;                                                 \
   }
-      // For AnyTrue, the format does not matter.
-      SIMD_REDUCE_OP_CASE(kArm64V128AnyTrue, Umaxv, kFormatS, 4S);
       SIMD_REDUCE_OP_CASE(kArm64I32x4AllTrue, Uminv, kFormatS, 4S);
       SIMD_REDUCE_OP_CASE(kArm64I16x8AllTrue, Uminv, kFormatH, 8H);
       SIMD_REDUCE_OP_CASE(kArm64I8x16AllTrue, Uminv, kFormatB, 16B);
@@ -3144,7 +3160,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         UseScratchRegisterScope scope(tasm());
         Register scratch = scope.AcquireX();
         __ Ldr(scratch, FieldMemOperand(
@@ -3170,7 +3186,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) __ Brk(0);
+      if (v8_flags.debug_code) __ Brk(0);
       __ Bind(&done);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3287,7 +3303,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ cmp(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }

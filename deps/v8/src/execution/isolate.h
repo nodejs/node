@@ -31,6 +31,7 @@
 #include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
@@ -529,7 +530,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, formatting_stack_trace, false)                                      \
   /* Perform side effect checks on function call and API callbacks. */        \
   V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
-  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone) \
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
@@ -622,7 +622,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   static void InitializeOncePerProcess();
-  static void DisposeOncePerProcess();
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
   // new operator.
@@ -643,26 +642,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Returns the PerIsolateThreadData for the current thread (or nullptr if one
   // is not currently set).
-  static PerIsolateThreadData* CurrentPerIsolateThreadData() {
-    return reinterpret_cast<PerIsolateThreadData*>(
-        base::Thread::GetThreadLocal(per_isolate_thread_data_key_));
-  }
+  V8_INLINE static PerIsolateThreadData* CurrentPerIsolateThreadData();
 
   // Returns the isolate inside which the current thread is running or nullptr.
-  V8_INLINE static Isolate* TryGetCurrent() {
-    DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
-    return reinterpret_cast<Isolate*>(
-        base::Thread::GetExistingThreadLocal(isolate_key_));
-  }
+  V8_INLINE static Isolate* TryGetCurrent();
 
   // Returns the isolate inside which the current thread is running.
-  V8_INLINE static Isolate* Current() {
-    Isolate* isolate = TryGetCurrent();
-    DCHECK_NOT_NULL(isolate);
-    return isolate;
-  }
+  V8_INLINE static Isolate* Current();
 
-  bool IsCurrent() const { return this == TryGetCurrent(); }
+  inline bool IsCurrent() const;
 
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole
@@ -779,9 +767,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void InstallConditionalFeatures(Handle<Context> context);
 
   bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
-
-  bool IsWasmSimdEnabled(Handle<Context> context);
-  bool AreWasmExceptionsEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -1303,6 +1288,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   GlobalHandles* global_handles() const { return global_handles_; }
 
+  TracedHandles* traced_handles() { return &traced_handles_; }
+
   EternalHandles* eternal_handles() const { return eternal_handles_; }
 
   ThreadManager* thread_manager() const { return thread_manager_; }
@@ -1429,10 +1416,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool is_count_code_coverage() const {
     return is_precise_count_code_coverage() || is_block_count_code_coverage();
-  }
-
-  bool is_collecting_type_profile() const {
-    return type_profile_mode() == debug::TypeProfileMode::kCollect;
   }
 
   // Collect feedback vectors with data for code coverage or type profile.
@@ -1712,7 +1695,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // shared heap object cache holds objects in shared among Isolates. Otherwise
   // this object cache is per-Isolate like the startup object cache.
   std::vector<Object>* shared_heap_object_cache() {
-    if (shared_isolate()) return shared_isolate()->shared_heap_object_cache();
+    if (has_shared_heap()) {
+      return &shared_heap_isolate()->shared_heap_object_cache_;
+    }
     return &shared_heap_object_cache_;
   }
 
@@ -1996,8 +1981,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK(shared_isolate->is_shared());
     DCHECK_NULL(shared_isolate_);
     DCHECK(!attached_to_shared_isolate_);
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_ = shared_isolate;
     owns_shareable_data_ = false;
+  }
+
+  // Returns true when this isolate supports allocation in shared spaces.
+  bool has_shared_heap() const {
+    return v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
+  }
+
+  // Returns the isolate that owns the shared spaces.
+  Isolate* shared_heap_isolate() const {
+    DCHECK(has_shared_heap());
+    Isolate* isolate =
+        v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
+    DCHECK_NOT_NULL(isolate);
+    return isolate;
+  }
+
+  bool is_shared_heap_isolate() const {
+    return is_shared() || is_shared_space_isolate();
   }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
@@ -2009,7 +2013,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
   bool OwnsStringTables() {
-    return !v8_flags.shared_string_table || is_shared();
+    return !v8_flags.shared_string_table || is_shared() ||
+           is_shared_space_isolate();
   }
 
 #if USE_SIMULATOR
@@ -2019,6 +2024,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
 #endif
+
+  // Access to the global "locals block list cache". Caches outer-stack
+  // allocated variables per ScopeInfo for debug-evaluate.
+  // We also store a strong reference to the outer ScopeInfo to keep all
+  // blocklists along a scope chain alive.
+  void LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                               Handle<ScopeInfo> outer_scope_info,
+                               Handle<StringSet> locals_blocklist);
+  // Returns either `TheHole` or `StringSet`.
+  Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
@@ -2095,10 +2110,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static void DeleteProcessWideSharedIsolate();
 
   static Isolate* process_wide_shared_space_isolate_;
-
-  static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
-  static base::Thread::LocalStorageKey isolate_key_;
-  static std::atomic<bool> isolate_key_created_;
 
   void Deinit();
 
@@ -2204,6 +2215,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   AccountingAllocator* allocator_ = nullptr;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_ = nullptr;
   GlobalHandles* global_handles_ = nullptr;
+  TracedHandles traced_handles_;
   EternalHandles* eternal_handles_ = nullptr;
   ThreadManager* thread_manager_ = nullptr;
   bigint::Processor* bigint_processor_ = nullptr;
@@ -2524,6 +2536,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class TestSerializer;
   friend class SharedHeapNoClientsTest;
 };
+
+// The current entered Isolate and its thread data. Do not access these
+// directly! Use Isolate::Current and Isolate::CurrentPerIsolateThreadData.
+//
+// These are outside the Isolate class with extern storage because in clang-cl,
+// thread_local is incompatible with dllexport linkage caused by
+// V8_EXPORT_PRIVATE being applied to Isolate.
+extern thread_local Isolate::PerIsolateThreadData*
+    g_current_per_isolate_thread_data_ V8_CONSTINIT;
+extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
 
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR

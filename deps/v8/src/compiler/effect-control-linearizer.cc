@@ -84,6 +84,7 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckBigInt(Node* node, Node* frame_state);
+  Node* LowerCheckedBigIntToBigInt64(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -93,6 +94,11 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Add(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Sub(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Div(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -101,6 +107,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt64(Node* node, Node* frame_state);
   Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
@@ -176,7 +183,10 @@ class EffectControlLinearizer {
   Node* LowerBigIntSubtract(Node* node, Node* frame_state);
   Node* LowerBigIntMultiply(Node* node, Node* frame_state);
   Node* LowerBigIntDivide(Node* node, Node* frame_state);
+  Node* LowerBigIntModulus(Node* node, Node* frame_state);
   Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseOr(Node* node, Node* frame_state);
+  Node* LowerBigIntBitwiseXor(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
@@ -198,6 +208,7 @@ class EffectControlLinearizer {
                                         GraphAssemblerLabel<0>* bailout);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
+  Node* ClampFastCallArgument(Node* input, CTypeInfo::Type scalar_type);
 
   struct AdaptOverloadedFastCallResult {
     Node* target_address;
@@ -233,6 +244,7 @@ class EffectControlLinearizer {
   Node* LowerFoldConstant(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
+  Node* LowerDoubleArrayMinMax(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);
@@ -999,8 +1011,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
       break;
+    case IrOpcode::kCheckedUint64ToInt64:
+      result = LowerCheckedUint64ToInt64(node, frame_state);
+      break;
     case IrOpcode::kCheckBigInt:
       result = LowerCheckBigInt(node, frame_state);
+      break;
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      result = LowerCheckedBigIntToBigInt64(node, frame_state);
       break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
@@ -1028,6 +1046,21 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedInt32Mul:
       result = LowerCheckedInt32Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Add:
+      result = LowerCheckedInt64Add(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Sub:
+      result = LowerCheckedInt64Sub(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Mul:
+      result = LowerCheckedInt64Mul(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Div:
+      result = LowerCheckedInt64Div(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64Mod:
+      result = LowerCheckedInt64Mod(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
@@ -1246,8 +1279,17 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kBigIntDivide:
       result = LowerBigIntDivide(node, frame_state);
       break;
+    case IrOpcode::kBigIntModulus:
+      result = LowerBigIntModulus(node, frame_state);
+      break;
     case IrOpcode::kBigIntBitwiseAnd:
       result = LowerBigIntBitwiseAnd(node, frame_state);
+      break;
+    case IrOpcode::kBigIntBitwiseOr:
+      result = LowerBigIntBitwiseOr(node, frame_state);
+      break;
+    case IrOpcode::kBigIntBitwiseXor:
+      result = LowerBigIntBitwiseXor(node, frame_state);
       break;
     case IrOpcode::kBigIntNegate:
       result = LowerBigIntNegate(node);
@@ -1391,6 +1433,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kFoldConstant:
       result = LowerFoldConstant(node);
+      break;
+    case IrOpcode::kDoubleArrayMax:
+    case IrOpcode::kDoubleArrayMin:
+      result = LowerDoubleArrayMinMax(node);
       break;
     default:
       return false;
@@ -2274,19 +2320,13 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
   //   if rhs <= 0 then
   //     rhs = -rhs
   //     deopt if rhs == 0
-  //   let msk = rhs - 1 in
   //   if lhs < 0 then
   //     let lhs_abs = -lsh in
-  //     let res = if rhs & msk == 0 then
-  //                 lhs_abs & msk
-  //               else
-  //                 lhs_abs % rhs in
-  //     if lhs < 0 then
-  //       deopt if res == 0
-  //       -res
-  //     else
-  //       res
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
   //   else
+  //     let msk = rhs - 1 in
   //     if rhs & msk == 0 then
   //       lhs & msk
   //     else
@@ -2552,6 +2592,18 @@ Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
   __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                      frame_state);
   return __ TruncateInt64ToInt32(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64ToInt64(Node* node,
+                                                         Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = __ Uint64LessThanOrEqual(
+      value, __ Uint64Constant(std::numeric_limits<int64_t>::max()));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint64ToTaggedSigned(
@@ -2909,6 +2961,159 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
                      bi_check, frame_state);
 
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedBigIntToBigInt64(Node* node,
+                                                            Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel();
+  auto if_not_zero = __ MakeLabel();
+  auto if_may_be_out_of_range = __ MakeDeferredLabel();
+
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
+  __ GotoIfNot(__ Word32Equal(bitfield, __ Int32Constant(0)), &if_not_zero);
+  __ Goto(&done);
+
+  __ Bind(&if_not_zero);
+  {
+    // Length must be 1. Compare it with 2 to avoid a right shift.
+    Node* length =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask));
+    __ DeoptimizeIfNot(
+        DeoptimizeReason::kNotABigInt64, params.feedback(),
+        __ Word32Equal(length, __ Int32Constant(uint32_t{1}
+                                                << BigInt::LengthBits::kShift)),
+        frame_state);
+
+    Node* lsd =
+        __ LoadField(AccessBuilder::ForBigIntLeastSignificantDigit64(), value);
+
+    Node* magnitude_check = __ Uint64LessThanOrEqual(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::max()));
+    __ Branch(magnitude_check, &done, &if_may_be_out_of_range);
+
+    __ Bind(&if_may_be_out_of_range);
+    Node* sign =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::SignBits::kMask));
+
+    Node* sign_check =
+        __ Word32Equal(sign, __ Int32Constant(BigInt::SignBits::kMask));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       sign_check, frame_state);
+
+    Node* min_check = __ Word64Equal(
+        lsd, __ Int64Constant(std::numeric_limits<int64_t>::min()));
+    __ DeoptimizeIfNot(DeoptimizeReason::kNotABigInt64, params.feedback(),
+                       min_check, frame_state);
+
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Add(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64AddWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Sub(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64SubWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Mul(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value = __ Int64MulWithOverflow(lhs, rhs);
+
+  Node* check = __ Projection(1, value);
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
+                  frame_state);
+  return __ Projection(0, value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Div(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto division = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &division);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&division);
+
+  __ Bind(&division);
+  Node* value = __ Int64Div(lhs, rhs);
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64Mod(Node* node,
+                                                    Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  auto modulo_op = __ MakeLabel();
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* check_rhs_zero = __ Word64Equal(rhs, __ Int64Constant(0));
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
+                  check_rhs_zero, frame_state);
+
+  // While the mod-result cannot overflow, the underlying instruction is
+  // `idiv` and will trap when the accompanying div-result overflows.
+  __ GotoIfNot(__ Word64Equal(
+                   lhs, __ Int64Constant(std::numeric_limits<int64_t>::min())),
+               &modulo_op);
+  Node* check_overflow = __ Word64Equal(rhs, __ Int64Constant(-1));
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check_overflow,
+                  frame_state);
+  __ Goto(&modulo_op);
+
+  __ Bind(&modulo_op);
+  Node* value = __ Int64Mod(lhs, rhs);
   return value;
 }
 
@@ -4441,6 +4646,50 @@ Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
   return value;
 }
 
+Node* EffectControlLinearizer::LowerBigIntModulus(Node* node,
+                                                  Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntModulusNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel
+  // - Smi 0 is returned to signal BigIntDivZero
+  // - Smi 1 is returned to signal TerminationRequested
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
 Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
                                                      Node* frame_state) {
   Node* lhs = node->InputAt(0);
@@ -4448,6 +4697,44 @@ Node* EffectControlLinearizer::LowerBigIntBitwiseAnd(Node* node,
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseAndNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntBitwiseOr(Node* node,
+                                                    Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseOrNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntBitwiseXor(Node* node,
+                                                     Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntBitwiseXorNoThrow);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
@@ -4952,14 +5239,14 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   Node* buffer_is_not_detached = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_detached, bailout);
 
   // Go to the slow path if the {buffer} is shared.
   Node* buffer_is_not_shared = __ Word32Equal(
       __ Word32And(buffer_bit_field,
                    __ Int32Constant(JSArrayBuffer::IsSharedBit::kMask)),
-      __ ZeroConstant());
+      __ Int32Constant(0));
   __ GotoIfNot(buffer_is_not_shared, bailout);
 
   // Unpack the store and length, and store them to a struct
@@ -5010,14 +5297,112 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
   return stack_slot;
 }
 
+Node* EffectControlLinearizer::ClampFastCallArgument(
+    Node* input, CTypeInfo::Type scalar_type) {
+  Node* min = nullptr;
+  Node* max = nullptr;
+  switch (scalar_type) {
+    case CTypeInfo::Type::kInt32:
+      min = __ Float64Constant(std::numeric_limits<int32_t>::min());
+      max = __ Float64Constant(std::numeric_limits<int32_t>::max());
+      break;
+    case CTypeInfo::Type::kUint32:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(std::numeric_limits<uint32_t>::max());
+      break;
+    case CTypeInfo::Type::kInt64:
+      min = __ Float64Constant(kMinSafeInteger);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    case CTypeInfo::Type::kUint64:
+      min = __ Float64Constant(0);
+      max = __ Float64Constant(kMaxSafeInteger);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  CHECK_NOT_NULL(min);
+  CHECK_NOT_NULL(max);
+
+  Node* clamped = graph()->NewNode(
+      common()->Select(MachineRepresentation::kFloat64),
+      graph()->NewNode(machine()->Float64LessThan(), min, input),
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), input, max), input,
+          max),
+      min);
+
+  Node* rounded = graph()->NewNode(
+      machine()->Float64RoundTiesEven().placeholder(), clamped);
+
+  auto if_zero = __ MakeDeferredLabel();
+  auto if_zero_or_nan = __ MakeDeferredLabel();
+  auto check_done = __ MakeLabel();
+  auto check_for_nan = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+
+  Node* check_is_zero = __ Float64Equal(rounded, __ Float64Constant(0));
+  __ Branch(check_is_zero, &check_for_nan, &check_done);
+
+  // Check if {rounded} is NaN.
+  __ Bind(&check_for_nan);
+  Node* diff = __ Float64Equal(rounded, rounded);
+  Node* check_is_nan = __ Word32Equal(diff, __ Int32Constant(0));
+  __ Branch(check_is_nan, &if_zero_or_nan, &check_done);
+
+  __ Bind(&if_zero_or_nan);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ Int32Constant(0));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ Uint32Constant(0));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ Int64Constant(0));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ Uint64Constant(0));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&check_done);
+  {
+    switch (scalar_type) {
+      case CTypeInfo::Type::kInt32:
+        __ Goto(&done, __ ChangeFloat64ToInt32(rounded));
+        break;
+      case CTypeInfo::Type::kUint32:
+        __ Goto(&done, __ ChangeFloat64ToUint32(rounded));
+        break;
+      case CTypeInfo::Type::kInt64:
+        __ Goto(&done, __ ChangeFloat64ToInt64(rounded));
+        break;
+      case CTypeInfo::Type::kUint64:
+        __ Goto(&done, __ ChangeFloat64ToUint64(rounded));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
   int kAlign = alignof(uintptr_t);
   int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
-      if (uint8_t(arg_type.GetFlags()) &
-          uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
+      uint8_t flags = uint8_t(arg_type.GetFlags());
+      if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
         Node* truncation;
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kInt32:
@@ -5037,9 +5422,12 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
             __ GotoIfNot(__ Projection(1, truncation), if_error);
             return __ Projection(0, truncation);
           default: {
+            __ Goto(if_error);
             return node;
           }
         }
+      } else if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+        return ClampFastCallArgument(node, arg_type.GetType());
       } else {
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kV8Value: {
@@ -5294,6 +5682,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
 
   auto if_double = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
+  auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
 
   // Check if field is a mutable double field.
   __ GotoIfNot(__ IntPtrEqual(__ WordAnd(index, one), zero), &if_double);
@@ -5310,8 +5700,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* offset =
           __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), object, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), object, offset);
+      __ Goto(&loaded_field, field);
     }
 
     // The field is located in the properties backing store of {object}.
@@ -5325,8 +5715,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
-      __ Goto(&done, result);
+      Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
+      __ Goto(&loaded_field, field);
     }
   }
 
@@ -5334,9 +5724,6 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   // architectures, or a mutable HeapNumber.
   __ Bind(&if_double);
   {
-    auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
-    auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
-
     index = __ WordSar(index, one);
 
     // Check if field is in-object or out-of-object.
@@ -5364,27 +5751,27 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* field = __ Load(MachineType::AnyTagged(), properties, offset);
       __ Goto(&loaded_field, field);
     }
+  }
 
-    __ Bind(&loaded_field);
-    {
-      Node* field = loaded_field.PhiAt(0);
-      // We may have transitioned in-place away from double, so check that
-      // this is a HeapNumber -- otherwise the load is fine and we don't need
-      // to copy anything anyway.
-      __ GotoIf(ObjectIsSmi(field), &done, field);
-      Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
-      __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
-                   field);
+  __ Bind(&loaded_field);
+  {
+    Node* field = loaded_field.PhiAt(0);
+    // We may have transitioned in-place away from double, so check that
+    // this is a HeapNumber -- otherwise the load is fine and we don't need
+    // to copy anything anyway.
+    __ GotoIf(ObjectIsSmi(field), &done, field);
+    Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
+    __ GotoIfNot(__ TaggedEqual(field_map, __ HeapNumberMapConstant()), &done,
+                 field);
 
-      Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
-      __ Goto(&done_double, value);
-    }
+    Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
+    __ Goto(&done_double, value);
+  }
 
-    __ Bind(&done_double);
-    {
-      Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
-      __ Goto(&done, result);
-    }
+  __ Bind(&done_double);
+  {
+    Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
+    __ Goto(&done, result);
   }
 
   __ Bind(&done);
@@ -6003,6 +6390,48 @@ Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
   CallBuiltin(Builtin::kCheckSameObject, node->op()->properties(), original,
               constant);
   return constant;
+}
+
+Node* EffectControlLinearizer::LowerDoubleArrayMinMax(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDoubleArrayMin ||
+         node->opcode() == IrOpcode::kDoubleArrayMax);
+
+  bool is_max = node->opcode() == IrOpcode::kDoubleArrayMax;
+  Node* arguments_list = node->InputAt(0);
+
+  // Iterate the elements and find the result.
+  Node* empty_value = is_max ? __ Float64Constant(-V8_INFINITY)
+                             : __ Float64Constant(V8_INFINITY);
+  Node* array_length = __ LoadField(
+      AccessBuilder::ForJSArrayLength(ElementsKind::PACKED_DOUBLE_ELEMENTS),
+      arguments_list);
+  array_length = ChangeSmiToIntPtr(array_length);
+  Node* elements =
+      __ LoadField(AccessBuilder::ForJSObjectElements(), arguments_list);
+
+  auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation(),
+                               MachineRepresentation::kFloat64);
+  auto done = __ MakeLabel(MachineRepresentation::kFloat64);
+
+  __ Goto(&loop, __ IntPtrConstant(0), empty_value);
+  __ Bind(&loop);
+  {
+    Node* index = loop.PhiAt(0);
+    Node* accumulator = loop.PhiAt(1);
+
+    Node* check = __ UintLessThan(index, array_length);
+    __ GotoIfNot(check, &done, accumulator);
+
+    Node* element = __ LoadElement(AccessBuilder::ForFixedDoubleArrayElement(),
+                                   elements, index);
+    __ Goto(&loop, __ IntAdd(index, __ IntPtrConstant(1)),
+            is_max ? __ Float64Max(accumulator, element)
+                   : __ Float64Min(accumulator, element));
+  }
+
+  __ Bind(&done);
+  return ChangeFloat64ToTagged(done.PhiAt(0),
+                               CheckForMinusZeroMode::kCheckForMinusZero);
 }
 
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
@@ -6637,7 +7066,8 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone);
+  JSGraphAssembler graph_assembler_(graph, temp_zone,
+                                    BranchSemantics::kMachine);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
                                      MaintainSchedule::kDiscard, broker);

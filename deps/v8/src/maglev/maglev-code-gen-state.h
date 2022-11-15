@@ -24,9 +24,8 @@ class MaglevAssembler;
 
 class DeferredCodeInfo {
  public:
-  virtual void Generate(MaglevAssembler* masm, Label* return_label) = 0;
+  virtual void Generate(MaglevAssembler* masm) = 0;
   Label deferred_code_label;
-  Label return_label;
 };
 
 class MaglevCodeGenState {
@@ -45,6 +44,9 @@ class MaglevCodeGenState {
   const std::vector<DeferredCodeInfo*>& deferred_code() const {
     return deferred_code_;
   }
+  std::vector<DeferredCodeInfo*> TakeDeferredCode() {
+    return std::exchange(deferred_code_, std::vector<DeferredCodeInfo*>());
+  }
   void PushEagerDeopt(EagerDeoptInfo* info) { eager_deopts_.push_back(info); }
   void PushLazyDeopt(LazyDeoptInfo* info) { lazy_deopts_.push_back(info); }
   const std::vector<EagerDeoptInfo*>& eager_deopts() const {
@@ -60,7 +62,6 @@ class MaglevCodeGenState {
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  Isolate* isolate() const { return compilation_info_->isolate(); }
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   MaglevGraphLabeller* graph_labeller() const {
     return compilation_info_->graph_labeller();

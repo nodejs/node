@@ -1213,7 +1213,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     Handle<CoverageInfo> coverage_info =
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots());
     info()->set_coverage_info(coverage_info);
-    if (FLAG_trace_block_coverage) {
+    if (v8_flags.trace_block_coverage) {
       StdoutStream os;
       coverage_info->CoverageInfoPrint(os, info()->literal()->GetDebugName());
     }
@@ -1421,18 +1421,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   }
 
   // Emit tracing call if requested to do so.
-  if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
-
-  // Emit type profile call.
-  if (info()->flags().collect_type_profile()) {
-    feedback_spec()->AddTypeProfileSlot();
-    int num_parameters = closure_scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Register parameter(builder()->Parameter(i));
-      builder()->LoadAccumulatorWithRegister(parameter).CollectTypeProfile(
-          closure_scope()->parameter(i)->initializer_position());
-    }
-  }
+  if (v8_flags.trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
   // Increment the function-scope block coverage counter.
   BuildIncrementBlockCoverageCounterIfEnabled(literal, SourceRangeKind::kBody);
@@ -1831,7 +1820,7 @@ inline int ReduceToSmiSwitchCaseValue(Expression* expr) {
 
 // Is the range of Smi's small enough relative to number of cases?
 inline bool IsSpreadAcceptable(int spread, int ncases) {
-  return spread < FLAG_switch_table_spread_threshold * ncases;
+  return spread < v8_flags.switch_table_spread_threshold * ncases;
 }
 
 struct SwitchInfo {
@@ -1894,7 +1883,7 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
   if (static_cast<int>(info->covered_cases.size()) >=
-      FLAG_switch_table_min_cases) {
+      v8_flags.switch_table_min_cases) {
     // Due to case spread will be used as the size of jump-table,
     // we need to check if it doesn't overflow by casting its
     // min and max bounds to int64_t, and calculate if the difference is less
@@ -3484,8 +3473,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     Expression* subexpr = *current;
     if (subexpr->IsSpread()) {
       RegisterAllocationScope scope(this);
-      builder()->SetExpressionAsStatementPosition(
-          subexpr->AsSpread()->expression());
+      builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       VisitForAccumulatorValue(subexpr->AsSpread()->expression());
       builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
@@ -3680,15 +3668,12 @@ void BytecodeGenerator::BuildVariableLoadForAccumulatorValue(
 }
 
 void BytecodeGenerator::BuildReturn(int source_position) {
-  if (FLAG_trace) {
+  if (v8_flags.trace) {
     RegisterAllocationScope register_scope(this);
     Register result = register_allocator()->NewRegister();
     // Runtime returns {result} value, preserving accumulator.
     builder()->StoreAccumulatorInRegister(result).CallRuntime(
         Runtime::kTraceExit, result);
-  }
-  if (info()->flags().collect_type_profile()) {
-    builder()->CollectTypeProfile(info()->literal()->return_position());
   }
   builder()->SetStatementPosition(source_position);
   builder()->Return();
@@ -4216,9 +4201,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           }
 
           Expression* default_value = GetDestructuringDefaultValue(&target);
-          if (!target->IsPattern()) {
-            builder()->SetExpressionAsStatementPosition(target);
-          }
+          builder()->SetExpressionPosition(target);
 
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
 
@@ -4292,10 +4275,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 
           // A spread is turned into a loop over the remainer of the iterator.
           Expression* target = spread->expression();
-
-          if (!target->IsPattern()) {
-            builder()->SetExpressionAsStatementPosition(spread);
-          }
+          builder()->SetExpressionPosition(spread);
 
           AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
 
@@ -4418,10 +4398,7 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
     Expression* pattern_key = pattern_property->key();
     Expression* target = pattern_property->value();
     Expression* default_value = GetDestructuringDefaultValue(&target);
-
-    if (!target->IsPattern()) {
-      builder()->SetExpressionAsStatementPosition(target);
-    }
+    builder()->SetExpressionPosition(target);
 
     // Calculate this property's key into the assignment RHS value, additionally
     // storing the key for rest_runtime_callargs if needed.
@@ -4723,8 +4700,11 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   if (suspend_count_ > 0) {
     if (IsAsyncGeneratorFunction(function_kind())) {
       // AsyncGenerator yields (with the exception of the initial yield)
-      // delegate work to the AsyncGeneratorYield stub, which Awaits the operand
-      // and on success, wraps the value in an IteratorResult.
+      // delegate work to the AsyncGeneratorYieldWithAwait stub, which Awaits
+      // the operand and on success, wraps the value in an IteratorResult.
+      //
+      // In the spec the Await is a separate operation, but they are combined
+      // here to reduce bytecode size.
       RegisterAllocationScope register_scope(this);
       RegisterList args = register_allocator()->NewRegisterList(3);
       builder()
@@ -4732,7 +4712,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
           .StoreAccumulatorInRegister(args[1])         // value
           .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
           .StoreAccumulatorInRegister(args[2])  // is_caught
-          .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
+          .CallRuntime(Runtime::kInlineAsyncGeneratorYieldWithAwait, args);
     } else {
       // Generator yields (with the exception of the initial yield) wrap the
       // value into IteratorResult.
@@ -4849,9 +4829,8 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 //       // From the generator to its user:
 //       // Forward output, receive new input, and determine resume mode.
 //       if (IS_ASYNC_GENERATOR) {
-//         // AsyncGeneratorYield abstract operation awaits the operand before
-//         // resolving the promise for the current AsyncGeneratorRequest.
-//         %_AsyncGeneratorYield(output.value)
+//         // Resolve the promise for the current AsyncGeneratorRequest.
+//         %_AsyncGeneratorResolve(output.value, /* done = */ false)
 //       }
 //       input = Suspend(output);
 //       resumeMode = %GeneratorGetResumeMode();
@@ -4986,9 +4965,10 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       } else {
         RegisterAllocationScope inner_register_scope(this);
         DCHECK_EQ(iterator_type, IteratorType::kAsync);
-        // If generatorKind is async, perform AsyncGeneratorYield(output.value),
-        // which will await `output.value` before resolving the current
-        // AsyncGeneratorRequest's promise.
+        // If generatorKind is async, perform
+        // AsyncGeneratorResolve(output.value, /* done = */ false), which will
+        // resolve the current AsyncGeneratorRequest's promise with
+        // output.value.
         builder()->LoadNamedProperty(
             output, ast_string_constants()->value_string(),
             feedback_index(feedback_spec()->AddLoadICSlot()));
@@ -4997,9 +4977,9 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         builder()
             ->MoveRegister(generator_object(), args[0])  // generator
             .StoreAccumulatorInRegister(args[1])         // value
-            .LoadBoolean(catch_prediction() != HandlerTable::ASYNC_AWAIT)
-            .StoreAccumulatorInRegister(args[2])  // is_caught
-            .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
+            .LoadFalse()
+            .StoreAccumulatorInRegister(args[2])  // done
+            .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
       }
 
       BuildSuspendPoint(expr->position());
@@ -5322,7 +5302,7 @@ void BytecodeGenerator::VisitPropertyLoadForRegister(Register obj,
 void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
                                                     Register opt_receiver_out) {
   RegisterAllocationScope register_scope(this);
-  if (FLAG_super_ic) {
+  if (v8_flags.super_ic) {
     Register receiver = register_allocator()->NewRegister();
     BuildThisVariableLoad();
     builder()->StoreAccumulatorInRegister(receiver);
@@ -5650,12 +5630,12 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register this_function = VisitForRegisterValue(super->this_function_var());
   // This register will initially hold the constructor, then afterward it will
   // hold the instance -- the lifetimes of the two don't need to overlap, and
-  // this way FindNonDefaultConstructor can choose to write either the instance
-  // or the constructor into the same register.
+  // this way FindNonDefaultConstructorOrConstruct can choose to write either
+  // the instance or the constructor into the same register.
   Register constructor_then_instance = register_allocator()->NewRegister();
 
   BytecodeLabel super_ctor_call_done;
-  bool omit_super_ctor = FLAG_omit_default_ctors &&
+  bool omit_super_ctor = v8_flags.omit_default_ctors &&
                          IsDerivedConstructor(info()->literal()->kind());
 
   if (spread_position == Call::kHasNonFinalSpread) {
@@ -5790,9 +5770,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 void BytecodeGenerator::BuildSuperCallOptimization(
     Register this_function, Register new_target,
     Register constructor_then_instance, BytecodeLabel* super_ctor_call_done) {
-  DCHECK(FLAG_omit_default_ctors);
+  DCHECK(v8_flags.omit_default_ctors);
   RegisterList output = register_allocator()->NewRegisterList(2);
-  builder()->FindNonDefaultConstructor(this_function, new_target, output);
+  builder()->FindNonDefaultConstructorOrConstruct(this_function, new_target,
+                                                  output);
   builder()->MoveRegister(output[1], constructor_then_instance);
   builder()->LoadAccumulatorWithRegister(output[0]).JumpIfTrue(
       ToBooleanMode::kAlreadyBoolean, super_ctor_call_done);
@@ -6618,6 +6599,7 @@ void BytecodeGenerator::VisitSuperPropertyReference(
 
 void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
   VisitForEffect(binop->left());
+  builder()->SetExpressionAsStatementPosition(binop->right());
   Visit(binop->right());
 }
 
@@ -6626,8 +6608,11 @@ void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
 
   VisitForEffect(expr->first());
   for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
+    builder()->SetExpressionAsStatementPosition(expr->subsequent(i));
     VisitForEffect(expr->subsequent(i));
   }
+  builder()->SetExpressionAsStatementPosition(
+      expr->subsequent(expr->subsequent_length() - 1));
   Visit(expr->subsequent(expr->subsequent_length() - 1));
 }
 
@@ -7347,7 +7332,7 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
 FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
                                                     const AstRawString* name) {
   DCHECK(!expr->IsSuperPropertyReference());
-  if (!FLAG_ignition_share_named_property_feedback) {
+  if (!v8_flags.ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
   FeedbackSlotCache::SlotKind slot_kind =
@@ -7369,7 +7354,7 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadSuperICSlot(
     const AstRawString* name) {
-  if (!FLAG_ignition_share_named_property_feedback) {
+  if (!v8_flags.ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
   FeedbackSlotCache::SlotKind slot_kind =
@@ -7386,7 +7371,7 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadSuperICSlot(
 
 FeedbackSlot BytecodeGenerator::GetCachedStoreICSlot(const Expression* expr,
                                                      const AstRawString* name) {
-  if (!FLAG_ignition_share_named_property_feedback) {
+  if (!v8_flags.ignition_share_named_property_feedback) {
     return feedback_spec()->AddStoreICSlot(language_mode());
   }
   FeedbackSlotCache::SlotKind slot_kind =

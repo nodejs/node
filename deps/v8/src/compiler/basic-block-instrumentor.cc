@@ -64,7 +64,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   // Set the function name.
   data->SetFunctionName(info->GetDebugName());
   // Capture the schedule string before instrumentation.
-  if (FLAG_turbo_profiling_verbose) {
+  if (v8_flags.turbo_profiling_verbose) {
     std::ostringstream os;
     os << *schedule;
     data->SetSchedule(os);

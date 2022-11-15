@@ -235,20 +235,6 @@ CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
   return OpParameter<CheckForMinusZeroMode>(op);
 }
 
-size_t hash_value(CheckForMinusZeroMode mode) {
-  return static_cast<size_t>(mode);
-}
-
-std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
-  switch (mode) {
-    case CheckForMinusZeroMode::kCheckForMinusZero:
-      return os << "check-for-minus-zero";
-    case CheckForMinusZeroMode::kDontCheckForMinusZero:
-      return os << "dont-check-for-minus-zero";
-  }
-  UNREACHABLE();
-}
-
 std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
   if (flags & CheckMapsFlag::kTryMigrateInstance) {
     return os << "TryMigrateInstance";
@@ -505,6 +491,8 @@ std::ostream& operator<<(std::ostream& os, BigIntOperationHint hint) {
   switch (hint) {
     case BigIntOperationHint::kBigInt:
       return os << "BigInt";
+    case BigIntOperationHint::kBigInt64:
+      return os << "BigInt64";
   }
   UNREACHABLE();
 }
@@ -552,6 +540,19 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
          op->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
   return OpParameter<NumberOperationHint>(op);
+}
+
+BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
+  // TODO(panq): Expand the DCHECK when more BigInt operations are supported.
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeBigIntAdd ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntSubtract ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntMultiply ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntDivide ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntModulus ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseAnd ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseOr ||
+         op->opcode() == IrOpcode::kSpeculativeBigIntBitwiseXor);
+  return OpParameter<BigIntOperationHint>(op);
 }
 
 bool operator==(NumberOperationParameters const& lhs,
@@ -810,12 +811,17 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(BigIntSubtract, Operator::kNoProperties, 2, 1)        \
   V(BigIntMultiply, Operator::kNoProperties, 2, 1)        \
   V(BigIntDivide, Operator::kNoProperties, 2, 1)          \
+  V(BigIntModulus, Operator::kNoProperties, 2, 1)         \
   V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
+  V(BigIntBitwiseOr, Operator::kNoProperties, 2, 1)       \
+  V(BigIntBitwiseXor, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
   V(StringSubstring, Operator::kNoProperties, 3, 1)       \
-  V(DateNow, Operator::kNoProperties, 0, 1)
+  V(DateNow, Operator::kNoProperties, 0, 1)               \
+  V(DoubleArrayMax, Operator::kNoProperties, 1, 1)        \
+  V(DoubleArrayMin, Operator::kNoProperties, 1, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -837,23 +843,30 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedInt32Mod, 2, 1)                \
   V(CheckedInt32Sub, 2, 1)                \
   V(CheckedUint32Div, 2, 1)               \
-  V(CheckedUint32Mod, 2, 1)
+  V(CheckedUint32Mod, 2, 1)               \
+  V(CheckedInt64Add, 2, 1)                \
+  V(CheckedInt64Sub, 2, 1)                \
+  V(CheckedInt64Mul, 2, 1)                \
+  V(CheckedInt64Div, 2, 1)                \
+  V(CheckedInt64Mod, 2, 1)
 
-#define CHECKED_WITH_FEEDBACK_OP_LIST(V)    \
-  V(CheckNumber, 1, 1)                      \
-  V(CheckSmi, 1, 1)                         \
-  V(CheckString, 1, 1)                      \
-  V(CheckBigInt, 1, 1)                      \
-  V(CheckedInt32ToTaggedSigned, 1, 1)       \
-  V(CheckedInt64ToInt32, 1, 1)              \
-  V(CheckedInt64ToTaggedSigned, 1, 1)       \
-  V(CheckedTaggedToArrayIndex, 1, 1)        \
-  V(CheckedTaggedSignedToInt32, 1, 1)       \
-  V(CheckedTaggedToTaggedPointer, 1, 1)     \
-  V(CheckedTaggedToTaggedSigned, 1, 1)      \
-  V(CheckedUint32ToInt32, 1, 1)             \
-  V(CheckedUint32ToTaggedSigned, 1, 1)      \
-  V(CheckedUint64ToInt32, 1, 1)             \
+#define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
+  V(CheckNumber, 1, 1)                   \
+  V(CheckSmi, 1, 1)                      \
+  V(CheckString, 1, 1)                   \
+  V(CheckBigInt, 1, 1)                   \
+  V(CheckedBigIntToBigInt64, 1, 1)       \
+  V(CheckedInt32ToTaggedSigned, 1, 1)    \
+  V(CheckedInt64ToInt32, 1, 1)           \
+  V(CheckedInt64ToTaggedSigned, 1, 1)    \
+  V(CheckedTaggedToArrayIndex, 1, 1)     \
+  V(CheckedTaggedSignedToInt32, 1, 1)    \
+  V(CheckedTaggedToTaggedPointer, 1, 1)  \
+  V(CheckedTaggedToTaggedSigned, 1, 1)   \
+  V(CheckedUint32ToInt32, 1, 1)          \
+  V(CheckedUint32ToTaggedSigned, 1, 1)   \
+  V(CheckedUint64ToInt32, 1, 1)          \
+  V(CheckedUint64ToInt64, 1, 1)          \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
 #define CHECKED_BOUNDS_OP_LIST(V) \
@@ -1610,44 +1623,14 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
       CheckFloat64HoleParameters(mode, feedback));
 }
 
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntSubtract(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntSubtract,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntSubtract", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntMultiply(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntMultiply,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntMultiply", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntDivide(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntDivide,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntDivide", 2, 1,
-      1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntBitwiseAnd(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntBitwiseAnd,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntBitwiseAnd",
-      2, 1, 1, 1, 1, 0, hint);
-}
+#define SPECULATIVE_BIGINT_BINOP(Name)                                         \
+  const Operator* SimplifiedOperatorBuilder::Name(BigIntOperationHint hint) {  \
+    return zone()->New<Operator1<BigIntOperationHint>>(                        \
+        IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, #Name, 2, \
+        1, 1, 1, 1, 0, hint);                                                  \
+  }
+SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(SPECULATIVE_BIGINT_BINOP)
+#undef SPECULATIVE_BIGINT_BINOP
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
     BigIntOperationHint hint) {

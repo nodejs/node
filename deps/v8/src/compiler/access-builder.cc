@@ -365,6 +365,22 @@ FieldAccess AccessBuilder::ForJSArrayBufferBitField() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSArrayBufferByteLength() {
+  FieldAccess access = {kTaggedBase,
+                        JSArrayBuffer::kRawByteLengthOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get()->kJSArrayBufferByteLengthType,
+                        MachineType::UintPtr(),
+                        kNoWriteBarrier,
+                        "JSArrayBufferByteLength"};
+#ifdef V8_ENABLE_SANDBOX
+  access.is_bounded_size_access = true;
+#endif
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
   FieldAccess access = {kTaggedBase,           JSArrayBufferView::kBufferOffset,
                         MaybeHandle<Name>(),   MaybeHandle<Map>(),
@@ -376,39 +392,61 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferViewByteLength() {
   FieldAccess access = {kTaggedBase,
-                        JSArrayBufferView::kByteLengthOffset,
+                        JSArrayBufferView::kRawByteLengthOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kJSArrayBufferViewByteLengthType,
                         MachineType::UintPtr(),
                         kNoWriteBarrier,
                         "JSArrayBufferViewByteLength"};
+#ifdef V8_ENABLE_SANDBOX
+  access.is_bounded_size_access = true;
+#endif
   return access;
 }
 
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferViewByteOffset() {
   FieldAccess access = {kTaggedBase,
-                        JSArrayBufferView::kByteOffsetOffset,
+                        JSArrayBufferView::kRawByteOffsetOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kJSArrayBufferViewByteOffsetType,
                         MachineType::UintPtr(),
                         kNoWriteBarrier,
                         "JSArrayBufferViewByteOffset"};
+#ifdef V8_ENABLE_SANDBOX
+  access.is_bounded_size_access = true;
+#endif
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSArrayBufferViewBitField() {
+  FieldAccess access = {kTaggedBase,
+                        JSArrayBufferView::kBitFieldOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get()->kUint32,
+                        MachineType::Uint32(),
+                        kNoWriteBarrier,
+                        "JSArrayBufferViewBitField"};
   return access;
 }
 
 // static
 FieldAccess AccessBuilder::ForJSTypedArrayLength() {
   FieldAccess access = {kTaggedBase,
-                        JSTypedArray::kLengthOffset,
+                        JSTypedArray::kRawLengthOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kJSTypedArrayLengthType,
                         MachineType::UintPtr(),
                         kNoWriteBarrier,
                         "JSTypedArrayLength"};
+#ifdef V8_ENABLE_SANDBOX
+  access.is_bounded_size_access = true;
+#endif
   return access;
 }
 

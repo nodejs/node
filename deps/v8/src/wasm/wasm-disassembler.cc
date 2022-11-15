@@ -26,7 +26,7 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
   AccountingAllocator allocator;
   ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
                         function_body_offsets);
-  md.PrintModule({0, 2});
+  md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
 
@@ -168,7 +168,6 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
 
   // Decode and print locals.
   uint32_t locals_length;
-  InitializeLocalsFromSig();
   DecodeLocals(pc_, &locals_length);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
@@ -256,7 +255,7 @@ WasmOpcode FunctionBodyDisassembler::GetOpcode() {
   WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
   if (!WasmOpcodes::IsPrefixOpcode(opcode)) return opcode;
   uint32_t opcode_length;
-  return read_prefixed_opcode<validate>(pc_, &opcode_length);
+  return read_prefixed_opcode<ValidationTag>(pc_, &opcode_length);
 }
 
 void FunctionBodyDisassembler::PrintHexNumber(StringBuilder& out,
@@ -279,7 +278,7 @@ void FunctionBodyDisassembler::PrintHexNumber(StringBuilder& out,
 ////////////////////////////////////////////////////////////////////////////////
 // ImmediatesPrinter.
 
-template <Decoder::ValidateFlag validate>
+template <typename ValidationTag>
 class ImmediatesPrinter {
  public:
   ImmediatesPrinter(StringBuilder& out, FunctionBodyDisassembler* owner)
@@ -310,108 +309,95 @@ class ImmediatesPrinter {
     owner_->out_->PatchLabel(label_info, out_.start() + label_start_position);
   }
 
-  void BlockType(BlockTypeImmediate<validate>& imm) {
-    if (imm.type == kWasmBottom) {
-      const FunctionSig* sig = owner_->module_->signature(imm.sig_index);
-      PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
-    } else if (imm.type == kWasmVoid) {
-      // Just be silent.
-    } else {
-      out_ << " (result ";
-      names()->PrintValueType(out_, imm.type);
-      out_ << ")";
-    }
+  void BlockType(BlockTypeImmediate& imm) {
+    PrintSignatureOneLine(out_, &imm.sig, 0 /* ignored */, names(), false);
   }
 
-  void HeapType(HeapTypeImmediate<validate>& imm) {
+  void HeapType(HeapTypeImmediate& imm) {
     out_ << " ";
     names()->PrintHeapType(out_, imm.type);
     if (imm.type.is_index()) use_type(imm.type.ref_index());
   }
 
-  void BranchDepth(BranchDepthImmediate<validate>& imm) {
-    PrintDepthAsLabel(imm.depth);
-  }
+  void BranchDepth(BranchDepthImmediate& imm) { PrintDepthAsLabel(imm.depth); }
 
-  void BranchTable(BranchTableImmediate<validate>& imm) {
+  void BranchTable(BranchTableImmediate& imm) {
     const byte* pc = imm.table;
     for (uint32_t i = 0; i <= imm.table_count; i++) {
       uint32_t length;
-      uint32_t target = owner_->read_u32v<validate>(pc, &length);
+      uint32_t target = owner_->read_u32v<ValidationTag>(pc, &length);
       PrintDepthAsLabel(target);
       pc += length;
     }
   }
 
-  void CallIndirect(CallIndirectImmediate<validate>& imm) {
+  void CallIndirect(CallIndirectImmediate& imm) {
     const FunctionSig* sig = owner_->module_->signature(imm.sig_imm.index);
     PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
     if (imm.table_imm.index != 0) TableIndex(imm.table_imm);
   }
 
-  void SelectType(SelectTypeImmediate<validate>& imm) {
+  void SelectType(SelectTypeImmediate& imm) {
     out_ << " ";
     names()->PrintValueType(out_, imm.type);
   }
 
-  void MemoryAccess(MemoryAccessImmediate<validate>& imm) {
+  void MemoryAccess(MemoryAccessImmediate& imm) {
     if (imm.offset != 0) out_ << " offset=" << imm.offset;
     if (imm.alignment != GetDefaultAlignment(owner_->current_opcode_)) {
       out_ << " align=" << (1u << imm.alignment);
     }
   }
 
-  void SimdLane(SimdLaneImmediate<validate>& imm) {
-    out_ << " " << uint32_t{imm.lane};
-  }
+  void SimdLane(SimdLaneImmediate& imm) { out_ << " " << uint32_t{imm.lane}; }
 
-  void Field(FieldImmediate<validate>& imm) {
+  void Field(FieldImmediate& imm) {
     TypeIndex(imm.struct_imm);
     out_ << " ";
     names()->PrintFieldName(out_, imm.struct_imm.index, imm.field_imm.index);
   }
 
-  void Length(IndexImmediate<validate>& imm) {
+  void Length(IndexImmediate& imm) {
     out_ << " " << imm.index;  // --
   }
 
-  void TagIndex(TagIndexImmediate<validate>& imm) {
+  void TagIndex(TagIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTagName(out_, imm.index);
   }
 
-  void FunctionIndex(IndexImmediate<validate>& imm) {
+  void FunctionIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintFunctionName(out_, imm.index, NamesProvider::kDevTools);
   }
 
-  void TypeIndex(IndexImmediate<validate>& imm) {
+  void TypeIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintTypeName(out_, imm.index);
     use_type(imm.index);
   }
 
-  void LocalIndex(IndexImmediate<validate>& imm) {
+  void LocalIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintLocalName(out_, func_index(), imm.index);
   }
 
-  void GlobalIndex(IndexImmediate<validate>& imm) {
+  void GlobalIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintGlobalName(out_, imm.index);
   }
 
-  void TableIndex(IndexImmediate<validate>& imm) {
+  void TableIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintTableName(out_, imm.index);
   }
 
-  void MemoryIndex(MemoryIndexImmediate<validate>& imm) {
+  void MemoryIndex(MemoryIndexImmediate& imm) {
     if (imm.index == 0) return;
     out_ << " " << imm.index;
   }
 
-  void DataSegmentIndex(IndexImmediate<validate>& imm) {
+  void DataSegmentIndex(IndexImmediate& imm) {
     if (kSkipDataSegmentNames) {
       out_ << " " << imm.index;
     } else {
@@ -420,16 +406,16 @@ class ImmediatesPrinter {
     }
   }
 
-  void ElemSegmentIndex(IndexImmediate<validate>& imm) {
+  void ElemSegmentIndex(IndexImmediate& imm) {
     out_ << " ";
     names()->PrintElementSegmentName(out_, imm.index);
   }
 
-  void I32Const(ImmI32Immediate<validate>& imm) {
+  void I32Const(ImmI32Immediate& imm) {
     out_ << " " << imm.value;  // --
   }
 
-  void I64Const(ImmI64Immediate<validate>& imm) {
+  void I64Const(ImmI64Immediate& imm) {
     if (imm.value >= 0) {
       out_ << " " << static_cast<uint64_t>(imm.value);
     } else {
@@ -437,10 +423,12 @@ class ImmediatesPrinter {
     }
   }
 
-  void F32Const(ImmF32Immediate<validate>& imm) {
+  void F32Const(ImmF32Immediate& imm) {
     float f = imm.value;
     if (f == 0) {
       out_ << (1 / f < 0 ? " -0.0" : " 0.0");
+    } else if (std::isinf(f)) {
+      out_ << (f > 0 ? " inf" : " -inf");
     } else if (std::isnan(f)) {
       uint32_t bits = base::bit_cast<uint32_t>(f);
       uint32_t payload = bits & 0x7F'FFFFu;
@@ -453,12 +441,15 @@ class ImmediatesPrinter {
       }
     } else {
       std::ostringstream o;
-      o << std::setprecision(std::numeric_limits<float>::digits10 + 1) << f;
+      // TODO(dlehmann): Change to `std::format` (C++20) or to `std::to_chars`
+      // (C++17) once available, so that `0.1` isn't printed as `0.100000001`
+      // any more.
+      o << std::setprecision(std::numeric_limits<float>::max_digits10) << f;
       out_ << " " << o.str();
     }
   }
 
-  void F64Const(ImmF64Immediate<validate>& imm) {
+  void F64Const(ImmF64Immediate& imm) {
     double d = imm.value;
     if (d == 0) {
       out_ << (1 / d < 0 ? " -0.0" : " 0.0");
@@ -481,7 +472,7 @@ class ImmediatesPrinter {
     }
   }
 
-  void S128Const(Simd128Immediate<validate>& imm) {
+  void S128Const(Simd128Immediate& imm) {
     if (owner_->current_opcode_ == kExprI8x16Shuffle) {
       for (int i = 0; i < 16; i++) {
         out_ << " " << uint32_t{imm.value[i]};
@@ -500,28 +491,28 @@ class ImmediatesPrinter {
     }
   }
 
-  void StringConst(StringConstImmediate<validate>& imm) {
+  void StringConst(StringConstImmediate& imm) {
     // TODO(jkummerow): Print (a prefix of) the string?
     out_ << " " << imm.index;
   }
 
-  void MemoryInit(MemoryInitImmediate<validate>& imm) {
+  void MemoryInit(MemoryInitImmediate& imm) {
     DataSegmentIndex(imm.data_segment);
     if (imm.memory.index != 0) out_ << " " << uint32_t{imm.memory.index};
   }
 
-  void MemoryCopy(MemoryCopyImmediate<validate>& imm) {
+  void MemoryCopy(MemoryCopyImmediate& imm) {
     if (imm.memory_dst.index == 0 && imm.memory_src.index == 0) return;
     out_ << " " << uint32_t{imm.memory_dst.index};
     out_ << " " << uint32_t{imm.memory_src.index};
   }
 
-  void TableInit(TableInitImmediate<validate>& imm) {
+  void TableInit(TableInitImmediate& imm) {
     if (imm.table.index != 0) TableIndex(imm.table);
     ElemSegmentIndex(imm.element_segment);
   }
 
-  void TableCopy(TableCopyImmediate<validate>& imm) {
+  void TableCopy(TableCopyImmediate& imm) {
     if (imm.table_dst.index == 0 && imm.table_src.index == 0) return;
     out_ << " ";
     names()->PrintTableName(out_, imm.table_dst.index);
@@ -529,7 +520,7 @@ class ImmediatesPrinter {
     names()->PrintTableName(out_, imm.table_src.index);
   }
 
-  void ArrayCopy(IndexImmediate<validate>& dst, IndexImmediate<validate>& src) {
+  void ArrayCopy(IndexImmediate& dst, IndexImmediate& src) {
     out_ << " ";
     names()->PrintTypeName(out_, dst.index);
     out_ << " ";
@@ -551,9 +542,9 @@ class ImmediatesPrinter {
 
 uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
     StringBuilder& out) {
-  using Printer = ImmediatesPrinter<validate>;
+  using Printer = ImmediatesPrinter<ValidationTag>;
   Printer imm_printer(out, this);
-  return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, &imm_printer);
+  return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, imm_printer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -565,11 +556,14 @@ class OffsetsProvider {
 
   void CollectOffsets(const WasmModule* module, const byte* start,
                       const byte* end, AccountingAllocator* allocator) {
+    num_imported_tables_ = module->num_imported_tables;
+    num_imported_globals_ = module->num_imported_globals;
+    num_imported_tags_ = module->num_imported_tags;
     type_offsets_.reserve(module->types.size());
     import_offsets_.reserve(module->import_table.size());
-    table_offsets_.reserve(module->tables.size());
-    tag_offsets_.reserve(module->tags.size());
-    global_offsets_.reserve(module->globals.size());
+    table_offsets_.reserve(module->tables.size() - num_imported_tables_);
+    tag_offsets_.reserve(module->tags.size() - num_imported_tags_);
+    global_offsets_.reserve(module->globals.size() - num_imported_globals_);
     element_offsets_.reserve(module->elem_segments.size());
     data_offsets_.reserve(module->data_segments.size());
 
@@ -625,12 +619,21 @@ class OffsetsProvider {
   }
   GETTER(type)
   GETTER(import)
-  GETTER(table)
-  GETTER(tag)
-  GETTER(global)
   GETTER(element)
   GETTER(data)
 #undef GETTER
+
+#define IMPORT_ADJUSTED_GETTER(name)                                  \
+  uint32_t name##_offset(uint32_t index) {                            \
+    if (!enabled_) return 0;                                          \
+    DCHECK(index >= num_imported_##name##s_ &&                        \
+           index - num_imported_##name##s_ < name##_offsets_.size()); \
+    return name##_offsets_[index - num_imported_##name##s_];          \
+  }
+  IMPORT_ADJUSTED_GETTER(table)
+  IMPORT_ADJUSTED_GETTER(tag)
+  IMPORT_ADJUSTED_GETTER(global)
+#undef IMPORT_ADJUSTED_GETTER
 
   uint32_t memory_offset() { return memory_offset_; }
 
@@ -638,6 +641,9 @@ class OffsetsProvider {
 
  private:
   bool enabled_{false};
+  uint32_t num_imported_tables_{0};
+  uint32_t num_imported_globals_{0};
+  uint32_t num_imported_tags_{0};
   std::vector<uint32_t> type_offsets_;
   std::vector<uint32_t> import_offsets_;
   std::vector<uint32_t> table_offsets_;
@@ -737,12 +743,11 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   }
 }
 
-void ModuleDisassembler::PrintModule(Indentation indentation) {
+void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   // 0. General infrastructure.
   // We don't store import/export information on {WasmTag} currently.
   size_t num_tags = module_->tags.size();
   std::vector<bool> exported_tags(num_tags, false);
-  std::vector<bool> imported_tags(num_tags, false);
   for (const WasmExport& ex : module_->export_table) {
     if (ex.kind == kExternalTag) exported_tags[ex.index] = true;
   }
@@ -817,16 +822,16 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
           PrintExportName(kExternalTag, import.index);
         }
         PrintTagSignature(module_->tags[import.index].sig);
-        imported_tags[import.index] = true;
         break;
     }
     out_ << ")";
   }
 
   // IV. Tables
-  for (uint32_t i = 0; i < module_->tables.size(); i++) {
+  for (uint32_t i = module_->num_imported_tables; i < module_->tables.size();
+       i++) {
     const WasmTable& table = module_->tables[i];
-    if (table.imported) continue;
+    DCHECK(!table.imported);
     out_.NextLine(offsets_->table_offset(i));
     out_ << indentation << "(table ";
     names_->PrintTableName(out_, i, kIndicesAsComments);
@@ -850,8 +855,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   }
 
   // VI.Tags
-  for (uint32_t i = 0; i < module_->tags.size(); i++) {
-    if (imported_tags[i]) continue;
+  for (uint32_t i = module_->num_imported_tags; i < module_->tags.size(); i++) {
     const WasmTag& tag = module_->tags[i];
     out_.NextLine(offsets_->tag_offset(i));
     out_ << indentation << "(tag ";
@@ -865,9 +869,10 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // TODO(jkummerow/12868): Implement.
 
   // VIII. Globals
-  for (uint32_t i = 0; i < module_->globals.size(); i++) {
+  for (uint32_t i = module_->num_imported_globals; i < module_->globals.size();
+       i++) {
     const WasmGlobal& global = module_->globals[i];
-    if (global.imported) continue;
+    DCHECK(!global.imported);
     out_.NextLine(offsets_->global_offset(i));
     out_ << indentation << "(global ";
     names_->PrintGlobalName(out_, i, kIndicesAsComments);
@@ -891,7 +896,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     const WasmElemSegment& elem = module_->elem_segments[i];
     out_.NextLine(offsets_->element_offset(i));
     out_ << indentation << "(elem ";
-    names_->PrintElementSegmentName(out_, i);
+    names_->PrintElementSegmentName(out_, i, kIndicesAsComments);
     if (elem.status == WasmElemSegment::kStatusDeclarative) {
       out_ << " declare";
     } else if (elem.status == WasmElemSegment::kStatusActive) {
@@ -942,6 +947,10 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
       function_body_offsets_->push_back(first_instruction_offset);
       function_body_offsets_->push_back(d.pc_offset());
     }
+    if (out_.ApproximateSizeMB() > max_mb) {
+      out_ << "<truncated...>";
+      return;
+    }
   }
 
   // XII. Data
@@ -951,7 +960,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     out_ << indentation << "(data";
     if (!kSkipDataSegmentNames) {
       out_ << " ";
-      names_->PrintDataSegmentName(out_, i);
+      names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
     if (data.active) {
       ValueType type = module_->is_memory64 ? kWasmI64 : kWasmI32;
@@ -961,6 +970,11 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     PrintString(data.source);
     out_ << "\")";
     out_.NextLine(0);
+
+    if (out_.ApproximateSizeMB() > max_mb) {
+      out_ << "<truncated...>";
+      return;
+    }
   }
 
   indentation.decrease();

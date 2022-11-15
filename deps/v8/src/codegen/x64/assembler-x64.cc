@@ -989,14 +989,6 @@ void Assembler::call(Label* L) {
   }
 }
 
-void Assembler::call(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  // 1110 1000 #32-bit disp.
-  emit(0xE8);
-  emit_runtime_entry(entry, rmode);
-}
-
 void Assembler::call(Handle<CodeT> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK(FromCodeT(*target).IsExecutable());
@@ -1021,6 +1013,16 @@ void Assembler::near_jmp(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   // 1110 1001 #32-bit disp.
   emit(0xE9);
+  DCHECK(is_int32(disp));
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(disp));
+}
+
+void Assembler::near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  // 0000 1111 1000 tttn #32-bit disp.
+  emit(0x0F);
+  emit(0x80 | cc);
   DCHECK(is_int32(disp));
   if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   emitl(static_cast<int32_t>(disp));
@@ -1410,14 +1412,6 @@ void Assembler::j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode) {
   RecordRelocInfo(rmode);
   int code_target_index = AddCodeTarget(target);
   emitl(code_target_index);
-}
-
-void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  // 1110 1001 #32-bit disp.
-  emit(0xE9);
-  emit_runtime_entry(entry, rmode);
 }
 
 void Assembler::jmp_rel(int32_t offset) {
@@ -1890,6 +1884,13 @@ void Assembler::mulq(Register src) {
   emit_rex_64(src);
   emit(0xF7);
   emit_modrm(0x4, src);
+}
+
+void Assembler::mulq(Operand src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_operand(0x4, src);
 }
 
 void Assembler::negb(Register reg) {
@@ -4415,8 +4416,7 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emitl(data);
@@ -4425,8 +4425,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emitq(data);
@@ -4464,7 +4463,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::WASM_CALL);
 

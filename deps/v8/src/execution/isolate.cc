@@ -94,6 +94,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
@@ -427,7 +428,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
        ++builtin) {
     CodeT codet = builtins()->code(builtin);
 
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
 #ifdef V8_EXTERNAL_CODE_SPACE
       DCHECK(Internals::HasHeapObjectTag(codet.ptr()));
       uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(codet.address());
@@ -436,8 +437,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
       // hash code cage base and code entry point. Other data fields must
       // remain the same.
       static_assert(CodeDataContainer::kCodePointerFieldsStrongEndOffset ==
-                    CodeDataContainer::kCodeCageBaseUpper32BitsOffset);
-      static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffsetEnd + 1 ==
                     CodeDataContainer::kCodeEntryPointOffset);
 
       static_assert(CodeDataContainer::kCodeEntryPointOffsetEnd + 1 ==
@@ -505,9 +504,9 @@ Isolate* Isolate::process_wide_shared_isolate_{nullptr};
 
 Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
 
-base::Thread::LocalStorageKey Isolate::isolate_key_;
-base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-std::atomic<bool> Isolate::isolate_key_created_{false};
+thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
+    V8_CONSTINIT = nullptr;
+thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
 
 namespace {
 // A global counter for all generated Isolates, might overflow.
@@ -562,23 +561,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
   return per_thread;
 }
 
-void Isolate::InitializeOncePerProcess() {
-  isolate_key_ = base::Thread::CreateThreadLocalKey();
-  bool expected = false;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, true, std::memory_order_relaxed));
-  per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-
-  Heap::InitializeOncePerProcess();
-}
-
-void Isolate::DisposeOncePerProcess() {
-  base::Thread::DeleteThreadLocalKey(isolate_key_);
-  bool expected = true;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, false, std::memory_order_relaxed));
-  base::Thread::DeleteThreadLocalKey(per_isolate_thread_data_key_);
-}
+void Isolate::InitializeOncePerProcess() { Heap::InitializeOncePerProcess(); }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
   return isolate_addresses_[id];
@@ -983,8 +966,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure)) {
+        IsBuiltinFunction(
+            isolate, reaction->fulfill_handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure)) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -1106,8 +1090,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure) ||
+        IsBuiltinFunction(
+            isolate, promise_reaction_job_task->handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncFunctionAwaitRejectClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
@@ -2124,11 +2109,10 @@ Object Isolate::UnwindAndFindHandler() {
                             visited_frames);
       }
 
-      case StackFrame::WASM_COMPILE_LAZY: {
-        // Can only fail directly on invocation. This happens if an invalid
-        // function was validated lazily.
-        DCHECK(v8_flags.wasm_lazy_validation);
-        break;
+      case StackFrame::WASM_LIFTOFF_SETUP: {
+        // The WasmLiftoffFrameSetup builtin doesn't throw, and doesn't call
+        // out to user code that could throw.
+        UNREACHABLE();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2969,30 +2953,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
-bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_simd_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_simd_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_simd;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_exceptions_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_exceptions_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_eh;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
@@ -3278,13 +3238,15 @@ Isolate* Isolate::GetProcessWideSharedIsolate(bool* created_shared_isolate) {
     DCHECK(HasFlagThatRequiresSharedHeap());
     FATAL(
         "Build configuration does not support creating shared heap. The RO "
-        "heap must be shared, and pointer compression must either be off or "
-        "use a shared cage. V8 is compiled with RO heap %s and pointers %s.",
+        "heap must be shared, pointer compression must either be off or "
+        "use a shared cage, and write barriers must not be disabled. V8 is "
+        "compiled with RO heap %s, pointers %s and write barriers %s.",
         V8_SHARED_RO_HEAP_BOOL ? "SHARED" : "NOT SHARED",
         !COMPRESS_POINTERS_BOOL ? "NOT COMPRESSED"
                                 : (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
                                        ? "COMPRESSED IN SHARED CAGE"
-                                       : "COMPRESSED IN PER-ISOLATE CAGE"));
+                                       : "COMPRESSED IN PER-ISOLATE CAGE"),
+        V8_DISABLE_WRITE_BARRIERS_BOOL ? "DISABLED" : "ENABLED");
   }
 
   base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
@@ -3372,11 +3334,12 @@ void Isolate::Delete(Isolate* isolate) {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
-  DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
-  Isolate* saved_isolate = reinterpret_cast<Isolate*>(
-      base::Thread::GetThreadLocal(isolate->isolate_key_));
+  Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
+  isolate->thread_local_top()->stack_ =
+      saved_isolate ? saved_isolate->thread_local_top()->stack_
+                    : ::heap::base::Stack(base::Stack::GetStackStart());
 
   bool owns_shared_isolate = isolate->owns_shared_isolate_;
   Isolate* maybe_shared_isolate = isolate->shared_isolate_;
@@ -3432,6 +3395,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
+      traced_handles_(this),
       builtins_(this),
 #if defined(DEBUG) || defined(VERIFY_HEAP)
       num_active_deserializers_(0),
@@ -3582,7 +3546,7 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  if (is_shared() || is_shared_space_isolate()) {
+  if (is_shared()) {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
@@ -3626,12 +3590,20 @@ void Isolate::Deinit() {
   // At this point there are no more background threads left in this isolate.
   heap_.safepoint()->AssertMainThreadIsOnlyThread();
 
+  // Tear down data using the shared heap before detaching.
+  heap_.TearDownWithSharedHeap();
+
   {
     // This isolate might have to park for a shared GC initiated by another
     // client isolate before it can actually detach from the shared isolate.
     AllowGarbageCollection allow_shared_gc;
     DetachFromSharedIsolate();
     DetachFromSharedSpaceIsolate();
+  }
+
+  // All client isolates should already be detached.
+  if (is_shared_space_isolate()) {
+    global_safepoint()->AssertNoClientsOnTearDown();
   }
 
   // Since there are no other threads left, we can lock this mutex without any
@@ -3725,8 +3697,15 @@ void Isolate::Deinit() {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  base::Thread::SetThreadLocal(isolate_key_, isolate);
-  base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+  g_current_isolate_ = isolate;
+  g_current_per_isolate_thread_data_ = data;
+
+  if (isolate && isolate->main_thread_local_isolate()) {
+    WriteBarrier::SetForThread(
+        isolate->main_thread_local_heap()->marking_barrier());
+  } else {
+    WriteBarrier::SetForThread(nullptr);
+  }
 }
 
 Isolate::~Isolate() {
@@ -4049,12 +4028,10 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           ToHexString(ro_space_firstpage_address));
 
-  if (heap()->map_space()) {
-    const uintptr_t map_space_firstpage_address =
-        heap()->map_space()->FirstPageAddress();
-    add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
-                            ToHexString(map_space_firstpage_address));
-  }
+  const uintptr_t old_space_firstpage_address =
+      heap()->old_space()->FirstPageAddress();
+  add_crash_key_callback_(v8::CrashKeyId::kOldSpaceFirstPageAddress,
+                          ToHexString(old_space_firstpage_address));
 
   if (heap()->code_range_base()) {
     const uintptr_t code_range_base_address = heap()->code_range_base();
@@ -4062,7 +4039,7 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                             ToHexString(code_range_base_address));
   }
 
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || heap()->code_space()->first_page()) {
+  if (!V8_EXTERNAL_CODE_SPACE_BOOL || heap()->code_space()->first_page()) {
     const uintptr_t code_space_firstpage_address =
         heap()->code_space()->FirstPageAddress();
     add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
@@ -4143,11 +4120,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (HasFlagThatRequiresSharedHeap() && v8_flags.shared_space) {
     if (process_wide_shared_space_isolate_) {
-      attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
+      owns_shareable_data_ = false;
     } else {
       process_wide_shared_space_isolate_ = this;
       is_shared_space_isolate_ = true;
+      DCHECK(owns_shareable_data_);
     }
+
+    attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
   }
 
   CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
@@ -4230,8 +4210,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   base::Optional<base::MutexGuard> clients_guard;
 
-  if (shared_isolate_) {
-    clients_guard.emplace(&shared_isolate_->global_safepoint()->clients_mutex_);
+  if (Isolate* isolate =
+          shared_isolate_ ? shared_isolate_ : attach_to_shared_space_isolate) {
+    clients_guard.emplace(&isolate->global_safepoint()->clients_mutex_);
   }
 
   // The main thread LocalHeap needs to be set up when attaching to the shared
@@ -4240,6 +4221,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   AttachToSharedIsolate();
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
 
+  // Ensure that we use at most one of shared_isolate() and
+  // shared_space_isolate().
+  DCHECK_IMPLIES(shared_isolate(), !shared_space_isolate());
+  DCHECK_IMPLIES(shared_space_isolate(), !shared_isolate());
+
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
@@ -4247,14 +4233,21 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
                     isolate_data_.old_allocation_info_);
 
+  DCHECK_EQ(this, Isolate::Current());
+  PerIsolateThreadData* const current_data = CurrentPerIsolateThreadData();
+  DCHECK_EQ(current_data->isolate(), this);
+  SetIsolateThreadLocals(this, current_data);
+
   if (OwnsStringTables()) {
     string_table_ = std::make_shared<StringTable>(this);
     string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
-    DCHECK_NOT_NULL(shared_isolate());
-    string_table_ = shared_isolate()->string_table_;
-    string_forwarding_table_ = shared_isolate()->string_forwarding_table_;
+    DCHECK(has_shared_heap());
+    DCHECK(!is_shared());
+    DCHECK(!is_shared_space_isolate());
+    string_table_ = shared_heap_isolate()->string_table_;
+    string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
@@ -4287,9 +4280,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #ifdef V8_EXTERNAL_CODE_SPACE
   if (heap_.code_range()) {
-    code_cage_base_ = GetPtrComprCageBaseAddress(heap_.code_range()->base());
+    code_cage_base_ = ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
+        heap_.code_range()->base());
   } else {
-    code_cage_base_ = cage_base();
+    CHECK(jitless_);
+    // In jitless mode the code space pages will be allocated in the main
+    // pointer compression cage.
+    code_cage_base_ =
+        ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(cage_base());
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -4301,9 +4299,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init(this);
   } else {
-    DCHECK_NOT_NULL(shared_isolate());
+    DCHECK(has_shared_heap());
     isolate_data_.shared_external_pointer_table_ =
-        shared_isolate()->isolate_data_.shared_external_pointer_table_;
+        shared_heap_isolate()->isolate_data_.shared_external_pointer_table_;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -4682,7 +4680,8 @@ bool Isolate::NeedsSourcePositionsForProfiling() const {
       // Static conditions.
       v8_flags.trace_deopt || v8_flags.trace_turbo ||
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
-      v8_flags.perf_prof || v8_flags.log_maps || v8_flags.log_ic ||
+      v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
+      v8_flags.log_ic ||
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).
@@ -5946,6 +5945,7 @@ void Isolate::AttachToSharedIsolate() {
 
   if (shared_isolate_) {
     DCHECK(shared_isolate_->is_shared());
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->AppendClient(this);
   }
 
@@ -5958,6 +5958,7 @@ void Isolate::DetachFromSharedIsolate() {
   DCHECK(attached_to_shared_isolate_);
 
   if (shared_isolate_) {
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->RemoveClient(this);
     shared_isolate_ = nullptr;
   }
@@ -5971,6 +5972,7 @@ void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
   DCHECK(!shared_space_isolate_.has_value());
   shared_space_isolate_ = shared_space_isolate;
   if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 }
@@ -5979,6 +5981,7 @@ void Isolate::DetachFromSharedSpaceIsolate() {
   DCHECK(shared_space_isolate_.has_value());
   Isolate* shared_space_isolate = shared_space_isolate_.value();
   if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->RemoveClient(this);
   }
   shared_space_isolate_.reset();
@@ -6000,6 +6003,49 @@ ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
 }
 #endif  // V8_COMPRESS_POINTERS
 
+void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                                      Handle<ScopeInfo> outer_scope_info,
+                                      Handle<StringSet> locals_blocklist) {
+  Handle<EphemeronHashTable> cache;
+  if (heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    cache = handle(EphemeronHashTable::cast(heap()->locals_block_list_cache()),
+                   this);
+  } else {
+    CHECK(heap()->locals_block_list_cache().IsUndefined());
+    constexpr int kInitialCapacity = 8;
+    cache = EphemeronHashTable::New(this, kInitialCapacity);
+  }
+  DCHECK(cache->IsEphemeronHashTable());
+
+  Handle<Object> value;
+  if (!outer_scope_info.is_null()) {
+    value = factory()->NewTuple2(outer_scope_info, locals_blocklist,
+                                 AllocationType::kYoung);
+  } else {
+    value = locals_blocklist;
+  }
+
+  CHECK(!value.is_null());
+  cache = EphemeronHashTable::Put(cache, scope_info, value);
+  heap()->set_locals_block_list_cache(*cache);
+}
+
+Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
+  DisallowGarbageCollection no_gc;
+
+  if (!heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    return ReadOnlyRoots(this).the_hole_value();
+  }
+
+  Object maybe_value =
+      EphemeronHashTable::cast(heap()->locals_block_list_cache())
+          .Lookup(scope_info);
+  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value).value2();
+
+  CHECK(maybe_value.IsStringSet() || maybe_value.IsTheHole());
+  return maybe_value;
+}
+
 namespace {
 class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
  public:
@@ -6016,9 +6062,9 @@ class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
 
   void Run() override {
     v8::HandleScope scope(isolate_);
-    MicrotasksScope microtasks_scope(isolate_,
-                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Context> context = context_.Get(isolate_);
+    MicrotasksScope microtasks_scope(context,
+                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
     v8::Local<v8::Value> result = result_.Get(isolate_);
 

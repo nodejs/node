@@ -486,6 +486,8 @@ class ShellOptions {
       "throw-on-failed-access-check", false};
   DisallowReassignment<bool> noop_on_failed_access_check = {
       "noop-on-failed-access-check", false};
+  DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
+                                                        1 * i::MB};
 };
 
 class Shell : public i::AllStatic {
@@ -540,7 +542,14 @@ class Shell : public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
+  static double GetTimestamp();
+  static uint64_t GetTracingTimestampFromPerformanceTimestamp(
+      double performance_timestamp);
+
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PerformanceMark(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PerformanceMeasure(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PerformanceMeasureMemory(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 

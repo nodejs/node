@@ -26,8 +26,8 @@ class CodeTracer final : public Malloced {
       return;
     }
 
-    if (FLAG_redirect_code_traces_to != nullptr) {
-      base::StrNCpy(filename_, FLAG_redirect_code_traces_to,
+    if (v8_flags.redirect_code_traces_to != nullptr) {
+      base::StrNCpy(filename_, v8_flags.redirect_code_traces_to,
                     filename_.length());
     } else if (isolate_id >= 0) {
       base::SNPrintF(filename_, "code-%d-%d.asm",
@@ -102,7 +102,7 @@ class CodeTracer final : public Malloced {
   FILE* file() const { return file_; }
 
  private:
-  static bool ShouldRedirect() { return FLAG_redirect_code_traces; }
+  static bool ShouldRedirect() { return v8_flags.redirect_code_traces; }
 
   base::EmbeddedVector<char, 128> filename_;
   FILE* file_;
