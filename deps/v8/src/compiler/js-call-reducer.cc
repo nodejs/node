@@ -710,9 +710,8 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
       MapInference* inference, const bool has_stability_dependency,
       ElementsKind kind, const SharedFunctionInfoRef& shared,
       const NativeContextRef& native_context, ArrayEverySomeVariant variant);
-  TNode<Object> ReduceArrayPrototypeAt(ZoneVector<ElementsKind> kinds,
-                                       bool needs_fallback_builtin_call,
-                                       Node* receiver_kind);
+  TNode<Object> ReduceArrayPrototypeAt(ZoneVector<const MapRef*> kinds,
+                                       bool needs_fallback_builtin_call);
   TNode<Object> ReduceArrayPrototypeIndexOfIncludes(
       ElementsKind kind, ArrayIndexOfIncludesVariant variant);
 
@@ -1323,24 +1322,26 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
 }
 
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
-    ZoneVector<ElementsKind> kinds, bool needs_fallback_builtin_call,
-    Node* receiver_kind) {
+    ZoneVector<const MapRef*> maps, bool needs_fallback_builtin_call) {
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
   TNode<Object> index = ArgumentOrZero(0);
 
   TNode<Number> index_num = CheckSmi(index);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
 
+  TNode<Map> receiver_map =
+      TNode<Map>::UncheckedCast(LoadField(AccessBuilder::ForMap(), receiver));
+
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
-  for (ElementsKind kind : kinds) {
+  for (const MapRef* map : maps) {
+    DCHECK(map->supports_fast_array_iteration());
     auto correct_map_label = MakeLabel(), wrong_map_label = MakeLabel();
-    Branch(NumberEqual(TNode<Number>::UncheckedCast(receiver_kind),
-                       NumberConstant(kind)),
-           &correct_map_label, &wrong_map_label);
+    TNode<Boolean> is_map_equal = ReferenceEqual(receiver_map, Constant(*map));
+    Branch(is_map_equal, &correct_map_label, &wrong_map_label);
     Bind(&correct_map_label);
 
-    TNode<Number> length = LoadJSArrayLength(receiver, kind);
+    TNode<Number> length = LoadJSArrayLength(receiver, map->elements_kind());
 
     // If index is less than 0, then subtract from length.
     TNode<Boolean> cond = NumberLessThan(index_num, ZeroConstant());
@@ -1359,15 +1360,16 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
 
     // Retrieving element at index.
     TNode<Object> element = LoadElement<Object>(
-        AccessBuilder::ForFixedArrayElement(kind), elements, real_index_num);
-    if (IsHoleyElementsKind(kind)) {
+        AccessBuilder::ForFixedArrayElement(map->elements_kind()), elements,
+        real_index_num);
+    if (IsHoleyElementsKind(map->elements_kind())) {
       // This case is needed in particular for HOLEY_DOUBLE_ELEMENTS: raw
       // doubles are stored in the FixedDoubleArray, and need to be converted to
       // HeapNumber or to Smi so that this function can return an Object. The
       // automatic converstion performed by
       // RepresentationChanger::GetTaggedRepresentationFor does not handle
       // holes, so we convert manually a potential hole here.
-      element = TryConvertHoleToUndefined(element, kind);
+      element = TryConvertHoleToUndefined(element, map->elements_kind());
     }
     Goto(&out, element);
 
@@ -5633,25 +5635,22 @@ Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
 
-  // Collecting kinds
-  ZoneVector<ElementsKind> kinds(broker()->zone());
+  // Collecting maps, and checking if a fallback builtin call will be required
+  // (it is required if at least one map doesn't support fast array iteration).
+  ZoneVector<const MapRef*> maps(broker()->zone());
   bool needs_fallback_builtin_call = false;
   for (const MapRef& map : inference.GetMaps()) {
     if (map.supports_fast_array_iteration()) {
-      ElementsKind kind = map.elements_kind();
-      // Checking that |kind| isn't already in |kinds|. Using std::find should
-      // be fast enough since |kinds| can contain at most 4 items.
-      if (std::find(kinds.begin(), kinds.end(), kind) == kinds.end()) {
-        kinds.push_back(kind);
-      }
+      maps.push_back(&map);
     } else {
       needs_fallback_builtin_call = true;
     }
   }
+
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  if (kinds.empty()) {
+  if (maps.empty()) {
     // No map in the feedback supports fast iteration. Keeping the builtin call.
     return NoChange();
   }
@@ -5660,13 +5659,11 @@ Reduction JSCallReducer::ReduceArrayPrototypeAt(Node* node) {
     return NoChange();
   }
 
-  Node* receiver_kind = LoadReceiverElementsKind(receiver, &effect, control);
-
   IteratingArrayBuiltinReducerAssembler a(this, node);
   a.InitializeEffectControl(effect, control);
 
-  TNode<Object> subgraph = a.ReduceArrayPrototypeAt(
-      kinds, needs_fallback_builtin_call, receiver_kind);
+  TNode<Object> subgraph =
+      a.ReduceArrayPrototypeAt(maps, needs_fallback_builtin_call);
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
