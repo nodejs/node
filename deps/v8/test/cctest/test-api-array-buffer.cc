@@ -253,7 +253,7 @@ THREADED_TEST(ArrayBuffer_WasDetached) {
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
   CHECK(!ab->WasDetached());
 
-  ab->Detach(v8::Local<v8::Value>()).Check();
+  ab->Detach();
   CHECK(ab->WasDetached());
 }
 
