@@ -1,6 +1,8 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
+// https://github.com/nodejs/node/issues/45421
+//
 // Check that node will not call v8::Isolate::SetIdle() when exiting
 // due to an unhandled exception, otherwise the assertion(enabled in
 // debug build only) in the SetIdle() will fail.
@@ -22,6 +24,6 @@ if (process.argv[2] === 'child') {
   const stderr = result.stderr.toString().trim();
   // Expect error message to be preserved
   assert.match(stderr, /xxx/);
-  // Expect no crash message
-  assert.doesNotMatch(stderr, /node::DumpBacktrace/);
+  // Expect no crash
+  common.nodeProcessAborted(result.status, result.signal);
 }
