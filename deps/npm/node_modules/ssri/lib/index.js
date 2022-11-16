@@ -270,6 +270,9 @@ class Integrity {
   match (integrity, opts) {
     opts = ssriOpts(opts)
     const other = parse(integrity, opts)
+    if (!other) {
+      return false
+    }
     const algo = other.pickAlgorithm(opts)
     return (
       this[algo] &&

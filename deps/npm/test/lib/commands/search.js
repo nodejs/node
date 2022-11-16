@@ -1,6 +1,6 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const MockRegistry = require('../../fixtures/mock-registry.js')
+const MockRegistry = require('@npmcli/mock-registry')
 const libnpmsearchResultFixture =
   require('../../fixtures/libnpmsearch-stream-result.js')
 

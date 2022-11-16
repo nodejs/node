@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm team create &lt;scope:team&gt; [--otp &lt;otpcode&gt;]
+<pre><code class="language-bash">npm team create &lt;scope:team&gt; [--otp &lt;otpcode&gt;]
 npm team destroy &lt;scope:team&gt; [--otp &lt;otpcode&gt;]
 npm team add &lt;scope:team&gt; &lt;user&gt; [--otp &lt;otpcode&gt;]
 npm team rm &lt;scope:team&gt; &lt;user&gt; [--otp &lt;otpcode&gt;]
@@ -167,9 +167,9 @@ If you don't include this then you will be prompted.</p>
 <li>
 <p>create / destroy:
 Create a new team, or destroy an existing one. Note: You cannot remove the
-<code>developers</code> team, <!-- raw HTML omitted -->learn more.<!-- raw HTML omitted --></p>
+<code>developers</code> team, learn more.</p>
 <p>Here's how to create a new team <code>newteam</code> under the <code>org</code> org:</p>
-<pre lang="bash"><code>npm team create @org:newteam
+<pre><code class="language-bash">npm team create @org:newteam
 </code></pre>
 <p>You should see a confirming message such as: <code>+@org:newteam</code> once the new
 team has been created.</p>
@@ -178,7 +178,7 @@ team has been created.</p>
 <p>add:
 Add a user to an existing team.</p>
 <p>Adding a new user <code>username</code> to a team named <code>newteam</code> under the <code>org</code> org:</p>
-<pre lang="bash"><code>npm team add @org:newteam username
+<pre><code class="language-bash">npm team add @org:newteam username
 </code></pre>
 <p>On success, you should see a message: <code>username added to @org:newteam</code></p>
 </li>
@@ -187,7 +187,7 @@ Add a user to an existing team.</p>
 Using <code>npm team rm</code> you can also remove users from a team they belong to.</p>
 <p>Here's an example removing user <code>username</code> from <code>newteam</code> team
 in <code>org</code> organization:</p>
-<pre lang="bash"><code>npm team rm @org:newteam username
+<pre><code class="language-bash">npm team rm @org:newteam username
 </code></pre>
 <p>Once the user is removed a confirmation message is displayed:
 <code>username removed from @org:newteam</code></p>
@@ -198,10 +198,10 @@ If performed on an organization name, will return a list of existing teams
 under that organization. If performed on a team, it will instead return a list
 of all users belonging to that particular team.</p>
 <p>Here's an example of how to list all teams from an org named <code>org</code>:</p>
-<pre lang="bash"><code>npm team ls @org
+<pre><code class="language-bash">npm team ls @org
 </code></pre>
 <p>Example listing all members of a team named <code>newteam</code>:</p>
-<pre lang="bash"><code>npm team ls @org:newteam
+<pre><code class="language-bash">npm team ls @org:newteam
 </code></pre>
 </li>
 </ul>
@@ -254,8 +254,7 @@ saving them to your <code>package.json</code>.</li>
 <li><a href="../commands/npm-access.html">npm access</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-team.md">

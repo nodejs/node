@@ -98,6 +98,7 @@ for (i = 3; i < process.argv.length; i++) {
     }
 
     if (removed.has(key)) {
+      // eslint-disable-next-line no-console
       console.error(`npx: the --${key} argument has been removed.`)
       sawRemovedFlags = true
       process.argv.splice(i, 1)
@@ -122,6 +123,7 @@ for (i = 3; i < process.argv.length; i++) {
 }
 
 if (sawRemovedFlags) {
+  // eslint-disable-next-line no-console
   console.error('See `npm help exec` for more information')
 }
 

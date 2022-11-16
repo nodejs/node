@@ -8,8 +8,9 @@ class Dedupe extends ArboristWorkspaceCmd {
   static description = 'Reduce duplication in the package tree'
   static name = 'dedupe'
   static params = [
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'strict-peer-deps',
     'package-lock',
     'omit',

@@ -23,74 +23,39 @@ const peerEntrySets = require('./peer-entry-sets.js')
 
 class PlaceDep {
   constructor (options) {
-    const {
-      dep,
-      edge,
-      parent = null,
-    } = options
-    this.name = edge.name
-    this.dep = dep
-    this.edge = edge
+    this.auditReport = options.auditReport
+    this.dep = options.dep
+    this.edge = options.edge
+    this.explicitRequest = options.explicitRequest
+    this.force = options.force
+    this.installLinks = options.installLinks
+    this.installStrategy = options.installStrategy
+    this.legacyPeerDeps = options.legacyPeerDeps
+    this.parent = options.parent || null
+    this.preferDedupe = options.preferDedupe
+    this.strictPeerDeps = options.strictPeerDeps
+    this.updateNames = options.updateNames
+
     this.canPlace = null
-
-    this.target = null
-    this.placed = null
-
-    // inherit all these fields from the parent to ensure consistency.
-    const {
-      preferDedupe,
-      force,
-      explicitRequest,
-      updateNames,
-      auditReport,
-      legacyBundling,
-      strictPeerDeps,
-      installLinks,
-      legacyPeerDeps,
-      globalStyle,
-    } = parent || options
-    Object.assign(this, {
-      preferDedupe,
-      force,
-      explicitRequest,
-      updateNames,
-      auditReport,
-      legacyBundling,
-      strictPeerDeps,
-      installLinks,
-      legacyPeerDeps,
-      globalStyle,
-    })
-
-    this.children = []
-    this.parent = parent
-    this.peerConflict = null
-
-    this.needEvaluation = new Set()
-
+    this.canPlaceSelf = null
+    // XXX this only appears to be used by tests
     this.checks = new Map()
+    this.children = []
+    this.needEvaluation = new Set()
+    this.peerConflict = null
+    this.placed = null
+    this.target = null
 
-    this.place()
-  }
-
-  place () {
-    const {
-      edge,
-      dep,
-      preferDedupe,
-      globalStyle,
-      legacyBundling,
-      explicitRequest,
-      updateNames,
-      checks,
-    } = this
+    this.current = this.edge.to
+    this.name = this.edge.name
+    this.top = this.parent?.top || this
 
     // nothing to do if the edge is fine as it is
-    if (edge.to &&
-        !edge.error &&
-        !explicitRequest &&
-        !updateNames.includes(edge.name) &&
-        !this.isVulnerable(edge.to)) {
+    if (this.edge.to &&
+        !this.edge.error &&
+        !this.explicitRequest &&
+        !this.updateNames.includes(this.edge.name) &&
+        !this.auditReport?.isVulnerable(this.edge.to)) {
       return
     }
 
@@ -98,8 +63,6 @@ class PlaceDep {
     // where the dep is not a peer dep.
     const start = this.getStartNode()
 
-    let canPlace = null
-    let canPlaceSelf = null
     for (const target of start.ancestry()) {
       // if the current location has a peerDep on it, then we can't place here
       // this is pretty rare to hit, since we always prefer deduping peers,
@@ -115,14 +78,14 @@ class PlaceDep {
       // Then we check under b, and can't, because of the optional peer dep.
       // but we CAN place it under a, so the correct thing to do is keep
       // walking up the tree.
-      const targetEdge = target.edgesOut.get(edge.name)
+      const targetEdge = target.edgesOut.get(this.edge.name)
       if (!target.isTop && targetEdge && targetEdge.peer) {
         continue
       }
 
       const cpd = new CanPlaceDep({
-        dep,
-        edge,
+        dep: this.dep,
+        edge: this.edge,
         // note: this sets the parent's canPlace as the parent of this
         // canPlace, but it does NOT add this canPlace to the parent's
         // children.  This way, we can know that it's a peer dep, and
@@ -130,10 +93,10 @@ class PlaceDep {
         // tree of checks that factored into the original decision.
         parent: this.parent && this.parent.canPlace,
         target,
-        preferDedupe,
+        preferDedupe: this.preferDedupe,
         explicitRequest: this.explicitRequest,
       })
-      checks.set(target, cpd)
+      this.checks.set(target, cpd)
 
       // It's possible that a "conflict" is a conflict among the *peers* of
       // a given node we're trying to place, but there actually is no current
@@ -149,13 +112,13 @@ class PlaceDep {
       // where they did not themselves conflict, and skip c@2 if conflict
       // is ok by virtue of being forced or not ours and not strict.
       if (cpd.canPlaceSelf !== CONFLICT) {
-        canPlaceSelf = cpd
+        this.canPlaceSelf = cpd
       }
 
       // we found a place this can go, along with all its peer friends.
       // we break when we get the first conflict
       if (cpd.canPlace !== CONFLICT) {
-        canPlace = cpd
+        this.canPlace = cpd
       } else {
         break
       }
@@ -164,19 +127,19 @@ class PlaceDep {
       // since we're going to crash the build or prune it out anyway.
       // but, this will frequently NOT be a successful canPlace, because
       // it'll have no version or other information.
-      if (dep.errors.length) {
+      if (this.dep.errors.length) {
         break
       }
 
       // nest packages like npm v1 and v2
       // very disk-inefficient
-      if (legacyBundling) {
+      if (this.installStrategy === 'nested') {
         break
       }
 
       // when installing globally, or just in global style, we never place
       // deps above the first level.
-      if (globalStyle) {
+      if (this.installStrategy === 'shallow') {
         const rp = target.resolveParent
         if (rp && rp.isProjectRoot) {
           break
@@ -184,18 +147,12 @@ class PlaceDep {
       }
     }
 
-    Object.assign(this, {
-      canPlace,
-      canPlaceSelf,
-    })
-    this.current = edge.to
-
     // if we can't find a target, that means that the last place checked,
     // and all the places before it, had a conflict.
-    if (!canPlace) {
-      // if not forced, or it's our dep, or strictPeerDeps is set, then
+    if (!this.canPlace) {
+      // if not forced, and it's our dep, or strictPeerDeps is set, then
       // this is an ERESOLVE error.
-      if (!this.conflictOk) {
+      if (!this.force && (this.isMine || this.strictPeerDeps)) {
         return this.failPeerConflict()
       }
 
@@ -203,54 +160,45 @@ class PlaceDep {
       // if we have a current, then we treat CONFLICT as a KEEP.
       // otherwise, we just skip it.  Only warn on the one that actually
       // could not be placed somewhere.
-      if (!canPlaceSelf) {
+      if (!this.canPlaceSelf) {
         this.warnPeerConflict()
         return
       }
 
-      this.canPlace = canPlaceSelf
+      this.canPlace = this.canPlaceSelf
     }
 
     // now we have a target, a tree of CanPlaceDep results for the peer group,
     // and we are ready to go
-    this.placeInTree()
-  }
-
-  placeInTree () {
-    const {
-      dep,
-      canPlace,
-      edge,
-    } = this
 
     /* istanbul ignore next */
-    if (!canPlace) {
+    if (!this.canPlace) {
       debug(() => {
         throw new Error('canPlace not set, but trying to place in tree')
       })
       return
     }
 
-    const { target } = canPlace
+    const { target } = this.canPlace
 
     log.silly(
       'placeDep',
       target.location || 'ROOT',
-      `${dep.name}@${dep.version}`,
-      canPlace.description,
+      `${this.dep.name}@${this.dep.version}`,
+      this.canPlace.description,
       `for: ${this.edge.from.package._id || this.edge.from.location}`,
-      `want: ${edge.spec || '*'}`
+      `want: ${this.edge.spec || '*'}`
     )
 
-    const placementType = canPlace.canPlace === CONFLICT
-      ? canPlace.canPlaceSelf
-      : canPlace.canPlace
+    const placementType = this.canPlace.canPlace === CONFLICT
+      ? this.canPlace.canPlaceSelf
+      : this.canPlace.canPlace
 
     // if we're placing in the tree with --force, we can get here even though
     // it's a conflict.  Treat it as a KEEP, but warn and move on.
     if (placementType === KEEP) {
       // this was a peerConflicted peer dep
-      if (edge.peer && !edge.valid) {
+      if (this.edge.peer && !this.edge.valid) {
         this.warnPeerConflict()
       }
 
@@ -279,7 +227,7 @@ class PlaceDep {
     // instead of nesting forever, when the loop occurs, create
     // a symbolic link to the earlier instance
     for (let p = target; p; p = p.resolveParent) {
-      if (p.matches(dep) && !p.isTop) {
+      if (p.matches(this.dep) && !p.isTop) {
         this.placed = new Link({ parent: target, target: p })
         return
       }
@@ -289,17 +237,17 @@ class PlaceDep {
     // remove any that are not being replaced and will now be invalid, and
     // re-evaluate them deeper into the tree.
 
-    const virtualRoot = dep.parent
-    this.placed = new dep.constructor({
-      name: dep.name,
-      pkg: dep.package,
-      resolved: dep.resolved,
-      integrity: dep.integrity,
+    const virtualRoot = this.dep.parent
+    this.placed = new this.dep.constructor({
+      name: this.dep.name,
+      pkg: this.dep.package,
+      resolved: this.dep.resolved,
+      integrity: this.dep.integrity,
       installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
-      error: dep.errors[0],
-      ...(dep.overrides ? { overrides: dep.overrides } : {}),
-      ...(dep.isLink ? { target: dep.target, realpath: dep.realpath } : {}),
+      error: this.dep.errors[0],
+      ...(this.dep.overrides ? { overrides: this.dep.overrides } : {}),
+      ...(this.dep.isLink ? { target: this.dep.target, realpath: this.dep.realpath } : {}),
     })
 
     this.oldDep = target.children.get(this.name)
@@ -310,7 +258,7 @@ class PlaceDep {
     }
 
     // if it's a peerConflicted peer dep, warn about it
-    if (edge.peer && !this.placed.satisfies(edge)) {
+    if (this.edge.peer && !this.placed.satisfies(this.edge)) {
       this.warnPeerConflict()
     }
 
@@ -318,8 +266,8 @@ class PlaceDep {
     // MAY end up putting a better/identical node further up the tree in
     // a way that causes an unnecessary duplication.  If so, remove the
     // now-unnecessary node.
-    if (edge.valid && edge.to && edge.to !== this.placed) {
-      this.pruneDedupable(edge.to, false)
+    if (this.edge.valid && this.edge.to && this.edge.to !== this.placed) {
+      this.pruneDedupable(this.edge.to, false)
     }
 
     // in case we just made some duplicates that can be removed,
@@ -363,6 +311,15 @@ class PlaceDep {
       }
 
       this.children.push(new PlaceDep({
+        auditReport: this.auditReport,
+        explicitRequest: this.explicitRequest,
+        force: this.force,
+        installLinks: this.installLinks,
+        installStrategy: this.installStrategy,
+        legacyPeerDeps: this.legaycPeerDeps,
+        preferDedupe: this.preferDedupe,
+        strictPeerDeps: this.strictPeerDeps,
+        updateNames: this.updateName,
         parent: this,
         dep: peer,
         node: this.placed,
@@ -463,7 +420,7 @@ class PlaceDep {
   // prune all the nodes in a branch of the tree that can be safely removed
   // This is only the most basic duplication detection; it finds if there
   // is another satisfying node further up the tree, and if so, dedupes.
-  // Even in legacyBundling mode, we do this amount of deduplication.
+  // Even in installStategy is nested, we do this amount of deduplication.
   pruneDedupable (node, descend = true) {
     if (node.canDedupe(this.preferDedupe)) {
       // gather up all deps that have no valid edges in from outside
@@ -493,10 +450,6 @@ class PlaceDep {
         }
       }
     }
-  }
-
-  get conflictOk () {
-    return this.force || (!this.isMine && !this.strictPeerDeps)
   }
 
   get isMine () {
@@ -553,10 +506,15 @@ class PlaceDep {
     const { from: node } = edge
     const curNode = node.resolve(edge.name)
 
+    // XXX decorate more with this.canPlace and this.canPlaceSelf,
+    // this.checks, this.children, walk over conflicted peers, etc.
     const expl = {
       code: 'ERESOLVE',
       edge: edge.explain(),
       dep: dep.explain(edge),
+      force: this.force,
+      isMine: this.isMine,
+      strictPeerDeps: this.strictPeerDeps,
     }
 
     if (this.parent) {
@@ -585,37 +543,17 @@ class PlaceDep {
       }
     }
 
-    const {
-      strictPeerDeps,
-      force,
-      isMine,
-    } = this
-    Object.assign(expl, {
-      strictPeerDeps,
-      force,
-      isMine,
-    })
-
-    // XXX decorate more with this.canPlace and this.canPlaceSelf,
-    // this.checks, this.children, walk over conflicted peers, etc.
     return expl
   }
 
   getStartNode () {
-    // if we are a peer, then we MUST be at least as shallow as the
-    // peer dependent
-    const from = this.parent ? this.parent.getStartNode() : this.edge.from
+    // if we are a peer, then we MUST be at least as shallow as the peer
+    // dependent
+    const from = this.parent?.getStartNode() || this.edge.from
     return deepestNestingTarget(from, this.name)
   }
 
-  get top () {
-    return this.parent ? this.parent.top : this
-  }
-
-  isVulnerable (node) {
-    return this.auditReport && this.auditReport.isVulnerable(node)
-  }
-
+  // XXX this only appears to be used by tests
   get allChildren () {
     const set = new Set(this.children)
     for (const child of set) {
