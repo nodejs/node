@@ -25,5 +25,5 @@ if (process.argv[2] === 'child') {
   // Expect error message to be preserved
   assert.match(stderr, /xxx/);
   // Expect no crash
-  common.nodeProcessAborted(result.status, result.signal);
+  assert.ok(common.nodeProcessAborted(result.status, result.signal), stderr);
 }
