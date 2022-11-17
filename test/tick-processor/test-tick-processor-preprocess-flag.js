@@ -15,5 +15,5 @@ base.runTest({
            setImmediate(function() { f(); });
          };
          f();`,
-  profProcessFlags: ['--preprocess']
+  profProcessFlags: ['--preprocess'],
 });

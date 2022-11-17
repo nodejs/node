@@ -10,7 +10,7 @@ const script = path.join(
   '..',
   'tools',
   'doc',
-  'deprecationCodes.mjs'
+  'deprecationCodes.mjs',
 );
 
 const mdPath = path.join(
@@ -19,7 +19,7 @@ const mdPath = path.join(
   '..',
   'doc',
   'api',
-  'deprecations.md'
+  'deprecations.md',
 );
 
 const cp = spawn(process.execPath, [script, mdPath], { encoding: 'utf-8', stdio: 'inherit' });

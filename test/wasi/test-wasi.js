@@ -18,8 +18,8 @@ if (process.argv[2] === 'wasi-child') {
     env: process.env,
     preopens: {
       '/sandbox': fixtures.path('wasi'),
-      '/tmp': tmpdir.path
-    }
+      '/tmp': tmpdir.path,
+    },
   });
   const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
   const modulePath = path.join(wasmDir, `${process.argv[3]}.wasm`);
@@ -41,8 +41,8 @@ if (process.argv[2] === 'wasi-child') {
       env: {
         ...process.env,
         NODE_DEBUG_NATIVE: 'wasi',
-        NODE_PLATFORM: process.platform
-      }
+        NODE_PLATFORM: process.platform,
+      },
     };
 
     if (options.stdin !== undefined)
@@ -89,7 +89,7 @@ if (process.argv[2] === 'wasi-child') {
   runWASI({ test: 'read_file', stdout: `hello from input.txt${checkoutEOL}` });
   runWASI({
     test: 'read_file_twice',
-    stdout: `hello from input.txt${checkoutEOL}hello from input.txt${checkoutEOL}`
+    stdout: `hello from input.txt${checkoutEOL}hello from input.txt${checkoutEOL}`,
   });
   runWASI({ test: 'stat' });
   runWASI({ test: 'write_file' });
