@@ -23,7 +23,7 @@ fs.readdirSync(apilinks).forEach((fixture) => {
   execFileSync(
     process.execPath,
     [script, outputPath, input],
-    { encoding: 'utf-8' }
+    { encoding: 'utf-8' },
   );
 
   const expectedLinks = JSON.parse(expectedContent);
@@ -38,6 +38,6 @@ fs.readdirSync(apilinks).forEach((fixture) => {
 
   assert.strictEqual(
     Object.keys(actualLinks).length, 0,
-    `unexpected links returned ${JSON.stringify(actualLinks)}`
+    `unexpected links returned ${JSON.stringify(actualLinks)}`,
   );
 });
