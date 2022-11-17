@@ -1103,7 +1103,7 @@ test('top level test', async (t) => {
     'This is a subtest',
     (t) => {
       assert.ok('some relevant assertion here');
-    }
+    },
   );
 });
 ```
@@ -1137,7 +1137,7 @@ test('top level test', async (t) => {
     'This is a subtest',
     (t) => {
       assert.ok('some relevant assertion here');
-    }
+    },
   );
 });
 ```
@@ -1314,7 +1314,7 @@ test('top level test', async (t) => {
     { only: false, skip: false, concurrency: 1, todo: false },
     (t) => {
       assert.ok('some relevant assertion here');
-    }
+    },
   );
 });
 ```
