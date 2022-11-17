@@ -1077,7 +1077,7 @@ const read = new Readable({
   read(size) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();

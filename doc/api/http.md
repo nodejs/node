@@ -106,7 +106,7 @@ http.get({
   hostname: 'localhost',
   port: 80,
   path: '/',
-  agent: false  // Create a new agent just for this one request
+  agent: false,  // Create a new agent just for this one request
 }, (res) => {
   // Do stuff with response
 });
@@ -502,7 +502,7 @@ proxy.listen(1337, '127.0.0.1', () => {
     port: 1337,
     host: '127.0.0.1',
     method: 'CONNECT',
-    path: 'www.google.com:80'
+    path: 'www.google.com:80',
   };
 
   const req = http.request(options);
@@ -573,7 +573,7 @@ const http = require('node:http');
 const options = {
   host: '127.0.0.1',
   port: 8080,
-  path: '/length_request'
+  path: '/length_request',
 };
 
 // Make a request
@@ -671,8 +671,8 @@ server.listen(1337, '127.0.0.1', () => {
     host: '127.0.0.1',
     headers: {
       'Connection': 'Upgrade',
-      'Upgrade': 'websocket'
-    }
+      'Upgrade': 'websocket',
+    },
   };
 
   const req = http.request(options);
@@ -2172,7 +2172,7 @@ const earlyHintsLinks = [
 ];
 response.writeEarlyHints({
   'link': earlyHintsLinks,
-  'x-trace-id': 'id for diagnostics'
+  'x-trace-id': 'id for diagnostics',
 });
 
 const earlyHintsCallback = () => console.log('early hints message sent');
@@ -2225,7 +2225,7 @@ const body = 'hello world';
 response
   .writeHead(200, {
     'Content-Length': Buffer.byteLength(body),
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
   })
   .end(body);
 ```
@@ -2362,7 +2362,7 @@ server fully transmitted a message before a connection was terminated:
 const req = http.request({
   host: '127.0.0.1',
   port: 8080,
-  method: 'POST'
+  method: 'POST',
 }, (res) => {
   res.resume();
   res.on('end', () => {
@@ -3181,7 +3181,7 @@ const http = require('node:http');
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
-    data: 'Hello World!'
+    data: 'Hello World!',
   }));
 });
 
@@ -3198,7 +3198,7 @@ const server = http.createServer();
 server.on('request', (request, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
-    data: 'Hello World!'
+    data: 'Hello World!',
   }));
 });
 
@@ -3280,7 +3280,7 @@ http.get('http://localhost:8000/', (res) => {
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
-    data: 'Hello World!'
+    data: 'Hello World!',
   }));
 });
 
@@ -3433,7 +3433,7 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 const http = require('node:http');
 
 const postData = JSON.stringify({
-  'msg': 'Hello World!'
+  'msg': 'Hello World!',
 });
 
 const options = {
@@ -3443,8 +3443,8 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(postData)
-  }
+    'Content-Length': Buffer.byteLength(postData),
+  },
 };
 
 const req = http.request(options, (res) => {

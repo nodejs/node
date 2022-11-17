@@ -7003,7 +7003,7 @@ import { open, constants } from 'node:fs';
 const {
   O_RDWR,
   O_CREAT,
-  O_EXCL
+  O_EXCL,
 } = constants;
 
 open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {

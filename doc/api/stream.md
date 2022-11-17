@@ -2514,7 +2514,7 @@ pipeline(
     } else {
       console.log('Pipeline succeeded.');
     }
-  }
+  },
 );
 ```
 
@@ -2533,7 +2533,7 @@ async function run() {
   await pipeline(
     fs.createReadStream('archive.tar'),
     zlib.createGzip(),
-    fs.createWriteStream('archive.tar.gz')
+    fs.createWriteStream('archive.tar.gz'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2580,7 +2580,7 @@ async function run() {
         yield await processChunk(chunk, { signal });
       }
     },
-    fs.createWriteStream('uppercase.txt')
+    fs.createWriteStream('uppercase.txt'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2602,7 +2602,7 @@ async function run() {
       await someLongRunningfn({ signal });
       yield 'asd';
     },
-    fs.createWriteStream('uppercase.txt')
+    fs.createWriteStream('uppercase.txt'),
   );
   console.log('Pipeline succeeded.');
 }
@@ -2674,7 +2674,7 @@ import { compose, Transform } from 'node:stream';
 const removeSpaces = new Transform({
   transform(chunk, encoding, callback) {
     callback(null, String(chunk).replace(' ', ''));
-  }
+  },
 });
 
 async function* toUpper(source) {
@@ -2926,7 +2926,7 @@ added: v17.0.0
 import { Duplex } from 'node:stream';
 import {
   ReadableStream,
-  WritableStream
+  WritableStream,
 } from 'node:stream/web';
 
 const readable = new ReadableStream({
@@ -2938,12 +2938,12 @@ const readable = new ReadableStream({
 const writable = new WritableStream({
   write(chunk) {
     console.log('writable', chunk);
-  }
+  },
 });
 
 const pair = {
   readable,
-  writable
+  writable,
 };
 const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
 
@@ -2958,7 +2958,7 @@ for await (const chunk of duplex) {
 const { Duplex } = require('node:stream');
 const {
   ReadableStream,
-  WritableStream
+  WritableStream,
 } = require('node:stream/web');
 
 const readable = new ReadableStream({
@@ -2970,12 +2970,12 @@ const readable = new ReadableStream({
 const writable = new WritableStream({
   write(chunk) {
     console.log('writable', chunk);
-  }
+  },
 });
 
 const pair = {
   readable,
-  writable
+  writable,
 };
 const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
 
@@ -3008,7 +3008,7 @@ const duplex = Duplex({
   write(chunk, encoding, callback) {
     console.log('writable', chunk);
     callback();
-  }
+  },
 });
 
 const { readable, writable } = Duplex.toWeb(duplex);
@@ -3030,7 +3030,7 @@ const duplex = Duplex({
   write(chunk, encoding, callback) {
     console.log('writable', chunk);
     callback();
-  }
+  },
 });
 
 const { readable, writable } = Duplex.toWeb(duplex);
@@ -3063,7 +3063,7 @@ const fs = require('node:fs');
 const controller = new AbortController();
 const read = addAbortSignal(
   controller.signal,
-  fs.createReadStream(('object.json'))
+  fs.createReadStream(('object.json')),
 );
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3076,7 +3076,7 @@ const controller = new AbortController();
 setTimeout(() => controller.abort(), 10_000); // set a timeout
 const stream = addAbortSignal(
   controller.signal,
-  fs.createReadStream(('object.json'))
+  fs.createReadStream(('object.json')),
 );
 (async () => {
   try {
@@ -3170,7 +3170,7 @@ const myWritable = new Writable({
   },
   destroy() {
     // Free resources...
-  }
+  },
 });
 ```
 
@@ -3277,7 +3277,7 @@ const myWritable = new Writable({
   },
   writev(chunks, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -3296,7 +3296,7 @@ const myWritable = new Writable({
   writev(chunks, callback) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3487,7 +3487,7 @@ const myWritable = new Writable({
     } else {
       callback();
     }
-  }
+  },
 });
 ```
 
@@ -3634,7 +3634,7 @@ const { Readable } = require('node:stream');
 const myReadable = new Readable({
   read(size) {
     // ...
-  }
+  },
 });
 ```
 
@@ -3649,7 +3649,7 @@ const read = new Readable({
   read(size) {
     // ...
   },
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, abort the operation closing the stream
 controller.abort();
@@ -3857,7 +3857,7 @@ const myReadable = new Readable({
     } else {
       // Do some work.
     }
-  }
+  },
 });
 ```
 
@@ -3975,7 +3975,7 @@ const myDuplex = new Duplex({
   },
   write(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
@@ -4007,7 +4007,7 @@ pipeline(
       } catch (err) {
         callback(err);
       }
-    }
+    },
   }),
   fs.createWriteStream('valid-object.json'),
   (err) => {
@@ -4016,7 +4016,7 @@ pipeline(
     } else {
       console.log('completed');
     }
-  }
+  },
 );
 ```
 
@@ -4087,7 +4087,7 @@ const myTransform = new Transform({
 
     // Push the data onto the readable queue.
     callback(null, '0'.repeat(data.length % 2) + data);
-  }
+  },
 });
 
 myTransform.setEncoding('ascii');
@@ -4169,7 +4169,7 @@ const { Transform } = require('node:stream');
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
     // ...
-  }
+  },
 });
 ```
 
