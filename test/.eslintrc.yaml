@@ -8,6 +8,7 @@ rules:
   multiline-comment-style: [error, separate-lines]
   prefer-const: error
   symbol-description: off
+  comma-dangle: [error, always-multiline]
 
   no-restricted-syntax:
     # Config copied from .eslintrc.js
@@ -68,3 +69,30 @@ rules:
 # Global scoped methods and vars
 globals:
   WebAssembly: false
+
+overrides:
+  - files:
+      - addons/*/*.js
+      - async-hooks/*.js
+      - common/*.js
+      - es-module/*.js
+      - es-module/*.mjs
+      - internet/*.js
+      - js-native-api/*/*.js
+      - known_issues/*.js
+      - message/*.js
+      - node-api/*/*.js
+      - parallel/*.js
+      - parallel/*.mjs
+      - pseudo-tty/*.js
+      - pummel/*.js
+      - sequential/*.js
+      - sequential/*.mjs
+    rules:
+      comma-dangle: [error, {
+        arrays: always-multiline,
+        exports: only-multiline,
+        functions: only-multiline,
+        imports: only-multiline,
+        objects: only-multiline,
+      }]
