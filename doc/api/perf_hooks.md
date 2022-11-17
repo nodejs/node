@@ -411,7 +411,7 @@ event type in order for the timing details to be accessed.
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 function someFunction() {
@@ -1201,7 +1201,7 @@ changes:
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
@@ -1267,7 +1267,7 @@ or `options.type`:
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
@@ -1303,7 +1303,7 @@ with respect to `performanceEntry.startTime`.
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
@@ -1353,7 +1353,7 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
@@ -1409,7 +1409,7 @@ is equal to `type`.
 ```js
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
@@ -1755,7 +1755,7 @@ to execute the callback).
 const async_hooks = require('node:async_hooks');
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 
 const set = new Set();
@@ -1774,7 +1774,7 @@ const hook = async_hooks.createHook({
                           `Timeout-${id}-Init`,
                           `Timeout-${id}-Destroy`);
     }
-  }
+  },
 });
 hook.enable();
 
@@ -1800,7 +1800,7 @@ dependencies:
 'use strict';
 const {
   performance,
-  PerformanceObserver
+  PerformanceObserver,
 } = require('node:perf_hooks');
 const mod = require('node:module');
 

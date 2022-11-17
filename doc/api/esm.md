@@ -1024,7 +1024,7 @@ export function resolve(specifier, context, nextResolve) {
   if (specifier.startsWith('https://')) {
     return {
       shortCircuit: true,
-      url: specifier
+      url: specifier,
     };
   } else if (parentURL && parentURL.startsWith('https://')) {
     return {
@@ -1105,7 +1105,7 @@ export async function resolve(specifier, context, nextResolve) {
     // specifiers ending in the CoffeeScript file extensions.
     return {
       shortCircuit: true,
-      url: new URL(specifier, parentURL).href
+      url: new URL(specifier, parentURL).href,
     };
   }
 

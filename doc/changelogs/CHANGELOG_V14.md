@@ -4020,7 +4020,7 @@ const { Console } = require('console');
 const customConsole = new Console({
   stdout: process.stdout,
   stderr: process.stderr,
-  groupIndentation: 10
+  groupIndentation: 10,
 });
 
 customConsole.log('foo');

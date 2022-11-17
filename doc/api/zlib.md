@@ -26,7 +26,7 @@ const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream');
 const {
   createReadStream,
-  createWriteStream
+  createWriteStream,
 } = require('node:fs');
 
 const gzip = createGzip();
@@ -562,8 +562,8 @@ const stream = zlib.createBrotliCompress({
   params: {
     [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
     [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
-    [zlib.constants.BROTLI_PARAM_SIZE_HINT]: fs.statSync(inputFile).size
-  }
+    [zlib.constants.BROTLI_PARAM_SIZE_HINT]: fs.statSync(inputFile).size,
+  },
 });
 ```
 

@@ -516,7 +516,7 @@ Promise.prototype.then = function then(a, b) {
 let thenBlockExecuted = false;
 PromisePrototypeThen(
   PromiseAll(new SafeArrayIterator([PromiseResolve()])),
-  () => { thenBlockExecuted = true; }
+  () => { thenBlockExecuted = true; },
 );
 process.on('exit', () => console.log(thenBlockExecuted)); // false
 ```
@@ -531,7 +531,7 @@ Promise.prototype.then = function then(a, b) {
 let thenBlockExecuted = false;
 PromisePrototypeThen(
   SafePromiseAll([PromiseResolve()]),
-  () => { thenBlockExecuted = true; }
+  () => { thenBlockExecuted = true; },
 );
 process.on('exit', () => console.log(thenBlockExecuted)); // true
 ```

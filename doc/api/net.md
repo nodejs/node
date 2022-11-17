@@ -487,7 +487,7 @@ shown below.
 server.listen({
   host: 'localhost',
   port: 80,
-  exclusive: true
+  exclusive: true,
 });
 ```
 
@@ -507,7 +507,7 @@ const controller = new AbortController();
 server.listen({
   host: 'localhost',
   port: 80,
-  signal: controller.signal
+  signal: controller.signal,
 });
 // Later, when you want to close the server.
 controller.abort();
@@ -937,8 +937,8 @@ net.connect({
     callback: function(nread, buf) {
       // Received data is available in `buf` from 0 to `nread`.
       console.log(buf.toString('utf8', 0, nread));
-    }
-  }
+    },
+  },
 });
 ```
 

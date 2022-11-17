@@ -85,8 +85,8 @@ The properties included on each object include:
       nice: 0,
       sys: 30340,
       idle: 1070356870,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -96,8 +96,8 @@ The properties included on each object include:
       nice: 0,
       sys: 26980,
       idle: 1071569080,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -107,8 +107,8 @@ The properties included on each object include:
       nice: 0,
       sys: 21750,
       idle: 1070919370,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -118,8 +118,8 @@ The properties included on each object include:
       nice: 0,
       sys: 19430,
       idle: 1070905480,
-      irq: 20
-    }
+      irq: 20,
+    },
   },
 ]
 ```

@@ -1465,7 +1465,7 @@ setMaxListeners(5, target, emitter);
 ```cjs
 const {
   setMaxListeners,
-  EventEmitter
+  EventEmitter,
 } = require('node:events');
 
 const target = new EventTarget();
@@ -1688,13 +1688,13 @@ async function handler2(event) {
 const handler3 = {
   handleEvent(event) {
     console.log(event.type);  // Prints 'foo'
-  }
+  },
 };
 
 const handler4 = {
   async handleEvent(event) {
     console.log(event.type);  // Prints 'foo'
-  }
+  },
 };
 
 const target = new EventTarget();

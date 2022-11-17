@@ -3055,7 +3055,7 @@ const w = new Writable({
   async final(callback) {
     await someOp();
     callback();
-  }
+  },
 });
 ```
 
