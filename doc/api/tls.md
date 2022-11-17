@@ -2126,7 +2126,7 @@ const options = {
   requestCert: true,
 
   // This is necessary only if the client uses a self-signed certificate.
-  ca: [ fs.readFileSync('client-cert.pem') ]
+  ca: [ fs.readFileSync('client-cert.pem') ],
 };
 
 const server = tls.createServer(options, (socket) => {
