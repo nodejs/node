@@ -186,6 +186,11 @@ const der = Buffer.from(
     code: 'ERR_INVALID_ARG_VALUE'
   });
 
+  // Confirm failure of X509Certificate:verify() doesn't affect other functions that use OpenSSL.
+  assert(!x509.verify(x509.publicKey));
+  // This call should not throw.
+  createPrivateKey(key);
+
   // X509Certificate can be cloned via MessageChannel/MessagePort
   const mc = new MessageChannel();
   mc.port1.onmessage = common.mustCall(({ data }) => {
