@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/free-list-inl.h"
@@ -19,21 +20,20 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
+#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-namespace {
-static const int kInitialLocalPretenuringFeedbackCapacity = 256;
-}  // namespace
-
 class Sweeper::ConcurrentSweeper final {
  public:
   explicit ConcurrentSweeper(Sweeper* sweeper)
       : sweeper_(sweeper),
-        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity) {}
+        local_pretenuring_feedback_(
+            PretenturingHandler::kInitialFeedbackCapacity) {}
 
   bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate) {
     while (!delegate->ShouldYield()) {
@@ -45,13 +45,13 @@ class Sweeper::ConcurrentSweeper final {
     return false;
   }
 
-  Heap::PretenuringFeedbackMap* local_pretenuring_feedback() {
+  PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback() {
     return &local_pretenuring_feedback_;
   }
 
  private:
   Sweeper* const sweeper_;
-  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 };
 
 class Sweeper::SweeperJob final : public JobTask {
@@ -69,12 +69,20 @@ class Sweeper::SweeperJob final : public JobTask {
 
   void Run(JobDelegate* delegate) final {
     RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
+    DCHECK(sweeper_->current_collector_.has_value());
     if (delegate->IsJoiningThread()) {
-      TRACE_GC(tracer_, GCTracer::Scope::MC_SWEEP);
+      TRACE_GC(tracer_, sweeper_->current_collector_ ==
+                                GarbageCollector::MINOR_MARK_COMPACTOR
+                            ? GCTracer::Scope::MINOR_MC_SWEEP
+                            : GCTracer::Scope::MC_SWEEP);
       RunImpl(delegate);
     } else {
-      TRACE_GC_EPOCH(tracer_, GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                     ThreadKind::kBackground);
+      TRACE_GC_EPOCH(
+          tracer_,
+          sweeper_->current_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR
+              ? GCTracer::Scope::MINOR_MC_BACKGROUND_SWEEPING
+              : GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+          ThreadKind::kBackground);
       RunImpl(delegate);
     }
   }
@@ -106,12 +114,14 @@ class Sweeper::SweeperJob final : public JobTask {
   GCTracer* const tracer_;
 };
 
-Sweeper::Sweeper(Heap* heap, NonAtomicMarkingState* marking_state)
+Sweeper::Sweeper(Heap* heap)
     : heap_(heap),
-      marking_state_(marking_state),
+      marking_state_(heap_->non_atomic_marking_state()),
       sweeping_in_progress_(false),
       should_reduce_memory_(false),
-      local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity) {}
+      pretenuring_handler_(heap_->pretenuring_handler()),
+      local_pretenuring_feedback_(
+          PretenturingHandler::kInitialFeedbackCapacity) {}
 
 Sweeper::~Sweeper() {
   DCHECK(concurrent_sweepers_.empty());
@@ -160,9 +170,10 @@ void Sweeper::TearDown() {
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Cancel();
 }
 
-void Sweeper::StartSweeping() {
+void Sweeper::StartSweeping(GarbageCollector collector) {
   DCHECK(local_pretenuring_feedback_.empty());
   sweeping_in_progress_ = true;
+  current_collector_ = collector;
   should_reduce_memory_ = heap_->ShouldReduceMemory();
   ForAllSweepingSpaces([this](AllocationSpace space) {
     // Sorting is done in order to make compaction more efficient: by sweeping
@@ -188,6 +199,7 @@ int Sweeper::NumberOfConcurrentSweepers() const {
 }
 
 void Sweeper::StartSweeperTasks() {
+  DCHECK(current_collector_.has_value());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
   if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
@@ -230,28 +242,22 @@ void Sweeper::EnsureCompleted(SweepingMode sweeping_mode) {
     CHECK(sweeping_list_[GetSweepSpaceIndex(space)].empty());
   });
 
-  heap_->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
   for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
-    heap_->MergeAllocationSitePretenuringFeedback(
+    pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
         *concurrent_sweeper.local_pretenuring_feedback());
   }
   local_pretenuring_feedback_.clear();
   concurrent_sweepers_.clear();
 
+  current_collector_.reset();
   sweeping_in_progress_ = false;
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
   if (!sweeping_in_progress_) return;
   ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
-}
-
-void Sweeper::SupportConcurrentSweeping() {
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    const int kMaxPagesToSweepPerSpace = 1;
-    ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0,
-                       kMaxPagesToSweepPerSpace);
-  });
 }
 
 bool Sweeper::AreSweeperTasksRunning() {
@@ -268,8 +274,8 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     ZapCode(free_start, size);
   }
   page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size));
-  freed_bytes =
-      reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);
+  freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->UnaccountedFree(
+      free_start, size);
   if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
 
   return freed_bytes;
@@ -349,11 +355,11 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
 int Sweeper::RawSweep(
     Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
     SweepingMode sweeping_mode, const base::MutexGuard& page_guard,
-    Heap::PretenuringFeedbackMap* local_pretenuring_feedback) {
+    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == MAP_SPACE ||
+         space->identity() == MAP_SPACE || space->identity() == SHARED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_mc));
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  sweeping_mode == SweepingMode::kEagerDuringGC);
@@ -434,12 +440,13 @@ int Sweeper::RawSweep(
     }
     Map map = object.map(cage_base, kAcquireLoad);
     DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
-    int size = object.SizeFromMap(map);
+    int size = ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
     live_bytes += size;
     free_start = free_end + size;
 
     if (p->InYoungGeneration()) {
-      heap_->UpdateAllocationSite(map, object, local_pretenuring_feedback);
+      pretenuring_handler_->UpdateAllocationSite(map, object,
+                                                 local_pretenuring_feedback);
     }
 
     if (active_system_pages_after_sweeping) {
@@ -519,7 +526,7 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
 
 int Sweeper::ParallelSweepPage(
     Page* page, AllocationSpace identity,
-    Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
+    PretenturingHandler::PretenuringFeedbackMap* local_pretenuring_feedback,
     SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 
@@ -572,7 +579,7 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
       }
     }
   } else {
-    DCHECK(page->InNewSpace());
+    DCHECK(page->InNewSpace() && !v8_flags.minor_mc);
   }
 
   CHECK(page->SweepingDone());
@@ -592,6 +599,21 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
 
 void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
+  DCHECK_NE(NEW_SPACE, space);
+  AddPageImpl(space, page, mode);
+}
+
+void Sweeper::AddNewSpacePage(Page* page) {
+  DCHECK_EQ(NEW_SPACE, page->owner_identity());
+  size_t live_bytes = marking_state_->live_bytes(page);
+  heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
+  heap_->IncrementYoungSurvivorsCounter(live_bytes);
+  page->ClearWasUsedForAllocation();
+  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR);
+}
+
+void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
+                          Sweeper::AddPageMode mode) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
   DCHECK(!v8_flags.concurrent_sweeping || !job_handle_ ||

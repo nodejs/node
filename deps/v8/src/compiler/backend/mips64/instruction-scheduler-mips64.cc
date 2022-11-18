@@ -44,6 +44,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64CvtSUw:
     case kMips64CvtSW:
     case kMips64DMulHigh:
+    case kMips64DMulHighU:
+    case kMips64DMulOvf:
     case kMips64MulHighU:
     case kMips64Dadd:
     case kMips64DaddOvf:
@@ -1274,7 +1276,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return JumpLatency();
     case kArchCallJSFunction: {
       int latency = 0;
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         latency = 1 + AssertLatency();
       }
       return latency + 1 + DadduLatency(false) + CallLatency();
@@ -1360,6 +1362,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kMips64Mul:
       return MulLatency();
     case kMips64MulOvf:
+    case kMips64DMulOvf:
       return MulOverflowLatency();
     case kMips64MulHigh:
       return MulhLatency();

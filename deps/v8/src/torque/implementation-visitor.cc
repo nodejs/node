@@ -1536,7 +1536,7 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
         {f.name_and_type.name,
          f.const_qualified
              ? (before_current
-                    ? LocalValue{[=]() {
+                    ? LocalValue{[this, object, f, class_type]() {
                         return GenerateFieldReference(object, f, class_type);
                       }}
                     : LocalValue("Array lengths may only refer to fields "

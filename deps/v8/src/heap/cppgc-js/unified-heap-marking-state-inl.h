@@ -14,6 +14,7 @@
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 
 namespace v8 {

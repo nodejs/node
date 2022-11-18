@@ -15,6 +15,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
@@ -448,9 +449,9 @@ class ObjectStatsCollectorImpl {
     return field_stats_collector_.cage_base();
   }
 
-  Heap* heap_;
-  ObjectStats* stats_;
-  NonAtomicMarkingState* marking_state_;
+  Heap* const heap_;
+  ObjectStats* const stats_;
+  NonAtomicMarkingState* const marking_state_;
   std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
       virtual_objects_;
   std::unordered_set<Address> external_resources_;
@@ -461,8 +462,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
                                                    ObjectStats* stats)
     : heap_(heap),
       stats_(stats),
-      marking_state_(
-          heap->mark_compact_collector()->non_atomic_marking_state()),
+      marking_state_(heap->non_atomic_marking_state()),
       field_stats_collector_(
           heap_, &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->inobject_smi_fields_count_,
@@ -1089,8 +1089,7 @@ class ObjectStatsVisitor {
                      ObjectStatsCollectorImpl::Phase phase)
       : live_collector_(live_collector),
         dead_collector_(dead_collector),
-        marking_state_(
-            heap->mark_compact_collector()->non_atomic_marking_state()),
+        marking_state_(heap->non_atomic_marking_state()),
         phase_(phase) {}
 
   void Visit(HeapObject obj) {
@@ -1105,9 +1104,9 @@ class ObjectStatsVisitor {
   }
 
  private:
-  ObjectStatsCollectorImpl* live_collector_;
-  ObjectStatsCollectorImpl* dead_collector_;
-  NonAtomicMarkingState* marking_state_;
+  ObjectStatsCollectorImpl* const live_collector_;
+  ObjectStatsCollectorImpl* const dead_collector_;
+  NonAtomicMarkingState* const marking_state_;
   ObjectStatsCollectorImpl::Phase phase_;
 };
 

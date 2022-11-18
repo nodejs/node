@@ -24,6 +24,7 @@ class WasmFeatures;
 // Representation of an constant expression. Unlike {ConstantExpression}, this
 // does not use {WireBytesRef}, i.e., it does not depend on a wasm module's
 // bytecode representation.
+// TODO(manoskouk): Add missing kinds of expressions.
 class WasmInitExpr : public ZoneObject {
  public:
   enum Operator {

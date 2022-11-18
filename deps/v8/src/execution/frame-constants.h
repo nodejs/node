@@ -55,14 +55,14 @@ class CommonFrameConstants : public AllStatic {
   static constexpr int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
 
   // Fixed part of the frame consists of return address, caller fp,
-  // constant pool (if v8_flags.enable_embedded_constant_pool), context, and
+  // constant pool (if V8_EMBEDDED_CONSTANT_POOL_BOOL), context, and
   // function. CommonFrame::IterateExpressions assumes that kLastObjectOffset
   // is the last object pointer.
   static constexpr int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static constexpr int kFixedSlotCountAboveFp =
       kFixedFrameSizeAboveFp / kSystemPointerSize;
   static constexpr int kCPSlotSize =
-      v8_flags.enable_embedded_constant_pool.value() ? kSystemPointerSize : 0;
+      V8_EMBEDDED_CONSTANT_POOL_BOOL ? kSystemPointerSize : 0;
   static constexpr int kCPSlotCount = kCPSlotSize / kSystemPointerSize;
   static constexpr int kConstantPoolOffset =
       kCPSlotSize ? -1 * kSystemPointerSize : 0;

@@ -215,8 +215,8 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   // ourselves, and so are potentially better positioned to determine a good
   // base address for the sandbox than the embedder.
   base::RandomNumberGenerator rng;
-  if (FLAG_random_seed != 0) {
-    rng.SetSeed(FLAG_random_seed);
+  if (v8_flags.random_seed != 0) {
+    rng.SetSeed(v8_flags.random_seed);
   }
 
   // We try to ensure that base + size is still (mostly) within the process'

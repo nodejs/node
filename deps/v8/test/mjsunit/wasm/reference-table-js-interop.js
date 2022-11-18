@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-stringref
+// Flags: --experimental-wasm-gc --experimental-wasm-stringref --wasm-gc-js-interop
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -116,18 +116,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
       kExprUnreachable, // conversion failure
     kExprEnd,
   ];
-  // TODO(7748): Directly compare the externrefs in JS once
-  // FLAG_wasm_gc_js_interop is supported.
-  builder.addFunction("eq",
-                      makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]))
-    .addBody([
-      kExprLocalGet, 0,
-      ...castExternToEqRef,
-      kExprLocalGet, 1,
-      ...castExternToEqRef,
-      kExprRefEq,
-    ])
-    .exportFunc();
 
   builder.addFunction("createNull", creatorSig)
     .addBody([kExprRefNull, kNullRefCode])
@@ -173,29 +161,29 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   // Set i31.
   if (typeName != "dataref" && typeName != "arrayref") {
     table.set(2, wasm.exported(wasm.createI31));
-    assertEquals(1, wasm.eq(table.get(2), wasm.tableGet(2)));
+    assertSame(table.get(2), wasm.tableGet(2));
     wasm.tableSet(3, wasm.createI31);
-    assertEquals(1, wasm.eq(table.get(3), wasm.tableGet(3)));
-    assertEquals(1, wasm.eq(table.get(2), table.get(3))); // The same smi.
+    assertSame(table.get(3), wasm.tableGet(3));
+    assertSame(table.get(2), table.get(3)); // The same smi.
   }
   // Set struct.
   if (typeName != "arrayref") {
     table.set(4, wasm.exported(wasm.createStruct));
-    assertEquals(1, wasm.eq(table.get(4), wasm.tableGet(4)));
+    assertSame(table.get(4), wasm.tableGet(4));
     assertEquals(12, wasm.tableGetStructVal(4));
     wasm.tableSet(5, wasm.createStruct);
-    assertEquals(1, wasm.eq(table.get(5), wasm.tableGet(5)));
+    assertSame(table.get(5), wasm.tableGet(5));
     assertEquals(12, wasm.tableGetStructVal(5));
-    assertEquals(0, wasm.eq(table.get(4), table.get(5))); // Not the same.
+    assertNotSame(table.get(4), table.get(5));
   }
   // Set array.
   table.set(6, wasm.exported(wasm.createArray));
-  assertEquals(1, wasm.eq(table.get(6), wasm.tableGet(6)));
+  assertSame(table.get(6), wasm.tableGet(6));
   assertEquals(12, wasm.tableGetArrayVal(6));
   wasm.tableSet(7, wasm.createArray);
-  assertEquals(1, wasm.eq(table.get(7), wasm.tableGet(7)));
+  assertSame(table.get(7), wasm.tableGet(7));
   assertEquals(12, wasm.tableGetArrayVal(7));
-  assertEquals(0, wasm.eq(table.get(6), table.get(7))); // Not the same.
+  assertNotSame(table.get(6), table.get(7));
 
   // Set stringref.
   if (typeName == "anyref") {
@@ -207,11 +195,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     wasm.tableSetFromExtern(9, largeString);
     assertEquals(largeString, wasm.tableGet(9));
     assertEquals(largeString, table.get(9));
-  }
-
-  // Ensure all objects are externalized, so they can be handled by JS.
-  for (let i = 0; i < table.length; ++i) {
-    JSON.stringify(table.get(i));
   }
 
   if (typeName != "arrayref") {

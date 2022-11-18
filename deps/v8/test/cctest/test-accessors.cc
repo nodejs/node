@@ -738,7 +738,7 @@ static bool SecurityTestCallback(Local<v8::Context> accessing_context,
 
 
 TEST(PrototypeGetterAccessCheck) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -905,7 +905,7 @@ TEST(ObjectSetLazyDataPropertyForIndex) {
 }
 
 TEST(ObjectTemplateSetLazyPropertySurvivesIC) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

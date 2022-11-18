@@ -4,6 +4,7 @@
 
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
@@ -21,7 +22,7 @@ HEAP_TEST(WriteBarrier_Marking) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  MarkCompactCollector* collector = isolate->heap()->mark_compact_collector();
+  Heap* heap = isolate->heap();
   HandleScope outer(isolate);
   Handle<FixedArray> objects = factory->NewFixedArray(3);
   v8::Global<Value> global_objects(CcTest::isolate(), Utils::ToLocal(objects));
@@ -40,20 +41,19 @@ HEAP_TEST(WriteBarrier_Marking) {
   FixedArray host = FixedArray::cast(objects->get(0));
   HeapObject value1 = HeapObject::cast(objects->get(1));
   HeapObject value2 = HeapObject::cast(objects->get(2));
-  CHECK(collector->marking_state()->IsWhite(host));
-  CHECK(collector->marking_state()->IsWhite(value1));
+  CHECK(heap->marking_state()->IsWhite(host));
+  CHECK(heap->marking_state()->IsWhite(value1));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
-  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL,
-           collector->marking_state()->IsGrey(value1));
-  collector->marking_state()->WhiteToGrey(host);
-  collector->marking_state()->GreyToBlack(host);
-  CHECK(collector->marking_state()->IsWhite(value2));
+  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, heap->marking_state()->IsGrey(value1));
+  heap->marking_state()->WhiteToGrey(host);
+  heap->marking_state()->GreyToBlack(host);
+  CHECK(heap->marking_state()->IsWhite(value2));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value2);
-  CHECK(collector->marking_state()->IsGrey(value2));
+  CHECK(heap->marking_state()->IsGrey(value2));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
-  CHECK(collector->marking_state()->IsBlack(host));
-  CHECK(collector->marking_state()->IsBlack(value1));
-  CHECK(collector->marking_state()->IsBlack(value2));
+  CHECK(heap->marking_state()->IsBlack(host));
+  CHECK(heap->marking_state()->IsBlack(value1));
+  CHECK(heap->marking_state()->IsBlack(value2));
 }
 
 HEAP_TEST(WriteBarrier_MarkingExtension) {
@@ -62,7 +62,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  MarkCompactCollector* collector = isolate->heap()->mark_compact_collector();
+  Heap* heap = isolate->heap();
   HandleScope outer(isolate);
   Handle<FixedArray> objects = factory->NewFixedArray(1);
   ArrayBufferExtension* extension;
@@ -75,7 +75,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   }
   heap::SimulateIncrementalMarking(CcTest::heap(), false);
   JSArrayBuffer host = JSArrayBuffer::cast(objects->get(0));
-  CHECK(collector->marking_state()->IsWhite(host));
+  CHECK(heap->marking_state()->IsWhite(host));
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);
   // Concurrent marking barrier should mark this object.
@@ -84,7 +84,7 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   v8::Global<ArrayBuffer> global_host(CcTest::isolate(),
                                       Utils::ToLocal(handle(host, isolate)));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
-  CHECK(collector->marking_state()->IsBlack(host));
+  CHECK(heap->marking_state()->IsBlack(host));
   CHECK(extension->IsMarked());
 }
 

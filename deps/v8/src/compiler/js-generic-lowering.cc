@@ -552,6 +552,11 @@ void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
                                      AccessBuilder::ForMapPrototype()));
 }
 
+void JSGenericLowering::LowerJSFindNonDefaultConstructorOrConstruct(
+    Node* node) {
+  ReplaceWithBuiltinCall(node, Builtin::kFindNonDefaultConstructorOrConstruct);
+}
+
 void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kHasInPrototypeChain);
 }
@@ -1060,78 +1065,11 @@ void JSGenericLowering::LowerJSWasmCall(Node* node) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  JSForInPrepareNode n(node);
-  Effect effect(node);            // {node} is kept in the effect chain.
-  Control control = n.control();  // .. but not in the control chain.
-  Node* enumerator = n.enumerator();
-  Node* slot =
-      jsgraph()->UintPtrConstant(n.Parameters().feedback().slot.ToInt());
-
-  std::vector<Edge> use_edges;
-  for (Edge edge : node->use_edges()) use_edges.push_back(edge);
-
-  // {node} will be changed to a builtin call (see below). The returned value
-  // is a fixed array containing {cache_array} and {cache_length}.
-  // TODO(jgruber): This is awkward; what we really want is two return values,
-  // the {cache_array} and {cache_length}, or better yet three return values
-  // s.t. we can avoid the graph rewrites below. Builtin support for multiple
-  // return types is unclear though.
-
-  Node* result_fixed_array = node;
-  Node* cache_type = enumerator;  // Just to clarify the rename.
-  Node* cache_array;
-  Node* cache_length;
-
-  cache_array = effect = graph()->NewNode(
-      machine()->Load(MachineType::AnyTagged()), result_fixed_array,
-      jsgraph()->IntPtrConstant(FixedArray::OffsetOfElementAt(0) -
-                                kHeapObjectTag),
-      effect, control);
-  cache_length = effect = graph()->NewNode(
-      machine()->Load(MachineType::AnyTagged()), result_fixed_array,
-      jsgraph()->IntPtrConstant(FixedArray::OffsetOfElementAt(1) -
-                                kHeapObjectTag),
-      effect, control);
-
-  // Update the uses of {node}.
-  for (Edge edge : use_edges) {
-    Node* const user = edge.from();
-    if (NodeProperties::IsEffectEdge(edge)) {
-      edge.UpdateTo(effect);
-    } else if (NodeProperties::IsControlEdge(edge)) {
-      edge.UpdateTo(control);
-    } else {
-      DCHECK(NodeProperties::IsValueEdge(edge));
-      switch (ProjectionIndexOf(user->op())) {
-        case 0:
-          Replace(user, cache_type);
-          break;
-        case 1:
-          Replace(user, cache_array);
-          break;
-        case 2:
-          Replace(user, cache_length);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-  }
-
-  // Finally, change the original node into a builtin call. This happens here,
-  // after graph rewrites, since the Call does not have a control output and
-  // thus must not have any control uses. Any previously existing control
-  // outputs have been replaced by the graph rewrite above.
-  node->InsertInput(zone(), n.FeedbackVectorIndex(), slot);
-  ReplaceWithBuiltinCall(node, Builtin::kForInPrepare);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSForInNext(Node* node) {
-  JSForInNextNode n(node);
-  node->InsertInput(
-      zone(), 0,
-      jsgraph()->UintPtrConstant(n.Parameters().feedback().slot.ToInt()));
-  ReplaceWithBuiltinCall(node, Builtin::kForInNext);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

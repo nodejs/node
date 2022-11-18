@@ -2693,27 +2693,6 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
   }
 }
 
-// The algorithm used is described in section 8.2 of
-//   Hacker's Delight, by Henry S. Warren, Jr.
-// It assumes that a right shift on a signed integer is an arithmetic shift.
-static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFLL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFLL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFLL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
 void Simulator::VisitDataProcessing3Source(Instruction* instr) {
   int64_t result = 0;
   // Extract and sign- or zero-extend 32-bit arguments for widening operations.
@@ -2748,7 +2727,13 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
       break;
     case SMULH_x:
       DCHECK_EQ(instr->Ra(), kZeroRegCode);
-      result = MultiplyHighSigned(xreg(instr->Rn()), xreg(instr->Rm()));
+      result =
+          base::bits::SignedMulHigh64(xreg(instr->Rn()), xreg(instr->Rm()));
+      break;
+    case UMULH_x:
+      DCHECK_EQ(instr->Ra(), kZeroRegCode);
+      result =
+          base::bits::UnsignedMulHigh64(xreg(instr->Rn()), xreg(instr->Rm()));
       break;
     default:
       UNIMPLEMENTED();

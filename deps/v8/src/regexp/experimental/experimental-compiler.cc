@@ -65,7 +65,13 @@ class CanBeHandledVisitor final : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
+    return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    result_ = false;
     return nullptr;
   }
 
@@ -385,7 +391,7 @@ class CompileVisitor : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
+  void* VisitClassRanges(RegExpClassRanges* node, void*) override {
     // A character class is compiled as Disjunction over its `CharacterRange`s.
     ZoneList<CharacterRange>* ranges = node->ranges(zone_);
     CharacterRange::Canonicalize(ranges);
@@ -417,6 +423,12 @@ class CompileVisitor : private RegExpVisitor {
       assembler_.ConsumeRange(from_uc16, to_uc16);
     });
     return nullptr;
+  }
+
+  void* VisitClassSetExpression(RegExpClassSetExpression* node,
+                                void*) override {
+    // TODO(v8:11935): Add support.
+    UNREACHABLE();
   }
 
   void* VisitAtom(RegExpAtom* node, void*) override {

@@ -86,12 +86,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
-  MarkingState* marking_state() { return &marking_state_; }
-  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
-  NonAtomicMarkingState* non_atomic_marking_state() {
-    return &non_atomic_marking_state_;
-  }
-
   void NotifyLeftTrimming(HeapObject from, HeapObject to);
 
   bool IsStopped() const { return !IsMarking(); }
@@ -169,6 +163,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   }
 
  private:
+  MarkingState* marking_state() { return marking_state_; }
+  AtomicMarkingState* atomic_marking_state() { return atomic_marking_state_; }
+
   class IncrementalMarkingRootMarkingVisitor;
 
   class Observer : public AllocationObserver {
@@ -270,9 +267,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   Observer new_generation_observer_;
   Observer old_generation_observer_;
 
-  MarkingState marking_state_;
-  AtomicMarkingState atomic_marking_state_;
-  NonAtomicMarkingState non_atomic_marking_state_;
+  MarkingState* const marking_state_;
+  AtomicMarkingState* const atomic_marking_state_;
 
   base::Mutex background_live_bytes_mutex_;
   std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;

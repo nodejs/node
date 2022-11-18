@@ -108,7 +108,7 @@ class LinkageLocation {
   }
 
   static LinkageLocation ForSavedCallerConstantPool() {
-    DCHECK(V8_EMBEDDED_CONSTANT_POOL);
+    DCHECK(V8_EMBEDDED_CONSTANT_POOL_BOOL);
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kConstantPoolOffset) /
                                   kSystemPointerSize,

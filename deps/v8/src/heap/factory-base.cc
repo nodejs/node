@@ -216,7 +216,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
     UNREACHABLE();
   }
   if (length == 0) return impl()->empty_byte_array();
-  int size = ByteArray::SizeFor(length);
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(ByteArray::SizeFor(length));
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().byte_array_map());
   DisallowGarbageCollection no_gc;

@@ -45,11 +45,10 @@ std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
                                       Heap::StackState stack_state) {
   internal::Heap::From(this)->CollectGarbage(
-      {internal::GarbageCollector::Config::CollectionType::kMajor, stack_state,
-       MarkingType::kAtomic, SweepingType::kAtomic,
-       internal::GarbageCollector::Config::FreeMemoryHandling::
-           kDiscardWherePossible,
-       internal::GarbageCollector::Config::IsForcedGC::kForced});
+      {internal::CollectionType::kMajor, stack_state, MarkingType::kAtomic,
+       SweepingType::kAtomic,
+       internal::GCConfig::FreeMemoryHandling::kDiscardWherePossible,
+       internal::GCConfig::IsForcedGC::kForced});
 }
 
 AllocationHandle& Heap::GetAllocationHandle() {
@@ -62,12 +61,11 @@ namespace internal {
 
 namespace {
 
-void CheckConfig(Heap::Config config, HeapBase::MarkingType marking_support,
+void CheckConfig(GCConfig config, HeapBase::MarkingType marking_support,
                  HeapBase::SweepingType sweeping_support) {
-  CHECK_WITH_MSG(
-      (config.collection_type != Heap::Config::CollectionType::kMinor) ||
-          (config.stack_state == Heap::Config::StackState::kNoHeapPointers),
-      "Minor GCs with stack is currently not supported");
+  CHECK_WITH_MSG((config.collection_type != CollectionType::kMinor) ||
+                     (config.stack_state == StackState::kNoHeapPointers),
+                 "Minor GCs with stack is currently not supported");
   CHECK_LE(static_cast<int>(config.marking_type),
            static_cast<int>(marking_support));
   CHECK_LE(static_cast<int>(config.sweeping_type),
@@ -94,17 +92,16 @@ Heap::~Heap() {
   // Gracefully finish already running GC if any, but don't finalize live
   // objects.
   FinalizeIncrementalGarbageCollectionIfRunning(
-      {Config::CollectionType::kMajor,
-       Config::StackState::kMayContainHeapPointers,
-       Config::MarkingType::kAtomic, Config::SweepingType::kAtomic});
+      {CollectionType::kMajor, StackState::kMayContainHeapPointers,
+       GCConfig::MarkingType::kAtomic, GCConfig::SweepingType::kAtomic});
   {
     subtle::NoGarbageCollectionScope no_gc(*this);
     sweeper_.FinishIfRunning();
   }
 }
 
-void Heap::CollectGarbage(Config config) {
-  DCHECK_EQ(Config::MarkingType::kAtomic, config.marking_type);
+void Heap::CollectGarbage(GCConfig config) {
+  DCHECK_EQ(GCConfig::MarkingType::kAtomic, config.marking_type);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (in_no_gc_scope()) return;
@@ -118,9 +115,9 @@ void Heap::CollectGarbage(Config config) {
   FinalizeGarbageCollection(config.stack_state);
 }
 
-void Heap::StartIncrementalGarbageCollection(Config config) {
-  DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
-  DCHECK_NE(marking_support_, Config::MarkingType::kAtomic);
+void Heap::StartIncrementalGarbageCollection(GCConfig config) {
+  DCHECK_NE(GCConfig::MarkingType::kAtomic, config.marking_type);
+  DCHECK_NE(marking_support_, GCConfig::MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (IsMarking() || in_no_gc_scope()) return;
@@ -130,19 +127,19 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
   StartGarbageCollection(config);
 }
 
-void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
+void Heap::FinalizeIncrementalGarbageCollectionIfRunning(GCConfig config) {
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (!IsMarking()) return;
 
   DCHECK(!in_no_gc_scope());
 
-  DCHECK_NE(Config::MarkingType::kAtomic, config_.marking_type);
+  DCHECK_NE(GCConfig::MarkingType::kAtomic, config_.marking_type);
   config_ = config;
   FinalizeGarbageCollection(config.stack_state);
 }
 
-void Heap::StartGarbageCollection(Config config) {
+void Heap::StartGarbageCollection(GCConfig config) {
   DCHECK(!IsMarking());
   DCHECK(!in_no_gc_scope());
 
@@ -152,18 +149,17 @@ void Heap::StartGarbageCollection(Config config) {
   epoch_++;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (config.collection_type == Config::CollectionType::kMajor)
+  if (config.collection_type == CollectionType::kMajor)
     SequentialUnmarker unmarker(raw_heap());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
-  const Marker::MarkingConfig marking_config{
-      config.collection_type, config.stack_state, config.marking_type,
-      config.is_forced_gc};
+  const MarkingConfig marking_config{config.collection_type, config.stack_state,
+                                     config.marking_type, config.is_forced_gc};
   marker_ = std::make_unique<Marker>(AsBase(), platform_.get(), marking_config);
   marker_->StartMarking();
 }
 
-void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
+void Heap::FinalizeGarbageCollection(StackState stack_state) {
   DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
@@ -203,9 +199,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   subtle::NoGarbageCollectionScope no_gc(*this);
-  const Sweeper::SweepingConfig sweeping_config{
-      config_.sweeping_type,
-      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep,
+  const SweepingConfig sweeping_config{
+      config_.sweeping_type, SweepingConfig::CompactableSpaceHandling::kSweep,
       config_.free_memory_handling};
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;
@@ -221,7 +216,7 @@ void Heap::EnableGenerationalGC() {
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 
 void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
-    Config::StackState stack_state) {
+    StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(
       stats_collector(), StatsCollector::kMarkIncrementalFinalize);
   FinalizeGarbageCollection(stack_state);
@@ -230,10 +225,9 @@ void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
 void Heap::StartIncrementalGarbageCollectionForTesting() {
   DCHECK(!IsMarking());
   DCHECK(!in_no_gc_scope());
-  StartGarbageCollection({Config::CollectionType::kMajor,
-                          Config::StackState::kNoHeapPointers,
-                          Config::MarkingType::kIncrementalAndConcurrent,
-                          Config::SweepingType::kIncrementalAndConcurrent});
+  StartGarbageCollection({CollectionType::kMajor, StackState::kNoHeapPointers,
+                          GCConfig::MarkingType::kIncrementalAndConcurrent,
+                          GCConfig::SweepingType::kIncrementalAndConcurrent});
 }
 
 void Heap::FinalizeIncrementalGarbageCollectionForTesting(

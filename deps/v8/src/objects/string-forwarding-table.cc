@@ -261,6 +261,11 @@ uint32_t StringForwardingTable::GetRawHash(PtrComprCageBase cage_base,
   return block->record(index_in_block)->raw_hash(cage_base);
 }
 
+// static
+uint32_t StringForwardingTable::GetRawHashStatic(Isolate* isolate, int index) {
+  return isolate->string_forwarding_table()->GetRawHash(isolate, index);
+}
+
 v8::String::ExternalStringResourceBase*
 StringForwardingTable::GetExternalResource(int index, bool* is_one_byte) const {
   CHECK_LT(index, size());

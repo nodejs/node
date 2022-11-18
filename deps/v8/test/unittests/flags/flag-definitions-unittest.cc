@@ -41,10 +41,10 @@ class FlagDefinitionsTest : public ::testing::Test {
 };
 
 void TestDefault() {
-  CHECK(FLAG_testing_bool_flag);
-  CHECK_EQ(13, FLAG_testing_int_flag);
-  CHECK_EQ(2.5, FLAG_testing_float_flag);
-  CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "Hello, world!"));
+  CHECK(v8_flags.testing_bool_flag);
+  CHECK_EQ(13, v8_flags.testing_int_flag);
+  CHECK_EQ(2.5, v8_flags.testing_float_flag);
+  CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "Hello, world!"));
 }
 
 // This test must be executed first!
@@ -65,12 +65,12 @@ TEST_F(FlagDefinitionsTest, Flags2) {
   CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 false));
   CHECK_EQ(8, argc);
-  CHECK(!FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.value().has_value());
-  CHECK(!FLAG_testing_maybe_bool_flag.value().value());
-  CHECK_EQ(77, FLAG_testing_int_flag);
-  CHECK_EQ(.25, FLAG_testing_float_flag);
-  CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no way!"));
+  CHECK(!v8_flags.testing_bool_flag);
+  CHECK(v8_flags.testing_maybe_bool_flag.value().has_value());
+  CHECK(!v8_flags.testing_maybe_bool_flag.value().value());
+  CHECK_EQ(77, v8_flags.testing_int_flag);
+  CHECK_EQ(.25, v8_flags.testing_float_flag);
+  CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "no way!"));
 }
 
 TEST_F(FlagDefinitionsTest, Flags2b) {
@@ -80,12 +80,12 @@ TEST_F(FlagDefinitionsTest, Flags2b) {
       "-testing_float_flag=.25  "
       "--testing_string_flag   no_way!  ";
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
-  CHECK(!FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.value().has_value());
-  CHECK(!FLAG_testing_maybe_bool_flag.value().value());
-  CHECK_EQ(77, FLAG_testing_int_flag);
-  CHECK_EQ(.25, FLAG_testing_float_flag);
-  CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no_way!"));
+  CHECK(!v8_flags.testing_bool_flag);
+  CHECK(v8_flags.testing_maybe_bool_flag.value().has_value());
+  CHECK(!v8_flags.testing_maybe_bool_flag.value().value());
+  CHECK_EQ(77, v8_flags.testing_int_flag);
+  CHECK_EQ(.25, v8_flags.testing_float_flag);
+  CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "no_way!"));
 }
 
 TEST_F(FlagDefinitionsTest, Flags3) {
@@ -102,12 +102,12 @@ TEST_F(FlagDefinitionsTest, Flags3) {
   CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
-  CHECK(FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.value().has_value());
-  CHECK(FLAG_testing_maybe_bool_flag.value().value());
-  CHECK_EQ(-666, FLAG_testing_int_flag);
-  CHECK_EQ(-12E10, FLAG_testing_float_flag);
-  CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
+  CHECK(v8_flags.testing_bool_flag);
+  CHECK(v8_flags.testing_maybe_bool_flag.value().has_value());
+  CHECK(v8_flags.testing_maybe_bool_flag.value().value());
+  CHECK_EQ(-666, v8_flags.testing_int_flag);
+  CHECK_EQ(-12E10, v8_flags.testing_float_flag);
+  CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "foo-bar"));
 }
 
 TEST_F(FlagDefinitionsTest, Flags3b) {
@@ -117,12 +117,12 @@ TEST_F(FlagDefinitionsTest, Flags3b) {
       "--testing_float_flag -12E10 "
       "-testing-string-flag=foo-bar";
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
-  CHECK(FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.value().has_value());
-  CHECK(FLAG_testing_maybe_bool_flag.value().value());
-  CHECK_EQ(-666, FLAG_testing_int_flag);
-  CHECK_EQ(-12E10, FLAG_testing_float_flag);
-  CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
+  CHECK(v8_flags.testing_bool_flag);
+  CHECK(v8_flags.testing_maybe_bool_flag.value().has_value());
+  CHECK(v8_flags.testing_maybe_bool_flag.value().value());
+  CHECK_EQ(-666, v8_flags.testing_int_flag);
+  CHECK_EQ(-12E10, v8_flags.testing_float_flag);
+  CHECK_EQ(0, strcmp(v8_flags.testing_string_flag, "foo-bar"));
 }
 
 TEST_F(FlagDefinitionsTest, Flags4) {
@@ -131,13 +131,13 @@ TEST_F(FlagDefinitionsTest, Flags4) {
   CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
-  CHECK(!FLAG_testing_maybe_bool_flag.value().has_value());
+  CHECK(!v8_flags.testing_maybe_bool_flag.value().has_value());
 }
 
 TEST_F(FlagDefinitionsTest, Flags4b) {
   const char* str = "--testing_bool_flag --foo";
   CHECK_EQ(2, FlagList::SetFlagsFromString(str, strlen(str)));
-  CHECK(!FLAG_testing_maybe_bool_flag.value().has_value());
+  CHECK(!v8_flags.testing_maybe_bool_flag.value().has_value());
 }
 
 TEST_F(FlagDefinitionsTest, Flags5) {
@@ -179,44 +179,45 @@ TEST_F(FlagDefinitionsTest, FlagsRemoveIncomplete) {
 }
 
 TEST_F(FlagDefinitionsTest, FlagsJitlessImplications) {
-  if (FLAG_jitless) {
+  if (v8_flags.jitless) {
     // Double-check implications work as expected. Our implication system is
     // fairly primitive and can break easily depending on the implication
     // definition order in flag-definitions.h.
-    CHECK(!FLAG_turbofan);
-    CHECK(!FLAG_maglev);
-    CHECK(!FLAG_sparkplug);
+    CHECK(!v8_flags.turbofan);
+    CHECK(!v8_flags.maglev);
+    CHECK(!v8_flags.sparkplug);
 #if V8_ENABLE_WEBASSEMBLY
-    CHECK(!FLAG_validate_asm);
-    CHECK(!FLAG_asm_wasm_lazy_compilation);
-    CHECK(!FLAG_wasm_lazy_compilation);
+    CHECK(!v8_flags.validate_asm);
+    CHECK(!v8_flags.asm_wasm_lazy_compilation);
+    CHECK(!v8_flags.wasm_lazy_compilation);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 
 TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // Before freezing, we can arbitrarily change values.
-  CHECK_EQ(13, FLAG_testing_int_flag);  // Initial (default) value.
-  FLAG_testing_int_flag = 27;
-  CHECK_EQ(27, FLAG_testing_int_flag);
+  CHECK_EQ(13, v8_flags.testing_int_flag);  // Initial (default) value.
+  v8_flags.testing_int_flag = 27;
+  CHECK_EQ(27, v8_flags.testing_int_flag);
 
   // Get a direct pointer to the flag storage.
-  static_assert(sizeof(FLAG_testing_int_flag) == sizeof(int));
-  int* direct_testing_int_ptr = reinterpret_cast<int*>(&FLAG_testing_int_flag);
+  static_assert(sizeof(v8_flags.testing_int_flag) == sizeof(int));
+  int* direct_testing_int_ptr =
+      reinterpret_cast<int*>(&v8_flags.testing_int_flag);
   CHECK_EQ(27, *direct_testing_int_ptr);
   *direct_testing_int_ptr = 42;
-  CHECK_EQ(42, FLAG_testing_int_flag);
+  CHECK_EQ(42, v8_flags.testing_int_flag);
 
   // Now freeze flags. Accesses via the API and via the direct pointer should
   // both crash.
   FlagList::FreezeFlags();
   // Accessing via the API fails with a CHECK.
-  ASSERT_DEATH_IF_SUPPORTED(FLAG_testing_int_flag = 41,
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag = 41,
                             "Check failed: !IsFrozen\\(\\)");
   // Writing to the memory directly results in a segfault.
   ASSERT_DEATH_IF_SUPPORTED(*direct_testing_int_ptr = 41, "");
   // We can still read the old value.
-  CHECK_EQ(42, FLAG_testing_int_flag);
+  CHECK_EQ(42, v8_flags.testing_int_flag);
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
 

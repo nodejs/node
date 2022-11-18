@@ -556,12 +556,6 @@ class LiftoffCompiler {
     return __ GetTotalFrameSlotCountForGC();
   }
 
-  int GetFeedbackVectorSlots() const {
-    // The number of call instructions is capped by max function size.
-    static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
-    return static_cast<int>(encountered_call_instructions_.size()) * 2;
-  }
-
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
     DCHECK_NE(kSuccess, reason);
@@ -5919,6 +5913,20 @@ class LiftoffCompiler {
     }
     Register tmp1 = scratch_null;  // Done with null checks.
 
+    // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
+    ValueType i31ref = ValueType::Ref(HeapType::kI31);
+    // Ref.extern can also contain Smis, however there isn't any type that
+    // could downcast to ref.extern.
+    DCHECK(!rtt_type.is_reference_to(HeapType::kExtern));
+    // Ref.i31 check has its own implementation.
+    DCHECK(!rtt_type.is_reference_to(HeapType::kI31));
+    if (IsSubtypeOf(i31ref, obj_type, module)) {
+      Label* i31_target =
+          IsSubtypeOf(i31ref, rtt_type, module) ? &match : no_match;
+      __ emit_smi_check(obj_reg, i31_target, LiftoffAssembler::kJumpOnSmi,
+                        frozen);
+    }
+
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
@@ -5955,7 +5963,7 @@ class LiftoffCompiler {
   }
 
   void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* /* result_val */) {
+               Value* /* result_val */, bool null_succeeds) {
     Label return_false, done;
     LiftoffRegList pinned;
     LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
@@ -5969,7 +5977,7 @@ class LiftoffCompiler {
       FREEZE_STATE(frozen);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
                    rtt.type, scratch_null, result.gp(), &return_false,
-                   kNullFails, frozen);
+                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -5980,6 +5988,25 @@ class LiftoffCompiler {
       __ bind(&done);
     }
     __ PushRegister(kI32, result);
+  }
+
+  void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
+                       Value* result_val, bool null_succeeds) {
+    switch (type.representation()) {
+      case HeapType::kEq:
+        return RefIsEq(decoder, obj, result_val, null_succeeds);
+      case HeapType::kI31:
+        return RefIsI31(decoder, obj, result_val, null_succeeds);
+      case HeapType::kData:
+        return RefIsData(decoder, obj, result_val, null_succeeds);
+      case HeapType::kArray:
+        return RefIsArray(decoder, obj, result_val, null_succeeds);
+      case HeapType::kAny:
+        // Any may never need a cast as it is either implicitly convertible or
+        // never convertible for any given type.
+      default:
+        UNREACHABLE();
+    }
   }
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
@@ -6068,9 +6095,12 @@ class LiftoffCompiler {
     Register tmp1 = no_reg;
     Register tmp2 = no_reg;
     Label* no_match;
+    bool null_succeeds;
 
-    TypeCheck(ValueType obj_type, Label* no_match)
-        : obj_type(obj_type), no_match(no_match) {}
+    TypeCheck(ValueType obj_type, Label* no_match, bool null_succeeds)
+        : obj_type(obj_type),
+          no_match(no_match),
+          null_succeeds(null_succeeds) {}
 
     Register null_reg() { return tmp1; }       // After {Initialize}.
     Register instance_type() { return tmp1; }  // After {LoadInstanceType}.
@@ -6091,13 +6121,17 @@ class LiftoffCompiler {
       LoadNullValue(check.null_reg(), pinned);
     }
   }
-  void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen) {
-    if (check.obj_type.is_nullable()) {
+  void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
+                        Label* on_smi) {
+    // The check for null_succeeds == true has to be handled by the caller!
+    // TODO(mliedtke): Reiterate the null_succeeds case once all generic cast
+    // instructions are implemented.
+    if (!check.null_succeeds && check.obj_type.is_nullable()) {
       __ emit_cond_jump(kEqual, check.no_match, kRefNull, check.obj_reg,
                         check.null_reg(), frozen);
     }
-    __ emit_smi_check(check.obj_reg, check.no_match,
-                      LiftoffAssembler::kJumpOnSmi, frozen);
+    __ emit_smi_check(check.obj_reg, on_smi, LiftoffAssembler::kJumpOnSmi,
+                      frozen);
     __ LoadMap(check.instance_type(), check.obj_reg);
     __ Load(LiftoffRegister(check.instance_type()), check.instance_type(),
             no_reg, wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
@@ -6106,7 +6140,7 @@ class LiftoffCompiler {
 
   // Abstract type checkers. They all fall through on match.
   void DataCheck(TypeCheck& check, const FreezeCacheState& frozen) {
-    LoadInstanceType(check, frozen);
+    LoadInstanceType(check, frozen, check.no_match);
     // We're going to test a range of WasmObject instance types with a single
     // unsigned comparison.
     Register tmp = check.instance_type();
@@ -6117,7 +6151,7 @@ class LiftoffCompiler {
   }
 
   void ArrayCheck(TypeCheck& check, const FreezeCacheState& frozen) {
-    LoadInstanceType(check, frozen);
+    LoadInstanceType(check, frozen, check.no_match);
     LiftoffRegister instance_type(check.instance_type());
     __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
                            WASM_ARRAY_TYPE, frozen);
@@ -6128,17 +6162,35 @@ class LiftoffCompiler {
                       LiftoffAssembler::kJumpOnNotSmi, frozen);
   }
 
+  void EqCheck(TypeCheck& check, const FreezeCacheState& frozen) {
+    Label match;
+    LoadInstanceType(check, frozen, &match);
+    // We're going to test a range of WasmObject instance types with a single
+    // unsigned comparison.
+    Register tmp = check.instance_type();
+    __ emit_i32_subi(tmp, tmp, FIRST_WASM_OBJECT_TYPE);
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThan, check.no_match, tmp,
+                           LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE,
+                           frozen);
+    __ bind(&match);
+  }
+
   using TypeChecker = void (LiftoffCompiler::*)(TypeCheck& check,
                                                 const FreezeCacheState& frozen);
 
   template <TypeChecker type_checker>
-  void AbstractTypeCheck(const Value& object) {
+  void AbstractTypeCheck(const Value& object, bool null_succeeds) {
     Label match, no_match, done;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPop);
     LiftoffRegister result(check.tmp1);
     {
       FREEZE_STATE(frozen);
+
+      if (null_succeeds && check.obj_type.is_nullable()) {
+        __ emit_cond_jump(kEqual, &match, kRefNull, check.obj_reg,
+                          check.null_reg(), frozen);
+      }
 
       (this->*type_checker)(check, frozen);
 
@@ -6155,26 +6207,32 @@ class LiftoffCompiler {
   }
 
   void RefIsData(FullDecoder* /* decoder */, const Value& object,
-                 Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object);
+                 Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object, null_succeeds);
+  }
+
+  void RefIsEq(FullDecoder* /* decoder */, const Value& object,
+               Value* /* result_val */, bool null_succeeds) {
+    AbstractTypeCheck<&LiftoffCompiler::EqCheck>(object, null_succeeds);
   }
 
   void RefIsArray(FullDecoder* /* decoder */, const Value& object,
-                  Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object);
+                  Value* /* result_val */, bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object, null_succeeds);
   }
 
-  void RefIsI31(FullDecoder* decoder, const Value& object,
-                Value* /* result */) {
-    AbstractTypeCheck<&LiftoffCompiler::I31Check>(object);
+  void RefIsI31(FullDecoder* decoder, const Value& object, Value* /* result */,
+                bool null_succeeds = false) {
+    AbstractTypeCheck<&LiftoffCompiler::I31Check>(object, null_succeeds);
   }
 
   template <TypeChecker type_checker>
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
                         ValueKind result_kind) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
-    TypeCheck check(object.type, trap_label);
+    TypeCheck check(object.type, trap_label, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
     (this->*type_checker)(check, frozen);
@@ -6196,13 +6254,14 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnAbstractType(const Value& object, FullDecoder* decoder,
                         uint32_t br_depth) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
 
@@ -6215,13 +6274,14 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnNonAbstractType(const Value& object, FullDecoder* decoder,
                            uint32_t br_depth) {
+    bool null_succeeds = false;  // TODO(mliedtke): Use parameter.
     // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
       __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match, end;
-    TypeCheck check(object.type, &no_match);
+    TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPeek);
     FREEZE_STATE(frozen);
 
@@ -7188,18 +7248,10 @@ class LiftoffCompiler {
             nullptr, false, false, true);
 
     // Compare against expected signature.
-    if (v8_flags.wasm_type_canonicalization) {
-      LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
-                          kSystemPointerSize, pinned);
-      __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
-              imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
-    } else {
-      uint32_t canonical_sig_num =
-          env_->module->per_module_canonical_type_ids[imm.sig_imm.index];
-      DCHECK_GE(canonical_sig_num, 0);
-      DCHECK_GE(kMaxInt, canonical_sig_num);
-      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
-    }
+    LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
+                        kSystemPointerSize, pinned);
+    __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
+            imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
 
     Label* sig_mismatch_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
@@ -7279,10 +7331,11 @@ class LiftoffCompiler {
       ValueKind kIntPtrKind = kPointerKind;
 
       LiftoffRegList pinned;
+      LiftoffRegister func_ref = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffAssembler::VarState funcref =
-          __ cache_state()->stack_state.end()[-1];
-      if (funcref.is_reg()) pinned.set(funcref.reg());
+      MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
+      LiftoffAssembler::VarState func_ref_var(kRef, func_ref, 0);
+
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -7297,9 +7350,9 @@ class LiftoffCompiler {
       CallRuntimeStub(WasmCode::kCallRefIC,
                       MakeSig::Returns(kPointerKind, kPointerKind)
                           .Params(kPointerKind, kIntPtrKind, kPointerKind),
-                      {vector_var, index_var, funcref}, decoder->position());
+                      {vector_var, index_var, func_ref_var},
+                      decoder->position());
 
-      __ cache_state()->stack_state.pop_back(1);  // Drop funcref.
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       instance_reg = LiftoffRegister(kReturnRegister1).gp();
 
@@ -7721,7 +7774,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
-  result.feedback_vector_slots = compiler->GetFeedbackVectorSlots();
 
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;

@@ -494,24 +494,26 @@ class WasmGraphBuilder {
   Node* RttCanon(uint32_t type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* RefTestAbstract(Node* object, wasm::HeapType type, bool null_succeeds);
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
   void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
-  Node* RefIsData(Node* object, bool object_can_be_null);
+  Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
+  Node* RefIsData(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsData(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
   void BrOnData(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
-  Node* RefIsArray(Node* object, bool object_can_be_null);
+  Node* RefIsArray(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsArray(Node* object, bool object_can_be_null,
                    wasm::WasmCodePosition position);
   void BrOnArray(Node* object, Node* rtt, WasmTypeCheckConfig config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
-  Node* RefIsI31(Node* object);
+  Node* RefIsI31(Node* object, bool null_succeeds);
   Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
@@ -763,10 +765,13 @@ class WasmGraphBuilder {
                             SmallNodeVector& match_controls,
                             SmallNodeVector& match_effects);
 
-  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
+                 bool null_succeeds);
+  void EqCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
+               bool null_succeeds);
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
                                   InstanceType instance_type,
-                                  Callbacks callbacks);
+                                  Callbacks callbacks, bool null_succeeds);
 
   void BrOnCastAbs(Node** match_control, Node** match_effect,
                    Node** no_match_control, Node** no_match_effect,

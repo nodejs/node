@@ -967,14 +967,6 @@ void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
               IndexAsTagged(3));                // slot
 }
 
-void BaselineCompiler::VisitCollectTypeProfile() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
-  CallRuntime(Runtime::kCollectTypeProfile,
-              IntAsSmi(0),                      // position
-              kInterpreterAccumulatorRegister,  // value
-              FeedbackVector());                // feedback vector
-}
-
 void BaselineCompiler::VisitAdd() {
   CallBuiltin<Builtin::kAdd_Baseline>(
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
@@ -1158,10 +1150,10 @@ void BaselineCompiler::VisitGetSuperConstructor() {
   StoreRegister(0, prototype);
 }
 
-void BaselineCompiler::VisitFindNonDefaultConstructor() {
+void BaselineCompiler::VisitFindNonDefaultConstructorOrConstruct() {
   SaveAccumulatorScope accumulator_scope(&basm_);
-  CallBuiltin<Builtin::kFindNonDefaultConstructor>(RegisterOperand(0),
-                                                   RegisterOperand(1));
+  CallBuiltin<Builtin::kFindNonDefaultConstructorOrConstruct>(
+      RegisterOperand(0), RegisterOperand(1));
   StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
 }
 
@@ -1421,9 +1413,9 @@ void BaselineCompiler::VisitIntrinsicAsyncGeneratorResolve(
   CallBuiltin<Builtin::kAsyncGeneratorResolve>(args);
 }
 
-void BaselineCompiler::VisitIntrinsicAsyncGeneratorYield(
+void BaselineCompiler::VisitIntrinsicAsyncGeneratorYieldWithAwait(
     interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncGeneratorYield>(args);
+  CallBuiltin<Builtin::kAsyncGeneratorYieldWithAwait>(args);
 }
 
 void BaselineCompiler::VisitConstruct() {

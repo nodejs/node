@@ -157,7 +157,7 @@ static T factorial(T v) {
 TEST(Run_Wasm_returnCallFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   WasmRunner<uint32_t, int32_t> r(TestExecutionTier::kInterpreter);
 

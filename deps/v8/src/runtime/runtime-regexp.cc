@@ -1177,9 +1177,9 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   // native code expects an array to store all the matches, and the bytecode
   // matches one at a time, so it's easier to tier-up to native code from the
   // start.
-  if (FLAG_regexp_tier_up && regexp->type_tag() == JSRegExp::IRREGEXP) {
+  if (v8_flags.regexp_tier_up && regexp->type_tag() == JSRegExp::IRREGEXP) {
     regexp->MarkTierUpForNextExec();
-    if (FLAG_trace_regexp_tier_up) {
+    if (v8_flags.trace_regexp_tier_up) {
       PrintF("Forcing tier-up of JSRegExp object %p in SearchRegExpMultiple\n",
              reinterpret_cast<void*>(regexp->ptr()));
     }
@@ -1426,9 +1426,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     // native code expects an array to store all the matches, and the bytecode
     // matches one at a time, so it's easier to tier-up to native code from the
     // start.
-    if (FLAG_regexp_tier_up && regexp->type_tag() == JSRegExp::IRREGEXP) {
+    if (v8_flags.regexp_tier_up && regexp->type_tag() == JSRegExp::IRREGEXP) {
       regexp->MarkTierUpForNextExec();
-      if (FLAG_trace_regexp_tier_up) {
+      if (v8_flags.trace_regexp_tier_up) {
         PrintF("Forcing tier-up of JSRegExp object %p in RegExpReplace\n",
                reinterpret_cast<void*>(regexp->ptr()));
       }

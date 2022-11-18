@@ -1291,6 +1291,8 @@ void Simulator::EvalTableInit() {
   EvalTable[LLGCR] = &Simulator::Evaluate_LLGCR;
   EvalTable[LLGHR] = &Simulator::Evaluate_LLGHR;
   EvalTable[MLGR] = &Simulator::Evaluate_MLGR;
+  EvalTable[MGRK] = &Simulator::Evaluate_MGRK;
+  EvalTable[MG] = &Simulator::Evaluate_MG;
   EvalTable[DLGR] = &Simulator::Evaluate_DLGR;
   EvalTable[ALCGR] = &Simulator::Evaluate_ALCGR;
   EvalTable[SLBGR] = &Simulator::Evaluate_SLBGR;
@@ -8744,7 +8746,37 @@ EVALUATE(LLGHR) {
   return length;
 }
 
+EVALUATE(MG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
+
+EVALUATE(MGRK) {
+  DCHECK_OPCODE(MGRK);
+  DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
+  // 64-bit Non-clobbering arithmetics / bitwise ops.
+  int64_t r2_val = get_register(r2);
+  int64_t r3_val = get_register(r3);
+  set_register(r1, base::bits::SignedMulHigh64(r2_val, r3_val));
+  set_register(r1 + 1, r2_val * r3_val);
+  return length;
+}
+
 EVALUATE(MLGR) {
+  DCHECK_OPCODE(MLGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  // 64-bit Non-clobbering unsigned arithmetics
+  CHECK_EQ(r1 % 2, 0);
+  uint64_t r1_plus_1_val = get_register(r1 + 1);
+  uint64_t r2_val = get_register(r2);
+
+  set_register(r1, base::bits::UnsignedMulHigh64(r2_val, r1_plus_1_val));
+  set_register(r1 + 1, r2_val * r1_plus_1_val);
+  return length;
+}
+
+EVALUATE(MLG) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;
@@ -9952,12 +9984,6 @@ EVALUATE(XG) {
 }
 
 EVALUATE(LGAT) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
-EVALUATE(MLG) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;

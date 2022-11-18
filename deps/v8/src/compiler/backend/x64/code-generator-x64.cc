@@ -481,7 +481,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
       : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() final {
-    DCHECK(FLAG_wasm_bounds_checks && !FLAG_wasm_enforce_bounds_checks);
+    DCHECK(v8_flags.wasm_bounds_checks && !v8_flags.wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
     GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }
@@ -789,7 +789,41 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                            \
   } while (false)
 
-#define ASSEMBLE_COMPARE(asm_instr)                              \
+#define ASSEMBLE_COMPARE(cmp_instr, test_instr)                     \
+  do {                                                              \
+    if (HasAddressingMode(instr)) {                                 \
+      size_t index = 0;                                             \
+      Operand left = i.MemoryOperand(&index);                       \
+      if (HasImmediateInput(instr, index)) {                        \
+        __ cmp_instr(left, i.InputImmediate(index));                \
+      } else {                                                      \
+        __ cmp_instr(left, i.InputRegister(index));                 \
+      }                                                             \
+    } else {                                                        \
+      if (HasImmediateInput(instr, 1)) {                            \
+        Immediate right = i.InputImmediate(1);                      \
+        if (HasRegisterInput(instr, 0)) {                           \
+          if (right.value() == 0 &&                                 \
+              (FlagsConditionField::decode(opcode) == kEqual ||     \
+               FlagsConditionField::decode(opcode) == kNotEqual)) { \
+            __ test_instr(i.InputRegister(0), i.InputRegister(0));  \
+          } else {                                                  \
+            __ cmp_instr(i.InputRegister(0), right);                \
+          }                                                         \
+        } else {                                                    \
+          __ cmp_instr(i.InputOperand(0), right);                   \
+        }                                                           \
+      } else {                                                      \
+        if (HasRegisterInput(instr, 1)) {                           \
+          __ cmp_instr(i.InputRegister(0), i.InputRegister(1));     \
+        } else {                                                    \
+          __ cmp_instr(i.InputRegister(0), i.InputOperand(1));      \
+        }                                                           \
+      }                                                             \
+    }                                                               \
+  } while (false)
+
+#define ASSEMBLE_TEST(asm_instr)                                 \
   do {                                                           \
     if (HasAddressingMode(instr)) {                              \
       size_t index = 0;                                          \
@@ -1318,7 +1352,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         __ cmp_tagged(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
@@ -1515,7 +1549,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ Cmp(value, kClearedWeakHeapObjectLower32);
@@ -1639,28 +1673,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BINOP(andq);
       break;
     case kX64Cmp8:
-      ASSEMBLE_COMPARE(cmpb);
+      ASSEMBLE_COMPARE(cmpb, testb);
       break;
     case kX64Cmp16:
-      ASSEMBLE_COMPARE(cmpw);
+      ASSEMBLE_COMPARE(cmpw, testw);
       break;
     case kX64Cmp32:
-      ASSEMBLE_COMPARE(cmpl);
+      ASSEMBLE_COMPARE(cmpl, testl);
       break;
     case kX64Cmp:
-      ASSEMBLE_COMPARE(cmpq);
+      ASSEMBLE_COMPARE(cmpq, testq);
       break;
     case kX64Test8:
-      ASSEMBLE_COMPARE(testb);
+      ASSEMBLE_TEST(testb);
       break;
     case kX64Test16:
-      ASSEMBLE_COMPARE(testw);
+      ASSEMBLE_TEST(testw);
       break;
     case kX64Test32:
-      ASSEMBLE_COMPARE(testl);
+      ASSEMBLE_TEST(testl);
       break;
     case kX64Test:
-      ASSEMBLE_COMPARE(testq);
+      ASSEMBLE_TEST(testq);
       break;
     case kX64Imul32:
       ASSEMBLE_MULT(imull);
@@ -1680,6 +1714,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mull(i.InputRegister(1));
       } else {
         __ mull(i.InputOperand(1));
+      }
+      break;
+    case kX64ImulHigh64:
+      if (HasRegisterInput(instr, 1)) {
+        __ imulq(i.InputRegister(1));
+      } else {
+        __ imulq(i.InputOperand(1));
+      }
+      break;
+    case kX64UmulHigh64:
+      if (HasRegisterInput(instr, 1)) {
+        __ mulq(i.InputRegister(1));
+      } else {
+        __ mulq(i.InputOperand(1));
       }
       break;
     case kX64Idiv32:
@@ -4605,7 +4653,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   }
   __ j(FlagsConditionToCondition(branch->condition), tlabel);
 
-  if (FLAG_deopt_every_n_times > 0) {
+  if (v8_flags.deopt_every_n_times > 0) {
     ExternalReference counter =
         ExternalReference::stress_deopt_count(isolate());
 
@@ -4615,7 +4663,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     __ decl(rax);
     __ j(not_zero, &nodeopt, Label::kNear);
 
-    __ Move(rax, FLAG_deopt_every_n_times);
+    __ Move(rax, v8_flags.deopt_every_n_times);
     __ store_rax(counter);
     __ popq(rax);
     __ popfq();
@@ -4840,7 +4888,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         __ movq(kScratchRegister,
                 FieldOperand(kWasmInstanceRegister,
                              WasmInstanceObject::kRealStackLimitAddressOffset));
@@ -4934,7 +4982,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ cmpq(g.ToRegister(additional_pop_count), Immediate(0));
       __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
     }
@@ -5015,7 +5063,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
 
 void CodeGenerator::IncrementStackAccessCounter(
     InstructionOperand* source, InstructionOperand* destination) {
-  DCHECK(FLAG_trace_turbo_stack_accesses);
+  DCHECK(v8_flags.trace_turbo_stack_accesses);
   if (!info()->IsOptimizing()) {
 #if V8_ENABLE_WEBASSEMBLY
     if (!info()->IsWasm()) return;
@@ -5203,7 +5251,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     __ movq(dst, kScratchRegister);
   };
 
-  if (FLAG_trace_turbo_stack_accesses) {
+  if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
   }
 
@@ -5322,7 +5370,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
-  if (FLAG_trace_turbo_stack_accesses) {
+  if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
     IncrementStackAccessCounter(destination, source);
   }

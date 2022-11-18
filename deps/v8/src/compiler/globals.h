@@ -22,7 +22,7 @@ namespace compiler {
 // TODO(jgruber): Remove once we've made a decision whether to collect feedback
 // unconditionally.
 inline bool CollectFeedbackInGenericLowering() {
-  return FLAG_turbo_collect_feedback_in_generic_lowering;
+  return v8_flags.turbo_collect_feedback_in_generic_lowering;
 }
 
 enum class StackCheckKind : uint8_t {
@@ -48,6 +48,25 @@ inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
 
 inline size_t hash_value(StackCheckKind kind) {
   return static_cast<size_t>(kind);
+}
+
+enum class CheckForMinusZeroMode : uint8_t {
+  kCheckForMinusZero,
+  kDontCheckForMinusZero,
+};
+
+inline size_t hash_value(CheckForMinusZeroMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+inline std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return os << "check-for-minus-zero";
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return os << "dont-check-for-minus-zero";
+  }
+  UNREACHABLE();
 }
 
 // The CallFeedbackRelation provides the meaning of the call feedback for a
@@ -96,5 +115,13 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
     defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
+
+// The biggest double value that fits within the int64_t/uint64_t value range.
+// This is different from safe integer range in that there are gaps of integers
+// in-between that cannot be represented as a double.
+constexpr double kMaxDoubleRepresentableInt64 = 9223372036854774784.0;
+constexpr double kMinDoubleRepresentableInt64 =
+    std::numeric_limits<int64_t>::min();
+constexpr double kMaxDoubleRepresentableUint64 = 18446744073709549568.0;
 
 #endif  // V8_COMPILER_GLOBALS_H_

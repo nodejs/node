@@ -30,6 +30,10 @@ namespace internal {
   V(INT32_STACK_SLOT, 1)                                  \
   V(INT64_REGISTER, 1)                                    \
   V(INT64_STACK_SLOT, 1)                                  \
+  V(SIGNED_BIGINT64_REGISTER, 1)                          \
+  V(SIGNED_BIGINT64_STACK_SLOT, 1)                        \
+  V(UNSIGNED_BIGINT64_REGISTER, 1)                        \
+  V(UNSIGNED_BIGINT64_STACK_SLOT, 1)                      \
   V(INTERPRETED_FRAME, 5)                                 \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3) \

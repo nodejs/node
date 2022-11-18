@@ -13,6 +13,7 @@
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -87,6 +88,46 @@ void ExpectPageOld(BasePage& page) {
                 CagedHeap::OffsetFromAddress(page.PayloadEnd())));
 }
 
+class RememberedSetExtractor : HeapVisitor<RememberedSetExtractor> {
+  friend class HeapVisitor<RememberedSetExtractor>;
+
+ public:
+  static std::set<void*> Extract(cppgc::Heap* heap) {
+    RememberedSetExtractor extractor;
+    extractor.Traverse(Heap::From(heap)->raw_heap());
+    return std::move(extractor.slots_);
+  }
+
+ private:
+  void VisitPage(BasePage& page) {
+    auto* slot_set = page.slot_set();
+    if (!slot_set) return;
+
+    const uintptr_t page_start = reinterpret_cast<uintptr_t>(&page);
+    const size_t buckets_size = SlotSet::BucketsForSize(page.AllocatedSize());
+
+    slot_set->Iterate(
+        page_start, 0, buckets_size,
+        [this](SlotSet::Address slot) {
+          slots_.insert(reinterpret_cast<void*>(slot));
+          return heap::base::KEEP_SLOT;
+        },
+        SlotSet::EmptyBucketMode::FREE_EMPTY_BUCKETS);
+  }
+
+  bool VisitNormalPage(NormalPage& page) {
+    VisitPage(page);
+    return true;
+  }
+
+  bool VisitLargePage(LargePage& page) {
+    VisitPage(page);
+    return true;
+  }
+
+  std::set<void*> slots_;
+};
+
 }  // namespace
 
 class MinorGCTest : public testing::TestWithHeap {
@@ -107,16 +148,11 @@ class MinorGCTest : public testing::TestWithHeap {
   }
 
   void CollectMinor() {
-    Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::MinorPreciseAtomicConfig());
+    Heap::From(GetHeap())->CollectGarbage(GCConfig::MinorPreciseAtomicConfig());
   }
 
   void CollectMajor() {
-    Heap::From(GetHeap())->CollectGarbage(Heap::Config::PreciseAtomicConfig());
-  }
-
-  const auto& RememberedSlots() const {
-    return Heap::From(GetHeap())->remembered_set().remembered_slots_;
+    Heap::From(GetHeap())->CollectGarbage(GCConfig::PreciseAtomicConfig());
   }
 
   const auto& RememberedSourceObjects() const {
@@ -145,75 +181,72 @@ struct ExpectRememberedSlotsAdded final {
   ExpectRememberedSlotsAdded(
       const MinorGCTest& test,
       std::initializer_list<void*> slots_expected_to_be_remembered)
-      : remembered_slots_(test.RememberedSlots()),
+      : test_(test),
         slots_expected_to_be_remembered_(slots_expected_to_be_remembered),
-        initial_number_of_slots_(remembered_slots_.size()) {
+        initial_slots_(RememberedSetExtractor::Extract(test.GetHeap())) {
     // Check that the remembered set doesn't contain specified slots.
-    EXPECT_FALSE(std::includes(remembered_slots_.begin(),
-                               remembered_slots_.end(),
+    EXPECT_FALSE(std::includes(initial_slots_.begin(), initial_slots_.end(),
                                slots_expected_to_be_remembered_.begin(),
                                slots_expected_to_be_remembered_.end()));
   }
 
   ~ExpectRememberedSlotsAdded() {
-    const size_t current_number_of_slots = remembered_slots_.size();
-    EXPECT_EQ(
-        initial_number_of_slots_ + slots_expected_to_be_remembered_.size(),
-        current_number_of_slots);
-    EXPECT_TRUE(std::includes(remembered_slots_.begin(),
-                              remembered_slots_.end(),
+    const auto current_slots = RememberedSetExtractor::Extract(test_.GetHeap());
+    EXPECT_EQ(initial_slots_.size() + slots_expected_to_be_remembered_.size(),
+              current_slots.size());
+    EXPECT_TRUE(std::includes(current_slots.begin(), current_slots.end(),
                               slots_expected_to_be_remembered_.begin(),
                               slots_expected_to_be_remembered_.end()));
   }
 
  private:
-  const std::set<void*>& remembered_slots_;
+  const MinorGCTest& test_;
   std::set<void*> slots_expected_to_be_remembered_;
-  const size_t initial_number_of_slots_ = 0;
+  std::set<void*> initial_slots_;
 };
 
 struct ExpectRememberedSlotsRemoved final {
   ExpectRememberedSlotsRemoved(
       const MinorGCTest& test,
       std::initializer_list<void*> slots_expected_to_be_removed)
-      : remembered_slots_(test.RememberedSlots()),
+      : test_(test),
         slots_expected_to_be_removed_(slots_expected_to_be_removed),
-        initial_number_of_slots_(remembered_slots_.size()) {
-    DCHECK_GE(initial_number_of_slots_, slots_expected_to_be_removed_.size());
+        initial_slots_(RememberedSetExtractor::Extract(test.GetHeap())) {
+    DCHECK_GE(initial_slots_.size(), slots_expected_to_be_removed_.size());
     // Check that the remembered set does contain specified slots to be removed.
-    EXPECT_TRUE(std::includes(remembered_slots_.begin(),
-                              remembered_slots_.end(),
+    EXPECT_TRUE(std::includes(initial_slots_.begin(), initial_slots_.end(),
                               slots_expected_to_be_removed_.begin(),
                               slots_expected_to_be_removed_.end()));
   }
 
   ~ExpectRememberedSlotsRemoved() {
-    const size_t current_number_of_slots = remembered_slots_.size();
-    EXPECT_EQ(initial_number_of_slots_ - slots_expected_to_be_removed_.size(),
-              current_number_of_slots);
-    EXPECT_FALSE(std::includes(remembered_slots_.begin(),
-                               remembered_slots_.end(),
+    const auto current_slots = RememberedSetExtractor::Extract(test_.GetHeap());
+    EXPECT_EQ(initial_slots_.size() - slots_expected_to_be_removed_.size(),
+              current_slots.size());
+    EXPECT_FALSE(std::includes(current_slots.begin(), current_slots.end(),
                                slots_expected_to_be_removed_.begin(),
                                slots_expected_to_be_removed_.end()));
   }
 
  private:
-  const std::set<void*>& remembered_slots_;
+  const MinorGCTest& test_;
   std::set<void*> slots_expected_to_be_removed_;
-  const size_t initial_number_of_slots_ = 0;
+  std::set<void*> initial_slots_;
 };
 
 struct ExpectNoRememberedSlotsAdded final {
   explicit ExpectNoRememberedSlotsAdded(const MinorGCTest& test)
-      : remembered_slots_(test.RememberedSlots()),
-        initial_remembered_slots_(remembered_slots_) {}
+      : test_(test),
+        initial_remembered_slots_(
+            RememberedSetExtractor::Extract(test.GetHeap())) {}
 
   ~ExpectNoRememberedSlotsAdded() {
-    EXPECT_EQ(initial_remembered_slots_, remembered_slots_);
+    EXPECT_EQ(initial_remembered_slots_,
+              RememberedSetExtractor::Extract(test_.GetHeap()));
   }
 
  private:
-  const std::set<void*>& remembered_slots_;
+  const MinorGCTest& test_;
   std::set<void*> initial_remembered_slots_;
 };
 
@@ -298,19 +331,23 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
     }
   }
 
-  const auto& set = test->RememberedSlots();
-  auto set_size_before = set.size();
+  auto remembered_set_size_before_barrier =
+      RememberedSetExtractor::Extract(test->GetHeap()).size();
 
   // Issue generational barrier.
   old->next = young;
 
-  EXPECT_EQ(set_size_before + 1u, set.size());
+  auto remembered_set_size_after_barrier =
+      RememberedSetExtractor::Extract(test->GetHeap()).size();
+
+  EXPECT_EQ(remembered_set_size_before_barrier + 1u,
+            remembered_set_size_after_barrier);
 
   // Check that the remembered set is visited.
   test->CollectMinor();
 
   EXPECT_EQ(0u, MinorGCTest::DestructedObjects());
-  EXPECT_TRUE(set.empty());
+  EXPECT_TRUE(RememberedSetExtractor::Extract(test->GetHeap()).empty());
 
   for (size_t i = 0; i < 64; ++i) {
     EXPECT_FALSE(HeapObjectHeader::FromObject(young).IsFree());
@@ -428,8 +465,8 @@ TEST_F(MinorGCTest, RememberedSetInvalidationOnShrink) {
 
   auto* young = MakeGarbageCollected<Small>(GetAllocationHandle());
 
-  const auto& set = RememberedSlots();
-  const size_t set_size_before_barrier = set.size();
+  const size_t remembered_set_size_before_barrier =
+      RememberedSetExtractor::Extract(GetHeap()).size();
 
   // Issue the generational barriers.
   for (size_t i = kFirstMemberToInvalidate; i < kLastMemberToInvalidate; ++i) {
@@ -439,17 +476,23 @@ TEST_F(MinorGCTest, RememberedSetInvalidationOnShrink) {
     get_member(i) = young;
   }
 
+  const auto remembered_set_size_after_barrier =
+      RememberedSetExtractor::Extract(GetHeap()).size();
+
   // Check that barriers hit (kLastMemberToInvalidate -
   // kFirstMemberToInvalidate) times.
-  EXPECT_EQ(set_size_before_barrier +
+  EXPECT_EQ(remembered_set_size_before_barrier +
                 (kLastMemberToInvalidate - kFirstMemberToInvalidate),
-            set.size());
+            remembered_set_size_after_barrier);
 
   // Shrink the buffer for old object.
   subtle::Resize(*old, AdditionalBytes(kBytesToAllocate / 2));
 
+  const auto remembered_set_after_shrink =
+      RememberedSetExtractor::Extract(GetHeap()).size();
+
   // Check that the reference was invalidated.
-  EXPECT_EQ(set_size_before_barrier, set.size());
+  EXPECT_EQ(remembered_set_size_before_barrier, remembered_set_after_shrink);
 
   // Visiting remembered slots must not fail.
   CollectMinor();

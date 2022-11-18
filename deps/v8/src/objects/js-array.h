@@ -159,6 +159,14 @@ class JSArrayIterator
   TQ_OBJECT_CONSTRUCTORS(JSArrayIterator)
 };
 
+// Helper class for JSArrays that are template literal objects
+class TemplateLiteralObject {
+ public:
+  static const int kRawFieldOffset = JSArray::kLengthOffset + kTaggedSize;
+  static inline void SetRaw(Handle<JSArray> template_object,
+                            Handle<JSArray> raw_object);
+};
+
 }  // namespace internal
 }  // namespace v8
 

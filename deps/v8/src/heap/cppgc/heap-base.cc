@@ -250,18 +250,16 @@ void HeapBase::Terminate() {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
     in_atomic_pause_ = true;
-    stats_collector()->NotifyMarkingStarted(
-        GarbageCollector::Config::CollectionType::kMajor,
-        GarbageCollector::Config::MarkingType::kAtomic,
-        GarbageCollector::Config::IsForcedGC::kForced);
+    stats_collector()->NotifyMarkingStarted(CollectionType::kMajor,
+                                            GCConfig::MarkingType::kAtomic,
+                                            GCConfig::IsForcedGC::kForced);
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
     // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
     // compile-time option). Run sweeping with forced finalization here.
-    sweeper().Start(
-        {Sweeper::SweepingConfig::SweepingType::kAtomic,
-         Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    sweeper().Start({SweepingConfig::SweepingType::kAtomic,
+                     SweepingConfig::CompactableSpaceHandling::kSweep});
     in_atomic_pause_ = false;
 
     sweeper().NotifyDoneIfNeeded();

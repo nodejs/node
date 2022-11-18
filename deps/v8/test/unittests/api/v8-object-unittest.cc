@@ -101,7 +101,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -153,7 +153,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -204,7 +204,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::FLAG_allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax = true;
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)

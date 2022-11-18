@@ -1562,10 +1562,10 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         // TODO(7748): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      case i::wasm::kRtt:
       case i::wasm::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kVoid:
@@ -1601,10 +1601,10 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
-      case i::wasm::kRtt:
       case i::wasm::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kVoid:
@@ -1869,10 +1869,10 @@ auto Global::get() const -> Val {
       }
       return Val(V8RefValueToWasm(store, result));
     }
-    case i::wasm::kRtt:
     case i::wasm::kS128:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();
+    case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:

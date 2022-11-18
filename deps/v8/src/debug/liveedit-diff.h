@@ -34,14 +34,8 @@ class Comparator {
     virtual ~Output() = default;
   };
 
-  enum class CompareMethod {
-    kDynamicProgramming,
-    kMyers,
-  };
-
   // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input, Output* result_writer,
-                                  CompareMethod = CompareMethod::kMyers);
+  static void CalculateDifference(Input* input, Output* result_writer);
 };
 
 }  // namespace internal

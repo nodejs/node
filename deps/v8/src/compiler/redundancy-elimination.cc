@@ -20,6 +20,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   if (node_checks_.Get(node)) return NoChange();
   switch (node->opcode()) {
     case IrOpcode::kCheckBigInt:
+    case IrOpcode::kCheckBigInt64:
     case IrOpcode::kCheckBounds:
     case IrOpcode::kCheckClosure:
     case IrOpcode::kCheckEqualsInternalizedString:
@@ -164,6 +165,7 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckString:
         case IrOpcode::kCheckNumber:
         case IrOpcode::kCheckBigInt:
+        case IrOpcode::kCheckBigInt64:
           break;
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:

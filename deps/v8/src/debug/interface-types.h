@@ -78,11 +78,6 @@ enum class CoverageMode {
   kBlockBinary,
 };
 
-enum class TypeProfileMode {
-  kNone,
-  kCollect,
-};
-
 class V8_EXPORT_PRIVATE BreakLocation : public Location {
  public:
   BreakLocation(int line_number, int column_number, BreakLocationType type)

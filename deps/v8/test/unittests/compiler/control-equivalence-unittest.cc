@@ -30,7 +30,7 @@ class ControlEquivalenceTest : public GraphTest {
  protected:
   void ComputeEquivalence(Node* end_node) {
     graph()->SetEnd(graph()->NewNode(common()->End(1), end_node));
-    if (FLAG_trace_turbo) {
+    if (v8_flags.trace_turbo) {
       SourcePositionTable table(graph());
       NodeOriginTable table2(graph());
       StdoutStream{} << AsJSON(*graph(), &table, &table2);

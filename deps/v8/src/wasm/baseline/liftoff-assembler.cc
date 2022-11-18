@@ -14,7 +14,6 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-register.h"
-#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"

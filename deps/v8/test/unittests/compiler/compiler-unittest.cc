@@ -206,7 +206,7 @@ using CompilerC2JSFramesTest = WithPrintExtensionMixin<v8::TestWithIsolate>;
 //   |      JS       |
 //   |   C-to-JS     |
 TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
-  FLAG_expose_gc = true;
+  v8_flags.expose_gc = true;
   v8::HandleScope scope(isolate());
   const char* extension_names[2] = {
       "v8/gc", WithPrintExtensionMixin::kPrintExtensionName};
@@ -276,8 +276,8 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::FLAG_always_turbofan || !i::FLAG_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (i::v8_flags.always_turbofan || !i::v8_flags.turbofan) return;
+  i::v8_flags.allow_natives_syntax = true;
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
 
@@ -319,7 +319,8 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_turbofan || !i::FLAG_lazy || i::FLAG_lite_mode) {
+  if (i::v8_flags.always_turbofan || !i::v8_flags.lazy ||
+      i::v8_flags.lite_mode) {
     return;
   }
   v8::HandleScope scope(isolate());
@@ -357,8 +358,8 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
 
 // Test that optimized code for different closures is actually shared.
 TEST_F(CompilerTest, OptimizedCodeSharing1) {
-  FLAG_stress_compaction = false;
-  FLAG_allow_natives_syntax = true;
+  v8_flags.stress_compaction = false;
+  v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(isolate());
   for (int i = 0; i < 3; i++) {
     context()
@@ -399,7 +400,7 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
 }
 
 TEST_F(CompilerTest, CompileFunction) {
-  if (i::FLAG_always_turbofan) return;
+  if (i::v8_flags.always_turbofan) return;
   v8::HandleScope scope(isolate());
   RunJS("var r = 10;");
   v8::Local<v8::Object> math = v8::Local<v8::Object>::Cast(
@@ -724,9 +725,9 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 }
 
 TEST_F(CompilerTest, InvocationCount) {
-  if (FLAG_lite_mode) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_always_turbofan = false;
+  if (v8_flags.lite_mode) return;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -746,7 +747,7 @@ TEST_F(CompilerTest, InvocationCount) {
 }
 
 TEST_F(CompilerTest, ShallowEagerCompilation) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -766,7 +767,7 @@ TEST_F(CompilerTest, ShallowEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilation) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -792,7 +793,7 @@ TEST_F(CompilerTest, DeepEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f() {"

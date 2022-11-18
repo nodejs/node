@@ -9,6 +9,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-raw-json-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
@@ -582,6 +583,14 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           Handle<JSPrimitiveWrapper>::cast(object), key);
     case SYMBOL_TYPE:
       return UNCHANGED;
+    case JS_RAW_JSON_TYPE:
+      DCHECK(v8_flags.harmony_json_parse_with_source);
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      builder_.AppendString(Handle<String>::cast(
+          handle(Handle<JSRawJson>::cast(object)->InObjectPropertyAt(
+                     JSRawJson::kRawJsonIndex),
+                 isolate_)));
+      return SUCCESS;
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);

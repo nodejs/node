@@ -95,8 +95,8 @@ inline Operand GetMemOp(LiftoffAssembler* assm, Register addr,
   return Operand(addr, scratch, scale_factor, 0);
 }
 
-inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
-                 ValueKind kind) {
+inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
+                          Operand src, ValueKind kind) {
   switch (kind) {
     case kI32:
       assm->movl(dst.gp(), src);
@@ -105,6 +105,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
     case kRefNull:
     case kRef:
     case kRtt:
+      // Stack slots are uncompressed even when heap pointers are compressed.
       assm->movq(dst.gp(), src);
       break;
     case kF32:
@@ -121,19 +122,18 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
   }
 }
 
-inline void Store(LiftoffAssembler* assm, Operand dst, LiftoffRegister src,
-                  ValueKind kind) {
+inline void StoreToStack(LiftoffAssembler* assm, Operand dst,
+                         LiftoffRegister src, ValueKind kind) {
   switch (kind) {
     case kI32:
       assm->movl(dst, src.gp());
       break;
     case kI64:
-      assm->movq(dst, src.gp());
-      break;
     case kRefNull:
     case kRef:
     case kRtt:
-      assm->StoreTaggedField(dst, src.gp());
+      // Stack slots are uncompressed even when heap pointers are compressed.
+      assm->movq(dst, src.gp());
       break;
     case kF32:
       assm->Movss(dst, src.fp());
@@ -860,20 +860,20 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {
   Operand src(rbp, kSystemPointerSize * (caller_slot_idx + 1));
-  liftoff::Load(this, dst, src, kind);
+  liftoff::LoadFromStack(this, dst, src, kind);
 }
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueKind kind) {
   Operand dst(rbp, kSystemPointerSize * (caller_slot_idx + 1));
-  liftoff::Store(this, dst, src, kind);
+  liftoff::StoreToStack(this, dst, src, kind);
 }
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister reg, int offset,
                                            ValueKind kind) {
   Operand src(rsp, offset);
-  liftoff::Load(this, reg, src, kind);
+  liftoff::LoadFromStack(this, reg, src, kind);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
@@ -977,7 +977,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
-  liftoff::Load(this, reg, liftoff::GetStackSlot(offset), kind);
+  liftoff::LoadFromStack(this, reg, liftoff::GetStackSlot(offset), kind);
 }
 
 void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
@@ -4224,7 +4224,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
-    liftoff::Store(this, Operand(rsp, arg_bytes), *args++, param_kind);
+    liftoff::StoreToStack(this, Operand(rsp, arg_bytes), *args++, param_kind);
     arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
@@ -4251,7 +4251,8 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_kind != kVoid) {
-    liftoff::Load(this, *next_result_reg, Operand(rsp, 0), out_argument_kind);
+    liftoff::LoadFromStack(this, *next_result_reg, Operand(rsp, 0),
+                           out_argument_kind);
   }
 
   addq(rsp, Immediate(stack_bytes));

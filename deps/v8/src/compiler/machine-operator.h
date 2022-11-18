@@ -533,6 +533,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int64Sub();
   const Operator* Int64SubWithOverflow();
   const Operator* Int64Mul();
+  const Operator* Int64MulHigh();
+  const Operator* Int64MulWithOverflow();
   const Operator* Int64Div();
   const Operator* Int64Mod();
   const Operator* Int64LessThan();
@@ -541,6 +543,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint64LessThan();
   const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
+  const Operator* Uint64MulHigh();
 
   // This operator reinterprets the bits of a tagged pointer as a word.
   const Operator* BitcastTaggedToWord();

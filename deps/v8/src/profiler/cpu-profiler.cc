@@ -90,7 +90,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   // callbacks on the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
 
-  if (!FLAG_prof_browser_mode) {
+  if (!v8_flags.prof_browser_mode) {
     logger->LogCodeObjects();
   }
   logger->LogCompiledFunctions();
@@ -511,7 +511,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
       naming_mode_(naming_mode),
       logging_mode_(logging_mode),
       base_sampling_interval_(base::TimeDelta::FromMicroseconds(
-          FLAG_cpu_profiler_sampling_interval)),
+          v8_flags.cpu_profiler_sampling_interval)),
       code_observer_(test_code_observer),
       profiles_(test_profiles),
       symbolizer_(test_symbolizer),

@@ -2584,6 +2584,32 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case MULHD: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int64_t ra_val = get_register(ra);
+      int64_t rb_val = get_register(rb);
+      int64_t alu_out = base::bits::SignedMulHigh64(ra_val, rb_val);
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
+      }
+      break;
+    }
+    case MULHDU: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint64_t ra_val = get_register(ra);
+      uint64_t rb_val = get_register(rb);
+      uint64_t alu_out = base::bits::UnsignedMulHigh64(ra_val, rb_val);
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
+      }
+      break;
+    }
     case NEGX: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();

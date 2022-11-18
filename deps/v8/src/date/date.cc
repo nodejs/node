@@ -53,7 +53,7 @@ void DateCache::ResetDateCache(
   after_ = &dst_[1];
   ymd_valid_ = false;
 #ifdef V8_INTL_SUPPORT
-  if (!FLAG_icu_timezone_data) {
+  if (!v8_flags.icu_timezone_data) {
 #endif
     local_offset_ms_ = kInvalidLocalOffsetInMs;
 #ifdef V8_INTL_SUPPORT
@@ -215,7 +215,7 @@ void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
 int DateCache::GetLocalOffsetFromOS(int64_t time_ms, bool is_utc) {
   double offset;
 #ifdef V8_INTL_SUPPORT
-  if (FLAG_icu_timezone_data) {
+  if (v8_flags.icu_timezone_data) {
     offset = tz_cache_->LocalTimeOffset(static_cast<double>(time_ms), is_utc);
   } else {
 #endif

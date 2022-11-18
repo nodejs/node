@@ -470,6 +470,10 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
                                           Handle<NameToIndexHashTable> table,
                                           Handle<Name> key, int32_t value);
 
+  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
+  // strings.
+  using HashTable<NameToIndexHashTable, NameToIndexShape>::FindInsertionEntry;
+
   DECL_CAST(NameToIndexHashTable)
   DECL_PRINTER(NameToIndexHashTable)
 

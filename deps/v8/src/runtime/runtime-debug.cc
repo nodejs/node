@@ -910,7 +910,7 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   // Used only by the test/memory/Memory.json benchmark. This creates a snapshot
   // blob and outputs various statistics around it.
 
-  DCHECK(FLAG_profile_deserialization && FLAG_serialization_statistics);
+  DCHECK(v8_flags.profile_deserialization && v8_flags.serialization_statistics);
 
   DisableEmbeddedBlobRefcounting();
 

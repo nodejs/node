@@ -245,7 +245,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   bool is_constant_pool_available() const {
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       // We need to disable constant pool here for embeded builtins
       // because the metadata section is not adjacent to instructions
       return constant_pool_available_ && !options().isolate_independent_code;
@@ -374,7 +374,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   byte* pc_;
 
   void set_constant_pool_available(bool available) {
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       constant_pool_available_ = available;
     } else {
       // Embedded constant pool not supported on this architecture.

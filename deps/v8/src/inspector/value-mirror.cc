@@ -243,6 +243,7 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   if (flags & v8::RegExp::Flags::kMultiline) description.append('m');
   if (flags & v8::RegExp::Flags::kDotAll) description.append('s');
   if (flags & v8::RegExp::Flags::kUnicode) description.append('u');
+  if (flags & v8::RegExp::Flags::kUnicodeSets) description.append('v');
   if (flags & v8::RegExp::Flags::kSticky) description.append('y');
   return description.toString();
 }
@@ -649,6 +650,18 @@ class SymbolMirror final : public ValueMirror {
                    .setValue(abbreviateString(
                        descriptionForSymbol(context, m_symbol), kEnd))
                    .build();
+  }
+
+  void buildEntryPreview(
+      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
+      std::unique_ptr<ObjectPreview>* preview) const override {
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Symbol)
+            .setDescription(descriptionForSymbol(context, m_symbol))
+            .setOverflow(false)
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
   }
 
   v8::Local<v8::Value> v8Value() const override { return m_symbol; }

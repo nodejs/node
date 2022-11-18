@@ -18,8 +18,8 @@ namespace internal {
 // Aliases for GetPtrComprCageBase when
 // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE. Each Isolate has its own cage, whose
 // base address is also the Isolate root.
-V8_INLINE constexpr Address GetIsolateRootAddress(Address on_heap_addr) {
-  return GetPtrComprCageBaseAddress(on_heap_addr);
+V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) {
+  return V8HeapCompressionScheme::GetPtrComprCageBaseAddress(on_heap_addr);
 }
 
 V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
