@@ -34,6 +34,10 @@ echo "Replacing existing base64"
 rm -rf "$DEPS_DIR/base64/base64"
 mv "$WORKSPACE/base64" "$DEPS_DIR/base64/"
 
+# Build configuration is handled by `deps/base64/base64.gyp`, but since `config.h` has to be present for the build
+# to work, we create it and leave it empty.
+echo "// Intentionally empty" >> "$DEPS_DIR/base64/base64/lib/config.h"
+
 echo "All done!"
 echo ""
 echo "Please git add base64/base64, commit the new version:"
