@@ -245,6 +245,37 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
   CheckDataViewIsDetached(dv);
 }
 
+THREADED_TEST(ArrayBuffer_WasDetached) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
+  CHECK(!ab->WasDetached());
+
+  ab->Detach();
+  CHECK(ab->WasDetached());
+}
+
+THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  CompileRun(R"JS(
+    var wasmMemory = new WebAssembly.Memory({initial: 1, maximum: 2});
+  )JS");
+
+  Local<v8::ArrayBuffer> non_detachable =
+      CompileRun("wasmMemory.buffer").As<v8::ArrayBuffer>();
+  CHECK(!non_detachable->IsDetachable());
+  CHECK(!non_detachable->WasDetached());
+
+  CompileRun("wasmMemory.grow(1)");
+  CHECK(!non_detachable->IsDetachable());
+  CHECK(non_detachable->WasDetached());
+}
+
 THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
