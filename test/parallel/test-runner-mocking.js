@@ -534,6 +534,69 @@ test('mocks a setter', (t) => {
   assert.strictEqual(obj.prop, 65);
 });
 
+test('mocks a getter with syntax sugar', (t) => {
+  const obj = {
+    prop: 5,
+    get method() {
+      return this.prop;
+    },
+  };
+
+  function mockMethod() {
+    return this.prop - 1;
+  }
+  const getter = t.mock.getter(obj, 'method', mockMethod);
+  assert.strictEqual(getter.mock.calls.length, 0);
+  assert.strictEqual(obj.method, 4);
+
+  const call = getter.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, []);
+  assert.strictEqual(call.result, 4);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, obj);
+
+  assert.strictEqual(getter.mock.restore(), undefined);
+  assert.strictEqual(obj.method, 5);
+});
+
+test('mocks a setter with syntax sugar', (t) => {
+  const obj = {
+    prop: 100,
+    // eslint-disable-next-line accessor-pairs
+    set method(val) {
+      this.prop = val;
+    },
+  };
+
+  function mockMethod(val) {
+    this.prop = -val;
+  }
+
+  assert.strictEqual(obj.prop, 100);
+  obj.method = 88;
+  assert.strictEqual(obj.prop, 88);
+
+  const setter = t.mock.setter(obj, 'method', mockMethod);
+
+  assert.strictEqual(setter.mock.calls.length, 0);
+  obj.method = 77;
+  assert.strictEqual(obj.prop, -77);
+  assert.strictEqual(setter.mock.calls.length, 1);
+
+  const call = setter.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [77]);
+  assert.strictEqual(call.result, undefined);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, obj);
+
+  assert.strictEqual(setter.mock.restore(), undefined);
+  assert.strictEqual(obj.prop, -77);
+  obj.method = 65;
+  assert.strictEqual(obj.prop, 65);
+});
+
 test('mocked functions match name and length', (t) => {
   function getNameAndLength(fn) {
     return {
@@ -798,4 +861,28 @@ test('spies on a class prototype method', (t) => {
   assert.strictEqual(call.error, undefined);
   assert.strictEqual(call.target, undefined);
   assert.strictEqual(call.this, instance);
+});
+
+test('getter() fails if getter options set to false', (t) => {
+  assert.throws(() => {
+    t.mock.getter({}, 'method', { getter: false });
+  }, /The property 'options\.getter' cannot be false/);
+});
+
+test('setter() fails if setter options set to false', (t) => {
+  assert.throws(() => {
+    t.mock.setter({}, 'method', { setter: false });
+  }, /The property 'options\.setter' cannot be false/);
+});
+
+test('getter() fails if setter options is true', (t) => {
+  assert.throws(() => {
+    t.mock.getter({}, 'method', { setter: true });
+  }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
+});
+
+test('setter() fails if getter options is true', (t) => {
+  assert.throws(() => {
+    t.mock.setter({}, 'method', { getter: true });
+  }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });

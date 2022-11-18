@@ -941,6 +941,15 @@ test('mocks a counting function', (t) => {
 });
 ```
 
+### `mock.getter(object, methodName[, implementation][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This function is syntax sugar for [`MockTracker.method`][] with `options.getter`
+set to `true`.
+
 ### `mock.method(object, methodName[, implementation][, options])`
 
 <!-- YAML
@@ -1020,6 +1029,15 @@ added: v19.1.0
 This function restores the default behavior of all mocks that were previously
 created by this `MockTracker`. Unlike `mock.reset()`, `mock.restoreAll()` does
 not disassociate the mocks from the `MockTracker` instance.
+
+### `mock.setter(object, methodName[, implementation][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
+set to `true`.
 
 ## Class: `TapStream`
 
@@ -1356,6 +1374,7 @@ added:
 [`--test-only`]: cli.md#--test-only
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
+[`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
