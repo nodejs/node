@@ -4,18 +4,18 @@ Running test: test
 Calling instantiate function.
 Waiting for wasm script to be parsed.
 Got wasm script!
-Setting breakpoint
 Module instantiated.
+Tables populated.
+Setting breakpoint
 {
-    columnNumber : 138
+    columnNumber : 246
     lineNumber : 0
     scriptId : <scriptId>
 }
-Table populated.
 Paused:
-Script wasm://wasm/0e116a66 byte offset 138: Wasm opcode 0x01 (kExprNop)
+Script wasm://wasm/739f5f0a byte offset 246: Wasm opcode 0x01 (kExprNop)
 Scope:
-at $main (0:138):
+at $main (0:246):
  - scope (wasm-expression-stack):
    stack: 
  - scope (local):
@@ -24,11 +24,15 @@ at $main (0:138):
    $anyref_local_i31: null (anyref)
    $anyref_local_null: null (anyref)
  - scope (module):
-   instance: exports: "exported_ref_table" (Table), "fill_ref_table" (Function), "main" (Function)
+   instance: exports: "exported_ref_table" (Table), "exported_func_table" (Table), "fill_tables" (Function), "main" (Function)
    module: Module
-   functions: "$fill_ref_table": (Function), "$main": (Function)
+   functions: "$my_func": (Function), "$fill_tables": (Function), "$main": (Function)
+   globals: "$global0": function $my_func() { [native code] } (funcref)
    tables: 
+      $import.any_table: 0: Array(2) (anyref), 1: Struct ((ref $type0)), 2: undefined (anyref)
+      $import.func_table: 0: function () { [native code] } (funcref), 1: function $my_func() { [native code] } (funcref), 2: undefined (funcref)
       $exported_ref_table: 0: Struct ((ref $type0)), 1: Array ((ref $type1)), 2: undefined (anyref), 3: undefined (anyref)
+      $exported_func_table: 0: function external_fct() { [native code] } (funcref), 1: function $my_func() { [native code] } (funcref), 2: undefined (funcref)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

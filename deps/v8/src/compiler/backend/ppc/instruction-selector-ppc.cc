@@ -286,12 +286,13 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     write_barrier_kind = store_rep.write_barrier_kind();
   }
 
-  if (FLAG_enable_unconditional_write_barriers &&
+  if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1108,6 +1109,23 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
   VisitCompare(selector, kPPC_Cmp32, high32_operand, temp_operand, cont);
 }
 
+void EmitInt64MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  PPCOperandGenerator g(selector);
+  Int64BinopMatcher m(node);
+  InstructionOperand result = g.DefineAsRegister(node);
+  InstructionOperand left = g.UseRegister(m.left().node());
+  InstructionOperand high = g.TempRegister();
+  InstructionOperand result_sign = g.TempRegister();
+  InstructionOperand right = g.UseRegister(m.right().node());
+  selector->Emit(kPPC_Mul64, result, left, right);
+  selector->Emit(kPPC_MulHighS64, high, left, right);
+  selector->Emit(kPPC_ShiftRightAlg64, result_sign, result,
+                 g.TempImmediate(63));
+  // Test whether {high} is a sign-extension of {result}.
+  selector->EmitWithContinuation(kPPC_Cmp64, high, result_sign, cont);
+}
+
 }  // namespace
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
@@ -1129,6 +1147,18 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kPPC_MulHighU32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_MulHighS64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_MulHighU64, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
@@ -1541,6 +1571,15 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   FlagsContinuation cont;
   VisitBinop<Int64BinopMatcher>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
 }
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt64MulWithOverflow(this, node, &cont);
+}
 #endif
 
 static bool CompareLogical(FlagsContinuation* cont) {
@@ -1721,6 +1760,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Sub,
                                                      kInt16Imm_Negate, cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
 #endif
               default:
                 break;

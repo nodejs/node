@@ -12,6 +12,7 @@ namespace cppgc {
 namespace internal {
 class HeapBase;
 class WriteBarrierTypeForCagedHeapPolicy;
+class WriteBarrierTypeForNonCagedHeapPolicy;
 }  // namespace internal
 
 /**
@@ -34,6 +35,7 @@ class HeapHandle {
 
   friend class internal::HeapBase;
   friend class internal::WriteBarrierTypeForCagedHeapPolicy;
+  friend class internal::WriteBarrierTypeForNonCagedHeapPolicy;
 };
 
 }  // namespace cppgc

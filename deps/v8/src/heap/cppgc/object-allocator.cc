@@ -148,9 +148,9 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     void* result = TryAllocateLargeObject(page_backend_, large_space,
                                           stats_collector_, size, gcinfo);
     if (!result) {
-      auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+      auto config = GCConfig::ConservativeAtomicConfig();
       config.free_memory_handling =
-          GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+          GCConfig::FreeMemoryHandling::kDiscardWherePossible;
       garbage_collector_.CollectGarbage(config);
       result = TryAllocateLargeObject(page_backend_, large_space,
                                       stats_collector_, size, gcinfo);
@@ -170,9 +170,9 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   }
 
   if (!TryRefillLinearAllocationBuffer(space, request_size)) {
-    auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+    auto config = GCConfig::ConservativeAtomicConfig();
     config.free_memory_handling =
-        GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+        GCConfig::FreeMemoryHandling::kDiscardWherePossible;
     garbage_collector_.CollectGarbage(config);
     if (!TryRefillLinearAllocationBuffer(space, request_size)) {
       oom_handler_("Oilpan: Normal allocation.");
@@ -187,35 +187,10 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   return result;
 }
 
-bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
-                                                      size_t size) {
-  // Try to allocate from the freelist.
-  if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
-
-  // Lazily sweep pages of this heap until we find a freed area for this
-  // allocation or we finish sweeping all pages of this heap.
-  Sweeper& sweeper = raw_heap_.heap()->sweeper();
-  // TODO(chromium:1056170): Investigate whether this should be a loop which
-  // would result in more aggressive re-use of memory at the expense of
-  // potentially larger allocation time.
-  if (sweeper.SweepForAllocationIfRunning(&space, size)) {
-    // Sweeper found a block of at least `size` bytes. Allocation from the
-    // free list may still fail as actual  buckets are not exhaustively
-    // searched for a suitable block. Instead, buckets are tested from larger
-    // sizes that are guaranteed to fit the block to smaller bucket sizes that
-    // may only potentially fit the block. For the bucket that may exactly fit
-    // the allocation of `size` bytes (no overallocation), only the first
-    // entry is checked.
-    if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
-  }
-
-  sweeper.FinishIfRunning();
-  // TODO(chromium:1056170): Make use of the synchronously freed memory.
-
-  auto* new_page = NormalPage::TryCreate(page_backend_, space);
-  if (!new_page) {
-    return false;
-  }
+bool ObjectAllocator::TryExpandAndRefillLinearAllocationBuffer(
+    NormalPageSpace& space) {
+  auto* const new_page = NormalPage::TryCreate(page_backend_, space);
+  if (!new_page) return false;
 
   space.AddPage(new_page);
   // Set linear allocation buffer to new page.
@@ -223,6 +198,53 @@ bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
                                 new_page->PayloadStart(),
                                 new_page->PayloadSize());
   return true;
+}
+
+bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
+                                                      size_t size) {
+  // Try to allocate from the freelist.
+  if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
+
+  Sweeper& sweeper = raw_heap_.heap()->sweeper();
+  // Lazily sweep pages of this heap. This is not exhaustive to limit jank on
+  // allocation. Allocation from the free list may still fail as actual  buckets
+  // are not exhaustively searched for a suitable block. Instead, buckets are
+  // tested from larger sizes that are guaranteed to fit the block to smaller
+  // bucket sizes that may only potentially fit the block. For the bucket that
+  // may exactly fit the allocation of `size` bytes (no overallocation), only
+  // the first entry is checked.
+  if (sweeper.SweepForAllocationIfRunning(
+          &space, size, v8::base::TimeDelta::FromMicroseconds(500)) &&
+      TryRefillLinearAllocationBufferFromFreeList(space, size)) {
+    return true;
+  }
+
+  // Sweeping was off or did not yield in any memory within limited
+  // contributing. We expand at this point as that's cheaper than possibly
+  // continuing sweeping the whole heap.
+  if (TryExpandAndRefillLinearAllocationBuffer(space)) return true;
+
+  // Expansion failed. Before finishing all sweeping, finish sweeping of a given
+  // space which is cheaper.
+  if (sweeper.SweepForAllocationIfRunning(&space, size,
+                                          v8::base::TimeDelta::Max()) &&
+      TryRefillLinearAllocationBufferFromFreeList(space, size)) {
+    return true;
+  }
+
+  // Heap expansion and sweeping of a space failed. At this point the caller
+  // could run OOM or do a full GC which needs to finish sweeping if it's
+  // running. Hence, we may as well finish sweeping here. Note that this is
+  // possibly very expensive but not more expensive than running a full GC as
+  // the alternative is OOM.
+  if (sweeper.FinishIfRunning()) {
+    // Sweeping may have added memory to the free list.
+    if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
+
+    // Sweeping may have freed pages completely.
+    if (TryExpandAndRefillLinearAllocationBuffer(space)) return true;
+  }
+  return false;
 }
 
 bool ObjectAllocator::TryRefillLinearAllocationBufferFromFreeList(

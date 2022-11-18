@@ -169,7 +169,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
                               m.ExportForTest())
                               .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
-      if (FLAG_print_code) {
+      if (v8_flags.print_code) {
         StdoutStream os;
         code->Disassemble("multi_value", os, handles.main_isolate());
       }
@@ -217,7 +217,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       mt.Return(ToInt32(&mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
       Handle<Code> code2 = mt.GetCode();
-      if (FLAG_print_code) {
+      if (v8_flags.print_code) {
         StdoutStream os;
         code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }

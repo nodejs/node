@@ -42,7 +42,6 @@ class MaglevCompilationUnit : public ZoneObject {
   MaglevCompilationInfo* info() const { return info_; }
   const MaglevCompilationUnit* caller() const { return caller_; }
   compiler::JSHeapBroker* broker() const;
-  Isolate* isolate() const;
   LocalIsolate* local_isolate() const;
   Zone* zone() const;
   int register_count() const { return register_count_; }

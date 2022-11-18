@@ -48,7 +48,7 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
   static inline AllocationType CheckAllocationType(AllocationType allocation) {
     // For non-generational heap, all young allocations are redirected to old
     // space.
-    if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+    if (v8_flags.single_generation && allocation == AllocationType::kYoung) {
       return AllocationType::kOld;
     }
     return allocation;
@@ -131,13 +131,39 @@ Node* MemoryLowering::GetWasmInstanceNode() {
 
 #define __ gasm()->
 
+Node* MemoryLowering::AlignToAllocationAlignment(Node* value) {
+  if (!V8_COMPRESS_POINTERS_8GB_BOOL) return value;
+
+  auto already_aligned = __ MakeLabel(MachineRepresentation::kWord64);
+  Node* alignment_check = __ WordEqual(
+      __ WordAnd(value, __ UintPtrConstant(kObjectAlignment8GbHeapMask)),
+      __ UintPtrConstant(0));
+
+  __ GotoIf(alignment_check, &already_aligned, value);
+  {
+    Node* aligned_value;
+    if (kObjectAlignment8GbHeap == 2 * kTaggedSize) {
+      aligned_value = __ IntPtrAdd(value, __ IntPtrConstant(kTaggedSize));
+    } else {
+      aligned_value = __ WordAnd(
+          __ IntPtrAdd(value, __ IntPtrConstant(kObjectAlignment8GbHeapMask)),
+          __ UintPtrConstant(~kObjectAlignment8GbHeapMask));
+    }
+    __ Goto(&already_aligned, aligned_value);
+  }
+
+  __ Bind(&already_aligned);
+
+  return already_aligned.PhiAt(0);
+}
+
 Reduction MemoryLowering::ReduceAllocateRaw(
     Node* node, AllocationType allocation_type,
     AllowLargeObjects allow_large_objects, AllocationState const** state_ptr) {
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
-  if (FLAG_single_generation && allocation_type == AllocationType::kYoung) {
+  if (v8_flags.single_generation && allocation_type == AllocationType::kYoung) {
     allocation_type = AllocationType::kOld;
   }
   // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
@@ -232,9 +258,10 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
   IntPtrMatcher m(size);
-  if (m.IsInRange(0, kMaxRegularHeapObjectSize) && FLAG_inline_new &&
+  if (m.IsInRange(0, kMaxRegularHeapObjectSize) && v8_flags.inline_new &&
       allocation_folding_ == AllocationFolding::kDoAllocationFolding) {
-    intptr_t const object_size = m.ResolvedValue();
+    intptr_t const object_size =
+        ALIGN_TO_ALLOCATION_ALIGNMENT(m.ResolvedValue());
     AllocationState const* state = *state_ptr;
     if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->allocation() == allocation_type) {
@@ -260,7 +287,9 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
       // Update the allocation top with the new object allocation.
       // TODO(bmeurer): Defer writing back top as much as possible.
-      Node* top = __ IntAdd(state->top(), size);
+      DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                     IsAligned(object_size, kObjectAlignment8GbHeap));
+      Node* top = __ IntAdd(state->top(), __ IntPtrConstant(object_size));
       __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                    kNoWriteBarrier),
                top_address, __ IntPtrConstant(0), top);
@@ -336,7 +365,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
         __ Load(MachineType::Pointer(), limit_address, __ IntPtrConstant(0));
 
     // Compute the new top.
-    Node* new_top = __ IntAdd(top, size);
+    Node* new_top = __ IntAdd(top, AlignToAllocationAlignment(size));
 
     // Check if we can do bump pointer allocation here.
     Node* check = __ UintLessThan(new_top, limit);
@@ -463,6 +492,27 @@ Reduction MemoryLowering::ReduceLoadExternalPointerField(Node* node) {
   return Changed(node);
 }
 
+Reduction MemoryLowering::ReduceLoadBoundedSize(Node* node) {
+#ifdef V8_ENABLE_SANDBOX
+  const Operator* load_op =
+      !machine()->UnalignedLoadSupported(MachineRepresentation::kWord64)
+          ? machine()->UnalignedLoad(MachineType::Uint64())
+          : machine()->Load(MachineType::Uint64());
+  NodeProperties::ChangeOp(node, load_op);
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
+
+  Node* raw_value = __ AddNode(graph()->CloneNode(node));
+  Node* shift_amount = __ IntPtrConstant(kBoundedSizeShift);
+  Node* decoded_size = __ Word64Shr(raw_value, shift_amount);
+  return Replace(decoded_size);
+#else
+  UNREACHABLE();
+#endif
+}
+
 Reduction MemoryLowering::ReduceLoadMap(Node* node) {
 #ifdef V8_MAP_PACKING
   NodeProperties::ChangeOp(node, machine()->Load(MachineType::AnyTagged()));
@@ -493,6 +543,10 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
 
   if (access.type.Is(Type::ExternalPointer())) {
     return ReduceLoadExternalPointerField(node);
+  }
+
+  if (access.is_bounded_size_access) {
+    return ReduceLoadBoundedSize(node);
   }
 
   NodeProperties::ChangeOp(node, machine()->Load(type));
@@ -545,6 +599,8 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   DCHECK(!access.type.Is(Type::ExternalPointer()));
   // SandboxedPointers are not currently stored by optimized code.
   DCHECK(!access.type.Is(Type::SandboxedPointer()));
+  // Bounded size fields are not currently stored by optimized code.
+  DCHECK(!access.is_bounded_size_access);
   MachineType machine_type = access.machine_type;
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);
@@ -645,7 +701,7 @@ WriteBarrierKind MemoryLowering::ComputeWriteBarrierKind(
   if (!ValueNeedsWriteBarrier(value, isolate())) {
     write_barrier_kind = kNoWriteBarrier;
   }
-  if (FLAG_disable_write_barriers) {
+  if (v8_flags.disable_write_barriers) {
     write_barrier_kind = kNoWriteBarrier;
   }
   if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {

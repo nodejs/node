@@ -7,7 +7,7 @@
 
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/node.h"
+
 namespace v8::internal {
 class Zone;
 }

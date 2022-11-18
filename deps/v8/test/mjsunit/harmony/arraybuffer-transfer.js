@@ -125,6 +125,11 @@ TestNonGrow(0, { maxByteLength: 2048 });
   }
 })();
 
+(function TestEmptySourceStore() {
+  let ab = new ArrayBuffer();
+  let xfer = ab.transfer().transfer(1024);
+})();
+
 if (typeof WebAssembly !== 'undefined') {
   // WebAssembly buffers cannot be detached.
   const memory = new WebAssembly.Memory({ initial: 1 });

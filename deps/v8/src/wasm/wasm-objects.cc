@@ -56,14 +56,6 @@ enum DispatchTableElements : int {
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script) {
-  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(0);
-  return New(isolate, std::move(native_module), script, export_wrappers);
-}
-
-// static
-Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script, Handle<FixedArray> export_wrappers) {
   Handle<Managed<wasm::NativeModule>> managed_native_module;
   if (script->type() == Script::TYPE_WASM) {
     managed_native_module = handle(
@@ -79,7 +71,6 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   }
   Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
-  module_object->set_export_wrappers(*export_wrappers);
   module_object->set_managed_native_module(*managed_native_module);
   module_object->set_script(*script);
   return module_object;
@@ -462,24 +453,8 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
         Smi::cast(dispatch_tables.get(i + kDispatchTableIndexOffset)).value();
     WasmInstanceObject instance = WasmInstanceObject::cast(
         dispatch_tables.get(i + kDispatchTableInstanceOffset));
-    const WasmModule* module = instance.module();
-    int sig_id;
-    if (v8_flags.wasm_type_canonicalization) {
-      sig_id = target_instance.module()
-                   ->isorecursive_canonical_type_ids[original_sig_id];
-    } else {
-      // Try to avoid the signature map lookup by checking if the signature in
-      // {module} at {original_sig_id} matches {func->sig}.
-      if (module->has_signature(original_sig_id) &&
-          *module->signature(original_sig_id) == *func->sig) {
-        sig_id = module->per_module_canonical_type_ids[original_sig_id];
-        DCHECK_EQ(sig_id, module->signature_map.Find(*func->sig));
-      } else {
-        // Note that {SignatureMap::Find} may return {-1} if the signature is
-        // not found; it will simply never match any check.
-        sig_id = module->signature_map.Find(*func->sig);
-      }
-    }
+    int sig_id = target_instance.module()
+                     ->isorecursive_canonical_type_ids[original_sig_id];
     WasmIndirectFunctionTable ift = WasmIndirectFunctionTable::cast(
         instance.indirect_function_tables().get(table_index));
     ift.Set(entry_index, sig_id, call_target, call_ref);
@@ -548,14 +523,16 @@ void WasmTableObject::UpdateDispatchTables(
         instance->module_object().native_module();
     wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
     auto kind = compiler::WasmImportCallKind::kWasmToCapi;
-    wasm::WasmCode* wasm_code =
-        cache->MaybeGet(kind, &sig, param_count, wasm::kNoSuspend);
+    uint32_t canonical_type_index =
+        wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
+    wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
+                                                param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
       wasm_code = compiler::CompileWasmCapiCallWrapper(native_module, &sig);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, &sig, param_count,
-                                                 wasm::kNoSuspend);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                                 param_count, wasm::kNoSuspend);
       cache_scope[key] = wasm_code;
       wasm_code->IncRef();
       isolate->counters()->wasm_generated_code_size()->Increment(
@@ -563,13 +540,8 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    // Note that {SignatureMap::Find} may return {-1} if the signature is
-    // not found; it will simply never match any check.
-    // It is safe to use this even when v8_flags.wasm_type_canonicalization, as
-    // the C API cannot refer to user-defined types.
-    auto sig_id = instance->module()->signature_map.Find(sig);
     instance->GetIndirectFunctionTable(isolate, table_index)
-        ->Set(entry_index, sig_id, wasm_code->instruction_start(),
+        ->Set(entry_index, canonical_type_index, wasm_code->instruction_start(),
               WasmCapiFunctionData::cast(
                   capi_function->shared().function_data(kAcquireLoad))
                   .internal()
@@ -1379,25 +1351,30 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   const WasmModule* module = module_object->module();
   const WasmFunction& function = module->functions[function_index];
+  uint32_t canonical_sig_index =
+      module->isorecursive_canonical_type_ids[function.sig_index];
+  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_index + 1);
   int wrapper_index =
-      GetExportWrapperIndex(module, function.sig_index, function.imported);
-  DCHECK_EQ(wrapper_index,
-            GetExportWrapperIndex(module, function.sig, function.imported));
+      wasm::GetExportWrapperIndex(canonical_sig_index, function.imported);
 
-  Handle<Object> entry =
-      FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);
+  MaybeObject entry = isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
 
   Handle<CodeT> wrapper;
-  if (entry->IsCodeT()) {
-    wrapper = Handle<CodeT>::cast(entry);
+  // {entry} can be cleared, {undefined}, or a ready {CodeT}.
+  if (entry.IsStrongOrWeak() && entry.GetHeapObject().IsCodeT()) {
+    wrapper = handle(CodeT::cast(entry.GetHeapObject()), isolate);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
     // later use.
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, function.sig, instance->module(), function.imported);
-    module_object->export_wrappers().set(wrapper_index, *wrapper);
+        isolate, function.sig, canonical_sig_index, instance->module(),
+        function.imported);
   }
+  // Store the wrapper in the isolate, or make its reference weak now that we
+  // have a function referencing it.
+  isolate->heap()->js_to_wasm_wrappers().Set(
+      wrapper_index, HeapObjectReference::Weak(*wrapper));
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper));
@@ -1434,16 +1411,26 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // not found; it will simply never match any check.
   Zone zone(isolate->allocator(), ZONE_NAME);
   const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
-  // It is safe to look up the signature this way even if
-  // v8_flags.wasm_type_canonicalization: Signatures created in the JS API
-  // cannot contain user-defined (module-dependent) types.
-  auto sig_id = instance->module()->signature_map.Find(*sig);
+  // Get the function's canonical signature index. Note that the function's
+  // signature may not be present in the importing module.
+  uint32_t canonical_sig_index =
+      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig);
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(js_function->GetCallable(), isolate);
+  wasm::Suspend suspend = js_function->GetSuspend();
   wasm::WasmCodeRefScope code_ref_scope;
   Address call_target = kNullAddress;
-  if (sig_id >= 0) {
+
+  auto module_canonical_ids =
+      instance->module()->isorecursive_canonical_type_ids;
+  // TODO(manoskouk): Consider adding a set of canonical indices to the module
+  // to avoid this linear search.
+  auto sig_in_module =
+      std::find(module_canonical_ids.begin(), module_canonical_ids.end(),
+                canonical_sig_index);
+
+  if (sig_in_module != module_canonical_ids.end()) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
     // TODO(wasm): Cache and reuse wrapper code, to avoid repeated compilation
@@ -1464,7 +1451,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     }
     // TODO(manoskouk): Reuse js_function->wasm_to_js_wrapper_code().
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, sig, false, expected_arity, resolved.suspend);
+        &env, kind, sig, false, expected_arity, suspend);
     wasm::CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
@@ -1482,17 +1469,12 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   }
 
   // Update the dispatch table.
-  wasm::Suspend suspend = js_function->GetSuspend();
   Handle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance);
-  uint32_t canonicalized_sig_id =
-      v8_flags.wasm_type_canonicalization && sig_id >= 0
-          ? instance->module()->isorecursive_canonical_type_ids[sig_id]
-          : sig_id;
 
   WasmIndirectFunctionTable::cast(
       instance->indirect_function_tables().get(table_index))
-      .Set(entry_index, canonicalized_sig_id, call_target, *ref);
+      .Set(entry_index, canonical_sig_index, call_target, *ref);
 }
 
 // static
@@ -1572,8 +1554,6 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
       return wasm::WasmValue(ref, field_type);
     }
     case wasm::kRtt:
-      // TODO(7748): Expose RTTs to DevTools.
-      UNIMPLEMENTED();
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
@@ -1601,8 +1581,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
       return wasm::WasmValue(ref, element_type);
     }
     case wasm::kRtt:
-      // TODO(7748): Expose RTTs to DevTools.
-      UNIMPLEMENTED();
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
@@ -2219,7 +2197,7 @@ Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
 
 Handle<AsmWasmData> AsmWasmData::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset) {
+    Handle<HeapNumber> uses_bitset) {
   const WasmModule* module = native_module->module();
   const bool kUsesLiftoff = false;
   size_t memory_estimate =
@@ -2232,7 +2210,6 @@ Handle<AsmWasmData> AsmWasmData::New(
   Handle<AsmWasmData> result = Handle<AsmWasmData>::cast(
       isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, AllocationType::kOld));
   result->set_managed_native_module(*managed_native_module);
-  result->set_export_wrappers(*export_wrappers);
   result->set_uses_bitset(*uses_bitset);
   return result;
 }

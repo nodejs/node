@@ -683,11 +683,6 @@ function testGenerator() {
   return42();
 
 break at:
-
-function* idMaker#() {
-  yield 1;
-
-break at:
   var gen = idMaker();
   #return42();
   gen.next().value;

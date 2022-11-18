@@ -21,8 +21,10 @@ namespace compiler {
   V(Loong64SubOvf_d)                    \
   V(Loong64Mul_d)                       \
   V(Loong64MulOvf_w)                    \
+  V(Loong64MulOvf_d)                    \
   V(Loong64Mulh_d)                      \
   V(Loong64Mulh_w)                      \
+  V(Loong64Mulh_du)                     \
   V(Loong64Mulh_wu)                     \
   V(Loong64Mul_w)                       \
   V(Loong64Div_d)                       \

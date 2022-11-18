@@ -447,6 +447,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Mulh32)
   DEFINE_INSTRUCTION(Mul64)
   DEFINE_INSTRUCTION(Mulh64)
+  DEFINE_INSTRUCTION(Mulhu64)
   DEFINE_INSTRUCTION2(Div32)
   DEFINE_INSTRUCTION2(Div64)
   DEFINE_INSTRUCTION2(Divu32)
@@ -871,7 +872,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MulOverflow32 sets overflow register to zero if no overflow occured
   void MulOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
-
+  // MulOverflow64 sets overflow register to zero if no overflow occured
+  void MulOverflow64(Register dst, Register left, const Operand& right,
+                     Register overflow);
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;
 
@@ -1344,8 +1347,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   // -------------------------------------------------------------------------
   // Support functions.

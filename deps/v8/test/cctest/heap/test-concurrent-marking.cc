@@ -32,15 +32,15 @@ TEST(ConcurrentMarking) {
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
-  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   PublishSegment(*collector->marking_worklists()->shared(),
                  ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
@@ -54,15 +54,15 @@ TEST(ConcurrentMarkingReschedule) {
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
-  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   PublishSegment(*collector->marking_worklists()->shared(),
                  ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
@@ -80,15 +80,15 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
-  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &weak_objects);
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   for (int i = 0; i < 5000; i++)
     PublishSegment(*collector->marking_worklists()->shared(),
                    ReadOnlyRoots(heap).undefined_value());

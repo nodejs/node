@@ -19,8 +19,8 @@
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-// TODO(jkummerow): Drop this when the "SaveAndClearThreadInWasmFlag"
-// short-term mitigation is no longer needed.
+// TODO(chromium:1236668): Drop this when the "SaveAndClearThreadInWasmFlag"
+// approach is no longer needed.
 #include "src/trap-handler/trap-handler.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_TerminateExecution) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
-  if (FLAG_correctness_fuzzer_suppressions) {
+  if (v8_flags.correctness_fuzzer_suppressions) {
     DCHECK_LE(1, args.length());
     int message_id_smi = args.smi_value_at(0);
 
@@ -418,7 +418,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
 namespace {
 
 #if V8_ENABLE_WEBASSEMBLY
-class SaveAndClearThreadInWasmFlag {
+class V8_NODISCARD SaveAndClearThreadInWasmFlag {
  public:
   SaveAndClearThreadInWasmFlag() {
     if (trap_handler::IsTrapHandlerEnabled()) {
@@ -446,7 +446,8 @@ class SaveAndClearThreadInWasmFlag {};
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  int size = args.smi_value_at(0);
+  // TODO(v8:13070): Align allocations in the builtins that call this.
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
@@ -459,10 +460,10 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Short-term mitigation for crbug.com/1236668. When this is called from
-  // WasmGC code, clear the "thread in wasm" flag, which is important in case
-  // any GC needs to happen.
-  // TODO(jkummerow): Find a better fix, likely by replacing the global flag.
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
+  // flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -478,7 +479,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
 RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  int size = args.smi_value_at(0);
+  // TODO(v8:13070): Align allocations in the builtins that call this.
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
@@ -614,7 +616,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);
 #ifdef V8_RUNTIME_CALL_STATS
-  if (!FLAG_runtime_call_stats) {
+  if (!v8_flags.runtime_call_stats) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalid,
                               isolate->factory()->NewStringFromAsciiChecked(

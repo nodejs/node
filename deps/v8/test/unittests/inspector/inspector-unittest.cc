@@ -259,7 +259,7 @@ TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
 }
 
 TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
-  i::FLAG_experimental_async_stack_tagging_api = true;
+  i::v8_flags.experimental_async_stack_tagging_api = true;
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
 

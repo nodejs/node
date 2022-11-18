@@ -840,7 +840,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(
       Register flags, Register feedback_vector, Register closure,
       JumpMode jump_mode = JumpMode::kJump);
 

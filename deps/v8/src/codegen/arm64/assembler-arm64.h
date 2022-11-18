@@ -273,14 +273,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // code is moved into the code space.
   static inline Builtin target_builtin_at(Address pc);
 
-  // Returns the target address for a runtime function for the call encoded
-  // at 'pc'.
-  // Runtime entries can be temporarily encoded as the offset between the
-  // runtime function entrypoint and the code range base (stored in the
-  // code_range_base field), in order to be encodable as we generate the code,
-  // before it is moved into the code space.
-  inline Address runtime_entry_at(Address pc);
-
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
@@ -751,8 +743,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // 32 x 32 -> 64-bit multiply.
   void smull(const Register& rd, const Register& rn, const Register& rm);
 
-  // Xd = bits<127:64> of Xn * Xm.
+  // Xd = bits<127:64> of Xn * Xm, signed.
   void smulh(const Register& rd, const Register& rn, const Register& rm);
+
+  // Xd = bits<127:64> of Xn * Xm, unsigned.
+  void umulh(const Register& rd, const Register& rn, const Register& rm);
 
   // Signed 32 x 32 -> 64-bit multiply and accumulate.
   void smaddl(const Register& rd, const Register& rn, const Register& rm,
@@ -2070,8 +2065,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc32(data);
@@ -2079,8 +2073,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);
@@ -2088,8 +2081,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     BlockPoolsScope no_pool_scope(this);
     if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-             RelocInfo::IsLiteralConstant(rmode));
+      DCHECK(RelocInfo::IsLiteralConstant(rmode));
       RecordRelocInfo(rmode);
     }
     dc64(data);

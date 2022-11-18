@@ -743,18 +743,6 @@ IGNITION_HANDLER(DefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-IGNITION_HANDLER(CollectTypeProfile, InterpreterAssembler) {
-  TNode<Smi> position = BytecodeOperandImmSmi(0);
-  TNode<Object> value = GetAccumulator();
-
-  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
-  TNode<Context> context = GetContext();
-
-  CallRuntime(Runtime::kCollectTypeProfile, context, position, value,
-              feedback_vector);
-  Dispatch();
-}
-
 // LdaModuleVariable <cell_index> <depth>
 //
 // Load the contents of a module variable into the accumulator.  The variable is
@@ -2781,14 +2769,14 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
   }
 }
 
-// FinNonDefaultConstructor <this_function> <new_target> <output>
+// FindNonDefaultConstructorOrConstruct <this_function> <new_target> <output>
 //
 // Walks the prototype chain from <this_function>'s super ctor until we see a
 // non-default ctor. If the walk ends at a default base ctor, creates an
 // instance and stores it in <output[1]> and stores true into output[0].
 // Otherwise, stores the first non-default ctor into <output[1]> and false into
 // <output[0]>.
-IGNITION_HANDLER(FindNonDefaultConstructor, InterpreterAssembler) {
+IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TVARIABLE(Object, constructor);
   Label found_default_base_ctor(this, &constructor),
@@ -2796,8 +2784,9 @@ IGNITION_HANDLER(FindNonDefaultConstructor, InterpreterAssembler) {
 
   TNode<JSFunction> this_function = CAST(LoadRegisterAtOperandIndex(0));
 
-  FindNonDefaultConstructor(context, this_function, constructor,
-                            &found_default_base_ctor, &found_something_else);
+  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
+                                       &found_default_base_ctor,
+                                       &found_something_else);
 
   BIND(&found_default_base_ctor);
   {
@@ -3176,7 +3165,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
       &state, options, ProfileDataFromFile::TryRead(debug_name));
 
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_trace_ignition_codegen) {
+  if (v8_flags.trace_ignition_codegen) {
     StdoutStream os;
     code->Disassemble(Bytecodes::ToString(bytecode), os, isolate);
     os << std::flush;

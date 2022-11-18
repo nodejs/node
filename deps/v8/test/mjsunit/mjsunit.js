@@ -136,6 +136,14 @@ var assertThrowsAsync;
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
 
+// Assert that the passed code throws an early error (i.e. throws a SyntaxError
+// at parse time).
+var assertEarlyError;
+
+// Assert that the passed code throws an exception when executed.
+// Fails if the passed code throws an exception at parse time.
+var assertThrowsAtRuntime;
+
 // Asserts that the found value is an instance of the constructor passed
 // as the second argument.
 var assertInstanceof;
@@ -585,6 +593,25 @@ var prettyPrinted;
         res => setTimeout(_ => fail('<throw>', res, msg), 0),
         e => checkException(e, type_opt, cause_opt));
   };
+
+  assertEarlyError = function assertEarlyError(code) {
+    try {
+      new Function(code);
+    } catch (e) {
+      checkException(e, SyntaxError);
+      return;
+    }
+    failWithMessage('Did not throw exception while parsing');
+  }
+
+  assertThrowsAtRuntime = function assertThrowsAtRuntime(code, type_opt) {
+    const f = new Function(code);
+    if (arguments.length > 1 && type_opt !== undefined) {
+      assertThrows(f, type_opt);
+    } else {
+      assertThrows(f);
+    }
+  }
 
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {

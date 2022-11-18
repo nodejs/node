@@ -547,7 +547,7 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
     // Size of an object can change during its life, so to keep information
     // about the object in entries_ consistent, we have to adjust size when the
     // object is migrated.
-    if (FLAG_heap_profiler_trace_objects) {
+    if (v8_flags.heap_profiler_trace_objects) {
       PrintF("Move object from %p to %p old size %6d new size %6d\n",
              reinterpret_cast<void*>(from), reinterpret_cast<void*>(to),
              entries_.at(from_entry_info_index).size, object_size);
@@ -586,7 +586,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
         static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
     EntryInfo& entry_info = entries_.at(entry_index);
     entry_info.accessed = accessed;
-    if (FLAG_heap_profiler_trace_objects) {
+    if (v8_flags.heap_profiler_trace_objects) {
       PrintF("Update object size : %p with old size %d and new size %d\n",
              reinterpret_cast<void*>(addr), entry_info.size, size);
     }
@@ -622,7 +622,7 @@ void HeapObjectsMap::AddMergedNativeEntry(NativeObject addr,
 void HeapObjectsMap::StopHeapObjectsTracking() { time_intervals_.clear(); }
 
 void HeapObjectsMap::UpdateHeapObjectsMap() {
-  if (FLAG_heap_profiler_trace_objects) {
+  if (v8_flags.heap_profiler_trace_objects) {
     PrintF("Begin HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
            entries_map_.occupancy());
   }
@@ -634,14 +634,14 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
        obj = iterator.Next()) {
     int object_size = obj.Size(cage_base);
     FindOrAddEntry(obj.address(), object_size);
-    if (FLAG_heap_profiler_trace_objects) {
+    if (v8_flags.heap_profiler_trace_objects) {
       PrintF("Update object      : %p %6d. Next address is %p\n",
              reinterpret_cast<void*>(obj.address()), object_size,
              reinterpret_cast<void*>(obj.address() + object_size));
     }
   }
   RemoveDeadEntries();
-  if (FLAG_heap_profiler_trace_objects) {
+  if (v8_flags.heap_profiler_trace_objects) {
     PrintF("End HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
            entries_map_.occupancy());
   }
@@ -877,7 +877,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject object, HeapEntry::Type type,
                                     const char* name) {
-  if (FLAG_heap_profiler_show_hidden_objects && type == HeapEntry::kHidden) {
+  if (v8_flags.heap_profiler_show_hidden_objects &&
+      type == HeapEntry::kHidden) {
     type = HeapEntry::kNative;
   }
   PtrComprCageBase cage_base(isolate());
@@ -2094,7 +2095,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     // objects, and fails DCHECKs if we attempt to. Read-only objects can
     // never retain read-write objects, so there is no risk in skipping
     // verification for them.
-    if (FLAG_heap_snapshot_verify &&
+    if (v8_flags.heap_snapshot_verify &&
         !BasicMemoryChunk::FromHeapObject(obj)->InReadOnlySpace()) {
       verifier = std::make_unique<HeapEntryVerifier>(generator, obj);
     }
@@ -2643,7 +2644,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     HeapSnapshotGenerator* generator) {
   generator_ = generator;
 
-  if (FLAG_heap_profiler_use_embedder_graph &&
+  if (v8_flags.heap_profiler_use_embedder_graph &&
       snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
     DisallowGarbageCollection no_gc;
@@ -2726,7 +2727,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     HeapVerifier::VerifyHeap(debug_heap);
   }
 #endif
@@ -2734,7 +2735,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   InitProgressCounter();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     HeapVerifier::VerifyHeap(debug_heap);
   }
 #endif

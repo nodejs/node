@@ -10,6 +10,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -74,6 +75,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSAsyncFunctionReject(Node* node);
   Reduction ReduceJSAsyncFunctionResolve(Node* node);
   Reduction ReduceJSGetSuperConstructor(Node* node);
+  Reduction ReduceJSFindNonDefaultConstructorOrConstruct(Node* node);
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
@@ -180,7 +182,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 Node** control,
                                 ZoneVector<Node*>* if_exceptions,
                                 PropertyAccessInfo const& access_info);
-  Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
+  Node* InlineApiCall(Node* receiver, Node* api_holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
                       FunctionTemplateInfoRef const& function_template_info);
 
@@ -204,6 +206,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // the previously recorded {name} feedback.
   Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
+
+  // Concatenates {left} and {right}.
+  Handle<String> Concatenate(Handle<String> left, Handle<String> right);
+
+  // Returns true if {str} can safely be read:
+  //   - if we are on the main thread, then any string can safely be read
+  //   - in the background, we can only read some string shapes, except if we
+  //     created the string ourselves.
+  // {node} is the node from which we got {str}, but which is still taken as
+  // parameter to simplify the checks.
+  bool StringCanSafelyBeRead(Node* const node, Handle<String> str);
 
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
@@ -264,6 +277,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;
+  ZoneUnorderedSet<Handle<String>, Handle<String>::hash,
+                   Handle<String>::equal_to>
+      created_strings_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSNativeContextSpecialization::Flags)

@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -162,8 +163,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   categories_ = nullptr;
 
-  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(this,
-                                                                        0);
+  heap->non_atomic_marking_state()->SetLiveBytes(this, 0);
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
     if (heap->write_protect_code_memory()) {
@@ -195,7 +195,10 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
+  if (heap->IsShared() || owner()->identity() == SHARED_SPACE ||
+      owner()->identity() == SHARED_LO_SPACE) {
+    SetFlag(MemoryChunk::IN_SHARED_HEAP);
+  }
 
 #ifdef DEBUG
   ValidateOffsets(this);
@@ -233,6 +236,7 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
+  DCHECK(SweepingDone());
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;

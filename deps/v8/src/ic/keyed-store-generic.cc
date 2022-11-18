@@ -1129,7 +1129,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&not_internalized);
   {
-    if (FLAG_internalize_on_the_fly) {
+    if (v8_flags.internalize_on_the_fly) {
       TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                            &var_unique, &slow, &slow);
     } else {

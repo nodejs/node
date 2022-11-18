@@ -286,6 +286,7 @@ class ParallelMoveResolver {
     if (has_cycle) {
       if (!scratch_has_cycle_start_) {
         Pop(kScratchRegT);
+        scratch_has_cycle_start_ = true;
       }
       EmitMovesFromSource(kScratchRegT, targets);
       scratch_has_cycle_start_ = false;
@@ -366,6 +367,7 @@ class ParallelMoveResolver {
     }
     if (scratch_has_cycle_start_ && !targets.stack_slots.empty()) {
       Push(kScratchRegT);
+      scratch_has_cycle_start_ = false;
     }
     for (uint32_t target_slot : targets.stack_slots) {
       DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
@@ -432,203 +434,210 @@ class ParallelMoveResolver {
 
 class ExceptionHandlerTrampolineBuilder {
  public:
+  static void Build(MaglevAssembler* masm, NodeBase* node) {
+    ExceptionHandlerTrampolineBuilder builder(masm);
+    builder.EmitTrampolineFor(node);
+  }
+
+ private:
   explicit ExceptionHandlerTrampolineBuilder(MaglevAssembler* masm)
       : masm_(masm) {}
+
+  struct Move {
+    explicit Move(const ValueLocation& target, ValueNode* source)
+        : target(target), source(source) {}
+    const ValueLocation& target;
+    ValueNode* const source;
+  };
+  using MoveVector = base::SmallVector<Move, 16>;
 
   void EmitTrampolineFor(NodeBase* node) {
     DCHECK(node->properties().can_throw());
 
-    ExceptionHandlerInfo* handler_info = node->exception_handler_info();
+    ExceptionHandlerInfo* const handler_info = node->exception_handler_info();
     DCHECK(handler_info->HasExceptionHandler());
+    BasicBlock* const catch_block = handler_info->catch_block.block_ptr();
+    LazyDeoptInfo* const deopt_info = node->lazy_deopt_info();
 
-    BasicBlock* block = handler_info->catch_block.block_ptr();
-    LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+    // The exception handler trampoline resolves moves for exception phis and
+    // then jumps to the actual catch block. There are a few points worth
+    // noting:
+    //
+    // - All source locations are assumed to be stack slots, except the
+    // accumulator which is stored in kReturnRegister0. We don't emit an
+    // explicit move for it, instead it is pushed and popped at the boundaries
+    // of the entire move sequence (necessary due to materialisation).
+    //
+    // - Some values may require materialisation, i.e. heap number construction
+    // through calls to the NewHeapNumber builtin. To avoid potential conflicts
+    // with other moves (which may happen due to stack slot reuse, i.e. a
+    // target location of move A may equal source location of move B), we
+    // materialise and push results to new temporary stack slots before the
+    // main move sequence, and then pop results into their final target
+    // locations afterwards. Note this is only safe because a) materialised
+    // values are tagged and b) the stack walk treats unknown stack slots as
+    // tagged.
+
+    // TODO(v8:7700): Handle inlining.
+
+    ParallelMoveResolver<Register> direct_moves(masm_);
+    MoveVector materialising_moves;
+    bool save_accumulator = false;
+    RecordMoves(deopt_info->unit, catch_block, deopt_info->state.register_frame,
+                &direct_moves, &materialising_moves, &save_accumulator);
 
     __ bind(&handler_info->trampoline_entry);
-    ClearState();
-    // TODO(v8:7700): Handle inlining.
-    RecordMoves(deopt_info->unit, block, deopt_info->state.register_frame);
-    // We do moves that need to materialise values first, since we might need to
-    // call a builtin to create a HeapNumber, and therefore we would need to
-    // spill all registers.
-    DoMaterialiseMoves();
-    // Move the rest, we will not call HeapNumber anymore.
-    DoDirectMoves();
-    // Jump to the catch block.
-    __ jmp(block->label());
+    __ RecordComment("-- Exception handler trampoline START");
+    EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
+    __ RecordComment("EmitMoves");
+    direct_moves.EmitMoves();
+    EmitPopMaterialisedResults(materialising_moves, save_accumulator);
+    __ jmp(catch_block->label());
+    __ RecordComment("-- Exception handler trampoline END");
   }
-
- private:
-  MaglevAssembler* const masm_;
-  using Move = std::pair<const ValueLocation&, ValueNode*>;
-  base::SmallVector<Move, 16> direct_moves_;
-  base::SmallVector<Move, 16> materialisation_moves_;
-  bool save_accumulator_ = false;
 
   MacroAssembler* masm() const { return masm_; }
 
-  void ClearState() {
-    direct_moves_.clear();
-    materialisation_moves_.clear();
-    save_accumulator_ = false;
-  }
-
-  void RecordMoves(const MaglevCompilationUnit& unit, BasicBlock* block,
-                   const CompactInterpreterFrameState* register_frame) {
-    for (Phi* phi : *block->phis()) {
-      DCHECK_EQ(phi->input_count(), 0);
+  void RecordMoves(const MaglevCompilationUnit& unit, BasicBlock* catch_block,
+                   const CompactInterpreterFrameState* register_frame,
+                   ParallelMoveResolver<Register>* direct_moves,
+                   MoveVector* materialising_moves, bool* save_accumulator) {
+    for (Phi* phi : *catch_block->phis()) {
+      DCHECK(phi->is_exception_phi());
       if (!phi->has_valid_live_range()) continue;
+
+      const ValueLocation& target = phi->result();
       if (phi->owner() == interpreter::Register::virtual_accumulator()) {
         // If the accumulator is live, then it is the exception object located
-        // at kReturnRegister0. This is also the first phi in the list.
-        DCHECK_EQ(phi->result().AssignedGeneralRegister(), kReturnRegister0);
-        save_accumulator_ = true;
+        // at kReturnRegister0.  We don't emit a move for it since the value is
+        // already in the right spot, but we do have to ensure it isn't
+        // clobbered by calls to the NewHeapNumber builtin during
+        // materialisation.
+        DCHECK_EQ(target.AssignedGeneralRegister(), kReturnRegister0);
+        *save_accumulator = true;
         continue;
       }
-      ValueNode* value = register_frame->GetValueOf(phi->owner(), unit);
-      DCHECK_NOT_NULL(value);
-      switch (value->properties().value_representation()) {
+
+      ValueNode* const source = register_frame->GetValueOf(phi->owner(), unit);
+      DCHECK_NOT_NULL(source);
+      // All registers must have been spilled due to the call.
+      // TODO(jgruber): Which call? Because any throw requires at least a call
+      // to Runtime::kThrowFoo?
+      DCHECK(!source->allocation().IsRegister());
+
+      switch (source->properties().value_representation()) {
         case ValueRepresentation::kTagged:
-          // All registers should have been spilled due to the call.
-          DCHECK(!value->allocation().IsRegister());
-          direct_moves_.emplace_back(phi->result(), value);
+          direct_moves->RecordMove(
+              source, source->allocation(),
+              compiler::AllocatedOperand::cast(target.operand()));
           break;
         case ValueRepresentation::kInt32:
-          if (value->allocation().IsConstant()) {
-            direct_moves_.emplace_back(phi->result(), value);
+          if (source->allocation().IsConstant()) {
+            // TODO(jgruber): Why is it okay for Int32 constants to remain
+            // untagged while non-constants are unconditionally smi-tagged or
+            // converted to a HeapNumber during materialisation?
+            direct_moves->RecordMove(
+                source, source->allocation(),
+                compiler::AllocatedOperand::cast(target.operand()));
           } else {
-            materialisation_moves_.emplace_back(phi->result(), value);
+            materialising_moves->emplace_back(target, source);
           }
           break;
         case ValueRepresentation::kFloat64:
-          materialisation_moves_.emplace_back(phi->result(), value);
+          materialising_moves->emplace_back(target, source);
           break;
       }
     }
   }
 
-  void DoMaterialiseMoves() {
-    if (materialisation_moves_.size() == 0) return;
-    if (save_accumulator_) {
+  void EmitMaterialisationsAndPushResults(const MoveVector& moves,
+                                          bool save_accumulator) const {
+    if (moves.size() == 0) return;
+
+    // It's possible to optimize this further, at the cost of additional
+    // complexity:
+    //
+    // - If the target location is a register, we could theoretically move the
+    // materialised result there immediately, with the additional complication
+    // that following calls to NewHeapNumber may clobber the register.
+    //
+    // - If the target location is a stack slot which is neither a source nor
+    // target slot for any other moves (direct or materialising), we could move
+    // the result there directly instead of pushing and later popping it. This
+    // doesn't seem worth the extra code complexity though, given we are
+    // talking about a presumably infrequent case for exception handlers.
+
+    __ RecordComment("EmitMaterialisationsAndPushResults");
+    if (save_accumulator) __ Push(kReturnRegister0);
+    for (const Move& move : moves) {
+      MaterialiseTo(move.source, kReturnRegister0);
       __ Push(kReturnRegister0);
     }
-    for (auto it = materialisation_moves_.begin();
-         it < materialisation_moves_.end(); it++) {
-      switch (it->second->properties().value_representation()) {
-        case ValueRepresentation::kInt32: {
-          EmitMoveInt32ToReturnValue0(it->second);
-          break;
-        }
-        case ValueRepresentation::kFloat64:
-          EmitMoveFloat64ToReturnValue0(it->second);
-          break;
-        case ValueRepresentation::kTagged:
-          UNREACHABLE();
-      }
-      if (it->first.operand().IsStackSlot()) {
-        // If the target is in a stack sot, we can immediately move
-        // the result to it.
-        __ movq(ToMemOperand(it->first), kReturnRegister0);
-      } else {
-        // We spill the result to the stack, in order to be able to call the
-        // NewHeapNumber builtin again, however we don't need to push the result
-        // of the last one.
-        if (it != materialisation_moves_.end() - 1) {
-          __ Push(kReturnRegister0);
-        }
-      }
-    }
-    // If the last move target is a register, the result should be in
-    // kReturnValue0, so so we emit a simple move. Otherwise it has already been
-    // moved.
-    const ValueLocation& last_move_target =
-        materialisation_moves_.rbegin()->first;
-    if (last_move_target.operand().IsRegister()) {
-      __ Move(last_move_target.AssignedGeneralRegister(), kReturnRegister0);
-    }
-    // And then pop the rest.
-    for (auto it = materialisation_moves_.rbegin() + 1;
-         it < materialisation_moves_.rend(); it++) {
-      if (it->first.operand().IsRegister()) {
-        __ Pop(it->first.AssignedGeneralRegister());
-      }
-    }
-    if (save_accumulator_) {
-      __ Pop(kReturnRegister0);
-    }
   }
 
-  void DoDirectMoves() {
-    for (auto& [target, value] : direct_moves_) {
-      if (value->allocation().IsConstant()) {
-        if (Int32Constant* constant = value->TryCast<Int32Constant>()) {
-          EmitMove(target, Smi::FromInt(constant->value()));
+  void EmitPopMaterialisedResults(const MoveVector& moves,
+                                  bool save_accumulator) const {
+    if (moves.size() == 0) return;
+    __ RecordComment("EmitPopMaterialisedResults");
+    for (auto it = moves.rbegin(); it < moves.rend(); it++) {
+      const ValueLocation& target = it->target;
+      if (target.operand().IsRegister()) {
+        __ Pop(target.AssignedGeneralRegister());
+      } else {
+        DCHECK(target.operand().IsStackSlot());
+        __ Pop(kScratchRegister);
+        __ movq(masm_->ToMemOperand(target.operand()), kScratchRegister);
+      }
+    }
+
+    if (save_accumulator) __ Pop(kReturnRegister0);
+  }
+
+  void MaterialiseTo(ValueNode* value, Register dst) const {
+    using D = NewHeapNumberDescriptor;
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kInt32: {
+        // We consider Int32Constants together with tagged values.
+        DCHECK(!value->allocation().IsConstant());
+        Label done;
+        __ movq(dst, ToMemOperand(value));
+        __ addl(dst, dst);
+        __ j(no_overflow, &done);
+        // If we overflow, instead of bailing out (deopting), we change
+        // representation to a HeapNumber.
+        __ Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue),
+                     ToMemOperand(value));
+        __ CallBuiltin(Builtin::kNewHeapNumber);
+        __ Move(dst, kReturnRegister0);
+        __ bind(&done);
+        break;
+      }
+      case ValueRepresentation::kFloat64:
+        if (Float64Constant* constant = value->TryCast<Float64Constant>()) {
+          __ Move(D::GetDoubleRegisterParameter(D::kValue), constant->value());
         } else {
-          // Int32 and Float64 constants should have already been dealt with.
-          DCHECK_EQ(value->properties().value_representation(),
-                    ValueRepresentation::kTagged);
-          EmitConstantLoad(target, value);
+          __ Movsd(D::GetDoubleRegisterParameter(D::kValue),
+                   ToMemOperand(value));
         }
-      } else {
-        EmitMove(target, ToMemOperand(value));
-      }
+        __ CallBuiltin(Builtin::kNewHeapNumber);
+        __ Move(dst, kReturnRegister0);
+        break;
+      case ValueRepresentation::kTagged:
+        UNREACHABLE();
     }
   }
 
-  void EmitMoveInt32ToReturnValue0(ValueNode* value) {
-    // We consider Int32Constants together with tagged values.
-    DCHECK(!value->allocation().IsConstant());
-    using D = NewHeapNumberDescriptor;
-    Label done;
-    __ movq(kReturnRegister0, ToMemOperand(value));
-    __ addl(kReturnRegister0, kReturnRegister0);
-    __ j(no_overflow, &done);
-    // If we overflow, instead of bailing out (deopting), we change
-    // representation to a HeapNumber.
-    __ Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue), ToMemOperand(value));
-    __ CallBuiltin(Builtin::kNewHeapNumber);
-    __ bind(&done);
-  }
-
-  void EmitMoveFloat64ToReturnValue0(ValueNode* value) {
-    using D = NewHeapNumberDescriptor;
-    if (Float64Constant* constant = value->TryCast<Float64Constant>()) {
-      __ Move(D::GetDoubleRegisterParameter(D::kValue), constant->value());
-    } else {
-      __ Movsd(D::GetDoubleRegisterParameter(D::kValue), ToMemOperand(value));
-    }
-    __ CallBuiltin(Builtin::kNewHeapNumber);
-  }
-
-  MemOperand ToMemOperand(ValueNode* node) {
+  MemOperand ToMemOperand(ValueNode* node) const {
     DCHECK(node->allocation().IsAnyStackSlot());
     return masm_->ToMemOperand(node->allocation());
   }
 
-  MemOperand ToMemOperand(const ValueLocation& location) {
+  MemOperand ToMemOperand(const ValueLocation& location) const {
     DCHECK(location.operand().IsStackSlot());
     return masm_->ToMemOperand(location.operand());
   }
 
-  template <typename Operand>
-  void EmitMove(const ValueLocation& dst, Operand src) {
-    if (dst.operand().IsRegister()) {
-      __ Move(dst.AssignedGeneralRegister(), src);
-    } else {
-      __ Move(kScratchRegister, src);
-      __ movq(ToMemOperand(dst), kScratchRegister);
-    }
-  }
-
-  void EmitConstantLoad(const ValueLocation& dst, ValueNode* value) {
-    DCHECK(value->allocation().IsConstant());
-    if (dst.operand().IsRegister()) {
-      value->LoadToRegister(masm_, dst.AssignedGeneralRegister());
-    } else {
-      value->LoadToRegister(masm_, kScratchRegister);
-      __ movq(ToMemOperand(dst), kScratchRegister);
-    }
-  }
+  MaglevAssembler* const masm_;
 };
 
 class MaglevCodeGeneratingNodeProcessor {
@@ -637,134 +646,145 @@ class MaglevCodeGeneratingNodeProcessor {
       : masm_(masm) {}
 
   void PreProcessGraph(Graph* graph) {
-    if (FLAG_maglev_break_on_entry) {
-      __ int3();
-    }
-
-    __ BailoutIfDeoptimized(rbx);
-
-    // Tiering support.
-    // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
-    // per Maglev code object on x64).
-    {
-      // Scratch registers. Don't clobber regs related to the calling
-      // convention (e.g. kJavaScriptCallArgCountRegister).
-      Register flags = rcx;
-      Register feedback_vector = r9;
-
-      // Load the feedback vector.
-      __ LoadTaggedPointerField(
-          feedback_vector,
-          FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
-      __ LoadTaggedPointerField(
-          feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-      __ AssertFeedbackVector(feedback_vector);
-
-      Label flags_need_processing, next;
-      __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-          flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
-      __ jmp(&next);
-
-      __ bind(&flags_need_processing);
-      {
-        ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
-        __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-            flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-        __ Trap();
-      }
-
-      __ bind(&next);
-    }
-
-    __ EnterFrame(StackFrame::MAGLEV);
-
-    // Save arguments in frame.
-    // TODO(leszeks): Consider eliding this frame if we don't make any calls
-    // that could clobber these registers.
-    __ Push(kContextRegister);
-    __ Push(kJSFunctionRegister);              // Callee's JS function.
-    __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
-
     code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
 
-    {
-      ASM_CODE_COMMENT_STRING(masm(), " Stack/interrupt check");
-      // Stack check. This folds the checks for both the interrupt stack limit
-      // check and the real stack limit into one by just checking for the
-      // interrupt limit. The interrupt limit is either equal to the real stack
-      // limit or tighter. By ensuring we have space until that limit after
-      // building the frame we can quickly precheck both at once.
-      __ Move(kScratchRegister, rsp);
-      // TODO(leszeks): Include a max call argument size here.
-      __ subq(kScratchRegister,
-              Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
-      __ cmpq(kScratchRegister,
-              __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
-
-      __ j(below, &deferred_call_stack_guard_);
-      __ bind(&deferred_call_stack_guard_return_);
+    if (v8_flags.maglev_break_on_entry) {
+      __ int3();
     }
 
-    // Initialize stack slots.
-    if (graph->tagged_stack_slots() > 0) {
-      ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
-      // TODO(leszeks): Consider filling with xmm + movdqa instead.
-      __ Move(rax, Immediate(0));
+    if (v8_flags.maglev_ool_prologue) {
+      // Call the out-of-line prologue (with parameters passed on the stack).
+      __ Push(Immediate(code_gen_state()->stack_slots() * kSystemPointerSize));
+      __ Push(Immediate(code_gen_state()->tagged_slots() * kSystemPointerSize));
+      __ CallBuiltin(Builtin::kMaglevOutOfLinePrologue);
+    } else {
+      __ BailoutIfDeoptimized(rbx);
 
-      // Magic value. Experimentally, an unroll size of 8 doesn't seem any worse
-      // than fully unrolled pushes.
-      const int kLoopUnrollSize = 8;
-      int tagged_slots = graph->tagged_stack_slots();
-      if (tagged_slots < 2 * kLoopUnrollSize) {
-        // If the frame is small enough, just unroll the frame fill completely.
-        for (int i = 0; i < tagged_slots; ++i) {
-          __ pushq(rax);
+      // Tiering support.
+      // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
+      // per Maglev code object on x64).
+      {
+        // Scratch registers. Don't clobber regs related to the calling
+        // convention (e.g. kJavaScriptCallArgCountRegister).
+        Register flags = rcx;
+        Register feedback_vector = r9;
+
+        // Load the feedback vector.
+        __ LoadTaggedPointerField(
+            feedback_vector,
+            FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+        __ LoadTaggedPointerField(
+            feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+        __ AssertFeedbackVector(feedback_vector);
+
+        Label flags_need_processing, next;
+        __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+            flags, feedback_vector, CodeKind::MAGLEV, &flags_need_processing);
+        __ jmp(&next);
+
+        __ bind(&flags_need_processing);
+        {
+          ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
+          __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+              flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+          __ Trap();
         }
-      } else {
-        // Extract the first few slots to round to the unroll size.
-        int first_slots = tagged_slots % kLoopUnrollSize;
-        for (int i = 0; i < first_slots; ++i) {
-          __ pushq(rax);
-        }
-        __ Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
-        // We enter the loop unconditionally, so make sure we need to loop at
-        // least once.
-        DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
-        Label loop;
-        __ bind(&loop);
-        for (int i = 0; i < kLoopUnrollSize; ++i) {
-          __ pushq(rax);
-        }
-        __ decl(rbx);
-        __ j(greater, &loop);
+
+        __ bind(&next);
       }
-    }
-    if (graph->untagged_stack_slots() > 0) {
-      // Extend rsp by the size of the remaining untagged part of the frame, no
-      // need to initialise these.
-      __ subq(rsp,
-              Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+
+      __ EnterFrame(StackFrame::MAGLEV);
+
+      // Save arguments in frame.
+      // TODO(leszeks): Consider eliding this frame if we don't make any calls
+      // that could clobber these registers.
+      __ Push(kContextRegister);
+      __ Push(kJSFunctionRegister);              // Callee's JS function.
+      __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+
+      {
+        ASM_CODE_COMMENT_STRING(masm(), " Stack/interrupt check");
+        // Stack check. This folds the checks for both the interrupt stack limit
+        // check and the real stack limit into one by just checking for the
+        // interrupt limit. The interrupt limit is either equal to the real
+        // stack limit or tighter. By ensuring we have space until that limit
+        // after building the frame we can quickly precheck both at once.
+        __ Move(kScratchRegister, rsp);
+        // TODO(leszeks): Include a max call argument size here.
+        __ subq(kScratchRegister, Immediate(code_gen_state()->stack_slots() *
+                                            kSystemPointerSize));
+        __ cmpq(kScratchRegister,
+                __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+
+        __ j(below, &deferred_call_stack_guard_);
+        __ bind(&deferred_call_stack_guard_return_);
+      }
+
+      // Initialize stack slots.
+      if (graph->tagged_stack_slots() > 0) {
+        ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
+        // TODO(leszeks): Consider filling with xmm + movdqa instead.
+        __ Move(rax, Immediate(0));
+
+        // Magic value. Experimentally, an unroll size of 8 doesn't seem any
+        // worse than fully unrolled pushes.
+        const int kLoopUnrollSize = 8;
+        int tagged_slots = graph->tagged_stack_slots();
+        if (tagged_slots < 2 * kLoopUnrollSize) {
+          // If the frame is small enough, just unroll the frame fill
+          // completely.
+          for (int i = 0; i < tagged_slots; ++i) {
+            __ pushq(rax);
+          }
+        } else {
+          // Extract the first few slots to round to the unroll size.
+          int first_slots = tagged_slots % kLoopUnrollSize;
+          for (int i = 0; i < first_slots; ++i) {
+            __ pushq(rax);
+          }
+          __ Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
+          // We enter the loop unconditionally, so make sure we need to loop at
+          // least once.
+          DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
+          Label loop;
+          __ bind(&loop);
+          for (int i = 0; i < kLoopUnrollSize; ++i) {
+            __ pushq(rax);
+          }
+          __ decl(rbx);
+          __ j(greater, &loop);
+        }
+      }
+      if (graph->untagged_stack_slots() > 0) {
+        // Extend rsp by the size of the remaining untagged part of the frame,
+        // no need to initialise these.
+        __ subq(rsp,
+                Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
+      }
     }
   }
 
   void PostProcessGraph(Graph*) {
     __ int3();
-    __ bind(&deferred_call_stack_guard_);
-    ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
-    // Save any registers that can be referenced by RegisterInput.
-    // TODO(leszeks): Only push those that are used by the graph.
-    __ PushAll(RegisterInput::kAllowedRegisters);
-    // Push the frame size
-    __ Push(Immediate(
-        Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
-    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-    __ PopAll(RegisterInput::kAllowedRegisters);
-    __ jmp(&deferred_call_stack_guard_return_);
+
+    if (!v8_flags.maglev_ool_prologue) {
+      __ bind(&deferred_call_stack_guard_);
+      ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
+      // Save any registers that can be referenced by RegisterInput.
+      // TODO(leszeks): Only push those that are used by the graph.
+      __ PushAll(RegisterInput::kAllowedRegisters);
+      // Push the frame size
+      __ Push(Immediate(
+          Smi::FromInt(code_gen_state()->stack_slots() * kSystemPointerSize)));
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+      __ PopAll(RegisterInput::kAllowedRegisters);
+      __ jmp(&deferred_call_stack_guard_return_);
+    }
   }
 
   void PreProcessBasicBlock(BasicBlock* block) {
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "-- Block b" << graph_labeller()->BlockId(block);
       __ RecordComment(ss.str());
@@ -775,14 +795,14 @@ class MaglevCodeGeneratingNodeProcessor {
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
          << PrintNode(graph_labeller(), node);
       __ RecordComment(ss.str());
     }
 
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       __ movq(kScratchRegister, rbp);
       __ subq(kScratchRegister, rsp);
       __ cmpq(kScratchRegister,
@@ -806,7 +826,7 @@ class MaglevCodeGeneratingNodeProcessor {
             compiler::AllocatedOperand::cast(value_node->result().operand());
         // We shouldn't spill nodes which already output to the stack.
         if (!source.IsAnyStackSlot()) {
-          if (FLAG_code_comments) __ RecordComment("--   Spill:");
+          if (v8_flags.code_comments) __ RecordComment("--   Spill:");
           if (source.IsRegister()) {
             __ movq(masm()->GetStackSlot(value_node->spill_slot()),
                     ToRegister(source));
@@ -851,7 +871,7 @@ class MaglevCodeGeneratingNodeProcessor {
         // TODO(leszeks): We should remove dead phis entirely and turn this into
         // a DCHECK.
         if (!phi->has_valid_live_range()) {
-          if (FLAG_code_comments) {
+          if (v8_flags.code_comments) {
             std::stringstream ss;
             ss << "--   * "
                << phi->input(state.block()->predecessor_id()).operand() << " → "
@@ -866,7 +886,7 @@ class MaglevCodeGeneratingNodeProcessor {
         compiler::InstructionOperand source = input.operand();
         compiler::AllocatedOperand target =
             compiler::AllocatedOperand::cast(phi->result().operand());
-        if (FLAG_code_comments) {
+        if (v8_flags.code_comments) {
           std::stringstream ss;
           ss << "--   * " << source << " → " << target << " (n"
              << graph_labeller()->NodeId(phi) << ")";
@@ -889,7 +909,7 @@ class MaglevCodeGeneratingNodeProcessor {
           if (LoadMergeState(state, &node, &merge)) {
             compiler::InstructionOperand source =
                 merge->operand(predecessor_id);
-            if (FLAG_code_comments) {
+            if (v8_flags.code_comments) {
               std::stringstream ss;
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
@@ -909,7 +929,7 @@ class MaglevCodeGeneratingNodeProcessor {
           if (LoadMergeState(state, &node, &merge)) {
             compiler::InstructionOperand source =
                 merge->operand(predecessor_id);
-            if (FLAG_code_comments) {
+            if (v8_flags.code_comments) {
               std::stringstream ss;
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
@@ -943,17 +963,19 @@ class MaglevCodeGeneratingNodeProcessor {
 
 class MaglevCodeGeneratorImpl final {
  public:
-  static MaybeHandle<Code> Generate(MaglevCompilationInfo* compilation_info,
+  static MaybeHandle<Code> Generate(Isolate* isolate,
+                                    MaglevCompilationInfo* compilation_info,
                                     Graph* graph) {
-    return MaglevCodeGeneratorImpl(compilation_info, graph).Generate();
+    return MaglevCodeGeneratorImpl(isolate, compilation_info, graph).Generate();
   }
 
  private:
-  MaglevCodeGeneratorImpl(MaglevCompilationInfo* compilation_info, Graph* graph)
+  MaglevCodeGeneratorImpl(Isolate* isolate,
+                          MaglevCompilationInfo* compilation_info, Graph* graph)
       : safepoint_table_builder_(compilation_info->zone(),
                                  graph->tagged_stack_slots(),
                                  graph->untagged_stack_slots()),
-        code_gen_state_(compilation_info, safepoint_table_builder()),
+        code_gen_state_(isolate, compilation_info, safepoint_table_builder()),
         masm_(&code_gen_state_),
         processor_(&masm_),
         graph_(graph) {}
@@ -968,15 +990,20 @@ class MaglevCodeGeneratorImpl final {
     processor_.ProcessGraph(graph_);
     EmitDeferredCode();
     EmitDeopts();
-    EmitExceptionHandlersTrampolines();
+    EmitExceptionHandlerTrampolines();
   }
 
   void EmitDeferredCode() {
-    for (DeferredCodeInfo* deferred_code : code_gen_state_.deferred_code()) {
-      __ RecordComment("-- Deferred block");
-      __ bind(&deferred_code->deferred_code_label);
-      deferred_code->Generate(masm(), &deferred_code->return_label);
-      __ Trap();
+    // Loop over deferred_code() multiple times, clearing the vector on each
+    // outer loop, so that deferred code can itself emit deferred code.
+    while (!code_gen_state_.deferred_code().empty()) {
+      for (DeferredCodeInfo* deferred_code :
+           code_gen_state_.TakeDeferredCode()) {
+        __ RecordComment("-- Deferred block");
+        __ bind(&deferred_code->deferred_code_label);
+        deferred_code->Generate(masm());
+        __ Trap();
+      }
     }
   }
 
@@ -1014,12 +1041,11 @@ class MaglevCodeGeneratorImpl final {
     }
   }
 
-  void EmitExceptionHandlersTrampolines() {
+  void EmitExceptionHandlerTrampolines() {
     if (code_gen_state_.handlers().size() == 0) return;
-    ExceptionHandlerTrampolineBuilder builder(masm());
-    __ RecordComment("-- Exception handlers trampolines");
+    __ RecordComment("-- Exception handler trampolines");
     for (NodeBase* node : code_gen_state_.handlers()) {
-      builder.EmitTrampolineFor(node);
+      ExceptionHandlerTrampolineBuilder::Build(masm(), node);
     }
   }
 
@@ -1151,9 +1177,7 @@ class MaglevCodeGeneratorImpl final {
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
   }
 
-  Isolate* isolate() const {
-    return code_gen_state_.compilation_info()->isolate();
-  }
+  Isolate* isolate() const { return code_gen_state_.isolate(); }
   MaglevAssembler* masm() { return &masm_; }
   MaglevSafepointTableBuilder* safepoint_table_builder() {
     return &safepoint_table_builder_;
@@ -1171,8 +1195,8 @@ class MaglevCodeGeneratorImpl final {
 
 // static
 MaybeHandle<Code> MaglevCodeGenerator::Generate(
-    MaglevCompilationInfo* compilation_info, Graph* graph) {
-  return MaglevCodeGeneratorImpl::Generate(compilation_info, graph);
+    Isolate* isolate, MaglevCompilationInfo* compilation_info, Graph* graph) {
+  return MaglevCodeGeneratorImpl::Generate(isolate, compilation_info, graph);
 }
 
 }  // namespace maglev

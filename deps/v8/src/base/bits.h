@@ -70,6 +70,30 @@ T ReverseBits(T value) {
   return result;
 }
 
+// ReverseBytes(value) returns |value| in reverse byte order.
+template <typename T>
+T ReverseBytes(T value) {
+  static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                (sizeof(value) == 4) || (sizeof(value) == 8));
+  T result = 0;
+  for (unsigned i = 0; i < sizeof(value); i++) {
+    result = (result << 8) | (value & 0xff);
+    value >>= 8;
+  }
+  return result;
+}
+
+template <class T>
+inline constexpr std::make_unsigned_t<T> Unsigned(T value) {
+  static_assert(std::is_signed_v<T>);
+  return static_cast<std::make_unsigned_t<T>>(value);
+}
+template <class T>
+inline constexpr std::make_signed_t<T> Signed(T value) {
+  static_assert(std::is_unsigned_v<T>);
+  return static_cast<std::make_signed_t<T>>(value);
+}
+
 // CountLeadingZeros(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns
 // {sizeof(T) * 8}.
@@ -102,6 +126,15 @@ inline constexpr unsigned CountLeadingZeros32(uint32_t value) {
 }
 inline constexpr unsigned CountLeadingZeros64(uint64_t value) {
   return CountLeadingZeros(value);
+}
+
+// The number of leading zeros for a positive number,
+// the number of leading ones for a negative number.
+template <class T>
+constexpr unsigned CountLeadingSignBits(T value) {
+  static_assert(std::is_signed_v<T>);
+  return value < 0 ? CountLeadingZeros(~Unsigned(value))
+                   : CountLeadingZeros(Unsigned(value));
 }
 
 // CountTrailingZeros(value) returns the number of zero bits preceding the
@@ -297,6 +330,21 @@ inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
 // those.
 V8_BASE_EXPORT int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 
+// UnsignedMulHigh32(lhs, rhs) multiplies two unsigned 32-bit values |lhs| and
+// |rhs|, extracts the most significant 32 bits of the result, and returns
+// those.
+V8_BASE_EXPORT uint32_t UnsignedMulHigh32(uint32_t lhs, uint32_t rhs);
+
+// SignedMulHigh64(lhs, rhs) multiplies two signed 64-bit values |lhs| and
+// |rhs|, extracts the most significant 64 bits of the result, and returns
+// those.
+V8_BASE_EXPORT int64_t SignedMulHigh64(int64_t lhs, int64_t rhs);
+
+// UnsignedMulHigh64(lhs, rhs) multiplies two unsigned 64-bit values |lhs| and
+// |rhs|, extracts the most significant 64 bits of the result, and returns
+// those.
+V8_BASE_EXPORT uint64_t UnsignedMulHigh64(uint64_t lhs, uint64_t rhs);
+
 // SignedMulHighAndAdd32(lhs, rhs, acc) multiplies two signed 32-bit values
 // |lhs| and |rhs|, extracts the most significant 32 bits of the result, and
 // adds the accumulate value |acc|.
@@ -308,10 +356,20 @@ V8_BASE_EXPORT int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs,
 // is minint and |rhs| is -1, it returns minint.
 V8_BASE_EXPORT int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 
+// SignedDiv64(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
+// truncated to int64. If |rhs| is zero, then zero is returned. If |lhs|
+// is minint and |rhs| is -1, it returns minint.
+V8_BASE_EXPORT int64_t SignedDiv64(int64_t lhs, int64_t rhs);
+
 // SignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
 // truncated to int32. If either |rhs| is zero or |lhs| is minint and |rhs|
 // is -1, it returns zero.
 V8_BASE_EXPORT int32_t SignedMod32(int32_t lhs, int32_t rhs);
+
+// SignedMod64(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
+// truncated to int64. If either |rhs| is zero or |lhs| is minint and |rhs|
+// is -1, it returns zero.
+V8_BASE_EXPORT int64_t SignedMod64(int64_t lhs, int64_t rhs);
 
 // UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
@@ -332,10 +390,21 @@ inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {
   return rhs ? lhs / rhs : 0u;
 }
 
+// UnsignedDiv64(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
+// truncated to uint64. If |rhs| is zero, then zero is returned.
+inline uint64_t UnsignedDiv64(uint64_t lhs, uint64_t rhs) {
+  return rhs ? lhs / rhs : 0u;
+}
 
 // UnsignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
 // truncated to uint32. If |rhs| is zero, then zero is returned.
 inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
+  return rhs ? lhs % rhs : 0u;
+}
+
+// UnsignedMod64(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
+// truncated to uint64. If |rhs| is zero, then zero is returned.
+inline uint64_t UnsignedMod64(uint64_t lhs, uint64_t rhs) {
   return rhs ? lhs % rhs : 0u;
 }
 

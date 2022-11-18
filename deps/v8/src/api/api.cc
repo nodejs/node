@@ -284,7 +284,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     // BUG(1718): Don't use the take_snapshot since we don't support
     // HeapObjectIterator here without doing a special GC.
     i_isolate->heap()->RecordStats(&heap_stats, false);
-    if (!FLAG_correctness_fuzzer_suppressions) {
+    if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(last_few_messages, '\n');
       if (first_newline == nullptr || first_newline[1] == '\0')
         first_newline = last_few_messages;
@@ -795,7 +795,7 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
   i::Handle<i::Object> result =
       i_isolate->global_handles()->CreateTraced(*obj, slot, store_mode);
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (i::v8_flags.verify_heap) {
     i::Object(*obj).ObjectVerify(i_isolate);
   }
 #endif  // VERIFY_HEAP
@@ -823,7 +823,7 @@ i::Address* GlobalizeReference(i::Isolate* i_isolate, i::Address* obj) {
   API_RCS_SCOPE(i_isolate, Persistent, New);
   i::Handle<i::Object> result = i_isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (i::v8_flags.verify_heap) {
     i::Object(*obj).ObjectVerify(i_isolate);
   }
 #endif  // VERIFY_HEAP
@@ -1676,7 +1676,7 @@ void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  SideEffectType getter_side_effect_type,
                                  SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      i::FLAG_disable_old_api_accessors, false,
+                      i::v8_flags.disable_old_api_accessors, false,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -1688,7 +1688,7 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                                  SideEffectType getter_side_effect_type,
                                  SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      i::FLAG_disable_old_api_accessors, false,
+                      i::v8_flags.disable_old_api_accessors, false,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -2100,7 +2100,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   //
   // To avoid this, on running scripts check first if JIT code log is
   // pending and generate immediately.
-  if (i::FLAG_enable_etw_stack_walking) {
+  if (i::v8_flags.enable_etw_stack_walking) {
     i::ETWJITInterface::MaybeSetHandlerNow(i_isolate);
   }
 #endif
@@ -2109,14 +2109,15 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   // TODO(crbug.com/1193459): remove once ablation study is completed
   base::ElapsedTimer timer;
   base::TimeDelta delta;
-  if (i::FLAG_script_delay > 0) {
-    delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay);
+  if (i::v8_flags.script_delay > 0) {
+    delta = v8::base::TimeDelta::FromMillisecondsD(i::v8_flags.script_delay);
   }
-  if (i::FLAG_script_delay_once > 0 && !i_isolate->did_run_script_delay()) {
-    delta = v8::base::TimeDelta::FromMillisecondsD(i::FLAG_script_delay_once);
+  if (i::v8_flags.script_delay_once > 0 && !i_isolate->did_run_script_delay()) {
+    delta =
+        v8::base::TimeDelta::FromMillisecondsD(i::v8_flags.script_delay_once);
     i_isolate->set_did_run_script_delay(true);
   }
-  if (i::FLAG_script_delay_fraction > 0.0) {
+  if (i::v8_flags.script_delay_fraction > 0.0) {
     timer.Start();
   } else if (delta.InMicroseconds() > 0) {
     timer.Start();
@@ -2125,7 +2126,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
     }
   }
 
-  if (V8_UNLIKELY(i::FLAG_experimental_web_snapshots)) {
+  if (V8_UNLIKELY(i::v8_flags.experimental_web_snapshots)) {
     i::Handle<i::HeapObject> maybe_script =
         handle(fun->shared().script(), i_isolate);
     if (maybe_script->IsScript() &&
@@ -2149,9 +2150,9 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   has_pending_exception = !ToLocal<Value>(
       i::Execution::CallScript(i_isolate, fun, receiver, options), &result);
 
-  if (i::FLAG_script_delay_fraction > 0.0) {
+  if (i::v8_flags.script_delay_fraction > 0.0) {
     delta = v8::base::TimeDelta::FromMillisecondsD(
-        timer.Elapsed().InMillisecondsF() * i::FLAG_script_delay_fraction);
+        timer.Elapsed().InMillisecondsF() * i::v8_flags.script_delay_fraction);
     timer.Restart();
     while (timer.Elapsed() < delta) {
       // Busy wait.
@@ -2742,7 +2743,7 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
   Utils::ApiCheck(options == kNoCompileOptions || options == kEagerCompile,
                   "v8::ScriptCompiler::StartStreaming",
                   "Invalid CompileOptions");
-  if (!i::FLAG_script_streaming) return nullptr;
+  if (!i::v8_flags.script_streaming) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
@@ -2775,20 +2776,22 @@ void ScriptCompiler::ConsumeCodeCacheTask::SourceTextAvailable(
 
 bool ScriptCompiler::ConsumeCodeCacheTask::ShouldMergeWithExistingScript()
     const {
-  if (!i::FLAG_merge_background_deserialized_script_with_compilation_cache) {
+  if (!i::v8_flags
+           .merge_background_deserialized_script_with_compilation_cache) {
     return false;
   }
   return impl_->ShouldMergeWithExistingScript();
 }
 
 void ScriptCompiler::ConsumeCodeCacheTask::MergeWithExistingScript() {
-  DCHECK(i::FLAG_merge_background_deserialized_script_with_compilation_cache);
+  DCHECK(
+      i::v8_flags.merge_background_deserialized_script_with_compilation_cache);
   impl_->MergeWithExistingScript();
 }
 
 ScriptCompiler::ConsumeCodeCacheTask* ScriptCompiler::StartConsumingCodeCache(
     Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
-  if (!i::FLAG_concurrent_cache_deserialization) return nullptr;
+  if (!i::v8_flags.concurrent_cache_deserialization) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return new ScriptCompiler::ConsumeCodeCacheTask(
@@ -4923,7 +4926,7 @@ Maybe<bool> Object::SetAccessor(Local<Context> context, Local<Name> name,
                                 SideEffectType setter_side_effect_type) {
   return ObjectSetAccessor(context, this, name, getter, setter,
                            data.FromMaybe(Local<Value>()), settings, attribute,
-                           i::FLAG_disable_old_api_accessors, false,
+                           i::v8_flags.disable_old_api_accessors, false,
                            getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -6740,6 +6743,14 @@ void v8::Context::SetPromiseHooks(Local<Function> init_hook,
 #endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 }
 
+bool Context::HasTemplateLiteralObject(Local<Value> object) {
+  i::DisallowGarbageCollection no_gc;
+  i::Object i_object = *Utils::OpenHandle(*object);
+  if (!i_object.IsJSArray()) return false;
+  return Utils::OpenHandle(this)->native_context().HasTemplateLiteralObject(
+      i::JSArray::cast(i_object));
+}
+
 MaybeLocal<Context> metrics::Recorder::GetContext(
     Isolate* v8_isolate, metrics::Recorder::ContextId id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -8149,12 +8160,12 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     void* deleter_data) {
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
 #ifdef V8_ENABLE_SANDBOX
-  Utils::ApiCheck(
-      !data || i::GetProcessWideSandbox()->Contains(data),
-      "v8_ArrayBuffer_NewBackingStore",
-      "When the V8 Sandbox is enabled, ArrayBuffer backing stores must be "
-      "allocated inside the sandbox address space. Please use an appropriate "
-      "ArrayBuffer::Allocator to allocate these buffers.");
+  Utils::ApiCheck(!data || i::GetProcessWideSandbox()->Contains(data),
+                  "v8_ArrayBuffer_NewBackingStore",
+                  "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
+                  "must be allocated inside the sandbox address space. Please "
+                  "use an appropriate ArrayBuffer::Allocator to allocate these "
+                  "buffers, or disable the sandbox.");
 #endif  // V8_ENABLE_SANDBOX
 
   std::unique_ptr<i::BackingStoreBase> backing_store =
@@ -8246,7 +8257,7 @@ static_assert(
   Local<Type##Array> Type##Array::New(                                      \
       Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,     \
       size_t length) {                                                      \
-    CHECK(i::FLAG_harmony_sharedarraybuffer);                               \
+    CHECK(i::v8_flags.harmony_sharedarraybuffer);                           \
     i::Isolate* i_isolate =                                                 \
         Utils::OpenHandle(*shared_array_buffer)->GetIsolate();              \
     API_RCS_SCOPE(i_isolate, Type##Array, New);                             \
@@ -8281,7 +8292,7 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
 
 Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
                               size_t byte_offset, size_t byte_length) {
-  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*shared_array_buffer);
   i::Isolate* i_isolate = buffer->GetIsolate();
   API_RCS_SCOPE(i_isolate, DataView, New);
@@ -8298,7 +8309,7 @@ size_t v8::SharedArrayBuffer::ByteLength() const {
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
                                                     size_t byte_length) {
-  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -8320,7 +8331,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     Isolate* v8_isolate, std::shared_ptr<BackingStore> backing_store) {
-  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  CHECK(i::v8_flags.harmony_sharedarraybuffer);
   CHECK_IMPLIES(backing_store->ByteLength() != 0,
                 backing_store->Data() != nullptr);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -8711,7 +8722,7 @@ bool Isolate::HasPendingBackgroundTasks() {
 }
 
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
-  Utils::ApiCheck(i::FLAG_expose_gc,
+  Utils::ApiCheck(i::v8_flags.expose_gc,
                   "v8::Isolate::RequestGarbageCollectionForTesting",
                   "Must use --expose-gc");
   if (type == kMinorGarbageCollection) {
@@ -9227,7 +9238,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 
 void Isolate::SetEventLogger(LogEventCallback that) {
   // Do not overwrite the event logger if we want to log explicitly.
-  if (i::FLAG_log_internal_timer_events) return;
+  if (i::v8_flags.log_internal_timer_events) return;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->set_event_logger(that);
 }
@@ -9360,7 +9371,7 @@ bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  if (!i::FLAG_use_idle_notification) return true;
+  if (!i::v8_flags.use_idle_notification) return true;
   return i_isolate->heap()->IdleNotification(deadline_in_seconds);
 }
 
@@ -9563,7 +9574,7 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   if (i_isolate->is_execution_terminating()) return;
   i_isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
 #if V8_ENABLE_WEBASSEMBLY
-  if (i::FLAG_expose_wasm && !i_isolate->has_pending_exception()) {
+  if (i::v8_flags.expose_wasm && !i_isolate->has_pending_exception()) {
     i::WasmJs::InstallConditionalFeatures(i_isolate,
                                           Utils::OpenHandle(*context));
   }

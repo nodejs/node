@@ -1197,8 +1197,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ int3();  // Should not return.
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector,
-                                                  closure);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure);
 
   __ bind(&is_baseline);
   {
@@ -1627,8 +1626,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // return since we may do a runtime call along the way that requires the
     // stack to only contain valid frames.
     __ Drop(1);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-        flags, feedback_vector, closure, JumpMode::kPushAndReturn);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure,
+                                               JumpMode::kPushAndReturn);
     __ Trap();
   }
 
@@ -2697,10 +2696,216 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
-  using D = OnStackReplacementDescriptor;
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOnStackReplacement>::type;
   static_assert(D::kParameterCount == 1);
   OnStackReplacement(masm, OsrSourceTier::kMaglev,
                      D::MaybeTargetCodeRegister());
+}
+
+// Called immediately at the start of Maglev-generated functions, with all
+// state (register and stack) unchanged, except:
+//
+// - the stack slot byte size and
+// - the tagged stack slot byte size
+//
+// are pushed as untagged arguments to the stack. This prologue builtin takes
+// care of a few things that each Maglev function needs on entry:
+//
+// - the deoptimization check
+// - tiering support (checking FeedbackVector flags)
+// - the stack overflow / interrupt check
+// - and finally, setting up the Maglev frame.
+//
+// If this builtin returns, the Maglev frame is fully set up and we are
+// prepared for continued execution. Otherwise, we take one of multiple
+// possible non-standard exit paths (deoptimization, tailcalling other code, or
+// throwing a stack overflow exception).
+void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOutOfLinePrologue>::type;
+  static_assert(D::kParameterCount == 0);
+
+  // This builtin is called by Maglev code prior to any register mutations, and
+  // the only stack mutation is pushing the arguments for this builtin. In
+  // other words:
+  //
+  // - The register state is the same as when we entered the Maglev code object,
+  // i.e. set up for a standard JS call.
+  // - The caller has not yet set up a stack frame.
+  // - The caller has pushed the (untagged) stack parameters for this builtin.
+
+  static constexpr int kStackParameterCount = 2;
+  static constexpr int kReturnAddressCount = 1;
+  static constexpr int kReturnAddressOffset = 0 * kSystemPointerSize;
+  static constexpr int kTaggedStackSlotBytesOffset = 1 * kSystemPointerSize;
+  static constexpr int kTotalStackSlotBytesOffset = 2 * kSystemPointerSize;
+  USE(kReturnAddressOffset);
+  USE(kTaggedStackSlotBytesOffset);
+  USE(kTotalStackSlotBytesOffset);
+
+  // Scratch registers. Don't clobber regs related to the calling
+  // convention (e.g. kJavaScriptCallArgCountRegister).
+  const Register scratch0 = rcx;
+  const Register scratch1 = r9;
+  const Register scratch2 = rbx;
+
+  Label deoptimize, optimize, call_stack_guard, call_stack_guard_return;
+
+  // A modified version of BailoutIfDeoptimized that drops the builtin frame
+  // before deoptimizing.
+  {
+    static constexpr int kCodeStartToCodeDataContainerOffset =
+        Code::kCodeDataContainerOffset - Code::kHeaderSize;
+    __ LoadTaggedPointerField(scratch0,
+                              Operand(kJavaScriptCallCodeStartRegister,
+                                      kCodeStartToCodeDataContainerOffset));
+    __ testl(
+        FieldOperand(scratch0, CodeDataContainer::kKindSpecificFlagsOffset),
+        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+    __ j(not_zero, &deoptimize);
+  }
+
+  // Tiering support.
+  const Register flags = scratch0;
+  const Register feedback_vector = scratch1;
+  {
+    __ LoadTaggedPointerField(
+        feedback_vector,
+        FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedPointerField(
+        feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+    __ AssertFeedbackVector(feedback_vector);
+
+    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::MAGLEV, &optimize);
+  }
+
+  // Good to go - set up the MAGLEV stack frame and return.
+
+  // First, tear down to the caller frame.
+  const Register tagged_stack_slot_bytes = scratch1;
+  const Register total_stack_slot_bytes = scratch0;
+  const Register return_address = scratch2;
+  __ PopReturnAddressTo(return_address);
+  __ Pop(tagged_stack_slot_bytes);
+  __ Pop(total_stack_slot_bytes);
+
+  __ EnterFrame(StackFrame::MAGLEV);
+
+  // Save arguments in frame.
+  // TODO(leszeks): Consider eliding this frame if we don't make any calls
+  // that could clobber these registers.
+  __ Push(kContextRegister);
+  __ Push(kJSFunctionRegister);              // Callee's JS function.
+  __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+
+  {
+    ASM_CODE_COMMENT_STRING(masm, " Stack/interrupt check");
+    // Stack check. This folds the checks for both the interrupt stack limit
+    // check and the real stack limit into one by just checking for the
+    // interrupt limit. The interrupt limit is either equal to the real stack
+    // limit or tighter. By ensuring we have space until that limit after
+    // building the frame we can quickly precheck both at once.
+    // TODO(leszeks): Include a max call argument size here.
+    __ Move(kScratchRegister, rsp);
+    __ subq(kScratchRegister, total_stack_slot_bytes);
+    __ cmpq(kScratchRegister,
+            __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+    __ j(below, &call_stack_guard);
+    __ bind(&call_stack_guard_return);
+  }
+
+  // Initialize stack slots:
+  //
+  // - tagged slots are initialized with smi zero.
+  // - untagged slots are simply reserved without initialization.
+  //
+  // Tagged slots first.
+  const Register untagged_stack_slot_bytes = total_stack_slot_bytes;
+  {
+    Label next, loop_condition, loop_header;
+
+    DCHECK_EQ(total_stack_slot_bytes, untagged_stack_slot_bytes);
+    __ subq(total_stack_slot_bytes, tagged_stack_slot_bytes);
+
+    const Register smi_zero = rax;
+    DCHECK(!AreAliased(smi_zero, scratch0, scratch1, scratch2));
+    __ Move(smi_zero, Smi::zero());
+
+    __ jmp(&loop_condition, Label::kNear);
+
+    // TODO(leszeks): Consider filling with xmm + movdqa instead.
+    // TODO(v8:7700): Consider doing more than one push per loop iteration.
+    __ bind(&loop_header);
+    __ pushq(rax);
+    __ bind(&loop_condition);
+    __ subq(tagged_stack_slot_bytes, Immediate(kSystemPointerSize));
+    __ j(greater_equal, &loop_header, Label::kNear);
+
+    __ bind(&next);
+  }
+
+  // Untagged slots second.
+  __ subq(rsp, untagged_stack_slot_bytes);
+
+  // The "all-good" return location. This is the only spot where we actually
+  // return to the caller.
+  __ PushReturnAddressFrom(return_address);
+  __ ret(0);
+
+  __ bind(&deoptimize);
+  {
+    // Drop the frame and jump to CompileLazyDeoptimizedCode. This is slightly
+    // fiddly due to the CET shadow stack (otherwise we could do a conditional
+    // Jump to the builtin).
+    __ Drop(kStackParameterCount + kReturnAddressCount);
+    __ Move(scratch0,
+            BUILTIN_CODE(masm->isolate(), CompileLazyDeoptimizedCode));
+    __ LoadCodeObjectEntry(scratch0, scratch0);
+    __ PushReturnAddressFrom(scratch0);
+    __ ret(0);
+  }
+
+  __ bind(&optimize);
+  {
+    __ Drop(kStackParameterCount + kReturnAddressCount);
+    __ AssertFunction(kJSFunctionRegister);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(
+        flags, feedback_vector, kJSFunctionRegister, JumpMode::kPushAndReturn);
+    __ Trap();
+  }
+
+  __ bind(&call_stack_guard);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+
+    // Push the MAGLEV code return address now, as if it had been pushed by the
+    // call to this builtin.
+    __ PushReturnAddressFrom(return_address);
+
+    {
+      FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(total_stack_slot_bytes);
+      __ Push(total_stack_slot_bytes);
+      __ SmiTag(tagged_stack_slot_bytes);
+      __ Push(tagged_stack_slot_bytes);
+      // Save any registers that can be referenced by maglev::RegisterInput.
+      // TODO(leszeks): Only push those that are used by the graph.
+      __ Push(kJavaScriptCallNewTargetRegister);
+      // Push the frame size.
+      __ Push(total_stack_slot_bytes);
+      __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+      __ Pop(kJavaScriptCallNewTargetRegister);
+      __ Pop(tagged_stack_slot_bytes);
+      __ SmiUntag(tagged_stack_slot_bytes);
+      __ Pop(total_stack_slot_bytes);
+      __ SmiUntag(total_stack_slot_bytes);
+    }
+
+    __ PopReturnAddressTo(return_address);
+    __ jmp(&call_stack_guard_return);
+  }
 }
 
 #if V8_ENABLE_WEBASSEMBLY

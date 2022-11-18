@@ -28,6 +28,7 @@ namespace internal {
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \
+  V(kInputDoesNotFitSmi, "Input number is too large to fit in a Smi")          \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \

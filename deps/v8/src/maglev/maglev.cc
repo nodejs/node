@@ -13,12 +13,12 @@ namespace internal {
 
 MaybeHandle<CodeT> Maglev::Compile(Isolate* isolate,
                                    Handle<JSFunction> function) {
-  DCHECK(FLAG_maglev);
+  DCHECK(v8_flags.maglev);
   std::unique_ptr<maglev::MaglevCompilationInfo> info =
       maglev::MaglevCompilationInfo::New(isolate, function);
   maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),
                                   info.get());
-  return maglev::MaglevCompiler::GenerateCode(info.get());
+  return maglev::MaglevCompiler::GenerateCode(isolate, info.get());
 }
 
 }  // namespace internal

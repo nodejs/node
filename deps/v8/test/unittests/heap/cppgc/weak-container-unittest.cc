@@ -18,26 +18,23 @@ namespace internal {
 namespace {
 class WeakContainerTest : public testing::TestWithHeap {
  public:
-  using Config = Marker::MarkingConfig;
-
   void StartMarking() {
     CHECK_EQ(0u,
              Heap::From(GetHeap())->AsBase().stats_collector()->marked_bytes());
-    Config config = {Config::CollectionType::kMajor,
-                     Config::StackState::kNoHeapPointers,
-                     Config::MarkingType::kIncremental};
+    MarkingConfig config = {CollectionType::kMajor, StackState::kNoHeapPointers,
+                            MarkingConfig::MarkingType::kIncremental};
     GetMarkerRef() = std::make_unique<Marker>(
         Heap::From(GetHeap())->AsBase(), GetPlatformHandle().get(), config);
     GetMarkerRef()->StartMarking();
   }
 
-  void FinishMarking(Config::StackState stack_state) {
+  void FinishMarking(StackState stack_state) {
     GetMarkerRef()->FinishMarking(stack_state);
     marked_bytes_ =
         Heap::From(GetHeap())->AsBase().stats_collector()->marked_bytes();
     GetMarkerRef().reset();
     Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
-        GarbageCollector::Config::SweepingType::kAtomic);
+        GCConfig::SweepingType::kAtomic);
   }
 
   size_t GetMarkedBytes() const { return marked_bytes_; }
@@ -96,7 +93,7 @@ TEST_F(WeakContainerTest, TraceableGCedTraced) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kNoHeapPointers);
+  FinishMarking(StackState::kNoHeapPointers);
   EXPECT_NE(0u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<TraceableGCed>(), GetMarkedBytes());
 }
@@ -107,7 +104,7 @@ TEST_F(WeakContainerTest, NonTraceableGCedNotTraced) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kNoHeapPointers);
+  FinishMarking(StackState::kNoHeapPointers);
   EXPECT_EQ(0u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<NonTraceableGCed>(), GetMarkedBytes());
 }
@@ -118,7 +115,7 @@ TEST_F(WeakContainerTest, NonTraceableGCedNotTracedConservatively) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kMayContainHeapPointers);
+  FinishMarking(StackState::kMayContainHeapPointers);
   EXPECT_NE(0u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<NonTraceableGCed>(), GetMarkedBytes());
 }
@@ -129,7 +126,7 @@ TEST_F(WeakContainerTest, PreciseGCTracesWeakContainerWhenTraced) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kNoHeapPointers);
+  FinishMarking(StackState::kNoHeapPointers);
   EXPECT_EQ(1u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<TraceableGCed>(), GetMarkedBytes());
 }
@@ -140,7 +137,7 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainer) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kMayContainHeapPointers);
+  FinishMarking(StackState::kMayContainHeapPointers);
   EXPECT_EQ(2u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<TraceableGCed>(), GetMarkedBytes());
 }
@@ -155,7 +152,7 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainerOnce) {
   obj->n_trace_calls = 0u;
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, EmptyWeakCallback, nullptr);
-  FinishMarking(Config::StackState::kMayContainHeapPointers);
+  FinishMarking(StackState::kMayContainHeapPointers);
   EXPECT_EQ(1u, obj->n_trace_calls);
   EXPECT_EQ(SizeOf<NonTraceableGCed>(), GetMarkedBytes());
 }
@@ -183,7 +180,7 @@ TEST_F(WeakContainerTest, WeakContainerWeakCallbackCalled) {
   StartMarking();
   GetMarkerRef()->Visitor().TraceWeakContainer(obj, WeakCallback::callback,
                                                obj);
-  FinishMarking(Config::StackState::kMayContainHeapPointers);
+  FinishMarking(StackState::kMayContainHeapPointers);
   EXPECT_NE(0u, WeakCallback::n_callback_called);
   EXPECT_EQ(SizeOf<TraceableGCed>(), GetMarkedBytes());
   EXPECT_EQ(obj, WeakCallback::obj);

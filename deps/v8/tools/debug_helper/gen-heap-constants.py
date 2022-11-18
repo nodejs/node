@@ -64,13 +64,16 @@ if (hasattr(v8heapconst, 'HEAP_FIRST_PAGES')):  # Only exists in ptr-compr build
   out = out + '  if (heap_addresses->any_heap_pointer == 0) {\n'
   out = out + '    heap_addresses->any_heap_pointer = any_uncompressed_ptr;\n'
   out = out + '  }\n'
+  # If we ever try to apply this to CodeSpace we might need to use
+  # ExternalCodeCompressionScheme instead of V8HeapCompressionScheme for
+  # decompressing external code pointers below.
   expected_spaces = set(['map_space', 'read_only_space', 'old_space'])
   for offset, space_name in v8heapconst.HEAP_FIRST_PAGES.items():
     if (space_name in expected_spaces):
       out = out + '  if (heap_addresses->' + space_name + '_first_page == 0) {\n'
       out = out + '    heap_addresses->' + space_name + \
-          '_first_page = i::DecompressTaggedPointer(any_uncompressed_ptr, ' + \
-          str(offset) + ');\n'
+          '_first_page = i::V8HeapCompressionScheme::DecompressTaggedPointer(' + \
+          'any_uncompressed_ptr, ' + str(offset) + ');\n'
       out = out + '  }\n'
 out = out + '}\n'
 

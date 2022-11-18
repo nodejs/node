@@ -55,7 +55,12 @@ class WasmInliner final : public AdvancedReducer {
 
   const char* reducer_name() const override { return "WasmInliner"; }
 
+  // Registers (tail) calls to possibly be inlined, prioritized by inlining
+  // heuristics provided by {LexicographicOrdering}.
+  // Only locally defined functions are inlinable, and a limited number of
+  // inlinings of a specific function is allowed.
   Reduction Reduce(Node* node) final;
+  // Inlines calls registered by {Reduce}, until an inlining budget is exceeded.
   void Finalize() final;
 
   static bool graph_size_allows_inlining(size_t graph_size) {

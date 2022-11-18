@@ -175,7 +175,7 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
       ExternalReference::javascript_execution_assert(isolate()));
   static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     auto do_store = __ MakeLabel();
     Node* old_scope_value =
         __ Load(MachineType::Int8(), javascript_execution_assert, 0);

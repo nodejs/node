@@ -35,7 +35,7 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
 
   // Step 2: on the background thread, update pointers in the new Script's
   // object graph to point to corresponding objects from the cached Script where
-  // appropriate. May only be called if HasCachedScript returned true.
+  // appropriate. May only be called if HasPendingBackgroundWork returned true.
   void BeginMergeInBackground(LocalIsolate* isolate, Handle<Script> new_script);
 
   // Step 3: on the main thread again, complete the merge so that all relevant
@@ -45,10 +45,11 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
   Handle<SharedFunctionInfo> CompleteMergeInForeground(
       Isolate* isolate, Handle<Script> new_script);
 
-  bool HasCachedScript() const { return !cached_script_.is_null(); }
+  bool HasPendingBackgroundWork() const {
+    return state_ == kPendingBackgroundWork;
+  }
   bool HasPendingForegroundWork() const {
-    return !used_new_sfis_.empty() ||
-           !new_compiled_data_for_cached_sfis_.empty();
+    return state_ == kPendingForegroundWork;
   }
 
  private:
@@ -81,6 +82,14 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
     Handle<FeedbackMetadata> feedback_metadata;
   };
   std::vector<NewCompiledDataForCachedSfi> new_compiled_data_for_cached_sfis_;
+
+  enum State {
+    kNotStarted,
+    kPendingBackgroundWork,
+    kPendingForegroundWork,
+    kDone,
+  };
+  State state_ = kNotStarted;
 };
 
 }  // namespace internal

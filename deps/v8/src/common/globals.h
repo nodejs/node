@@ -72,9 +72,9 @@ namespace internal {
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-#define V8_EMBEDDED_CONSTANT_POOL true
+#define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
-#define V8_EMBEDDED_CONSTANT_POOL false
+#define V8_EMBEDDED_CONSTANT_POOL_BOOL false
 #endif
 
 #ifdef DEBUG
@@ -113,9 +113,10 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
 #endif
 
-#if defined(V8_SHARED_RO_HEAP) &&      \
-    (!defined(V8_COMPRESS_POINTERS) || \
-     defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE))
+#if defined(V8_SHARED_RO_HEAP) &&                     \
+    (!defined(V8_COMPRESS_POINTERS) ||                \
+     defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)) && \
+    !defined(V8_DISABLE_WRITE_BARRIERS)
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL true
 #else
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
@@ -141,12 +142,7 @@ namespace internal {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
-#if (V8_TARGET_ARCH_S390X && COMPRESS_POINTERS_BOOL)
-// TODO(v8:11421): Enable Sparkplug for these architectures.
-#define ENABLE_SPARKPLUG false
-#else
 #define ENABLE_SPARKPLUG true
-#endif
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
 // Set stack limit lower for ARM and ARM64 than for other architectures because:
@@ -156,9 +152,16 @@ namespace internal {
 //    initializing V8 we already have a large stack and so have to set the
 //    limit lower. See issue crbug.com/v8/10575
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#elif V8_TARGET_ARCH_IA32
+// In mid-2022, we're observing an increase in stack overflow crashes on
+// 32-bit Windows; the suspicion is that some third-party software suddenly
+// started to consume a lot more stack memory (before V8 is even initialized).
+// So we speculatively lower the ia32 limit to the ARM limit for the time
+// being. See crbug.com/1346791.
+#define V8_DEFAULT_STACK_SIZE_KB 864
 #else
 // Slightly less than 1MB, since Windows' default stack size for
-// the main execution thread is 1MB for both 32 and 64-bit.
+// the main execution thread is 1MB.
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
@@ -744,6 +747,13 @@ constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 constexpr intptr_t kObjectAlignment8GbHeap = 8;
 constexpr intptr_t kObjectAlignment8GbHeapMask = kObjectAlignment8GbHeap - 1;
 
+#ifdef V8_COMPRESS_POINTERS_8GB
+static_assert(
+    kObjectAlignment8GbHeap == 2 * kTaggedSize,
+    "When the 8GB heap is enabled, all allocations should be aligned to twice "
+    "the size of a tagged value.");
+#endif
+
 // Desired alignment for system pointers.
 constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
@@ -896,6 +906,8 @@ class CompressedObjectSlot;
 class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
 class CompressedHeapObjectSlot;
+class V8HeapCompressionScheme;
+template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
@@ -924,15 +936,16 @@ struct SlotTraits {
   using TObjectSlot = CompressedObjectSlot;
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
-  using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
-  using TCodeObjectSlot = OffHeapCompressedObjectSlot;
+  using TOffHeapObjectSlot =
+      OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
+  using TCodeObjectSlot = OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
   using TCodeObjectSlot = OffHeapFullObjectSlot;
-#endif
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
@@ -969,22 +982,24 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  RO_SPACE,       // Immortal, immovable and immutable objects,
-  OLD_SPACE,      // Old generation regular object space.
-  CODE_SPACE,     // Old generation code object space, marked executable.
-  MAP_SPACE,      // Old generation map object space, non-movable.
-  NEW_SPACE,      // Young generation space for regular objects collected
-                  // with Scavenger/MinorMC.
-  LO_SPACE,       // Old generation large object space.
-  CODE_LO_SPACE,  // Old generation large code object space.
-  NEW_LO_SPACE,   // Young generation large object space.
+  RO_SPACE,         // Immortal, immovable and immutable objects,
+  OLD_SPACE,        // Old generation regular object space.
+  CODE_SPACE,       // Old generation code object space, marked executable.
+  MAP_SPACE,        // Old generation map object space, non-movable.
+  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
+  NEW_SPACE,        // Young generation space for regular objects collected
+                    // with Scavenger/MinorMC.
+  LO_SPACE,         // Old generation large object space.
+  CODE_LO_SPACE,    // Old generation large code object space.
+  NEW_LO_SPACE,     // Young generation large object space.
+  SHARED_LO_SPACE,  // Space shared between multiple isolates. Optional.
 
   FIRST_SPACE = RO_SPACE,
-  LAST_SPACE = NEW_LO_SPACE,
+  LAST_SPACE = SHARED_LO_SPACE,
   FIRST_MUTABLE_SPACE = OLD_SPACE,
-  LAST_MUTABLE_SPACE = NEW_LO_SPACE,
+  LAST_MUTABLE_SPACE = SHARED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
-  LAST_GROWABLE_PAGED_SPACE = MAP_SPACE,
+  LAST_GROWABLE_PAGED_SPACE = SHARED_SPACE,
   FIRST_SWEEPABLE_SPACE = OLD_SPACE,
   LAST_SWEEPABLE_SPACE = NEW_SPACE
 };
@@ -1000,6 +1015,46 @@ enum class AllocationType : uint8_t {
   kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
   kSharedMap,  // Map object in MAP_SPACE in the shared heap
 };
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. If you add new items here, update
+// src/tools/metrics/histograms/enums.xml in chromium.
+enum class GarbageCollectionReason : int {
+  kUnknown = 0,
+  kAllocationFailure = 1,
+  kAllocationLimit = 2,
+  kContextDisposal = 3,
+  kCountersExtension = 4,
+  kDebugger = 5,
+  kDeserializer = 6,
+  kExternalMemoryPressure = 7,
+  kFinalizeMarkingViaStackGuard = 8,
+  kFinalizeMarkingViaTask = 9,
+  kFullHashtable = 10,
+  kHeapProfiler = 11,
+  kTask = 12,
+  kLastResort = 13,
+  kLowMemoryNotification = 14,
+  kMakeHeapIterable = 15,
+  kMemoryPressure = 16,
+  kMemoryReducer = 17,
+  kRuntime = 18,
+  kSamplingProfiler = 19,
+  kSnapshotCreator = 20,
+  kTesting = 21,
+  kExternalFinalize = 22,
+  kGlobalAllocationLimit = 23,
+  kMeasureMemory = 24,
+  kBackgroundAllocationFailure = 25,
+  kFinalizeMinorMC = 26,
+  kCppHeapAllocationFailure = 27,
+
+  kLastReason = kCppHeapAllocationFailure,
+};
+
+static_assert(kGarbageCollectionReasonMaxValue ==
+                  static_cast<int>(GarbageCollectionReason::kLastReason),
+              "The value of kGarbageCollectionReasonMaxValue is inconsistent.");
 
 inline size_t hash_value(AllocationType kind) {
   return static_cast<uint8_t>(kind);
@@ -1226,6 +1281,19 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value) \
   (((value) + ::i::kObjectAlignmentMask) & ~::i::kObjectAlignmentMask)
+
+// OBJECT_POINTER_ALIGN is used to statically align object sizes to
+// kObjectAlignment (which is kTaggedSize). ALIGN_TO_ALLOCATION_ALIGNMENT is
+// used for dynamic allocations to align sizes and addresses to at least 8 bytes
+// when an 8GB+ compressed heap is enabled.
+// TODO(v8:13070): Consider merging this with OBJECT_POINTER_ALIGN.
+#ifdef V8_COMPRESS_POINTERS_8GB
+#define ALIGN_TO_ALLOCATION_ALIGNMENT(value)      \
+  (((value) + ::i::kObjectAlignment8GbHeapMask) & \
+   ~::i::kObjectAlignment8GbHeapMask)
+#else
+#define ALIGN_TO_ALLOCATION_ALIGNMENT(value) (value)
+#endif
 
 // OBJECT_POINTER_PADDING returns the padding size required to align value
 // as a HeapObject pointer
@@ -1600,7 +1668,7 @@ inline uint32_t ObjectHash(Address address) {
 //
 //   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
 //                                                     kString          -> kAny
-//                                                     kBigInt          -> kAny
+//                                        kBigInt64 -> kBigInt          -> kAny
 //
 // Technically we wouldn't need the separation between the kNumber and the
 // kNumberOrOddball values here, since for binary operations, we always
@@ -1617,7 +1685,8 @@ class BinaryOperationFeedback {
     kNumber = 0x7,
     kNumberOrOddball = 0xF,
     kString = 0x10,
-    kBigInt = 0x20,
+    kBigInt64 = 0x20,
+    kBigInt = 0x60,
     kAny = 0x7F
   };
 };
@@ -1803,6 +1872,15 @@ static constexpr uint32_t kNoneOrInProgressMask = 0b110;
   }
 TIERING_STATE_LIST(V)
 #undef V
+
+constexpr bool IsRequestMaglev(TieringState state) {
+  return IsRequestMaglev_Concurrent(state) ||
+         IsRequestMaglev_Synchronous(state);
+}
+constexpr bool IsRequestTurbofan(TieringState state) {
+  return IsRequestTurbofan_Concurrent(state) ||
+         IsRequestTurbofan_Synchronous(state);
+}
 
 constexpr const char* ToString(TieringState marker) {
   switch (marker) {

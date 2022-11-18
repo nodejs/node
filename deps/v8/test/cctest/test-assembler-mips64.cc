@@ -6216,7 +6216,7 @@ TEST(Call_with_trampoline) {
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  int next_buffer_check_ = FLAG_force_long_branches
+  int next_buffer_check_ = v8_flags.force_long_branches
                                ? kMaxInt
                                : TurboAssembler::kMaxBranchOffset -
                                      TurboAssembler::kTrampolineSlotsSize * 16;
@@ -6233,7 +6233,7 @@ TEST(Call_with_trampoline) {
   int pc_offset_before = __ pc_offset();
   {
     // There should be a trampoline after this Call
-    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::RUNTIME_ENTRY);
+    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::EXTERNAL_REFERENCE);
   }
   int pc_offset_after = __ pc_offset();
   int safepoint_pc_offset = __ pc_offset_for_safepoint();
@@ -9616,7 +9616,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
   T* in_array_middle = in_test_vector + arraysize(in_test_vector) / 2;
   T* out_array_middle = out_test_vector + arraysize(out_test_vector) / 2;
 
-  v8::base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  v8::base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
   for (unsigned int i = 0; i < arraysize(in_test_vector); i++) {
     in_test_vector[i] = static_cast<T>(rand_gen.NextInt());
     out_test_vector[i] = 0;

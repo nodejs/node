@@ -292,6 +292,7 @@ void GlobalHandles::NodeSpace<NodeType>::Release(NodeType* node) {
 
 template <class NodeType>
 void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
+  CHECK(node->IsInUse());
   node->Release(first_free_);
   first_free_ = node;
   BlockType* block = BlockType::From(node);
@@ -730,14 +731,13 @@ void GlobalHandles::TracedNode::Verify(const Address* const* slot) {
   const TracedNode* node = FromLocation(*slot);
   auto* global_handles = GlobalHandles::From(node);
   DCHECK(node->IsInUse());
-  auto* incremental_marking =
-      global_handles->isolate()->heap()->incremental_marking();
+  Heap* heap = global_handles->isolate()->heap();
+  auto* incremental_marking = heap->incremental_marking();
   if (incremental_marking && incremental_marking->IsMarking()) {
     Object object = node->object();
     if (object.IsHeapObject()) {
       DCHECK_IMPLIES(node->markbit<AccessMode::ATOMIC>(),
-                     !incremental_marking->marking_state()->IsWhite(
-                         HeapObject::cast(object)));
+                     !heap->marking_state()->IsWhite(HeapObject::cast(object)));
     }
   }
   DCHECK_IMPLIES(ObjectInYoungGeneration(node->object()),
@@ -817,7 +817,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   GlobalHandles* global_handles =
       Node::FromLocation(location)->global_handles();
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Object(*location).ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
@@ -847,7 +847,7 @@ void GlobalHandles::CopyTracedReference(const Address* const* from,
   TracedNode::Verify(from);
   TracedNode::Verify(to);
 #ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Object(**to).ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
@@ -931,17 +931,26 @@ void GlobalHandles::Destroy(Address* location) {
 
 // static
 void GlobalHandles::DestroyTracedReference(Address* location) {
-  if (location != nullptr) {
-    TracedNode* node = TracedNode::FromLocation(location);
-    auto* global_handles = GlobalHandles::From(node);
-    // When marking is off the handle may be freed immediately. Note that this
-    // includes also the case when invoking the first pass callbacks during the
-    // atomic pause which requires releasing a node fully.
-    if (!global_handles->is_marking_) {
-      NodeSpace<TracedNode>::Release(node);
-      return;
-    }
+  if (!location) return;
 
+  TracedNode* node = TracedNode::FromLocation(location);
+  auto* global_handles = GlobalHandles::From(node);
+  DCHECK_IMPLIES(global_handles->is_marking_,
+                 !global_handles->is_sweeping_on_mutator_thread_);
+  DCHECK_IMPLIES(global_handles->is_sweeping_on_mutator_thread_,
+                 !global_handles->is_marking_);
+
+  // If sweeping on the mutator thread is running then the handle destruction
+  // may be a result of a Reset() call from a destructor. The node will be
+  // reclaimed on the next cycle.
+  //
+  // This allows v8::TracedReference::Reset() calls from destructors on
+  // objects that may be used from stack and heap.
+  if (global_handles->is_sweeping_on_mutator_thread_) {
+    return;
+  }
+
+  if (global_handles->is_marking_) {
     // Incremental marking is on. This also covers the scavenge case which
     // prohibits eagerly reclaiming nodes when marking is on during a scavenge.
     //
@@ -950,7 +959,13 @@ void GlobalHandles::DestroyTracedReference(Address* location) {
     // marked. Eagerly clear out the object here to avoid needlessly marking it
     // from this point on. The node will be reclaimed on the next cycle.
     node->clear_object();
+    return;
   }
+
+  // In case marking and sweeping are off, the handle may be freed immediately.
+  // Note that this includes also the case when invoking the first pass
+  // callbacks during the atomic pause which requires releasing a node fully.
+  NodeSpace<TracedNode>::Release(node);
 }
 
 using GenericCallback = v8::WeakCallbackInfo<void>::Callback;
@@ -1022,7 +1037,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
 
 void GlobalHandles::ComputeWeaknessForYoungObjects(
     WeakSlotCallback is_unmodified) {
-  if (!FLAG_reclaim_unmodified_wrappers) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   // Treat all objects as roots during incremental marking to avoid corrupting
   // marking worklists.
@@ -1068,7 +1083,7 @@ void GlobalHandles::ProcessWeakYoungObjects(
     }
   }
 
-  if (!FLAG_reclaim_unmodified_wrappers) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   auto* const handler = isolate()->heap()->GetEmbedderRootsHandler();
   for (TracedNode* node : traced_young_nodes_) {
@@ -1220,7 +1235,7 @@ void GlobalHandles::PostGarbageCollectionProcessing(
   DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
 
   const bool synchronous_second_pass =
-      FLAG_optimize_for_size || FLAG_predictable ||
+      v8_flags.optimize_for_size || v8_flags.predictable ||
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |

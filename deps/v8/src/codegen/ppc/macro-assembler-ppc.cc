@@ -898,7 +898,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
   int fp_delta = 0;
   mflr(r0);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (marker_reg.is_valid()) {
       Push(r0, fp, kConstantPoolRegister, marker_reg);
       fp_delta = 2;
@@ -921,7 +921,7 @@ void TurboAssembler::PushCommonFrame(Register marker_reg) {
 void TurboAssembler::PushStandardFrame(Register function_reg) {
   int fp_delta = 0;
   mflr(r0);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     if (function_reg.is_valid()) {
       Push(r0, fp, kConstantPoolRegister, cp, function_reg);
       fp_delta = 3;
@@ -943,7 +943,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
     set_constant_pool_available(false);
@@ -1230,7 +1230,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
     mov(r11, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r11);
   }
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
   }
@@ -1238,7 +1238,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
 
 void TurboAssembler::Prologue() {
   PushStandardFrame(r4);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // base contains prologue address
     LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
@@ -1288,8 +1288,7 @@ void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
-  if (v8_flags.enable_embedded_constant_pool &&
-      load_constant_pool_pointer_reg) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && load_constant_pool_pointer_reg) {
     // Push type explicitly so we can leverage the constant pool.
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
@@ -1322,7 +1321,7 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   int frame_ends;
   LoadU64(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(ip, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     LoadU64(kConstantPoolRegister,
             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   }
@@ -1373,7 +1372,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     li(r8, Operand::Zero());
     StoreU64(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     StoreU64(kConstantPoolRegister,
              MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
@@ -2153,7 +2152,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   bne(flags_need_processing, cr0);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   DCHECK(!AreAliased(flags, feedback_vector));
   Label maybe_has_optimized_code, maybe_needs_logging;
@@ -2654,7 +2653,7 @@ void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
 
 void TurboAssembler::LoadDoubleLiteral(DoubleRegister result,
                                        base::Double value, Register scratch) {
-  if (v8_flags.enable_embedded_constant_pool && is_constant_pool_available() &&
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && is_constant_pool_available() &&
       !(scratch == r0 && ConstantPoolAccessIsInOverflow())) {
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(value);
     if (access == ConstantPoolEntry::OVERFLOWED) {
@@ -3715,6 +3714,10 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I16x8Eq, vcmpequh)     \
   V(I16x8GtS, vcmpgtsh)    \
   V(I16x8GtU, vcmpgtuh)    \
+  V(I16x8AddSatS, vaddshs) \
+  V(I16x8SubSatS, vsubshs) \
+  V(I16x8AddSatU, vadduhs) \
+  V(I16x8SubSatU, vsubuhs) \
   V(I8x16Add, vaddubm)     \
   V(I8x16Sub, vsububm)     \
   V(I8x16MinS, vminsb)     \
@@ -3723,7 +3726,11 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(I8x16MaxU, vmaxub)     \
   V(I8x16Eq, vcmpequb)     \
   V(I8x16GtS, vcmpgtsb)    \
-  V(I8x16GtU, vcmpgtub)
+  V(I8x16GtU, vcmpgtub)    \
+  V(I8x16AddSatS, vaddsbs) \
+  V(I8x16SubSatS, vsubsbs) \
+  V(I8x16AddSatU, vaddubs) \
+  V(I8x16SubSatU, vsububs)
 
 #define EMIT_SIMD_BINOP(name, op)                                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
@@ -3733,6 +3740,62 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
 SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl, vsld)        \
+  V(I64x2ShrS, vsrad)      \
+  V(I64x2ShrU, vsrd)       \
+  V(I32x4Shl, vslw)        \
+  V(I32x4ShrS, vsraw)      \
+  V(I32x4ShrU, vsrw)       \
+  V(I16x8Shl, vslh)        \
+  V(I16x8ShrS, vsrah)      \
+  V(I16x8ShrU, vsrh)       \
+  V(I8x16Shl, vslb)        \
+  V(I8x16ShrS, vsrab)      \
+  V(I8x16ShrU, vsrb)
+
+#define EMIT_SIMD_SHIFT(name, op)                                      \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            Register src2, Simd128Register scratch) {  \
+    mtvsrd(scratch, src2);                                             \
+    vspltb(scratch, scratch, Operand(7));                              \
+    op(dst, src1, scratch);                                            \
+  }                                                                    \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            const Operand& src2, Register scratch1,    \
+                            Simd128Register scratch2) {                \
+    mov(scratch1, src2);                                               \
+    name(dst, src1, scratch1, scratch2);                               \
+  }
+SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
+#undef EMIT_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
+#define SIMD_UNOP_LIST(V) \
+  V(F64x2Abs, xvabsdp)    \
+  V(F64x2Neg, xvnegdp)    \
+  V(F64x2Sqrt, xvsqrtdp)  \
+  V(F64x2Ceil, xvrdpip)   \
+  V(F64x2Floor, xvrdpim)  \
+  V(F64x2Trunc, xvrdpiz)  \
+  V(F32x4Abs, xvabssp)    \
+  V(F32x4Neg, xvnegsp)    \
+  V(F32x4Sqrt, xvsqrtsp)  \
+  V(F32x4Ceil, xvrspip)   \
+  V(F32x4Floor, xvrspim)  \
+  V(F32x4Trunc, xvrspiz)  \
+  V(I64x2Neg, vnegd)      \
+  V(I32x4Neg, vnegw)      \
+  V(I8x16Popcnt, vpopcntb)
+
+#define EMIT_SIMD_UNOP(name, op)                                        \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src) { \
+    op(dst, src);                                                       \
+  }
+SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
+#undef EMIT_SIMD_UNOP
+#undef SIMD_UNOP_LIST
 
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
@@ -4108,6 +4171,51 @@ void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
   vcmpequb(scratch, src1, src2);
   vcmpgtub(dst, src1, src2);
   vor(dst, dst, scratch);
+}
+
+void TurboAssembler::I64x2Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 63;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrad(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubudm(dst, dst, scratch);
+}
+void TurboAssembler::I32x4Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 31;
+  xxspltib(scratch, Operand(shift_bits));
+  vsraw(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubuwm(dst, dst, scratch);
+}
+void TurboAssembler::I16x8Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 15;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrah(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsubuhm(dst, dst, scratch);
+}
+void TurboAssembler::I16x8Neg(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  vspltish(scratch, Operand(1));
+  vnor(dst, src, src);
+  vadduhm(dst, scratch, dst);
+}
+void TurboAssembler::I8x16Abs(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  constexpr int shift_bits = 7;
+  xxspltib(scratch, Operand(shift_bits));
+  vsrab(scratch, src, scratch);
+  vxor(dst, src, scratch);
+  vsububm(dst, dst, scratch);
+}
+void TurboAssembler::I8x16Neg(Simd128Register dst, Simd128Register src,
+                              Simd128Register scratch) {
+  xxspltib(scratch, Operand(1));
+  vnor(dst, src, src);
+  vaddubm(dst, scratch, dst);
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,

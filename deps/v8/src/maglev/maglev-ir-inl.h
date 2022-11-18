@@ -30,10 +30,28 @@ void DeepForEachInputImpl(const MaglevCompilationUnit& unit,
 }
 
 template <typename Function>
-void DeepForEachInput(const EagerDeoptInfo* node, Function&& f) {
+void DeepForEachInput(const EagerDeoptInfo* deopt_info, Function&& f) {
   int index = 0;
-  DeepForEachInputImpl(node->unit, &node->state, node->input_locations, index,
-                       f);
+  DeepForEachInputImpl(deopt_info->unit, &deopt_info->state,
+                       deopt_info->input_locations, index, f);
+}
+
+template <typename Function>
+void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
+  int index = 0;
+  if (deopt_info->state.parent) {
+    DeepForEachInputImpl(*deopt_info->unit.caller(), deopt_info->state.parent,
+                         deopt_info->input_locations, index, f);
+  }
+  // Handle the top-of-frame info separately, since we have to skip the result
+  // location.
+  deopt_info->state.register_frame->ForEachValue(
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+        // Skip over the result location since it is irrelevant for lazy deopts
+        // (unoptimized code will recreate the result).
+        if (deopt_info->IsResultRegister(reg)) return;
+        f(node, reg, &deopt_info->input_locations[index++]);
+      });
 }
 
 }  // namespace detail

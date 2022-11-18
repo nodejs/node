@@ -17,6 +17,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
@@ -84,10 +85,9 @@ class WasmStreaming::WasmStreamingImpl {
       std::function<void(CompiledWasmModule)> callback) {
     streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
         [callback = std::move(callback),
-         streaming_decoder = streaming_decoder_](
+         url = streaming_decoder_->shared_url()](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          base::Vector<const char> url = streaming_decoder->url();
-          callback(CompiledWasmModule{native_module, url.begin(), url.size()});
+          callback(CompiledWasmModule{native_module, url->data(), url->size()});
         });
   }
 
@@ -1565,8 +1565,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case i::wasm::kRtt:
-      // TODO(7748): Implement.
-      UNIMPLEMENTED();
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kVoid:
@@ -2725,7 +2723,6 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     }
     case i::wasm::kRtt:
-      UNIMPLEMENTED();  // TODO(7748): Implement.
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kBottom:
@@ -2992,9 +2989,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
-  // TODO(tebbi): Put this behind its own flag once --wasm-gc-js-interop gets
-  // closer to shipping.
-  if (v8_flags.wasm_gc_js_interop) {
+  // TODO(7748): These built-ins should not be shipped with wasm GC.
+  // Either a new flag will be needed or the built-ins have to be deleted prior
+  // to shipping.
+  if (v8_flags.experimental_wasm_gc) {
     SimpleInstallFunction(
         isolate, webassembly, "experimentalConvertArrayToString",
         Builtin::kExperimentalWasmConvertArrayToString, 0, true);

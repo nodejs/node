@@ -53,10 +53,10 @@ using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::SourceLocation;
+using i::heap::GrowNewSpaceToMaximumCapacity;
 using v8::base::ArrayVector;
 using v8::base::Optional;
 using v8::base::Vector;
-using v8::internal::heap::GrowNewSpaceToMaximumCapacity;
 
 namespace {
 
@@ -1297,7 +1297,7 @@ static TestStatsStream GetHeapStatsUpdate(
 
 TEST(HeapSnapshotObjectsStats) {
   // Concurrent allocation might break results
-  v8::internal::v8_flags.stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation = false;
 
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2639,7 +2639,7 @@ TEST(ManyLocalsInSharedContext) {
       env->GetIsolate(), ok_object, v8::HeapGraphEdge::kInternal, "context");
   CHECK(context_object);
   // Check the objects are not duplicated in the context.
-  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
+  CHECK_EQ(i::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
@@ -2695,7 +2695,7 @@ TEST(AllocationSitesAreVisible) {
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
   CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
-  CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
+  CHECK_EQ(i::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
   v8::Local<v8::Value> array_val =
@@ -3704,10 +3704,10 @@ TEST(SamplingHeapProfiler) {
 
   // Turn off always_turbofan. Inlining can cause stack traces to be shorter
   // than what we expect in this test.
-  v8::internal::v8_flags.always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Sample should be empty if requested before sampling has started.
   {
@@ -3788,16 +3788,16 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
 
   // Turn off always_turbofan. Inlining can cause stack traces to be shorter
   // than what we expect in this test.
-  v8::internal::v8_flags.always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
 
   // Disable compilation cache to force compilation in both cases
-  v8::internal::v8_flags.compilation_cache = false;
+  i::v8_flags.compilation_cache = false;
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // stress_incremental_marking adds randomness to the test.
-  v8::internal::v8_flags.stress_incremental_marking = false;
+  i::v8_flags.stress_incremental_marking = false;
 
   // warmup compilation
   CompileRun(simple_sampling_heap_profiler_script);
@@ -3869,7 +3869,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(256);
 
@@ -3892,7 +3892,7 @@ TEST(SamplingHeapProfilerApiSamples) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(1024);
 
@@ -3937,7 +3937,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(64);
 
@@ -3950,7 +3950,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
       "      a.shift();\n"
       "}\n");
 
-  CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
   // Should not crash.
 
   heap_profiler->StopSamplingHeapProfiler();
@@ -3975,7 +3975,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
@@ -4037,7 +4037,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   heap_profiler->StartSamplingHeapProfiler(512 * 1024);
 
@@ -4075,7 +4075,7 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   // Suppress randomness to avoid flakiness in tests.
-  v8::internal::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
 
   // Small sample interval to force each object to be sampled.
   heap_profiler->StartSamplingHeapProfiler(i::kTaggedSize);

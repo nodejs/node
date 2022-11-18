@@ -529,7 +529,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
   if (!data->needs_access_check() &&
       data->GetNamedPropertyHandler().IsUndefined(isolate) &&
       data->GetIndexedPropertyHandler().IsUndefined(isolate)) {
-    function_type = FLAG_embedder_instance_types && data->HasInstanceType()
+    function_type = v8_flags.embedder_instance_types && data->HasInstanceType()
                         ? static_cast<InstanceType>(data->InstanceType())
                         : JS_API_OBJECT_TYPE;
   }

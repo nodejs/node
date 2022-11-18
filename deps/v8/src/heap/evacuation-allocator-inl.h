@@ -16,6 +16,7 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
                                                int object_size,
                                                AllocationOrigin origin,
                                                AllocationAlignment alignment) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
       return AllocateInNewSpace(object_size, origin, alignment);
@@ -28,6 +29,9 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     case CODE_SPACE:
       return compaction_spaces_.Get(CODE_SPACE)
           ->AllocateRaw(object_size, alignment, origin);
+    case SHARED_SPACE:
+      return compaction_spaces_.Get(SHARED_SPACE)
+          ->AllocateRaw(object_size, alignment, origin);
     default:
       UNREACHABLE();
   }
@@ -35,15 +39,19 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
 
 void EvacuationAllocator::FreeLast(AllocationSpace space, HeapObject object,
                                    int object_size) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
       FreeLastInNewSpace(object, object_size);
       return;
     case OLD_SPACE:
-      FreeLastInOldSpace(object, object_size);
+      FreeLastInCompactionSpace(OLD_SPACE, object, object_size);
       return;
     case MAP_SPACE:
-      FreeLastInMapSpace(object, object_size);
+      FreeLastInCompactionSpace(MAP_SPACE, object, object_size);
+      return;
+    case SHARED_SPACE:
+      FreeLastInCompactionSpace(SHARED_SPACE, object, object_size);
       return;
     default:
       // Only new and old space supported.
@@ -59,19 +67,11 @@ void EvacuationAllocator::FreeLastInNewSpace(HeapObject object,
   }
 }
 
-void EvacuationAllocator::FreeLastInOldSpace(HeapObject object,
-                                             int object_size) {
-  if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object.address(),
-                                                      object_size)) {
-    // We couldn't free the last object so we have to write a proper filler.
-    heap_->CreateFillerObjectAt(object.address(), object_size);
-  }
-}
-
-void EvacuationAllocator::FreeLastInMapSpace(HeapObject object,
-                                             int object_size) {
-  if (!compaction_spaces_.Get(MAP_SPACE)->TryFreeLast(object.address(),
-                                                      object_size)) {
+void EvacuationAllocator::FreeLastInCompactionSpace(AllocationSpace space,
+                                                    HeapObject object,
+                                                    int object_size) {
+  if (!compaction_spaces_.Get(space)->TryFreeLast(object.address(),
+                                                  object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
     heap_->CreateFillerObjectAt(object.address(), object_size);
   }

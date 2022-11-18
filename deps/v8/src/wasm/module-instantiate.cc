@@ -42,8 +42,9 @@ byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
 }
 
-using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
-                                        WasmImportWrapperCache::CacheKeyHash>;
+using ImportWrapperQueue =
+    WrapperQueue<WasmImportWrapperCache::CacheKey, const FunctionSig*,
+                 WasmImportWrapperCache::CacheKeyHash>;
 
 class CompileImportWrapperJob final : public JobTask {
  public:
@@ -66,12 +67,15 @@ class CompileImportWrapperJob final : public JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
-    while (base::Optional<WasmImportWrapperCache::CacheKey> key =
-               queue_->pop()) {
+    while (base::Optional<std::pair<const WasmImportWrapperCache::CacheKey,
+                                    const FunctionSig*>>
+               key = queue_->pop()) {
       // TODO(wasm): Batch code publishing, to avoid repeated locking and
       // permission switching.
-      CompileImportWrapper(native_module_, counters_, key->kind, key->signature,
-                           key->expected_arity, key->suspend, cache_scope_);
+      CompileImportWrapper(native_module_, counters_, key->first.kind,
+                           key->second, key->first.canonical_type_index,
+                           key->first.expected_arity, key->first.suspend,
+                           cache_scope_);
       if (delegate->ShouldYield()) return;
     }
   }
@@ -184,17 +188,15 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   uint32_t canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
-  if (v8_flags.wasm_type_canonicalization) {
-    // Try to find the canonical map for this type in the isolate store.
-    canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
-    DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
-              canonical_type_index);
-    MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
-    if (maybe_canonical_map.IsStrongOrWeak() &&
-        maybe_canonical_map.GetHeapObject().IsMap()) {
-      maps->set(type_index, maybe_canonical_map.GetHeapObject());
-      return;
-    }
+  // Try to find the canonical map for this type in the isolate store.
+  canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
+  DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
+            canonical_type_index);
+  MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+  if (maybe_canonical_map.IsStrongOrWeak() &&
+      maybe_canonical_map.GetHeapObject().IsMap()) {
+    maps->set(type_index, maybe_canonical_map.GetHeapObject());
+    return;
   }
 
   Handle<Map> rtt_parent;
@@ -220,9 +222,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
       break;
   }
-  if (v8_flags.wasm_type_canonicalization) {
-    canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
-  }
+  canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
   maps->set(type_index, *map);
 }
 
@@ -521,12 +521,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   // From here on, we expect the build pipeline to run without exiting to JS.
   DisallowJavascriptExecution no_js(isolate_);
-  // Record build time into correct bucket, then build instance.
-  TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
-      isolate_->counters(), module_->origin, wasm_instantiate, module_time));
-  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
+  // Start a timer for instantiation time, if we have a high resolution timer.
   base::ElapsedTimer timer;
-  timer.Start();
+  if (base::TimeTicks::IsHighResolution()) {
+    timer.Start();
+  }
+  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -657,10 +657,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
-  if (v8_flags.wasm_type_canonicalization) {
-    instance->set_isorecursive_canonical_types(
-        module_->isorecursive_canonical_type_ids.data());
-  }
+  instance->set_isorecursive_canonical_types(
+      module_->isorecursive_canonical_type_ids.data());
   int table_count = static_cast<int>(module_->tables.size());
   {
     for (int i = 0; i < table_count; i++) {
@@ -719,15 +717,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    if (v8_flags.wasm_type_canonicalization &&
-        module_->isorecursive_canonical_type_ids.size() > 0) {
-      uint32_t maximum_canonical_type_index =
-          *std::max_element(module_->isorecursive_canonical_type_ids.begin(),
-                            module_->isorecursive_canonical_type_ids.end());
+    if (module_->isorecursive_canonical_type_ids.size() > 0) {
       // Make sure all canonical indices have been set.
-      DCHECK_NE(maximum_canonical_type_index, kNoSuperType);
+      DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
       isolate_->heap()->EnsureWasmCanonicalRttsSize(
-          maximum_canonical_type_index + 1);
+          module_->MaxCanonicalTypeIndex() + 1);
     }
     Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->types.size()));
@@ -747,8 +741,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_feedback_vectors(*vectors);
     for (int i = 0; i < num_functions; i++) {
       int func_index = module_->num_imported_functions + i;
-      int slots =
-          base::Relaxed_Load(&module_->functions[func_index].feedback_slots);
+      int slots = NumFeedbackSlots(module_, func_index);
       if (slots == 0) continue;
       if (v8_flags.trace_wasm_speculative_inlining) {
         PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
@@ -828,9 +821,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
+    uint32_t canonical_sig_index =
+        module_->isorecursive_canonical_type_ids[module_->functions[start_index]
+                                                     .sig_index];
     Handle<CodeT> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate_, function.sig, module_, function.imported);
+            isolate_, function.sig, canonical_sig_index, module_,
+            function.imported);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
@@ -858,11 +855,16 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
   wasm_module_instantiated.success = true;
-  wasm_module_instantiated.wall_clock_duration_in_us =
-      timer.Elapsed().InMicroseconds();
-  timer.Stop();
-  isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
-                                                     context_id_);
+  if (timer.IsStarted()) {
+    base::TimeDelta instantiation_time = timer.Elapsed();
+    wasm_module_instantiated.wall_clock_duration_in_us =
+        instantiation_time.InMicroseconds();
+    SELECT_WASM_COUNTER(isolate_->counters(), module_->origin, wasm_instantiate,
+                        module_time)
+        ->AddTimedSample(instantiation_time);
+    isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
+                                                       context_id_);
+  }
   return instance;
 }
 
@@ -986,6 +988,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
+    case LookupIterator::WASM_OBJECT:
     case LookupIterator::ACCESSOR:
     case LookupIterator::TRANSITION:
       return ReportLinkError("not a data property", index, import_name);
@@ -1158,15 +1161,18 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
       // TODO(jkummerow): Consider precompiling CapiCallWrappers in parallel,
       // just like other import wrappers.
-      WasmCode* wasm_code =
-          cache->MaybeGet(kind, expected_sig, expected_arity, kNoSuspend);
+      uint32_t canonical_type_index =
+          module_->isorecursive_canonical_type_ids
+              [module_->functions[func_index].sig_index];
+      WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
+                                            expected_arity, kNoSuspend);
       if (wasm_code == nullptr) {
         WasmCodeRefScope code_ref_scope;
         WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm_code =
             compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
-        WasmImportWrapperCache::CacheKey key(kind, expected_sig, expected_arity,
-                                             kNoSuspend);
+        WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                             expected_arity, kNoSuspend);
         cache_scope[key] = wasm_code;
         wasm_code->IncRef();
         isolate_->counters()->wasm_generated_code_size()->Increment(
@@ -1203,8 +1209,11 @@ bool InstanceBuilder::ProcessImportedFunction(
       }
 
       NativeModule* native_module = instance->module_object().native_module();
+      uint32_t canonical_type_index =
+          module_->isorecursive_canonical_type_ids
+              [module_->functions[func_index].sig_index];
       WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
-          kind, expected_sig, expected_arity, resolved.suspend);
+          kind, canonical_type_index, expected_arity, resolved.suspend);
       DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
@@ -1258,15 +1267,9 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     const WasmModule* target_module = target_instance->module_object().module();
     const WasmFunction& function = target_module->functions[function_index];
 
-    // Look up the signature's canonical id. In the case of
-    // !v8_flags.wasm_type_canonicalization, if there is no canonical id, then
-    // the signature does not appear at all in this module, so putting {-1} in
-    // the table will cause checks to always fail.
     FunctionTargetAndRef entry(target_instance, function_index);
     uint32_t canonicalized_sig_index =
-        v8_flags.wasm_type_canonicalization
-            ? target_module->isorecursive_canonical_type_ids[function.sig_index]
-            : module_->signature_map.Find(*function.sig);
+        target_module->isorecursive_canonical_type_ids[function.sig_index];
     instance->GetIndirectFunctionTable(isolate_, table_index)
         ->Set(i, canonicalized_sig_index, entry.call_target(), *entry.ref());
   }
@@ -1614,14 +1617,16 @@ void InstanceBuilder::CompileImportWrappers(
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();
     }
-
-    WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity,
-                                         resolved.suspend);
+    uint32_t canonical_type_index =
+        module_->isorecursive_canonical_type_ids[module_->functions[func_index]
+                                                     .sig_index];
+    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                         expected_arity, resolved.suspend);
     if (cache_scope[key] != nullptr) {
       // Cache entry already exists, no need to compile it again.
       continue;
     }
-    import_wrapper_queue.insert(key);
+    import_wrapper_queue.insert(key, sig);
   }
 
   auto compile_job_task = std::make_unique<CompileImportWrapperJob>(

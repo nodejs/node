@@ -29,7 +29,7 @@ HeapObject PagedSpaceObjectIterator::Next() {
 HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     HeapObject obj = HeapObject::FromAddress(cur_addr_);
-    const int obj_size = obj.Size(cage_base());
+    const int obj_size = ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base()));
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller(cage_base())) {

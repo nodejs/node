@@ -66,7 +66,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 
   base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
   base::Optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
-  if (counters) {
+  if (counters && base::TimeTicks::IsHighResolution()) {
     if (func_body.end - func_body.start >= 100 * KB) {
       auto huge_size_histogram = SELECT_WASM_COUNTER(
           counters, env->module->origin, wasm, huge_function_size_bytes);
@@ -204,12 +204,13 @@ bool UseGenericWrapper(const FunctionSig* sig) {
 }  // namespace
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const FunctionSig* sig, const WasmModule* module,
-    bool is_import, const WasmFeatures& enabled_features,
-    AllowGeneric allow_generic)
+    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+    const WasmModule* module, bool is_import,
+    const WasmFeatures& enabled_features, AllowGeneric allow_generic)
     : isolate_(isolate),
       is_import_(is_import),
       sig_(sig),
+      canonical_sig_index_(canonical_sig_index),
       use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
                            !is_import),
       job_(use_generic_wrapper_
@@ -248,24 +249,27 @@ Handle<CodeT> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const FunctionSig* sig, const WasmModule* module,
-    bool is_import) {
+    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+    const WasmModule* module, bool is_import) {
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, module, is_import,
-                                      enabled_features, kAllowGeneric);
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, canonical_sig_index, module,
+                                      is_import, enabled_features,
+                                      kAllowGeneric);
   unit.Execute();
   return unit.Finalize();
 }
 
 // static
 Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-    Isolate* isolate, const FunctionSig* sig, const WasmModule* module) {
+    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+    const WasmModule* module) {
   // Run the compilation unit synchronously.
   const bool is_import = false;
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, module, is_import,
-                                      enabled_features, kDontAllowGeneric);
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, canonical_sig_index, module,
+                                      is_import, enabled_features,
+                                      kDontAllowGeneric);
   unit.Execute();
   return unit.Finalize();
 }

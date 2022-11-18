@@ -11,6 +11,7 @@
 #include "include/v8-internal.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
@@ -173,78 +174,10 @@ class LiveObjectVisitor : AllStatic {
 };
 
 enum class AlwaysPromoteYoung { kYes, kNo };
+enum class PromoteUnusablePages { kYes, kNo };
 enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
-
-// This is used by marking visitors.
-class MarkingState final
-    : public MarkingStateBase<MarkingState, AccessMode::ATOMIC> {
- public:
-  explicit MarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
-  }
-
-  // Concurrent marking uses local live bytes so we may do these accesses
-  // non-atomically.
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->live_byte_count_.load(std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
-  }
-};
-
-// This is used by Scavenger and Evacuator in TransferColor.
-// Live byte increments have to be atomic.
-class AtomicMarkingState final
-    : public MarkingStateBase<AtomicMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit AtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_.fetch_add(by);
-  }
-};
-
-class NonAtomicMarkingState final
-    : public MarkingStateBase<NonAtomicMarkingState, AccessMode::NON_ATOMIC> {
- public:
-  explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->live_byte_count_.load(std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
-  }
-};
 
 // This visitor is used for marking on the main thread. It is cheaper than
 // the concurrent marking visitor because it does not snapshot JSObjects.
@@ -328,15 +261,6 @@ class CollectorBase {
   virtual void Prepare() = 0;
   virtual void StartMarking() = 0;
 
-  MarkingState* marking_state() { return &marking_state_; }
-
-  NonAtomicMarkingState* non_atomic_marking_state() {
-    return &non_atomic_marking_state_;
-  }
-
-  inline Heap* heap() const { return heap_; }
-  inline Isolate* isolate();
-
   MarkingWorklists* marking_worklists() { return &marking_worklists_; }
 
   MarkingWorklists::Local* local_marking_worklists() {
@@ -352,8 +276,6 @@ class CollectorBase {
   // Used by incremental marking for object that change their layout.
   virtual void VisitObject(HeapObject obj) = 0;
 
-  virtual bool sweeping_in_progress() const = 0;
-
   virtual void Finish() = 0;
 
   bool IsMajorMC();
@@ -363,14 +285,29 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  inline Heap* heap() const { return heap_; }
+  inline Isolate* isolate();
+
+  MarkingState* marking_state() { return marking_state_; }
+
+  NonAtomicMarkingState* non_atomic_marking_state() {
+    return non_atomic_marking_state_;
+  }
+
+  void StartSweepSpace(PagedSpace* space);
+  void StartSweepNewSpace();
+  void SweepLargeSpace(LargeObjectSpace* space);
+
   Heap* heap_;
   GarbageCollector garbage_collector_;
   MarkingWorklists marking_worklists_;
 
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
 
-  MarkingState marking_state_;
-  NonAtomicMarkingState non_atomic_marking_state_;
+  MarkingState* const marking_state_;
+  NonAtomicMarkingState* const non_atomic_marking_state_;
+
+  bool is_new_space_shrinking_ = false;
 
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;
@@ -459,34 +396,8 @@ class MarkCompactCollector final : public CollectorBase {
   void RecordLiveSlotsOnPage(Page* page);
 
   bool is_compacting() const { return compacting_; }
-  bool is_shared_heap() const { return is_shared_heap_; }
-
-  void FinishSweepingIfOutOfWork();
-
-  enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
-
-  // Ensures that sweeping is finished.
-  //
-  // Note: Can only be called safely from main thread.
-  V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
-      SweepingForcedFinalizationMode mode);
-
-  void EnsurePageIsSwept(Page* page);
-
-  void DrainSweepingWorklistForSpace(AllocationSpace space);
-
-  // Checks if sweeping is in progress right now on any space.
-  bool sweeping_in_progress() const final {
-    return sweeper_->sweeping_in_progress();
-  }
-
-  void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
-
-  bool evacuation() const { return evacuation_; }
 
   inline void AddTransitionArray(TransitionArray array);
-
-  Sweeper* sweeper() { return sweeper_; }
 
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
@@ -544,10 +455,12 @@ class MarkCompactCollector final : public CollectorBase {
   // `kNullAddress` if the parameter does not point to (the interior of) a valid
   // heap object, or if it points to (the interior of) some object that is
   // already marked as live (black or grey).
-  Address FindBasePtrForMarking(Address maybe_inner_ptr);
+  V8_EXPORT_PRIVATE Address FindBasePtrForMarking(Address maybe_inner_ptr);
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
 
  private:
+  Sweeper* sweeper() { return sweeper_; }
+
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);
@@ -559,9 +472,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   // Free unmarked ArrayBufferExtensions.
   void SweepArrayBufferExtensions();
-
-  // Free unmarked entries in the ExternalPointerTable.
-  void SweepExternalPointerTable();
 
   void MarkLiveObjects();
 
@@ -677,9 +587,6 @@ class MarkCompactCollector final : public CollectorBase {
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
   void Sweep();
-  void StartSweepSpace(PagedSpace* space);
-  void StartSweepNewSpace();
-  void SweepLargeSpace(LargeObjectSpace* space);
 
   void EvacuatePrologue();
   void EvacuateEpilogue();
@@ -701,6 +608,8 @@ class MarkCompactCollector final : public CollectorBase {
 
   void RightTrimDescriptorArray(DescriptorArray array, int descriptors_to_trim);
 
+  V8_INLINE bool ShouldMarkObject(HeapObject) const;
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_{0};
 
@@ -717,9 +626,9 @@ class MarkCompactCollector final : public CollectorBase {
   CollectorState state_;
 #endif
 
-  const bool is_shared_heap_;
+  const bool uses_shared_heap_;
+  const bool is_shared_heap_isolate_;
 
-  bool evacuation_ = false;
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.
   bool compacting_ = false;
@@ -746,7 +655,7 @@ class MarkCompactCollector final : public CollectorBase {
       aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePage*> promoted_large_pages_;
 
-  Sweeper* sweeper_;
+  Sweeper* const sweeper_;
 
   // Counts the number of major mark-compact collections. The counter is
   // incremented right after marking. This is used for:
@@ -763,19 +672,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;
-};
-
-class V8_NODISCARD EvacuationScope {
- public:
-  explicit EvacuationScope(MarkCompactCollector* collector)
-      : collector_(collector) {
-    collector_->set_evacuation(true);
-  }
-
-  ~EvacuationScope() { collector_->set_evacuation(false); }
-
- private:
-  MarkCompactCollector* collector_;
 };
 
 // Collector for young-generation only.
@@ -807,9 +703,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void Finish() final;
 
-  Sweeper* sweeper() { return sweeper_.get(); }
-  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
-
   void VisitObject(HeapObject obj) final;
 
  private:
@@ -818,15 +711,17 @@ class MinorMarkCompactCollector final : public CollectorBase {
   static const int kNumMarkers = 8;
   static const int kMainMarker = 0;
 
+  Sweeper* sweeper() { return sweeper_; }
+
   void MarkLiveObjects();
-  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
+  void MarkRootSetInParallel(RootMarkingVisitor* root_visitor,
+                             bool was_marked_incrementally);
   V8_INLINE void MarkRootObject(HeapObject obj);
   void DrainMarkingWorklist();
   void TraceFragmentation();
   void ClearNonLiveReferences();
 
   void Sweep();
-  void StartSweepNewSpace();
 
   void EvacuatePrologue();
   void EvacuateEpilogue();
@@ -844,7 +739,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   std::vector<Page*> promoted_pages_;
   std::vector<LargePage*> promoted_large_pages_;
 
-  std::unique_ptr<Sweeper> sweeper_;
+  Sweeper* const sweeper_;
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;

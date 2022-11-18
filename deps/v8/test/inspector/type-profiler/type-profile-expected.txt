@@ -1,9 +1,0 @@
-Test collecting type profile data with Profiler.takeTypeProfile.
-
-function f(/*Object, number, undefined*/a, /*Array, number, null*/b, /*boolean, Object, symbol*/c) {
-  return 'bye';
-/*string*/};
-f({}, [], true);
-f(3, 2.3, {a: 42});
-f(undefined, null, Symbol('hello'));
-/*string*/

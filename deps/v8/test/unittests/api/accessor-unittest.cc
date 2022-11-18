@@ -33,7 +33,7 @@ static void UnreachableCallback(
 TEST_F(AccessorTest, CachedAccessor) {
   // TurboFan support for fast accessors is not implemented; turbofanned
   // code uses the slow accessor which breaks this test's expectations.
-  v8::internal::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   v8::Isolate* isolate = context()->GetIsolate();
   v8::HandleScope scope(isolate);
 
@@ -78,8 +78,8 @@ TEST_F(AccessorTest, CachedAccessor) {
 }
 
 TEST_F(AccessorTest, CachedAccessorTurboFan) {
-  i::FLAG_allow_natives_syntax = true;
-  // v8::internal::FLAG_always_turbofan = false;
+  i::v8_flags.allow_natives_syntax = true;
+  // i::v8_flags.always_turbofan = false;
   v8::Isolate* isolate = context()->GetIsolate();
   v8::HandleScope scope(isolate);
 
@@ -162,7 +162,7 @@ TEST_F(AccessorTest, CachedAccessorTurboFan) {
 }
 
 TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(isolate());
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());
@@ -845,7 +845,7 @@ v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
 }  // namespace
 
 TEST_F(AccessorTest, WrapFunctionTemplateSetNativeDataProperty) {
-  i::FLAG_harmony_shadow_realm = true;
+  i::v8_flags.harmony_shadow_realm = true;
   isolate()->SetHostCreateShadowRealmContextCallback(
       TestHostCreateShadowRealmContextCallback);
 

@@ -136,10 +136,10 @@ class V8_NODISCARD FrameAndConstantPoolScope {
       : masm_(masm),
         type_(type),
         old_has_frame_(masm->has_frame()),
-        old_constant_pool_available_(v8_flags.enable_embedded_constant_pool &&
+        old_constant_pool_available_(V8_EMBEDDED_CONSTANT_POOL_BOOL &&
                                      masm->is_constant_pool_available()) {
     masm->set_has_frame(true);
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       masm->set_constant_pool_available(true);
     }
     if (type_ != StackFrame::MANUAL && type_ != StackFrame::NO_FRAME_TYPE) {
@@ -150,7 +150,7 @@ class V8_NODISCARD FrameAndConstantPoolScope {
   ~FrameAndConstantPoolScope() {
     masm_->LeaveFrame(type_);
     masm_->set_has_frame(old_has_frame_);
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       masm_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
@@ -169,14 +169,14 @@ class V8_NODISCARD ConstantPoolUnavailableScope {
  public:
   explicit ConstantPoolUnavailableScope(Assembler* assembler)
       : assembler_(assembler),
-        old_constant_pool_available_(v8_flags.enable_embedded_constant_pool &&
+        old_constant_pool_available_(V8_EMBEDDED_CONSTANT_POOL_BOOL &&
                                      assembler->is_constant_pool_available()) {
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       assembler->set_constant_pool_available(false);
     }
   }
   ~ConstantPoolUnavailableScope() {
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       assembler_->set_constant_pool_available(old_constant_pool_available_);
     }
   }

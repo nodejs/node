@@ -1440,7 +1440,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   TestAndBranchIfAnySet(flags, kFlagsMask, flags_need_processing);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
@@ -3291,16 +3291,6 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Bind(&done);
 }
 
-void TurboAssembler::EncodeSandboxedPointer(const Register& value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  Sub(value, value, kPtrComprCageBaseRegister);
-  Mov(value, Operand(value, LSL, kSandboxedPointerShift));
-#else
-  UNREACHABLE();
-#endif
-}
-
 void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
@@ -3313,19 +3303,27 @@ void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
 
 void TurboAssembler::LoadSandboxedPointerField(
     const Register& destination, const MemOperand& field_operand) {
+#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   Ldr(destination, field_operand);
   DecodeSandboxedPointer(destination);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void TurboAssembler::StoreSandboxedPointerField(
     const Register& value, const MemOperand& dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, value);
-  EncodeSandboxedPointer(scratch);
+  Sub(scratch, value, kPtrComprCageBaseRegister);
+  Mov(scratch, Operand(scratch, LSL, kSandboxedPointerShift));
   Str(scratch, dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void TurboAssembler::LoadExternalPointerField(Register destination,

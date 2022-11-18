@@ -264,7 +264,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
 
-  if (FLAG_debug_code &&
+  if (v8_flags.debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
     ASSERT_EQ(1U, s.size());
 

@@ -493,7 +493,7 @@ TEST(ComputeIntegerHash) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   for (int i = 0; i < 1024; i++) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
@@ -976,7 +976,7 @@ TEST(NumberDictionaryLookup) {
   Handle<Object> fake_value(Smi::FromInt(42), isolate);
   PropertyDetails fake_details = PropertyDetails::Empty();
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   for (int i = 0; i < kKeysCount; i++) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
@@ -1065,7 +1065,7 @@ TEST(TransitionLookup) {
   Handle<Map> root_map = Map::Create(isolate, 0);
   Handle<Name> keys[kKeysCount];
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   Factory* factory = isolate->factory();
   Handle<FieldType> any = FieldType::Any(isolate);
@@ -1457,7 +1457,7 @@ TEST(TryGetOwnProperty) {
   };
   static_assert(arraysize(values) < arraysize(names));
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   std::vector<Handle<JSObject>> objects;
 
@@ -4029,8 +4029,8 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   // This is a regression test for v8:9775, where TF's instruction scheduler
   // incorrectly moved pure operations in between a ArchSaveCallerRegisters and
   // a ArchRestoreCallerRegisters instruction.
-  bool old_turbo_instruction_scheduling = FLAG_turbo_instruction_scheduling;
-  FLAG_turbo_instruction_scheduling = true;
+  bool old_turbo_instruction_scheduling = v8_flags.turbo_instruction_scheduling;
+  v8_flags.turbo_instruction_scheduling = true;
 
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
@@ -4059,7 +4059,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   CHECK(result.ToHandleChecked()->IsSmi());
   CHECK_EQ(result.ToHandleChecked()->Number(), 13);
 
-  FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
+  v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -4415,6 +4415,143 @@ TEST(CountTrailingZeros) {
 
   FunctionTester ft(asm_tester.GenerateCode());
   ft.Call();
+}
+
+TEST(IntPtrMulHigh) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+  TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(-147694,
+           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(-147694, base::bits::SignedMulHigh32(
+                        std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(-147694, base::bits::SignedMulHigh64(
+                        std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(IntPtrMulHighConstantFoldable) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.IntPtrConstant(295387);
+  TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(-147694, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(-147694, base::bits::SignedMulHigh32(
+                        std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(-147694, base::bits::SignedMulHigh64(
+                        std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(UintPtrMulHigh) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+  TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(147693,
+           ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))->value());
+  CHECK_EQ(147693, base::bits::UnsignedMulHigh32(
+                       std::numeric_limits<int32_t>::min(), 295387));
+  CHECK_EQ(147693, base::bits::UnsignedMulHigh64(
+                       std::numeric_limits<int64_t>::min(), 295387));
+}
+
+TEST(UintPtrMulHighConstantFoldable) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeStubAssembler m(asm_tester.state());
+
+  TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+  TNode<IntPtrT> b = m.IntPtrConstant(295387);
+  TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
+  m.Return(m.SmiTag(res));
+
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(147693, ft.CallChecked<Smi>()->value());
+  CHECK_EQ(
+      147693,
+      base::bits::UnsignedMulHigh32(
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::min()), 295387));
+  CHECK_EQ(
+      147693,
+      base::bits::UnsignedMulHigh64(
+          static_cast<uint64_t>(std::numeric_limits<int64_t>::min()), 295387));
+}
+
+TEST(IntPtrMulWithOverflow) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+
+  {
+    CodeAssemblerTester asm_tester(isolate,
+                                   kNumParams + 1);  // Include receiver.
+    CodeStubAssembler m(asm_tester.state());
+
+    TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::min());
+    TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<PairT<IntPtrT, BoolT>> pair = m.IntPtrMulWithOverflow(a, b);
+    TNode<BoolT> overflow = m.Projection<1>(pair);
+    m.Return(m.SelectBooleanConstant(overflow));
+
+    FunctionTester ft(asm_tester.GenerateCode());
+    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(0), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+  }
+
+  {
+    CodeAssemblerTester asm_tester(isolate,
+                                   kNumParams + 1);  // Include receiver.
+    CodeStubAssembler m(asm_tester.state());
+
+    TNode<IntPtrT> a = m.IntPtrConstant(std::numeric_limits<intptr_t>::max());
+    TNode<IntPtrT> b = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<PairT<IntPtrT, BoolT>> pair = m.IntPtrMulWithOverflow(a, b);
+    TNode<BoolT> overflow = m.Projection<1>(pair);
+    m.Return(m.SelectBooleanConstant(overflow));
+
+    FunctionTester ft(asm_tester.GenerateCode());
+    CHECK(ft.Call(handle(Smi::FromInt(-1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(1), isolate))
+              .ToHandleChecked()
+              ->IsFalse(isolate));
+    CHECK(ft.Call(handle(Smi::FromInt(2), isolate))
+              .ToHandleChecked()
+              ->IsTrue(isolate));
+  }
 }
 
 }  // namespace compiler

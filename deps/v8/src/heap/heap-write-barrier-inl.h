@@ -115,7 +115,7 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
   }
 
   // Marking barrier: mark value & record slots when marking is on.
-  if (is_marking) {
+  if (V8_UNLIKELY(is_marking)) {
 #ifdef V8_EXTERNAL_CODE_SPACE
     // CodePageHeaderModificationScope is not required because the only case
     // when a Code value is stored somewhere is during creation of a new Code
@@ -259,7 +259,7 @@ base::Optional<Heap*> WriteBarrier::GetHeapIfMarking(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return {};
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
-  if (!chunk->IsMarking()) return {};
+  if (V8_LIKELY(!chunk->IsMarking())) return {};
   return chunk->GetHeap();
 }
 

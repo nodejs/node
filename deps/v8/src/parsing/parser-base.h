@@ -459,7 +459,7 @@ class ParserBase {
     }
 
     void set_next_function_is_likely_called() {
-      next_function_is_likely_called_ = !FLAG_max_lazy;
+      next_function_is_likely_called_ = !v8_flags.max_lazy;
     }
 
     void RecordFunctionOrEvalCall() { contains_function_or_eval_ = true; }
@@ -3735,7 +3735,7 @@ ParserBase<Impl>::ParseImportExpressions() {
   AcceptINScope scope(this, true);
   ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
 
-  if (FLAG_harmony_import_assertions && Check(Token::COMMA)) {
+  if (v8_flags.harmony_import_assertions && Check(Token::COMMA)) {
     if (Check(Token::RPAREN)) {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, pos);
@@ -4737,7 +4737,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (Check(Token::SEMICOLON)) continue;
 
     // Either we're parsing a `static { }` initialization block or a property.
-    if (FLAG_harmony_class_static_blocks && peek() == Token::STATIC &&
+    if (v8_flags.harmony_class_static_blocks && peek() == Token::STATIC &&
         PeekAhead() == Token::LBRACE) {
       BlockT static_block = ParseClassStaticBlock(&class_info);
       impl()->AddClassStaticBlock(static_block, &class_info);

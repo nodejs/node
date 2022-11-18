@@ -48,6 +48,8 @@ namespace compiler {
   V(PPC_Mul32)                       \
   V(PPC_Mul32WithHigh32)             \
   V(PPC_Mul64)                       \
+  V(PPC_MulHighS64)                  \
+  V(PPC_MulHighU64)                  \
   V(PPC_MulHigh32)                   \
   V(PPC_MulHighU32)                  \
   V(PPC_MulPair)                     \

@@ -17,7 +17,7 @@ namespace internal {
   V(r16) V(r17) V(r18) V(r19) V(r20) V(r21) V(r22) V(r23) \
   V(r24) V(r25) V(r26) V(r27) V(r28) V(r29) V(r30) V(fp)
 
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
 #define ALLOCATABLE_GENERAL_REGISTERS(V)                  \
   V(r3)  V(r4)  V(r5)  V(r6)  V(r7)                       \
   V(r8)  V(r9)  V(r10) V(r14) V(r15)                      \

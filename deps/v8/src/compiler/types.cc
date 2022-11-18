@@ -227,6 +227,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
     case JS_DISPLAY_NAMES_TYPE:
+    case JS_DURATION_FORMAT_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:
@@ -276,13 +277,12 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
     case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+    case JS_RAW_JSON_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_ARRAY_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
-    case WASM_STRUCT_TYPE:
     case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
@@ -293,6 +293,11 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());
       return kOtherObject;
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
+      return kWasmObject;
+#endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
@@ -1115,6 +1120,13 @@ Type Type::Tuple(Type first, Type second, Type third, Zone* zone) {
   tuple->InitElement(0, first);
   tuple->InitElement(1, second);
   tuple->InitElement(2, third);
+  return FromTypeBase(tuple);
+}
+
+Type Type::Tuple(Type first, Type second, Zone* zone) {
+  TupleType* tuple = TupleType::New(2, zone);
+  tuple->InitElement(0, first);
+  tuple->InitElement(1, second);
   return FromTypeBase(tuple);
 }
 

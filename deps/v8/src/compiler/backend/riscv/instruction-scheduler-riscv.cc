@@ -24,6 +24,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCvtSL:
     case kRiscvCvtSUl:
     case kRiscvMulHigh64:
+    case kRiscvMulHighU64:
     case kRiscvAdd64:
     case kRiscvAddOvf64:
     case kRiscvClz64:
@@ -35,6 +36,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMod64:
     case kRiscvModU64:
     case kRiscvMul64:
+    case kRiscvMulOvf64:
     case kRiscvPopcnt64:
     case kRiscvRor64:
     case kRiscvSar64:
@@ -946,6 +948,11 @@ int MulOverflow32Latency() {
   return Mul32Latency() + Mulh32Latency() + 2;
 }
 
+int MulOverflow64Latency() {
+  // Estimated max.
+  return Mul64Latency() + Mulh64Latency() + 2;
+}
+
 // TODO(RISCV): This is incorrect for RISC-V.
 int Clz64Latency() { return 1; }
 
@@ -1128,7 +1135,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return JumpLatency();
     case kArchCallJSFunction: {
       int latency = 0;
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         latency = 1 + AssertLatency();
       }
       return latency + 1 + Add64Latency(false) + CallLatency();
@@ -1216,6 +1223,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return Mulh64Latency();
     case kRiscvMul64:
       return Mul64Latency();
+    case kRiscvMulOvf64:
+      return MulOverflow64Latency();
     case kRiscvDiv64: {
       int latency = Div64Latency();
       return latency + MovzLatency();

@@ -14,11 +14,13 @@ macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
   const insertCount: intptr = Convert<intptr>(insertCountSmi);
   const actualDeleteCount: intptr = Convert<intptr>(actualDeleteCountSmi);
 
-  const copy: FixedArrayBase =
-      AllocateFixedArray(kind, newLen, AllocationFlag::kNone);
+  const copy: FixedArrayBase = AllocateFixedArray(
+      kind, newLen, AllocationFlag::kAllowLargeObjectAllocation);
 
-  // Copy the part before the inserted items.
-  CopyElements(kind, copy, 0, array.elements, 0, actualStart);
+  if (actualStart > 0) {
+    // Copy the part before the inserted items.
+    CopyElements(kind, copy, 0, array.elements, 0, actualStart);
+  }
 
   // Initialize elements that will hold the inserted items because the
   // NewJSArray below may allocate. Leave the actual insertion for later since
@@ -36,9 +38,11 @@ macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
   // Copy the part after the inserted items.
   const secondPartStart: intptr = actualStart + insertCount;
   const secondPartLen: intptr = newLen - secondPartStart;
-  const r: intptr = actualStart + actualDeleteCount;
-  dcheck(Convert<Smi>(r + secondPartLen) <= array.length);
-  CopyElements(kind, copy, secondPartStart, array.elements, r, secondPartLen);
+  if (secondPartLen > 0) {
+    const r: intptr = actualStart + actualDeleteCount;
+    dcheck(Convert<Smi>(r + secondPartLen) <= array.length);
+    CopyElements(kind, copy, secondPartStart, array.elements, r, secondPartLen);
+  }
 
   const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   return NewJSArray(map, copy);

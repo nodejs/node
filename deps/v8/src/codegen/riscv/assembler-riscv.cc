@@ -132,8 +132,10 @@ Register ToRegister(int num) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+    RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-    RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
+    RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -794,6 +796,7 @@ int32_t Assembler::branch_long_offset(Label* L) {
   else
     DCHECK_EQ(offset & 3, 0);
   DCHECK(is_int32(offset));
+  VU.clear();
   return static_cast<int32_t>(offset);
 }
 
@@ -826,6 +829,7 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
   DCHECK(is_intn(offset, bits));
   DCHECK_EQ(offset & 1, 0);
   DEBUG_PRINTF("\toffset = %d\n", offset);
+  VU.clear();
   return offset;
 }
 
@@ -1414,8 +1418,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();
@@ -1425,8 +1428,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   if (!is_buffer_growth_blocked()) CheckBuffer();

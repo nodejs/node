@@ -45,7 +45,7 @@ void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   for (int i = 0; i < padding_width; ++i) {
     os << padding;
   }
-  if (FLAG_log_colour) os << "\033[0m";
+  if (v8_flags.log_colour) os << "\033[0m";
   if (node->has_id()) {
     os << node->id() << "/";
   }
@@ -158,7 +158,7 @@ void PrintVerticalArrows(std::ostream& os,
       desired_color = (i % 6) + 1;
       c.AddVertical();
     }
-    if (FLAG_log_colour && desired_color != current_color &&
+    if (v8_flags.log_colour && desired_color != current_color &&
         desired_color != -1) {
       os << "\033[0;3" << desired_color << "m";
       current_color = desired_color;
@@ -167,7 +167,7 @@ void PrintVerticalArrows(std::ostream& os,
   }
   // If there are no arrows starting here, clear the color. Otherwise,
   // PrintPaddedId will clear it.
-  if (FLAG_log_colour && arrows_starting_here.empty() &&
+  if (v8_flags.log_colour && arrows_starting_here.empty() &&
       targets_starting_here.empty()) {
     os << "\033[0m";
   }
@@ -342,7 +342,7 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
         desired_color = (i % 6) + 1;
         c.AddVertical();
       }
-      if (FLAG_log_colour && current_color != desired_color &&
+      if (v8_flags.log_colour && current_color != desired_color &&
           desired_color != -1) {
         os_ << "\033[0;3" << desired_color << "m";
         current_color = desired_color;
@@ -350,7 +350,7 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(BasicBlock* block) {
       os_ << c;
     }
     os_ << (saw_start ? "►" : " ");
-    if (FLAG_log_colour) os_ << "\033[0m";
+    if (v8_flags.log_colour) os_ << "\033[0m";
   }
 
   int block_id = graph_labeller_->BlockId(block);
@@ -429,8 +429,8 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
         } else {
           os << PrintNodeLabel(graph_labeller, node) << ":"
              << deopt_info->input_locations[index].operand();
+          index++;
         }
-        index++;
       });
   os << "}\n";
 }

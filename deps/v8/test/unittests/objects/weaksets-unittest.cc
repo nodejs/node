@@ -71,7 +71,7 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
 }
 
 TEST_F(WeakSetsTest, WeakSet_Weakness) {
-  FLAG_incremental_marking = false;
+  v8_flags.incremental_marking = false;
   Factory* factory = i_isolate()->factory();
   HandleScope scope(i_isolate());
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
@@ -156,10 +156,10 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
 // Test that weak set values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
-  if (!i::FLAG_compact) return;
-  if (i::FLAG_enable_third_party_heap) return;
-  FLAG_compact_on_every_full_gc = true;
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  if (!i::v8_flags.compact) return;
+  if (i::v8_flags.enable_third_party_heap) return;
+  v8_flags.compact_on_every_full_gc = true;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   Factory* factory = i_isolate()->factory();
   Heap* heap = i_isolate()->heap();
   HandleScope scope(i_isolate());
@@ -179,7 +179,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
       Handle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
       CHECK(!Heap::InYoungGeneration(*object));
-      CHECK_IMPLIES(!FLAG_enable_third_party_heap,
+      CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                     !first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(i_isolate()).value();
       JSWeakCollection::Set(weakset, key, object, hash);
@@ -187,20 +187,20 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
   }
 
   // Force compacting garbage collection.
-  CHECK(FLAG_compact_on_every_full_gc);
+  CHECK(v8_flags.compact_on_every_full_gc);
   CollectAllGarbage();
 }
 
 // Test that weak set keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
-  if (!i::FLAG_compact) return;
-  if (i::FLAG_enable_third_party_heap) return;
-  FLAG_compact_on_every_full_gc = true;
+  if (!i::v8_flags.compact) return;
+  if (i::v8_flags.enable_third_party_heap) return;
+  v8_flags.compact_on_every_full_gc = true;
 #ifdef VERIFY_HEAP
-  FLAG_verify_heap = true;
+  v8_flags.verify_heap = true;
 #endif
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
   Factory* factory = i_isolate()->factory();
   Heap* heap = i_isolate()->heap();
@@ -217,7 +217,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, AllocationType::kOld);
     CHECK(!Heap::InYoungGeneration(*keys[i]));
-    CHECK_IMPLIES(!FLAG_enable_third_party_heap,
+    CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                   !first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
@@ -229,7 +229,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
 
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
-  CHECK(FLAG_compact_on_every_full_gc);
+  CHECK(v8_flags.compact_on_every_full_gc);
   CollectAllGarbage();
   CollectAllGarbage();
   CollectAllGarbage();

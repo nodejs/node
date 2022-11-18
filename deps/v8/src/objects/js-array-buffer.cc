@@ -48,7 +48,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   clear_padding();
   set_bit_field(0);
   set_is_shared(shared == SharedFlag::kShared);
-  set_is_resizable(resizable == ResizableFlag::kResizable);
+  set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared != SharedFlag::kShared);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
@@ -70,9 +70,9 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
 void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK_NOT_NULL(backing_store);
   DCHECK_EQ(is_shared(), backing_store->is_shared());
-  DCHECK_EQ(is_resizable(), backing_store->is_resizable());
+  DCHECK_EQ(is_resizable_by_js(), backing_store->is_resizable_by_js());
   DCHECK_IMPLIES(
-      !backing_store->is_wasm_memory() && !backing_store->is_resizable(),
+      !backing_store->is_wasm_memory() && !backing_store->is_resizable_by_js(),
       backing_store->byte_length() == backing_store->max_byte_length());
   DCHECK(!was_detached());
   Isolate* isolate = GetIsolate();
@@ -84,7 +84,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
     set_backing_store(isolate, backing_store->buffer_start());
   }
 
-  if (is_shared() && is_resizable()) {
+  if (is_shared() && is_resizable_by_js()) {
     // GSABs need to read their byte_length from the BackingStore. Maintain the
     // invariant that their byte_length field is always 0.
     set_byte_length(0);
@@ -141,7 +141,7 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   JSArrayBuffer buffer = JSArrayBuffer::cast(Object(raw_array_buffer));
-  CHECK(buffer.is_resizable());
+  CHECK(buffer.is_resizable_by_js());
   CHECK(buffer.is_shared());
   return buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);
 }
@@ -226,7 +226,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
     // Already is off heap, so return the existing buffer.
     return array_buffer;
   }
-  DCHECK(!array_buffer->is_resizable());
+  DCHECK(!array_buffer->is_resizable_by_js());
 
   // The existing array buffer should be empty.
   DCHECK(array_buffer->IsEmpty());
@@ -370,7 +370,7 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
   JSTypedArray array = JSTypedArray::cast(Object(raw_array));
   CHECK(array.is_length_tracking());
   JSArrayBuffer buffer = array.buffer();
-  CHECK(buffer.is_resizable());
+  CHECK(buffer.is_resizable_by_js());
   CHECK(buffer.is_shared());
   size_t backing_byte_length =
       buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);

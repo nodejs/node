@@ -121,6 +121,10 @@ bool GCTracer::IsInObservablePause() const {
   return 0.0 < start_of_observable_pause_;
 }
 
+bool GCTracer::IsInAtomicPause() const {
+  return current_.state == Event::State::ATOMIC;
+}
+
 bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
   return (collector == GarbageCollector::SCAVENGER &&
           current_.type == Event::SCAVENGER) ||

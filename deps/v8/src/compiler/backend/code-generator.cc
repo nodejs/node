@@ -214,7 +214,7 @@ void CodeGenerator::AssembleCode() {
   tasm()->CodeEntry();
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
-  if (FLAG_debug_code && info->called_with_code_start_register()) {
+  if (v8_flags.debug_code && info->called_with_code_start_register()) {
     tasm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
@@ -274,7 +274,7 @@ void CodeGenerator::AssembleCode() {
     // Bind a label for a block.
     current_block_ = block->rpo_number();
     unwinding_info_writer_.BeginInstructionBlock(tasm()->pc_offset(), block);
-    if (FLAG_code_comments) {
+    if (v8_flags.code_comments) {
       std::ostringstream buffer;
       buffer << "-- B" << block->rpo_number().ToInt() << " start";
       if (block->IsDeferred()) buffer << " (deferred)";
@@ -306,8 +306,15 @@ void CodeGenerator::AssembleCode() {
         tasm()->InitializeRootRegister();
       }
     }
-
-    if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
+#ifdef V8_TARGET_ARCH_RISCV64
+    // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
+    // overhead of the vset{i}vl{i} instruction. However there are some jumps
+    // back between blocks. the Rvv instruction may get an incorrect vtype. so
+    // here VectorUnit needs to be cleared to ensure that the vtype is correct
+    // within the block.
+    tasm()->VU.clear();
+#endif
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL && !block->needs_frame()) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       result_ = AssembleBlock(block);
     } else {
@@ -813,7 +820,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
   if (!source_position.IsKnown()) return;
   source_position_table_builder_.AddPosition(tasm()->pc_offset(),
                                              source_position, false);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     OptimizedCompilationInfo* info = this->info();
     if (!info->IsOptimizing()) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -1171,6 +1178,12 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreUint32StackSlot(LocationOperand::cast(op)->index());
     } else if (type == MachineType::Int64()) {
       translations_.StoreInt64StackSlot(LocationOperand::cast(op)->index());
+    } else if (type == MachineType::SignedBigInt64()) {
+      translations_.StoreSignedBigInt64StackSlot(
+          LocationOperand::cast(op)->index());
+    } else if (type == MachineType::UnsignedBigInt64()) {
+      translations_.StoreUnsignedBigInt64StackSlot(
+          LocationOperand::cast(op)->index());
     } else {
 #if defined(V8_COMPRESS_POINTERS)
       CHECK(MachineRepresentation::kTagged == type.representation() ||
@@ -1199,6 +1212,10 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
       translations_.StoreUint32Register(converter.ToRegister(op));
     } else if (type == MachineType::Int64()) {
       translations_.StoreInt64Register(converter.ToRegister(op));
+    } else if (type == MachineType::SignedBigInt64()) {
+      translations_.StoreSignedBigInt64Register(converter.ToRegister(op));
+    } else if (type == MachineType::UnsignedBigInt64()) {
+      translations_.StoreUnsignedBigInt64Register(converter.ToRegister(op));
     } else {
 #if defined(V8_COMPRESS_POINTERS)
       CHECK(MachineRepresentation::kTagged == type.representation() ||
@@ -1229,7 +1246,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           DCHECK_EQ(4, kSystemPointerSize);
           Smi smi(static_cast<Address>(constant.ToInt32()));
           DCHECK(smi.IsSmi());
-          literal = DeoptimizationLiteral(smi.value());
+          literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         } else if (type.representation() == MachineRepresentation::kBit) {
           if (constant.ToInt32() == 0) {
             literal =
@@ -1247,15 +1264,24 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
           if (type == MachineType::Uint32()) {
             literal = DeoptimizationLiteral(
-                static_cast<uint32_t>(constant.ToInt32()));
+                static_cast<double>(static_cast<uint32_t>(constant.ToInt32())));
           } else {
-            literal = DeoptimizationLiteral(constant.ToInt32());
+            literal =
+                DeoptimizationLiteral(static_cast<double>(constant.ToInt32()));
           }
         }
         break;
       case Constant::kInt64:
         DCHECK_EQ(8, kSystemPointerSize);
-        if (type.representation() == MachineRepresentation::kWord64) {
+        if (type == MachineType::SignedBigInt64()) {
+          literal = DeoptimizationLiteral(constant.ToInt64());
+        } else if (type == MachineType::UnsignedBigInt64()) {
+          literal =
+              DeoptimizationLiteral(static_cast<uint64_t>(constant.ToInt64()));
+        } else if (type.representation() == MachineRepresentation::kWord64) {
+          CHECK_EQ(
+              constant.ToInt64(),
+              static_cast<int64_t>(static_cast<double>(constant.ToInt64())));
           literal =
               DeoptimizationLiteral(static_cast<double>(constant.ToInt64()));
         } else {
@@ -1264,7 +1290,7 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
           DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
           Smi smi(static_cast<Address>(constant.ToInt64()));
           DCHECK(smi.IsSmi());
-          literal = DeoptimizationLiteral(smi.value());
+          literal = DeoptimizationLiteral(static_cast<double>(smi.value()));
         }
         break;
       case Constant::kFloat32:
@@ -1324,6 +1350,12 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kNumber: {
       return isolate->factory()->NewNumber(number_);
+    }
+    case DeoptimizationLiteralKind::kSignedBigInt64: {
+      return BigInt::FromInt64(isolate, signed_bigint64_);
+    }
+    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
+      return BigInt::FromUint64(isolate, unsigned_bigint64_);
     }
     case DeoptimizationLiteralKind::kInvalid: {
       UNREACHABLE();

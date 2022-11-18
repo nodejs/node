@@ -539,7 +539,7 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(ne, on_bit_set);
 }
 
-bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(
+bool RegExpMacroAssemblerS390::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check

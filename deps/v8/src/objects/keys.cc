@@ -253,6 +253,14 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (current->IsJSProxy()) {
       result = CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(current));
+    } else if (current->IsWasmObject()) {
+      if (mode_ == KeyCollectionMode::kIncludePrototypes) {
+        RETURN_FAILURE(isolate_, kThrowOnError,
+                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+      } else {
+        DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
+        DCHECK_EQ(result, Just(false));  // Stop iterating.
+      }
     } else {
       DCHECK(current->IsJSObject());
       result = CollectOwnKeys(receiver, Handle<JSObject>::cast(current));

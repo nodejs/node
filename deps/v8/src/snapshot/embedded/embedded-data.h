@@ -197,7 +197,7 @@ class EmbeddedData final {
     // The offsets describing inline metadata tables, relative to the start
     // of the embedded data section.
     uint32_t handler_table_offset;
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
     uint32_t constant_pool_offset;
 #endif
     uint32_t code_comments_offset_offset;
@@ -215,7 +215,7 @@ class EmbeddedData final {
                 3 * kUInt32Size);
   static_assert(offsetof(LayoutDescription, handler_table_offset) ==
                 4 * kUInt32Size);
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   static_assert(offsetof(LayoutDescription, constant_pool_offset) ==
                 5 * kUInt32Size);
   static_assert(offsetof(LayoutDescription, code_comments_offset_offset) ==

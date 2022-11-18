@@ -34,11 +34,11 @@ namespace {
 static const int kMaxDepthForInlining = 50;
 }  // namespace
 
-#define TRACE(x)                     \
-  do {                               \
-    if (FLAG_trace_turbo_inlining) { \
-      StdoutStream() << x << "\n";   \
-    }                                \
+#define TRACE(x)                         \
+  do {                                   \
+    if (v8_flags.trace_turbo_inlining) { \
+      StdoutStream() << x << "\n";       \
+    }                                    \
   } while (false)
 
 // Provides convenience accessors for the common layout of nodes having either

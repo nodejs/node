@@ -106,7 +106,7 @@ bytecodes: [
                 B(Star2),
                 B(LdaSmi), I8(1),
                 B(Star3),
-  /*  101 S> */ B(CreateArrayLiteral), U8(4), U8(1), U8(37),
+  /*  101 E> */ B(CreateArrayLiteral), U8(4), U8(1), U8(37),
                 B(Star6),
   /*  101 E> */ B(GetIterator), R(6), U8(2), U8(4),
                 B(Star5),

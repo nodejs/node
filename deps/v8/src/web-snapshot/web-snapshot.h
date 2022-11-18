@@ -314,7 +314,8 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeClass(Handle<JSFunction> function);
   void SerializeContext(Handle<Context> context, uint32_t id);
   void SerializeArray(Handle<JSArray> array);
-  void SerializeElements(Handle<JSObject> object, ValueSerializer& serializer);
+  void SerializeElements(Handle<JSObject> object, ValueSerializer& serializer,
+                         Maybe<uint32_t> length);
   void SerializeObject(Handle<JSObject> object);
   void SerializeArrayBufferView(Handle<JSArrayBufferView> array_buffer_view,
                                 ValueSerializer& serializer);

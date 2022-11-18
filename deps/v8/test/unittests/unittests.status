@@ -286,6 +286,7 @@
   'RegExpTest.Graph': [SKIP],
   'SloppyEqualityTest.*' : [SKIP],
   'DisasmX64Test.*': [SKIP],
+  'RunBytecodeGraphBuilderTest.*': [SKIP],
   'RunJSBranchesTest.*': [SKIP],
   'RunJSCallsTest.*': [SKIP],
   'RunJSExceptionsTest.*': [SKIP],

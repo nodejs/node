@@ -45,7 +45,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
   //   increasing the code size for no benefit.
   if (range->GetSpillMoveInsertionLocations(data()) == nullptr ||
       range->spilled() || top_start_block->IsDeferred() ||
-      (!FLAG_stress_turbo_late_spilling && !range->is_loop_phi())) {
+      (!v8_flags.stress_turbo_late_spilling && !range->is_loop_phi())) {
     range->CommitSpillMoves(data(), spill_operand);
     return;
   }

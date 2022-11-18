@@ -36,8 +36,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
                              const WasmFeatures& enabled_features) {
   for (auto type : sig->all()) {
-    // TODO(7748): Allow structs, arrays, and rtts when their JS-interaction is
-    // decided on.
+    // Structs and arrays may only be passed via externref.
+    // Rtts are implicit and can not be used explicitly.
     if (type == kWasmS128 || type.is_rtt() ||
         (type.has_index() && !module->has_signature(type.ref_index()))) {
       return false;

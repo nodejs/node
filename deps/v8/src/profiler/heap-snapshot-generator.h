@@ -591,7 +591,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
     HeapEntry* result =
         entries_map_.emplace(ptr, allocator->AllocateEntry(ptr)).first->second;
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
-    if (FLAG_heap_snapshot_verify) {
+    if (v8_flags.heap_snapshot_verify) {
       reverse_entries_map_.emplace(result, ptr);
     }
 #endif
@@ -602,7 +602,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapThing FindHeapThingForHeapEntry(HeapEntry* entry) {
     // The reverse lookup map is only populated if the verification flag is
     // enabled.
-    DCHECK(FLAG_heap_snapshot_verify);
+    DCHECK(v8_flags.heap_snapshot_verify);
 
     auto it = reverse_entries_map_.find(entry);
     return it == reverse_entries_map_.end() ? nullptr : it->second;

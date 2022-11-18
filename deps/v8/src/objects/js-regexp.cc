@@ -258,7 +258,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
   DisallowGarbageCollection no_gc;
   int escapes = 0;
   bool needs_escapes = false;
-  bool in_char_class = false;
+  bool in_character_class = false;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
@@ -270,14 +270,14 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
         // Escape. Skip next character, which will be copied verbatim;
         i++;
       }
-    } else if (c == '/' && !in_char_class) {
+    } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       needs_escapes = true;
       escapes++;
     } else if (c == '[') {
-      in_char_class = true;
+      in_character_class = true;
     } else if (c == ']') {
-      in_char_class = false;
+      in_character_class = false;
     } else if (c == '\n') {
       needs_escapes = true;
       escapes++;
@@ -294,7 +294,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
       DCHECK(!IsLineTerminator(c));
     }
   }
-  DCHECK(!in_char_class);
+  DCHECK(!in_character_class);
   DCHECK_GE(escapes, 0);
   DCHECK_IMPLIES(escapes != 0, needs_escapes);
   *needs_escapes_out = needs_escapes;
@@ -315,7 +315,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   base::Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
-  bool in_char_class = false;
+  bool in_character_class = false;
   while (s < src.length()) {
     const Char c = src[s];
     if (c == '\\') {
@@ -328,13 +328,13 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
         dst[d++] = src[s++];
       }
       if (s == src.length()) break;
-    } else if (c == '/' && !in_char_class) {
+    } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
     } else if (c == '[') {
-      in_char_class = true;
+      in_character_class = true;
     } else if (c == ']') {
-      in_char_class = false;
+      in_character_class = false;
     } else if (c == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
@@ -357,7 +357,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
     dst[d++] = src[s++];
   }
   DCHECK_EQ(result->length(), d);
-  DCHECK(!in_char_class);
+  DCHECK(!in_character_class);
   return result;
 }
 

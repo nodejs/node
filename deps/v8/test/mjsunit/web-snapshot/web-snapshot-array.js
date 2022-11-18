@@ -107,3 +107,27 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   // cctests.
   assertEquals('foobarfoo', foo.array.join(''));
 })();
+
+(function TestArrayWithSlackElements() {
+  function createObjects() {
+    globalThis.foo = {
+      array: [],
+      doubleArray: [],
+      objectArray: []
+    };
+    for (let i = 0; i < 100; ++i) {
+      globalThis.foo.array.push(i);
+      globalThis.foo.doubleArray.push(i + 0.1);
+      globalThis.foo.objectArray.push({});
+    }
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(100, foo.array.length);
+  assertEquals(100, foo.doubleArray.length);
+  assertEquals(100, foo.objectArray.length);
+  for (let i = 0; i < 100; ++i){
+    assertEquals(i, foo.array[i]);
+    assertEquals(i + 0.1, foo.doubleArray[i]);
+    assertEquals({}, foo.objectArray[i]);
+  }
+})();

@@ -447,8 +447,12 @@ class TestCase(object):
         (other.suite.name, other.name, other.variant)
     )
 
-  def __str__(self):
+  @property
+  def full_name(self):
     return self.suite.name + '/' + self.name
+
+  def __str__(self):
+    return self.full_name
 
 
 class D8TestCase(TestCase):

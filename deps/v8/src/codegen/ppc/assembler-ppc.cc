@@ -167,8 +167,7 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 bool RelocInfo::IsInConstantPool() {
-  if (v8_flags.enable_embedded_constant_pool &&
-      constant_pool_ != kNullAddress) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_ != kNullAddress) {
     return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
@@ -839,6 +838,16 @@ void Assembler::mulli(Register dst, Register src, const Operand& imm) {
   d_form(MULLI, dst, src, imm.immediate(), true);
 }
 
+// Multiply hi doubleword
+void Assembler::mulhd(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHD, dst, src1, src2, LeaveOE, r);
+}
+
+// Multiply hi doubleword unsigned
+void Assembler::mulhdu(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHDU, dst, src1, src2, LeaveOE, r);
+}
+
 // Multiply hi word
 void Assembler::mulhw(Register dst, Register src1, Register src2, RCBit r) {
   xo_form(EXT2 | MULHWX, dst, src1, src2, LeaveOE, r);
@@ -1310,8 +1319,7 @@ int Assembler::instructions_required_for_mov(Register dst,
 
 bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
                                           bool canOptimize) const {
-  if (!v8_flags.enable_embedded_constant_pool ||
-      !is_constant_pool_available()) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL || !is_constant_pool_available()) {
     // If there is no constant pool available, we must use a mov
     // immediate sequence.
     return false;
@@ -2155,8 +2163,7 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint32_t*>(pc_) = data;
@@ -2166,8 +2173,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint64_t*>(pc_) = value;
@@ -2177,8 +2183,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uintptr_t*>(pc_) = data;

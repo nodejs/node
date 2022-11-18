@@ -44,7 +44,7 @@ struct WasmCompilationResult {
 
   bool succeeded() const { return code_desc.buffer != nullptr; }
   bool failed() const { return !succeeded(); }
-  operator bool() const { return succeeded(); }
+  explicit operator bool() const { return succeeded(); }
 
   CodeDesc code_desc;
   std::unique_ptr<AssemblerBuffer> instr_buffer;
@@ -57,7 +57,6 @@ struct WasmCompilationResult {
   ExecutionTier result_tier;
   Kind kind = kFunction;
   ForDebugging for_debugging = kNoDebugging;
-  int feedback_vector_slots = 0;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -104,6 +103,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   enum AllowGeneric : bool { kAllowGeneric = true, kDontAllowGeneric = false };
 
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
+                                 uint32_t canonical_sig_index,
                                  const wasm::WasmModule* module, bool is_import,
                                  const WasmFeatures& enabled_features,
                                  AllowGeneric allow_generic);
@@ -116,18 +116,20 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
 
   bool is_import() const { return is_import_; }
   const FunctionSig* sig() const { return sig_; }
+  uint32_t canonical_sig_index() const { return canonical_sig_index_; }
 
   // Run a compilation unit synchronously.
   static Handle<CodeT> CompileJSToWasmWrapper(Isolate* isolate,
                                               const FunctionSig* sig,
+                                              uint32_t canonical_sig_index,
                                               const WasmModule* module,
                                               bool is_import);
 
   // Run a compilation unit synchronously, but ask for the specific
   // wrapper.
-  static Handle<CodeT> CompileSpecificJSToWasmWrapper(Isolate* isolate,
-                                                      const FunctionSig* sig,
-                                                      const WasmModule* module);
+  static Handle<CodeT> CompileSpecificJSToWasmWrapper(
+      Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+      const WasmModule* module);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -137,6 +139,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   Isolate* isolate_;
   bool is_import_;
   const FunctionSig* sig_;
+  uint32_t canonical_sig_index_;
   bool use_generic_wrapper_;
   std::unique_ptr<TurbofanCompilationJob> job_;
 };

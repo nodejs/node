@@ -1,6 +1,6 @@
 /* crc32_simd.c
  *
- * Copyright 2017 The Chromium Authors. All rights reserved.
+ * Copyright 2017 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the Chromium source repository LICENSE file.
  */
@@ -160,6 +160,13 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(  /* SSE4.2+PCLMUL */
  */
 
 #if defined(__clang__)
+/* We need some extra types for using PMULL.
+ */
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#include <arm_acle.h>
+#endif
+
 /* CRC32 intrinsics are #ifdef'ed out of arm_acle.h unless we build with an
  * armv8 target, which is incompatible with ThinLTO optimizations on Android.
  * (Namely, mixing and matching different module-level targets makes ThinLTO
@@ -175,6 +182,10 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(  /* SSE4.2+PCLMUL */
  * NOTE: clang currently complains that "'+soft-float-abi' is not a recognized
  * feature for this target (ignoring feature)." This appears to be a harmless
  * bug in clang.
+ *
+ * These definitions must appear *after* including arm_acle.h otherwise that
+ * header may end up defining functions named __builtin_arm_crc32* that call
+ * themselves, creating an infinite loop when the intrinsic is called.
  */
 /* XXX: Cannot hook into builtins with XCode for arm64. */
 #if !defined(ARMV8_OS_MACOS)
@@ -182,13 +193,6 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(  /* SSE4.2+PCLMUL */
 #define __crc32d __builtin_arm_crc32d
 #define __crc32w __builtin_arm_crc32w
 #define __crc32cw __builtin_arm_crc32cw
-#endif
-
-/* We need some extra types for using PMULL.
- */
-#if defined(__aarch64__)
-#include <arm_neon.h>
-#include <arm_acle.h>
 #endif
 
 #if defined(__aarch64__)
@@ -202,6 +206,7 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(  /* SSE4.2+PCLMUL */
  * allowed. We can just include arm_acle.h.
  */
 #include <arm_acle.h>
+#include <arm_neon.h>
 #define TARGET_ARMV8_WITH_CRC
 #else  // !defined(__GNUC__) && !defined(_aarch64__)
 #error ARM CRC32 SIMD extensions only supported for Clang and GCC

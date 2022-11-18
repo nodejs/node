@@ -334,7 +334,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
 
-  if (FLAG_debug_code &&
+  if (v8_flags.debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
     ASSERT_EQ(6U, s.size());
 
@@ -1164,7 +1164,7 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
       (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
   // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
-  if (FLAG_debug_code && binop.arch_opcode == kMips64Cmp) {
+  if (v8_flags.debug_code && binop.arch_opcode == kMips64Cmp) {
     ASSERT_EQ(6U, s.size());
     EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
     EXPECT_EQ(kMips64Dshl, s[1]->arch_opcode());

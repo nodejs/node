@@ -17,8 +17,7 @@ EXTRA_FLAGS = [
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.1, '--interrupt-budget=100'),
-    # TODO(almuthanna): enable again when the FYI bots are greener
-    # (0.1, '--interrupt-budget-for-maglev=100'),
+    (0.1, '--interrupt-budget-for-maglev=100'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.1, '--minor-mc'),
@@ -53,6 +52,9 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
+
+MIN_DEOPT = 1
+MAX_DEOPT = 10**9
 
 
 def random_extra_flags(rng):
@@ -194,7 +196,7 @@ class FuzzerProc(base.TestProcProducer):
 
   def _result_for(self, test, subtest, result):
     if not self._disable_analysis:
-      if result is not None:
+      if result is not None and subtest.procid.endswith('Fuzzer-analysis'):
         # Analysis phase, for fuzzing we drop the result.
         if result.has_unexpected_output:
           self._send_result(test, None)
@@ -356,21 +358,15 @@ class ThreadPoolSizeFuzzer(Fuzzer):
 
 
 class DeoptAnalyzer(Analyzer):
-  MAX_DEOPT=1000000000
-
-  def __init__(self, min_interval):
-    super(DeoptAnalyzer, self).__init__()
-    self._min = min_interval
-
   def get_analysis_flags(self):
-    return ['--deopt-every-n-times=%d' % self.MAX_DEOPT,
+    return ['--deopt-every-n-times=%d' % MAX_DEOPT,
             '--print-deopt-stress']
 
   def do_analysis(self, result):
     for line in reversed(result.output.stdout.splitlines()):
       if line.startswith('=== Stress deopt counter: '):
-        counter = self.MAX_DEOPT - int(line.split(' ')[-1])
-        if counter < self._min:
+        counter = MAX_DEOPT - int(line.split(' ')[-1])
+        if counter < MIN_DEOPT:
           # Skip this test since we won't generate any meaningful interval with
           # given minimum.
           return None
@@ -378,17 +374,13 @@ class DeoptAnalyzer(Analyzer):
 
 
 class DeoptFuzzer(Fuzzer):
-  def __init__(self, min_interval):
-    super(DeoptFuzzer, self).__init__()
-    self._min = min_interval
-
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       if analysis_value:
         value = analysis_value // 2
       else:
         value = 10000
-      interval = rng.randint(self._min, max(value, self._min))
+      interval = rng.randint(MIN_DEOPT, max(value, MIN_DEOPT))
       yield ['--deopt-every-n-times=%d' % interval]
 
 

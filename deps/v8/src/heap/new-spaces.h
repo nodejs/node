@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
@@ -217,24 +218,17 @@ class SemiSpace final : public Space {
 };
 
 // A SemiSpaceObjectIterator is an ObjectIterator that iterates over the active
-// semispace of the heap's new space.  It iterates over the objects in the
-// semispace from a given start address (defaulting to the bottom of the
-// semispace) to the top of the semispace.  New objects allocated after the
-// iterator is created are not iterated.
+// semispace of the heap's new space.
 class SemiSpaceObjectIterator : public ObjectIterator {
  public:
-  // Create an iterator over the allocated objects in the given to-space.
-  explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
+  // Create an iterator over the objects in the given to-space.
+  inline explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
 
   inline HeapObject Next() final;
 
  private:
-  void Initialize(Address start, Address end);
-
   // The current iteration point.
   Address current_;
-  // The end of iteration.
-  Address limit_;
 };
 
 class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
@@ -294,13 +288,14 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate) const = 0;
-  // VerifyImpl verifies objects on the space starting from |page| and
-  // |address|. |address| should be a valid limit on |page| (see
-  // BasicMemoryChunk::ContainsLimit).
+  // VerifyImpl verifies objects on the space starting from |current_page| and
+  // |current_address|. |current_address| should be a valid limit on
+  // |current_page| (see BasicMemoryChunk::ContainsLimit).
   void VerifyImpl(Isolate* isolate, const Page* current_page,
-                  Address current_address,
-                  Address stop_iteration_at_address) const;
+                  Address current_address) const;
 #endif
+
+  virtual void MakeIterable() = 0;
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   virtual void ClearUnusedObjectStartBitmaps() = 0;
@@ -483,6 +478,11 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Print() override { to_space_.Print(); }
 #endif
 
+  void MakeIterable() override;
+
+  void MakeAllPagesInFromSpaceIterable();
+  void MakeUnusedPagesInToSpaceIterable();
+
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() override;
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
@@ -565,7 +565,9 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Grow();
 
   // Shrink the capacity of the space.
-  void Shrink();
+  void Shrink() { UNREACHABLE(); }
+  bool StartShrinking();
+  void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
     // allocated since last gc is compiuted as allocated linear areas minus
@@ -599,7 +601,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
   // if successful.
-  bool AddFreshPage();
+  bool AddFreshPage() { return false; }
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
@@ -625,9 +627,13 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
 #endif
 
+  void MakeIterable() { free_list()->RepairLists(heap()); }
+
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() {}
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
+  bool ShouldReleasePage() const;
 
  private:
   bool PreallocatePages();
@@ -664,11 +670,13 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   // Shrink the capacity of the space.
   void Shrink() final { paged_space_.Shrink(); }
+  bool StartShrinking() { return paged_space_.StartShrinking(); }
+  void FinishShrinking() { paged_space_.FinishShrinking(); }
 
   // Return the allocated bytes in the active space.
   size_t Size() const final { return paged_space_.Size(); }
 
-  size_t SizeOfObjects() const final { return Size(); }
+  size_t SizeOfObjects() const final { return paged_space_.SizeOfObjects(); }
 
   // Return the allocatable capacity of the space.
   size_t Capacity() const final { return paged_space_.Capacity(); }
@@ -781,13 +789,21 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     paged_space_.MakeLinearAllocationAreaIterable();
   }
 
-  PagedSpaceBase* paged_space() { return &paged_space_; }
+  PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
+
+  void MakeIterable() override { paged_space_.MakeIterable(); }
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   void ClearUnusedObjectStartBitmaps() override {
     paged_space_.ClearUnusedObjectStartBitmaps();
   }
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
+  // All operations on `memory_chunk_list_` should go through `paged_space_`.
+  heap::List<MemoryChunk>& memory_chunk_list() final { UNREACHABLE(); }
+
+  bool ShouldReleasePage() const { return paged_space_.ShouldReleasePage(); }
+  void ReleasePage(Page* page) { paged_space_.ReleasePage(page); }
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
