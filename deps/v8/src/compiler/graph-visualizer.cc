@@ -33,8 +33,8 @@ namespace compiler {
 
 const char* get_cached_trace_turbo_filename(OptimizedCompilationInfo* info) {
   if (!info->trace_turbo_filename()) {
-    info->set_trace_turbo_filename(
-        GetVisualizerLogFileName(info, FLAG_trace_turbo_path, nullptr, "json"));
+    info->set_trace_turbo_filename(GetVisualizerLogFileName(
+        info, v8_flags.trace_turbo_path, nullptr, "json"));
   }
   return info->trace_turbo_filename();
 }
@@ -232,7 +232,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* suffix) {
   base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
-  const char* file_prefix = FLAG_trace_turbo_file_prefix.value();
+  const char* file_prefix = v8_flags.trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
     SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
@@ -246,7 +246,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
   base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
-  if (FLAG_trace_file_names && info->has_shared_info() &&
+  if (v8_flags.trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
     Object source_name = Script::cast(info->shared_info()->script()).name();
     if (source_name.IsString()) {
@@ -680,7 +680,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         PrintIndent();
         os_ << "0 " << uses << " ";
         PrintNode(node);
-        if (FLAG_trace_turbo_types) {
+        if (v8_flags.trace_turbo_types) {
           os_ << " ";
           PrintType(node);
         }
@@ -710,7 +710,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         for (BasicBlock* successor : current->successors()) {
           os_ << " B" << successor->rpo_number();
         }
-        if (FLAG_trace_turbo_types && current->control_input() != nullptr) {
+        if (v8_flags.trace_turbo_types && current->control_input() != nullptr) {
           os_ << " ";
           PrintType(current->control_input());
         }
@@ -811,7 +811,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
 
     UsePosition* current_pos = range->first_pos();
     while (current_pos != nullptr) {
-      if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
+      if (current_pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
         os_ << " " << current_pos->pos().value() << " M";
       }
       current_pos = current_pos->next();

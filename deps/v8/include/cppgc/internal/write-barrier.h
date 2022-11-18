@@ -12,6 +12,7 @@
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/atomic-entry-flag.h"
+#include "cppgc/internal/base-page-handle.h"
 #include "cppgc/internal/member-storage.h"
 #include "cppgc/platform.h"
 #include "cppgc/sentinel-pointer.h"
@@ -283,7 +284,7 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       return SetAndReturnType<WriteBarrier::Type::kGenerational>(params);
     }
 #else   // !defined(CPPGC_YOUNG_GENERATION)
-    if (V8_UNLIKELY(!subtle::HeapState::IsMarking(handle))) {
+    if (V8_UNLIKELY(!handle.is_incremental_marking_in_progress())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
 #endif  // !defined(CPPGC_YOUNG_GENERATION)
@@ -326,11 +327,6 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
 
-  // TODO(chromium:1056170): Create fast path on API.
-  static bool IsMarking(const void*, HeapHandle**);
-  // TODO(chromium:1056170): Create fast path on API.
-  static bool IsMarking(HeapHandle&);
-
   WriteBarrierTypeForNonCagedHeapPolicy() = delete;
 };
 
@@ -348,7 +344,13 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
     if (V8_LIKELY(!WriteBarrier::IsEnabled())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
-    if (IsMarking(object, &params.heap)) {
+    // We know that |object| is within the normal page or in the beginning of a
+    // large page, so extract the page header by bitmasking.
+    BasePageHandle* page =
+        BasePageHandle::FromPayload(const_cast<void*>(object));
+
+    HeapHandle& heap_handle = page->heap_handle();
+    if (V8_LIKELY(heap_handle.is_incremental_marking_in_progress())) {
       return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
     }
     return SetAndReturnType<WriteBarrier::Type::kNone>(params);
@@ -364,7 +366,7 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
                                           HeapHandleCallback callback) {
     if (V8_UNLIKELY(WriteBarrier::IsEnabled())) {
       HeapHandle& handle = callback();
-      if (IsMarking(handle)) {
+      if (V8_LIKELY(handle.is_incremental_marking_in_progress())) {
         params.heap = &handle;
         return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
       }

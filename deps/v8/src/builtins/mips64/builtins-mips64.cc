@@ -1021,7 +1021,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // Ensure the flags is not allocated again.
     // Drop the frame created by the baseline call.
     __ Pop(ra, fp);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1270,7 +1270,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
@@ -3014,8 +3014,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Sw(s2, MemOperand(s5, kLevelOffset));
 
   Label profiler_enabled, done_api_call;
-  __ li(t9, ExternalReference::is_profiling_address(isolate));
-  __ Lb(t9, MemOperand(t9, 0));
+  __ Lb(t9, __ ExternalReferenceAsOperand(
+                ExternalReference::is_profiling_address(isolate), t9));
   __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
 #ifdef V8_RUNTIME_CALL_STATS
   __ li(t9, ExternalReference::address_of_runtime_stats_flag());

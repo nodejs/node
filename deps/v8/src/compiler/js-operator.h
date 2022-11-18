@@ -1040,6 +1040,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* GetSuperConstructor();
 
+  const Operator* FindNonDefaultConstructorOrConstruct();
+
   const Operator* CreateGeneratorObject();
 
   const Operator* LoadGlobal(const NameRef& name,
@@ -1753,6 +1755,22 @@ class JSForInNextNode final : public JSNodeWrapperBase {
   V(CacheType, cache_type, 2, Object)   \
   V(Index, index, 3, Smi)               \
   V(FeedbackVector, feedback_vector, 4, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSFindNonDefaultConstructorOrConstructNode final
+    : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSFindNonDefaultConstructorOrConstructNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSFindNonDefaultConstructorOrConstruct,
+              node->opcode());
+  }
+
+#define INPUTS(V)                           \
+  V(ThisFunction, this_function, 0, Object) \
+  V(NewTarget, new_target, 1, Object)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

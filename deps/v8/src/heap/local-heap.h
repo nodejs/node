@@ -115,6 +115,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
+  // Mark/Unmark linear allocation areas in shared heap black. Used for black
+  // allocation.
+  void MarkSharedLinearAllocationAreaBlack();
+  void UnmarkSharedLinearAllocationArea();
+
   // Give up linear allocation areas. Used for mark-compact GC.
   void FreeLinearAllocationArea();
 
@@ -149,17 +154,17 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  void NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
-                              ClearRecordedSlots clear_recorded_slots);
+  void NotifyObjectSizeChange(
+      HeapObject object, int old_size, int new_size,
+      ClearRecordedSlots clear_recorded_slots,
+      UpdateInvalidatedObjectSize update_invalidated_object_size =
+          UpdateInvalidatedObjectSize::kYes);
 
   bool is_main_thread() const { return is_main_thread_; }
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
   ReadOnlySpace* read_only_space() { return heap_->read_only_space(); }
-
-  // Requests GC and blocks until the collection finishes.
-  bool TryPerformCollection();
 
   // Adds a callback that is invoked with the given |data| after each GC.
   // The callback is invoked on the main thread before any background thread

@@ -52,14 +52,14 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   // TODO(dcarney): add a verifier.
   void Optimize() {
     WireBlocks();
-    if (FLAG_trace_turbo) {
+    if (v8_flags.trace_turbo) {
       StdoutStream{}
           << "----- Instruction sequence before move optimization -----\n"
           << *sequence();
     }
     MoveOptimizer move_optimizer(zone(), sequence());
     move_optimizer.Run();
-    if (FLAG_trace_turbo) {
+    if (v8_flags.trace_turbo) {
       StdoutStream{}
           << "----- Instruction sequence after move optimization -----\n"
           << *sequence();

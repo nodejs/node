@@ -299,11 +299,13 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
+    case JS_RAW_JSON_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
     case JS_DISPLAY_NAMES_TYPE:
+    case JS_DURATION_FORMAT_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:
@@ -2296,7 +2298,8 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
-    DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy());
+    DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy() ||
+           prototype->IsWasmObject());
   }
 
   WriteBarrierMode wb_mode =

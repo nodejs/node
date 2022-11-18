@@ -803,7 +803,7 @@ TEST(BreakPointConstructorBuiltin) {
 }
 
 TEST(BreakPointInlinedBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -847,7 +847,7 @@ TEST(BreakPointInlinedBuiltin) {
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -895,7 +895,7 @@ TEST(BreakPointInlineBoundBuiltin) {
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -939,7 +939,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -980,7 +980,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
 }
 
 TEST(BreakPointBuiltinTFOperator) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1401,7 +1401,7 @@ TEST(Regress1163547) {
 }
 
 TEST(BreakPointInlineApiFunction) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1447,7 +1447,7 @@ TEST(BreakPointInlineApiFunction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1576,7 +1576,7 @@ TEST(BreakPointConditionBuiltin) {
 }
 
 TEST(BreakPointInlining) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   break_point_hit_count = 0;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2922,9 +2922,9 @@ TEST(PauseInScript) {
 int message_callback_count = 0;
 
 TEST(DebugBreak) {
-  i::FLAG_stress_compaction = false;
+  i::v8_flags.stress_compaction = false;
 #ifdef VERIFY_HEAP
-  i::FLAG_verify_heap = true;
+  i::v8_flags.verify_heap = true;
 #endif
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -3012,9 +3012,9 @@ class DebugScopingListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInWrappedScript) {
-  i::FLAG_stress_compaction = false;
+  i::v8_flags.stress_compaction = false;
 #ifdef VERIFY_HEAP
-  i::FLAG_verify_heap = true;
+  i::v8_flags.verify_heap = true;
 #endif
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -3067,9 +3067,9 @@ TEST(DebugScopeIteratorWithFunctionTemplate) {
 }
 
 TEST(DebugBreakWithoutJS) {
-  i::FLAG_stress_compaction = false;
+  i::v8_flags.stress_compaction = false;
 #ifdef VERIFY_HEAP
-  i::FLAG_verify_heap = true;
+  i::v8_flags.verify_heap = true;
 #endif
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -3543,8 +3543,8 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
 };
 
 UNINITIALIZED_TEST(NoBreakOnStackOverflow) {
-  // We must set FLAG_stack_size before initializing the isolate.
-  i::FLAG_stack_size = 100;
+  // We must set v8_flags.stack_size before initializing the isolate.
+  i::v8_flags.stack_size = 100;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3840,7 +3840,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
 };
 
 TEST(DebugBreakInline) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
@@ -4289,7 +4289,7 @@ class DebugStepOverFunctionWithCaughtExceptionListener
 };
 
 TEST(DebugStepOverFunctionWithCaughtException) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4317,7 +4317,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
-  i::FLAG_stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
@@ -4340,7 +4340,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
 }
 
 TEST(DebugCoverage) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4395,7 +4395,7 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithCoverageOutOfScope) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4466,7 +4466,7 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithScriptDataOutOfScope) {
-  i::FLAG_always_turbofan = false;
+  i::v8_flags.always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4619,7 +4619,7 @@ i::MaybeHandle<i::Script> FindScript(
 }  // anonymous namespace
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
-  i::FLAG_expose_gc = true;
+  i::v8_flags.expose_gc = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

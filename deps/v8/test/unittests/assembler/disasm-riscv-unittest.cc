@@ -469,7 +469,7 @@ TEST_F(DisasmRiscv64Test, PSEUDO) {
 }
 #ifdef V8_TARGET_ARCH_RISCV64
 TEST_F(DisasmRiscv64Test, RV64C) {
-  i::FLAG_riscv_c_extension = true;
+  i::v8_flags.riscv_c_extension = true;
   SET_UP();
 
   COMPARE(c_nop(), "00000001       nop");

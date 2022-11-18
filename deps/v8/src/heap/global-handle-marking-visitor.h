@@ -18,7 +18,7 @@ namespace internal {
 // which requires them to be kept alive.
 class GlobalHandleMarkingVisitor final : public ::heap::base::StackVisitor {
  public:
-  GlobalHandleMarkingVisitor(Heap&, MarkingState&, MarkingWorklists::Local&);
+  GlobalHandleMarkingVisitor(Heap&, MarkingWorklists::Local&);
   ~GlobalHandleMarkingVisitor() override = default;
 
   void VisitPointer(const void*) override;

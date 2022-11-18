@@ -95,7 +95,7 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
   // not present in the startup snapshot to be serialized.
   if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
     std::vector<Object>* existing_cache =
-        isolate()->shared_isolate()->shared_heap_object_cache();
+        isolate()->shared_heap_isolate()->shared_heap_object_cache();
     const size_t existing_cache_size = existing_cache->size();
     // This is strictly < because the existing cache contains the terminating
     // undefined value, which the reconstructed cache does not.
@@ -201,12 +201,12 @@ bool SharedHeapSerializer::ShouldReconstructSharedHeapObjectCacheForTesting()
   // need to reconstruct the shared heap object cache because it is not actually
   // shared.
   return reconstruct_read_only_and_shared_object_caches_for_testing() &&
-         isolate()->shared_isolate() != nullptr;
+         isolate()->has_shared_heap();
 }
 
 void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
   std::vector<Object>* cache =
-      isolate()->shared_isolate()->shared_heap_object_cache();
+      isolate()->shared_heap_isolate()->shared_heap_object_cache();
   // Don't reconstruct the final element, which is always undefined and marks
   // the end of the cache, since serializing the live Isolate may extend the
   // shared object cache.

@@ -40,10 +40,6 @@ class WasmGCTester {
                           execution_tier == TestExecutionTier::kLiftoff),
         flag_wasm_dynamic_tiering(&v8::internal::v8_flags.wasm_dynamic_tiering,
                                   v8::internal::v8_flags.liftoff_only != true),
-        // Test both setups with canonicalization and without.
-        flag_canonicalization(
-            &v8::internal::v8_flags.wasm_type_canonicalization,
-            execution_tier == TestExecutionTier::kTurbofan),
         flag_tierup(&v8::internal::v8_flags.wasm_tier_up, false),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
@@ -200,7 +196,6 @@ class WasmGCTester {
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
   const FlagScope<bool> flag_wasm_dynamic_tiering;
-  const FlagScope<bool> flag_canonicalization;
   const FlagScope<bool> flag_tierup;
 
   byte DefineFunctionImpl(WasmFunctionBuilder* fun,
@@ -1190,27 +1185,31 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   FunctionSig sig(1, 2, sig_types);
   byte sig_index = tester.DefineSignature(&sig);
 
-  const byte kRefTestNull = tester.DefineFunction(
+  const byte kRefTestNullDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_REF_NULL(type_index), subtype_index), kExprEnd});
-  // Upcasts should be optimized away for nominal types.
-  const byte kRefTestUpcast = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index),
+      {WASM_REF_TEST_DEPRECATED(WASM_REF_NULL(type_index), subtype_index),
        kExprEnd});
-  const byte kRefTestUpcastNull = tester.DefineFunction(
+  // Upcasts should be optimized away for nominal types.
+  const byte kRefTestUpcastDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), type_index), kExprEnd});
-  const byte kRefTestUnrelatedNullable = tester.DefineFunction(
+      {WASM_REF_TEST_DEPRECATED(WASM_STRUCT_NEW_DEFAULT(subtype_index),
+                                type_index),
+       kExprEnd});
+  const byte kRefTestUpcastNullDeprecated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST_DEPRECATED(WASM_REF_NULL(subtype_index), type_index),
+       kExprEnd});
+  const byte kRefTestUnrelatedNullableDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {refNull(subtype_index)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype_index)),
-       WASM_REF_TEST(WASM_LOCAL_GET(0), sig_index), kExprEnd});
-  const byte kRefTestUnrelatedNull = tester.DefineFunction(
+       WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0), sig_index), kExprEnd});
+  const byte kRefTestUnrelatedNullDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_REF_NULL(subtype_index), sig_index), kExprEnd});
-  const byte kRefTestUnrelatedNonNullable = tester.DefineFunction(
+      {WASM_REF_TEST_DEPRECATED(WASM_REF_NULL(subtype_index), sig_index),
+       kExprEnd});
+  const byte kRefTestUnrelatedNonNullableDeprecated = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_REF_TEST(WASM_STRUCT_NEW_DEFAULT(type_index), sig_index),
+      {WASM_REF_TEST_DEPRECATED(WASM_STRUCT_NEW_DEFAULT(type_index), sig_index),
        kExprEnd});
 
   const byte kRefCastNull =
@@ -1333,12 +1332,12 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
 
   tester.CompileModule();
 
-  tester.CheckResult(kRefTestNull, 0);
-  tester.CheckResult(kRefTestUpcast, 1);
-  tester.CheckResult(kRefTestUpcastNull, 0);
-  tester.CheckResult(kRefTestUnrelatedNullable, 0);
-  tester.CheckResult(kRefTestUnrelatedNull, 0);
-  tester.CheckResult(kRefTestUnrelatedNonNullable, 0);
+  tester.CheckResult(kRefTestNullDeprecated, 0);
+  tester.CheckResult(kRefTestUpcastDeprecated, 1);
+  tester.CheckResult(kRefTestUpcastNullDeprecated, 0);
+  tester.CheckResult(kRefTestUnrelatedNullableDeprecated, 0);
+  tester.CheckResult(kRefTestUnrelatedNullDeprecated, 0);
+  tester.CheckResult(kRefTestUnrelatedNonNullableDeprecated, 0);
 
   tester.CheckResult(kRefCastNull, 1);
   tester.CheckResult(kRefCastUpcast, 0);
@@ -1485,6 +1484,16 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   const byte cast_reference = tester.DefineFunction(
       &sig_func, {}, {WASM_REF_FUNC(sig_index), kExprEnd});
 
+  const byte test_deprecated = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmFuncRef},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0), sig_index), kExprEnd});
+
+  const byte test_fail_deprecated = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmFuncRef},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0), other_sig_index), kExprEnd});
+
   const byte test = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmFuncRef},
       {WASM_LOCAL_SET(0, WASM_REF_FUNC(func_index)),
@@ -1513,6 +1522,8 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   CHECK_EQ(cast_function->code().raw_instruction_start(),
            cast_function_reference->code().raw_instruction_start());
 
+  tester.CheckResult(test_deprecated, 1);
+  tester.CheckResult(test_fail_deprecated, 0);
   tester.CheckResult(test, 1);
   tester.CheckResult(test_fail, 0);
 }

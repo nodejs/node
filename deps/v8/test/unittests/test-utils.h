@@ -13,6 +13,7 @@
 #include "include/v8-context.h"
 #include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-object.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
@@ -41,7 +42,7 @@ class WithDefaultPlatformMixin : public TMixin {
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.
-    i::FLAG_freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init = false;
     v8::V8::Initialize();
   }
 
@@ -60,7 +61,7 @@ class WithDefaultPlatformMixin : public TMixin {
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::FLAG_harmony_struct = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.harmony_struct = true; }
 };
 
 using CounterMap = std::map<std::string, int>;
@@ -80,6 +81,9 @@ class IsolateWrapper final {
   IsolateWrapper& operator=(const IsolateWrapper&) = delete;
 
   v8::Isolate* isolate() const { return isolate_; }
+  i::Isolate* i_isolate() const {
+    return reinterpret_cast<i::Isolate*>(isolate_);
+  }
 
  private:
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
@@ -96,6 +100,18 @@ class WithIsolateMixin : public TMixin {
   WithIsolateMixin() : isolate_wrapper_(kCountersMode) {}
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
+
+  Local<Value> RunJS(const char* source, Local<Context> context) {
+    return RunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked(),
+        context);
+  }
+
+  Local<Value> RunJS(Local<String> source, Local<Context> context) {
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context).ToLocalChecked();
+  }
 
  private:
   v8::IsolateWrapper isolate_wrapper_;
@@ -131,6 +147,12 @@ class WithIsolateScopeMixin : public TMixin {
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
   }
 
+  Local<Value> RunJS(Local<Context> context, const char* source) {
+    return RunJS(
+        context,
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
   MaybeLocal<Value> TryRunJS(const char* source) {
     return TryRunJS(
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
@@ -138,6 +160,11 @@ class WithIsolateScopeMixin : public TMixin {
 
   static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<String> source) {
     auto context = isolate->GetCurrentContext();
+    return TryRunJS(context, source);
+  }
+
+  static MaybeLocal<Value> TryRunJS(Local<Context> context,
+                                    Local<String> source) {
     v8::Local<v8::Value> result;
     Local<Script> script =
         v8::Script::Compile(context, source).ToLocalChecked();
@@ -205,6 +232,10 @@ class WithIsolateScopeMixin : public TMixin {
  private:
   Local<Value> RunJS(Local<String> source) {
     return TryRunJS(source).ToLocalChecked();
+  }
+
+  Local<Value> RunJS(Local<Context> context, Local<String> source) {
+    return TryRunJS(context, source).ToLocalChecked();
   }
 
   MaybeLocal<Value> TryRunJS(Local<String> source) {

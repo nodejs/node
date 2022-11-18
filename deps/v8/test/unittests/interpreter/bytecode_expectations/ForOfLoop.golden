@@ -339,7 +339,7 @@ bytecodes: [
                 B(Mov), R(12), R(0),
   /*   31 S> */ B(GetNamedProperty), R(12), U8(3), U8(12),
                 B(Star3),
-  /*   34 S> */ B(GetNamedProperty), R(12), U8(4), U8(14),
+  /*   34 E> */ B(GetNamedProperty), R(12), U8(4), U8(14),
                 B(Star4),
   /*   56 S> */ B(Ldar), R(4),
   /*   58 E> */ B(Add), R(3), U8(16),

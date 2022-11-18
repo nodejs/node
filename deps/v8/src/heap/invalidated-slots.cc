@@ -34,21 +34,16 @@ InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToShared(
 
 InvalidatedSlotsFilter::InvalidatedSlotsFilter(
     MemoryChunk* chunk, InvalidatedSlots* invalidated_slots,
-    RememberedSetType remembered_set_type, LivenessCheck liveness_check) {
+    RememberedSetType remembered_set_type, LivenessCheck liveness_check)
+    : marking_state_(liveness_check == LivenessCheck::kYes
+                         ? chunk->heap()->non_atomic_marking_state()
+                         : nullptr) {
   USE(remembered_set_type);
   invalidated_slots = invalidated_slots ? invalidated_slots : &empty_;
 
   iterator_ = invalidated_slots->begin();
   iterator_end_ = invalidated_slots->end();
   sentinel_ = chunk->area_end();
-
-  if (liveness_check == LivenessCheck::kYes) {
-    marking_state_ =
-        chunk->heap()->mark_compact_collector()->non_atomic_marking_state();
-  } else {
-    DCHECK_EQ(LivenessCheck::kNo, liveness_check);
-    marking_state_ = nullptr;
-  }
 
   // Invoke NextInvalidatedObject twice, to initialize
   // invalidated_start_ to the first invalidated object and

@@ -103,20 +103,25 @@ struct JsonProperty {
 class JsonParseInternalizer {
  public:
   static MaybeHandle<Object> Internalize(Isolate* isolate,
-                                         Handle<Object> object,
-                                         Handle<Object> reviver);
+                                         Handle<Object> result,
+                                         Handle<Object> reviver,
+                                         Handle<String> source);
 
  private:
-  JsonParseInternalizer(Isolate* isolate, Handle<JSReceiver> reviver)
-      : isolate_(isolate), reviver_(reviver) {}
+  JsonParseInternalizer(Isolate* isolate, Handle<JSReceiver> reviver,
+                        Handle<String> source)
+      : isolate_(isolate), reviver_(reviver), source_(source) {}
 
   MaybeHandle<Object> InternalizeJsonProperty(Handle<JSReceiver> holder,
-                                              Handle<String> key);
+                                              Handle<String> key,
+                                              Handle<Object> val_node);
 
-  bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name);
+  bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,
+                       Handle<Object> val_node);
 
   Isolate* isolate_;
   Handle<JSReceiver> reviver_;
+  Handle<String> source_;
 };
 
 enum class JsonToken : uint8_t {
@@ -143,15 +148,22 @@ class JsonParser final {
   using SeqString = typename CharTraits<Char>::String;
   using SeqExternalString = typename CharTraits<Char>::ExternalString;
 
+  V8_WARN_UNUSED_RESULT static bool CheckRawJson(Isolate* isolate,
+                                                 Handle<String> source) {
+    return JsonParser(isolate, source).ParseRawJson();
+  }
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
     HighAllocationThroughputScope high_throughput_scope(
         V8::GetCurrentPlatform());
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               JsonParser(isolate, source).ParseJson(), Object);
+                               JsonParser(isolate, source).ParseJson(reviver),
+                               Object);
     if (reviver->IsCallable()) {
-      return JsonParseInternalizer::Internalize(isolate, result, reviver);
+      return JsonParseInternalizer::Internalize(isolate, result, reviver,
+                                                source);
     }
     return result;
   }
@@ -187,7 +199,9 @@ class JsonParser final {
   ~JsonParser();
 
   // Parse a string containing a single JSON value.
-  MaybeHandle<Object> ParseJson();
+  MaybeHandle<Object> ParseJson(Handle<Object> reviver);
+
+  bool ParseRawJson();
 
   void advance() { ++cursor_; }
 
@@ -295,7 +309,8 @@ class JsonParser final {
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.
-  MaybeHandle<Object> ParseJsonValue();
+  template <bool should_track_json_source>
+  MaybeHandle<Object> ParseJsonValue(Handle<Object> reviver);
 
   Handle<Object> BuildJsonObject(
       const JsonContinuation& cont,

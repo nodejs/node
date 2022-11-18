@@ -18,6 +18,7 @@
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
+#include "src/heap/cppgc/remembered-set.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
@@ -85,6 +86,13 @@ ConstAddress BasePage::PayloadEnd() const {
   return const_cast<BasePage*>(this)->PayloadEnd();
 }
 
+size_t BasePage::AllocatedSize() const {
+  return is_large() ? LargePage::PageHeaderSize() +
+                          LargePage::From(this)->PayloadSize()
+                    : NormalPage::From(this)->PayloadSize() +
+                          RoundUp(sizeof(NormalPage), kAllocationGranularity);
+}
+
 size_t BasePage::AllocatedBytesAtLastGC() const {
   return is_large() ? LargePage::From(this)->AllocatedBytesAtLastGC()
                     : NormalPage::From(this)->AllocatedBytesAtLastGC();
@@ -120,8 +128,32 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
   return header;
 }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+void BasePage::AllocateSlotSet() {
+  DCHECK_NULL(slot_set_);
+  slot_set_ = decltype(slot_set_)(
+      static_cast<SlotSet*>(
+          SlotSet::Allocate(SlotSet::BucketsForSize(AllocatedSize()))),
+      SlotSetDeleter{AllocatedSize()});
+}
+
+void BasePage::SlotSetDeleter::operator()(SlotSet* slot_set) const {
+  DCHECK_NOT_NULL(slot_set);
+  SlotSet::Delete(slot_set, SlotSet::BucketsForSize(page_size_));
+}
+
+void BasePage::ResetSlotSet() { slot_set_.reset(); }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
 BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
-    : BasePageHandle(heap), space_(space), type_(type) {
+    : BasePageHandle(heap),
+      space_(space),
+      type_(type)
+#if defined(CPPGC_YOUNG_GENERATION)
+      ,
+      slot_set_(nullptr, SlotSetDeleter{})
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+{
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
   DCHECK_EQ(&heap.raw_heap(), space_.raw_heap());

@@ -104,10 +104,11 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   virtual void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) = 0;
 
-  base::Vector<const char> url() { return base::VectorOf(url_); }
+  const std::string& url() const { return *url_; }
+  std::shared_ptr<const std::string> shared_url() const { return url_; }
 
   void SetUrl(base::Vector<const char> url) {
-    url_.assign(url.begin(), url.length());
+    url_->assign(url.begin(), url.size());
   }
 
   static std::unique_ptr<StreamingDecoder> CreateAsyncStreamingDecoder(
@@ -121,7 +122,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
  protected:
   bool deserializing() const { return !compiled_module_bytes_.empty(); }
 
-  std::string url_;
+  const std::shared_ptr<std::string> url_ = std::make_shared<std::string>();
   MoreFunctionsCanBeSerializedCallback
       more_functions_can_be_serialized_callback_;
   // The content of `compiled_module_bytes_` shouldn't be used until

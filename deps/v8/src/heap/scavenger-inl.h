@@ -8,9 +8,11 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/incremental-marking-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/scavenger.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -110,10 +112,11 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   }
 
   if (is_incremental_marking_ &&
-      promotion_heap_choice != kPromoteIntoSharedHeap) {
+      (promotion_heap_choice != kPromoteIntoSharedHeap || mark_shared_heap_)) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
-  heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
+  pretenuring_handler_->UpdateAllocationSite(map, source,
+                                             &local_pretenuring_feedback_);
 
   return true;
 }
@@ -132,8 +135,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
 
   HeapObject target;
   if (allocation.To(&target)) {
-    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
-        target));
+    DCHECK(heap()->non_atomic_marking_state()->IsWhite(target));
     const bool self_success =
         MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
     if (!self_success) {
@@ -181,8 +183,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
 
   HeapObject target;
   if (allocation.To(&target)) {
-    DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
-        target));
+    DCHECK(heap()->non_atomic_marking_state()->IsWhite(target));
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {

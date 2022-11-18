@@ -499,7 +499,8 @@ class UnicodeWithGCTest : public TestWithHeapInternals {};
 
 #define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
   TEST_F(UnicodeWithGCTest, GCInsideNewStringFromUtf8SubStringWith##NAME) {    \
-    FLAG_stress_concurrent_allocation = false; /* For SimulateFullSpace. */    \
+    v8_flags.stress_concurrent_allocation =                                    \
+        false; /* For SimulateFullSpace. */                                    \
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));          \
     Factory* factory = isolate()->factory();                                   \
     /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
@@ -510,7 +511,7 @@ class UnicodeWithGCTest : public TestWithHeapInternals {};
             ->NewStringFromOneByte(v8::base::Vector<const uint8_t>(            \
                 reinterpret_cast<const uint8_t*>(buf), len))                   \
             .ToHandleChecked();                                                \
-    if (FLAG_single_generation) {                                              \
+    if (v8_flags.single_generation) {                                          \
       CHECK(!Heap::InYoungGeneration(*main_string));                           \
       SimulateFullSpace(heap()->old_space());                                  \
     } else {                                                                   \

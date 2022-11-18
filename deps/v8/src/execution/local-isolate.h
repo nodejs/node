@@ -106,8 +106,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   int GetNextUniqueSharedFunctionInfoId();
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-  bool is_collecting_type_profile() const;
-
   // TODO(cbruni): rename this back to logger() once the V8FileLogger
   // refactoring is completed.
   LocalLogger* v8_file_logger() const { return logger_.get(); }

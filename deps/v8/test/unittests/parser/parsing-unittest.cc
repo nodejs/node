@@ -51,7 +51,7 @@ enum ParserFlag {
 enum ParserSyncTestResult { kSuccessOrError, kSuccess, kError };
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
-  i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
+  i::v8_flags.allow_natives_syntax = flags.contains(kAllowNatives);
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
@@ -226,7 +226,7 @@ class ParsingTest : public TestWithContextAndZone {
     i::UnoptimizedCompileFlags compile_flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
             isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
-            ScriptType::kClassic, FLAG_lazy);
+            ScriptType::kClassic, v8_flags.lazy);
     SetParserFlags(&compile_flags, flags);
     compile_flags.set_is_module(is_module);
 
@@ -3122,7 +3122,7 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
 
 TEST_F(ParsingTest, FuncNameInferrerBasic) {
   // Tests that function names are inferred properly.
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   RunJS(
       "var foo1 = function() {}; "
@@ -3160,7 +3160,7 @@ TEST_F(ParsingTest, FuncNameInferrerBasic) {
 TEST_F(ParsingTest, FuncNameInferrerTwoByte) {
   // Tests function name inferring in cases where some parts of the inferred
   // function name are two-byte strings.
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = v8_isolate();
 
   uint16_t* two_byte_source = AsciiToTwoByteString(
@@ -3183,7 +3183,7 @@ TEST_F(ParsingTest, FuncNameInferrerTwoByte) {
 TEST_F(ParsingTest, FuncNameInferrerEscaped) {
   // The same as FuncNameInferrerTwoByte, except that we express the two-byte
   // character as a Unicode escape.
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = v8_isolate();
 
   uint16_t* two_byte_source = AsciiToTwoByteString(
@@ -4164,7 +4164,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
 }  // namespace
 
 TEST_F(ParsingTest, AsmModuleFlag) {
-  i::FLAG_validate_asm = false;
+  i::v8_flags.validate_asm = false;
   i::Isolate* isolate = i_isolate();
 
   const char* src =
@@ -4211,8 +4211,8 @@ TEST_F(ParsingTest, SloppyModeUseCount) {
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
-  i::FLAG_lazy = false;
-  i::FLAG_lazy_streaming = false;
+  i::v8_flags.lazy = false;
+  i::v8_flags.lazy_streaming = false;
   v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
   RunJS("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4222,8 +4222,8 @@ TEST_F(ParsingTest, SloppyModeUseCount) {
 TEST_F(ParsingTest, BothModesUseCount) {
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  i::FLAG_lazy = false;
-  i::FLAG_lazy_streaming = false;
+  i::v8_flags.lazy = false;
+  i::v8_flags.lazy_streaming = false;
   v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
   RunJS("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4647,7 +4647,7 @@ TEST_F(ParsingTest, ImportExpressionSuccess) {
 }
 
 TEST_F(ParsingTest, ImportExpressionWithImportAssertionSuccess) {
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
 
   // clang-format off
   const char* context_data[][2] = {
@@ -4701,9 +4701,8 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
       "import{",
       "import{x",
       "import{x}",
-      "import(x, y)",
+      "import(x, y, z)",
       "import(...y)",
-      "import(x,)",
       "import(,)",
       "import(,y)",
       "import(;)",
@@ -4778,7 +4777,7 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
 
 TEST_F(ParsingTest, ImportExpressionWithImportAssertionErrors) {
   {
-    i::FLAG_harmony_import_assertions = true;
+    i::v8_flags.harmony_import_assertions = true;
 
     // clang-format off
     const char* context_data[][2] = {
@@ -4880,7 +4879,7 @@ TEST_F(ParsingTest, BasicImportAssertionParsing) {
   };
   // clang-format on
 
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -4947,7 +4946,7 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
   };
   // clang-format on
 
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -7956,7 +7955,7 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
 }
 
 TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -8049,7 +8048,7 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
 }
 
 TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -8317,7 +8316,7 @@ TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
 }
 
 TEST_F(ParsingTest, ModuleParsingImportAssertionKeySorting) {
-  i::FLAG_harmony_import_assertions = true;
+  i::v8_flags.harmony_import_assertions = true;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -

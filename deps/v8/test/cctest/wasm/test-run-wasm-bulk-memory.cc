@@ -565,7 +565,7 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
                         WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
         kExprI32Const, 0);
 
-  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
+  r.builder().InitializeWrapperCache();
 
   auto table =
       handle(WasmTableObject::cast(
@@ -714,7 +714,7 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
                         WASM_LOCAL_GET(1), WASM_LOCAL_GET(2)),
         kExprI32Const, 0);
 
-  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
+  r.builder().InitializeWrapperCache();
 
   auto table =
       handle(WasmTableObject::cast(

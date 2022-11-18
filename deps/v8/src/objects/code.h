@@ -266,6 +266,11 @@ class CodeDataContainer : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
 #undef CODE_DATA_FIELDS
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+  using ExternalCodeField =
+      TaggedField<Object, kCodeOffset, ExternalCodeCompressionScheme>;
+#endif
+
   class BodyDescriptor;
 
   // Flags layout.
@@ -728,8 +733,7 @@ class Code : public HeapObject {
   V(kOsrOffsetOffset, kInt32Size)                                             \
   /* Offsets describing inline metadata tables, relative to MetadataStart. */ \
   V(kHandlerTableOffsetOffset, kIntSize)                                      \
-  V(kConstantPoolOffsetOffset,                                                \
-    v8_flags.enable_embedded_constant_pool.value() ? kIntSize : 0)            \
+  V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
   V(kCodeCommentsOffsetOffset, kIntSize)                                      \
   V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
   V(kUnalignedHeaderSize, 0)                                                  \
@@ -761,9 +765,8 @@ class Code : public HeapObject {
   static constexpr int kHeaderPaddingSize = 8;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      v8_flags.enable_embedded_constant_pool.value()
-          ? (COMPRESS_POINTERS_BOOL ? 4 : 48)
-          : (COMPRESS_POINTERS_BOOL ? 8 : 52);
+      V8_EMBEDDED_CONSTANT_POOL_BOOL ? (COMPRESS_POINTERS_BOOL ? 4 : 48)
+                                     : (COMPRESS_POINTERS_BOOL ? 8 : 52);
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 8 : 20;
 #elif V8_TARGET_ARCH_RISCV64

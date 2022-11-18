@@ -867,7 +867,7 @@ struct type_sew_t<128> {
       double vs2 = vs2_is_widen                                                \
                        ? Rvvelt<double>(rvv_vs2_reg(), i)                      \
                        : static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i)); \
-      double vs3 = static_cast<double>(Rvvelt<float>(rvv_vd_reg(), i));        \
+      double vs3 = Rvvelt<double>(rvv_vd_reg(), i);                            \
       BODY32;                                                                  \
       break;                                                                   \
     }                                                                          \
@@ -892,7 +892,7 @@ struct type_sew_t<128> {
                        ? static_cast<double>(Rvvelt<double>(rvv_vs2_reg(), i)) \
                        : static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i)); \
       double vs1 = static_cast<double>(Rvvelt<float>(rvv_vs1_reg(), i));       \
-      double vs3 = static_cast<double>(Rvvelt<float>(rvv_vd_reg(), i));        \
+      double vs3 = Rvvelt<double>(rvv_vd_reg(), i);                            \
       BODY32;                                                                  \
       break;                                                                   \
     }                                                                          \
@@ -6861,7 +6861,7 @@ void Simulator::DecodeRvvFVV() {
         }
         case E32: {
           double& vd = Rvvelt<double>(rvv_vd_reg(), 0, true);
-          float vs1 = Rvvelt<float>(rvv_vs1_reg(), 0);
+          double vs1 = Rvvelt<double>(rvv_vs1_reg(), 0);
           double alu_out = vs1;
           for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {
             double vs2 = static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i));
@@ -6921,19 +6921,19 @@ void Simulator::DecodeRvvFVV() {
       break;
     case RO_V_VFWMACC_VV:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(float, vs2, vs1, vs3)}, false)
+      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(double, vs2, vs1, vs3)}, false)
       break;
     case RO_V_VFWNMACC_VV:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(float, -vs2, vs1, -vs3)}, false)
+      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, vs1, -vs3)}, false)
       break;
     case RO_V_VFWMSAC_VV:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(float, vs2, vs1, -vs3)}, false)
+      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(double, vs2, vs1, -vs3)}, false)
       break;
     case RO_V_VFWNMSAC_VV:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(float, -vs2, vs1, +vs3)}, false)
+      RVV_VI_VFP_VV_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, vs1, +vs3)}, false)
       break;
     case RO_V_VFMV_FS:
       switch (rvv_vsew()) {
@@ -7071,19 +7071,19 @@ void Simulator::DecodeRvvFVF() {
       break;
     case RO_V_VFWMACC_VF:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(float, vs2, fs1, vs3)}, false)
+      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, vs2, fs1, vs3)}, false)
       break;
     case RO_V_VFWNMACC_VF:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(float, -vs2, fs1, -vs3)}, false)
+      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, fs1, -vs3)}, false)
       break;
     case RO_V_VFWMSAC_VF:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(float, vs2, fs1, -vs3)}, false)
+      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, vs2, fs1, -vs3)}, false)
       break;
     case RO_V_VFWNMSAC_VF:
       RVV_VI_CHECK_DSS(true);
-      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(float, -vs2, fs1, vs3)}, false)
+      RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, fs1, vs3)}, false)
       break;
     default:
       UNSUPPORTED_RISCV();

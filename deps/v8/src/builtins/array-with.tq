@@ -55,10 +55,8 @@ transitioning builtin GenericArrayWith(
 
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.with
 transitioning javascript builtin ArrayPrototypeWith(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  const index = arguments[0];
-  const value = arguments[1];
-
+    js-implicit context: NativeContext, receiver: JSAny)(
+    index: JSAny, value: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 

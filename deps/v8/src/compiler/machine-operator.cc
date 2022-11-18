@@ -305,25 +305,27 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
-#define PURE_BINARY_OP_LIST_64(V)                                        \
-  V(Word64And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Word64Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Word64Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Word64Shl, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Word64RorLowerable, Operator::kNoProperties, 2, 1, 1)                \
-  V(Word64Equal, Operator::kCommutative, 2, 0, 1)                        \
-  V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                          \
-  V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Int64Div, Operator::kNoProperties, 2, 1, 1)                          \
-  V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                          \
-  V(Int64LessThan, Operator::kNoProperties, 2, 0, 1)                     \
-  V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
-  V(Uint64Div, Operator::kNoProperties, 2, 1, 1)                         \
-  V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                         \
-  V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
+#define PURE_BINARY_OP_LIST_64(V)                                            \
+  V(Word64And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Word64Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
+  V(Word64Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Word64Shl, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Word64RorLowerable, Operator::kNoProperties, 2, 1, 1)                    \
+  V(Word64Equal, Operator::kCommutative, 2, 0, 1)                            \
+  V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
+  V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
+  V(Int64MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
+  V(Int64Div, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Int64LessThan, Operator::kNoProperties, 2, 0, 1)                         \
+  V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
+  V(Uint64MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
+  V(Uint64Div, Operator::kNoProperties, 2, 1, 1)                             \
+  V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                             \
+  V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
@@ -673,7 +675,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \
   V(Int32MulWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int64AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
-  V(Int64SubWithOverflow, Operator::kNoProperties)
+  V(Int64SubWithOverflow, Operator::kNoProperties)                         \
+  V(Int64MulWithOverflow, Operator::kAssociative | Operator::kCommutative)
 
 #define MACHINE_TYPE_LIST(V) \
   V(Float32)                 \

@@ -59,14 +59,10 @@ class RelocInfo {
     // TODO(ishell): rename to NEAR_CODE_TARGET.
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
-    FULL_EMBEDDED_OBJECT,
-    DATA_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+    FULL_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
-
-    // TODO(ishell): This reloc info shouldn't be used anymore. Remove it.
-    RUNTIME_ENTRY,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -107,7 +103,7 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_EMBEDDED_OBJECT_RELOC_MODE = COMPRESSED_EMBEDDED_OBJECT,
-    LAST_EMBEDDED_OBJECT_RELOC_MODE = DATA_EMBEDDED_OBJECT,
+    LAST_EMBEDDED_OBJECT_RELOC_MODE = FULL_EMBEDDED_OBJECT,
     LAST_GCED_ENUM = LAST_EMBEDDED_OBJECT_RELOC_MODE,
     FIRST_BUILTIN_ENTRY_MODE = OFF_HEAP_TARGET,
     LAST_BUILTIN_ENTRY_MODE = NEAR_BUILTIN_ENTRY,
@@ -153,15 +149,9 @@ class RelocInfo {
   static constexpr bool IsCompressedEmbeddedObject(Mode mode) {
     return COMPRESS_POINTERS_BOOL && mode == COMPRESSED_EMBEDDED_OBJECT;
   }
-  static constexpr bool IsDataEmbeddedObject(Mode mode) {
-    return mode == DATA_EMBEDDED_OBJECT;
-  }
   static constexpr bool IsEmbeddedObjectMode(Mode mode) {
     return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
                            LAST_EMBEDDED_OBJECT_RELOC_MODE);
-  }
-  static constexpr bool IsRuntimeEntry(Mode mode) {
-    return mode == RUNTIME_ENTRY;
   }
   static constexpr bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
   static constexpr bool IsWasmReference(Mode mode) { return mode == WASM_CALL; }
@@ -265,7 +255,7 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
-  // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
+  // can only be called if IsCodeTarget(rmode_)
   V8_INLINE Address target_address();
   // Cage base value is used for decompressing compressed embedded references.
   V8_INLINE HeapObject target_object(PtrComprCageBase cage_base);
@@ -279,11 +269,6 @@ class RelocInfo {
   // Decodes builtin ID encoded as a PC-relative offset. This encoding is used
   // during code generation of call/jump with NEAR_BUILTIN_ENTRY.
   V8_INLINE Builtin target_builtin_at(Assembler* origin);
-  V8_INLINE Address target_runtime_entry(Assembler* origin);
-  V8_INLINE void set_target_runtime_entry(
-      Address target,
-      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_off_heap_target();
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
@@ -339,8 +324,6 @@ class RelocInfo {
       visitor->VisitExternalReference(host(), this);
     } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
       visitor->VisitInternalReference(host(), this);
-    } else if (IsRuntimeEntry(mode)) {
-      visitor->VisitRuntimeEntry(host(), this);
     } else if (IsBuiltinEntryMode(mode)) {
       visitor->VisitOffHeapTarget(host(), this);
     }
@@ -371,8 +354,7 @@ class RelocInfo {
 
   static int EmbeddedObjectModeMask() {
     return ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-           ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
-           ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT);
+           ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
   }
 
   // In addition to modes covered by the apply mask (which is applied at GC
@@ -382,9 +364,7 @@ class RelocInfo {
     return ModeMask(RelocInfo::CODE_TARGET) |
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-           ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-           ModeMask(RelocInfo::RUNTIME_ENTRY) |
            ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
   }
 

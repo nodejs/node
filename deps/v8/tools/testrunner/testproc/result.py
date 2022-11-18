@@ -16,6 +16,10 @@ class ResultBase(object):
   def is_rerun(self):
     return False
 
+  @property
+  def as_list(self):
+    return [self]
+
 
 class Result(ResultBase):
   """Result created by the output processor."""
@@ -111,6 +115,10 @@ class RerunResult(Result):
   @property
   def is_rerun(self):
     return True
+
+  @property
+  def as_list(self):
+    return self.results
 
   def status(self):
     return ' '.join(r.status() for r in self.results)

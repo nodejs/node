@@ -499,7 +499,7 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(
+bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.

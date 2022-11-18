@@ -946,34 +946,6 @@
                     { "name": "url", "type": "string", "description": "JavaScript script name or url." },
                     { "name": "functions", "type": "array", "items": { "$ref": "FunctionCoverage" }, "description": "Functions contained in the script that has coverage data." }
                 ]
-            },
-            {   "id": "TypeObject",
-                "type": "object",
-                "description": "Describes a type collected during runtime.",
-                "properties": [
-                    { "name": "name", "type": "string", "description": "Name of a type collected with type profiling." }
-                ],
-                "experimental": true
-            },
-            {   "id": "TypeProfileEntry",
-                "type": "object",
-                "description": "Source offset and types for a parameter or return value.",
-                "properties": [
-                    { "name": "offset", "type": "integer", "description": "Source offset of the parameter or end of function for return values." },
-                    { "name": "types", "type": "array", "items": {"$ref": "TypeObject"}, "description": "The types for this parameter or return value."}
-                ],
-                "experimental": true
-            },
-            {
-                "id": "ScriptTypeProfile",
-                "type": "object",
-                "description": "Type profile data collected during runtime for a JavaScript script.",
-                "properties": [
-                    { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "JavaScript script id." },
-                    { "name": "url", "type": "string", "description": "JavaScript script name or url." },
-                    { "name": "entries", "type": "array", "items": { "$ref": "TypeProfileEntry" }, "description": "Type profile entries for parameters and return values of the functions in the script." }
-                ],
-                "experimental": true
             }
         ],
         "commands": [
@@ -1024,24 +996,6 @@
                     { "name": "result", "type": "array", "items": { "$ref": "ScriptCoverage" }, "description": "Coverage data for the current isolate." }
                 ],
                 "description": "Collect coverage data for the current isolate. The coverage data may be incomplete due to garbage collection."
-            },
-            {
-                "name": "startTypeProfile",
-                "description": "Enable type profile.",
-                "experimental": true
-            },
-            {
-                "name": "stopTypeProfile",
-                "description": "Disable type profile. Disabling releases type profile data collected so far.",
-                "experimental": true
-            },
-            {
-                "name": "takeTypeProfile",
-                "returns": [
-                    { "name": "result", "type":  "array", "items": { "$ref": "ScriptTypeProfile" }, "description": "Type profile for all scripts since startTypeProfile() was turned on." }
-                ],
-                "description": "Collect type profile.",
-                "experimental": true
             }
         ],
         "events": [

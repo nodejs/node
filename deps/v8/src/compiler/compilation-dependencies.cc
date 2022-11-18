@@ -125,7 +125,7 @@ class PendingDependencies final {
   }
 
   void InstallAll(Isolate* isolate, Handle<Code> code) {
-    if (V8_UNLIKELY(FLAG_predictable)) {
+    if (V8_UNLIKELY(v8_flags.predictable)) {
       InstallAllPredictable(isolate, code);
       return;
     }
@@ -140,7 +140,7 @@ class PendingDependencies final {
   }
 
   void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
-    CHECK(FLAG_predictable);
+    CHECK(v8_flags.predictable);
     // First, guarantee predictable iteration order.
     using HandleAndGroup =
         std::pair<Handle<HeapObject>, DependentCode::DependencyGroups>;
@@ -1065,7 +1065,7 @@ void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
 
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
-  if (!FLAG_allocation_site_pretenuring) return AllocationType::kYoung;
+  if (!v8_flags.allocation_site_pretenuring) return AllocationType::kYoung;
   AllocationType allocation = site.GetAllocationType();
   RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
   return allocation;
@@ -1184,7 +1184,7 @@ void CompilationDependencies::DependOnOwnConstantDictionaryProperty(
 
 V8_INLINE void TraceInvalidCompilationDependency(
     const CompilationDependency* d) {
-  DCHECK(FLAG_trace_compilation_dependencies);
+  DCHECK(v8_flags.trace_compilation_dependencies);
   DCHECK(!d->IsValid());
   PrintF("Compilation aborted due to invalid dependency: %s\n", d->ToString());
 }
@@ -1202,7 +1202,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
       // can call EnsureHasInitialMap, which can invalidate a
       // StableMapDependency on the prototype object's map.
       if (!dep->IsValid()) {
-        if (FLAG_trace_compilation_dependencies) {
+        if (v8_flags.trace_compilation_dependencies) {
           TraceInvalidCompilationDependency(dep);
         }
         dependencies_.clear();
@@ -1226,7 +1226,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   //    deoptimization.
   // 2. since the function state was deemed consistent above, that means the
   //    compilation saw a self-consistent state of the jsfunction.
-  if (FLAG_stress_gc_during_compilation) {
+  if (v8_flags.stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
         Heap::kForcedGC, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
@@ -1242,13 +1242,13 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 bool CompilationDependencies::PrepareInstall() {
-  if (V8_UNLIKELY(FLAG_predictable)) {
+  if (V8_UNLIKELY(v8_flags.predictable)) {
     return PrepareInstallPredictable();
   }
 
   for (auto dep : dependencies_) {
     if (!dep->IsValid()) {
-      if (FLAG_trace_compilation_dependencies) {
+      if (v8_flags.trace_compilation_dependencies) {
         TraceInvalidCompilationDependency(dep);
       }
       dependencies_.clear();
@@ -1260,7 +1260,7 @@ bool CompilationDependencies::PrepareInstall() {
 }
 
 bool CompilationDependencies::PrepareInstallPredictable() {
-  CHECK(FLAG_predictable);
+  CHECK(v8_flags.predictable);
 
   std::vector<const CompilationDependency*> deps(dependencies_.begin(),
                                                  dependencies_.end());
@@ -1268,7 +1268,7 @@ bool CompilationDependencies::PrepareInstallPredictable() {
 
   for (auto dep : deps) {
     if (!dep->IsValid()) {
-      if (FLAG_trace_compilation_dependencies) {
+      if (v8_flags.trace_compilation_dependencies) {
         TraceInvalidCompilationDependency(dep);
       }
       dependencies_.clear();

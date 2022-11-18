@@ -580,6 +580,11 @@ Reduction TypedOptimization::ReduceStringLength(Node* node) {
       // The first value input to the {input} is the resulting length.
       return Replace(input->InputAt(0));
     }
+    case IrOpcode::kStringFromSingleCharCode: {
+      // Note that this isn't valid for StringFromCodePointAt, since it the
+      // string it returns can be 1 or 2 characters long.
+      return Replace(jsgraph()->Constant(1));
+    }
     default:
       break;
   }

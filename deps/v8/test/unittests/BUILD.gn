@@ -59,6 +59,7 @@ v8_source_set("v8_heap_base_unittests_sources") {
 
   sources = [
     "heap/base/active-system-pages-unittest.cc",
+    "heap/base/basic-slot-set-unittest.cc",
     "heap/base/worklist-unittest.cc",
   ]
 
@@ -238,6 +239,7 @@ v8_source_set("unittests_sources") {
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
     "api/api-icu-unittest.cc",
+    "api/context-unittest.cc",
     "api/deserialize-unittest.cc",
     "api/exception-unittest.cc",
     "api/gc-callbacks-unittest.cc",
@@ -348,6 +350,7 @@ v8_source_set("unittests_sources") {
     "compiler/regalloc/mid-tier-register-allocator-unittest.cc",
     "compiler/regalloc/move-optimizer-unittest.cc",
     "compiler/regalloc/register-allocator-unittest.cc",
+    "compiler/run-bytecode-graph-builder-unittest.cc",
     "compiler/run-deopt-unittest.cc",
     "compiler/run-jsbranches-unittest.cc",
     "compiler/run-jscalls-unittest.cc",
@@ -409,7 +412,6 @@ v8_source_set("unittests_sources") {
     "heap/local-factory-unittest.cc",
     "heap/local-handles-unittest.cc",
     "heap/local-heap-unittest.cc",
-    "heap/marking-inner-pointer-resolution-unittest.cc",
     "heap/marking-unittest.cc",
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
@@ -580,6 +582,14 @@ v8_source_set("unittests_sources") {
 
   if (v8_enable_inner_pointer_resolution_osb) {
     sources += [ "heap/object-start-bitmap-unittest.cc" ]
+  }
+
+  if (v8_enable_inner_pointer_resolution_mb) {
+    sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
+  }
+
+  if (v8_enable_conservative_stack_scanning) {
+    sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
   }
 
   if (v8_enable_i18n_support) {

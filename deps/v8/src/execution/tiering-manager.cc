@@ -11,12 +11,14 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/code.h"
 #include "src/tracing/trace-event.h"
 
@@ -261,7 +263,7 @@ void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
 }
 
 void TieringManager::MaybeOptimizeFrame(JSFunction function,
-                                        CodeKind code_kind) {
+                                        CodeKind calling_code_kind) {
   const TieringState tiering_state = function.feedback_vector().tiering_state();
   const TieringState osr_tiering_state =
       function.feedback_vector().osr_tiering_state();
@@ -288,24 +290,15 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
     // Continue below and do a normal optimized compile as well.
   }
 
-  const bool is_marked_for_any_optimization =
-      (static_cast<uint32_t>(tiering_state) & kNoneOrInProgressMask) != 0;
   // Baseline OSR uses a separate mechanism and must not be considered here,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
   // TODO(v8:7700): Change the condition below for Maglev OSR once it is
   // implemented.
-  if (is_marked_for_any_optimization ||
-      function.HasAvailableHigherTierCodeThanWithFilter(
-          code_kind, kOptimizedJSFunctionCodeKindsMask)) {
+  if (IsRequestTurbofan(tiering_state) ||
+      function.HasAvailableCodeKind(CodeKind::TURBOFAN)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
-    // still in the lower-tier frame (this implies a long-running loop).
-    //
-    // TODO(v8:7700): In the presence of Maglev, OSR is triggered much earlier
-    // than with the old pipeline since we tier up to Maglev earlier which
-    // affects both conditions above. This *seems* fine (when stuck in a loop
-    // we want to tier up, regardless of the active tier), but we may want to
-    // think about this again at some point.
-    if (SmallEnoughForOSR(isolate_, function, code_kind)) {
+    // still in a lower-tier frame (this implies a long-running loop).
+    if (SmallEnoughForOSR(isolate_, function, calling_code_kind)) {
       TryIncrementOsrUrgency(isolate_, function);
     }
 
@@ -314,20 +307,33 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
     return;
   }
 
-  DCHECK(!is_marked_for_any_optimization &&
-         !function.HasAvailableHigherTierCodeThanWithFilter(
-             code_kind, kOptimizedJSFunctionCodeKindsMask));
-  OptimizationDecision d = ShouldOptimize(function, code_kind);
+  DCHECK(!IsRequestTurbofan(tiering_state));
+  DCHECK(!function.HasAvailableCodeKind(CodeKind::TURBOFAN));
+  OptimizationDecision d = ShouldOptimize(function, calling_code_kind);
+  // We might be stuck in a baseline frame that wants to tier up to Maglev, but
+  // is in a loop, and can't OSR, because Maglev doesn't have OSR. Allow it to
+  // skip over Maglev by re-checking ShouldOptimize as if we were in Maglev.
+  // TODO(v8:7700): Remove this when Maglev can OSR.
+  static_assert(!CodeKindCanOSR(CodeKind::MAGLEV));
+  if (d.should_optimize() && d.code_kind == CodeKind::MAGLEV) {
+    bool is_marked_for_maglev_optimization =
+        IsRequestMaglev(tiering_state) ||
+        function.HasAvailableCodeKind(CodeKind::MAGLEV);
+    if (is_marked_for_maglev_optimization) {
+      d = ShouldOptimize(function, CodeKind::MAGLEV);
+    }
+  }
+
   if (d.should_optimize()) Optimize(function, d);
 }
 
-OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
-                                                    CodeKind code_kind) {
-  if (TiersUpToMaglev(code_kind) &&
+OptimizationDecision TieringManager::ShouldOptimize(
+    JSFunction function, CodeKind calling_code_kind) {
+  if (TiersUpToMaglev(calling_code_kind) &&
       function.shared().PassesFilter(v8_flags.maglev_filter) &&
       !function.shared(isolate_).maglev_compilation_failed()) {
     return OptimizationDecision::Maglev();
-  } else if (code_kind == CodeKind::TURBOFAN) {
+  } else if (calling_code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
     return OptimizationDecision::DoNotOptimize();
   }

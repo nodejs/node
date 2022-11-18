@@ -272,7 +272,7 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 inline void MemsetTagged(Tagged_t* start, Object value, size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
-  Tagged_t raw_value = CompressTagged(value.ptr());
+  Tagged_t raw_value = V8HeapCompressionScheme::CompressTagged(value.ptr());
   MemsetUint32(start, raw_value, counter);
 #else
   Address raw_value = value.ptr();

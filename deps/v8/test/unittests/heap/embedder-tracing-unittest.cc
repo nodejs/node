@@ -457,9 +457,9 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
 
   // Finalize a potentially running garbage collection.
   CollectGarbage(OLD_SPACE);
-  if (heap->mark_compact_collector()->sweeping_in_progress()) {
-    heap->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
   heap->tracer()->StopFullCycleIfNeeded();
   EXPECT_TRUE(heap->incremental_marking()->IsStopped());

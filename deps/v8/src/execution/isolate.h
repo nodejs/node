@@ -529,7 +529,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, formatting_stack_trace, false)                                      \
   /* Perform side effect checks on function call and API callbacks. */        \
   V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
-  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone) \
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
@@ -1431,10 +1430,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return is_precise_count_code_coverage() || is_block_count_code_coverage();
   }
 
-  bool is_collecting_type_profile() const {
-    return type_profile_mode() == debug::TypeProfileMode::kCollect;
-  }
-
   // Collect feedback vectors with data for code coverage or type profile.
   // Reset the list, when both code coverage and type profile are not
   // needed anymore. This keeps many feedback vectors alive, but code
@@ -1712,7 +1707,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // shared heap object cache holds objects in shared among Isolates. Otherwise
   // this object cache is per-Isolate like the startup object cache.
   std::vector<Object>* shared_heap_object_cache() {
-    if (shared_isolate()) return shared_isolate()->shared_heap_object_cache();
+    if (has_shared_heap()) {
+      return &shared_heap_isolate()->shared_heap_object_cache_;
+    }
     return &shared_heap_object_cache_;
   }
 
@@ -1996,8 +1993,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK(shared_isolate->is_shared());
     DCHECK_NULL(shared_isolate_);
     DCHECK(!attached_to_shared_isolate_);
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_ = shared_isolate;
     owns_shareable_data_ = false;
+  }
+
+  // Returns true when this isolate supports allocation in shared spaces.
+  bool has_shared_heap() const {
+    return v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
+  }
+
+  // Returns the isolate that owns the shared spaces.
+  Isolate* shared_heap_isolate() const {
+    DCHECK(has_shared_heap());
+    Isolate* isolate =
+        v8_flags.shared_space ? shared_space_isolate() : shared_isolate();
+    DCHECK_NOT_NULL(isolate);
+    return isolate;
+  }
+
+  bool is_shared_heap_isolate() const {
+    return is_shared() || is_shared_space_isolate();
   }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
@@ -2009,7 +2025,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
   bool OwnsStringTables() {
-    return !v8_flags.shared_string_table || is_shared();
+    return !v8_flags.shared_string_table || is_shared() ||
+           is_shared_space_isolate();
   }
 
 #if USE_SIMULATOR
@@ -2019,6 +2036,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
 #endif
+
+  // Access to the global "locals block list cache". Caches outer-stack
+  // allocated variables per ScopeInfo for debug-evaluate.
+  // We also store a strong reference to the outer ScopeInfo to keep all
+  // blocklists along a scope chain alive.
+  void LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                               Handle<ScopeInfo> outer_scope_info,
+                               Handle<StringSet> locals_blocklist);
+  // Returns either `TheHole` or `StringSet`.
+  Object LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,

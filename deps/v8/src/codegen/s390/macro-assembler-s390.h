@@ -322,6 +322,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       }
     }
   }
+  void MulHighS64(Register dst, Register src1, Register src2);
+  void MulHighS64(Register dst, Register src1, const MemOperand& src2);
+  void MulHighU64(Register dst, Register src1, Register src2);
+  void MulHighU64(Register dst, Register src1, const MemOperand& src2);
 
   void MulHighS32(Register dst, Register src1, const MemOperand& src2);
   void MulHighS32(Register dst, Register src1, Register src2);
@@ -1764,8 +1768,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   // ---------------------------------------------------------------------------
   // GC Support

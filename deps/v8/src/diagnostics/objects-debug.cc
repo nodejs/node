@@ -46,6 +46,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-display-names-inl.h"
+#include "src/objects/js-duration-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -63,6 +64,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
@@ -1098,9 +1100,9 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
       CHECK_EQ(code.kind(), kind());
       CHECK_EQ(code.builtin_id(), builtin_id());
       if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
-        // When FLAG_interpreted_frames_native_stack is enabled each interpreted
-        // function gets its own copy of the InterpreterEntryTrampoline.
-        // Thus, there could be Code'ful builtins.
+        // When v8_flags.interpreted_frames_native_stack is enabled each
+        // interpreted function gets its own copy of the
+        // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
         CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
                       builtin_id() == Builtin::kInterpreterEntryTrampoline);
       }
@@ -1299,7 +1301,7 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());
 
-  CHECK(target().IsJSReceiver() || target().IsUndefined(isolate));
+  CHECK(target().IsUndefined(isolate) || target().CanBeHeldWeakly());
 
   CHECK(prev().IsWeakCell() || prev().IsUndefined(isolate));
   if (prev().IsWeakCell()) {
@@ -1327,7 +1329,7 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(IsJSWeakRef());
   JSObjectVerify(isolate);
-  CHECK(target().IsUndefined(isolate) || target().IsJSReceiver());
+  CHECK(target().IsUndefined(isolate) || target().CanBeHeldWeakly());
 }
 
 void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
@@ -1926,7 +1928,7 @@ void Script::ScriptVerify(Isolate* isolate) {
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
   WeakFixedArray::cast(*this).WeakFixedArrayVerify(isolate);
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
       MaybeObject e = WeakFixedArray::Get(i);
       HeapObject heap_object;

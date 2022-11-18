@@ -1686,13 +1686,13 @@ TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
 }
 
 TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
-  bool flag_was_enabled = i::FLAG_enable_experimental_regexp_engine;
+  bool flag_was_enabled = i::v8_flags.enable_experimental_regexp_engine;
 
   // The last byte encodes the regexp flags.
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
                                           0x03, 0x66, 0x6F, 0x6F, 0x6D};
 
-  i::FLAG_enable_experimental_regexp_engine = true;
+  i::v8_flags.enable_experimental_regexp_engine = true;
   // DecodeTestUpToVersion will overwrite the version number in the data but
   // it's fine.
   DecodeTestUpToVersion(
@@ -1702,10 +1702,10 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
         ExpectScriptTrue("result.toString() === '/foo/glmsy'");
       });
 
-  i::FLAG_enable_experimental_regexp_engine = false;
+  i::v8_flags.enable_experimental_regexp_engine = false;
   InvalidDecodeTest(regexp_encoding);
 
-  i::FLAG_enable_experimental_regexp_engine = flag_was_enabled;
+  i::v8_flags.enable_experimental_regexp_engine = flag_was_enabled;
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {
@@ -2503,14 +2503,14 @@ class ValueSerializerTestWithSharedArrayBufferClone
   }
 
   static void SetUpTestSuite() {
-    flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
-    i::FLAG_harmony_sharedarraybuffer = true;
+    flag_was_enabled_ = i::v8_flags.harmony_sharedarraybuffer;
+    i::v8_flags.harmony_sharedarraybuffer = true;
     ValueSerializerTest::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     ValueSerializerTest::TearDownTestSuite();
-    i::FLAG_harmony_sharedarraybuffer = flag_was_enabled_;
+    i::v8_flags.harmony_sharedarraybuffer = flag_was_enabled_;
     flag_was_enabled_ = false;
   }
 
@@ -2608,8 +2608,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripWebAssemblyMemory) {
-  bool flag_was_enabled = i::FLAG_experimental_wasm_threads;
-  i::FLAG_experimental_wasm_threads = true;
+  bool flag_was_enabled = i::v8_flags.experimental_wasm_threads;
+  i::v8_flags.experimental_wasm_threads = true;
 
   std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
   data.resize(65536);
@@ -2636,7 +2636,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue(
       "new Uint8Array(result.buffer, 0, 4).toString() === '0,1,128,255'");
 
-  i::FLAG_experimental_wasm_threads = flag_was_enabled;
+  i::v8_flags.experimental_wasm_threads = flag_was_enabled;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2960,14 +2960,14 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  protected:
   static void SetUpTestSuite() {
-    g_saved_flag = i::FLAG_expose_wasm;
-    i::FLAG_expose_wasm = true;
+    g_saved_flag = i::v8_flags.expose_wasm;
+    i::v8_flags.expose_wasm = true;
     ValueSerializerTest::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     ValueSerializerTest::TearDownTestSuite();
-    i::FLAG_expose_wasm = g_saved_flag;
+    i::v8_flags.expose_wasm = g_saved_flag;
     g_saved_flag = false;
   }
 

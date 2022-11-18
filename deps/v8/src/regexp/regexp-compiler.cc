@@ -196,8 +196,8 @@ void RegExpAtom::AppendToText(RegExpText* text, Zone* zone) {
   text->AddElement(TextElement::Atom(this), zone);
 }
 
-void RegExpCharacterClass::AppendToText(RegExpText* text, Zone* zone) {
-  text->AddElement(TextElement::CharClass(this), zone);
+void RegExpClassRanges::AppendToText(RegExpText* text, Zone* zone) {
+  text->AddElement(TextElement::ClassRanges(this), zone);
 }
 
 void RegExpText::AppendToText(RegExpText* text, Zone* zone) {
@@ -209,8 +209,8 @@ TextElement TextElement::Atom(RegExpAtom* atom) {
   return TextElement(ATOM, atom);
 }
 
-TextElement TextElement::CharClass(RegExpCharacterClass* char_class) {
-  return TextElement(CHAR_CLASS, char_class);
+TextElement TextElement::ClassRanges(RegExpClassRanges* class_ranges) {
+  return TextElement(CLASS_RANGES, class_ranges);
 }
 
 int TextElement::length() const {
@@ -218,7 +218,7 @@ int TextElement::length() const {
     case ATOM:
       return atom()->length();
 
-    case CHAR_CLASS:
+    case CLASS_RANGES:
       return 1;
   }
   UNREACHABLE();
@@ -1215,11 +1215,11 @@ void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
   }
 }
 
-void EmitCharClass(RegExpMacroAssembler* macro_assembler,
-                   RegExpCharacterClass* cc, bool one_byte, Label* on_failure,
-                   int cp_offset, bool check_offset, bool preloaded,
-                   Zone* zone) {
-  ZoneList<CharacterRange>* ranges = cc->ranges(zone);
+void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
+                     RegExpClassRanges* cr, bool one_byte, Label* on_failure,
+                     int cp_offset, bool check_offset, bool preloaded,
+                     Zone* zone) {
+  ZoneList<CharacterRange>* ranges = cr->ranges(zone);
   CharacterRange::Canonicalize(ranges);
 
   // Now that all processing (like case-insensitivity) is done, clamp the
@@ -1228,7 +1228,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 
   const int ranges_length = ranges->length();
   if (ranges_length == 0) {
-    if (!cc->is_negated()) {
+    if (!cr->is_negated()) {
       macro_assembler->GoTo(on_failure);
     }
     if (check_offset) {
@@ -1239,7 +1239,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 
   const base::uc32 max_char = MaxCodeUnit(one_byte);
   if (ranges_length == 1 && ranges->at(0).IsEverything(max_char)) {
-    if (cc->is_negated()) {
+    if (cr->is_negated()) {
       macro_assembler->GoTo(on_failure);
     } else {
       // This is a common case hit by non-anchored expressions.
@@ -1254,8 +1254,8 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check_offset);
   }
 
-  if (cc->is_standard(zone) && macro_assembler->CheckSpecialCharacterClass(
-                                   cc->standard_type(), on_failure)) {
+  if (cr->is_standard(zone) && macro_assembler->CheckSpecialClassRanges(
+                                   cr->standard_type(), on_failure)) {
     return;
   }
 
@@ -1266,7 +1266,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     // Note the flipped logic below (we check InRange if negated, NotInRange if
     // not negated); this is necessary since the method falls through on
     // failure whereas we want to fall through on success.
-    if (cc->is_negated()) {
+    if (cr->is_negated()) {
       if (macro_assembler->CheckCharacterInRangeArray(ranges, on_failure)) {
         return;
       }
@@ -1283,7 +1283,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   ZoneList<base::uc32>* range_boundaries =
       zone->New<ZoneList<base::uc32>>(ranges_length * 2, zone);
 
-  bool zeroth_entry_is_failure = !cc->is_negated();
+  bool zeroth_entry_is_failure = !cr->is_negated();
 
   for (int i = 0; i < ranges_length; i++) {
     CharacterRange& range = ranges->at(i);
@@ -1659,7 +1659,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
     } else {
       QuickCheckDetails::Position* pos =
           details->positions(characters_filled_in);
-      RegExpCharacterClass* tree = elm.char_class();
+      RegExpClassRanges* tree = elm.class_ranges();
       ZoneList<CharacterRange>* ranges = tree->ranges(zone());
       if (tree->is_negated() || ranges->is_empty()) {
         // A quick check uses multi-character mask and compare.  There is no
@@ -1887,13 +1887,13 @@ RegExpNode* TextNode::FilterOneByte(int depth, RegExpFlags flags) {
         writable_quarks[j] = c;
       }
     } else {
-      DCHECK(elm.text_type() == TextElement::CHAR_CLASS);
-      RegExpCharacterClass* cc = elm.char_class();
-      ZoneList<CharacterRange>* ranges = cc->ranges(zone());
+      DCHECK(elm.text_type() == TextElement::CLASS_RANGES);
+      RegExpClassRanges* cr = elm.class_ranges();
+      ZoneList<CharacterRange>* ranges = cr->ranges(zone());
       CharacterRange::Canonicalize(ranges);
       // Now they are in order so we only need to look at the first.
       int range_count = ranges->length();
-      if (cc->is_negated()) {
+      if (cr->is_negated()) {
         if (range_count != 0 && ranges->at(0).from() == 0 &&
             ranges->at(0).to() >= String::kMaxOneByteCharCode) {
           // This will be handled in a later filter.
@@ -2091,7 +2091,7 @@ namespace {
 // Check for [0-9A-Z_a-z].
 void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
                    Label* non_word, bool fall_through_on_word) {
-  if (assembler->CheckSpecialCharacterClass(
+  if (assembler->CheckSpecialClassRanges(
           fall_through_on_word ? StandardCharacterSet::kWord
                                : StandardCharacterSet::kNotWord,
           fall_through_on_word ? non_word : word)) {
@@ -2139,8 +2139,8 @@ void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success, Trace* trace) {
   const bool can_skip_bounds_check = !may_be_at_or_before_subject_string_start;
   assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
                                   new_trace.backtrack(), can_skip_bounds_check);
-  if (!assembler->CheckSpecialCharacterClass(
-          StandardCharacterSet::kLineTerminator, new_trace.backtrack())) {
+  if (!assembler->CheckSpecialClassRanges(StandardCharacterSet::kLineTerminator,
+                                          new_trace.backtrack())) {
     // Newline means \n, \r, 0x2028 or 0x2029.
     if (!compiler->one_byte()) {
       assembler->CheckCharacterAfterAnd(0x2028, 0xFFFE, &ok);
@@ -2388,14 +2388,14 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
         if (bounds_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
       }
     } else {
-      DCHECK_EQ(TextElement::CHAR_CLASS, elm.text_type());
+      DCHECK_EQ(TextElement::CLASS_RANGES, elm.text_type());
       if (pass == CHARACTER_CLASS_MATCH) {
         if (first_element_checked && i == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset())) continue;
-        RegExpCharacterClass* cc = elm.char_class();
+        RegExpClassRanges* cr = elm.class_ranges();
         bool bounds_check = *checked_up_to < cp_offset || read_backward();
-        EmitCharClass(assembler, cc, one_byte, backtrack, cp_offset,
-                      bounds_check, preloaded, zone());
+        EmitClassRanges(assembler, cr, one_byte, backtrack, cp_offset,
+                        bounds_check, preloaded, zone());
         UpdateBoundsCheck(cp_offset, checked_up_to);
       }
     }
@@ -2422,8 +2422,8 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              RegExpNode* on_success) {
   DCHECK_NOT_NULL(ranges);
   // TODO(jgruber): There's no fundamental need to create this
-  // RegExpCharacterClass; we could refactor to avoid the allocation.
-  return zone->New<TextNode>(zone->New<RegExpCharacterClass>(zone, ranges),
+  // RegExpClassRanges; we could refactor to avoid the allocation.
+  return zone->New<TextNode>(zone->New<RegExpClassRanges>(zone, ranges),
                              read_backward, on_success);
 }
 
@@ -2432,11 +2432,11 @@ TextNode* TextNode::CreateForSurrogatePair(
     bool read_backward, RegExpNode* on_success) {
   ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
-  elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, lead_ranges)),
-            zone);
-  elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, trail_ranges)),
+  elms->Add(
+      TextElement::ClassRanges(zone->New<RegExpClassRanges>(zone, lead_ranges)),
+      zone);
+  elms->Add(TextElement::ClassRanges(
+                zone->New<RegExpClassRanges>(zone, trail_ranges)),
             zone);
   return zone->New<TextNode>(elms, read_backward, on_success);
 }
@@ -2446,11 +2446,11 @@ TextNode* TextNode::CreateForSurrogatePair(
     bool read_backward, RegExpNode* on_success) {
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
-  elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, lead_ranges)),
-            zone);
-  elms->Add(TextElement::CharClass(
-                zone->New<RegExpCharacterClass>(zone, trail_ranges)),
+  elms->Add(
+      TextElement::ClassRanges(zone->New<RegExpClassRanges>(zone, lead_ranges)),
+      zone);
+  elms->Add(TextElement::ClassRanges(
+                zone->New<RegExpClassRanges>(zone, trail_ranges)),
             zone);
   return zone->New<TextNode>(elms, read_backward, on_success);
 }
@@ -2534,12 +2534,12 @@ void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
   int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
-    if (elm.text_type() == TextElement::CHAR_CLASS) {
-      RegExpCharacterClass* cc = elm.char_class();
+    if (elm.text_type() == TextElement::CLASS_RANGES) {
+      RegExpClassRanges* cr = elm.class_ranges();
       // None of the standard character classes is different in the case
       // independent case and it slows us down if we don't know that.
-      if (cc->is_standard(zone())) continue;
-      ZoneList<CharacterRange>* ranges = cc->ranges(zone());
+      if (cr->is_standard(zone())) continue;
+      ZoneList<CharacterRange>* ranges = cr->ranges(zone());
       CharacterRange::AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
     }
   }
@@ -2552,8 +2552,8 @@ RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
   if (read_backward()) return nullptr;
   if (elements()->length() != 1) return nullptr;
   TextElement elm = elements()->at(0);
-  if (elm.text_type() != TextElement::CHAR_CLASS) return nullptr;
-  RegExpCharacterClass* node = elm.char_class();
+  if (elm.text_type() != TextElement::CLASS_RANGES) return nullptr;
+  RegExpClassRanges* node = elm.class_ranges();
   ZoneList<CharacterRange>* ranges = node->ranges(zone());
   CharacterRange::Canonicalize(ranges);
   if (node->is_negated()) {
@@ -3479,7 +3479,7 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (IsIgnoreCase(flags_)) {
-    bool unicode = IsUnicode(flags_);
+    bool unicode = IsEitherUnicode(flags_);
     assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
                                                unicode, trace->backtrack());
   } else {
@@ -3490,7 +3490,7 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
 
   // Check that the back reference does not end inside a surrogate pair.
-  if (IsUnicode(flags_) && !compiler->one_byte()) {
+  if (IsEitherUnicode(flags_) && !compiler->one_byte()) {
     assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
   }
   on_success()->Emit(compiler, trace);
@@ -3856,10 +3856,10 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
         }
       }
     } else {
-      DCHECK_EQ(TextElement::CHAR_CLASS, text.text_type());
-      RegExpCharacterClass* char_class = text.char_class();
-      ZoneList<CharacterRange>* ranges = char_class->ranges(zone());
-      if (char_class->is_negated()) {
+      DCHECK_EQ(TextElement::CLASS_RANGES, text.text_type());
+      RegExpClassRanges* class_ranges = text.class_ranges();
+      ZoneList<CharacterRange>* ranges = class_ranges->ranges(zone());
+      if (class_ranges->is_negated()) {
         bm->SetAll(offset);
       } else {
         for (int k = 0; k < ranges->length(); k++) {
@@ -3919,8 +3919,8 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     // this expression is anchored at the beginning or sticky.
     RegExpNode* loop_node = RegExpQuantifier::ToNode(
         0, RegExpTree::kInfinity, false,
-        zone()->New<RegExpCharacterClass>(StandardCharacterSet::kEverything),
-        this, captured_body, data->contains_anchor);
+        zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
+        captured_body, data->contains_anchor);
 
     if (data->contains_anchor) {
       // Unroll loop once, to take care of the case that might start
@@ -3928,7 +3928,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
-          zone()->New<RegExpCharacterClass>(StandardCharacterSet::kEverything),
+          zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
           false, loop_node)));
       node = first_step_node;
     } else {
@@ -3942,7 +3942,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     if (node != nullptr) {
       node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, flags);
     }
-  } else if (IsUnicode(flags) && (IsGlobal(flags) || IsSticky(flags))) {
+  } else if (IsEitherUnicode(flags) && (IsGlobal(flags) || IsSticky(flags))) {
     node = OptionallyStepBackToLeadSurrogate(node);
   }
 

@@ -116,7 +116,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-node.cc",
     "compiler/test-operator.cc",
     "compiler/test-representation-change.cc",
-    "compiler/test-run-bytecode-graph-builder.cc",
     "compiler/test-run-calls-to-external-references.cc",
     "compiler/test-run-load-store.cc",
     "compiler/test-run-machops.cc",

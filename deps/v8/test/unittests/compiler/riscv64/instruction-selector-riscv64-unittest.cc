@@ -313,7 +313,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
 
-  if (FLAG_debug_code &&
+  if (v8_flags.debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
 #ifndef V8_COMPRESS_POINTERS
     ASSERT_EQ(6U, s.size());

@@ -73,6 +73,14 @@ void JSArrayIterator::set_kind(IterationKind kind) {
   set_raw_kind(static_cast<int>(kind));
 }
 
+// static
+void TemplateLiteralObject::SetRaw(Handle<JSArray> template_object,
+                                   Handle<JSArray> raw_object) {
+  TaggedField<Object, kRawFieldOffset>::store(*template_object, *raw_object);
+  CONDITIONAL_WRITE_BARRIER(*template_object, kRawFieldOffset, *raw_object,
+                            UPDATE_WRITE_BARRIER);
+}
+
 }  // namespace internal
 }  // namespace v8
 

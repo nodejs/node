@@ -1494,7 +1494,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
   TNode<IntPtrT> formal_parameter_count_intptr =
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,
@@ -1566,7 +1566,7 @@ TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
   TNode<IntPtrT> formal_parameter_count_intptr =
       Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     CSA_DCHECK(this, IntPtrEqual(registers.base_reg_location(),
                                  RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, formal_parameter_count_intptr,

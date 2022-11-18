@@ -171,8 +171,7 @@ int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
 }
 
 MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
-    StatsCollector::CollectionType type,
-    StatsCollector::MarkingType marking_type,
+    CollectionType type, StatsCollector::MarkingType marking_type,
     StatsCollector::SweepingType sweeping_type, int64_t atomic_mark_us,
     int64_t atomic_weak_us, int64_t atomic_compact_us, int64_t atomic_sweep_us,
     int64_t incremental_mark_us, int64_t incremental_sweep_us,
@@ -181,7 +180,7 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
     int64_t objects_freed_bytes, int64_t memory_before_bytes,
     int64_t memory_after_bytes, int64_t memory_freed_bytes) {
   MetricRecorder::GCCycle event;
-  event.type = (type == StatsCollector::CollectionType::kMajor)
+  event.type = (type == CollectionType::kMajor)
                    ? MetricRecorder::GCCycle::Type::kMajor
                    : MetricRecorder::GCCycle::Type::kMinor;
   // MainThread.Incremental:

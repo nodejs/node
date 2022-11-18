@@ -775,6 +775,12 @@ class V8_EXPORT_PRIVATE MoveOperands final
   // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
+  bool Equals(const MoveOperands& that) const {
+    if (IsRedundant() && that.IsRedundant()) return true;
+    return source_.Equals(that.source_) &&
+           destination_.Equals(that.destination_);
+  }
+
  private:
   InstructionOperand source_;
   InstructionOperand destination_;
@@ -813,6 +819,11 @@ class V8_EXPORT_PRIVATE ParallelMove final
   // to_eliminate must be Eliminated.
   void PrepareInsertAfter(MoveOperands* move,
                           ZoneVector<MoveOperands*>* to_eliminate) const;
+
+  bool Equals(const ParallelMove& that) const;
+
+  // Eliminate all the MoveOperands in this ParallelMove.
+  void Eliminate();
 };
 
 std::ostream& operator<<(std::ostream&, const ParallelMove&);

@@ -433,7 +433,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
     __ addi(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
 
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
     }
 
@@ -845,7 +845,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // r8: argv
   __ li(r0, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ push(r0);
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     __ li(kConstantPoolRegister, Operand::Zero());
     __ push(kConstantPoolRegister);
   }
@@ -1292,13 +1292,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
 
     // Drop the frame created by the baseline call.
-    if (v8_flags.enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       __ Pop(r0, fp, kConstantPoolRegister);
     } else {
       __ Pop(r0, fp);
     }
     __ mtlr(r0);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
 
@@ -1568,7 +1568,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&flags_need_processing);
-  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
 
   __ bind(&is_baseline);
   {
@@ -3055,7 +3055,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);
   __ Move(ip, pending_handler_entrypoint_address);
   __ LoadU64(ip, MemOperand(ip));
-  if (v8_flags.enable_embedded_constant_pool) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     __ Move(kConstantPoolRegister, pending_handler_constant_pool_address);
     __ LoadU64(kConstantPoolRegister, MemOperand(kConstantPoolRegister));
   }

@@ -46,6 +46,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Mul32:
     case kS390_Mul32WithOverflow:
     case kS390_Mul64:
+    case kS390_Mul64WithOverflow:
+    case kS390_MulHighS64:
+    case kS390_MulHighU64:
     case kS390_MulHigh32:
     case kS390_MulHighU32:
     case kS390_MulFloat:

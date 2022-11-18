@@ -777,7 +777,6 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
       it != normal_pages_.end()) {
     // The chunk is a normal page.
     DCHECK_LE(chunk->address(), addr);
-    DCHECK_GT(chunk->area_end(), addr);
     if (chunk->Contains(addr)) return *it;
   } else if (auto it = large_pages_.upper_bound(static_cast<LargePage*>(chunk));
              it != large_pages_.begin()) {

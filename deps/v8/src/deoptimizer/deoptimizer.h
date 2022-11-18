@@ -184,11 +184,11 @@ class Deoptimizer : public Malloced {
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }
   bool verbose_tracing_enabled() const {
-    return FLAG_trace_deopt_verbose && tracing_enabled();
+    return v8_flags.trace_deopt_verbose && tracing_enabled();
   }
   CodeTracer::Scope* trace_scope() const { return trace_scope_; }
   CodeTracer::Scope* verbose_trace_scope() const {
-    return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
+    return v8_flags.trace_deopt_verbose ? trace_scope() : nullptr;
   }
   void TraceDeoptBegin(int optimization_id, BytecodeOffset bytecode_offset);
   void TraceDeoptEnd(double deopt_duration);

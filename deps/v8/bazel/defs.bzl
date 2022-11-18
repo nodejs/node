@@ -151,6 +151,14 @@ def _default_args():
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_debug":[
+                "-fvisibility=default",
+            ],
+            "//conditions:default": [
+                "-fvisibility=hidden",
+                "-fvisibility-inlines-hidden",
+            ],
         }),
         includes = ["include"],
         linkopts = select({
@@ -407,15 +415,19 @@ v8_target_cpu_transition = transition(
 )
 
 def _mksnapshot(ctx):
+    prefix = ctx.attr.prefix
+    suffix = ctx.attr.suffix
     outs = [
-        ctx.actions.declare_file(ctx.attr.prefix + "/snapshot.cc"),
-        ctx.actions.declare_file(ctx.attr.prefix + "/embedded.S"),
+        ctx.actions.declare_file(prefix + "/snapshot" + suffix + ".cc"),
+        ctx.actions.declare_file(prefix + "/embedded" + suffix + ".S"),
     ]
     ctx.actions.run(
         outputs = outs,
         inputs = [],
         arguments = [
             "--embedded_variant=Default",
+            "--target_os",
+            ctx.attr.target_os,
             "--startup_src",
             outs[0].path,
             "--embedded_src",
@@ -436,26 +448,38 @@ _v8_mksnapshot = rule(
             executable = True,
             cfg = "exec",
         ),
+        "target_os": attr.string(mandatory = True),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
         "prefix": attr.string(mandatory = True),
+        "suffix": attr.string(mandatory = True),
     },
     cfg = v8_target_cpu_transition,
 )
 
-def v8_mksnapshot(name, args):
+def v8_mksnapshot(name, args, suffix = ""):
     _v8_mksnapshot(
         name = "noicu/" + name,
         args = args,
         prefix = "noicu",
-        tool = ":noicu/mksnapshot",
+        tool = ":noicu/mksnapshot" + suffix,
+        suffix = suffix,
+        target_os = select({
+            "@v8//bazel/config:is_macos": "mac",
+            "//conditions:default": "",
+        }),
     )
     _v8_mksnapshot(
         name = "icu/" + name,
         args = args,
         prefix = "icu",
-        tool = ":icu/mksnapshot",
+        tool = ":icu/mksnapshot" + suffix,
+        suffix = suffix,
+        target_os = select({
+            "@v8//bazel/config:is_macos": "mac",
+            "//conditions:default": "",
+        }),
     )
 
 def _quote(val):

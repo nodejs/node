@@ -20,6 +20,7 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
@@ -250,7 +251,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kTaggedAligned);
       if (result.IsFailure()) {
-        local_heap.TryPerformCollection();
+        heap_->CollectGarbageFromAnyThread(&local_heap);
       } else {
         Address address = result.ToAddress();
         CreateFixedArray(heap_, address, kLargeObjectSize);
@@ -371,9 +372,9 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
     HeapObject object = HeapObject::FromAddress(address);
 
     if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-      CHECK(heap->incremental_marking()->marking_state()->IsWhite(object));
+      CHECK(heap->marking_state()->IsWhite(object));
     } else {
-      CHECK(heap->incremental_marking()->marking_state()->IsBlack(object));
+      CHECK(heap->marking_state()->IsBlack(object));
     }
   }
 
@@ -427,7 +428,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   }
   heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                 i::GarbageCollectionReason::kTesting);
-  CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
+  CHECK(heap->marking_state()->IsWhite(value));
 
   auto thread =
       std::make_unique<ConcurrentWriteBarrierThread>(heap, fixed_array, value);
@@ -435,7 +436,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
   thread->Join();
 
-  CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
+  CHECK(heap->marking_state()->IsBlackOrGrey(value));
   heap::InvokeMarkSweep(i_isolate);
 
   isolate->Dispose();
@@ -513,7 +514,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     }
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
-    CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
+    CHECK(heap->marking_state()->IsWhite(value));
 
     {
       // TODO(v8:13023): remove ResetPKUPermissionsForThreadSpawning in the
@@ -527,7 +528,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       thread->Join();
     }
 
-    CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
+    CHECK(heap->marking_state()->IsBlackOrGrey(value));
     heap::InvokeMarkSweep(i_isolate);
   }
   isolate->Dispose();

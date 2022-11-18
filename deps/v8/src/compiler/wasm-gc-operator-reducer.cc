@@ -117,6 +117,9 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
              : type_from_node;
 }
 
+// If the condition of this node's branch is a type check or a null check,
+// add the additional information about the type-checked node to the path
+// state.
 Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
   DCHECK(node->opcode() == IrOpcode::kIfTrue ||
          node->opcode() == IrOpcode::kIfFalse);
@@ -184,7 +187,7 @@ Reduction WasmGCOperatorReducer::ReduceMerge(Node* node) {
     // Change the current type block list to a longest common prefix of this
     // state list and the other list. (The common prefix should correspond to
     // the state of the common dominator.)
-    // TODO(manoskouk): Consider computing intersections for some types.
+    // TODO(manoskouk): Consider computing unions for some types.
     types.ResetToCommonAncestor(GetState(*input_it));
   }
   return UpdateStates(node, types);
@@ -282,6 +285,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
     uint8_t rtt_depth = OpParameter<WasmTypeCheckConfig>(node->op()).rtt_depth;
     NodeProperties::ChangeOp(
         node, gasm_.simplified()->WasmTypeCast({false,  // object_can_be_null
+                                                false,  // null_succeeds
                                                 rtt_depth}));
   }
 
@@ -310,12 +314,14 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   if (wasm::IsHeapSubtypeOf(object_type.type.heap_type(),
                             wasm::HeapType(rtt_type.type.ref_index()),
                             object_type.module, rtt_type.module)) {
+    bool null_succeeds =
+        OpParameter<WasmTypeCheckConfig>(node->op()).null_succeeds;
     // Type cast will fail only on null.
     gasm_.InitializeEffectControl(effect, control);
-    Node* condition =
-        SetType(object_type.type.is_nullable() ? gasm_.IsNotNull(object)
-                                               : gasm_.Int32Constant(1),
-                wasm::kWasmI32);
+    Node* condition = SetType(object_type.type.is_nullable() && !null_succeeds
+                                  ? gasm_.IsNotNull(object)
+                                  : gasm_.Int32Constant(1),
+                              wasm::kWasmI32);
     ReplaceWithValue(node, condition);
     node->Kill();
     return Replace(condition);
@@ -324,7 +330,17 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   if (wasm::HeapTypesUnrelated(object_type.type.heap_type(),
                                wasm::HeapType(rtt_type.type.ref_index()),
                                object_type.module, rtt_type.module)) {
-    Node* condition = SetType(gasm_.Int32Constant(0), wasm::kWasmI32);
+    bool null_succeeds =
+        OpParameter<WasmTypeCheckConfig>(node->op()).null_succeeds;
+    Node* condition = nullptr;
+    if (null_succeeds && object_type.type.is_nullable()) {
+      // The cast only succeeds in case of null.
+      gasm_.InitializeEffectControl(effect, control);
+      condition = SetType(gasm_.IsNull(object), wasm::kWasmI32);
+    } else {
+      // The cast never succeeds.
+      condition = SetType(gasm_.Int32Constant(0), wasm::kWasmI32);
+    }
     ReplaceWithValue(node, condition);
     node->Kill();
     return Replace(condition);
@@ -335,6 +351,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
     uint8_t rtt_depth = OpParameter<WasmTypeCheckConfig>(node->op()).rtt_depth;
     NodeProperties::ChangeOp(
         node, gasm_.simplified()->WasmTypeCheck({false,  // object_can_be_null
+                                                 false,  // null_succeeds
                                                  rtt_depth}));
   }
 

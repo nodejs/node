@@ -53,11 +53,6 @@ struct all_of : std::tuple<const Ts&...> {
     return ((value == std::get<indices>(*this)) && ...);
   }
 
-  template <class T, size_t... indices>
-  bool AllNotEqualTo(const T& value, std::index_sequence<indices...>) {
-    return ((value != std::get<indices>(*this)) && ...);
-  }
-
   template <size_t... indices>
   std::ostream& PrintTo(std::ostream& os, std::index_sequence<indices...>) {
     bool first = true;
@@ -76,15 +71,16 @@ bool operator==(all_of<Ts...> values, const T& target) {
   return values.AllEqualTo(target, std::index_sequence_for<Ts...>{});
 }
 
-template <class T, class... Ts>
-bool operator!=(const T& target, all_of<Ts...> values) {
-  return values.AllNotEqualTo(target, std::index_sequence_for<Ts...>{});
-}
-
 template <class... Ts>
 std::ostream& operator<<(std::ostream& os, all_of<Ts...> all) {
   return all.PrintTo(os, std::index_sequence_for<Ts...>{});
 }
+
+#ifdef DEBUG
+bool ShouldSkipOptimizationStep();
+#else
+inline bool ShouldSkipOptimizationStep() { return false; }
+#endif
 
 }  // namespace v8::internal::compiler::turboshaft
 

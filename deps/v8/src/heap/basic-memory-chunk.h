@@ -353,7 +353,7 @@ class BasicMemoryChunk {
   size_t size_;
 
   // Flags that are only mutable from the main thread when no concurrent
-  // component (e.g. marker, sweeper) is running.
+  // component (e.g. marker, sweeper, compilation, allocation) is running.
   MainThreadFlags main_thread_flags_{NO_FLAGS};
 
   // TODO(v8:7464): Find a way to remove this.

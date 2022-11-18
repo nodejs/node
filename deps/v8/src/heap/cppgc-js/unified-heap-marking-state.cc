@@ -13,8 +13,7 @@ namespace internal {
 UnifiedHeapMarkingState::UnifiedHeapMarkingState(
     Heap* heap, MarkingWorklists::Local* local_marking_worklist)
     : heap_(heap),
-      marking_state_(heap_ ? heap_->mark_compact_collector()->marking_state()
-                           : nullptr),
+      marking_state_(heap_ ? heap_->marking_state() : nullptr),
       local_marking_worklist_(local_marking_worklist),
       track_retaining_path_(v8_flags.track_retaining_path) {
   DCHECK_IMPLIES(v8_flags.track_retaining_path,

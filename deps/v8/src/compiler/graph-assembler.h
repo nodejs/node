@@ -5,6 +5,9 @@
 #ifndef V8_COMPILER_GRAPH_ASSEMBLER_H_
 #define V8_COMPILER_GRAPH_ASSEMBLER_H_
 
+#include <type_traits>
+
+#include "src/base/small-vector.h"
 #include "src/codegen/tnode.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
@@ -37,6 +40,7 @@ class Reducer;
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
   V(ChangeFloat64ToUint32)               \
+  V(ChangeFloat64ToUint64)               \
   V(ChangeInt32ToFloat64)                \
   V(ChangeInt32ToInt64)                  \
   V(ChangeInt64ToFloat64)                \
@@ -110,6 +114,7 @@ class Reducer;
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(Int32AddWithOverflow)                    \
+  V(Int64AddWithOverflow)                    \
   V(Int32Div)                                \
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \
@@ -150,10 +155,44 @@ class GraphAssembler;
 
 enum class GraphAssemblerLabelType { kDeferred, kNonDeferred, kLoop };
 
+namespace detail {
+constexpr size_t kGraphAssemblerLabelDynamicCount = ~0u;
+
+template <size_t VarCount>
+struct GraphAssemblerHelper {
+  template <typename T>
+  using Array = std::array<T, VarCount>;
+  static constexpr bool kIsDynamic = false;
+
+  static Array<Node*> InitNodeArray(const Array<MachineRepresentation>& reps) {
+    return {};
+  }
+};
+template <>
+struct GraphAssemblerHelper<kGraphAssemblerLabelDynamicCount> {
+  // TODO(leszeks): We could allow other sizes of small vector here, by encoding
+  // the size in the negative VarCount.
+  template <typename T>
+  using Array = base::SmallVector<T, 4>;
+  static constexpr bool kIsDynamic = true;
+
+  static Array<Node*> InitNodeArray(const Array<MachineRepresentation>& reps) {
+    return Array<Node*>(reps.size());
+  }
+};
+}  // namespace detail
+
 // Label with statically known count of incoming branches and phis.
 template <size_t VarCount>
 class GraphAssemblerLabel {
+  using Helper = detail::GraphAssemblerHelper<VarCount>;
+  template <typename T>
+  using Array = typename Helper::template Array<T>;
+  static constexpr bool kIsDynamic = Helper::kIsDynamic;
+
  public:
+  size_t Count() { return representations_.size(); }
+
   Node* PhiAt(size_t index);
 
   template <typename T>
@@ -166,10 +205,11 @@ class GraphAssemblerLabel {
   bool IsUsed() const { return merged_count_ > 0; }
 
   GraphAssemblerLabel(GraphAssemblerLabelType type, int loop_nesting_level,
-                      const std::array<MachineRepresentation, VarCount>& reps)
+                      Array<MachineRepresentation> reps)
       : type_(type),
         loop_nesting_level_(loop_nesting_level),
-        representations_(reps) {}
+        bindings_(Helper::InitNodeArray(reps)),
+        representations_(std::move(reps)) {}
 
   ~GraphAssemblerLabel() { DCHECK(IsBound() || merged_count_ == 0); }
 
@@ -192,9 +232,42 @@ class GraphAssemblerLabel {
   size_t merged_count_ = 0;
   Node* effect_;
   Node* control_;
-  std::array<Node*, VarCount> bindings_;
-  const std::array<MachineRepresentation, VarCount> representations_;
+  Array<Node*> bindings_;
+  const Array<MachineRepresentation> representations_;
 };
+
+using GraphAssemblerDynamicLabel =
+    GraphAssemblerLabel<detail::kGraphAssemblerLabelDynamicCount>;
+
+namespace detail {
+template <typename T, typename Enable, typename... Us>
+struct GraphAssemblerLabelForXHelper;
+
+// If the Us are a template pack each assignable to T, use a static label.
+template <typename T, typename... Us>
+struct GraphAssemblerLabelForXHelper<
+    T, std::enable_if_t<std::conjunction_v<std::is_assignable<T&, Us>...>>,
+    Us...> {
+  using Type = GraphAssemblerLabel<sizeof...(Us)>;
+};
+
+// If the single arg is a vector of U assignable to T, use a dynamic label.
+template <typename T, typename U>
+struct GraphAssemblerLabelForXHelper<
+    T, std::enable_if_t<std::is_assignable_v<T&, U>>, base::SmallVector<U, 4>> {
+  using Type = GraphAssemblerDynamicLabel;
+};
+
+template <typename... Vars>
+using GraphAssemblerLabelForVars =
+    typename GraphAssemblerLabelForXHelper<Node*, void, Vars...>::Type;
+
+template <typename... Reps>
+using GraphAssemblerLabelForReps =
+    typename GraphAssemblerLabelForXHelper<MachineRepresentation, void,
+                                           Reps...>::Type;
+
+}  // namespace detail
 
 using NodeChangedCallback = std::function<void(Node*)>;
 class V8_EXPORT_PRIVATE GraphAssembler {
@@ -212,35 +285,34 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   // Create label.
   template <typename... Reps>
-  GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
+  detail::GraphAssemblerLabelForReps<Reps...> MakeLabelFor(
       GraphAssemblerLabelType type, Reps... reps) {
     std::array<MachineRepresentation, sizeof...(Reps)> reps_array = {reps...};
-    return MakeLabel<sizeof...(Reps)>(reps_array, type);
+    return detail::GraphAssemblerLabelForReps<Reps...>(
+        type, loop_nesting_level_, std::move(reps_array));
   }
-
-  // As above, but with an std::array of machine representations.
-  template <int VarCount>
-  GraphAssemblerLabel<VarCount> MakeLabel(
-      std::array<MachineRepresentation, VarCount> reps_array,
-      GraphAssemblerLabelType type) {
-    return GraphAssemblerLabel<VarCount>(type, loop_nesting_level_, reps_array);
+  GraphAssemblerDynamicLabel MakeLabelFor(
+      GraphAssemblerLabelType type,
+      base::SmallVector<MachineRepresentation, 4> reps) {
+    return GraphAssemblerDynamicLabel(type, loop_nesting_level_,
+                                      std::move(reps));
   }
 
   // Convenience wrapper for creating non-deferred labels.
   template <typename... Reps>
-  GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
+  detail::GraphAssemblerLabelForReps<Reps...> MakeLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, reps...);
   }
 
   // Convenience wrapper for creating loop labels.
   template <typename... Reps>
-  GraphAssemblerLabel<sizeof...(Reps)> MakeLoopLabel(Reps... reps) {
+  detail::GraphAssemblerLabelForReps<Reps...> MakeLoopLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kLoop, reps...);
   }
 
   // Convenience wrapper for creating deferred labels.
   template <typename... Reps>
-  GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
+  detail::GraphAssemblerLabelForReps<Reps...> MakeDeferredLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kDeferred, reps...);
   }
 
@@ -349,7 +421,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   void Bind(GraphAssemblerLabel<VarCount>* label);
 
   template <typename... Vars>
-  void Goto(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars...);
+  void Goto(detail::GraphAssemblerLabelForVars<Vars...>* label, Vars...);
 
   // Branch hints are inferred from if_true/if_false deferred states.
   void BranchWithCriticalSafetyCheck(Node* condition,
@@ -358,13 +430,14 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   // Branch hints are inferred from if_true/if_false deferred states.
   template <typename... Vars>
-  void Branch(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-              GraphAssemblerLabel<sizeof...(Vars)>* if_false, Vars...);
+  void Branch(Node* condition,
+              detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+              detail::GraphAssemblerLabelForVars<Vars...>* if_false, Vars...);
 
   template <typename... Vars>
   void BranchWithHint(Node* condition,
-                      GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-                      GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                      detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+                      detail::GraphAssemblerLabelForVars<Vars...>* if_false,
                       BranchHint hint, Vars...);
 
   // Control helpers.
@@ -372,7 +445,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // {GotoIf(c, l, h)} is equivalent to {BranchWithHint(c, l, templ, h);
   // Bind(templ)}.
   template <typename... Vars>
-  void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+  void GotoIf(Node* condition,
+              detail::GraphAssemblerLabelForVars<Vars...>* label,
               BranchHint hint, Vars...);
 
   // {GotoIfNot(c, l, h)} is equivalent to {BranchWithHint(c, templ, l, h);
@@ -381,18 +455,19 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // so {GotoIfNot(..., BranchHint::kTrue)} means "optimize for the case where
   // the branch is *not* taken".
   template <typename... Vars>
-  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+  void GotoIfNot(Node* condition,
+                 detail::GraphAssemblerLabelForVars<Vars...>* label,
                  BranchHint hint, Vars...);
 
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.
   template <typename... Vars>
-  void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
-              Vars...);
+  void GotoIf(Node* condition,
+              detail::GraphAssemblerLabelForVars<Vars...>* label, Vars...);
 
   // {GotoIfNot(c, l)} is equivalent to {Branch(c, templ, l);Bind(templ)}.
   template <typename... Vars>
-  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
-                 Vars...);
+  void GotoIfNot(Node* condition,
+                 detail::GraphAssemblerLabelForVars<Vars...>* label, Vars...);
 
   bool HasActiveBlock() const {
     // This is false if the current block has been terminated (e.g. by a Goto or
@@ -437,7 +512,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
  protected:
   template <typename... Vars>
-  void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
+  void MergeState(detail::GraphAssemblerLabelForVars<Vars...>* label,
+                  Vars... vars);
 
   V8_INLINE Node* AddClonedNode(Node* node);
 
@@ -525,8 +601,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   template <typename... Vars>
   void BranchImpl(Node* condition,
-                  GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-                  GraphAssemblerLabel<sizeof...(Vars)>* if_false,
+                  detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+                  detail::GraphAssemblerLabelForVars<Vars...>* if_false,
                   BranchHint hint, Vars...);
 
   Zone* temp_zone_;
@@ -556,18 +632,21 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 template <size_t VarCount>
 Node* GraphAssemblerLabel<VarCount>::PhiAt(size_t index) {
   DCHECK(IsBound());
-  DCHECK_LT(index, VarCount);
+  DCHECK_LT(index, Count());
   return bindings_[index];
 }
 
 template <typename... Vars>
-void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
-                                Vars... vars) {
+void GraphAssembler::MergeState(
+    detail::GraphAssemblerLabelForVars<Vars...>* label, Vars... vars) {
+  using NodeArray = typename detail::GraphAssemblerLabelForVars<
+      Vars...>::template Array<Node*>;
   RestoreEffectControlScope restore_effect_control_scope(this);
 
   const int merged_count = static_cast<int>(label->merged_count_);
-  static constexpr int kVarCount = sizeof...(vars);
-  std::array<Node*, kVarCount> var_array = {vars...};
+
+  const size_t var_count = label->Count();
+  NodeArray var_array{vars...};
 
   const bool is_loop_exit = label->loop_nesting_level_ != loop_nesting_level_;
   if (is_loop_exit) {
@@ -585,7 +664,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
     AddNode(graph()->NewNode(common()->LoopExit(), control(),
                              *loop_headers_.back()));
     AddNode(graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
-    for (size_t i = 0; i < kVarCount; i++) {
+    for (size_t i = 0; i < var_count; i++) {
       var_array[i] = AddNode(graph()->NewNode(
           common()->LoopExitValue(MachineRepresentation::kTagged), var_array[i],
           control()));
@@ -602,7 +681,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
                                          label->control_);
       NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-      for (size_t i = 0; i < kVarCount; i++) {
+      for (size_t i = 0; i < var_count; i++) {
         label->bindings_[i] =
             graph()->NewNode(common()->Phi(label->representations_[i], 2),
                              var_array[i], var_array[i], label->control_);
@@ -612,7 +691,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       DCHECK_EQ(1, merged_count);
       label->control_->ReplaceInput(1, control());
       label->effect_->ReplaceInput(1, effect());
-      for (size_t i = 0; i < kVarCount; i++) {
+      for (size_t i = 0; i < var_count; i++) {
         label->bindings_[i]->ReplaceInput(1, var_array[i]);
         CHECK(!NodeProperties::IsTyped(var_array[i]));  // Unsupported.
       }
@@ -624,7 +703,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       // Just set the control, effect and variables directly.
       label->control_ = control();
       label->effect_ = effect();
-      for (size_t i = 0; i < kVarCount; i++) {
+      for (size_t i = 0; i < var_count; i++) {
         label->bindings_[i] = var_array[i];
       }
     } else if (merged_count == 1) {
@@ -633,7 +712,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
           graph()->NewNode(common()->Merge(2), label->control_, control());
       label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
                                         effect(), label->control_);
-      for (size_t i = 0; i < kVarCount; i++) {
+      for (size_t i = 0; i < var_count; i++) {
         label->bindings_[i] = graph()->NewNode(
             common()->Phi(label->representations_[i], 2), label->bindings_[i],
             var_array[i], label->control_);
@@ -651,7 +730,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       NodeProperties::ChangeOp(label->effect_,
                                common()->EffectPhi(merged_count + 1));
 
-      for (size_t i = 0; i < kVarCount; i++) {
+      for (size_t i = 0; i < var_count; i++) {
         DCHECK_EQ(IrOpcode::kPhi, label->bindings_[i]->opcode());
         label->bindings_[i]->ReplaceInput(merged_count, var_array[i]);
         label->bindings_[i]->AppendInput(graph()->zone(), label->control_);
@@ -686,7 +765,7 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
   if (label->merged_count_ > 1 || label->IsLoop()) {
     AddNode(label->control_);
     AddNode(label->effect_);
-    for (size_t i = 0; i < VarCount; i++) {
+    for (size_t i = 0; i < label->Count(); i++) {
       AddNode(label->bindings_[i]);
     }
   } else {
@@ -697,10 +776,9 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
 }
 
 template <typename... Vars>
-void GraphAssembler::Branch(Node* condition,
-                            GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-                            GraphAssemblerLabel<sizeof...(Vars)>* if_false,
-                            Vars... vars) {
+void GraphAssembler::Branch(
+    Node* condition, detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+    detail::GraphAssemblerLabelForVars<Vars...>* if_false, Vars... vars) {
   BranchHint hint = BranchHint::kNone;
   if (if_true->IsDeferred() != if_false->IsDeferred()) {
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
@@ -711,17 +789,17 @@ void GraphAssembler::Branch(Node* condition,
 
 template <typename... Vars>
 void GraphAssembler::BranchWithHint(
-    Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-    GraphAssemblerLabel<sizeof...(Vars)>* if_false, BranchHint hint,
+    Node* condition, detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+    detail::GraphAssemblerLabelForVars<Vars...>* if_false, BranchHint hint,
     Vars... vars) {
   BranchImpl(condition, if_true, if_false, hint, vars...);
 }
 
 template <typename... Vars>
-void GraphAssembler::BranchImpl(Node* condition,
-                                GraphAssemblerLabel<sizeof...(Vars)>* if_true,
-                                GraphAssemblerLabel<sizeof...(Vars)>* if_false,
-                                BranchHint hint, Vars... vars) {
+void GraphAssembler::BranchImpl(
+    Node* condition, detail::GraphAssemblerLabelForVars<Vars...>* if_true,
+    detail::GraphAssemblerLabelForVars<Vars...>* if_false, BranchHint hint,
+    Vars... vars) {
   DCHECK_NOT_NULL(control());
 
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
@@ -737,7 +815,7 @@ void GraphAssembler::BranchImpl(Node* condition,
 }
 
 template <typename... Vars>
-void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
+void GraphAssembler::Goto(detail::GraphAssemblerLabelForVars<Vars...>* label,
                           Vars... vars) {
   DCHECK_NOT_NULL(control());
   DCHECK_NOT_NULL(effect());
@@ -749,7 +827,7 @@ void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
 
 template <typename... Vars>
 void GraphAssembler::GotoIf(Node* condition,
-                            GraphAssemblerLabel<sizeof...(Vars)>* label,
+                            detail::GraphAssemblerLabelForVars<Vars...>* label,
                             BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
@@ -760,9 +838,9 @@ void GraphAssembler::GotoIf(Node* condition,
 }
 
 template <typename... Vars>
-void GraphAssembler::GotoIfNot(Node* condition,
-                               GraphAssemblerLabel<sizeof...(Vars)>* label,
-                               BranchHint hint, Vars... vars) {
+void GraphAssembler::GotoIfNot(
+    Node* condition, detail::GraphAssemblerLabelForVars<Vars...>* label,
+    BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   control_ = graph()->NewNode(common()->IfFalse(), branch);
@@ -773,7 +851,7 @@ void GraphAssembler::GotoIfNot(Node* condition,
 
 template <typename... Vars>
 void GraphAssembler::GotoIf(Node* condition,
-                            GraphAssemblerLabel<sizeof...(Vars)>* label,
+                            detail::GraphAssemblerLabelForVars<Vars...>* label,
                             Vars... vars) {
   BranchHint hint =
       label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
@@ -781,9 +859,9 @@ void GraphAssembler::GotoIf(Node* condition,
 }
 
 template <typename... Vars>
-void GraphAssembler::GotoIfNot(Node* condition,
-                               GraphAssemblerLabel<sizeof...(Vars)>* label,
-                               Vars... vars) {
+void GraphAssembler::GotoIfNot(
+    Node* condition, detail::GraphAssemblerLabelForVars<Vars...>* label,
+    Vars... vars) {
   BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
   return GotoIfNot(condition, label, hint, vars...);
 }
@@ -831,6 +909,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 #undef SINGLETON_CONST_TEST_DECL
 
   Node* Allocate(AllocationType allocation, Node* size);
+  TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
   template <typename T>
   TNode<T> LoadField(FieldAccess const& access, TNode<HeapObject> object) {

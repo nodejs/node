@@ -31,7 +31,10 @@ class RememberedSetOperations {
   static void Insert(SlotSet* slot_set, MemoryChunk* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
     uintptr_t offset = slot_addr - chunk->address();
-    slot_set->Insert<access_mode>(offset);
+    slot_set->Insert<access_mode == v8::internal::AccessMode::ATOMIC
+                         ? v8::internal::SlotSet::AccessMode::ATOMIC
+                         : v8::internal::SlotSet::AccessMode::NON_ATOMIC>(
+        offset);
   }
 
   template <typename Callback>

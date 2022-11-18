@@ -139,7 +139,7 @@ namespace {
 
 void MaybePrintAst(ParseInfo* parse_info,
                    UnoptimizedCompilationInfo* compilation_info) {
-  if (!FLAG_print_ast) return;
+  if (!v8_flags.print_ast) return;
 
   StdoutStream os;
   std::unique_ptr<char[]> name = compilation_info->literal()->GetDebugName();
@@ -153,15 +153,15 @@ void MaybePrintAst(ParseInfo* parse_info,
 }
 
 bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
-  if (!FLAG_print_bytecode) return false;
+  if (!v8_flags.print_bytecode) return false;
 
   // Checks whether function passed the filter.
   if (shared->is_toplevel()) {
     base::Vector<const char> filter =
-        base::CStrVector(FLAG_print_bytecode_filter);
+        base::CStrVector(v8_flags.print_bytecode_filter);
     return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
   } else {
-    return shared->PassesFilter(FLAG_print_bytecode_filter);
+    return shared->PassesFilter(v8_flags.print_bytecode_filter);
   }
 }
 

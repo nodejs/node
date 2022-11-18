@@ -155,13 +155,18 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   return *array;
 }
 
-// GrowArrayElements returns a sentinel Smi if the object was normalized or if
-// the key is negative.
+// GrowArrayElements grows fast kind elements and returns a sentinel Smi if the
+// object was normalized or if the key is negative.
 RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<JSObject> object = args.at<JSObject>(0);
   Handle<Object> key = args.at(1);
+  ElementsKind kind = object->GetElementsKind();
+  CHECK(IsFastElementsKind(kind));
+  const intptr_t kMaxLength = IsDoubleElementsKind(kind)
+                                  ? FixedDoubleArray::kMaxLength
+                                  : FixedArray::kMaxLength;
   uint32_t index;
   if (key->IsSmi()) {
     int value = Smi::ToInt(*key);
@@ -170,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   } else {
     CHECK(key->IsHeapNumber());
     double value = HeapNumber::cast(*key).value();
-    if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
+    if (value < 0 || value > kMaxLength) {
       return Smi::zero();
     }
     index = static_cast<uint32_t>(value);

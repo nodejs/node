@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/marking-state-inl.h"
 
 namespace v8 {
 namespace internal {

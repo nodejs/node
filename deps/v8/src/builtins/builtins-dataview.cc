@@ -75,7 +75,7 @@ BUILTIN(DataViewConstructor) {
   bool length_tracking = false;
   if (byte_length->IsUndefined(isolate)) {
     view_byte_length = buffer_byte_length - view_byte_offset;
-    length_tracking = array_buffer->is_resizable();
+    length_tracking = array_buffer->is_resizable_by_js();
   } else {
     // 11. Else,
     //       a. Set byteLengthChecked be ? ToIndex(byteLength).
@@ -113,7 +113,7 @@ BUILTIN(DataViewConstructor) {
       raw.SetEmbedderField(i, Smi::zero());
     }
     raw.set_bit_field(0);
-    raw.set_is_backed_by_rab(array_buffer->is_resizable() &&
+    raw.set_is_backed_by_rab(array_buffer->is_resizable_by_js() &&
                              !array_buffer->is_shared());
     raw.set_is_length_tracking(length_tracking);
     raw.set_byte_length(0);

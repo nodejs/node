@@ -28,7 +28,7 @@ TEST_F(TestingTest,
     auto* gced = MakeGarbageCollected<GCed>(GetHeap()->GetAllocationHandle());
     WeakPersistent<GCed> weak{gced};
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::PreciseAtomicConfig());
+        GCConfig::PreciseAtomicConfig());
     EXPECT_FALSE(weak);
   }
   {
@@ -38,7 +38,7 @@ TEST_F(TestingTest,
         GetHeap()->GetHeapHandle(),
         EmbedderStackState::kMayContainHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::PreciseAtomicConfig());
+        GCConfig::PreciseAtomicConfig());
     EXPECT_FALSE(weak);
   }
   {
@@ -47,7 +47,7 @@ TEST_F(TestingTest,
     cppgc::testing::OverrideEmbedderStackStateScope override_stack(
         GetHeap()->GetHeapHandle(), EmbedderStackState::kNoHeapPointers);
     internal::Heap::From(GetHeap())->CollectGarbage(
-        Heap::Config::ConservativeAtomicConfig());
+        GCConfig::ConservativeAtomicConfig());
     EXPECT_TRUE(weak);
   }
 }

@@ -94,7 +94,7 @@ inline uintptr_t slow_search(T* array, uintptr_t array_len, uintptr_t index,
 // is uint64_t[2], and not uint32_t[4].
 // C++ standard dictates that a union can only be initialized through its first
 // member, which forces us to have uint64_t[2] for definition.
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #define PACK32x4(w, x, y, z) \
   { ((w) + (uint64_t(x) << 32)), ((y) + (uint64_t(z) << 32)) }
 #else

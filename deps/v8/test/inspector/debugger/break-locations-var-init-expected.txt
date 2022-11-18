@@ -15,7 +15,7 @@ function testFunction() {
   var y = |_|(a = 100);
   var z = |_|x + (a = 1) + (a = 2) + (a = 3) + |C|f();
   function f() {
-    for (let { |_|x, |_|y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
+    for (let { x, y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
   |R|}
   var b = obj1.|_|a;
   |_|(async function asyncF() {
@@ -87,20 +87,6 @@ testFunction (test.js:10:44)
 (anonymous) (expr.js:0:0)
   function f() {
     for (let { x, y } = #{ x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
-  }
-
-f (test.js:12:15)
-testFunction (test.js:10:44)
-(anonymous) (expr.js:0:0)
-  function f() {
-    for (let { #x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
-  }
-
-f (test.js:12:18)
-testFunction (test.js:10:44)
-(anonymous) (expr.js:0:0)
-  function f() {
-    for (let { x, #y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
   }
 
 f (test.js:12:42)

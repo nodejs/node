@@ -43,7 +43,7 @@ class IgnitionStatisticsTester {
 };
 
 TEST(IgnitionStatisticsExtension) {
-  FLAG_expose_ignition_statistics = true;
+  v8_flags.expose_ignition_statistics = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

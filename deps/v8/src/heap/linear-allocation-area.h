@@ -98,7 +98,11 @@ class LinearAllocationArea final {
 #ifdef DEBUG
     SLOW_DCHECK(start_ <= top_);
     SLOW_DCHECK(top_ <= limit_);
-    SLOW_DCHECK(top_ == kNullAddress || (top_ & kHeapObjectTagMask) == 0);
+    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+      SLOW_DCHECK(IsAligned(top_, kObjectAlignment8GbHeap));
+    } else {
+      SLOW_DCHECK(IsAligned(top_, kObjectAlignment));
+    }
 #endif  // DEBUG
   }
 

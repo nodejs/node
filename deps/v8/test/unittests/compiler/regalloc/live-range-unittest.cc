@@ -56,13 +56,13 @@ class TestRangeBuilder {
       LifetimePosition start = LifetimePosition::FromInt(pair.first);
       LifetimePosition end = LifetimePosition::FromInt(pair.second);
       CHECK(start < end);
-      range->AddUseInterval(start, end, zone_, FLAG_trace_turbo_alloc);
+      range->AddUseInterval(start, end, zone_, v8_flags.trace_turbo_alloc);
     }
     for (int pos : uses_) {
       UsePosition* use_position =
           zone_->New<UsePosition>(LifetimePosition::FromInt(pos), nullptr,
                                   nullptr, UsePositionHintType::kNone);
-      range->AddUsePosition(use_position, FLAG_trace_turbo_alloc);
+      range->AddUsePosition(use_position, v8_flags.trace_turbo_alloc);
     }
 
     pairs_.clear();
@@ -117,10 +117,11 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
       zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged);
-  V8_ASSERT_DEBUG_DEATH(range->AddUseInterval(LifetimePosition::FromInt(0),
-                                              LifetimePosition::FromInt(0),
-                                              zone(), FLAG_trace_turbo_alloc),
-                        ".*");
+  V8_ASSERT_DEBUG_DEATH(
+      range->AddUseInterval(LifetimePosition::FromInt(0),
+                            LifetimePosition::FromInt(0), zone(),
+                            v8_flags.trace_turbo_alloc),
+      ".*");
 }
 
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {

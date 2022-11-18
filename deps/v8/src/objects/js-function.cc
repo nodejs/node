@@ -628,7 +628,6 @@ void JSFunction::InitializeFeedbackCell(
       // profile and more precise code coverage.
       v8_flags.log_function_events ||
       !isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile() ||
       function->shared().sparkplug_compiled();
 
   if (needs_feedback_vector) {
@@ -844,6 +843,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
     case JS_DISPLAY_NAMES_TYPE:
+    case JS_DURATION_FORMAT_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:

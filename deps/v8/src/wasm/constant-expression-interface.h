@@ -21,12 +21,13 @@ class JSArrayBuffer;
 
 namespace wasm {
 
-// An interface for WasmFullDecoder used to decode constant expressions. This
-// interface has two modes: only validation (when {isolate_ == nullptr}), which
-// is used in module-decoder, and code-generation (when {isolate_ != nullptr}),
-// which is used in module-instantiate. We merge two distinct functionalities
-// in one class to reduce the number of WasmFullDecoder instantiations, and thus
-// V8 binary code size.
+// An interface for WasmFullDecoder used to decode constant expressions.
+// This interface has two modes: only validation (when {isolate_ == nullptr}),
+// and code-generation (when {isolate_ != nullptr}). We merge two distinct
+// functionalities in one class to reduce the number of WasmFullDecoder
+// instantiations, and thus V8 binary code size.
+// In code-generation mode, the result can be retrieved with {computed_value()}
+// if {!has_error()}, or with {error()} otherwise.
 class V8_EXPORT_PRIVATE ConstantExpressionInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;

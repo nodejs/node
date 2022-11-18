@@ -1489,15 +1489,15 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
       m.left().op() == machine()->Word64SarShiftOutZeros() &&
       m.left().node()->UseCount() == 1) {
     Int64BinopMatcher mleft(m.left().node());
-    int64_t right = m.right().ResolvedValue();
+    uint64_t right = m.right().ResolvedValue();
     if (mleft.right().HasResolvedValue()) {
       auto shift = mleft.right().ResolvedValue();
       if (CanRevertLeftShiftWithRightShift<int64_t>(right, shift)) {
         sign_extended = mleft.left().IsChangeInt32ToInt64();
-        int64_t value = right << shift;
+        uint64_t value = right << shift;
         // Reducing to 32-bit comparison when possible.
         if ((sign_extended || mleft.left().IsChangeUint32ToUint64()) &&
-            CanTruncate(value)) {
+            CanTruncate(static_cast<int64_t>(value))) {
           NodeProperties::ChangeOp(
               node, Map64To32Comparison(node->op(), sign_extended));
           node->ReplaceInput(0, mleft.left().node()->InputAt(0));
@@ -1516,16 +1516,16 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
   if (m.left().HasResolvedValue() &&
       m.right().op() == machine()->Word64SarShiftOutZeros() &&
       m.right().node()->UseCount() == 1) {
-    int64_t left = m.left().ResolvedValue();
+    uint64_t left = m.left().ResolvedValue();
     Int64BinopMatcher mright(m.right().node());
     if (mright.right().HasResolvedValue()) {
       auto shift = mright.right().ResolvedValue();
       if (CanRevertLeftShiftWithRightShift<int64_t>(left, shift)) {
         sign_extended = mright.left().IsChangeInt32ToInt64();
-        int64_t value = left << shift;
+        uint64_t value = left << shift;
         // Reducing to 32-bit comparison when possible.
         if ((sign_extended || mright.left().IsChangeUint32ToUint64()) &&
-            CanTruncate(value)) {
+            CanTruncate(static_cast<int64_t>(value))) {
           NodeProperties::ChangeOp(
               node, Map64To32Comparison(node->op(), sign_extended));
           node->ReplaceInput(0, Int32Constant(static_cast<int32_t>(value)));

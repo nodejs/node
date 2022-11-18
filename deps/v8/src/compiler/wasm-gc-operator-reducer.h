@@ -35,9 +35,11 @@ struct NodeWithType {
   wasm::TypeInModule type;
 };
 
-// This class optimizes away wasm-gc nodes based on the types of their
-// arguments. Although types have been assigned to nodes already, this class
-// also tracks additional type information along control paths.
+// This class optimizes away wasm-gc type checks and casts. Two types of
+// information are used:
+// - Types already marked on graph nodes.
+// - Path-dependent type information that is inferred when a type check is used
+//   as a branch condition.
 class WasmGCOperatorReducer final
     : public AdvancedReducerWithControlPathState<NodeWithType,
                                                  kMultipleInstances> {
@@ -61,6 +63,8 @@ class WasmGCOperatorReducer final
   Reduction ReduceStart(Node* node);
 
   Node* SetType(Node* node, wasm::ValueType type);
+  // Returns the intersection of the type marked on {object} and the type
+  // information about object tracked on {control}'s control path (if present).
   wasm::TypeInModule ObjectTypeFromContext(Node* object, Node* control);
   Reduction UpdateNodeAndAliasesTypes(Node* state_owner,
                                       ControlPathTypes parent_state, Node* node,

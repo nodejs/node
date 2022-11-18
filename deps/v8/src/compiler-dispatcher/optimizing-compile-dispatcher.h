@@ -27,11 +27,11 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
  public:
   explicit OptimizingCompileDispatcher(Isolate* isolate)
       : isolate_(isolate),
-        input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
+        input_queue_capacity_(v8_flags.concurrent_recompilation_queue_length),
         input_queue_length_(0),
         input_queue_shift_(0),
         ref_count_(0),
-        recompilation_delay_(FLAG_concurrent_recompilation_delay) {
+        recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
     input_queue_ = NewArray<TurbofanCompilationJob*>(input_queue_capacity_);
   }
 
@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
     return input_queue_length_ < input_queue_capacity_;
   }
 
-  static bool Enabled() { return FLAG_concurrent_recompilation; }
+  static bool Enabled() { return v8_flags.concurrent_recompilation; }
 
   // This method must be called on the main thread.
   bool HasJobs();
@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   base::Mutex ref_count_mutex_;
   ParkingConditionVariable ref_count_zero_;
 
-  // Copy of FLAG_concurrent_recompilation_delay that will be used from the
+  // Copy of v8_flags.concurrent_recompilation_delay that will be used from the
   // background thread.
   //
   // Since flags might get modified while the background thread is running, it

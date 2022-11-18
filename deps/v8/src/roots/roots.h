@@ -268,8 +268,8 @@ class Symbol;
     AsyncGeneratorAwaitRejectSharedFun)                                        \
   V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
     AsyncGeneratorAwaitResolveSharedFun)                                       \
-  V(SharedFunctionInfo, async_generator_yield_resolve_shared_fun,              \
-    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_yield_with_await_resolve_shared_fun,   \
+    AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
   V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
     AsyncGeneratorReturnResolveSharedFun)                                      \
   V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
@@ -334,8 +334,11 @@ class Symbol;
     PendingOptimizeForTestBytecode)                                         \
   V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
+  /* EphemeronHashTable for debug scopes (local debug evaluate) */          \
+  V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
   IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
   IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
+  IF_WASM(V, WeakArrayList, js_to_wasm_wrappers, JSToWasmWrappers)          \
   IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)
 
 // Entries in this list are limited to Smis and are not visited during GC.

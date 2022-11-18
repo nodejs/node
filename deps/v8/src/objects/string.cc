@@ -198,7 +198,9 @@ void InitExternalPointerFieldsDuringExternalization(String string, Map new_map,
 }  // namespace
 
 template <typename IsolateT>
-void String::MakeThin(IsolateT* isolate, String internalized) {
+void String::MakeThin(
+    IsolateT* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
@@ -218,7 +220,7 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   }
 #endif
 
-  bool has_pointers = initial_shape.IsIndirect();
+  bool may_contain_recorded_slots = initial_shape.IsIndirect();
   int old_size = SizeFromMap(initial_map);
   Map target_map = ComputeThinStringMap(isolate, initial_shape,
                                         internalized.IsOneByteRepresentation());
@@ -232,6 +234,12 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
     isolate->AsIsolate()->heap()->NotifyObjectLayoutChange(
         *this, no_gc, InvalidateRecordedSlots::kYes, ThinString::kSize);
     MigrateExternalString(isolate->AsIsolate(), *this, internalized);
+
+    // Conservatively assume ExternalStrings may have recorded slots, because
+    // they could have been transitioned from ConsStrings without having had the
+    // recorded slots cleared.
+    // TODO(v8:13374): Fix this more uniformly.
+    may_contain_recorded_slots = true;
   }
 
   // Update actual first and then do release store on the map word. This ensures
@@ -249,21 +257,26 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     if (!Heap::IsLargeObject(thin)) {
-      isolate->heap()->NotifyObjectSizeChange(
-          thin, old_size, ThinString::kSize,
-          has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+      isolate->heap()->NotifyObjectSizeChange(thin, old_size, ThinString::kSize,
+                                              may_contain_recorded_slots
+                                                  ? ClearRecordedSlots::kYes
+                                                  : ClearRecordedSlots::kNo,
+                                              update_invalidated_object_size);
     } else {
       // We don't need special handling for the combination IsLargeObject &&
-      // has_pointers, because indirect strings never get that large.
-      DCHECK(!has_pointers);
+      // may_contain_recorded_slots, because indirect strings never get that
+      // large.
+      DCHECK(!may_contain_recorded_slots);
     }
   }
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, String internalized);
+    Isolate* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, String internalized);
+    LocalIsolate* isolate, String internalized,
+    UpdateInvalidatedObjectSize update_invalidated_object_size);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
@@ -1687,7 +1700,7 @@ uint32_t String::ComputeAndSetRawHash(
     string = ThinString::cast(string).actual(cage_base);
     shape = StringShape(string, cage_base);
     if (length() == string.length()) {
-      uint32_t raw_hash = string.raw_hash_field();
+      uint32_t raw_hash = string.RawHash();
       DCHECK(IsHashFieldComputed(raw_hash));
       set_raw_hash_field(raw_hash);
       return raw_hash;

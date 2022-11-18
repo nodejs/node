@@ -31,7 +31,8 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
       minor_worklist_(*minor_collector_->marking_worklists()->shared()),
       marking_state_(heap_->isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
-      is_shared_heap_(heap_->IsShared()) {}
+      uses_shared_heap_(heap_->isolate()->has_shared_heap()),
+      is_shared_heap_isolate_(heap_->isolate()->is_shared_heap_isolate()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
@@ -212,6 +213,9 @@ void MarkingBarrier::Deactivate() {
     if (heap_->map_space()) DeactivateSpace(heap_->map_space());
     DeactivateSpace(heap_->code_space());
     DeactivateSpace(heap_->new_space());
+    if (heap_->shared_space()) {
+      DeactivateSpace(heap_->shared_space());
+    }
     for (LargePage* p : *heap_->new_lo_space()) {
       p->SetYoungGenerationPageFlags(false);
       DCHECK(p->IsLargePage());
@@ -221,6 +225,11 @@ void MarkingBarrier::Deactivate() {
     }
     for (LargePage* p : *heap_->code_lo_space()) {
       p->SetOldGenerationPageFlags(false);
+    }
+    if (heap_->shared_lo_space()) {
+      for (LargePage* p : *heap_->shared_lo_space()) {
+        p->SetOldGenerationPageFlags(false);
+      }
     }
   }
   DCHECK(typed_slots_map_.empty());
@@ -259,6 +268,9 @@ void MarkingBarrier::Activate(bool is_compacting,
       ActivateSpace(heap_->code_space());
     }
     ActivateSpace(heap_->new_space());
+    if (heap_->shared_space()) {
+      ActivateSpace(heap_->shared_space());
+    }
 
     for (LargePage* p : *heap_->new_lo_space()) {
       p->SetYoungGenerationPageFlags(true);
@@ -273,6 +285,12 @@ void MarkingBarrier::Activate(bool is_compacting,
       CodePageHeaderModificationScope rwx_write_scope(
           "Modification of Code page header flags requires write access");
       for (LargePage* p : *heap_->code_lo_space()) {
+        p->SetOldGenerationPageFlags(true);
+      }
+    }
+
+    if (heap_->shared_lo_space()) {
+      for (LargePage* p : *heap_->shared_lo_space()) {
         p->SetOldGenerationPageFlags(true);
       }
     }

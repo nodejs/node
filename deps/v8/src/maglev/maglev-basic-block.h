@@ -52,11 +52,6 @@ class BasicBlock {
 
   bool is_empty_block() const { return is_empty_block_; }
 
-  BasicBlock* empty_block_predecessor() const {
-    DCHECK(is_empty_block());
-    return empty_block_predecessor_;
-  }
-
   MergePointRegisterState& empty_block_register_state() {
     DCHECK(is_empty_block());
     return *empty_block_register_state_;
@@ -67,13 +62,12 @@ class BasicBlock {
     empty_block_register_state_ = register_state;
   }
 
-  void set_empty_block_predecessor(BasicBlock* predecessor) {
+  void set_empty_block() {
     DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
     is_empty_block_ = true;
     empty_block_register_state_ = nullptr;
-    empty_block_predecessor_ = predecessor;
   }
 
   Phi::List* phis() const {
@@ -112,7 +106,6 @@ class BasicBlock {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* empty_block_register_state_;
   };
-  BasicBlock* empty_block_predecessor_;
   Label label_;
 };
 

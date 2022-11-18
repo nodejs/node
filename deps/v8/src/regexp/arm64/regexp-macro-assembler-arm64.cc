@@ -640,7 +640,7 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
   CompareAndBranchOrBacktrack(w11, 0, ne, on_bit_set);
 }
 
-bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(
+bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check

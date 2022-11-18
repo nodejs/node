@@ -145,7 +145,7 @@ bytecodes: [
   /*   52 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star1),
                 B(LdaSmi), I8(1),
-  /*   67 S> */ B(Star2),
+                B(Star2),
   /*   67 E> */ B(GetIterator), R(0), U8(2), U8(4),
                 B(Star4),
                 B(GetNamedProperty), R(4), U8(2), U8(6),

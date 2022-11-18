@@ -950,7 +950,7 @@ class JSTemporalZonedDateTime
                Handle<Object> time_zone_like);
 
   // #sec-get-temporal.zoneddatetime.prototype.hoursinday
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> HoursInDay(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HoursInDay(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
 
   // #sec-temporal.zoneddatetime.prototype.round
@@ -1051,13 +1051,13 @@ class JSTemporalZonedDateTime
 
 namespace temporal {
 
-struct DateRecordCommon {
+struct DateRecord {
   int32_t year;
   int32_t month;
   int32_t day;
 };
 
-struct TimeRecordCommon {
+struct TimeRecord {
   int32_t hour;
   int32_t minute;
   int32_t second;
@@ -1066,14 +1066,14 @@ struct TimeRecordCommon {
   int32_t nanosecond;
 };
 
-struct DateTimeRecordCommon {
-  DateRecordCommon date;
-  TimeRecordCommon time;
+struct DateTimeRecord {
+  DateRecord date;
+  TimeRecord time;
 };
 
 // #sec-temporal-createtemporaldatetime
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
-CreateTemporalDateTime(Isolate* isolate, const DateTimeRecordCommon& date_time,
+CreateTemporalDateTime(Isolate* isolate, const DateTimeRecord& date_time,
                        Handle<JSReceiver> calendar);
 
 // #sec-temporal-createtemporaltimezone
@@ -1145,6 +1145,49 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalCalendar> GetBuiltinCalendar(
 MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
     Isolate* isolate, Handle<JSReceiver> time_zone,
     Handle<JSTemporalPlainDateTime> date_time, const char* method_name);
+
+// For Intl.DurationFormat
+
+// #sec-temporal-time-duration-records
+struct TimeDurationRecord {
+  double days;
+  double hours;
+  double minutes;
+  double seconds;
+  double milliseconds;
+  double microseconds;
+  double nanoseconds;
+
+  // #sec-temporal-createtimedurationrecord
+  static Maybe<TimeDurationRecord> Create(Isolate* isolate, double days,
+                                          double hours, double minutes,
+                                          double seconds, double milliseconds,
+                                          double microseconds,
+                                          double nanoseconds);
+};
+
+// #sec-temporal-duration-records
+// Cannot reuse DateDurationRecord here due to duplicate days.
+struct DurationRecord {
+  double years;
+  double months;
+  double weeks;
+  TimeDurationRecord time_duration;
+  // #sec-temporal-createdurationrecord
+  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
+                                      double months, double weeks, double days,
+                                      double hours, double minutes,
+                                      double seconds, double milliseconds,
+                                      double microseconds, double nanoseconds);
+};
+
+// #sec-temporal-topartialduration
+Maybe<DurationRecord> ToPartialDuration(
+    Isolate* isolate, Handle<Object> temporal_duration_like_obj,
+    const DurationRecord& input);
+
+// #sec-temporal-isvalidduration
+bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
 
 }  // namespace temporal
 }  // namespace internal

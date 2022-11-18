@@ -159,7 +159,7 @@ TEST(TryProbeStubCache) {
   std::vector<Handle<JSObject>> receivers;
   std::vector<Handle<Code>> handlers;
 
-  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+  base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   Factory* factory = isolate->factory();
 

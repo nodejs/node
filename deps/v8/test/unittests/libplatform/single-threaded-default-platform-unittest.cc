@@ -37,7 +37,7 @@ class SingleThreadedDefaultPlatformTest
                   ::testing::Test>>> {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_single_threaded = true;
+    i::v8_flags.single_threaded = true;
     i::FlagList::EnforceFlagImplications();
     WithIsolateScopeMixin::SetUpTestSuite();
   }

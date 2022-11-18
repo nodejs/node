@@ -501,7 +501,7 @@ void CodeAssembler::Unreachable() {
 }
 
 void CodeAssembler::Comment(std::string str) {
-  if (!FLAG_code_comments) return;
+  if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
 }
 
@@ -1549,7 +1549,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
-  if (FLAG_enable_source_at_csa_bind) {
+  if (v8_flags.enable_source_at_csa_bind) {
     state_->raw_assembler_->SetCurrentExternalSourcePosition(
         {debug_info.file, debug_info.line});
   }

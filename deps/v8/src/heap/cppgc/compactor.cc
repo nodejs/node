@@ -452,13 +452,11 @@ Compactor::Compactor(RawHeap& heap) : heap_(heap) {
   }
 }
 
-bool Compactor::ShouldCompact(
-    GarbageCollector::Config::MarkingType marking_type,
-    GarbageCollector::Config::StackState stack_state) const {
+bool Compactor::ShouldCompact(GCConfig::MarkingType marking_type,
+                              StackState stack_state) const {
   if (compactable_spaces_.empty() ||
-      (marking_type == GarbageCollector::Config::MarkingType::kAtomic &&
-       stack_state ==
-           GarbageCollector::Config::StackState::kMayContainHeapPointers)) {
+      (marking_type == GCConfig::MarkingType::kAtomic &&
+       stack_state == StackState::kMayContainHeapPointers)) {
     // The following check ensures that tests that want to test compaction are
     // not interrupted by garbage collections that cannot use compaction.
     DCHECK(!enable_for_next_gc_for_testing_);
@@ -474,9 +472,8 @@ bool Compactor::ShouldCompact(
   return free_list_size > kFreeListSizeThreshold;
 }
 
-void Compactor::InitializeIfShouldCompact(
-    GarbageCollector::Config::MarkingType marking_type,
-    GarbageCollector::Config::StackState stack_state) {
+void Compactor::InitializeIfShouldCompact(GCConfig::MarkingType marking_type,
+                                          StackState stack_state) {
   DCHECK(!is_enabled_);
 
   if (!ShouldCompact(marking_type, stack_state)) return;
@@ -487,9 +484,8 @@ void Compactor::InitializeIfShouldCompact(
   is_cancelled_ = false;
 }
 
-void Compactor::CancelIfShouldNotCompact(
-    GarbageCollector::Config::MarkingType marking_type,
-    GarbageCollector::Config::StackState stack_state) {
+void Compactor::CancelIfShouldNotCompact(GCConfig::MarkingType marking_type,
+                                         StackState stack_state) {
   if (!is_enabled_ || ShouldCompact(marking_type, stack_state)) return;
 
   is_cancelled_ = true;

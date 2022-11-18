@@ -440,7 +440,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 
 TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 #ifdef V8_COMPRESS_POINTERS
-  FLAG_compact_on_every_full_gc = true;
+  v8_flags.compact_on_every_full_gc = true;
 
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);

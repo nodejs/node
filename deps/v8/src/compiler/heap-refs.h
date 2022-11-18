@@ -56,7 +56,8 @@ class PropertyAccessInfo;
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
 
 inline bool IsAnyStore(AccessMode mode) {
-  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
+  return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
+         mode == AccessMode::kDefine;
 }
 
 enum class OddballType : uint8_t {
@@ -527,6 +528,8 @@ class ContextRef : public HeapObjectRef {
 
   // Only returns a value if the index is valid for this ContextRef.
   base::Optional<ObjectRef> get(int index) const;
+
+  ScopeInfoRef scope_info() const;
 };
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
@@ -584,7 +587,6 @@ class NativeContextRef : public ContextRef {
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  ScopeInfoRef scope_info() const;
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
   base::Optional<JSFunctionRef> GetConstructorFunction(const MapRef& map) const;
@@ -879,6 +881,7 @@ class ScopeInfoRef : public HeapObjectRef {
   int ContextLength() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
+  bool ClassScopeHasPrivateBrand() const;
 
   ScopeInfoRef OuterScopeInfo() const;
 };
@@ -899,6 +902,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(int, StartPosition)                                    \
   V(bool, is_compiled)                                     \
   V(bool, IsUserJavaScript)                                \
+  V(bool, requires_instance_members_initializer)           \
   IF_WASM(V, const wasm::WasmModule*, wasm_module)         \
   IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature)
 

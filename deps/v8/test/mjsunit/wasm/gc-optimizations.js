@@ -409,7 +409,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefTest, sub_struct,
+      kGCPrefix, kExprRefTestDeprecated, sub_struct,
 
       // These casts have to be preserved.
       kExprLocalGet, 0,

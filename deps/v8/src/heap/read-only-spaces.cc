@@ -15,6 +15,7 @@
 #include "src/heap/allocation-stats.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
@@ -185,7 +186,9 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
   Address isolate_root = isolate->isolate_root();
   for (Object original_object : original_cache) {
     Address original_address = original_object.ptr();
-    Address new_address = isolate_root + CompressTagged(original_address);
+    Address new_address =
+        isolate_root +
+        V8HeapCompressionScheme::CompressTagged(original_address);
     Object new_object = Object(new_address);
     cache.push_back(new_object);
   }
@@ -235,7 +238,8 @@ void PointerCompressedReadOnlyArtifacts::Initialize(
     pages_.push_back(new_page);
     shared_memory_.push_back(std::move(shared_memory));
     // This is just CompressTagged but inlined so it will always compile.
-    Tagged_t compressed_address = CompressTagged(page->address());
+    Tagged_t compressed_address =
+        V8HeapCompressionScheme::CompressTagged(page->address());
     page_offsets_.push_back(compressed_address);
 
     // 3. Update the accounting stats so the allocated bytes are for the new
@@ -332,10 +336,7 @@ ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
                        std::move(reservation)) {
   allocated_bytes_ = 0;
   SetFlags(Flag::NEVER_EVACUATE | Flag::READ_ONLY_HEAP);
-  heap->incremental_marking()
-      ->non_atomic_marking_state()
-      ->bitmap(this)
-      ->MarkAllBits();
+  heap->non_atomic_marking_state()->bitmap(this)->MarkAllBits();
 }
 
 void ReadOnlyPage::MakeHeaderRelocatable() {
@@ -436,7 +437,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       }
       HeapObject obj = HeapObject::FromAddress(cur_addr_);
       const int obj_size = obj.Size();
-      cur_addr_ += obj_size;
+      cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!obj.IsFreeSpaceOrFiller()) {
         if (obj.IsCode()) {
@@ -575,7 +576,7 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 
   // Clear the bits in the unused black area.
   ReadOnlyPage* page = pages_.back();
-  heap()->incremental_marking()->marking_state()->bitmap(page)->ClearRange(
+  heap()->marking_state()->bitmap(page)->ClearRange(
       page->AddressToMarkbitIndex(top_), page->AddressToMarkbitIndex(limit_));
 
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
@@ -614,6 +615,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
 HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
     int size_in_bytes, AllocationAlignment alignment) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   Address current_top = top_;
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
@@ -639,6 +641,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
   DCHECK(!v8_flags.enable_third_party_heap);
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   int allocation_size = size_in_bytes;
 
   HeapObject object = TryAllocateLinearlyAligned(allocation_size, alignment);
@@ -658,6 +661,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   DCHECK(!IsDetached());
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   EnsureSpaceForAllocation(size_in_bytes);
   Address current_top = top_;
   Address new_top = current_top + size_in_bytes;
@@ -684,7 +688,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;
   if (result.To(&heap_obj)) {
-    DCHECK(heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
+    DCHECK(heap()->marking_state()->IsBlack(heap_obj));
   }
   return result;
 }

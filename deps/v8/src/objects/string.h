@@ -11,6 +11,7 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
@@ -194,7 +195,9 @@ class String : public TorqueGeneratedString<String, Name> {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, String canonical);
+  void MakeThin(IsolateT* isolate, String canonical,
+                UpdateInvalidatedObjectSize update_invalidated_object_size =
+                    UpdateInvalidatedObjectSize::kYes);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(

@@ -10,8 +10,6 @@ function TestMultiplyAndTruncate(a, b) {
 
 function OptimizeAndTest(fn) {
   let bi = 2n ** (2n ** 29n);
-  // Before optimization, a BigIntTooBig exception is expected
-  assertThrows(() => fn(bi + 3n, bi + 4n), RangeError);
   if (%Is64Bit()) {
     %PrepareFunctionForOptimization(fn);
     assertEquals(-4n, fn(3n, 4n));

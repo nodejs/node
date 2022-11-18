@@ -23,6 +23,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/pgo.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-debug.h"
@@ -510,14 +511,12 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
-  Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, &export_wrappers, compilation_id, context_id);
+      bytes, compilation_id, context_id);
   if (!native_module) return {};
 
-  return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
-                          uses_bitset);
+  return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
 }
 
 Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
@@ -525,10 +524,8 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Handle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
       asm_wasm_data->managed_native_module().get();
-  Handle<FixedArray> export_wrappers =
-      handle(asm_wasm_data->export_wrappers(), isolate);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script);
   return module_object;
 }
 
@@ -559,10 +556,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
-  Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
-                            &export_wrappers, compilation_id, context_id);
+                            compilation_id, context_id);
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -586,8 +582,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -870,10 +866,8 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   Handle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
-  Handle<FixedArray> export_wrappers;
-  CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_native_module), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(shared_native_module), script);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));

@@ -18,7 +18,7 @@ namespace compiler {
 
 #define TRACE(fmt, ...)                                         \
   do {                                                          \
-    if (FLAG_trace_store_elimination) {                         \
+    if (v8_flags.trace_store_elimination) {                     \
       PrintF("RedundantStoreFinder: " fmt "\n", ##__VA_ARGS__); \
     }                                                           \
   } while (false)
@@ -553,7 +553,7 @@ void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
 
   // Remove superfluous nodes
   for (Node* node : finder.to_remove_const()) {
-    if (FLAG_trace_store_elimination) {
+    if (v8_flags.trace_store_elimination) {
       PrintF("StoreStoreElimination::Run: Eliminating node #%d:%s\n",
              node->id(), node->op()->mnemonic());
     }

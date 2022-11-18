@@ -99,7 +99,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (FLAG_enable_etw_stack_walking) {
+  if (v8_flags.enable_etw_stack_walking) {
     // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
     v8::internal::ETWJITInterface::Register();
   }
@@ -114,10 +114,10 @@ void V8::InitializePlatform(v8::Platform* platform) {
 }
 
 #define DISABLE_FLAG(flag)                                                    \
-  if (FLAG_##flag) {                                                          \
+  if (v8_flags.flag) {                                                        \
     PrintF(stderr,                                                            \
            "Warning: disabling flag --" #flag " due to conflicting flags\n"); \
-    FLAG_##flag = false;                                                      \
+    v8_flags.flag = false;                                                    \
   }
 
 void V8::Initialize() {
@@ -125,52 +125,50 @@ void V8::Initialize() {
   CHECK(platform_);
 
   // Update logging information before enforcing flag implications.
-  FlagValue<bool>* log_all_flags[] = {&FLAG_log_all,
-                                      &FLAG_log_code,
-                                      &FLAG_log_code_disassemble,
-                                      &FLAG_log_source_code,
-                                      &FLAG_log_source_position,
-                                      &FLAG_log_feedback_vector,
+  FlagValue<bool>* log_all_flags[] = {&v8_flags.log_all,
+                                      &v8_flags.log_code,
+                                      &v8_flags.log_code_disassemble,
+                                      &v8_flags.log_source_code,
+                                      &v8_flags.log_source_position,
+                                      &v8_flags.log_feedback_vector,
                                       &v8_flags.log_function_events,
-                                      &FLAG_log_internal_timer_events,
-                                      &FLAG_log_deopt,
-                                      &FLAG_log_ic,
-                                      &FLAG_log_maps};
-  if (FLAG_log_all) {
+                                      &v8_flags.log_internal_timer_events,
+                                      &v8_flags.log_deopt,
+                                      &v8_flags.log_ic,
+                                      &v8_flags.log_maps};
+  if (v8_flags.log_all) {
     // Enable all logging flags
     for (auto* flag : log_all_flags) {
       *flag = true;
     }
-    FLAG_log = true;
-  } else if (!FLAG_log) {
+    v8_flags.log = true;
+  } else if (!v8_flags.log) {
     // Enable --log if any log flag is set.
     for (const auto* flag : log_all_flags) {
       if (!*flag) continue;
-      FLAG_log = true;
+      v8_flags.log = true;
       break;
     }
     // Profiling flags depend on logging.
-    FLAG_log = FLAG_log || FLAG_perf_prof || FLAG_perf_basic_prof ||
-               FLAG_ll_prof || FLAG_prof || FLAG_prof_cpp || FLAG_gdbjit;
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-    FLAG_log = FLAG_log || FLAG_enable_etw_stack_walking;
-#endif
+    v8_flags.log = v8_flags.log || v8_flags.perf_prof ||
+                   v8_flags.perf_basic_prof || v8_flags.ll_prof ||
+                   v8_flags.prof || v8_flags.prof_cpp || v8_flags.gdbjit;
   }
 
   FlagList::EnforceFlagImplications();
 
-  if (FLAG_predictable && FLAG_random_seed == 0) {
+  if (v8_flags.predictable && v8_flags.random_seed == 0) {
     // Avoid random seeds in predictable mode.
-    FLAG_random_seed = 12347;
+    v8_flags.random_seed = 12347;
   }
 
-  if (FLAG_stress_compaction) {
-    FLAG_force_marking_deque_overflows = true;
-    FLAG_gc_global = true;
-    FLAG_max_semi_space_size = 1;
+  if (v8_flags.stress_compaction) {
+    v8_flags.force_marking_deque_overflows = true;
+    v8_flags.gc_global = true;
+    v8_flags.max_semi_space_size = 1;
   }
 
-  if (FLAG_trace_turbo) {
+  if (v8_flags.trace_turbo) {
     // Create an empty file shared by the process (e.g. the wasm engine).
     std::ofstream(Isolate::GetTurboCfgFileName(nullptr).c_str(),
                   std::ios_base::trunc);
@@ -187,7 +185,7 @@ void V8::Initialize() {
   // TODO(jgruber): Remove this once / if wasm can run without executable
   // memory.
 #if V8_ENABLE_WEBASSEMBLY
-  if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
+  if (v8_flags.jitless && !v8_flags.correctness_fuzzer_suppressions) {
     DISABLE_FLAG(expose_wasm);
   }
 #endif
@@ -197,7 +195,7 @@ void V8::Initialize() {
   // leads to false positives on TSAN bots.
   // TODO(chromium:1205289): Teach relevant fuzzers to not pass TF tracing
   // flags instead, and remove this section.
-  if (FLAG_fuzzing && FLAG_concurrent_recompilation) {
+  if (v8_flags.fuzzing && v8_flags.concurrent_recompilation) {
     DISABLE_FLAG(trace_turbo);
     DISABLE_FLAG(trace_turbo_graph);
     DISABLE_FLAG(trace_turbo_scheduled);
@@ -215,16 +213,16 @@ void V8::Initialize() {
   // The --jitless and --interpreted-frames-native-stack flags are incompatible
   // since the latter requires code generation while the former prohibits code
   // generation.
-  CHECK(!FLAG_interpreted_frames_native_stack || !FLAG_jitless);
+  CHECK(!v8_flags.interpreted_frames_native_stack || !v8_flags.jitless);
 
-  base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
+  base::OS::Initialize(v8_flags.hard_abort, v8_flags.gc_fake_mmap);
 
-  if (FLAG_random_seed) {
-    GetPlatformPageAllocator()->SetRandomMmapSeed(FLAG_random_seed);
-    GetPlatformVirtualAddressSpace()->SetRandomSeed(FLAG_random_seed);
+  if (v8_flags.random_seed) {
+    GetPlatformPageAllocator()->SetRandomMmapSeed(v8_flags.random_seed);
+    GetPlatformVirtualAddressSpace()->SetRandomSeed(v8_flags.random_seed);
   }
 
-  if (FLAG_print_flag_values) FlagList::PrintValues();
+  if (v8_flags.print_flag_values) FlagList::PrintValues();
 
   // Initialize the default FlagList::Hash.
   FlagList::Hash();
@@ -232,7 +230,7 @@ void V8::Initialize() {
   // Before initializing internals, freeze the flags such that further changes
   // are not allowed. Global initialization of the Isolate or the WasmEngine
   // already reads flags, so they should not be changed afterwards.
-  if (FLAG_freeze_flags_after_init) FlagList::FreezeFlags();
+  if (v8_flags.freeze_flags_after_init) FlagList::FreezeFlags();
 
 #if defined(V8_ENABLE_SANDBOX)
   // If enabled, the sandbox must be initialized first.
@@ -291,7 +289,7 @@ void V8::DisposePlatform() {
   AdvanceStartupState(V8StartupState::kPlatformDisposing);
   CHECK(platform_);
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (FLAG_enable_etw_stack_walking) {
+  if (v8_flags.enable_etw_stack_walking) {
     v8::internal::ETWJITInterface::Unregister();
   }
 #endif

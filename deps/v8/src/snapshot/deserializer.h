@@ -32,7 +32,7 @@ class Object;
 #if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_PPC) ||      \
     defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_PPC64) ||      \
     defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64) || \
-    V8_EMBEDDED_CONSTANT_POOL
+    V8_EMBEDDED_CONSTANT_POOL_BOOL
 #define V8_CODE_EMBEDS_OBJECT_POINTER 1
 #else
 #define V8_CODE_EMBEDS_OBJECT_POINTER 0
@@ -245,7 +245,7 @@ class Deserializer : public SerializerDeserializer {
   // be in an invalid state
   class V8_NODISCARD DisableGCStats {
    public:
-    explicit DisableGCStats() {
+    DisableGCStats() {
       original_gc_stats_ = TracingFlags::gc_stats;
       TracingFlags::gc_stats = 0;
     }

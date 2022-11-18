@@ -466,7 +466,7 @@ TEST_F(DeclsTest, CrossScriptReferences) {
 }
 
 TEST_F(DeclsTest, CrossScriptReferences_Simple) {
-  i::FLAG_use_strict = true;
+  i::v8_flags.use_strict = true;
 
   HandleScope scope(isolate());
 
@@ -478,7 +478,7 @@ TEST_F(DeclsTest, CrossScriptReferences_Simple) {
 }
 
 TEST_F(DeclsTest, CrossScriptReferences_Simple2) {
-  i::FLAG_use_strict = true;
+  i::v8_flags.use_strict = true;
 
   HandleScope scope(isolate());
 
@@ -657,7 +657,7 @@ TEST_F(DeclsTest, CrossScriptReferencesHarmonyRegress) {
 }
 
 TEST_F(DeclsTest, GlobalLexicalOSR) {
-  i::FLAG_use_strict = true;
+  i::v8_flags.use_strict = true;
 
   HandleScope scope(isolate());
   SimpleContext context;
@@ -680,7 +680,7 @@ TEST_F(DeclsTest, GlobalLexicalOSR) {
 }
 
 TEST_F(DeclsTest, CrossScriptConflicts) {
-  i::FLAG_use_strict = true;
+  i::v8_flags.use_strict = true;
 
   HandleScope scope(isolate());
 
@@ -805,7 +805,7 @@ TEST_F(DeclsTest, CrossScriptStaticLookupUndeclared) {
 }
 
 TEST_F(DeclsTest, CrossScriptLoadICs) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 
@@ -863,7 +863,7 @@ TEST_F(DeclsTest, CrossScriptLoadICs) {
 }
 
 TEST_F(DeclsTest, CrossScriptStoreICs) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 
@@ -932,7 +932,7 @@ TEST_F(DeclsTest, CrossScriptStoreICs) {
 }
 
 TEST_F(DeclsTest, CrossScriptAssignmentToConst) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 
@@ -953,7 +953,7 @@ TEST_F(DeclsTest, CrossScriptAssignmentToConst) {
 }
 
 TEST_F(DeclsTest, Regress425510) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 
@@ -969,7 +969,7 @@ TEST_F(DeclsTest, Regress425510) {
 }
 
 TEST_F(DeclsTest, Regress3941) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 
@@ -1009,7 +1009,7 @@ TEST_F(DeclsTest, Regress3941) {
 }
 
 TEST_F(DeclsTest, Regress3941_Reads) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
 
   HandleScope handle_scope(isolate());
 

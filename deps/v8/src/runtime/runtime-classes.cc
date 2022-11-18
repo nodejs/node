@@ -638,7 +638,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }
-  if (FLAG_log_maps) {
+  if (v8_flags.log_maps) {
     Handle<Map> empty_map;
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),

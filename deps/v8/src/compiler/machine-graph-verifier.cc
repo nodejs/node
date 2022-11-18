@@ -51,6 +51,7 @@ class MachineRepresentationInferrer {
                           : MachineRepresentation::kBit;
       case IrOpcode::kInt64AddWithOverflow:
       case IrOpcode::kInt64SubWithOverflow:
+      case IrOpcode::kInt64MulWithOverflow:
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
                           : MachineRepresentation::kBit;

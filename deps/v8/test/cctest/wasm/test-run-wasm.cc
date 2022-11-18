@@ -2514,7 +2514,7 @@ class IsolateScope {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2552,7 +2552,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2599,7 +2599,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2648,7 +2648,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2690,7 +2690,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2755,7 +2755,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
 
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; ++which) {
-    v8::internal::AccountingAllocator allocator;
+    AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     WasmRunner<int32_t> r(execution_tier);
     r.builder().AddMemory(kWasmPageSize);

@@ -98,6 +98,7 @@ class V8_EXPORT_PRIVATE Node final {
   void EnsureInputCount(Zone* zone, int new_input_count);
 
   int UseCount() const;
+  int BranchUseCount() const;
   void ReplaceUses(Node* replace_to);
 
   class InputEdges;

@@ -669,10 +669,12 @@ class FastCApiObject {
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
 
-    // Number is in range.
-    CHECK(in_range && "Number range should have been enforced");
-    if (!std::isnan(real_arg)) {
-      CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
+    if (!i::v8_flags.fuzzing) {
+      // Number is in range.
+      CHECK(in_range && "Number range should have been enforced");
+      if (!std::isnan(real_arg)) {
+        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
+      }
     }
     return true;
   }
@@ -688,6 +690,10 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
+    if (i::v8_flags.fuzzing) {
+      args.GetReturnValue().Set(Boolean::New(isolate, false));
+      return;
+    }
     double real_arg = 0;
     if (args.Length() > 1 && args[1]->IsNumber()) {
       real_arg = args[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
@@ -707,6 +713,144 @@ class FastCApiObject {
       args.GetReturnValue().Set(Boolean::New(isolate, false));
     } else {
       args.GetIsolate()->ThrowError("Argument out of range.");
+    }
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType ClampCompareI32Patch(AnyCType receiver, AnyCType in_range,
+                                       AnyCType real_arg, AnyCType checked_arg,
+                                       AnyCType options) {
+    AnyCType ret;
+    ret.double_value = ClampCompare<int32_t>(
+        receiver.object_value, in_range.bool_value, real_arg.double_value,
+        checked_arg.int32_value, *options.options_value);
+    return ret;
+  }
+  static AnyCType ClampCompareU32Patch(AnyCType receiver, AnyCType in_range,
+                                       AnyCType real_arg, AnyCType checked_arg,
+                                       AnyCType options) {
+    AnyCType ret;
+    ret.double_value = ClampCompare<uint32_t>(
+        receiver.object_value, in_range.bool_value, real_arg.double_value,
+        checked_arg.uint32_value, *options.options_value);
+    return ret;
+  }
+  static AnyCType ClampCompareI64Patch(AnyCType receiver, AnyCType in_range,
+                                       AnyCType real_arg, AnyCType checked_arg,
+                                       AnyCType options) {
+    AnyCType ret;
+    ret.double_value = ClampCompare<int64_t>(
+        receiver.object_value, in_range.bool_value, real_arg.double_value,
+        checked_arg.int64_value, *options.options_value);
+    return ret;
+  }
+  static AnyCType ClampCompareU64Patch(AnyCType receiver, AnyCType in_range,
+                                       AnyCType real_arg, AnyCType checked_arg,
+                                       AnyCType options) {
+    AnyCType ret;
+    ret.double_value = ClampCompare<uint64_t>(
+        receiver.object_value, in_range.bool_value, real_arg.double_value,
+        checked_arg.uint64_value, *options.options_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  template <typename IntegerT>
+  static double ClampCompareCompute(bool in_range, double real_arg,
+                                    IntegerT checked_arg) {
+    if (!in_range) {
+      IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
+      IntegerT upper_bound = std::numeric_limits<IntegerT>::max();
+      if (lower_bound < internal::kMinSafeInteger) {
+        lower_bound = static_cast<IntegerT>(internal::kMinSafeInteger);
+      }
+      if (upper_bound > internal::kMaxSafeInteger) {
+        upper_bound = static_cast<IntegerT>(internal::kMaxSafeInteger);
+      }
+      CHECK(!std::isnan(real_arg));
+      if (real_arg < static_cast<double>(lower_bound)) {
+        CHECK_EQ(lower_bound, checked_arg);
+      } else if (real_arg > static_cast<double>(upper_bound)) {
+        CHECK_EQ(upper_bound, checked_arg);
+      } else {
+        FATAL("Expected value to be out of range.");
+      }
+    } else if (!std::isnan(real_arg)) {
+      if (real_arg != checked_arg) {
+        // Check if rounding towards nearest even number happened.
+        double diff = std::fabs(real_arg - checked_arg);
+        CHECK_LE(diff, 0.5);
+        if (diff == 0) {
+          // Check if rounding towards nearest even number happened.
+          CHECK_EQ(0, checked_arg % 2);
+        } else if (checked_arg % 2 == 1) {
+          // Behave as if rounding towards nearest even number *has*
+          // happened (as it does on the fast path).
+          checked_arg += 1;
+        }
+      } else {
+        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
+      }
+    }
+    return checked_arg;
+  }
+
+  template <typename IntegerT>
+  static double ClampCompare(Local<Object> receiver, bool in_range,
+                             double real_arg, IntegerT checked_arg,
+                             FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_NOT_NULL(self);
+    self->fast_call_count_++;
+
+    double result = ClampCompareCompute(in_range, real_arg, checked_arg);
+    return static_cast<double>(result);
+  }
+
+  template <typename IntegerT>
+  static bool IsInRange(double arg) {
+    return !std::isnan(arg) &&
+           arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
+           arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
+  }
+
+  template <typename IntegerT>
+  static void ClampCompareSlowCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(args.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    double real_arg = 0;
+    if (args.Length() > 1 && args[1]->IsNumber()) {
+      real_arg = args[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    }
+    double checked_arg_dbl = std::numeric_limits<double>::max();
+    if (args.Length() > 2 && args[2]->IsNumber()) {
+      checked_arg_dbl = args[2].As<Number>()->Value();
+    }
+    bool in_range = args[0]->IsBoolean() && args[0]->BooleanValue(isolate) &&
+                    IsInRange<IntegerT>(real_arg) &&
+                    IsInRange<IntegerT>(checked_arg_dbl);
+
+    IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
+    if (in_range) {
+      if (checked_arg_dbl != std::numeric_limits<double>::max()) {
+        checked_arg = static_cast<IntegerT>(checked_arg_dbl);
+      }
+      double result = ClampCompareCompute(in_range, real_arg, checked_arg);
+      args.GetReturnValue().Set(Number::New(isolate, result));
+    } else {
+      IntegerT clamped = std::numeric_limits<IntegerT>::max();
+      if (std::isnan(checked_arg_dbl)) {
+        clamped = 0;
+      } else {
+        clamped = std::clamp(checked_arg, std::numeric_limits<IntegerT>::min(),
+                             std::numeric_limits<IntegerT>::max());
+      }
+      args.GetReturnValue().Set(Number::New(isolate, clamped));
     }
   }
 
@@ -739,6 +883,7 @@ class FastCApiObject {
         ->GetTestApiObjectCtor()
         ->IsLeafTemplateForApiObject(object);
   }
+
   static void IsFastCApiObjectSlowCallback(
       const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
@@ -775,6 +920,10 @@ class FastCApiObject {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_FALLBACK(false);
     self->fast_call_count_++;
+
+    if (i::v8_flags.fuzzing) {
+      return true;
+    }
 
     CHECK_NOT_NULL(options.wasm_memory);
     uint8_t* memory = nullptr;
@@ -1066,6 +1215,8 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_all_annotate_c_func));
 
+    // Testing enforce range annotation.
+
     CFunction enforce_range_compare_i32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int32_t>)
@@ -1125,6 +1276,68 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::EnforceRangeCompareSlowCallback<uint64_t>,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_u64_c_func));
+
+    // Testing clamp annotation.
+
+    CFunction clamp_compare_i32_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::ClampCompare<int32_t>)
+            .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::ClampCompareI32Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "clamp_compare_i32",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ClampCompareSlowCallback<int32_t>,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &clamp_compare_i32_c_func));
+
+    CFunction clamp_compare_u32_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::ClampCompare<uint32_t>)
+            .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::ClampCompareU32Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "clamp_compare_u32",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ClampCompareSlowCallback<uint32_t>,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &clamp_compare_u32_c_func));
+
+    CFunction clamp_compare_i64_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::ClampCompare<int64_t>)
+            .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::ClampCompareI64Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "clamp_compare_i64",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ClampCompareSlowCallback<int64_t>,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &clamp_compare_i64_c_func));
+
+    CFunction clamp_compare_u64_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::ClampCompare<uint64_t>)
+            .Arg<3, v8::CTypeInfo::Flags::kClampBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::ClampCompareU64Patch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "clamp_compare_u64",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::ClampCompareSlowCallback<uint64_t>,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &clamp_compare_u64_c_func));
 
     CFunction is_valid_api_object_c_func =
         CFunction::Make(FastCApiObject::IsFastCApiObjectFastCallback);

@@ -177,8 +177,8 @@ MaybeLocal<Module> ResolveCallbackWithImportAssertions(
 }
 
 TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
-  bool prev_import_assertions = i::FLAG_harmony_import_assertions;
-  i::FLAG_harmony_import_assertions = true;
+  bool prev_import_assertions = i::v8_flags.harmony_import_assertions;
+  i::v8_flags.harmony_import_assertions = true;
   HandleScope scope(isolate());
   v8::TryCatch try_catch(isolate());
 
@@ -269,7 +269,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
     CHECK_EQ(42, result->Int32Value(context()).FromJust());
   }
   CHECK(!try_catch.HasCaught());
-  i::FLAG_harmony_import_assertions = prev_import_assertions;
+  i::v8_flags.harmony_import_assertions = prev_import_assertions;
 }
 
 TEST_F(ModuleTest, ModuleInstantiationFailures2) {

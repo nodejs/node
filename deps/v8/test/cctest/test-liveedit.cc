@@ -234,10 +234,10 @@ TEST(LiveEditPatchFunctions) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
   // Check that function is removed from compilation cache.
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   PatchFunctions(context, "42;", "%AbortJS('')");
   PatchFunctions(context, "42;", "239;");
-  i::FLAG_allow_natives_syntax = false;
+  i::v8_flags.allow_natives_syntax = false;
 
   // Basic test cases.
   PatchFunctions(context, "42;", "2;");
@@ -349,7 +349,7 @@ TEST(LiveEditPatchFunctions) {
                ->Value(),
            6);
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   PatchFunctions(context,
                  "function foo(a, b) { return a + b; }; "
                  "%PrepareFunctionForOptimization(foo);"
@@ -360,7 +360,7 @@ TEST(LiveEditPatchFunctions) {
                .ToLocalChecked()
                ->Value(),
            35);
-  i::FLAG_allow_natives_syntax = false;
+  i::v8_flags.allow_natives_syntax = false;
 
   // Check inner function.
   PatchFunctions(

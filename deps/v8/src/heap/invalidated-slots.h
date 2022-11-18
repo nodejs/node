@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   Address sentinel_;
   InvalidatedObjectInfo current_{kNullAddress, 0, false};
   InvalidatedObjectInfo next_{kNullAddress, 0, false};
-  NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* const marking_state_;
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;

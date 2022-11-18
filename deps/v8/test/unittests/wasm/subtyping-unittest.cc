@@ -174,9 +174,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
             TypeInModule(type_result, module_result))
 
   for (WasmModule* module : {module1, module2}) {
-    // For cross module subtyping, we need to enable type canonicalization.
     // Type judgements across modules should work the same as within one module.
-    FLAG_VALUE_SCOPE(wasm_type_canonicalization, module == module2);
 
     // Value types are unrelated, except if they are equal.
     for (ValueType subtype : numeric_types) {
@@ -311,7 +309,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     {
       // Canonicalization tests.
-      FLAG_SCOPE(wasm_type_canonicalization);
 
       // Groups should only be canonicalized to identical groups.
       IDENTICAL(18, 22);

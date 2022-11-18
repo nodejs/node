@@ -413,7 +413,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
                              size_t length, bool is_on_heap) {
   if (length == 0) return;
   size_t previous_index = 0;
-  if (i::FLAG_mock_arraybuffer_allocator && !is_on_heap) {
+  if (i::v8_flags.mock_arraybuffer_allocator && !is_on_heap) {
     // Don't try to print data that's not actually allocated.
     os << "\n    0-" << length << ": <mocked array buffer bytes>";
     return;
@@ -1269,10 +1269,6 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kSetKeyedSloppy:
-    case FeedbackSlotKind::kSetKeyedStrict:
-    case FeedbackSlotKind::kSetNamedSloppy:
-    case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
       break;
@@ -1306,6 +1302,24 @@ void FeedbackNexus::Print(std::ostream& os) {
       }
       break;
     }
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict: {
+      os << InlineCacheState2String(ic_state());
+      if (ic_state() == InlineCacheState::MONOMORPHIC) {
+        os << "\n   " << Brief(GetFeedback()) << ": ";
+        StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+      } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
+        WeakFixedArray array =
+            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        for (int i = 0; i < array.length(); i += 2) {
+          os << "\n   " << Brief(array.Get(i)) << ": ";
+          StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
+        }
+      }
+      break;
+    }
     case FeedbackSlotKind::kBinaryOp: {
       os << "BinaryOp:" << GetBinaryOperationFeedback();
       break;
@@ -1319,7 +1333,6 @@ void FeedbackNexus::Print(std::ostream& os) {
       break;
     }
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTypeProfile:
       break;
     case FeedbackSlotKind::kJumpLoop:
       os << "JumpLoop";
@@ -1544,7 +1557,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
-  if (is_resizable()) os << "\n - resizable";
+  if (is_resizable_by_js()) os << "\n - resizable_by_js";
   JSObjectPrintBody(os, *this, !was_detached());
 }
 
@@ -1873,7 +1886,6 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
-  os << "\n - export_wrappers: " << Brief(export_wrappers());
   os << "\n - uses bitset: " << uses_bitset().value();
   os << "\n";
 }
@@ -1881,7 +1893,6 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(native_type());
-  // TODO(manoskouk): Print supertype info.
   os << "\n - supertypes: ";
   for (int i = 0; i < supertypes_length(); i++) {
     os << "\n  - " << Brief(supertypes(i));
@@ -1923,7 +1934,8 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kRtt: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
-        Address obj = DecompressTaggedPointer(address(), raw);
+        Address obj =
+            V8HeapCompressionScheme::DecompressTaggedPointer(address(), raw);
 #else
         Address obj = raw;
 #endif
@@ -2156,7 +2168,6 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << module();
   os << "\n - native module: " << native_module();
-  os << "\n - export wrappers: " << Brief(export_wrappers());
   os << "\n - script: " << Brief(script());
   os << "\n";
 }
@@ -2400,6 +2411,12 @@ void JSTemporalCalendar::JSTemporalCalendarPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSTemporalCalendar");
   JSObjectPrintBody(os, *this);
 }
+
+void JSRawJson::JSRawJsonPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSRawJson");
+  JSObjectPrintBody(os, *this);
+}
+
 #ifdef V8_INTL_SUPPORT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
@@ -2437,6 +2454,15 @@ void JSDisplayNames::JSDisplayNamesPrint(std::ostream& os) {
   os << "\n - internal: " << Brief(internal());
   os << "\n - style: " << StyleAsString();
   os << "\n - fallback: " << FallbackAsString();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSDurationFormat::JSDurationFormatPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSDurationFormat");
+  os << "\n - style_flags: " << style_flags();
+  os << "\n - display_flags: " << display_flags();
+  os << "\n - icu locale: " << Brief(icu_locale());
+  os << "\n - icu number formatter: " << Brief(icu_number_formatter());
   JSObjectPrintBody(os, *this);
 }
 
@@ -2931,8 +2957,8 @@ inline i::Object GetObjectFromRaw(void* object) {
   if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
     // Try to decompress pointer.
     i::Isolate* isolate = i::Isolate::Current();
-    object_ptr =
-        i::DecompressTaggedAny(isolate, static_cast<i::Tagged_t>(object_ptr));
+    object_ptr = i::V8HeapCompressionScheme::DecompressTaggedAny(
+        isolate, static_cast<i::Tagged_t>(object_ptr));
   }
 #endif
   return i::Object(object_ptr);
@@ -2943,14 +2969,17 @@ inline i::Object GetObjectFromRaw(void* object) {
 //
 // The following functions are used by our gdb macros.
 //
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern i::Object _v8_internal_Get_Object(void* object) {
   return GetObjectFromRaw(object);
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   GetObjectFromRaw(object).Print();
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
@@ -2959,6 +2988,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #endif
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
@@ -2967,6 +2997,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
 #endif
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
@@ -3009,11 +3040,13 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
 }
 
+V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object o(GetObjectFromRaw(object));
   if (!o.IsMap()) {

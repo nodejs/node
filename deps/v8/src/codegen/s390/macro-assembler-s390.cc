@@ -1165,12 +1165,12 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
-  // if (v8_flags.enable_embedded_constant_pool) {
+  // if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
   //   LoadU64(kConstantPoolRegister,
   //         MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
   //   set_constant_pool_available(false);
   // }
-  DCHECK(!v8_flags.enable_embedded_constant_pool);
+  DCHECK(!V8_EMBEDDED_CONSTANT_POOL_BOOL);
   LoadU64(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadU64(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 }
@@ -2146,7 +2146,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   b(Condition(7), flags_need_processing);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   DCHECK(!AreAliased(flags, feedback_vector));
   Label maybe_has_optimized_code, maybe_needs_logging;
@@ -2937,6 +2937,29 @@ void TurboAssembler::MulS64(Register dst, Register src) { msgr(dst, src); }
 
 void TurboAssembler::MulS64(Register dst, const MemOperand& opnd) {
   msg(dst, opnd);
+}
+
+void TurboAssembler::MulHighS64(Register dst, Register src1, Register src2) {
+  mgrk(r0, src1, src2);
+  lgr(dst, r0);
+}
+
+void TurboAssembler::MulHighS64(Register dst, Register src1,
+                                const MemOperand& src2) {
+  // TODO(v8): implement this.
+  UNIMPLEMENTED();
+}
+
+void TurboAssembler::MulHighU64(Register dst, Register src1, Register src2) {
+  lgr(r1, src1);
+  mlgr(r0, src2);
+  lgr(dst, r0);
+}
+
+void TurboAssembler::MulHighU64(Register dst, Register src1,
+                                const MemOperand& src2) {
+  // TODO(v8): implement this.
+  UNIMPLEMENTED();
 }
 
 void TurboAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {

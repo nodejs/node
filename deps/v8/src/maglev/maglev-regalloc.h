@@ -142,7 +142,13 @@ class StraightForwardRegisterAllocator {
   void AssignArbitraryRegisterInput(Input& input);
   void AssignAnyInput(Input& input);
   void AssignInputs(NodeBase* node);
+  template <typename RegisterT>
+  void AssignFixedTemporaries(RegisterFrameState<RegisterT>& registers,
+                              NodeBase* node);
   void AssignFixedTemporaries(NodeBase* node);
+  template <typename RegisterT>
+  void AssignArbitraryTemporaries(RegisterFrameState<RegisterT>& registers,
+                                  NodeBase* node);
   void AssignArbitraryTemporaries(NodeBase* node);
   void TryAllocateToInput(Phi* phi);
 

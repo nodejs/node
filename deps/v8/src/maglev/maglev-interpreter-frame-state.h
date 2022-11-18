@@ -55,6 +55,11 @@ void DestructivelyIntersect(ZoneMap<ValueNode*, Value>& lhs_map,
       ++rhs_it;
     }
   }
+  // If we haven't reached the end of LHS by now, then we have reached the end
+  // of RHS, and the remaining items are therefore not in RHS. Remove them.
+  if (lhs_it != lhs_map.end()) {
+    lhs_map.erase(lhs_it, lhs_map.end());
+  }
 }
 
 // The intersection (using `&`) of any two NodeTypes must be a valid NodeType
@@ -72,34 +77,52 @@ enum class NodeType {
   kHeapObjectWithKnownMap = (1 << 5) | kAnyHeapObject,
 };
 
-struct NodeInfo {
-  NodeType type;
-  // TODO(leszeks): Consider adding more info for nodes here, e.g. alternative
-  // representations or previously loaded fields.
+inline bool NodeTypeIsSmi(NodeType type) { return type == NodeType::kSmi; }
+inline bool NodeTypeIsAnyHeapObject(NodeType type) {
+  return static_cast<int>(type) & static_cast<int>(NodeType::kAnyHeapObject);
+}
+inline bool NodeTypeIsString(NodeType type) {
+  return type == NodeType::kString;
+}
+inline bool NodeTypeIsSymbol(NodeType type) {
+  return type == NodeType::kSymbol;
+}
 
-  static bool IsSmi(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kSmi;
+struct NodeInfo {
+  NodeType type = NodeType::kUnknown;
+
+  // Optional alternative nodes with the equivalent value but a different
+  // representation.
+  // TODO(leszeks): At least one of these is redundant for every node, consider
+  // a more compressed form or even linked list.
+  ValueNode* tagged_alternative = nullptr;
+  ValueNode* int32_alternative = nullptr;
+  ValueNode* float64_alternative = nullptr;
+
+  bool is_empty() {
+    return type == NodeType::kUnknown && tagged_alternative == nullptr &&
+           int32_alternative == nullptr && float64_alternative == nullptr;
   }
-  static bool IsAnyHeapObject(const NodeInfo* info) {
-    if (!info) return false;
-    return static_cast<int>(info->type) &
-           static_cast<int>(NodeType::kAnyHeapObject);
-  }
-  static bool IsString(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kString;
-  }
-  static bool IsSymbol(const NodeInfo* info) {
-    if (!info) return false;
-    return info->type == NodeType::kSymbol;
-  }
+
+  bool is_smi() const { return NodeTypeIsSmi(type); }
+  bool is_any_heap_object() const { return NodeTypeIsAnyHeapObject(type); }
+  bool is_string() const { return NodeTypeIsString(type); }
+  bool is_symbol() const { return NodeTypeIsSymbol(type); }
 
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other) {
     type = static_cast<NodeType>(static_cast<int>(type) &
                                  static_cast<int>(other.type));
+    tagged_alternative = tagged_alternative == other.tagged_alternative
+                             ? tagged_alternative
+                             : nullptr;
+    int32_alternative = int32_alternative == other.int32_alternative
+                            ? int32_alternative
+                            : nullptr;
+    float64_alternative = float64_alternative == other.float64_alternative
+                              ? float64_alternative
+                              : nullptr;
   }
 };
 
@@ -131,28 +154,13 @@ struct KnownNodeAspects {
     return clone;
   }
 
-  NodeInfo* GetInfoFor(ValueNode* node) {
-    auto it = node_infos.find(node);
-    if (it == node_infos.end()) return nullptr;
-    return &it->second;
-  }
-
-  void InsertOrUpdateNodeType(ValueNode* node, NodeInfo* existing_info,
-                              NodeType new_type) {
-    if (existing_info == nullptr) {
-      DCHECK_EQ(node_infos.find(node), node_infos.end());
-      node_infos.emplace(node, NodeInfo{new_type});
-    } else {
-      DCHECK_EQ(&node_infos.find(node)->second, existing_info);
-      existing_info->type = new_type;
-    }
-  }
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) { return &node_infos[node]; }
 
   void Merge(const KnownNodeAspects& other) {
     DestructivelyIntersect(node_infos, other.node_infos,
                            [](NodeInfo& lhs, const NodeInfo& rhs) {
                              lhs.MergeWith(rhs);
-                             return lhs.type != NodeType::kUnknown;
+                             return !lhs.is_empty();
                            });
     DestructivelyIntersect(stable_maps, other.stable_maps,
                            [](compiler::MapRef lhs, compiler::MapRef rhs) {
@@ -186,6 +194,8 @@ class InterpreterFrameState {
                        const MergePointInterpreterFrameState& state);
 
   void set_accumulator(ValueNode* value) {
+    // Conversions should be stored in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     frame_[interpreter::Register::virtual_accumulator()] = value;
   }
   ValueNode* accumulator() const {
@@ -198,6 +208,8 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
+    // Conversions should be stored in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
     frame_[reg] = value;
   }
   ValueNode* get(interpreter::Register reg) const {
@@ -444,11 +456,12 @@ class MergePointInterpreterFrameState {
         });
     merge_state->predecessors_[0] = predecessor;
     merge_state->known_node_aspects_ =
-        info.zone()->New<KnownNodeAspects>(info.zone());
+        state.known_node_aspects().Clone(info.zone());
     return merge_state;
   }
 
   static MergePointInterpreterFrameState* NewForLoop(
+      const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
       const compiler::LoopInfo* loop_info) {
@@ -457,6 +470,11 @@ class MergePointInterpreterFrameState {
             info, predecessor_count, 0,
             info.zone()->NewArray<BasicBlock*>(predecessor_count),
             BasicBlockType::kLoopHeader, liveness);
+    if (loop_info->resumable()) {
+      state->known_node_aspects_ =
+          info.zone()->New<KnownNodeAspects>(info.zone());
+      state->is_resumable_loop_ = true;
+    }
     auto& assignments = loop_info->assignments();
     auto& frame_state = state->frame_state_;
     frame_state.ForEachParameter(
@@ -464,6 +482,10 @@ class MergePointInterpreterFrameState {
           entry = nullptr;
           if (assignments.ContainsParameter(reg.ToParameterIndex())) {
             entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
+          } else if (state->is_resumable_loop()) {
+            // Copy initial values out of the start state.
+            entry = start_state.get(reg);
+            DCHECK(entry->Is<InitialValue>());
           }
         });
     // TODO(v8:7700): Add contexts into assignment analysis.
@@ -488,11 +510,35 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void Merge(MaglevCompilationUnit& compilation_unit,
-             const InterpreterFrameState& unmerged, BasicBlock* predecessor,
+             InterpreterFrameState& unmerged, BasicBlock* predecessor,
              int merge_offset) {
     DCHECK_GT(predecessor_count_, 1);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
     predecessors_[predecessors_so_far_] = predecessor;
+
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "Merging..." << std::endl;
+    }
+    frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
+                                                    interpreter::Register reg) {
+      CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
+
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "  " << reg.ToString() << ": "
+                  << PrintNodeLabel(compilation_unit.graph_labeller(), value)
+                  << " <- "
+                  << PrintNodeLabel(compilation_unit.graph_labeller(),
+                                    unmerged.get(reg));
+      }
+      value = MergeValue(compilation_unit, reg, unmerged.known_node_aspects(),
+                         value, unmerged.get(reg), merge_offset);
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << " => "
+                  << PrintNodeLabel(compilation_unit.graph_labeller(), value)
+                  << ": " << PrintNode(compilation_unit.graph_labeller(), value)
+                  << std::endl;
+      }
+    });
 
     if (known_node_aspects_ == nullptr) {
       DCHECK(is_unmerged_loop());
@@ -504,29 +550,6 @@ class MergePointInterpreterFrameState {
       known_node_aspects_->Merge(unmerged.known_node_aspects());
     }
 
-    if (FLAG_trace_maglev_graph_building) {
-      std::cout << "Merging..." << std::endl;
-    }
-    frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
-                                                    interpreter::Register reg) {
-      CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
-
-      if (FLAG_trace_maglev_graph_building) {
-        std::cout << "  " << reg.ToString() << ": "
-                  << PrintNodeLabel(compilation_unit.graph_labeller(), value)
-                  << " <- "
-                  << PrintNodeLabel(compilation_unit.graph_labeller(),
-                                    unmerged.get(reg));
-      }
-      value = MergeValue(compilation_unit, reg, value, unmerged.get(reg),
-                         merge_offset);
-      if (FLAG_trace_maglev_graph_building) {
-        std::cout << " => "
-                  << PrintNodeLabel(compilation_unit.graph_labeller(), value)
-                  << ": " << PrintNode(compilation_unit.graph_labeller(), value)
-                  << std::endl;
-      }
-    });
     predecessors_so_far_++;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
@@ -534,30 +557,30 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void MergeLoop(MaglevCompilationUnit& compilation_unit,
-                 const InterpreterFrameState& loop_end_state,
+                 InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block, int merge_offset) {
     // This should be the last predecessor we try to merge.
     DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
     DCHECK(is_unmerged_loop());
     predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       std::cout << "Merging loop backedge..." << std::endl;
     }
     frame_state_.ForEachValue(compilation_unit, [&](ValueNode* value,
                                                     interpreter::Register reg) {
       CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
 
-      if (FLAG_trace_maglev_graph_building) {
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << "  " << reg.ToString() << ": "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << " <- "
                   << PrintNodeLabel(compilation_unit.graph_labeller(),
                                     loop_end_state.get(reg));
       }
-      MergeLoopValue(compilation_unit, reg, value, loop_end_state.get(reg),
-                     merge_offset);
-      if (FLAG_trace_maglev_graph_building) {
+      MergeLoopValue(compilation_unit, reg, loop_end_state.known_node_aspects(),
+                     value, loop_end_state.get(reg), merge_offset);
+      if (v8_flags.trace_maglev_graph_building) {
         std::cout << " => "
                   << PrintNodeLabel(compilation_unit.graph_labeller(), value)
                   << ": " << PrintNode(compilation_unit.graph_labeller(), value)
@@ -572,7 +595,7 @@ class MergePointInterpreterFrameState {
   // deopt).
   void MergeDead(const MaglevCompilationUnit& compilation_unit,
                  int merge_offset) {
-    DCHECK_GT(predecessor_count_, 1);
+    DCHECK_GE(predecessor_count_, 1);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
     predecessor_count_--;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
@@ -636,8 +659,11 @@ class MergePointInterpreterFrameState {
   bool is_unreachable_loop() const {
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
-    return is_loop() && predecessor_count_ == 1 && predecessors_so_far_ == 0;
+    return is_loop() && !is_resumable_loop() && predecessor_count_ == 1 &&
+           predecessors_so_far_ == 0;
   }
+
+  bool is_resumable_loop() const { return is_resumable_loop_; }
 
  private:
   friend void InterpreterFrameState::CopyFrom(
@@ -658,44 +684,43 @@ class MergePointInterpreterFrameState {
         frame_state_(info, liveness) {}
 
   ValueNode* FromInt32ToTagged(MaglevCompilationUnit& compilation_unit,
+                               KnownNodeAspects& known_node_aspects,
                                ValueNode* value) {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kInt32);
-    if (value->Is<CheckedSmiUntag>()) {
-      return value->input(0).node();
-    }
+    DCHECK(!value->properties().is_conversion());
 #define IS_INT32_OP_NODE(Name) || value->Is<Name>()
-    DCHECK(value->Is<Int32Constant>()
+    DCHECK(value->Is<Int32Constant>() ||
+           value->Is<StringLength>()
                INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
 #undef IS_INT32_OP_NODE
-    // Check if the next Node in the block after value is its CheckedSmiTag
-    // version and reuse it.
-    if (value->NextNode()) {
-      CheckedSmiTag* tagged = value->NextNode()->TryCast<CheckedSmiTag>();
-      if (tagged != nullptr && value == tagged->input().node()) {
-        return tagged;
-      }
-    }
-    // Otherwise create a tagged version.
-    ValueNode* tagged =
-        Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
+    NodeInfo* node_info = known_node_aspects.GetOrCreateInfoFor(value);
+    if (!node_info->tagged_alternative) {
+      // Create a tagged version.
+      ValueNode* tagged;
+      if (value->Is<StringLength>()) {
+        static_assert(String::kMaxLength <= kSmiMaxValue,
+                      "String length must fit into a Smi");
+        tagged = Node::New<UnsafeSmiTag>(compilation_unit.zone(), {value});
+      } else {
+        tagged = Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
             compilation_unit.zone(), compilation_unit,
             value->eager_deopt_info()->state, {value});
-    Node::List::AddAfter(value, tagged);
-    compilation_unit.RegisterNodeInGraphLabeller(tagged);
-    return tagged;
+      }
+
+      Node::List::AddAfter(value, tagged);
+      compilation_unit.RegisterNodeInGraphLabeller(tagged);
+      node_info->tagged_alternative = tagged;
+    }
+    return node_info->tagged_alternative;
   }
 
   ValueNode* FromFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
+                                 KnownNodeAspects& known_node_aspects,
                                  ValueNode* value) {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kFloat64);
-    if (value->Is<CheckedFloat64Unbox>()) {
-      return value->input(0).node();
-    }
-    if (value->Is<ChangeInt32ToFloat64>()) {
-      return FromInt32ToTagged(compilation_unit, value->input(0).node());
-    }
+    DCHECK(!value->properties().is_conversion());
     // Check if the next Node in the block after value is its Float64Box
     // version and reuse it.
     if (value->NextNode()) {
@@ -714,19 +739,21 @@ class MergePointInterpreterFrameState {
   // TODO(victorgomes): Consider refactor this function to share code with
   // MaglevGraphBuilder::GetTagged.
   ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
+                          KnownNodeAspects& known_node_aspects,
                           ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32:
-        return FromInt32ToTagged(compilation_unit, value);
+        return FromInt32ToTagged(compilation_unit, known_node_aspects, value);
       case ValueRepresentation::kFloat64:
-        return FromFloat64ToTagged(compilation_unit, value);
+        return FromFloat64ToTagged(compilation_unit, known_node_aspects, value);
     }
   }
 
   ValueNode* MergeValue(MaglevCompilationUnit& compilation_unit,
-                        interpreter::Register owner, ValueNode* merged,
+                        interpreter::Register owner,
+                        KnownNodeAspects& unmerged_aspects, ValueNode* merged,
                         ValueNode* unmerged, int merge_offset) {
     // If the merged node is null, this is a pre-created loop header merge
     // frame will null values for anything that isn't a loop Phi.
@@ -741,7 +768,7 @@ class MergePointInterpreterFrameState {
       // It's possible that merged == unmerged at this point since loop-phis are
       // not dropped if they are only assigned to themselves in the loop.
       DCHECK_EQ(result->owner(), owner);
-      unmerged = EnsureTagged(compilation_unit, unmerged);
+      unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
       result->set_input(predecessors_so_far_, unmerged);
       return result;
     }
@@ -750,8 +777,8 @@ class MergePointInterpreterFrameState {
 
     // We guarantee that the values are tagged.
     // TODO(victorgomes): Support Phi nodes of untagged values.
-    merged = EnsureTagged(compilation_unit, merged);
-    unmerged = EnsureTagged(compilation_unit, unmerged);
+    merged = EnsureTagged(compilation_unit, *known_node_aspects_, merged);
+    unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
 
     // Tagged versions could point to the same value, avoid Phi nodes in this
     // case.
@@ -770,7 +797,7 @@ class MergePointInterpreterFrameState {
 
     for (int i = 0; i < predecessors_so_far_; i++) result->set_input(i, merged);
     result->set_input(predecessors_so_far_, unmerged);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       for (int i = predecessors_so_far_ + 1; i < predecessor_count_; i++) {
         result->set_input(i, nullptr);
       }
@@ -800,7 +827,8 @@ class MergePointInterpreterFrameState {
   }
 
   void MergeLoopValue(MaglevCompilationUnit& compilation_unit,
-                      interpreter::Register owner, ValueNode* merged,
+                      interpreter::Register owner,
+                      KnownNodeAspects& unmerged_aspects, ValueNode* merged,
                       ValueNode* unmerged, int merge_offset) {
     Phi* result = merged->TryCast<Phi>();
     if (result == nullptr || result->merge_offset() != merge_offset) {
@@ -814,7 +842,7 @@ class MergePointInterpreterFrameState {
       return;
     }
     DCHECK_EQ(result->owner(), owner);
-    unmerged = EnsureTagged(compilation_unit, unmerged);
+    unmerged = EnsureTagged(compilation_unit, unmerged_aspects, unmerged);
     result->set_input(predecessor_count_ - 1, unmerged);
   }
 
@@ -823,7 +851,7 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(predecessors_so_far_, 0);
     // Create a new loop phi, which for now is empty.
     Phi* result = Node::New<Phi>(zone, predecessor_count_, reg, merge_offset);
-    if (FLAG_trace_maglev_graph_building) {
+    if (v8_flags.trace_maglev_graph_building) {
       for (int i = 0; i < predecessor_count_; i++) {
         result->set_input(i, nullptr);
       }
@@ -844,6 +872,7 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
+  bool is_resumable_loop_ = false;
   BasicBlock** predecessors_;
 
   BasicBlockType basic_block_type_;

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include "src/execution/arguments-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +43,8 @@ RUNTIME_FUNCTION(
 RUNTIME_FUNCTION(Runtime_JSWeakRefAddToKeptObjects) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> object = args.at<JSReceiver>(0);
+  Handle<HeapObject> object = args.at<HeapObject>(0);
+  DCHECK(object->CanBeHeldWeakly());
 
   isolate->heap()->KeepDuringJob(object);
 

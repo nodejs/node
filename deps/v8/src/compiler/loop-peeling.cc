@@ -225,7 +225,7 @@ void LoopPeeler::PeelInnerLoops(LoopTree::Loop* loop) {
   }
   // Only peel small-enough loops.
   if (loop->TotalSize() > LoopPeeler::kMaxPeeledNodes) return;
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     PrintF("Peeling loop with header: ");
     for (Node* node : loop_tree_->HeaderNodes(loop)) {
       PrintF("%i ", node->id());

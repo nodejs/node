@@ -12,7 +12,7 @@ namespace internal {
 namespace compiler {
 
 TEST(TestVerifyType) {
-  FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
+  FlagScope<bool> allow_natives_syntax(&i::v8_flags.allow_natives_syntax, true);
   HandleAndZoneScope handle_scope;
   Isolate* isolate = handle_scope.main_isolate();
   Zone* zone = handle_scope.main_zone();

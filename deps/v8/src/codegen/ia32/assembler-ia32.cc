@@ -204,8 +204,7 @@ void Displacement::init(Label* L, Type type) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -1625,11 +1624,7 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(entry, rmode);
-  } else {
-    emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
-  }
+  emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
 }
 
 void Assembler::wasm_call(Address entry, RelocInfo::Mode rmode) {
@@ -1702,7 +1697,7 @@ void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
-  if (RelocInfo::IsRuntimeEntry(rmode) || RelocInfo::IsWasmCall(rmode)) {
+  if (RelocInfo::IsWasmCall(rmode)) {
     emit(entry, rmode);
   } else {
     emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);
@@ -1772,11 +1767,7 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
-    emit(reinterpret_cast<uint32_t>(entry), rmode);
-  } else {
-    emit(entry - (pc_ + sizeof(int32_t)), rmode);
-  }
+  emit(entry - (pc_ + sizeof(int32_t)), rmode);
 }
 
 void Assembler::j(Condition cc, Handle<Code> code, RelocInfo::Mode rmode) {
@@ -3395,8 +3386,7 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   emit(data);
@@ -3404,10 +3394,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
-    RecordRelocInfo(rmode);
-  }
+  DCHECK(RelocInfo::IsNoInfo(rmode));
   emit_q(data);
 }
 

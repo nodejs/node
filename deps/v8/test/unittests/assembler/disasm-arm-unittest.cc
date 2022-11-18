@@ -1641,7 +1641,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
 }
 
 
-TEST_F(DisasmArmTest,LoadLiteral) {
+TEST_F(DisasmArmTest, LoadLiteral) {
   SET_UP();
 
   TestLoadLiteral(buffer, &assm, &failure, 0);

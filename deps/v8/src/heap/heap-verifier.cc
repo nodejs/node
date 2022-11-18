@@ -200,7 +200,6 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
-            InTypedSet(SlotType::kEmbeddedObjectData, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(SlotType::kConstPoolEmbeddedObjectCompressed,
                         rinfo->constant_pool_entry_address())) ||

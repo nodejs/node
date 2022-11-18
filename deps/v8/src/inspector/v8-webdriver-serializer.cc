@@ -56,6 +56,9 @@ String16 _descriptionForRegExpFlags(v8::Local<v8::RegExp> value) {
   if (flags & v8::RegExp::Flags::kMultiline) result_string_builder.append('m');
   if (flags & v8::RegExp::Flags::kDotAll) result_string_builder.append('s');
   if (flags & v8::RegExp::Flags::kUnicode) result_string_builder.append('u');
+  if (flags & v8::RegExp::Flags::kUnicodeSets) {
+    result_string_builder.append('v');
+  }
   if (flags & v8::RegExp::Flags::kSticky) result_string_builder.append('y');
   return result_string_builder.toString();
 }

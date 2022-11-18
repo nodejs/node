@@ -57,11 +57,11 @@ namespace {
 class LogTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log = true;
-    i::FLAG_prof = true;
-    i::FLAG_log_code = true;
-    i::FLAG_logfile = i::LogFile::kLogToTemporaryFile;
-    i::FLAG_logfile_per_isolate = false;
+    i::v8_flags.log = true;
+    i::v8_flags.prof = true;
+    i::v8_flags.log_code = true;
+    i::v8_flags.logfile = i::LogFile::kLogToTemporaryFile;
+    i::v8_flags.logfile_per_isolate = false;
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -498,11 +498,11 @@ TEST_F(LogTest, Issue539892) {
 class LogAllTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log_all = true;
-    i::FLAG_log_deopt = true;
-    i::FLAG_turbo_inlining = false;
-    i::FLAG_log_internal_timer_events = true;
-    i::FLAG_allow_natives_syntax = true;
+    i::v8_flags.log_all = true;
+    i::v8_flags.log_deopt = true;
+    i::v8_flags.turbo_inlining = false;
+    i::v8_flags.log_internal_timer_events = true;
+    i::v8_flags.allow_natives_syntax = true;
     LogTest::SetUpTestSuite();
   }
 };
@@ -543,7 +543,7 @@ TEST_F(LogAllTest, LogAll) {
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
     CHECK(logger.ContainsLine({"code-creation,JS,", "testAddFn"}));
 
-    if (i::FLAG_turbofan && !i::FLAG_always_turbofan) {
+    if (i::v8_flags.turbofan && !i::v8_flags.always_turbofan) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
       CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
       CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
@@ -554,7 +554,7 @@ TEST_F(LogAllTest, LogAll) {
 class LogInterpretedFramesNativeStackTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_interpreted_frames_native_stack = true;
+    i::v8_flags.interpreted_frames_native_stack = true;
     LogTest::SetUpTestSuite();
   }
 };
@@ -583,13 +583,13 @@ class LogInterpretedFramesNativeStackWithSerializationTest
       : array_buffer_allocator_(
             v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
   static void SetUpTestSuite() {
-    i::FLAG_log = true;
-    i::FLAG_prof = true;
-    i::FLAG_log_code = true;
-    i::FLAG_logfile = i::LogFile::kLogToTemporaryFile;
-    i::FLAG_logfile_per_isolate = false;
-    i::FLAG_interpreted_frames_native_stack = true;
-    i::FLAG_always_turbofan = false;
+    i::v8_flags.log = true;
+    i::v8_flags.prof = true;
+    i::v8_flags.log_code = true;
+    i::v8_flags.logfile = i::LogFile::kLogToTemporaryFile;
+    i::v8_flags.logfile_per_isolate = false;
+    i::v8_flags.interpreted_frames_native_stack = true;
+    i::v8_flags.always_turbofan = false;
     TestWithPlatform::SetUpTestSuite();
   }
 
@@ -673,8 +673,8 @@ TEST_F(LogInterpretedFramesNativeStackWithSerializationTest,
 class LogExternalLogEventListenerTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log = false;
-    i::FLAG_prof = false;
+    i::v8_flags.log = false;
+    i::v8_flags.prof = false;
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -728,8 +728,8 @@ class LogExternalLogEventListenerInnerFunctionTest : public TestWithPlatform {
       : array_buffer_allocator_(
             v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
   static void SetUpTestSuite() {
-    i::FLAG_log = false;
-    i::FLAG_prof = false;
+    i::v8_flags.log = false;
+    i::v8_flags.prof = false;
     TestWithPlatform::SetUpTestSuite();
   }
 
@@ -771,11 +771,11 @@ TEST_F(LogExternalLogEventListenerInnerFunctionTest,
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
             .ToLocalChecked();
     CHECK_EQ(code_event_handler.CountLines("Function", "f1"),
-             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
-                 (i::FLAG_always_sparkplug ? 1 : 0));
+             1 + (i::v8_flags.stress_background_compile ? 1 : 0) +
+                 (i::v8_flags.always_sparkplug ? 1 : 0));
     CHECK_EQ(code_event_handler.CountLines("Function", "f2"),
-             1 + (i::FLAG_stress_background_compile ? 1 : 0) +
-                 (i::FLAG_always_sparkplug ? 1 : 0));
+             1 + (i::v8_flags.stress_background_compile ? 1 : 0) +
+                 (i::v8_flags.always_sparkplug ? 1 : 0));
     cache = v8::ScriptCompiler::CreateCodeCache(script);
   }
   isolate1->Dispose();
@@ -811,9 +811,9 @@ TEST_F(LogExternalLogEventListenerInnerFunctionTest,
 class LogExternalInterpretedFramesNativeStackTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log = false;
-    i::FLAG_prof = false;
-    i::FLAG_interpreted_frames_native_stack = true;
+    i::v8_flags.log = false;
+    i::v8_flags.prof = false;
+    i::v8_flags.interpreted_frames_native_stack = true;
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -863,7 +863,7 @@ TEST_F(LogExternalInterpretedFramesNativeStackTest,
 class LogMapsTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_log_maps = true;
+    i::v8_flags.log_maps = true;
     LogTest::SetUpTestSuite();
   }
 };
@@ -949,8 +949,9 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 
 TEST_F(LogMapsTest, LogMapsDetailsStartup) {
   // Reusing map addresses might cause these tests to fail.
-  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
+  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
+      i::v8_flags.stress_incremental_marking ||
+      i::v8_flags.enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
@@ -964,16 +965,17 @@ TEST_F(LogMapsTest, LogMapsDetailsStartup) {
 class LogMapsCodeTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::FLAG_retain_maps_for_n_gc = 0xFFFFFFF;
-    i::FLAG_log_maps = true;
+    i::v8_flags.retain_maps_for_n_gc = 0xFFFFFFF;
+    i::v8_flags.log_maps = true;
     LogTest::SetUpTestSuite();
   }
 };
 
 TEST_F(LogMapsCodeTest, LogMapsDetailsCode) {
   // Reusing map addresses might cause these tests to fail.
-  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
+  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
+      i::v8_flags.stress_incremental_marking ||
+      i::v8_flags.enable_third_party_heap) {
     return;
   }
 
@@ -1061,8 +1063,9 @@ TEST_F(LogMapsCodeTest, LogMapsDetailsCode) {
 
 TEST_F(LogMapsTest, LogMapsDetailsContexts) {
   // Reusing map addresses might cause these tests to fail.
-  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
+  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
+      i::v8_flags.stress_incremental_marking ||
+      i::v8_flags.enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
@@ -1132,7 +1135,7 @@ class LogFunctionEventsTest : public LogTest {
 
 TEST_F(LogFunctionEventsTest, LogFunctionEvents) {
   // --always-turbofan will break the fine-grained log order.
-  if (i::FLAG_always_turbofan) return;
+  if (i::v8_flags.always_turbofan) return;
 
   {
     ScopedLoggerInitializer logger(isolate());

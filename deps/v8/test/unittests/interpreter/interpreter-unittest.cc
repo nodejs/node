@@ -377,7 +377,10 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsBigInt) {
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector().Get(slot);
           CHECK(feedback->IsSmi());
-          CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi().value());
+          // TODO(panq): Create a standalone unit test for kBigInt64.
+          CHECK(BinaryOperationFeedback::kBigInt64 ==
+                    feedback->ToSmi().value() ||
+                BinaryOperationFeedback::kBigInt == feedback->ToSmi().value());
         }
       }
     }
@@ -4739,9 +4742,9 @@ TEST_F(InterpreterTest, InterpreterGenerators) {
 #ifndef V8_TARGET_ARCH_ARM
 TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   // "Always sparkplug" messes with this test.
-  if (FLAG_always_sparkplug) return;
+  if (v8_flags.always_sparkplug) return;
 
-  i::FLAG_interpreted_frames_native_stack = true;
+  i::v8_flags.interpreted_frames_native_stack = true;
 
   const char* source_text =
       "function testInterpreterWithNativeStack(a,b) { return a + b };";
@@ -4793,8 +4796,8 @@ TEST_F(InterpreterTest, InterpreterGetBytecodeHandler) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   const char* source =
       "(function () {\n"
@@ -4817,8 +4820,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   const char* source =
       "(function () {\n"
@@ -4852,8 +4855,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   const char* source =
       R"javascript(
@@ -4886,8 +4889,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   const char* source =
       R"javascript(
@@ -4941,8 +4944,8 @@ void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
 }  // namespace
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
-  FLAG_enable_lazy_source_positions = true;
-  FLAG_stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions = true;
+  v8_flags.stress_lazy_source_positions = false;
 
   const char* source =
       R"javascript(

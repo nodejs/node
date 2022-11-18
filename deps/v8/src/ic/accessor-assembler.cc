@@ -1280,10 +1280,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<PropertyDictionary>(
-        properties, CAST(p->name()),
-        p->IsAnyDefineOwn() ? &if_slow : &dictionary_found, &var_name_index,
-        miss);
+    if (p->IsAnyDefineOwn()) {
+      NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                               &if_slow, nullptr, miss);
+    } else {
+      NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
+                                               &dictionary_found,
+                                               &var_name_index, miss);
+    }
 
     // When dealing with class fields defined with DefineKeyedOwnIC or
     // DefineNamedOwnIC, use the slow path to check the existing property.
@@ -2887,7 +2891,7 @@ enum AccessorAssembler::StubCacheTable : int {
 TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
                                                          TNode<Map> map) {
   // Compute the hash of the name (use entire hash field).
-  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHash(name);
   CSA_DCHECK(this,
              Word32Equal(Word32And(raw_hash_field,
                                    Int32Constant(Name::kHashNotComputedMask)),
@@ -3622,7 +3626,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
     BIND(&if_notunique);
     {
-      if (FLAG_internalize_on_the_fly) {
+      if (v8_flags.internalize_on_the_fly) {
         // Ideally we could return undefined directly here if the name is not
         // found in the string table, i.e. it was never internalized, but that
         // invariant doesn't hold with named property interceptors (at this

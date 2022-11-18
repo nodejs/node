@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/common/operation.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -117,68 +118,72 @@ class CompactInterpreterFrameState;
   V(RootConstant)                   \
   V(SmiConstant)
 
-#define VALUE_NODE_LIST(V)        \
-  V(Call)                         \
-  V(CallBuiltin)                  \
-  V(CallRuntime)                  \
-  V(CallWithSpread)               \
-  V(Construct)                    \
-  V(ConstructWithSpread)          \
-  V(CreateEmptyArrayLiteral)      \
-  V(CreateArrayLiteral)           \
-  V(CreateShallowArrayLiteral)    \
-  V(CreateObjectLiteral)          \
-  V(CreateEmptyObjectLiteral)     \
-  V(CreateShallowObjectLiteral)   \
-  V(CreateFunctionContext)        \
-  V(CreateClosure)                \
-  V(FastCreateClosure)            \
-  V(CreateRegExpLiteral)          \
-  V(DeleteProperty)               \
-  V(ForInPrepare)                 \
-  V(ForInNext)                    \
-  V(GeneratorRestoreRegister)     \
-  V(GetIterator)                  \
-  V(GetSecondReturnedValue)       \
-  V(GetTemplateObject)            \
-  V(InitialValue)                 \
-  V(LoadTaggedField)              \
-  V(LoadDoubleField)              \
-  V(LoadTaggedElement)            \
-  V(LoadDoubleElement)            \
-  V(LoadGlobal)                   \
-  V(LoadNamedGeneric)             \
-  V(LoadNamedFromSuperGeneric)    \
-  V(SetNamedGeneric)              \
-  V(DefineNamedOwnGeneric)        \
-  V(StoreInArrayLiteralGeneric)   \
-  V(StoreGlobal)                  \
-  V(GetKeyedGeneric)              \
-  V(SetKeyedGeneric)              \
-  V(DefineKeyedOwnGeneric)        \
-  V(Phi)                          \
-  V(RegisterInput)                \
-  V(CheckedSmiTag)                \
-  V(CheckedSmiUntag)              \
-  V(CheckedInternalizedString)    \
-  V(ChangeInt32ToFloat64)         \
-  V(Float64Box)                   \
-  V(CheckedFloat64Unbox)          \
-  V(LogicalNot)                   \
-  V(SetPendingMessage)            \
-  V(ToBooleanLogicalNot)          \
-  V(TaggedEqual)                  \
-  V(TaggedNotEqual)               \
-  V(TestInstanceOf)               \
-  V(TestUndetectable)             \
-  V(TestTypeOf)                   \
-  V(ToName)                       \
-  V(ToNumberOrNumeric)            \
-  V(ToObject)                     \
-  V(ToString)                     \
-  CONSTANT_VALUE_NODE_LIST(V)     \
-  INT32_OPERATIONS_NODE_LIST(V)   \
-  FLOAT64_OPERATIONS_NODE_LIST(V) \
+#define VALUE_NODE_LIST(V)         \
+  V(Call)                          \
+  V(CallBuiltin)                   \
+  V(CallRuntime)                   \
+  V(CallWithSpread)                \
+  V(Construct)                     \
+  V(ConstructWithSpread)           \
+  V(CreateEmptyArrayLiteral)       \
+  V(CreateArrayLiteral)            \
+  V(CreateShallowArrayLiteral)     \
+  V(CreateObjectLiteral)           \
+  V(CreateEmptyObjectLiteral)      \
+  V(CreateShallowObjectLiteral)    \
+  V(CreateFunctionContext)         \
+  V(CreateClosure)                 \
+  V(FastCreateClosure)             \
+  V(CreateRegExpLiteral)           \
+  V(DeleteProperty)                \
+  V(ForInPrepare)                  \
+  V(ForInNext)                     \
+  V(GeneratorRestoreRegister)      \
+  V(GetIterator)                   \
+  V(GetSecondReturnedValue)        \
+  V(GetTemplateObject)             \
+  V(InitialValue)                  \
+  V(LoadTaggedField)               \
+  V(LoadDoubleField)               \
+  V(LoadTaggedElement)             \
+  V(LoadDoubleElement)             \
+  V(LoadGlobal)                    \
+  V(LoadNamedGeneric)              \
+  V(LoadNamedFromSuperGeneric)     \
+  V(SetNamedGeneric)               \
+  V(DefineNamedOwnGeneric)         \
+  V(StoreInArrayLiteralGeneric)    \
+  V(StoreGlobal)                   \
+  V(GetKeyedGeneric)               \
+  V(SetKeyedGeneric)               \
+  V(DefineKeyedOwnGeneric)         \
+  V(Phi)                           \
+  V(RegisterInput)                 \
+  V(CheckedSmiTag)                 \
+  V(UnsafeSmiTag)                  \
+  V(CheckedSmiUntag)               \
+  V(CheckedInternalizedString)     \
+  V(CheckedObjectToIndex)          \
+  V(ChangeInt32ToFloat64)          \
+  V(CheckedTruncateFloat64ToInt32) \
+  V(Float64Box)                    \
+  V(CheckedFloat64Unbox)           \
+  V(LogicalNot)                    \
+  V(SetPendingMessage)             \
+  V(StringLength)                  \
+  V(ToBooleanLogicalNot)           \
+  V(TaggedEqual)                   \
+  V(TaggedNotEqual)                \
+  V(TestInstanceOf)                \
+  V(TestUndetectable)              \
+  V(TestTypeOf)                    \
+  V(ToName)                        \
+  V(ToNumberOrNumeric)             \
+  V(ToObject)                      \
+  V(ToString)                      \
+  CONSTANT_VALUE_NODE_LIST(V)      \
+  INT32_OPERATIONS_NODE_LIST(V)    \
+  FLOAT64_OPERATIONS_NODE_LIST(V)  \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -196,6 +201,7 @@ class CompactInterpreterFrameState;
   V(CheckMapsWithMigration)           \
   V(CheckJSArrayBounds)               \
   V(CheckJSObjectElementsBounds)      \
+  V(DebugBreak)                       \
   V(GeneratorStore)                   \
   V(JumpLoopPrologue)                 \
   V(StoreTaggedFieldNoWriteBarrier)   \
@@ -442,11 +448,22 @@ class BasicBlockRef {
     return next_ref_ != nullptr;
   }
 
+  int interrupt_budget_correction() const {
+    DCHECK_EQ(state_, kRefList);
+    return interrupt_budget_correction_;
+  }
+
+  void set_interrupt_budget_correction(int interrupt_budget_correction) {
+    DCHECK_EQ(state_, kRefList);
+    interrupt_budget_correction_ = interrupt_budget_correction;
+  }
+
  private:
   union {
     BasicBlock* block_ptr_;
     BasicBlockRef* next_ref_;
   };
+  int interrupt_budget_correction_ = 0;
 #ifdef DEBUG
   enum { kBlockPointer, kRefList } state_;
 #endif  // DEBUG
@@ -616,6 +633,7 @@ class ValueLocation {
   }
 
   bool IsAnyRegister() const { return operand_.IsAnyRegister(); }
+  bool IsGeneralRegister() const { return operand_.IsRegister(); }
   bool IsDoubleRegister() const { return operand_.IsDoubleRegister(); }
 
   const compiler::InstructionOperand& operand() const { return operand_; }
@@ -761,8 +779,10 @@ class NodeBase : public ZoneObject {
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
+  using NumDoubleTemporariesNeededField =
+      NumTemporariesNeededField::Next<uint8_t, 1>;
   // Align input count to 32-bit.
-  using UnusedField = NumTemporariesNeededField::Next<uint8_t, 3>;
+  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 2>;
   using InputCountField = UnusedField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
@@ -874,13 +894,35 @@ class NodeBase : public ZoneObject {
     id_ = id;
   }
 
+  template <typename RegisterT>
   uint8_t num_temporaries_needed() const {
-    return NumTemporariesNeededField::decode(bitfield_);
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      return NumTemporariesNeededField::decode(bitfield_);
+    } else {
+      return NumDoubleTemporariesNeededField::decode(bitfield_);
+    }
   }
 
-  RegList& temporaries() { return temporaries_; }
+  template <typename RegisterT>
+  RegListBase<RegisterT>& temporaries() {
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      return temporaries_;
+    } else {
+      return double_temporaries_;
+    }
+  }
 
-  void assign_temporaries(RegList list) { temporaries_ = list; }
+  RegList& general_temporaries() { return temporaries_; }
+  DoubleRegList& double_temporaries() { return double_temporaries_; }
+
+  template <typename RegisterT>
+  void assign_temporaries(RegListBase<RegisterT> list) {
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      temporaries_ = list;
+    } else {
+      double_temporaries_ = list;
+    }
+  }
 
   void Print(std::ostream& os, MaglevGraphLabeller*,
              bool skip_targets = false) const;
@@ -949,13 +991,22 @@ class NodeBase : public ZoneObject {
   //
   // Does not include any registers requested by RequireSpecificTemporary.
   void set_temporaries_needed(uint8_t value) {
-    DCHECK_EQ(num_temporaries_needed(), 0);
+    DCHECK_EQ(num_temporaries_needed<Register>(), 0);
     bitfield_ = NumTemporariesNeededField::update(bitfield_, value);
+  }
+
+  void set_double_temporaries_needed(uint8_t value) {
+    DCHECK_EQ(num_temporaries_needed<DoubleRegister>(), 0);
+    bitfield_ = NumDoubleTemporariesNeededField::update(bitfield_, value);
   }
 
   // Require that a specific register is free (and therefore clobberable) by the
   // entry into this node.
   void RequireSpecificTemporary(Register reg) { temporaries_.set(reg); }
+
+  void RequireSpecificDoubleTemporary(DoubleRegister reg) {
+    double_temporaries_.set(reg);
+  }
 
  private:
   template <class Derived, typename... Args>
@@ -1021,6 +1072,7 @@ class NodeBase : public ZoneObject {
   uint64_t bitfield_;
   NodeIdT id_ = kInvalidNodeId;
   RegList temporaries_;
+  DoubleRegList double_temporaries_;
 
   NodeBase() = delete;
   NodeBase(const NodeBase&) = delete;
@@ -1147,7 +1199,7 @@ class ValueNode : public Node {
 
   struct LiveRange {
     NodeIdT start = kInvalidNodeId;
-    NodeIdT end = kInvalidNodeId;
+    NodeIdT end = kInvalidNodeId;  // Inclusive.
   };
 
   bool has_valid_live_range() const { return end_id_ != 0; }
@@ -1652,6 +1704,20 @@ class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
+// Input must guarantee to fit in a Smi.
+class UnsafeSmiTag : public FixedInputValueNodeT<1, UnsafeSmiTag> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiTag>;
+
+ public:
+  explicit UnsafeSmiTag(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
 class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiUntag>;
 
@@ -1746,6 +1812,22 @@ class ChangeInt32ToFloat64
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
+class CheckedTruncateFloat64ToInt32
+    : public FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedTruncateFloat64ToInt32>;
+
+ public:
+  explicit CheckedTruncateFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Int32() |
+                                              OpProperties::ConversionNode();
+
+  Input& input() { return Node::input(0); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
 class CheckedFloat64Unbox
     : public FixedInputValueNodeT<1, CheckedFloat64Unbox> {
   using Base = FixedInputValueNodeT<1, CheckedFloat64Unbox>;
@@ -1824,7 +1906,8 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
  public:
-  explicit TestInstanceOf(uint64_t bitfield) : Base(bitfield) {}
+  explicit TestInstanceOf(uint64_t bitfield, compiler::FeedbackSource feedback)
+      : Base(bitfield), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
@@ -1832,8 +1915,12 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   Input& context() { return input(0); }
   Input& object() { return input(1); }
   Input& callable() { return input(2); }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
@@ -2197,8 +2284,12 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
 
   DECL_NODE_INTERFACE()
 
+  compiler::HeapObjectRef object() { return object_; }
+
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
   Handle<Object> DoReify(LocalIsolate* isolate);
+
+  const compiler::HeapObjectRef& ref() const { return object_; }
 
  private:
   const compiler::HeapObjectRef object_;
@@ -2265,7 +2356,8 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 
@@ -2325,7 +2417,8 @@ class CreateObjectLiteral
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 
@@ -2700,6 +2793,15 @@ class CheckJSObjectElementsBounds
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
+class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
+  using Base = FixedInputNodeT<0, DebugBreak>;
+
+ public:
+  explicit DebugBreak(uint64_t bitfield) : Base(bitfield) {}
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
 class CheckedInternalizedString
     : public FixedInputValueNodeT<1, CheckedInternalizedString> {
   using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
@@ -2711,9 +2813,8 @@ class CheckedInternalizedString
     CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::TaggedValue() |
-                                              OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::TaggedValue();
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return Node::input(kObjectIndex); }
@@ -2722,6 +2823,23 @@ class CheckedInternalizedString
 
  private:
   const CheckType check_type_;
+};
+
+class CheckedObjectToIndex
+    : public FixedInputValueNodeT<1, CheckedObjectToIndex> {
+  using Base = FixedInputValueNodeT<1, CheckedObjectToIndex>;
+
+ public:
+  explicit CheckedObjectToIndex(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32() |
+      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return Node::input(kObjectIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
 };
 
 class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
@@ -3012,6 +3130,21 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
   const compiler::FeedbackSource feedback_;
 };
 
+class StringLength : public FixedInputValueNodeT<1, StringLength> {
+  using Base = FixedInputValueNodeT<1, StringLength>;
+
+ public:
+  explicit StringLength(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Int32();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+};
+
 class DefineNamedOwnGeneric
     : public FixedInputValueNodeT<3, DefineNamedOwnGeneric> {
   using Base = FixedInputValueNodeT<3, DefineNamedOwnGeneric>;
@@ -3210,6 +3343,8 @@ class Phi : public ValueNodeT<Phi> {
   using Node::reduce_input_count;
   using Node::set_input;
 
+  bool is_exception_phi() const { return input_count() == 0; }
+
   DECL_NODE_INTERFACE()
   void AllocateVregInPostProcess(MaglevVregAllocationState*);
 
@@ -3279,9 +3414,9 @@ class Construct : public ValueNodeT<Construct> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Construct(uint64_t bitfield, ValueNode* function, ValueNode* new_target,
-            ValueNode* context)
-      : Base(bitfield) {
+  Construct(uint64_t bitfield, const compiler::FeedbackSource& feedback,
+            ValueNode* function, ValueNode* new_target, ValueNode* context)
+      : Base(bitfield), feedback_(feedback) {
     set_input(kFunctionIndex, function);
     set_input(kNewTargetIndex, new_target);
     set_input(kContextIndex, context);
@@ -3300,8 +3435,12 @@ class Construct : public ValueNodeT<Construct> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   DECL_NODE_INTERFACE_WITH_EMPTY_PRINT_PARAMS()
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class CallBuiltin : public ValueNodeT<CallBuiltin> {
@@ -3376,6 +3515,10 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   }
 
   void set_arg(int i, ValueNode* node) { set_input(i, node); }
+
+  int ReturnCount() const {
+    return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
+  }
 
   DECL_NODE_INTERFACE()
 
@@ -3556,7 +3699,7 @@ class ThrowReferenceErrorIfHole
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   const compiler::NameRef& name() const { return name_; }
 
@@ -3576,7 +3719,7 @@ class ThrowSuperNotCalledIfHole
   explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& value() { return Node::input(0); }
 
@@ -3592,7 +3735,7 @@ class ThrowSuperAlreadyCalledIfNotHole
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& value() { return Node::input(0); }
 
@@ -3607,7 +3750,7 @@ class ThrowIfNotSuperConstructor
   explicit ThrowIfNotSuperConstructor(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+      OpProperties::Throw() | OpProperties::DeferredCall();
 
   Input& constructor() { return Node::input(0); }
   Input& function() { return Node::input(1); }
@@ -3701,6 +3844,12 @@ class BranchControlNode : public ConditionalControlNode {
 
   BasicBlock* if_true() const { return if_true_.block_ptr(); }
   BasicBlock* if_false() const { return if_false_.block_ptr(); }
+  void set_true_interrupt_correction(int interrupt_budget_correction) {
+    if_true_.set_interrupt_budget_correction(interrupt_budget_correction);
+  }
+  void set_false_interrupt_correction(int interrupt_budget_correction) {
+    if_false_.set_interrupt_budget_correction(interrupt_budget_correction);
+  }
 
  private:
   BasicBlockRef if_true_;

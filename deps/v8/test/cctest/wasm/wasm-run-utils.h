@@ -135,14 +135,10 @@ class TestingModuleBuilder {
   }
 
   byte AddSignature(const FunctionSig* sig) {
-    DCHECK_EQ(test_module_->types.size(),
-              test_module_->per_module_canonical_type_ids.size());
     test_module_->add_signature(sig, kNoSuperType);
-    if (v8_flags.wasm_type_canonicalization) {
-      GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
-      instance_object_->set_isorecursive_canonical_types(
-          test_module_->isorecursive_canonical_type_ids.data());
-    }
+    GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
+    instance_object_->set_isorecursive_canonical_types(
+        test_module_->isorecursive_canonical_type_ids.data());
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
@@ -213,7 +209,7 @@ class TestingModuleBuilder {
 
   // Freezes the signature map of the module and allocates the storage for
   // export wrappers.
-  void FreezeSignatureMapAndInitializeWrapperCache();
+  void InitializeWrapperCache();
 
   // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);

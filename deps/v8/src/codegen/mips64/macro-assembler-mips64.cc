@@ -513,6 +513,29 @@ void TurboAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Dmulhu(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (kArchVariant == kMips64r6) {
+      dmuhu(rd, rs, rt.rm());
+    } else {
+      dmultu(rs, rt.rm());
+      mfhi(rd);
+    }
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(rs != scratch);
+    li(scratch, rt);
+    if (kArchVariant == kMips64r6) {
+      dmuhu(rd, rs, scratch);
+    } else {
+      dmultu(rs, scratch);
+      mfhi(rd);
+    }
+  }
+}
+
 void TurboAssembler::Mult(Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mult(rs, rt.rm());
@@ -4227,6 +4250,35 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
   }
 }
 
+MemOperand TurboAssembler::ExternalReferenceAsOperand(
+    ExternalReference reference, Register scratch) {
+  if (root_array_available_ && options().enable_root_relative_access) {
+    int64_t offset =
+        RootRegisterOffsetForExternalReference(isolate(), reference);
+    if (is_int32(offset)) {
+      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+    }
+  }
+  if (root_array_available_ && options().isolate_independent_code) {
+    if (IsAddressableThroughRootRegister(isolate(), reference)) {
+      // Some external references can be efficiently loaded as an offset from
+      // kRootRegister.
+      intptr_t offset =
+          RootRegisterOffsetForExternalReference(isolate(), reference);
+      CHECK(is_int32(offset));
+      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+    } else {
+      // Otherwise, do a memory load from the external reference table.
+      Ld(scratch, MemOperand(kRootRegister,
+                             RootRegisterOffsetForExternalReferenceTableEntry(
+                                 isolate(), reference)));
+      return MemOperand(scratch, 0);
+    }
+  }
+  li(scratch, reference);
+  return MemOperand(scratch, 0);
+}
+
 void TurboAssembler::Jump(Register target, Condition cond, Register rs,
                           const Operand& rt, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -5189,6 +5241,36 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   }
 
   dsra32(scratch, dst, 0);
+  xor_(overflow, overflow, scratch);
+}
+
+void TurboAssembler::DMulOverflow(Register dst, Register left,
+                                  const Operand& right, Register overflow) {
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = t8;
+  if (!right.is_reg()) {
+    li(at, Operand(right));
+    right_reg = at;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
+  DCHECK(overflow != left && overflow != right_reg);
+
+  if (dst == left || dst == right_reg) {
+    Dmul(scratch, left, right_reg);
+    Dmulh(overflow, left, right_reg);
+    mov(dst, scratch);
+  } else {
+    Dmul(dst, left, right_reg);
+    Dmulh(overflow, left, right_reg);
+  }
+
+  dsra32(scratch, dst, 31);
   xor_(overflow, overflow, scratch);
 }
 
@@ -6315,7 +6397,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   Label maybe_has_optimized_code, maybe_needs_logging;

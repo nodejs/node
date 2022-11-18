@@ -265,7 +265,8 @@ class MemoryAllocator {
 
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
-  const MemoryChunk* LookupChunkContainingAddress(Address addr) const;
+  V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
+      Address addr) const;
 
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordNormalPageCreated(const Page& page);

@@ -26,72 +26,125 @@ Address PtrComprCageBase::address() const {
   return ret;
 }
 
-// Compresses full-pointer representation of a tagged value to on-heap
-// representation.
-V8_INLINE Tagged_t CompressTagged(Address tagged) {
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
-}
+//
+// V8HeapCompressionScheme
+//
 
-V8_INLINE constexpr Address GetPtrComprCageBaseAddress(Address on_heap_addr) {
+// static
+Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+    Address on_heap_addr) {
   return RoundDown<kPtrComprCageBaseAlignment>(on_heap_addr);
 }
 
-V8_INLINE Address GetPtrComprCageBaseAddress(PtrComprCageBase cage_base) {
+// static
+Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+    PtrComprCageBase cage_base) {
   return cage_base.address();
 }
 
-V8_INLINE constexpr PtrComprCageBase GetPtrComprCageBaseFromOnHeapAddress(
-    Address address) {
-  return PtrComprCageBase(GetPtrComprCageBaseAddress(address));
+// static
+Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
+  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
-// Decompresses smi value.
-V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) {
+// static
+Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
   // For runtime code the upper 32-bits of the Smi value do not matter.
   return static_cast<Address>(raw_value);
 }
 
-// Decompresses weak or strong heap object pointer or forwarding pointer,
-// preserving both weak- and smi- tags.
+// static
 template <typename TOnHeapAddress>
-V8_INLINE Address DecompressTaggedPointer(TOnHeapAddress on_heap_addr,
-                                          Tagged_t raw_value) {
+Address V8HeapCompressionScheme::DecompressTaggedPointer(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
   return GetPtrComprCageBaseAddress(on_heap_addr) +
          static_cast<Address>(raw_value);
 }
 
-// Decompresses any tagged value, preserving both weak- and smi- tags.
+// static
 template <typename TOnHeapAddress>
-V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
-                                      Tagged_t raw_value) {
+Address V8HeapCompressionScheme::DecompressTaggedAny(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
   return DecompressTaggedPointer(on_heap_addr, raw_value);
+}
+
+// static
+template <typename ProcessPointerCallback>
+void V8HeapCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
+  // If pointer compression is enabled, we may have random compressed pointers
+  // on the stack that may be used for subsequent operations.
+  // Extract, decompress and trace both halfwords.
+  Address decompressed_low = V8HeapCompressionScheme::DecompressTaggedPointer(
+      cage_base, static_cast<Tagged_t>(raw_value));
+  callback(decompressed_low);
+  Address decompressed_high = V8HeapCompressionScheme::DecompressTaggedPointer(
+      cage_base,
+      static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
+  callback(decompressed_high);
+}
+
+//
+// Misc functions.
+//
+
+V8_INLINE PtrComprCageBase
+GetPtrComprCageBaseFromOnHeapAddress(Address address) {
+  return PtrComprCageBase(
+      V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address));
 }
 
 #else
 
-V8_INLINE Tagged_t CompressTagged(Address tagged) { UNREACHABLE(); }
+//
+// V8HeapCompressionScheme
+//
+
+// static
+Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+    Address on_heap_addr) {
+  UNREACHABLE();
+}
+
+// static
+Tagged_t V8HeapCompressionScheme::CompressTagged(Address tagged) {
+  UNREACHABLE();
+}
+
+// static
+Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
+  UNREACHABLE();
+}
+
+template <typename TOnHeapAddress>
+Address V8HeapCompressionScheme::DecompressTaggedPointer(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+  UNREACHABLE();
+}
+
+// static
+template <typename TOnHeapAddress>
+Address V8HeapCompressionScheme::DecompressTaggedAny(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+  UNREACHABLE();
+}
+
+// static
+template <typename ProcessPointerCallback>
+void V8HeapCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
+  UNREACHABLE();
+}
+
+//
+// Misc functions.
+//
 
 V8_INLINE constexpr PtrComprCageBase GetPtrComprCageBaseFromOnHeapAddress(
     Address address) {
   return PtrComprCageBase();
-}
-
-V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) { UNREACHABLE(); }
-
-template <typename TOnHeapAddress>
-V8_INLINE Address DecompressTaggedPointer(TOnHeapAddress on_heap_addr,
-                                          Tagged_t raw_value) {
-  UNREACHABLE();
-}
-
-template <typename TOnHeapAddress>
-V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
-                                      Tagged_t raw_value) {
-  UNREACHABLE();
-}
-
-V8_INLINE Address GetPtrComprCageBaseAddress(Address on_heap_addr) {
-  UNREACHABLE();
 }
 
 #endif  // V8_COMPRESS_POINTERS

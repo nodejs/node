@@ -246,7 +246,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
 }
 
 TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
-  if (!i::FLAG_ignition_elide_noneffectful_bytecodes) return;
+  if (!i::v8_flags.ignition_elide_noneffectful_bytecodes) return;
 
   static const uint8_t expected_bytes[] = {
       // clang-format off

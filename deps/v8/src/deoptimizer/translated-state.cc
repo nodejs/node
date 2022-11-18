@@ -145,6 +145,22 @@ void TranslationArrayPrintSingleFrame(
         break;
       }
 
+      case TranslationOpcode::SIGNED_BIGINT64_REGISTER: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int reg_code = iterator.NextUnsigned();
+        os << "{input=" << converter.NameOfCPURegister(reg_code)
+           << " (signed bigint64)}";
+        break;
+      }
+
+      case TranslationOpcode::UNSIGNED_BIGINT64_REGISTER: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int reg_code = iterator.NextUnsigned();
+        os << "{input=" << converter.NameOfCPURegister(reg_code)
+           << " (unsigned bigint64)}";
+        break;
+      }
+
       case TranslationOpcode::UINT32_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int reg_code = iterator.NextUnsigned();
@@ -192,6 +208,20 @@ void TranslationArrayPrintSingleFrame(
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int input_slot_index = iterator.Next();
         os << "{input=" << input_slot_index << " (int64)}";
+        break;
+      }
+
+      case TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int input_slot_index = iterator.Next();
+        os << "{input=" << input_slot_index << " (signed bigint64)}";
+        break;
+      }
+
+      case TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int input_slot_index = iterator.Next();
+        os << "{input=" << input_slot_index << " (unsigned bigint64)}";
         break;
       }
 
@@ -330,6 +360,14 @@ TranslatedValue TranslatedValue::NewInt64ToBigInt(TranslatedState* container,
 }
 
 // static
+TranslatedValue TranslatedValue::NewUint64ToBigInt(TranslatedState* container,
+                                                   uint64_t value) {
+  TranslatedValue slot(container, kUint64ToBigInt);
+  slot.uint64_value_ = value;
+  return slot;
+}
+
+// static
 TranslatedValue TranslatedValue::NewUInt32(TranslatedState* container,
                                            uint32_t value) {
   TranslatedValue slot(container, kUInt32);
@@ -373,6 +411,11 @@ int32_t TranslatedValue::int32_value() const {
 int64_t TranslatedValue::int64_value() const {
   DCHECK(kInt64 == kind() || kInt64ToBigInt == kind());
   return int64_value_;
+}
+
+uint64_t TranslatedValue::uint64_value() const {
+  DCHECK(kUint64ToBigInt == kind());
+  return uint64_value_;
 }
 
 uint32_t TranslatedValue::uint32_value() const {
@@ -523,8 +566,8 @@ Handle<Object> TranslatedValue::GetValue() {
     // headers.
     // TODO(hpayer): Find a cleaner way to support a group of
     // non-fully-initialized objects.
-    isolate()->heap()->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    isolate()->heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
 
     // 2. Initialize the objects. If we have allocated only byte arrays
     //    for some objects, we now overwrite the byte arrays with the
@@ -547,6 +590,9 @@ Handle<Object> TranslatedValue::GetValue() {
     case TranslatedValue::kInt64ToBigInt:
       heap_object = BigInt::FromInt64(isolate(), int64_value());
       break;
+    case TranslatedValue::kUint64ToBigInt:
+      heap_object = BigInt::FromUint64(isolate(), uint64_value());
+      break;
     case TranslatedValue::kUInt32:
       number = uint32_value();
       heap_object = isolate()->factory()->NewHeapNumber(number);
@@ -562,7 +608,8 @@ Handle<Object> TranslatedValue::GetValue() {
     default:
       UNREACHABLE();
   }
-  DCHECK(!IsSmiDouble(number) || kind() == TranslatedValue::kInt64ToBigInt);
+  DCHECK(!IsSmiDouble(number) || kind() == TranslatedValue::kInt64ToBigInt ||
+         kind() == TranslatedValue::kUint64ToBigInt);
   set_initialized_storage(heap_object);
   return storage_;
 }
@@ -868,6 +915,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::REGISTER:
     case TranslationOpcode::INT32_REGISTER:
     case TranslationOpcode::INT64_REGISTER:
+    case TranslationOpcode::SIGNED_BIGINT64_REGISTER:
+    case TranslationOpcode::UNSIGNED_BIGINT64_REGISTER:
     case TranslationOpcode::UINT32_REGISTER:
     case TranslationOpcode::BOOL_REGISTER:
     case TranslationOpcode::FLOAT_REGISTER:
@@ -875,6 +924,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::STACK_SLOT:
     case TranslationOpcode::INT32_STACK_SLOT:
     case TranslationOpcode::INT64_STACK_SLOT:
+    case TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT:
+    case TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT:
     case TranslationOpcode::UINT32_STACK_SLOT:
     case TranslationOpcode::BOOL_STACK_SLOT:
     case TranslationOpcode::FLOAT_STACK_SLOT:
@@ -1089,6 +1140,42 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::SIGNED_BIGINT64_REGISTER: {
+      int input_reg = iterator->NextUnsigned();
+      if (registers == nullptr) {
+        TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
+        frame.Add(translated_value);
+        return translated_value.GetChildrenCount();
+      }
+      intptr_t value = registers->GetRegister(input_reg);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; %s (signed bigint64)", value,
+               converter.NameOfCPURegister(input_reg));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewInt64ToBigInt(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::UNSIGNED_BIGINT64_REGISTER: {
+      int input_reg = iterator->NextUnsigned();
+      if (registers == nullptr) {
+        TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
+        frame.Add(translated_value);
+        return translated_value.GetChildrenCount();
+      }
+      intptr_t value = registers->GetRegister(input_reg);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; %s (unsigned bigint64)", value,
+               converter.NameOfCPURegister(input_reg));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewUint64ToBigInt(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::UINT32_REGISTER: {
       int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
@@ -1205,6 +1292,36 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::SIGNED_BIGINT64_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
+      uint64_t value = GetUInt64Slot(fp, slot_offset);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; (signed bigint64) [fp %c %3d] ",
+               static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
+               std::abs(slot_offset));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewInt64ToBigInt(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::UNSIGNED_BIGINT64_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
+      uint64_t value = GetUInt64Slot(fp, slot_offset);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%" V8PRIdPTR " ; (unsigned bigint64) [fp %c %3d] ",
+               static_cast<intptr_t>(value), slot_offset < 0 ? '-' : '+',
+               std::abs(slot_offset));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewUint64ToBigInt(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::UINT32_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
@@ -1291,7 +1408,8 @@ int TranslatedState::CreateNextTranslatedValue(
 
 Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   if (COMPRESS_POINTERS_BOOL) {
-    return DecompressTaggedAny(isolate(), static_cast<uint32_t>(value));
+    return V8HeapCompressionScheme::DecompressTaggedAny(
+        isolate(), static_cast<uint32_t>(value));
   } else {
     return value;
   }

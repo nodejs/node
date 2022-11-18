@@ -359,7 +359,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       int argument_count = args_state_info.parameter_count() - 1;
       int length = std::max(0, argument_count - start_index);
       static_assert(JSArray::kHeaderSize == 4 * kTaggedSize);
-      a.Allocate(JSArray::kHeaderSize);
+      a.Allocate(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize));
       a.Store(AccessBuilder::ForMap(), jsarray_map);
       a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
               jsgraph()->EmptyFixedArrayConstant());
@@ -1049,7 +1049,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* elements = aa.Finish();
 
   AllocationBuilder a(jsgraph(), elements, graph()->start());
-  a.Allocate(JSArray::kHeaderSize);
+  a.Allocate(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize));
   a.Store(AccessBuilder::ForMap(), array_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
           jsgraph()->EmptyFixedArrayConstant());

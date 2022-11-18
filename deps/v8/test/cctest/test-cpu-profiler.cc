@@ -125,11 +125,11 @@ namespace {
 
 class TestSetup {
  public:
-  TestSetup() : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
-    i::FLAG_prof_browser_mode = false;
+  TestSetup() : old_flag_prof_browser_mode_(v8_flags.prof_browser_mode) {
+    v8_flags.prof_browser_mode = false;
   }
 
-  ~TestSetup() { i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_; }
+  ~TestSetup() { v8_flags.prof_browser_mode = old_flag_prof_browser_mode_; }
 
  private:
   bool old_flag_prof_browser_mode_;
@@ -762,9 +762,9 @@ static const char* cpu_profiler_test_source =
 TEST(CollectCpuProfile) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -795,9 +795,9 @@ TEST(CollectCpuProfile) {
 TEST(CollectCpuProfileCallerLineNumbers) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -859,7 +859,7 @@ static const char* hot_deopt_no_frame_entry_test_source =
 // If 'foo' has no ranges the samples falling into the prologue will miss the
 // 'start' function on the stack, so 'foo' will be attached to the (root).
 TEST(HotDeoptNoFrameEntry) {
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -882,7 +882,7 @@ TEST(HotDeoptNoFrameEntry) {
 }
 
 TEST(CollectCpuProfileSamples) {
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -936,7 +936,7 @@ static const char* cpu_profiler_test_source2 =
 //    16    16        loop [-1] #5
 //    14    14    (program) [-1] #2
 TEST(SampleWhenFrameIsNotSetup) {
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1235,15 +1235,15 @@ TEST(BoundFunctionCall) {
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
 #ifndef V8_LITE_MODE
-  FLAG_turbofan = optimize;
+  v8_flags.turbofan = optimize;
 #ifdef V8_ENABLE_MAGLEV
   // TODO(v8:7700): Also test maglev here.
-  FLAG_maglev = false;
+  v8_flags.maglev = false;
 #endif  // V8_ENABLE_MAGLEV
 #endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -1399,9 +1399,9 @@ static const char* call_function_test_source =
 TEST(FunctionCallSample) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (i::v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1460,9 +1460,9 @@ static const char* function_apply_test_source =
 TEST(FunctionApplySample) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (i::v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1569,7 +1569,7 @@ static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 //    55     1        bar #16 5
 //    54    54          foo #16 6
 TEST(JsNativeJsSample) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1622,7 +1622,7 @@ static const char* js_native_js_runtime_js_test_source =
 //    51    51          foo #16 6
 //     2     2    (program) #0 2
 TEST(JsNativeJsRuntimeJsSample) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1679,7 +1679,7 @@ static const char* js_native1_js_native2_js_test_source =
 //    54    54            foo #16 7
 //     2     2    (program) #0 2
 TEST(JsNative1JsNative2JsSample) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1779,7 +1779,7 @@ static const char* js_native_js_runtime_multiple_test_source =
 //            foo #16 6
 //      (program) #0 2
 TEST(JsNativeJsRuntimeJsSampleMultiple) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1847,7 +1847,7 @@ static const char* inlining_test_source =
 //              action #16 7
 //      (program) #0 2
 TEST(Inlining) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -1945,9 +1945,9 @@ static const char* inlining_test_source2 = R"(
 TEST(Inlining2) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (FLAG_concurrent_sparkplug) return;
+  if (v8_flags.concurrent_sparkplug) return;
 
-  FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
@@ -2037,9 +2037,9 @@ static const char* cross_script_source_b = R"(
 TEST(CrossScriptInliningCallerLineNumbers) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (i::v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
@@ -2132,9 +2132,9 @@ static const char* cross_script_source_f = R"(
 TEST(CrossScriptInliningCallerLineNumbers2) {
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
+  if (i::v8_flags.concurrent_sparkplug) return;
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
   ProfilerHelper helper(env.local());
@@ -2251,7 +2251,7 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
 }
 
 TEST(FunctionDetails) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2302,8 +2302,9 @@ TEST(FunctionDetails) {
 }
 
 TEST(FunctionDetailsInlining) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2434,7 +2435,7 @@ static const char* pre_profiling_osr_script = R"(
 //     0        startProfiling:0 2 0 #4
 
 TEST(StartProfilingAfterOsr) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2510,8 +2511,9 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
 
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2625,7 +2627,7 @@ TEST(CollectDeoptEvents) {
 }
 
 TEST(SourceLocation) {
-  i::FLAG_always_turbofan = true;
+  i::v8_flags.always_turbofan = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2648,8 +2650,9 @@ static const char* inlined_source =
 
 // deopt at the first level inlined function
 TEST(DeoptAtFirstLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2720,8 +2723,9 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -2798,8 +2802,9 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
 // deopt in untracked function
 TEST(DeoptUntrackedFunction) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
-  i::FLAG_allow_natives_syntax = true;
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+    return;
+  i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
@@ -3017,15 +3022,15 @@ TEST(Issue763073) {
   class AllowNativesSyntax {
    public:
     AllowNativesSyntax()
-        : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-          trace_deopt_(i::FLAG_trace_deopt) {
-      i::FLAG_allow_natives_syntax = true;
-      i::FLAG_trace_deopt = true;
+        : allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+          trace_deopt_(i::v8_flags.trace_deopt) {
+      i::v8_flags.allow_natives_syntax = true;
+      i::v8_flags.trace_deopt = true;
     }
 
     ~AllowNativesSyntax() {
-      i::FLAG_allow_natives_syntax = allow_natives_syntax_;
-      i::FLAG_trace_deopt = trace_deopt_;
+      i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
+      i::v8_flags.trace_deopt = trace_deopt_;
     }
 
    private:
@@ -3079,7 +3084,7 @@ static void CallStaticCollectSample(
 }
 
 TEST(StaticCollectSampleAPI) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -3431,7 +3436,7 @@ class UnlockingThread : public v8::base::Thread {
 
 // Checking for crashes with multiple thread/single Isolate profiling.
 TEST(MultipleThreadsSingleIsolate) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::Locker locker(isolate);
   v8::HandleScope scope(isolate);
@@ -3891,7 +3896,7 @@ TEST(Bug9151StaleCodeEntries) {
 // Tests that functions from other contexts aren't recorded when filtering for
 // another context.
 TEST(ContextIsolation) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -3984,7 +3989,7 @@ void ValidateEmbedderState(v8::CpuProfile* profile,
 
 // Tests that embedder states from other contexts aren't recorded
 TEST(EmbedderContextIsolation) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4047,7 +4052,7 @@ TEST(EmbedderContextIsolation) {
 
 // Tests that embedder states from same context are recorded
 TEST(EmbedderStatePropagate) {
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4110,12 +4115,13 @@ TEST(EmbedderStatePropagate) {
 // even after native context move
 TEST(EmbedderStatePropagateNativeContextMove) {
   // Reusing context addresses will cause this test to fail.
-  if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
+  if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
+      i::v8_flags.stress_incremental_marking ||
+      i::v8_flags.enable_third_party_heap) {
     return;
   }
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_manual_evacuation_candidates_selection = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.manual_evacuation_candidates_selection = true;
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4184,9 +4190,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 // Tests that when a native context that's being filtered is moved, we continue
 // to track its execution.
 TEST(ContextFilterMovedNativeContext) {
-  if (i::FLAG_enable_third_party_heap) return;
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_manual_evacuation_candidates_selection = true;
+  if (i::v8_flags.enable_third_party_heap) return;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.manual_evacuation_candidates_selection = true;
   LocalContext env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4267,8 +4273,8 @@ int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
 }
 
 UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
-  i::FLAG_detailed_line_info = false;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.detailed_line_info = false;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -4308,11 +4314,11 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
 }
 
 UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
-  i::FLAG_detailed_line_info = false;
-  i::FLAG_turbo_inlining = true;
-  i::FLAG_stress_inline = true;
-  i::FLAG_always_turbofan = false;
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.detailed_line_info = false;
+  i::v8_flags.turbo_inlining = true;
+  i::v8_flags.stress_inline = true;
+  i::v8_flags.always_turbofan = false;
+  i::v8_flags.allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -4457,7 +4463,7 @@ TEST(CanStartStopProfilerWithTitlesAndIds) {
 TEST(FastApiCPUProfiler) {
 #if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
   // None of the following configurations include JSCallReducer.
-  if (i::FLAG_jitless) return;
+  if (i::v8_flags.jitless) return;
 
   FLAG_SCOPE(turbofan);
   FLAG_SCOPE(turbo_fast_api_calls);
@@ -4556,15 +4562,15 @@ TEST(FastApiCPUProfiler) {
 
 TEST(BytecodeFlushEventsEagerLogging) {
 #ifndef V8_LITE_MODE
-  FLAG_turbofan = false;
-  FLAG_always_turbofan = false;
-  i::FLAG_optimize_for_size = false;
+  v8_flags.turbofan = false;
+  v8_flags.always_turbofan = false;
+  v8_flags.optimize_for_size = false;
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG
-  FLAG_always_sparkplug = false;
+  v8_flags.always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG
-  i::FLAG_flush_bytecode = true;
-  i::FLAG_allow_natives_syntax = true;
+  v8_flags.flush_bytecode = true;
+  v8_flags.allow_natives_syntax = true;
 
   TestSetup test_setup;
   ManualGCScope manual_gc_scope;

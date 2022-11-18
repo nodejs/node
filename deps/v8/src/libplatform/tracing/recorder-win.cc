@@ -33,13 +33,13 @@ bool Recorder::IsEnabled(const uint8_t level) {
 void Recorder::AddEvent(TraceObject* trace_event) {
   // TODO(sartang@microsoft.com): Figure out how to write the conditional
   // arguments
-  wchar_t* wName = new wchar_t[4096];
+  wchar_t wName[4096];
   MultiByteToWideChar(CP_ACP, 0, trace_event->name(), -1, wName, 4096);
 
 #if defined(V8_USE_PERFETTO)
   const wchar_t* wCategoryGroupName = L"";
 #else  // defined(V8_USE_PERFETTO)
-  wchar_t* wCategoryGroupName = new wchar_t[4096];
+  wchar_t wCategoryGroupName[4096];
   MultiByteToWideChar(CP_ACP, 0,
                       TracingController::GetCategoryGroupName(
                           trace_event->category_enabled_flag()),

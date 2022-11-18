@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 #include "src/diagnostics/etw-jit-win.h"
 
-#include <atomic>
-
 #include "include/v8-callbacks.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
@@ -36,7 +34,7 @@ namespace {
 
 class IsolateLoadScriptData {
  public:
-  IsolateLoadScriptData(Isolate* isolate) : isolate_(isolate) {}
+  explicit IsolateLoadScriptData(Isolate* isolate) : isolate_(isolate) {}
   virtual ~IsolateLoadScriptData() {
     // When this is destroyed, it is because Isolate is being destroyed
     // also in Isolate::Deinit, that while already cancel all cancellable
@@ -51,7 +49,7 @@ class IsolateLoadScriptData {
   static void LogIsolatePendingLogs(Isolate* isolate);
   static void UpdateAllIsolates(bool etw_enabled);
   static bool MaybeAddLoadedScript(Isolate* isolate, int script_id);
-  static void EnableLog(Isolate* isolate, bool only_if_pending);
+  static void EnableLog(Isolate* isolate);
   static void DisableLog(Isolate* isolate);
 
  private:
@@ -73,8 +71,7 @@ class IsolateLoadScriptData {
     }
     auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     Isolate* isolate = isolate_;
-    auto task =
-        MakeCancelableTask(isolate_, [isolate] { EnableLog(isolate, false); });
+    auto task = MakeCancelableTask(isolate_, [isolate] { EnableLog(isolate); });
     pending_log_task_id_ = task->id();
     auto taskrunner =
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(v8_isolate);
@@ -126,7 +123,7 @@ void IsolateLoadScriptData::RemoveIsolate(Isolate* isolate) {
   isolate_map.Pointer()->erase(isolate);
 }
 
-void IsolateLoadScriptData::EnableLog(Isolate* isolate, bool only_if_pending) {
+void IsolateLoadScriptData::EnableLog(Isolate* isolate) {
   bool has_pending_log = false;
   {
     base::MutexGuard guard(isolates_mutex.Pointer());
@@ -136,15 +133,11 @@ void IsolateLoadScriptData::EnableLog(Isolate* isolate, bool only_if_pending) {
       data.CancelPendingLog();
     }
   }
-  if (only_if_pending && !has_pending_log) {
-    return;
-  }
-  auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
   // This cannot be done while isolate_mutex is locked, as it can call
   // EventHandler while in the call for all the existing code.
-  v8_isolate->SetJitCodeEventHandler(
-      has_pending_log ? kJitCodeEventEnumExisting : kJitCodeEventDefault,
-      EventHandler);
+  isolate->v8_file_logger()->SetEtwCodeEventHandler(
+      has_pending_log ? kJitCodeEventEnumExisting : kJitCodeEventDefault);
 }
 
 void IsolateLoadScriptData::DisableLog(Isolate* isolate) {
@@ -156,8 +149,7 @@ void IsolateLoadScriptData::DisableLog(Isolate* isolate) {
     }
     data.RemoveAllLoadedScripts();
   }
-  auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8_isolate->SetJitCodeEventHandler(kJitCodeEventDefault, EventHandler);
+  isolate->v8_file_logger()->ResetEtwCodeEventHandler();
 }
 
 void IsolateLoadScriptData::UpdateAllIsolates(bool etw_enabled) {
@@ -185,6 +177,10 @@ bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
 }
 
 }  // namespace
+
+void EnableETWLog(Isolate* isolate) {
+  IsolateLoadScriptData::EnableLog(isolate);
+}
 
 // TODO(v8/11911): UnboundScript::GetLineNumber should be replaced
 SharedFunctionInfo GetSharedFunctionInfo(const JitCodeEvent* event) {
@@ -237,11 +233,8 @@ std::wstring GetScriptMethodName(const JitCodeEvent* event) {
                        : GetScriptMethodNameFromSharedFunctionInfo(sfi);
 }
 
-void MaybeSetHandlerNow(Isolate* isolate) {
-  IsolateLoadScriptData::EnableLog(isolate, true);
-}
-
 void UpdateETWEnabled(bool enabled) {
+  DCHECK(v8_flags.enable_etw_stack_walking);
   if (enabled == is_etw_enabled) {
     return;
   }
@@ -258,6 +251,7 @@ void WINAPI ETWEnableCallback(LPCGUID /* source_id */, ULONG is_enabled,
                               ULONGLONG match_all_keyword,
                               PEVENT_FILTER_DESCRIPTOR /* filter_data */,
                               PVOID /* callback_context */) {
+  DCHECK(v8_flags.enable_etw_stack_walking);
   bool is_etw_enabled_now =
       is_enabled && level >= kTraceLevel &&
       (match_any_keyword & kJScriptRuntimeKeyword) &&
@@ -337,7 +331,6 @@ void EventHandler(const JitCodeEvent* event) {
       Field("MethodAddressRangeID", TlgInUINT16),
       Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
       Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
-
   LogEventData(g_v8Provider, &method_load_event_meta, &method_load_event_fields,
                script_context, event->code_start, (uint64_t)event->code_len,
                (uint32_t)0,  // MethodId

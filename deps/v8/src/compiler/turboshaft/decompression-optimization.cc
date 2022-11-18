@@ -77,21 +77,22 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     case Opcode::kStore: {
       auto& store = op.Cast<StoreOp>();
       MarkAsNeedsDecompression(store.base());
-      if (!IsAnyTagged(store.stored_rep))
+      if (!store.stored_rep.IsTagged()) {
         MarkAsNeedsDecompression(store.value());
+      }
       break;
     }
     case Opcode::kIndexedStore: {
       auto& store = op.Cast<IndexedStoreOp>();
       MarkAsNeedsDecompression(store.base());
       MarkAsNeedsDecompression(store.index());
-      if (!IsAnyTagged(store.stored_rep))
+      if (!store.stored_rep.IsTagged()) {
         MarkAsNeedsDecompression(store.value());
+      }
       break;
     }
     case Opcode::kFrameState:
-      // The deopt code knows how to handle Compressed inputs, both
-      // MachineRepresentation kCompressed values and CompressedHeapConstants.
+      // The deopt code knows how to handle compressed inputs.
       break;
     case Opcode::kPhi: {
       // Replicate the phi's state for its inputs.
@@ -107,7 +108,7 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kEqual: {
       auto& equal = op.Cast<EqualOp>();
-      if (equal.rep == MachineRepresentation::kWord64) {
+      if (equal.rep == WordRepresentation::Word64()) {
         MarkAsNeedsDecompression(equal.left());
         MarkAsNeedsDecompression(equal.right());
       }
@@ -115,7 +116,7 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kComparison: {
       auto& comp = op.Cast<ComparisonOp>();
-      if (comp.rep == MachineRepresentation::kWord64) {
+      if (comp.rep == WordRepresentation::Word64()) {
         MarkAsNeedsDecompression(comp.left());
         MarkAsNeedsDecompression(comp.right());
       }
@@ -123,7 +124,7 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kWordBinop: {
       auto& binary_op = op.Cast<WordBinopOp>();
-      if (binary_op.rep == MachineRepresentation::kWord64) {
+      if (binary_op.rep == WordRepresentation::Word64()) {
         MarkAsNeedsDecompression(binary_op.left());
         MarkAsNeedsDecompression(binary_op.right());
       }
@@ -131,15 +132,14 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     }
     case Opcode::kShift: {
       auto& shift_op = op.Cast<ShiftOp>();
-      if (shift_op.rep == MachineRepresentation::kWord64) {
+      if (shift_op.rep == WordRepresentation::Word64()) {
         MarkAsNeedsDecompression(shift_op.left());
       }
       break;
     }
     case Opcode::kChange: {
       auto& change = op.Cast<ChangeOp>();
-      if (change.to == MachineRepresentation::kWord64 &&
-          NeedsDecompression(op)) {
+      if (change.to == WordRepresentation::Word64() && NeedsDecompression(op)) {
         MarkAsNeedsDecompression(change.input());
       }
       break;
@@ -187,28 +187,28 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
       }
       case Opcode::kPhi: {
         auto& phi = op.Cast<PhiOp>();
-        if (phi.rep == MachineRepresentation::kTagged) {
-          phi.rep = MachineRepresentation::kCompressed;
-        } else if (phi.rep == MachineRepresentation::kTaggedPointer) {
-          phi.rep = MachineRepresentation::kCompressedPointer;
+        if (phi.rep == RegisterRepresentation::Tagged()) {
+          phi.rep = RegisterRepresentation::Tagged();
         }
         break;
       }
       case Opcode::kLoad: {
         auto& load = op.Cast<LoadOp>();
-        if (load.loaded_rep == MachineType::AnyTagged()) {
-          load.loaded_rep = MachineType::AnyCompressed();
-        } else if (load.loaded_rep == MachineType::TaggedPointer()) {
-          load.loaded_rep = MachineType::CompressedPointer();
+        if (load.loaded_rep.IsTagged()) {
+          DCHECK_EQ(load.result_rep,
+                    any_of(RegisterRepresentation::Tagged(),
+                           RegisterRepresentation::Compressed()));
+          load.result_rep = RegisterRepresentation::Compressed();
         }
         break;
       }
       case Opcode::kIndexedLoad: {
         auto& load = op.Cast<IndexedLoadOp>();
-        if (load.loaded_rep == MachineType::AnyTagged()) {
-          load.loaded_rep = MachineType::AnyCompressed();
-        } else if (load.loaded_rep == MachineType::TaggedPointer()) {
-          load.loaded_rep = MachineType::CompressedPointer();
+        if (load.loaded_rep.IsTagged()) {
+          DCHECK_EQ(load.result_rep,
+                    any_of(RegisterRepresentation::Tagged(),
+                           RegisterRepresentation::Compressed()));
+          load.result_rep = RegisterRepresentation::Compressed();
         }
         break;
       }

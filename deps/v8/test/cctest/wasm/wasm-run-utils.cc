@@ -82,14 +82,17 @@ TestingModuleBuilder::TestingModuleBuilder(
     Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
+    uint32_t canonical_type_index =
+        GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     WasmImportWrapperCache::CacheKey key(
-        kind, maybe_import->sig,
+        kind, canonical_type_index,
         static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
+          canonical_type_index,
           static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend,
           &cache_scope);
     }
@@ -155,7 +158,6 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
                                      index,    // func_index
                                      0,        // sig_index
                                      {0, 0},   // code
-                                     0,        // feedback slots
                                      false,    // imported
                                      false,    // exported
                                      false});  // declared
@@ -182,18 +184,14 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   return index;
 }
 
-void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
-  if (test_module_->signature_map.is_frozen()) return;
-  test_module_->signature_map.Freeze();
-  size_t max_num_sigs = MaxNumExportWrappers(test_module_.get());
-  Handle<FixedArray> export_wrappers =
-      isolate_->factory()->NewFixedArray(static_cast<int>(max_num_sigs));
-  instance_object_->module_object().set_export_wrappers(*export_wrappers);
+void TestingModuleBuilder::InitializeWrapperCache() {
+  isolate_->heap()->EnsureWasmCanonicalRttsSize(
+      test_module_->MaxCanonicalTypeIndex() + 1);
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   CHECK(!interpreter_);
-  FreezeSignatureMapAndInitializeWrapperCache();
+  InitializeWrapperCache();
   return handle(
       JSFunction::cast(WasmInstanceObject::GetOrCreateWasmInternalFunction(
                            isolate_, instance_object(), index)
@@ -241,10 +239,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
-          v8_flags.wasm_type_canonicalization
-              ? test_module_
-                    ->isorecursive_canonical_type_ids[function.sig_index]
-              : test_module_->signature_map.Find(*function.sig);
+          test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(instance, function.func_index);
       instance->GetIndirectFunctionTable(isolate_, table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());

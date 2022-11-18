@@ -41,7 +41,8 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-    'Intl.NumberFormat-v3': '--harmony_intl_number_format_v3',
+    'Intl.NumberFormat-v3': '--harmony-intl-number-format-v3',
+    'Intl.DurationFormat': '--harmony-intl-duration-format',
     'Symbol.prototype.description': '--harmony-symbol-description',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
@@ -50,9 +51,10 @@ FEATURE_FLAGS = {
     'import-assertions': '--harmony-import-assertions',
     'resizable-arraybuffer': '--harmony-rab-gsab',
     'Temporal': '--harmony-temporal',
-    'array-find-from-last': '--harmony_array_find_last',
+    'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
     'regexp-v-flag': '--harmony-regexp-unicode-sets',
+    'array-grouping': '--harmony-array-grouping',
 }
 
 SKIPPED_FEATURES = set([])

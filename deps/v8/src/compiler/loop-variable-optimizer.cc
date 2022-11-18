@@ -17,9 +17,9 @@ namespace internal {
 namespace compiler {
 
 // Macro for outputting trace information from representation inference.
-#define TRACE(...)                                  \
-  do {                                              \
-    if (FLAG_trace_turbo_loop) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                      \
+  do {                                                  \
+    if (v8_flags.trace_turbo_loop) PrintF(__VA_ARGS__); \
   } while (false)
 
 LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
@@ -76,7 +76,7 @@ void LoopVariableOptimizer::Run() {
 
 void InductionVariable::AddUpperBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << "New upper bound for " << phi()->id() << " (loop "
                    << NodeProperties::GetControlInput(phi())->id()
                    << "): " << *bound << std::endl;
@@ -86,7 +86,7 @@ void InductionVariable::AddUpperBound(Node* bound,
 
 void InductionVariable::AddLowerBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << "New lower bound for " << phi()->id() << " (loop "
                    << NodeProperties::GetControlInput(phi())->id()
                    << "): " << *bound;

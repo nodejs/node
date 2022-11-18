@@ -20,7 +20,6 @@
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-init-expr.h"
@@ -64,10 +63,6 @@ struct WasmFunction {
   uint32_t func_index;     // index into the function table.
   uint32_t sig_index;      // index into the signature table.
   WireBytesRef code;       // code of this function.
-  // Required number of slots in a feedback vector. Marked {mutable} because
-  // this is computed late (by Liftoff compilation), when the rest of the
-  // {WasmFunction} is typically considered {const}.
-  mutable int feedback_slots;
   bool imported;
   bool exported;
   bool declared;
@@ -515,10 +510,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   void add_type(TypeDefinition type) {
     types.push_back(type);
-    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
-                                ? signature_map.FindOrInsert(*type.function_sig)
-                                : 0;
-    per_module_canonical_type_ids.push_back(canonical_id);
     // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
@@ -570,15 +561,17 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return supertype(index) != kNoSuperType;
   }
 
+  // Linear search. Returns -1 if types are empty.
+  int MaxCanonicalTypeIndex() const {
+    if (isorecursive_canonical_type_ids.empty()) return -1;
+    return *std::max_element(isorecursive_canonical_type_ids.begin(),
+                             isorecursive_canonical_type_ids.end());
+  }
+
   std::vector<TypeDefinition> types;  // by type index
-  // TODO(7748): Unify the following two arrays.
-  // Maps each type index to a canonical index for purposes of call_indirect.
-  std::vector<uint32_t> per_module_canonical_type_ids;
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
-  // Canonicalizing map for signature indexes.
-  SignatureMap signature_map;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
@@ -626,16 +619,9 @@ inline bool is_asmjs_module(const WasmModule* module) {
 
 size_t EstimateStoredSize(const WasmModule* module);
 
-// Returns the number of possible export wrappers for a given module.
-V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
-
-// Returns the wrapper index for a function in {module} with signature {sig}
-// or {sig_index} and origin defined by {is_import}.
-// Prefer to use the {sig_index} consuming version, as it is much faster.
-int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
-                          bool is_import);
-int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
-                          bool is_import);
+// Returns the wrapper index for a function with isorecursive canonical
+// signature index {canonical_sig_index}, and origin defined by {is_import}.
+int GetExportWrapperIndex(uint32_t canonical_sig_index, bool is_import);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.
@@ -795,11 +781,8 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
 V8_EXPORT_PRIVATE size_t
 GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
 
-void DumpProfileToFile(const WasmModule* module,
-                       base::Vector<const uint8_t> wire_bytes);
-
-void LoadProfileFromFile(WasmModule* module,
-                         base::Vector<const uint8_t> wire_bytes);
+// Get the required number of feedback slots for a function.
+int NumFeedbackSlots(const WasmModule* module, int func_index);
 
 }  // namespace v8::internal::wasm
 

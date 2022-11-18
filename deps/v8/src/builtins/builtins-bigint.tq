@@ -14,9 +14,9 @@ extern macro BigIntBuiltinsAssembler::CppAbsoluteAddAndCanonicalize(
 extern macro BigIntBuiltinsAssembler::CppAbsoluteSubAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): void;
 extern macro BigIntBuiltinsAssembler::CppAbsoluteMulAndCanonicalize(
-    MutableBigInt, BigIntBase, BigIntBase): bool;
+    MutableBigInt, BigIntBase, BigIntBase): int32;
 extern macro BigIntBuiltinsAssembler::CppAbsoluteDivAndCanonicalize(
-    MutableBigInt, BigIntBase, BigIntBase): bool;
+    MutableBigInt, BigIntBase, BigIntBase): int32;
 extern macro BigIntBuiltinsAssembler::CppBitwiseAndPosPosAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): void;
 extern macro BigIntBuiltinsAssembler::CppBitwiseAndNegNegAndCanonicalize(
@@ -236,7 +236,7 @@ macro BigIntMultiplyImpl(implicit context: Context)(x: BigInt, y: BigInt):
   const result = AllocateEmptyBigIntNoThrow(resultSign, xlength + ylength)
       otherwise BigIntTooBig;
 
-  if (!CppAbsoluteMulAndCanonicalize(result, x, y)) {
+  if (CppAbsoluteMulAndCanonicalize(result, x, y) == 1) {
     goto TerminationRequested;
   }
 
@@ -305,7 +305,7 @@ macro BigIntDivideImpl(implicit context: Context)(x: BigInt, y: BigInt):
   const result = AllocateEmptyBigIntNoThrow(resultSign, resultLength)
       otherwise unreachable;
 
-  if (!CppAbsoluteDivAndCanonicalize(result, x, y)) {
+  if (CppAbsoluteDivAndCanonicalize(result, x, y) == 1) {
     goto TerminationRequested;
   }
 

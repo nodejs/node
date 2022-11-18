@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --wasm-gc-js-interop
+// Flags: --experimental-wasm-gc --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -44,4 +44,25 @@ const array =
     WebAssembly.experimentalConvertStringToArray('foobar', getHelloArray());
 for (let i = 0; i < string.length; ++i) {
   assertEquals(getChar(array, i), string.charCodeAt(i));
+}
+
+// Test calling built-ins with different amount of (invalid) arguments.
+function arrayToString() {
+  WebAssembly.experimentalConvertArrayToString(...arguments);
+}
+function stringToArray() {
+  WebAssembly.experimentalConvertStringToArray(...arguments);
+}
+
+let args = [];
+for (let i = 1; i <= 5; ++i) {
+  assertThrows(() => arrayToString(...args));
+  assertThrows(() => stringToArray(...args));
+  %PrepareFunctionForOptimization(arrayToString);
+  %PrepareFunctionForOptimization(stringToArray);
+  %OptimizeFunctionOnNextCall(arrayToString);
+  %OptimizeFunctionOnNextCall(stringToArray);
+  assertThrows(() => arrayToString(...args));
+  assertThrows(() => stringToArray(...args));
+  args.push(i);
 }

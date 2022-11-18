@@ -190,6 +190,14 @@ class OldLargeObjectSpace : public LargeObjectSpace {
       LocalHeap* local_heap, int object_size, Executability executable);
 };
 
+class SharedLargeObjectSpace : public OldLargeObjectSpace {
+ public:
+  explicit SharedLargeObjectSpace(Heap* heap);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawBackground(LocalHeap* local_heap, int object_size);
+};
+
 class NewLargeObjectSpace : public LargeObjectSpace {
  public:
   NewLargeObjectSpace(Heap* heap, size_t capacity);

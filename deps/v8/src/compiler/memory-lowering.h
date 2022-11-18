@@ -109,10 +109,15 @@ class MemoryLowering final : public Reducer {
                                            AllocationState const* state,
                                            WriteBarrierKind);
   Reduction ReduceLoadExternalPointerField(Node* node);
+  Reduction ReduceLoadBoundedSize(Node* node);
   Reduction ReduceLoadMap(Node* node);
   Node* ComputeIndex(ElementAccess const& access, Node* node);
   void EnsureAllocateOperator();
   Node* GetWasmInstanceNode();
+
+  // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
+  // defined.
+  Node* AlignToAllocationAlignment(Node* address);
 
   Graph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }

@@ -39,7 +39,8 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
     if (root_index != RootIndex::kFirstNameForProtector) {
       // Make sure the objects are adjacent in memory.
       CHECK_LT(prev.address(), current.address());
-      Address computed_address = prev.address() + prev.Size();
+      Address computed_address =
+          prev.address() + ALIGN_TO_ALLOCATION_ALIGNMENT(prev.Size());
       CHECK_EQ(computed_address, current.address());
     }
     prev = current;

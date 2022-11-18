@@ -67,18 +67,18 @@ class DeoptimizationTest : public TestWithContext {
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
-      : always_turbofan_(i::FLAG_always_turbofan),
-        allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining) {
-    i::FLAG_always_turbofan = true;
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_inlining = false;
+      : always_turbofan_(i::v8_flags.always_turbofan),
+        allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+        turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.always_turbofan = true;
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.turbo_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
-    i::FLAG_always_turbofan = always_turbofan_;
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
-    i::FLAG_turbo_inlining = turbo_inlining_;
+    i::v8_flags.always_turbofan = always_turbofan_;
+    i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
+    i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
@@ -93,15 +93,15 @@ class AlwaysOptimizeAllowNativesSyntaxNoInlining {
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
-      : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining) {
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_turbo_inlining = false;
+      : allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+        turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.turbo_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
-    i::FLAG_turbo_inlining = turbo_inlining_;
+    i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
+    i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
@@ -418,7 +418,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
         "  if (deopt) { count++; %DeoptimizeFunction(f); } return 8"
         "};");
   }
-  static void SetUpTestSuite() { i::FLAG_concurrent_recompilation = false; }
+  static void SetUpTestSuite() { i::v8_flags.concurrent_recompilation = false; }
   void TestDeoptimizeBinaryOp(const char* binary_op) {
     v8::base::EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
     v8::base::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
@@ -428,7 +428,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     CompileConstructorWithDeoptimizingValueOf();
     RunJS(f_source);
     RunJS(
@@ -437,7 +437,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f(7, new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -464,7 +464,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
   {
     // Compile function f and collect to type feedback to insert binary op
     // stub call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -480,7 +480,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f('a+', new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -629,7 +629,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert compare ic
     // call in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -645,7 +645,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
         "};");
 
     // Compile an optimized version of f.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f_source);
     RunJS("f('a', new X());");
     CHECK(!i_isolate()->use_optimizer() ||
@@ -688,7 +688,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
     AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -721,7 +721,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of the functions.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f1_source);
     RunJS(g1_source);
     RunJS(f2_source);
@@ -780,7 +780,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
     AllowNativesSyntaxNoInlining options;
     // Compile functions and collect to type feedback to insert ic
     // calls in the optimized code.
-    i::FLAG_prepare_always_turbofan = true;
+    i::v8_flags.prepare_always_turbofan = true;
     RunJS(
         "var count = 0;"
         "var result = 0;"
@@ -817,7 +817,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "};");
 
     // Compile an optimized version of the functions.
-    i::FLAG_always_turbofan = true;
+    i::v8_flags.always_turbofan = true;
     RunJS(f1_source);
     RunJS(g1_source);
     RunJS(f2_source);

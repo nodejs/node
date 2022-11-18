@@ -314,7 +314,7 @@ class InObjectSlackTrackingTest : public TestWithContext {
 
   void TestSubclassChain(const std::vector<int>& hierarchy_desc) {
     // Avoid eventual completion of in-object slack tracking.
-    FLAG_always_turbofan = false;
+    v8_flags.always_turbofan = false;
 
     CreateClassHierarchy(hierarchy_desc);
     TestClassHierarchy(hierarchy_desc, static_cast<int>(hierarchy_desc.size()));
@@ -325,7 +325,7 @@ class InObjectSlackTrackingTest : public TestWithContext {
 
 TEST_F(InObjectSlackTrackingTest, JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   const char* source =
       "function A() {"
       "  this.a = 42;"
@@ -373,13 +373,13 @@ TEST_F(InObjectSlackTrackingTest, JSObjectBasic) {
 }
 
 TEST_F(InObjectSlackTrackingTest, JSObjectBasicNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestJSObjectBasic();
 }
 
 TEST_F(InObjectSlackTrackingTest, JSObjectComplex) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   const char* source =
       "function A(n) {"
       "  if (n > 0) this.a = 42;"
@@ -449,13 +449,13 @@ TEST_F(InObjectSlackTrackingTest, JSObjectComplex) {
 }
 
 TEST_F(InObjectSlackTrackingTest, JSObjectComplexNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestJSObjectComplex();
 }
 
 TEST_F(InObjectSlackTrackingTest, JSGeneratorObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   const char* source =
       "function* A() {"
       "  var i = 0;"
@@ -511,13 +511,13 @@ TEST_F(InObjectSlackTrackingTest, JSGeneratorObjectBasic) {
 }
 
 TEST_F(InObjectSlackTrackingTest, JSGeneratorObjectBasicNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestJSGeneratorObjectBasic();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBasicNoBaseClassInstances) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   // Check that base class' and subclass' slack tracking do not interfere with
   // each other.
@@ -600,13 +600,13 @@ TEST_F(InObjectSlackTrackingTest, SubclassBasicNoBaseClassInstances) {
 
 TEST_F(InObjectSlackTrackingTest,
        SubclassBasicNoBaseClassInstancesNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassBasicNoBaseClassInstances();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   // Check that base class' and subclass' slack tracking do not interfere with
   // each other.
@@ -699,7 +699,7 @@ TEST_F(InObjectSlackTrackingTest, SubclassBasic) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBasicNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassBasic();
 }
 
@@ -738,7 +738,7 @@ TEST_F(InObjectSlackTrackingTest, LongSubclassChain3) {
 
 TEST_F(InObjectSlackTrackingTest, InobjectPropetiesCountOverflowInSubclass) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   std::vector<int> hierarchy_desc;
   const int kNoOverflowCount = 5;
@@ -910,10 +910,10 @@ TEST_F(InObjectSlackTrackingTest, ObjectLiteralPropertyBackingStoreSize) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SlowModeSubclass) {
-  if (FLAG_stress_concurrent_allocation) return;
+  if (v8_flags.stress_concurrent_allocation) return;
 
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   std::vector<int> hierarchy_desc;
   const int kNoOverflowCount = 5;
@@ -969,46 +969,46 @@ TEST_F(InObjectSlackTrackingTest, SlowModeSubclass) {
 
 TEST_F(InObjectSlackTrackingTest, SubclassObjectBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   TestSubclassBuiltin("A1", JS_OBJECT_TYPE, "Object", "true");
   TestSubclassBuiltin("A2", JS_OBJECT_TYPE, "Object", "42");
   TestSubclassBuiltin("A3", JS_OBJECT_TYPE, "Object", "'some string'");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassObjectBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassObjectBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassFunctionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_FUNCTION_TYPE, "Function", "'return 153;'");
   TestSubclassBuiltin("A2", JS_FUNCTION_TYPE, "Function", "'this.a = 44;'");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassFunctionBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassFunctionBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBooleanBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "true");
   TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Boolean", "false");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassBooleanBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassBooleanBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassErrorBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   const int first_field = 2;
   TestSubclassBuiltin("A1", JS_ERROR_TYPE, "Error", "'err'", first_field);
@@ -1022,38 +1022,38 @@ TEST_F(InObjectSlackTrackingTest, SubclassErrorBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassErrorBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassErrorBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassNumberBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "42");
   TestSubclassBuiltin("A2", JS_PRIMITIVE_WRAPPER_TYPE, "Number", "4.2");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassNumberBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassNumberBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassDateBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_DATE_TYPE, "Date", "123456789");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassDateBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassDateBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassStringBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_PRIMITIVE_WRAPPER_TYPE, "String",
                       "'some string'");
@@ -1061,12 +1061,12 @@ TEST_F(InObjectSlackTrackingTest, SubclassStringBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassStringBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassRegExpBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   const int first_field = 1;
   TestSubclassBuiltin("A1", JS_REG_EXP_TYPE, "RegExp", "'o(..)h', 'g'",
@@ -1074,25 +1074,25 @@ TEST_F(InObjectSlackTrackingTest, SubclassRegExpBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassRegExpBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassRegExpBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
   TestSubclassBuiltin("A1", JS_ARRAY_TYPE, "Array", "42");
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassArrayBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassArrayBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
 
 #define TYPED_ARRAY_TEST_F(InObjectSlackTrackingTest, Type, type, TYPE, \
                            elementType)                                 \
@@ -1104,13 +1104,13 @@ TEST_F(InObjectSlackTrackingTest, SubclassTypedArrayBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassTypedArrayBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassTypedArrayBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassCollectionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1121,13 +1121,13 @@ TEST_F(InObjectSlackTrackingTest, SubclassCollectionBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassCollectionBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassCollectionBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassArrayBufferBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1137,13 +1137,13 @@ TEST_F(InObjectSlackTrackingTest, SubclassArrayBufferBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassArrayBufferBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassArrayBufferBuiltin();
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassPromiseBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_always_turbofan = false;
+  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1152,7 +1152,7 @@ TEST_F(InObjectSlackTrackingTest, SubclassPromiseBuiltin) {
 }
 
 TEST_F(InObjectSlackTrackingTest, SubclassPromiseBuiltinNoInlineNew) {
-  FLAG_inline_new = false;
+  v8_flags.inline_new = false;
   TestSubclassPromiseBuiltin();
 }
 
@@ -1362,7 +1362,7 @@ TEST_F(InObjectSlackTrackingTest,
 
 TEST_F(InObjectSlackTrackingTest,
        InstanceFieldsArePropertiesDefaultConstructorEager) {
-  i::FLAG_lazy = false;
+  i::v8_flags.lazy = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1385,7 +1385,7 @@ TEST_F(InObjectSlackTrackingTest,
 
 TEST_F(InObjectSlackTrackingTest,
        InstanceFieldsArePropertiesFieldsAndConstructorEager) {
-  i::FLAG_lazy = false;
+  i::v8_flags.lazy = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

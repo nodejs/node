@@ -56,6 +56,7 @@ class StringForwardingTable {
   static Address GetForwardStringAddress(Isolate* isolate, int index);
   V8_EXPORT_PRIVATE uint32_t GetRawHash(PtrComprCageBase cage_base,
                                         int index) const;
+  static uint32_t GetRawHashStatic(Isolate* isolate, int index);
   v8::String::ExternalStringResourceBase* GetExternalResource(
       int index, bool* is_one_byte) const;
 

@@ -43,24 +43,6 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
   }
 }
 
-static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent was through
 // ::v8::internal::OS in the same way as base::SNPrintF is that the Windows C
@@ -4090,14 +4072,14 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case DMULT:  // DMULT == D_MUL_MUH.
       if (kArchVariant != kMips64r6) {
         set_register(LO, rs() * rt());
-        set_register(HI, MultiplyHighSigned(rs(), rt()));
+        set_register(HI, base::bits::SignedMulHigh64(rs(), rt()));
       } else {
         switch (sa()) {
           case MUL_OP:
             SetResult(rd_reg(), rs() * rt());
             break;
           case MUH_OP:
-            SetResult(rd_reg(), MultiplyHighSigned(rs(), rt()));
+            SetResult(rd_reg(), base::bits::SignedMulHigh64(rs(), rt()));
             break;
           default:
             UNIMPLEMENTED_MIPS();
@@ -4106,7 +4088,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       }
       break;
     case DMULTU:
-      UNIMPLEMENTED_MIPS();
+      if (kArchVariant != kMips64r6) {
+        set_register(LO, rs_u() * rt_u());
+        set_register(HI, base::bits::UnsignedMulHigh64(rs_u(), rt_u()));
+      } else {
+        UNIMPLEMENTED_MIPS();
+      }
       break;
     case DIV:
     case DDIV: {

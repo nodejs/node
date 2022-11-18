@@ -529,8 +529,8 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
   BranchOrBacktrack(ne, on_bit_set);
 }
 
-bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(
-    StandardCharacterSet type, Label* on_no_match) {
+bool RegExpMacroAssemblerARM::CheckSpecialClassRanges(StandardCharacterSet type,
+                                                      Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
   // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).

@@ -207,7 +207,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
@@ -696,6 +696,18 @@ void TurboAssembler::Mulh64(Register rd, Register rs, const Operand& rt) {
     Register scratch = temps.Acquire();
     Li(scratch, rt.immediate());
     mulh(rd, rs, scratch);
+  }
+}
+
+void TurboAssembler::Mulhu64(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    mulhu(rd, rs, rt.rm());
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Li(scratch, rt.immediate());
+    mulhu(rd, rs, scratch);
   }
 }
 
@@ -2420,6 +2432,7 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
   DCHECK_GE(63, shift);
   DCHECK_NE(dst_low, src_low);
   DCHECK_NE(dst_high, src_low);
+  shift &= 0x3F;
   if (shift == 0) {
     Move(dst_high, src_high);
     Move(dst_low, src_low);
@@ -2489,7 +2502,7 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
   DCHECK_GE(63, shift);
   DCHECK_NE(dst_low, src_high);
   DCHECK_NE(dst_high, src_high);
-
+  shift &= 0x3F;
   if (shift == 32) {
     mv(dst_low, src_high);
     li(dst_high, Operand(0));
@@ -4392,7 +4405,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
-      Call(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      Call(BuiltinEntry(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect: {
       LoadEntryFromBuiltin(builtin, t6);
@@ -4426,7 +4439,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
-      Jump(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      Jump(BuiltinEntry(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect: {
       LoadEntryFromBuiltin(builtin, t6);
@@ -5199,6 +5212,37 @@ void TurboAssembler::MulOverflow32(Register dst, Register left,
   sext_w(dst, overflow);
   xor_(overflow, overflow, dst);
 }
+
+void TurboAssembler::MulOverflow64(Register dst, Register left,
+                                   const Operand& right, Register overflow) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register right_reg = no_reg;
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+  if (!right.is_reg()) {
+    li(scratch, Operand(right));
+    right_reg = scratch;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
+         overflow != scratch2);
+  DCHECK(overflow != left && overflow != right_reg);
+  // use this sequence of "mulh/mul" according to recommendation of ISA Spec 7.1
+  // upper part
+  mulh(scratch2, left, right_reg);
+  // lower part
+  mul(dst, left, right_reg);
+  // expand the sign of the lower part to 64bit
+  srai(overflow, dst, 63);
+  // if the upper part is not eqaul to the expanded sign bit of the lower part,
+  // overflow happens
+  xor_(overflow, overflow, scratch2);
+}
+
 #elif V8_TARGET_ARCH_RISCV32
 void TurboAssembler::AddOverflow(Register dst, Register left,
                                  const Operand& right, Register overflow) {

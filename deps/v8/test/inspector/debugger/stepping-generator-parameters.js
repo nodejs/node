@@ -17,36 +17,6 @@ function callGenerator() {
 session.setupScriptMap();
 
 InspectorTest.runAsyncTestSuite([
-  async function testStepOverFromInitialYield() {
-    await Promise.all([Protocol.Debugger.enable(), Protocol.Runtime.enable()]);
-    InspectorTest.log(`Setting breakpoint on implicit initial yield`);
-    const {result: {breakpointId}} = await Protocol.Debugger.setBreakpointByUrl({
-      url,
-      lineNumber: 1,
-      columnNumber: 38,
-    })
-    InspectorTest.log(`Calling callGenerator()`);
-    const pausedPromise = Protocol.Debugger.oncePaused();
-    const evalPromise = Protocol.Runtime.evaluate({expression: 'callGenerator()'});
-    const {method, params} = await Promise.race([pausedPromise, evalPromise]);
-    if (method === 'Debugger.paused') {
-      await session.logSourceLocation(params.callFrames[0].location);
-
-      InspectorTest.log('Stepping over while paused on the initial yield');
-      const [{params: {callFrames:[{location}]}}] = await Promise.all([
-        Protocol.Debugger.oncePaused(),
-        Protocol.Debugger.stepOver(),
-      ]);
-      await session.logSourceLocation(location);
-
-      await Promise.all([Protocol.Debugger.resume(), evalPromise]);
-    } else {
-      InspectorTest.log('Did not pause');
-    }
-    await Protocol.Debugger.removeBreakpoint({breakpointId});
-    await Promise.all([Protocol.Debugger.disable(), Protocol.Runtime.disable()]);
-  },
-
   async function testStepIntoInitialYield() {
     await Promise.all([Protocol.Debugger.enable(), Protocol.Runtime.enable()]);
     InspectorTest.log(`Setting breakpoint on call to generator()`);
@@ -67,13 +37,6 @@ InspectorTest.runAsyncTestSuite([
         Protocol.Debugger.oncePaused(),
         Protocol.Debugger.stepInto(),
       ]);
-      await session.logSourceLocation(location);
-
-      InspectorTest.log('Stepping into while paused on the initial yield');
-      ([{params: {callFrames:[{location}]}}] = await Promise.all([
-        Protocol.Debugger.oncePaused(),
-        Protocol.Debugger.stepInto(),
-      ]));
       await session.logSourceLocation(location);
 
       await Promise.all([Protocol.Debugger.resume(), evalPromise]);

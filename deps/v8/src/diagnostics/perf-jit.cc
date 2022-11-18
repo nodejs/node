@@ -143,7 +143,8 @@ void LinuxPerfJitLogger::OpenJitDumpFile() {
   // If --perf-prof-delete-file is given, unlink the file right after opening
   // it. This keeps the file handle to the file valid. This only works on Linux,
   // which is the only platform supported for --perf-prof anyway.
-  if (FLAG_perf_prof_delete_file) CHECK_EQ(0, unlink(perf_dump_name.begin()));
+  if (v8_flags.perf_prof_delete_file)
+    CHECK_EQ(0, unlink(perf_dump_name.begin()));
 
   marker_address_ = OpenMarkerFile(fd);
   if (marker_address_ == nullptr) return;
@@ -216,7 +217,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     Handle<AbstractCode> abstract_code,
     MaybeHandle<SharedFunctionInfo> maybe_shared, const char* name,
     int length) {
-  if (FLAG_perf_basic_prof_only_functions) {
+  if (v8_flags.perf_basic_prof_only_functions) {
     CodeKind code_kind = abstract_code->kind(isolate_);
     if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
         code_kind != CodeKind::TURBOFAN && code_kind != CodeKind::MAGLEV &&
@@ -236,7 +237,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
 
   // Debug info has to be emitted first.
   Handle<SharedFunctionInfo> shared;
-  if (FLAG_perf_prof && maybe_shared.ToHandle(&shared)) {
+  if (v8_flags.perf_prof && maybe_shared.ToHandle(&shared)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     if (code->kind() != CodeKind::JS_TO_WASM_FUNCTION &&
         code->kind() != CodeKind::WASM_TO_JS_FUNCTION) {
@@ -248,7 +249,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->InstructionStart());
 
   // Unwinding info comes right after debug info.
-  if (FLAG_perf_prof_unwinding_info) LogWriteUnwindingInfo(*code);
+  if (v8_flags.perf_prof_unwinding_info) LogWriteUnwindingInfo(*code);
 
   WriteJitCodeLoadEntry(code_pointer, code->InstructionSize(), code_name,
                         length);
@@ -261,7 +262,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 
   if (perf_output_handle_ == nullptr) return;
 
-  if (FLAG_perf_prof_annotate_wasm) LogWriteDebugInfo(code);
+  if (v8_flags.perf_prof_annotate_wasm) LogWriteDebugInfo(code);
 
   WriteJitCodeLoadEntry(code->instructions().begin(),
                         code->instructions().length(), name, length);

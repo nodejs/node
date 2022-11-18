@@ -1056,7 +1056,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Lsl(const Register& rd, const Register& rn, unsigned shift);
   inline void Lsl(const Register& rd, const Register& rn, const Register& rm);
   inline void Umull(const Register& rd, const Register& rn, const Register& rm);
+  inline void Umulh(const Register& rd, const Register& rn, const Register& rm);
   inline void Smull(const Register& rd, const Register& rn, const Register& rm);
+  inline void Smulh(const Register& rd, const Register& rn, const Register& rm);
 
   inline void Sxtb(const Register& rd, const Register& rn);
   inline void Sxth(const Register& rd, const Register& rn);
@@ -1452,13 +1454,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void EncodeSandboxedPointer(const Register& value);
   void DecodeSandboxedPointer(const Register& value);
-
-  // Load and decode a SandboxedPointer from the heap.
   void LoadSandboxedPointerField(const Register& destination,
                                  const MemOperand& field_operand);
-  // Encode and store a SandboxedPointer to the heap.
   void StoreSandboxedPointerField(const Register& value,
                                   const MemOperand& dst_field_operand);
 
@@ -1630,7 +1628,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                      const Register& ra);
   inline void Smsubl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
-  inline void Smulh(const Register& rd, const Register& rn, const Register& rm);
   inline void Stnp(const CPURegister& rt, const CPURegister& rt2,
                    const MemOperand& dst);
   inline void Umaddl(const Register& rd, const Register& rn, const Register& rm,
@@ -1842,8 +1839,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   // Helpers ------------------------------------------------------------------
 

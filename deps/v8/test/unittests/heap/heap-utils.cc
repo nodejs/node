@@ -13,7 +13,6 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/free-space-inl.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -23,19 +22,18 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   constexpr double kStepSizeInMs = 100;
   CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
 
-  if (collector->sweeping_in_progress()) {
+  if (heap->sweeping_in_progress()) {
     SafepointScope scope(heap);
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
-  CHECK(marking->IsMarking());
+  CHECK(marking->IsMajorMarking());
   if (!force_completion) return;
 
   while (!marking->IsMajorMarkingComplete()) {
@@ -153,11 +151,11 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
-  i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  Heap* heap = space->heap();
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
   space->FreeLinearAllocationArea();
   space->ResetFreeList();

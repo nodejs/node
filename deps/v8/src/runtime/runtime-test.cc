@@ -20,9 +20,10 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/js-collection-inl.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
@@ -48,19 +49,19 @@ namespace internal {
 
 namespace {
 V8_WARN_UNUSED_RESULT Object CrashUnlessFuzzing(Isolate* isolate) {
-  CHECK(FLAG_fuzzing);
+  CHECK(v8_flags.fuzzing);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 V8_WARN_UNUSED_RESULT bool CrashUnlessFuzzingReturnFalse(Isolate* isolate) {
-  CHECK(FLAG_fuzzing);
+  CHECK(v8_flags.fuzzing);
   return false;
 }
 
 // Returns |value| unless correctness-fuzzer-supressions is enabled,
 // otherwise returns undefined_value.
 V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
-  return FLAG_correctness_fuzzer_suppressions
+  return v8_flags.correctness_fuzzer_suppressions
              ? ReadOnlyRoots(isolate).undefined_value()
              : value;
 }
@@ -228,7 +229,7 @@ RUNTIME_FUNCTION(Runtime_RuntimeEvaluateREPL) {
 RUNTIME_FUNCTION(Runtime_ICsAreEnabled) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(FLAG_use_ic);
+  return isolate->heap()->ToBoolean(v8_flags.use_ic);
 }
 
 RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
@@ -268,7 +269,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (!FLAG_turbofan) return false;
+  if (!v8_flags.turbofan) return false;
 
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
@@ -280,7 +281,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (FLAG_testing_d8_test_runner) {
+  if (v8_flags.testing_d8_test_runner) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
@@ -289,7 +290,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
       function->HasAvailableCodeKind(kind)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
-    if (FLAG_testing_d8_test_runner) {
+    if (v8_flags.testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
     return false;
@@ -303,7 +304,7 @@ template <>
 bool CanOptimizeFunction<CodeKind::MAGLEV>(Handle<JSFunction> function,
                                            Isolate* isolate,
                                            IsCompiledScope* is_compiled_scope) {
-  if (!FLAG_maglev) return false;
+  if (!v8_flags.maglev) return false;
 
   CHECK(!IsAsmWasmFunction(isolate, *function));
 
@@ -372,7 +373,7 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
   // If the JSFunction isn't compiled but it has a initialized feedback cell
   // then no need to compile. CompileLazy builtin would handle these cases by
   // installing the code from SFI. Calling compile here may cause another
-  // optimization if FLAG_always_turbofan is set.
+  // optimization if v8_flags.always_turbofan is set.
   bool needs_compilation =
       !function->is_compiled() && !function->has_closure_feedback_cell_array();
   if (needs_compilation &&
@@ -482,17 +483,17 @@ RUNTIME_FUNCTION(Runtime_ActiveTierIsTurbofan) {
 
 RUNTIME_FUNCTION(Runtime_IsSparkplugEnabled) {
   DCHECK_EQ(args.length(), 0);
-  return isolate->heap()->ToBoolean(FLAG_sparkplug);
+  return isolate->heap()->ToBoolean(v8_flags.sparkplug);
 }
 
 RUNTIME_FUNCTION(Runtime_IsMaglevEnabled) {
   DCHECK_EQ(args.length(), 0);
-  return isolate->heap()->ToBoolean(FLAG_maglev);
+  return isolate->heap()->ToBoolean(v8_flags.maglev);
 }
 
 RUNTIME_FUNCTION(Runtime_IsTurbofanEnabled) {
   DCHECK_EQ(args.length(), 0);
-  return isolate->heap()->ToBoolean(FLAG_turbofan);
+  return isolate->heap()->ToBoolean(v8_flags.turbofan);
 }
 
 RUNTIME_FUNCTION(Runtime_CurrentFrameIsTurbofan) {
@@ -582,7 +583,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  if (FLAG_testing_d8_test_runner) {
+  if (v8_flags.testing_d8_test_runner) {
     PendingOptimizationTable::PreparedForOptimization(
         isolate, function, allow_heuristic_optimization);
   }
@@ -657,7 +658,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (V8_UNLIKELY(!FLAG_turbofan) || V8_UNLIKELY(!FLAG_use_osr)) {
+  if (V8_UNLIKELY(!v8_flags.turbofan) || V8_UNLIKELY(!v8_flags.use_osr)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -671,7 +672,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (FLAG_testing_d8_test_runner) {
+  if (v8_flags.testing_d8_test_runner) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
@@ -680,7 +681,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
            function->ChecksTieringState());
     // If function is already optimized, remove the bytecode array from the
     // pending optimize for test table and return.
-    if (FLAG_testing_d8_test_runner) {
+    if (v8_flags.testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
     return ReadOnlyRoots(isolate).undefined_value();
@@ -706,7 +707,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If not (e.g. because we enter a nested loop first), the next JumpLoop will
   // see the cached OSR code with a mismatched offset, and trigger
   // non-concurrent OSR compilation and installation.
-  if (isolate->concurrent_recompilation_enabled() && FLAG_concurrent_osr) {
+  if (isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
     const BytecodeOffset osr_offset =
         OffsetOfNextJumpLoop(isolate, UnoptimizedFrame::cast(it.frame()));
     if (osr_offset.IsNone()) {
@@ -740,7 +741,7 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   JavaScriptFrameIterator it(isolate);
   Handle<JSFunction> function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
-  if (!FLAG_sparkplug || !FLAG_use_osr) {
+  if (!v8_flags.sparkplug || !v8_flags.use_osr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   if (!it.frame()->is_unoptimized()) {
@@ -787,7 +788,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   DCHECK_EQ(args.length(), 1);
 
   int status = 0;
-  if (FLAG_lite_mode || FLAG_jitless) {
+  if (v8_flags.lite_mode || v8_flags.jitless) {
     // Both jitless and lite modes cannot optimize. Unit tests should handle
     // these the same way. In the future, the two flags may become synonyms.
     status |= static_cast<int>(OptimizationStatus::kLiteMode);
@@ -795,10 +796,10 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (FLAG_always_turbofan || FLAG_prepare_always_turbofan) {
+  if (v8_flags.always_turbofan || v8_flags.prepare_always_turbofan) {
     status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
   }
-  if (FLAG_deopt_every_n_times) {
+  if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
 
@@ -1004,7 +1005,7 @@ int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
-  DCHECK(!FLAG_single_generation);
+  DCHECK(!v8_flags.single_generation);
   PauseAllocationObserversScope pause_observers(heap);
   NewSpace* space = heap->new_space();
   // We cannot rely on `space->limit()` to point to the end of the current page
@@ -1072,7 +1073,7 @@ class FileOutputStream : public v8::OutputStream {
 };
 
 RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
-  if (FLAG_fuzzing) {
+  if (v8_flags.fuzzing) {
     // We don't want to create snapshots in fuzzers.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -1180,7 +1181,7 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
   DCHECK_GE(2, args.length());
-  CHECK(FLAG_track_retaining_path);
+  CHECK(v8_flags.track_retaining_path);
   Handle<HeapObject> object = args.at<HeapObject>(0);
   RetainingPathOption option = RetainingPathOption::kDefault;
   if (args.length() == 2) {
@@ -1248,7 +1249,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<String> message = args.at<String>(0);
-  if (FLAG_disable_abortjs) {
+  if (v8_flags.disable_abortjs) {
     base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
     return Object();
   }
@@ -1378,12 +1379,15 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
+  PretenturingHandler* pretenuring_handler = heap->pretenuring_handler();
   AllocationMemento memento =
-      heap->FindAllocationMemento<Heap::kForRuntime>(object.map(), object);
+      pretenuring_handler
+          ->FindAllocationMemento<PretenturingHandler::kForRuntime>(
+              object.map(), object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   AllocationSite site = memento.GetAllocationSite();
-  heap->PretenureAllocationSiteOnNextCollection(site);
+  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
   return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
 
@@ -1735,7 +1739,8 @@ RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
 
 RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
-  isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  isolate->heap()->CollectGarbageShared(isolate->main_thread_local_heap(),
+                                        GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1744,6 +1749,15 @@ RUNTIME_FUNCTION(Runtime_AtomicsConditionNumWaitersForTesting) {
   DCHECK_EQ(1, args.length());
   Handle<JSAtomicsCondition> cv = args.at<JSAtomicsCondition>(0);
   return cv->NumWaitersForTesting(isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
+
+  return Smi::FromInt(
+      EphemeronHashTable::cast(collection->table()).NumberOfElements());
 }
 
 }  // namespace internal

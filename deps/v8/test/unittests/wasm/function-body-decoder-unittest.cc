@@ -9,10 +9,10 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
-#include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -184,7 +184,6 @@ class TestModuleBuilder {
          static_cast<uint32_t>(mod.functions.size()),  // func_index
          sig_index,                                    // sig_index
          {0, 0},                                       // code
-         0,                                            // feedback slots
          false,                                        // import
          false,                                        // export
          declared});                                   // declared
@@ -262,8 +261,8 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
     FunctionBody body(sig, 0, code.begin(), code.end());
     WasmFeatures unused_detected_features = WasmFeatures::None();
     DecodeResult result =
-        VerifyWasmCode(this->zone()->allocator(), enabled_features_, module,
-                       &unused_detected_features, body);
+        ValidateFunctionBody(this->zone()->allocator(), enabled_features_,
+                             module, &unused_detected_features, body);
 
     std::ostringstream str;
     if (result.failed()) {
@@ -1153,8 +1152,13 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewDefault),
                    array_index, kExprDrop});
 
+  ExpectValidates(
+      sigs.i_v(),
+      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTestDeprecated), struct_index});
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), struct_index});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), kEqRefCode});
 
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
                                struct_index, kExprDrop});
@@ -3287,8 +3291,8 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
     DecodeResult result =
-        VerifyWasmCode(this->zone()->allocator(), WasmFeatures::All(), nullptr,
-                       &unused_detected_features, body);
+        ValidateFunctionBody(this->zone()->allocator(), WasmFeatures::All(),
+                             nullptr, &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
       str << "Expected verification to fail";
@@ -4305,24 +4309,31 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   HeapType::Representation func_heap_2 =
       static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
 
-  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {std::make_tuple(HeapType::kData, array_heap, true),
-       std::make_tuple(HeapType::kData, super_struct_heap, true),
-       std::make_tuple(HeapType::kFunc, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_1, true),
-       std::make_tuple(func_heap_1, func_heap_2, true),
-       std::make_tuple(super_struct_heap, sub_struct_heap, true),
-       std::make_tuple(array_heap, sub_struct_heap, true),
-       std::make_tuple(super_struct_heap, func_heap_1, true),
-       std::make_tuple(HeapType::kEq, super_struct_heap, false),
-       std::make_tuple(HeapType::kExtern, func_heap_1, false),
-       std::make_tuple(HeapType::kAny, array_heap, false),
-       std::make_tuple(HeapType::kI31, array_heap, false)};
+  std::tuple<HeapType::Representation, HeapType::Representation, bool, bool>
+      tests[] = {
+          std::make_tuple(HeapType::kData, array_heap, true, true),
+          std::make_tuple(HeapType::kData, super_struct_heap, true, true),
+          std::make_tuple(HeapType::kFunc, func_heap_1, true, true),
+          std::make_tuple(func_heap_1, func_heap_1, true, true),
+          std::make_tuple(func_heap_1, func_heap_2, true, true),
+          std::make_tuple(super_struct_heap, sub_struct_heap, true, true),
+          std::make_tuple(array_heap, sub_struct_heap, true, true),
+          std::make_tuple(super_struct_heap, func_heap_1, true, false),
+          std::make_tuple(HeapType::kEq, super_struct_heap, false, true),
+          std::make_tuple(HeapType::kExtern, func_heap_1, false, false),
+          std::make_tuple(HeapType::kAny, array_heap, false, true),
+          std::make_tuple(HeapType::kI31, array_heap, false, true),
+          std::make_tuple(HeapType::kNone, array_heap, true, true),
+          std::make_tuple(HeapType::kNone, func_heap_1, true, false),
+      };
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
     HeapType to_heap = HeapType(std::get<1>(test));
     bool should_pass = std::get<2>(test);
+    bool should_pass_ref_test = std::get<3>(test);
+    SCOPED_TRACE("from_heap = " + from_heap.name() +
+                 ", to_heap = " + to_heap.name());
 
     ValueType test_reps[] = {kWasmI32, ValueType::RefNull(from_heap)};
     FunctionSig test_sig(1, 1, test_reps);
@@ -4332,7 +4343,8 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     FunctionSig cast_sig(1, 1, cast_reps);
 
     if (should_pass) {
-      ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
+      ExpectValidates(&test_sig,
+                      {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
       ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
@@ -4342,20 +4354,40 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
           "local.get of type " +
           test_reps[1].name();
       ExpectFailure(&test_sig,
-                    {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
+                                              WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.test" + error_message).c_str());
       ExpectFailure(&cast_sig,
                     {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd, ("ref.cast" + error_message).c_str());
     }
+
+    if (should_pass_ref_test) {
+      ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
+                                                WASM_HEAP_TYPE(to_heap))});
+    } else {
+      std::string error_message =
+          "Invalid types for ref.test: local.get of type " +
+          cast_reps[1].name() +
+          " has to be in the same reference type hierarchy as (ref " +
+          to_heap.name() + ")";
+      ExpectFailure(&test_sig,
+                    {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+                    kAppendEnd, error_message.c_str());
+    }
   }
 
   // Trivial type error.
   ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
+                {WASM_REF_TEST_DEPRECATED(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
                 "ref.test[0] expected subtype of (ref null func) or "
                 "(ref null data), found i32.const of type i32");
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
+                kAppendEnd,
+                "Invalid types for ref.test: i32.const of type i32 has to be "
+                "in the same reference type hierarchy as (ref 0)");
   ExpectFailure(sigs.v_v(),
                 {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
@@ -4691,13 +4723,16 @@ class WasmOpcodeLengthTest : public TestWithZone {
       DCHECK_LE(static_cast<uint32_t>(opcode), 0xFF);
       bytes[0] = static_cast<byte>(opcode);
       // Special case: select_with_type insists on a {1} immediate.
-      if (opcode == kExprSelectWithType) bytes[1] = 1;
+      if (opcode == kExprSelectWithType) {
+        bytes[1] = 1;
+        bytes[2] = kAnyRefCode;
+      }
     }
     WasmFeatures detected;
-    WasmDecoder<Decoder::kNoValidation> decoder(
+    WasmDecoder<Decoder::kBooleanValidation> decoder(
         this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr, bytes,
         bytes + sizeof(bytes), 0);
-    WasmDecoder<Decoder::kNoValidation>::OpcodeLength(&decoder, bytes);
+    WasmDecoder<Decoder::kBooleanValidation>::OpcodeLength(&decoder, bytes);
     EXPECT_TRUE(decoder.ok())
         << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
         << decoder.error().message();
@@ -4956,17 +4991,15 @@ TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
   }
 }
 
-using TypesOfLocals = ZoneVector<ValueType>;
-
 class LocalDeclDecoderTest : public TestWithZone {
  public:
   v8::internal::AccountingAllocator allocator;
   WasmFeatures enabled_features_;
 
-  size_t ExpectRun(TypesOfLocals map, size_t pos, ValueType expected,
+  size_t ExpectRun(ValueType* local_types, size_t pos, ValueType expected,
                    size_t count) {
     for (size_t i = 0; i < count; i++) {
-      EXPECT_EQ(expected, map[pos++]);
+      EXPECT_EQ(expected, local_types[pos++]);
     }
     return pos;
   }
@@ -4975,27 +5008,27 @@ class LocalDeclDecoderTest : public TestWithZone {
                         const byte* end) {
     WasmModule module;
     return i::wasm::DecodeLocalDecls(enabled_features_, decls, &module, start,
-                                     end);
+                                     end, zone());
   }
 };
 
 TEST_F(LocalDeclDecoderTest, EmptyLocals) {
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, nullptr, nullptr);
   EXPECT_FALSE(result);
 }
 
 TEST_F(LocalDeclDecoderTest, NoLocals) {
   static const byte data[] = {0};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_TRUE(result);
-  EXPECT_TRUE(decls.type_list.empty());
+  EXPECT_EQ(0u, decls.num_locals);
 }
 
 TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount1) {
   static const byte data[] = {1};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_FALSE(result);
 }
@@ -5003,7 +5036,7 @@ TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount1) {
 TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount2) {
   static const byte data[] = {2, 1,
                               static_cast<byte>(kWasmI32.value_type_code())};
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_FALSE(result);
 }
@@ -5012,13 +5045,12 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 1, static_cast<byte>(type.value_type_code())};
-    BodyLocalDecls decls(zone());
+    BodyLocalDecls decls;
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
-    EXPECT_EQ(1u, decls.type_list.size());
+    EXPECT_EQ(1u, decls.num_locals);
 
-    TypesOfLocals map = decls.type_list;
-    EXPECT_EQ(type, map[0]);
+    EXPECT_EQ(type, decls.local_types[0]);
   }
 }
 
@@ -5026,15 +5058,12 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     const byte data[] = {1, 5, static_cast<byte>(type.value_type_code())};
-    BodyLocalDecls decls(zone());
+    BodyLocalDecls decls;
     bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
     EXPECT_EQ(sizeof(data), decls.encoded_size);
-    EXPECT_EQ(5u, decls.type_list.size());
-
-    TypesOfLocals map = decls.type_list;
-    EXPECT_EQ(5u, map.size());
-    ExpectRun(map, 0, type, 5);
+    EXPECT_EQ(5u, decls.num_locals);
+    ExpectRun(decls.local_types, 0, type, 5);
   }
 }
 
@@ -5045,20 +5074,17 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
         for (byte d = 0; d < 3; d++) {
           const byte data[] = {4, a,        kI32Code, b,       kI64Code,
                                c, kF32Code, d,        kF64Code};
-          BodyLocalDecls decls(zone());
+          BodyLocalDecls decls;
           bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
           EXPECT_TRUE(result);
           EXPECT_EQ(sizeof(data), decls.encoded_size);
-          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d),
-                    decls.type_list.size());
-
-          TypesOfLocals map = decls.type_list;
+          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d), decls.num_locals);
 
           size_t pos = 0;
-          pos = ExpectRun(map, pos, kWasmI32, a);
-          pos = ExpectRun(map, pos, kWasmI64, b);
-          pos = ExpectRun(map, pos, kWasmF32, c);
-          pos = ExpectRun(map, pos, kWasmF64, d);
+          pos = ExpectRun(decls.local_types, pos, kWasmI32, a);
+          pos = ExpectRun(decls.local_types, pos, kWasmI64, b);
+          pos = ExpectRun(decls.local_types, pos, kWasmF32, c);
+          pos = ExpectRun(decls.local_types, pos, kWasmF64, d);
         }
       }
     }
@@ -5075,16 +5101,15 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.AddLocals(212, kWasmI64);
   local_decls.Prepend(zone(), &data, &end);
 
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_TRUE(result);
-  EXPECT_EQ(5u + 1337u + 212u, decls.type_list.size());
+  EXPECT_EQ(5u + 1337u + 212u, decls.num_locals);
 
-  TypesOfLocals map = decls.type_list;
   size_t pos = 0;
-  pos = ExpectRun(map, pos, kWasmF32, 5);
-  pos = ExpectRun(map, pos, kWasmI32, 1337);
-  pos = ExpectRun(map, pos, kWasmI64, 212);
+  pos = ExpectRun(decls.local_types, pos, kWasmF32, 5);
+  pos = ExpectRun(decls.local_types, pos, kWasmI32, 1337);
+  pos = ExpectRun(decls.local_types, pos, kWasmI64, 212);
 }
 
 TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
@@ -5095,7 +5120,7 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   LocalDeclEncoder local_decls(zone());
 
   local_decls.AddLocals(1, ValueType::RefNull(0));
-  BodyLocalDecls decls(zone());
+  BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);
 }
@@ -5160,8 +5185,8 @@ TEST_F(BytecodeIteratorTest, ForeachOffset) {
 
 TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   byte code[] = {1, 1, kI32Code, WASM_I32V_1(9), WASM_I32V_1(11)};
-  BodyLocalDecls decls(zone());
-  BytecodeIterator iter(code, code + sizeof(code), &decls);
+  BodyLocalDecls decls;
+  BytecodeIterator iter(code, code + sizeof(code), &decls, zone());
 
   EXPECT_EQ(3u, decls.encoded_size);
   EXPECT_EQ(3u, iter.pc_offset());

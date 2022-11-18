@@ -56,7 +56,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
   DCHECK(!function->is_compiled());
 #ifdef DEBUG
-  if (FLAG_trace_lazy && sfi->is_compiled()) {
+  if (v8_flags.trace_lazy && sfi->is_compiled()) {
     PrintF("[unoptimized: %s]\n", function->DebugNameCStr().get());
   }
 #endif
@@ -276,7 +276,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   DisallowGarbageCollection no_gc;
   DCHECK(!deopt_exit_offset.IsNone());
 
-  if (!FLAG_use_ic ||
+  if (!v8_flags.use_ic ||
       !function.feedback_vector().maybe_has_optimized_osr_code()) {
     return;
   }
@@ -467,7 +467,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
                            BytecodeOffset osr_offset) {
   const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
-                FLAG_concurrent_osr)
+                v8_flags.concurrent_osr)
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
@@ -519,7 +519,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
-  DCHECK(FLAG_use_osr);
+  DCHECK(v8_flags.use_osr);
 
   BytecodeOffset osr_offset = BytecodeOffset::None();
   Handle<JSFunction> function;
@@ -531,7 +531,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK(FLAG_use_osr);
+  DCHECK(v8_flags.use_osr);
 
   const BytecodeOffset osr_offset(args.positive_smi_value_at(0));
 
@@ -546,13 +546,13 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
 RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
-  CHECK(FLAG_trace_osr || v8_flags.log_function_events);
+  CHECK(v8_flags.trace_osr || v8_flags.log_function_events);
 
   BytecodeOffset osr_offset = BytecodeOffset::None();
   Handle<JSFunction> function;
   GetOsrOffsetAndFunctionForOSR(isolate, &osr_offset, &function);
 
-  if (FLAG_trace_osr) {
+  if (v8_flags.trace_osr) {
     PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
            "[OSR - entry. function: %s, osr offset: %d]\n",
            function->DebugNameCStr().get(), osr_offset.ToInt());

@@ -2962,10 +2962,54 @@ const icu::BasicTimeZone* CreateBasicTimeZoneFromIndex(
           Intl::TimeZoneIdFromIndex(time_zone_index).c_str(), -1, US_INV)));
 }
 
+// ICU only support TimeZone information in millisecond but Temporal require
+// nanosecond. For most of the case, we find a approximate millisecond by
+// floor to the millisecond just past the nanosecond_epoch. For negative epoch
+// value, the BigInt Divide will floor closer to zero so we need to minus 1 if
+// the remainder is not zero. For the case of finding previous transition, we
+// need to ceil to the millisecond in the near future of the nanosecond_epoch.
+enum class Direction { kPast, kFuture };
+int64_t ApproximateMillisecondEpoch(Isolate* isolate,
+                                    Handle<BigInt> nanosecond_epoch,
+                                    Direction direction = Direction::kPast) {
+  Handle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
+  int64_t ms = BigInt::Divide(isolate, nanosecond_epoch, one_million)
+                   .ToHandleChecked()
+                   ->AsInt64();
+  Handle<BigInt> remainder =
+      BigInt::Remainder(isolate, nanosecond_epoch, one_million)
+          .ToHandleChecked();
+  // If the nanosecond_epoch is not on the exact millisecond
+  if (remainder->ToBoolean()) {
+    if (direction == Direction::kPast) {
+      if (remainder->IsNegative()) {
+        // If the remaninder is negative, we know we have an negative epoch
+        // We need to decrease one millisecond.
+        // Move to the previous millisecond
+        ms -= 1;
+      }
+    } else {
+      if (!remainder->IsNegative()) {
+        // Move to the future millisecond
+        ms += 1;
+      }
+    }
+  }
+  return ms;
+}
+
+// Helper function to convert the milliseconds in int64_t
+// to a BigInt in nanoseconds.
+Handle<BigInt> MillisecondToNanosecond(Isolate* isolate, int64_t ms) {
+  return BigInt::Multiply(isolate, BigInt::FromInt64(isolate, ms),
+                          BigInt::FromUint64(isolate, 1000000))
+      .ToHandleChecked();
+}
+
 }  // namespace
 
-Maybe<int64_t> Intl::GetTimeZoneOffsetTransitionMilliseconds(
-    Isolate* isolate, int32_t time_zone_index, int64_t time_ms,
+Handle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
+    Isolate* isolate, int32_t time_zone_index, Handle<BigInt> nanosecond_epoch,
     Intl::Transition transition) {
   std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
       CreateBasicTimeZoneFromIndex(time_zone_index));
@@ -2974,56 +3018,77 @@ Maybe<int64_t> Intl::GetTimeZoneOffsetTransitionMilliseconds(
   UBool has_transition;
   switch (transition) {
     case Intl::Transition::kNext:
-      has_transition =
-          basic_time_zone->getNextTransition(time_ms, false, icu_transition);
+      has_transition = basic_time_zone->getNextTransition(
+          ApproximateMillisecondEpoch(isolate, nanosecond_epoch), false,
+          icu_transition);
       break;
     case Intl::Transition::kPrevious:
-      has_transition = basic_time_zone->getPreviousTransition(time_ms, false,
-                                                              icu_transition);
+      has_transition = basic_time_zone->getPreviousTransition(
+          ApproximateMillisecondEpoch(isolate, nanosecond_epoch,
+                                      Direction::kFuture),
+          false, icu_transition);
       break;
   }
 
   if (!has_transition) {
-    return Nothing<int64_t>();
+    return isolate->factory()->null_value();
   }
-  return Just(static_cast<int64_t>(icu_transition.getTime()));
+  // #sec-temporal-getianatimezonenexttransition and
+  // #sec-temporal-getianatimezoneprevioustransition states:
+  // "The operation returns null if no such transition exists for which t ≤
+  // ℤ(nsMaxInstant)." and "The operation returns null if no such transition
+  // exists for which t ≥ ℤ(nsMinInstant)."
+  //
+  // nsMinInstant = -nsMaxInstant = -8.64 × 10^21 => msMinInstant = -8.64 x
+  // 10^15
+  constexpr int64_t kMsMinInstant = -8.64e15;
+  // nsMaxInstant = 10^8 × nsPerDay = 8.64 × 10^21 => msMaxInstant = 8.64 x
+  // 10^15
+  constexpr int64_t kMsMaxInstant = 8.64e15;
+  int64_t time_ms = static_cast<int64_t>(icu_transition.getTime());
+  if (time_ms < kMsMinInstant || time_ms > kMsMaxInstant) {
+    return isolate->factory()->null_value();
+  }
+  return MillisecondToNanosecond(isolate, time_ms);
 }
 
-std::vector<int64_t> Intl::GetTimeZonePossibleOffsetMilliseconds(
-    Isolate* isolate, int32_t time_zone_index, int64_t time_in_millisecond) {
+std::vector<Handle<BigInt>> Intl::GetTimeZonePossibleOffsetNanoseconds(
+    Isolate* isolate, int32_t time_zone_index,
+    Handle<BigInt> nanosecond_epoch) {
   std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
       CreateBasicTimeZoneFromIndex(time_zone_index));
+  int64_t time_ms = ApproximateMillisecondEpoch(isolate, nanosecond_epoch);
   int32_t raw_offset;
   int32_t dst_offset;
   UErrorCode status = U_ZERO_ERROR;
-  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_FORMER,
+  basic_time_zone->getOffsetFromLocal(time_ms, UCAL_TZ_LOCAL_FORMER,
                                       UCAL_TZ_LOCAL_FORMER, raw_offset,
                                       dst_offset, status);
   DCHECK(U_SUCCESS(status));
-  // offset for time_in_milliseconds interpretted as before a time zone
+  // offset for time_ms interpretted as before a time zone
   // transition
-  int32_t offset_former = raw_offset + dst_offset;
+  int64_t offset_former = raw_offset + dst_offset;
 
-  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_LATTER,
+  basic_time_zone->getOffsetFromLocal(time_ms, UCAL_TZ_LOCAL_LATTER,
                                       UCAL_TZ_LOCAL_LATTER, raw_offset,
                                       dst_offset, status);
   DCHECK(U_SUCCESS(status));
-  // offset for time_in_milliseconds interpretted as after a time zone
+  // offset for time_ms interpretted as after a time zone
   // transition
-  int32_t offset_latter = raw_offset + dst_offset;
+  int64_t offset_latter = raw_offset + dst_offset;
 
-  std::vector<int64_t> result;
+  std::vector<Handle<BigInt>> result;
   if (offset_former == offset_latter) {
     // For most of the time, when either interpretation are the same, we are not
     // in a moment of offset transition based on rule changing: Just return that
     // value.
-    result.push_back(offset_former);
+    result.push_back(MillisecondToNanosecond(isolate, offset_former));
   } else if (offset_former > offset_latter) {
     // When the input represents a local time repeating multiple times at a
     // negative time zone transition (e.g. when the daylight saving time ends
     // or the time zone offset is decreased due to a time zone rule change).
-    result.push_back(offset_former);
-    result.push_back(offset_latter);
+    result.push_back(MillisecondToNanosecond(isolate, offset_former));
+    result.push_back(MillisecondToNanosecond(isolate, offset_latter));
   } else {
     // If the offset after the transition is greater than the offset before the
     // transition, that mean it is in the moment the time "skip" an hour, or two
@@ -3033,18 +3098,19 @@ std::vector<int64_t> Intl::GetTimeZonePossibleOffsetMilliseconds(
   return result;
 }
 
-Maybe<int64_t> Intl::GetTimeZoneOffsetMilliseconds(
-    Isolate* isolate, int32_t time_zone_index, int64_t time_in_millisecond) {
+int64_t Intl::GetTimeZoneOffsetNanoseconds(Isolate* isolate,
+                                           int32_t time_zone_index,
+                                           Handle<BigInt> nanosecond_epoch) {
   std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
       CreateBasicTimeZoneFromIndex(time_zone_index));
+  int64_t time_ms = ApproximateMillisecondEpoch(isolate, nanosecond_epoch);
   int32_t raw_offset;
   int32_t dst_offset;
   UErrorCode status = U_ZERO_ERROR;
-  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_FORMER,
-                                      UCAL_TZ_LOCAL_FORMER, raw_offset,
-                                      dst_offset, status);
+  basic_time_zone->getOffset(time_ms, false, raw_offset, dst_offset, status);
   DCHECK(U_SUCCESS(status));
-  return Just(static_cast<int64_t>(raw_offset + dst_offset));
+  // Turn ms into ns
+  return static_cast<int64_t>(raw_offset + dst_offset) * 1000000;
 }
 
 }  // namespace internal

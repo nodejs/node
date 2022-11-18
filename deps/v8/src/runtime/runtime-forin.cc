@@ -77,6 +77,10 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
           return it.GetName();
         }
       }
+      case LookupIterator::WASM_OBJECT:
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
+                        Object);
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeHandle<Object>();

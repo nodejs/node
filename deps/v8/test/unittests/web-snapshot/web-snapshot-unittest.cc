@@ -503,8 +503,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationClasses) {
 }
 
 TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
-  FLAG_stress_flush_code = true;
-  FLAG_flush_bytecode = true;
+  v8_flags.stress_flush_code = true;
+  v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
@@ -587,8 +587,8 @@ TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
 }
 
 TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushingClasses) {
-  FLAG_stress_flush_code = true;
-  FLAG_flush_bytecode = true;
+  v8_flags.stress_flush_code = true;
+  v8_flags.flush_bytecode = true;
   v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
@@ -1076,6 +1076,58 @@ TEST_F(WebSnapshotTest, ConstructorFunctionKinds) {
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_derived_default));
     CHECK_EQ(FunctionKind::kDefaultDerivedConstructor,
              derived_default->shared().kind());
+  }
+}
+
+TEST_F(WebSnapshotTest, SlackElementsInObjects) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(new_context);
+    const char* snapshot_source =
+        "var foo = {};"
+        "for (let i = 0; i < 100; ++i) {"
+        "  foo[i] = i;"
+        "}"
+        "var bar = {};"
+        "for (let i = 0; i < 100; ++i) {"
+        "  bar[i] = {};"
+        "}";
+
+    RunJS(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 2);
+    exports->Set(isolate, 0,
+                 v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked());
+    exports->Set(isolate, 1,
+                 v8::String::NewFromUtf8(isolate, "bar").ToLocalChecked());
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+  }
+
+  {
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
+    CHECK(!deserializer.has_error());
+
+    Handle<JSObject> foo =
+        Handle<JSObject>::cast(Utils::OpenHandle<v8::Object, JSReceiver>(
+            RunJS("foo").As<v8::Object>()));
+    CHECK_EQ(100, foo->elements().length());
+    CHECK_EQ(HOLEY_ELEMENTS, foo->GetElementsKind());
+
+    Handle<JSObject> bar =
+        Handle<JSObject>::cast(Utils::OpenHandle<v8::Object, JSReceiver>(
+            RunJS("bar").As<v8::Object>()));
+    CHECK_EQ(100, bar->elements().length());
+    CHECK_EQ(HOLEY_ELEMENTS, bar->GetElementsKind());
   }
 }
 

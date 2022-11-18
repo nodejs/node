@@ -28,22 +28,23 @@ using FunctionSig = Signature<ValueType>;
 class WasmImportWrapperCache {
  public:
   struct CacheKey {
-    CacheKey(const compiler::WasmImportCallKind& _kind, const FunctionSig* _sig,
-             int _expected_arity, Suspend _suspend)
-        : kind(_kind),
-          signature(_sig),
-          expected_arity(_expected_arity == kDontAdaptArgumentsSentinel
+    CacheKey(const compiler::WasmImportCallKind& kind,
+             uint32_t canonical_type_index, int expected_arity, Suspend suspend)
+        : kind(kind),
+          canonical_type_index(canonical_type_index),
+          expected_arity(expected_arity == kDontAdaptArgumentsSentinel
                              ? 0
-                             : _expected_arity),
-          suspend(_suspend) {}
+                             : expected_arity),
+          suspend(suspend) {}
 
     bool operator==(const CacheKey& rhs) const {
-      return kind == rhs.kind && signature == rhs.signature &&
+      return kind == rhs.kind &&
+             canonical_type_index == rhs.canonical_type_index &&
              expected_arity == rhs.expected_arity && suspend == rhs.suspend;
     }
 
     compiler::WasmImportCallKind kind;
-    const FunctionSig* signature;
+    uint32_t canonical_type_index;
     int expected_arity;
     Suspend suspend;
   };
@@ -51,8 +52,8 @@ class WasmImportWrapperCache {
   class CacheKeyHash {
    public:
     size_t operator()(const CacheKey& key) const {
-      return base::hash_combine(static_cast<uint8_t>(key.kind), key.signature,
-                                key.expected_arity);
+      return base::hash_combine(static_cast<uint8_t>(key.kind),
+                                key.canonical_type_index, key.expected_arity);
     }
   };
 
@@ -75,11 +76,12 @@ class WasmImportWrapperCache {
 
   // Thread-safe. Assumes the key exists in the map.
   V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
-                                  const FunctionSig* sig, int expected_arity,
-                                  Suspend suspend) const;
+                                  uint32_t canonical_type_index,
+                                  int expected_arity, Suspend suspend) const;
   // Thread-safe. Returns nullptr if the key doesn't exist in the map.
-  WasmCode* MaybeGet(compiler::WasmImportCallKind kind, const FunctionSig* sig,
-                     int expected_arity, Suspend suspend) const;
+  WasmCode* MaybeGet(compiler::WasmImportCallKind kind,
+                     uint32_t canonical_type_index, int expected_arity,
+                     Suspend suspend) const;
 
   ~WasmImportWrapperCache();
 

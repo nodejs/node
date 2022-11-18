@@ -783,13 +783,13 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
                               int offset_in_func) {
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
-  wasm::BodyLocalDecls locals(&tmp);
+  wasm::BodyLocalDecls locals;
   const byte* module_start = native_module->wire_bytes().begin();
   const wasm::WasmFunction& func =
       native_module->module()->functions[func_index];
   wasm::BytecodeIterator iterator(module_start + func.code.offset(),
                                   module_start + func.code.end_offset(),
-                                  &locals);
+                                  &locals, &tmp);
   DCHECK_LT(0, locals.encoded_size);
   if (offset_in_func < 0) return 0;
   for (; iterator.has_next(); iterator.next()) {
@@ -1099,10 +1099,10 @@ bool WasmScript::GetPossibleBreakpoints(
     const wasm::WasmFunction& func = functions[func_idx];
     if (func.code.length() == 0) continue;
 
-    wasm::BodyLocalDecls locals(&tmp);
+    wasm::BodyLocalDecls locals;
     wasm::BytecodeIterator iterator(module_start + func.code.offset(),
                                     module_start + func.code.end_offset(),
-                                    &locals);
+                                    &locals, &tmp);
     DCHECK_LT(0u, locals.encoded_size);
     for (; iterator.has_next(); iterator.next()) {
       uint32_t total_offset = func.code.offset() + iterator.pc_offset();

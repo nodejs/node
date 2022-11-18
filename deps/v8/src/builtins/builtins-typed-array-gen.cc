@@ -64,8 +64,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
                                  Int32Constant(bitfield_value));
 
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
-                                 UintPtrConstant(0));
+  StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
+                           UintPtrConstant(0));
   StoreSandboxedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
                                 EmptyBackingStoreBufferConstant());
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
@@ -141,7 +141,7 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
     // Default to zero if the {receiver}s buffer was detached.
     TNode<UintPtrT> byte_length = Select<UintPtrT>(
         IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSArrayBufferViewRawByteLength(receiver_array); });
+        [=] { return LoadJSArrayBufferViewByteLength(receiver_array); });
     Return(ChangeUintPtrToTagged(byte_length));
   }
 }

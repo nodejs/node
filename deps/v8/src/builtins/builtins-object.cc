@@ -4,10 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
 #include "src/common/message-template.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
@@ -149,6 +148,10 @@ Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
       }
+
+      case LookupIterator::WASM_OBJECT:
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::DATA:

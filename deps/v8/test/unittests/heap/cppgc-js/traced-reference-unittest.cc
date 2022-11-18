@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/cppgc/visitor.h"
+#include "src/heap/marking-state-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -37,8 +37,7 @@ void SealCurrentObjects(Heap* heap) {
   CHECK(!v8_flags.stress_concurrent_allocation);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
-  heap->mark_compact_collector()->EnsureSweepingCompleted(
-      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
     page->MarkNeverAllocateForTesting();
@@ -260,12 +259,11 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   const double kStepSizeInMs = 100;
   CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
 
-  if (collector->sweeping_in_progress()) {
+  if (heap->sweeping_in_progress()) {
     SafepointScope scope(heap);
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 
   if (marking->IsMinorMarking()) {
@@ -297,10 +295,9 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
-  i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  if (space->heap()->sweeping_in_progress()) {
+    space->heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
   space->FreeLinearAllocationArea();
   space->ResetFreeList();
@@ -315,10 +312,10 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 
 void GcAndSweep(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
-  if (heap->mark_compact_collector()->sweeping_in_progress()) {
+  if (heap->sweeping_in_progress()) {
     SafepointScope scope(heap);
-    heap->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 }
 

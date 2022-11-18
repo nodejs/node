@@ -61,16 +61,6 @@
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # Lite mode does not allocate feedback vector.
-  'type-profiler/type-profile-start-stop': [SKIP],
-  'type-profiler/type-profile': [SKIP],
-  'type-profiler/type-profile-with-to-string-tag': [SKIP],
-  'type-profiler/type-profile-with-classes': [SKIP],
-  'type-profiler/type-profile-disable': [SKIP],
-}],  # 'lite_mode or variant == jitless'
-
-##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
   'cpu-profiler/coverage': [SKIP],
@@ -176,7 +166,6 @@
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
-  'type-profiler/type-profile-start-stop': [SKIP],
 }], # gc_stress
 
 ##############################################################################
@@ -281,7 +270,8 @@
   'debugger/continue-to-location-target-call-frames': [SKIP],
   'debugger/destroy-in-break-program': [SKIP],
   'debugger/destroy-in-break-program2': [SKIP],
-  'debugger/destructuring': [SKIP],
+  'debugger/array-destructuring': [SKIP],
+  'debugger/object-destructuring': [SKIP],
   'debugger/disable-agent-on-pause': [SKIP],
   'debugger/doesnt-step-into-injected-script': [SKIP],
   'debugger/es6-module-liveedit': [SKIP],
@@ -528,11 +518,6 @@
   'sessions/runtime-evaluate': [SKIP],
   'sessions/runtime-evaluate-exception': [SKIP],
   'sessions/runtime-remote-object': [SKIP],
-  'type-profiler/type-profile': [SKIP],
-  'type-profiler/type-profile-disable': [SKIP],
-  'type-profiler/type-profile-start-stop': [SKIP],
-  'type-profiler/type-profile-with-classes': [SKIP],
-  'type-profiler/type-profile-with-to-string-tag': [SKIP],
   'regress/regress-crbug-1195927': [SKIP],
 }], # third_party_heap
 
@@ -552,5 +537,10 @@
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
   'debugger/value-unavailable-scopes': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
+
+##############################################################################
+['single_generation', {
+  'heap-profiler/sampling-heap-profiler-flags': [SKIP],
+}], # single_generation
 
 ]

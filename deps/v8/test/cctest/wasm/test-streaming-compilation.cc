@@ -1253,9 +1253,8 @@ STREAM_TEST(TestIncrementalCaching) {
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Handle<Script> script = GetWasmEngine()->GetOrCreateScript(
       i_isolate, tester.shared_native_module(), kNoSourceUrl);
-  Handle<FixedArray> export_wrappers = i_isolate->factory()->NewFixedArray(3);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      i_isolate, tester.shared_native_module(), script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(i_isolate, tester.shared_native_module(), script);
   ErrorThrower thrower(i_isolate, "Instantiation");
   // We instantiated before, so the second instantiation must also succeed:
   Handle<WasmInstanceObject> instance =

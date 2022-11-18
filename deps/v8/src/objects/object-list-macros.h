@@ -158,6 +158,7 @@ class ZoneForwardList;
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \
   V(JSProxy)                                    \
+  V(JSRawJson)                                  \
   V(JSReceiver)                                 \
   V(JSRegExp)                                   \
   V(JSRegExpStringIterator)                     \
@@ -279,6 +280,7 @@ class ZoneForwardList;
   V(JSCollator)                           \
   V(JSDateTimeFormat)                     \
   V(JSDisplayNames)                       \
+  V(JSDurationFormat)                     \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSNumberFormat)                       \

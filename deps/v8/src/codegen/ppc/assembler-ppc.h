@@ -309,10 +309,9 @@ class Assembler : public AssemblerBase {
   static constexpr int kMovInstructionsNoConstantPool = 2;
   static constexpr int kTaggedLoadInstructions = 1;
 #endif
-  static constexpr int kMovInstructions =
-      v8_flags.enable_embedded_constant_pool.value()
-          ? kMovInstructionsConstantPool
-          : kMovInstructionsNoConstantPool;
+  static constexpr int kMovInstructions = V8_EMBEDDED_CONSTANT_POOL_BOOL
+                                              ? kMovInstructionsConstantPool
+                                              : kMovInstructionsNoConstantPool;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
@@ -895,6 +894,8 @@ class Assembler : public AssemblerBase {
 
   void mulhw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulhwu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhd(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhdu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
   void mulli(Register dst, Register src, const Operand& imm);
 
   void divw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,

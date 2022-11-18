@@ -1111,7 +1111,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   {
     // Restore actual argument count.
     __ movd(eax, xmm0);
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
   }
 
   __ bind(&compile_lazy);
@@ -1640,8 +1640,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // requires the stack to only contain valid frames.
     __ Drop(2);
     __ movd(arg_count, saved_arg_count);  // Restore actual argument count.
-    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(flags,
-                                                    saved_feedback_vector);
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, saved_feedback_vector);
     __ Trap();
   }
 

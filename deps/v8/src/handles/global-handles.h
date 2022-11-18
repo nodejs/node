@@ -165,6 +165,13 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
 
+  void NotifyStartSweepingOnMutatorThread() {
+    is_sweeping_on_mutator_thread_ = true;
+  }
+  void NotifyEndSweepingOnMutatorThread() {
+    is_sweeping_on_mutator_thread_ = false;
+  }
+
 #ifdef DEBUG
   void PrintStats();
   void Print();
@@ -198,6 +205,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   Isolate* const isolate_;
   bool is_marking_ = false;
+  bool is_sweeping_on_mutator_thread_ = false;
 
   std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding young objects. Note: when the list

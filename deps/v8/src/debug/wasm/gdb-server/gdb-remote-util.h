@@ -15,9 +15,9 @@ namespace internal {
 namespace wasm {
 namespace gdb_server {
 
-#define TRACE_GDB_REMOTE(...)                                            \
-  do {                                                                   \
-    if (FLAG_trace_wasm_gdb_remote) PrintF("[gdb-remote] " __VA_ARGS__); \
+#define TRACE_GDB_REMOTE(...)                                                \
+  do {                                                                       \
+    if (v8_flags.trace_wasm_gdb_remote) PrintF("[gdb-remote] " __VA_ARGS__); \
   } while (false)
 
 // Convert from 0-255 to a pair of ASCII chars (0-9,a-f).

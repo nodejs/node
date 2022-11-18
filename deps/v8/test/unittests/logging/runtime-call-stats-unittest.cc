@@ -460,8 +460,8 @@ static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }  // namespace
 
 TEST_F(RuntimeCallStatsTest, CallbackFunction) {
-  FLAG_allow_natives_syntax = true;
-  FLAG_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -539,8 +539,8 @@ TEST_F(RuntimeCallStatsTest, CallbackFunction) {
 }
 
 TEST_F(RuntimeCallStatsTest, ApiGetter) {
-  FLAG_allow_natives_syntax = true;
-  FLAG_incremental_marking = false;
+  v8_flags.allow_natives_syntax = true;
+  v8_flags.incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -627,12 +627,12 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
 }
 
 TEST_F(RuntimeCallStatsTest, GarbageCollection) {
-  if (FLAG_stress_incremental_marking) return;
-  FLAG_expose_gc = true;
+  if (v8_flags.stress_incremental_marking) return;
+  v8_flags.expose_gc = true;
   // Disable concurrent GC threads because otherwise they may continue
   // running after this test completes and race with is_runtime_stats_enabled()
   // updates.
-  FLAG_single_threaded_gc = true;
+  v8_flags.single_threaded_gc = true;
 
   FlagList::EnforceFlagImplications();
   v8::Isolate* isolate = v8_isolate();

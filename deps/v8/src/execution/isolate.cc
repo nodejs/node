@@ -94,6 +94,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
@@ -983,8 +984,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure)) {
+        IsBuiltinFunction(
+            isolate, reaction->fulfill_handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure)) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -1106,8 +1108,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
                           Builtin::kAsyncFunctionAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncGeneratorAwaitResolveClosure) ||
-        IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                          Builtin::kAsyncGeneratorYieldResolveClosure) ||
+        IsBuiltinFunction(
+            isolate, promise_reaction_job_task->handler(),
+            Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                           Builtin::kAsyncFunctionAwaitRejectClosure) ||
         IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
@@ -3278,13 +3281,15 @@ Isolate* Isolate::GetProcessWideSharedIsolate(bool* created_shared_isolate) {
     DCHECK(HasFlagThatRequiresSharedHeap());
     FATAL(
         "Build configuration does not support creating shared heap. The RO "
-        "heap must be shared, and pointer compression must either be off or "
-        "use a shared cage. V8 is compiled with RO heap %s and pointers %s.",
+        "heap must be shared, pointer compression must either be off or "
+        "use a shared cage, and write barriers must not be disabled. V8 is "
+        "compiled with RO heap %s, pointers %s and write barriers %s.",
         V8_SHARED_RO_HEAP_BOOL ? "SHARED" : "NOT SHARED",
         !COMPRESS_POINTERS_BOOL ? "NOT COMPRESSED"
                                 : (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
                                        ? "COMPRESSED IN SHARED CAGE"
-                                       : "COMPRESSED IN PER-ISOLATE CAGE"));
+                                       : "COMPRESSED IN PER-ISOLATE CAGE"),
+        V8_DISABLE_WRITE_BARRIERS_BOOL ? "DISABLED" : "ENABLED");
   }
 
   base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
@@ -3582,7 +3587,7 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  if (is_shared() || is_shared_space_isolate()) {
+  if (is_shared()) {
     global_safepoint()->AssertNoClientsOnTearDown();
   }
 
@@ -3626,12 +3631,20 @@ void Isolate::Deinit() {
   // At this point there are no more background threads left in this isolate.
   heap_.safepoint()->AssertMainThreadIsOnlyThread();
 
+  // Tear down data using the shared heap before detaching.
+  heap_.TearDownWithSharedHeap();
+
   {
     // This isolate might have to park for a shared GC initiated by another
     // client isolate before it can actually detach from the shared isolate.
     AllowGarbageCollection allow_shared_gc;
     DetachFromSharedIsolate();
     DetachFromSharedSpaceIsolate();
+  }
+
+  // All client isolates should already be detached.
+  if (is_shared_space_isolate()) {
+    global_safepoint()->AssertNoClientsOnTearDown();
   }
 
   // Since there are no other threads left, we can lock this mutex without any
@@ -4143,11 +4156,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (HasFlagThatRequiresSharedHeap() && v8_flags.shared_space) {
     if (process_wide_shared_space_isolate_) {
-      attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
+      owns_shareable_data_ = false;
     } else {
       process_wide_shared_space_isolate_ = this;
       is_shared_space_isolate_ = true;
+      DCHECK(owns_shareable_data_);
     }
+
+    attach_to_shared_space_isolate = process_wide_shared_space_isolate_;
   }
 
   CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
@@ -4230,8 +4246,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // during deserialization.
   base::Optional<base::MutexGuard> clients_guard;
 
-  if (shared_isolate_) {
-    clients_guard.emplace(&shared_isolate_->global_safepoint()->clients_mutex_);
+  if (Isolate* isolate =
+          shared_isolate_ ? shared_isolate_ : attach_to_shared_space_isolate) {
+    clients_guard.emplace(&isolate->global_safepoint()->clients_mutex_);
   }
 
   // The main thread LocalHeap needs to be set up when attaching to the shared
@@ -4239,6 +4256,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // LocalHeaps and not wait until this thread is ready for a GC.
   AttachToSharedIsolate();
   AttachToSharedSpaceIsolate(attach_to_shared_space_isolate);
+
+  // Ensure that we use at most one of shared_isolate() and
+  // shared_space_isolate().
+  DCHECK_IMPLIES(shared_isolate(), !shared_space_isolate());
+  DCHECK_IMPLIES(shared_space_isolate(), !shared_isolate());
 
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
@@ -4252,9 +4274,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
-    DCHECK_NOT_NULL(shared_isolate());
-    string_table_ = shared_isolate()->string_table_;
-    string_forwarding_table_ = shared_isolate()->string_forwarding_table_;
+    DCHECK(has_shared_heap());
+    DCHECK(!is_shared());
+    DCHECK(!is_shared_space_isolate());
+    string_table_ = shared_heap_isolate()->string_table_;
+    string_forwarding_table_ = shared_heap_isolate()->string_forwarding_table_;
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && v8_flags.short_builtin_calls) {
@@ -4287,9 +4311,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #ifdef V8_EXTERNAL_CODE_SPACE
   if (heap_.code_range()) {
-    code_cage_base_ = GetPtrComprCageBaseAddress(heap_.code_range()->base());
+    code_cage_base_ = ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
+        heap_.code_range()->base());
   } else {
-    code_cage_base_ = cage_base();
+    CHECK(jitless_);
+    // In jitless mode the code space pages will be allocated in the main
+    // pointer compression cage.
+    code_cage_base_ =
+        ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(cage_base());
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -4301,9 +4330,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init(this);
   } else {
-    DCHECK_NOT_NULL(shared_isolate());
+    DCHECK(has_shared_heap());
     isolate_data_.shared_external_pointer_table_ =
-        shared_isolate()->isolate_data_.shared_external_pointer_table_;
+        shared_heap_isolate()->isolate_data_.shared_external_pointer_table_;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -5946,6 +5975,7 @@ void Isolate::AttachToSharedIsolate() {
 
   if (shared_isolate_) {
     DCHECK(shared_isolate_->is_shared());
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->AppendClient(this);
   }
 
@@ -5958,6 +5988,7 @@ void Isolate::DetachFromSharedIsolate() {
   DCHECK(attached_to_shared_isolate_);
 
   if (shared_isolate_) {
+    DCHECK(!v8_flags.shared_space);
     shared_isolate_->global_safepoint()->RemoveClient(this);
     shared_isolate_ = nullptr;
   }
@@ -5971,6 +6002,7 @@ void Isolate::AttachToSharedSpaceIsolate(Isolate* shared_space_isolate) {
   DCHECK(!shared_space_isolate_.has_value());
   shared_space_isolate_ = shared_space_isolate;
   if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->AppendClient(this);
   }
 }
@@ -5979,6 +6011,7 @@ void Isolate::DetachFromSharedSpaceIsolate() {
   DCHECK(shared_space_isolate_.has_value());
   Isolate* shared_space_isolate = shared_space_isolate_.value();
   if (shared_space_isolate) {
+    DCHECK(v8_flags.shared_space);
     shared_space_isolate->global_safepoint()->RemoveClient(this);
   }
   shared_space_isolate_.reset();
@@ -5999,6 +6032,49 @@ ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
   return handle;
 }
 #endif  // V8_COMPRESS_POINTERS
+
+void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+                                      Handle<ScopeInfo> outer_scope_info,
+                                      Handle<StringSet> locals_blocklist) {
+  Handle<EphemeronHashTable> cache;
+  if (heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    cache = handle(EphemeronHashTable::cast(heap()->locals_block_list_cache()),
+                   this);
+  } else {
+    CHECK(heap()->locals_block_list_cache().IsUndefined());
+    constexpr int kInitialCapacity = 8;
+    cache = EphemeronHashTable::New(this, kInitialCapacity);
+  }
+  DCHECK(cache->IsEphemeronHashTable());
+
+  Handle<Object> value;
+  if (!outer_scope_info.is_null()) {
+    value = factory()->NewTuple2(outer_scope_info, locals_blocklist,
+                                 AllocationType::kYoung);
+  } else {
+    value = locals_blocklist;
+  }
+
+  CHECK(!value.is_null());
+  cache = EphemeronHashTable::Put(cache, scope_info, value);
+  heap()->set_locals_block_list_cache(*cache);
+}
+
+Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
+  DisallowGarbageCollection no_gc;
+
+  if (!heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+    return ReadOnlyRoots(this).the_hole_value();
+  }
+
+  Object maybe_value =
+      EphemeronHashTable::cast(heap()->locals_block_list_cache())
+          .Lookup(scope_info);
+  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value).value2();
+
+  CHECK(maybe_value.IsStringSet() || maybe_value.IsTheHole());
+  return maybe_value;
+}
 
 namespace {
 class DefaultWasmAsyncResolvePromiseTask : public v8::Task {

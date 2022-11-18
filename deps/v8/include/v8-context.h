@@ -290,6 +290,7 @@ class V8_EXPORT Context : public Data {
                        Local<Function> after_hook,
                        Local<Function> resolve_hook);
 
+  bool HasTemplateLiteralObject(Local<Value> object);
   /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.

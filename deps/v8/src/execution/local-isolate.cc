@@ -60,11 +60,6 @@ int LocalIsolate::GetNextUniqueSharedFunctionInfoId() {
 }
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-bool LocalIsolate::is_collecting_type_profile() const {
-  // TODO(leszeks): Figure out if it makes sense to check this asynchronously.
-  return isolate_->is_collecting_type_profile();
-}
-
 // Used for lazy initialization, based on an assumption that most
 // LocalIsolates won't be used to parse any BigInt literals.
 void LocalIsolate::InitializeBigIntProcessor() {

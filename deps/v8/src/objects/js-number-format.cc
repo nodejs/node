@@ -458,7 +458,8 @@ const icu::UnicodeString CurrencyFromSkeleton(
   return skeleton.tempSubString(index, 3);
 }
 
-const icu::UnicodeString NumberingSystemFromSkeleton(
+}  // namespace
+const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
     const icu::UnicodeString& skeleton) {
   const char numbering_system[] = "numbering-system/";
   int32_t index = skeleton.indexOf(numbering_system);
@@ -469,6 +470,8 @@ const icu::UnicodeString NumberingSystemFromSkeleton(
   if (index < 0) return res;
   return res.tempSubString(0, index);
 }
+
+namespace {
 
 // Return CurrencySign as string based on skeleton.
 Handle<String> CurrencySignString(Isolate* isolate,
@@ -949,7 +952,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 
   Handle<String> locale = Handle<String>(number_format->locale(), isolate);
   const icu::UnicodeString numberingSystem_ustr =
-      NumberingSystemFromSkeleton(skeleton);
+      JSNumberFormat::NumberingSystemFromSkeleton(skeleton);
   // 5. For each row of Table 4, except the header row, in table order, do
   // Table 4: Resolved Options of NumberFormat Instances
   //  Internal Slot                    Property

@@ -137,7 +137,7 @@ TEST_F(RunJSCallsTest, ConstructorCall) {
 }
 
 TEST_F(RunJSCallsTest, RuntimeCall) {
-  FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
   FunctionTester T(i_isolate(), "(function(a) { return %IsJSReceiver(a); })");
 
   T.CheckCall(T.false_value(), T.NewNumber(23), T.undefined());

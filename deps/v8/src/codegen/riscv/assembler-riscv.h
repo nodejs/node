@@ -580,9 +580,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       }
     }
 
+    void clear() {
+      sew_ = kVsInvalid;
+      lmul_ = kVlInvalid;
+    }
+
    private:
-    VSew sew_ = E8;
-    Vlmul lmul_ = m1;
+    VSew sew_ = kVsInvalid;
+    Vlmul lmul_ = kVlInvalid;
     int32_t vl = 0;
     Assembler* assm_;
     FPURoundingMode mode_ = RNE;

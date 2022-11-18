@@ -1096,7 +1096,7 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
-  if (!delegate_ || isolate_->shared_isolate() == nullptr) {
+  if (!delegate_ || !isolate_->has_shared_heap()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
@@ -1340,6 +1340,9 @@ Maybe<T> ValueDeserializer::ReadVarintLoop() {
       // Since {value} is not modified in this branch we can safely skip the
       // DCHECK when fuzzing.
       DCHECK_IMPLIES(!v8_flags.fuzzing, !has_another_byte);
+      // For consistency with the fast unrolled loop in ReadVarint we return
+      // after we have read size(T) + 1 bytes.
+      return Just(value);
     }
     position_++;
   } while (has_another_byte);
@@ -1476,6 +1479,12 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
+#if defined(DEBUG) && defined(VERIFY_HEAP)
+  if (!result.is_null() && v8_flags.enable_slow_asserts &&
+      v8_flags.verify_heap) {
+    object->ObjectVerify(isolate_);
+  }
+#endif
 
   return result;
 }
@@ -2100,7 +2109,7 @@ bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
     if (!v8_flags.harmony_rab_gsab) {
       return false;
     }
-    if (!buffer.is_resizable()) {
+    if (!buffer.is_resizable_by_js()) {
       return false;
     }
     if (is_backed_by_rab && buffer.is_shared()) {

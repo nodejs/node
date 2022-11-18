@@ -9,7 +9,6 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/oddball.h"
 #include "src/wasm/decoder.h"
-#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

@@ -52,14 +52,17 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
                                              Handle<JSFunction> function)
     : zone_(isolate->allocator(), kMaglevZoneName),
-      isolate_(isolate),
       broker_(new compiler::JSHeapBroker(
-          isolate, zone(), FLAG_trace_heap_broker, CodeKind::MAGLEV))
-#define V(Name) , Name##_(FLAG_##Name)
+          isolate, zone(), v8_flags.trace_heap_broker, CodeKind::MAGLEV))
+#define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
-{
-  DCHECK(FLAG_maglev);
+      ,
+      specialize_to_function_context_(
+          v8_flags.maglev_function_context_specialization &&
+          function->raw_feedback_cell().map() ==
+              ReadOnlyRoots(isolate).one_closure_cell_map()) {
+  DCHECK(v8_flags.maglev);
 
   MaglevCompilationHandleScope compilation(isolate, this);
 

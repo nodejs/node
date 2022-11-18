@@ -72,7 +72,7 @@ bool MustAlias(Node* a, Node* b) {
 }  // namespace
 
 Reduction LoadElimination::Reduce(Node* node) {
-  if (FLAG_trace_turbo_load_elimination) {
+  if (v8_flags.trace_turbo_load_elimination) {
     if (node->op()->EffectInputCount() > 0) {
       PrintF(" visit #%d:%s", node->id(), node->op()->mnemonic());
       if (node->op()->ValueInputCount() > 0) {

@@ -529,12 +529,20 @@ void BytecodeAnalysis::Analyze() {
             ResumeJumpTarget::Leaf(suspend_id, resume_offset));
       }
 
+      if (bytecode == Bytecode::kResumeGenerator) {
+        current_loop_info->mark_resumable();
+      }
+
       // If we've reached the header of the loop, pop it off the stack.
       if (current_offset == current_loop.header_offset) {
         loop_stack_.pop();
         if (loop_stack_.size() > 1) {
           // If there is still an outer loop, propagate inner loop assignments.
           LoopInfo* parent_loop_info = loop_stack_.top().loop_info;
+
+          if (current_loop_info->resumable()) {
+            parent_loop_info->mark_resumable();
+          }
 
           parent_loop_info->assignments().Union(
               current_loop_info->assignments());
@@ -704,7 +712,7 @@ void BytecodeAnalysis::Analyze() {
   }
 
   DCHECK(analyze_liveness_);
-  if (FLAG_trace_environment_liveness) {
+  if (v8_flags.trace_environment_liveness) {
     StdoutStream of;
     PrintLivenessTo(of);
   }

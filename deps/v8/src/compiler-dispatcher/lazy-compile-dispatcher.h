@@ -189,7 +189,8 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   std::unique_ptr<JobHandle> job_handle_;
 
-  // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
+  // Copy of v8_flags.trace_compiler_dispatcher to allow for access from any
+  // thread.
   bool trace_compiler_dispatcher_;
 
   std::unique_ptr<CancelableTaskManager> idle_task_manager_;

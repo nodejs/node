@@ -5218,8 +5218,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
@@ -5232,8 +5231,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
   if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
-           RelocInfo::IsLiteralConstant(rmode));
+    DCHECK(RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
   }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);

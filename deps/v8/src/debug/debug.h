@@ -148,12 +148,12 @@ class V8_EXPORT_PRIVATE BreakIterator {
   void ClearDebugBreak();
   void SetDebugBreak();
 
+  DebugBreakType GetDebugBreakType();
+
  private:
   int BreakIndexFromPosition(int position);
 
   Isolate* isolate();
-
-  DebugBreakType GetDebugBreakType();
 
   Handle<DebugInfo> debug_info_;
   int break_index_;

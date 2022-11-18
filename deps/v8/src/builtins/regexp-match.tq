@@ -33,7 +33,8 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
   }
 
   dcheck(isGlobal);
-  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath);
+  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
+      FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
 
   StoreLastIndex(regexp, 0, isFastPath);
 

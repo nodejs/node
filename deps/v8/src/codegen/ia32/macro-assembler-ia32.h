@@ -564,7 +564,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, XMMRegister saved_feedback_vector,
       CodeKind current_code_kind, Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(
       Register flags, XMMRegister saved_feedback_vector);
 
   // Abort execution if argument is not a smi, enabled via --debug-code.

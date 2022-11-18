@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -267,8 +267,8 @@ TEST(DispatchableTest, FaultyCBORTrailingJunk) {
   Dispatchable dispatchable(SpanFrom(cbor));
   EXPECT_FALSE(dispatchable.ok());
   EXPECT_EQ(DispatchCode::PARSE_ERROR, dispatchable.DispatchError().Code());
-  EXPECT_EQ(56u, trailing_junk_pos);
-  EXPECT_EQ("CBOR: trailing junk at position 56",
+  EXPECT_EQ(57u, trailing_junk_pos);
+  EXPECT_EQ("CBOR: trailing junk at position 57",
             dispatchable.DispatchError().Message());
 }
 

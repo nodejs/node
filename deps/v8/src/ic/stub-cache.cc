@@ -50,7 +50,7 @@ void StubCache::Initialize() {
 // is scaled by 1 << kCacheIndexShift.
 int StubCache::PrimaryOffset(Name name, Map map) {
   // Compute the hash of the name (use entire hash field).
-  uint32_t field = name.raw_hash_field();
+  uint32_t field = name.RawHash();
   DCHECK(Name::IsHashFieldComputed(field));
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than

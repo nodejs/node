@@ -220,6 +220,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
+                                        Register scratch);
+
   inline void Move(Register output, MemOperand operand) { Ld(output, operand); }
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
@@ -448,6 +457,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Mulhu)
   DEFINE_INSTRUCTION(Dmul)
   DEFINE_INSTRUCTION(Dmulh)
+  DEFINE_INSTRUCTION(Dmulhu)
   DEFINE_INSTRUCTION2(Mult)
   DEFINE_INSTRUCTION2(Dmult)
   DEFINE_INSTRUCTION2(Multu)
@@ -767,9 +777,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // overflow occured, otherwise it is zero or positive
   void DsubOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
-  // MulOverflow sets overflow register to zero if no overflow occured
+  // [D]MulOverflow set overflow register to zero if no overflow occured
   void MulOverflow(Register dst, Register left, const Operand& right,
                    Register overflow);
+  void DMulOverflow(Register dst, Register left, const Operand& right,
+                    Register overflow);
 
 // Number of instructions needed for calculation of switch table entry address
 #ifdef _MIPS_ARCH_MIPS64R6
@@ -1243,8 +1255,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {

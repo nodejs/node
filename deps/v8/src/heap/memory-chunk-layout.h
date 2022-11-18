@@ -72,6 +72,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     FIELD(ObjectStartBitmap, ObjectStartBitmap),
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+    FIELD(size_t, WasUsedForAllocation),
     kMarkingBitmapOffset,
     kMemoryChunkHeaderSize = kMarkingBitmapOffset,
     kMemoryChunkHeaderStart = kSlotSetOffset,
@@ -89,6 +90,8 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
 
   static int MaxRegularCodeObjectSize();
+
+  static_assert(kMemoryChunkHeaderSize % alignof(size_t) == 0);
 };
 
 }  // namespace internal

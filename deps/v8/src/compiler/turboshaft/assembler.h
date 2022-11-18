@@ -11,16 +11,14 @@
 #include <memory>
 #include <type_traits>
 
-#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
-#include "src/codegen/machine-type.h"
-#include "src/codegen/source-position.h"
+#include "src/codegen/reloc-info.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -32,231 +30,375 @@ class AssemblerInterface : public Superclass {
   using Superclass::Superclass;
   using Base = Superclass;
 
-#define DECL_MULTI_REP_BINOP(name, operation, kind)                        \
-  OpIndex name(OpIndex left, OpIndex right, MachineRepresentation rep) {   \
+#define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)              \
+  OpIndex name(OpIndex left, OpIndex right, rep_type rep) {                \
     return subclass().operation(left, right, operation##Op::Kind::k##kind, \
                                 rep);                                      \
   }
 #define DECL_SINGLE_REP_BINOP(name, operation, kind, rep)                  \
   OpIndex name(OpIndex left, OpIndex right) {                              \
     return subclass().operation(left, right, operation##Op::Kind::k##kind, \
-                                MachineRepresentation::k##rep);            \
+                                rep);                                      \
   }
-#define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep)                  \
-  OpIndex name(OpIndex left, OpIndex right) {                                \
-    return subclass().operation(left, right, MachineRepresentation::k##rep); \
+#define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep) \
+  OpIndex name(OpIndex left, OpIndex right) {               \
+    return subclass().operation(left, right, rep);          \
   }
-  DECL_MULTI_REP_BINOP(WordAdd, WordBinop, Add)
-  DECL_SINGLE_REP_BINOP(Word32Add, WordBinop, Add, Word32)
-  DECL_SINGLE_REP_BINOP(Word64Add, WordBinop, Add, Word64)
+  DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
+  DECL_SINGLE_REP_BINOP(Word32Add, WordBinop, Add, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64Add, WordBinop, Add, WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(WordMul, WordBinop, Mul)
-  DECL_SINGLE_REP_BINOP(Word32Mul, WordBinop, Mul, Word32)
-  DECL_SINGLE_REP_BINOP(Word64Mul, WordBinop, Mul, Word64)
+  DECL_MULTI_REP_BINOP(WordMul, WordBinop, WordRepresentation, Mul)
+  DECL_SINGLE_REP_BINOP(Word32Mul, WordBinop, Mul, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64Mul, WordBinop, Mul, WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(WordBitwiseAnd, WordBinop, BitwiseAnd)
-  DECL_SINGLE_REP_BINOP(Word32BitwiseAnd, WordBinop, BitwiseAnd, Word32)
-  DECL_SINGLE_REP_BINOP(Word64BitwiseAnd, WordBinop, BitwiseAnd, Word64)
+  DECL_MULTI_REP_BINOP(WordBitwiseAnd, WordBinop, WordRepresentation,
+                       BitwiseAnd)
+  DECL_SINGLE_REP_BINOP(Word32BitwiseAnd, WordBinop, BitwiseAnd,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64BitwiseAnd, WordBinop, BitwiseAnd,
+                        WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(WordBitwiseOr, WordBinop, BitwiseOr)
-  DECL_SINGLE_REP_BINOP(Word32BitwiseOr, WordBinop, BitwiseOr, Word32)
-  DECL_SINGLE_REP_BINOP(Word64BitwiseOr, WordBinop, BitwiseOr, Word64)
+  DECL_MULTI_REP_BINOP(WordBitwiseOr, WordBinop, WordRepresentation, BitwiseOr)
+  DECL_SINGLE_REP_BINOP(Word32BitwiseOr, WordBinop, BitwiseOr,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64BitwiseOr, WordBinop, BitwiseOr,
+                        WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(WordBitwiseXor, WordBinop, BitwiseXor)
-  DECL_SINGLE_REP_BINOP(Word32BitwiseXor, WordBinop, BitwiseXor, Word32)
-  DECL_SINGLE_REP_BINOP(Word64BitwiseXor, WordBinop, BitwiseXor, Word64)
+  DECL_MULTI_REP_BINOP(WordBitwiseXor, WordBinop, WordRepresentation,
+                       BitwiseXor)
+  DECL_SINGLE_REP_BINOP(Word32BitwiseXor, WordBinop, BitwiseXor,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64BitwiseXor, WordBinop, BitwiseXor,
+                        WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(WordSub, WordBinop, Sub)
-  DECL_SINGLE_REP_BINOP(Word32Sub, WordBinop, Sub, Word32)
-  DECL_SINGLE_REP_BINOP(Word64Sub, WordBinop, Sub, Word64)
+  DECL_MULTI_REP_BINOP(WordSub, WordBinop, WordRepresentation, Sub)
+  DECL_SINGLE_REP_BINOP(Word32Sub, WordBinop, Sub, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64Sub, WordBinop, Sub, WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(IntDiv, WordBinop, SignedDiv)
-  DECL_SINGLE_REP_BINOP(Int32Div, WordBinop, SignedDiv, Word32)
-  DECL_SINGLE_REP_BINOP(Int64Div, WordBinop, SignedDiv, Word64)
-  DECL_MULTI_REP_BINOP(UintDiv, WordBinop, UnsignedDiv)
-  DECL_SINGLE_REP_BINOP(Uint32Div, WordBinop, UnsignedDiv, Word32)
-  DECL_SINGLE_REP_BINOP(Uint64Div, WordBinop, UnsignedDiv, Word64)
-  DECL_MULTI_REP_BINOP(IntMod, WordBinop, SignedMod)
-  DECL_SINGLE_REP_BINOP(Int32Mod, WordBinop, SignedMod, Word32)
-  DECL_SINGLE_REP_BINOP(Int64Mod, WordBinop, SignedMod, Word64)
-  DECL_MULTI_REP_BINOP(UintMod, WordBinop, UnsignedMod)
-  DECL_SINGLE_REP_BINOP(Uint32Mod, WordBinop, UnsignedMod, Word32)
-  DECL_SINGLE_REP_BINOP(Uint64Mod, WordBinop, UnsignedMod, Word64)
+  DECL_MULTI_REP_BINOP(IntDiv, WordBinop, WordRepresentation, SignedDiv)
+  DECL_SINGLE_REP_BINOP(Int32Div, WordBinop, SignedDiv,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Int64Div, WordBinop, SignedDiv,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintDiv, WordBinop, WordRepresentation, UnsignedDiv)
+  DECL_SINGLE_REP_BINOP(Uint32Div, WordBinop, UnsignedDiv,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Uint64Div, WordBinop, UnsignedDiv,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(IntMod, WordBinop, WordRepresentation, SignedMod)
+  DECL_SINGLE_REP_BINOP(Int32Mod, WordBinop, SignedMod,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Int64Mod, WordBinop, SignedMod,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintMod, WordBinop, WordRepresentation, UnsignedMod)
+  DECL_SINGLE_REP_BINOP(Uint32Mod, WordBinop, UnsignedMod,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Uint64Mod, WordBinop, UnsignedMod,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(IntMulOverflownBits, WordBinop, WordRepresentation,
+                       SignedMulOverflownBits)
   DECL_SINGLE_REP_BINOP(Int32MulOverflownBits, WordBinop,
-                        SignedMulOverflownBits, Word32)
+                        SignedMulOverflownBits, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Int64MulOverflownBits, WordBinop,
+                        SignedMulOverflownBits, WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintMulOverflownBits, WordBinop, WordRepresentation,
+                       UnsignedMulOverflownBits)
   DECL_SINGLE_REP_BINOP(Uint32MulOverflownBits, WordBinop,
-                        UnsignedMulOverflownBits, Word32)
+                        UnsignedMulOverflownBits, WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Uint64MulOverflownBits, WordBinop,
+                        UnsignedMulOverflownBits, WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(IntAddCheckOverflow, OverflowCheckedBinop, SignedAdd)
+  DECL_MULTI_REP_BINOP(IntAddCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedAdd)
   DECL_SINGLE_REP_BINOP(Int32AddCheckOverflow, OverflowCheckedBinop, SignedAdd,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Int64AddCheckOverflow, OverflowCheckedBinop, SignedAdd,
-                        Word64)
-  DECL_MULTI_REP_BINOP(IntSubCheckOverflow, OverflowCheckedBinop, SignedSub)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(IntSubCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedSub)
   DECL_SINGLE_REP_BINOP(Int32SubCheckOverflow, OverflowCheckedBinop, SignedSub,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Int64SubCheckOverflow, OverflowCheckedBinop, SignedSub,
-                        Word64)
-  DECL_MULTI_REP_BINOP(IntMulCheckOverflow, OverflowCheckedBinop, SignedMul)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(IntMulCheckOverflow, OverflowCheckedBinop,
+                       WordRepresentation, SignedMul)
   DECL_SINGLE_REP_BINOP(Int32MulCheckOverflow, OverflowCheckedBinop, SignedMul,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Int64MulCheckOverflow, OverflowCheckedBinop, SignedMul,
-                        Word64)
+                        WordRepresentation::Word64())
 
-  DECL_MULTI_REP_BINOP(FloatAdd, FloatBinop, Add)
-  DECL_SINGLE_REP_BINOP(Float32Add, FloatBinop, Add, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Add, FloatBinop, Add, Float64)
-  DECL_MULTI_REP_BINOP(FloatMul, FloatBinop, Mul)
-  DECL_SINGLE_REP_BINOP(Float32Mul, FloatBinop, Mul, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Mul, FloatBinop, Mul, Float64)
-  DECL_MULTI_REP_BINOP(FloatSub, FloatBinop, Sub)
-  DECL_SINGLE_REP_BINOP(Float32Sub, FloatBinop, Sub, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Sub, FloatBinop, Sub, Float64)
-  DECL_MULTI_REP_BINOP(FloatDiv, FloatBinop, Div)
-  DECL_SINGLE_REP_BINOP(Float32Div, FloatBinop, Div, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Div, FloatBinop, Div, Float64)
-  DECL_MULTI_REP_BINOP(FloatMin, FloatBinop, Min)
-  DECL_SINGLE_REP_BINOP(Float32Min, FloatBinop, Min, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Min, FloatBinop, Min, Float64)
-  DECL_MULTI_REP_BINOP(FloatMax, FloatBinop, Max)
-  DECL_SINGLE_REP_BINOP(Float32Max, FloatBinop, Max, Float32)
-  DECL_SINGLE_REP_BINOP(Float64Max, FloatBinop, Max, Float64)
-  DECL_SINGLE_REP_BINOP(Float64Mod, FloatBinop, Mod, Float64)
-  DECL_SINGLE_REP_BINOP(Float64Power, FloatBinop, Power, Float64)
-  DECL_SINGLE_REP_BINOP(Float64Atan2, FloatBinop, Atan2, Float64)
+  DECL_MULTI_REP_BINOP(FloatAdd, FloatBinop, FloatRepresentation, Add)
+  DECL_SINGLE_REP_BINOP(Float32Add, FloatBinop, Add,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Add, FloatBinop, Add,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_BINOP(FloatMul, FloatBinop, FloatRepresentation, Mul)
+  DECL_SINGLE_REP_BINOP(Float32Mul, FloatBinop, Mul,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Mul, FloatBinop, Mul,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_BINOP(FloatSub, FloatBinop, FloatRepresentation, Sub)
+  DECL_SINGLE_REP_BINOP(Float32Sub, FloatBinop, Sub,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Sub, FloatBinop, Sub,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_BINOP(FloatDiv, FloatBinop, FloatRepresentation, Div)
+  DECL_SINGLE_REP_BINOP(Float32Div, FloatBinop, Div,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Div, FloatBinop, Div,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_BINOP(FloatMin, FloatBinop, FloatRepresentation, Min)
+  DECL_SINGLE_REP_BINOP(Float32Min, FloatBinop, Min,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Min, FloatBinop, Min,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_BINOP(FloatMax, FloatBinop, FloatRepresentation, Max)
+  DECL_SINGLE_REP_BINOP(Float32Max, FloatBinop, Max,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64Max, FloatBinop, Max,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_BINOP(Float64Mod, FloatBinop, Mod,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_BINOP(Float64Power, FloatBinop, Power,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_BINOP(Float64Atan2, FloatBinop, Atan2,
+                        FloatRepresentation::Float64())
 
   DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
-                       ShiftRightArithmeticShiftOutZeros)
+                       WordRepresentation, ShiftRightArithmeticShiftOutZeros)
   DECL_SINGLE_REP_BINOP(Word32ShiftRightArithmeticShiftOutZeros, Shift,
-                        ShiftRightArithmeticShiftOutZeros, Word32)
+                        ShiftRightArithmeticShiftOutZeros,
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Word64ShiftRightArithmeticShiftOutZeros, Shift,
-                        ShiftRightArithmeticShiftOutZeros, Word64)
-  DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, ShiftRightArithmetic)
+                        ShiftRightArithmeticShiftOutZeros,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
+                       ShiftRightArithmetic)
   DECL_SINGLE_REP_BINOP(Word32ShiftRightArithmetic, Shift, ShiftRightArithmetic,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Word64ShiftRightArithmetic, Shift, ShiftRightArithmetic,
-                        Word64)
-  DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, ShiftRightLogical)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
+                       ShiftRightLogical)
   DECL_SINGLE_REP_BINOP(Word32ShiftRightLogical, Shift, ShiftRightLogical,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Word64ShiftRightLogical, Shift, ShiftRightLogical,
-                        Word64)
-  DECL_MULTI_REP_BINOP(ShiftLeft, Shift, ShiftLeft)
-  DECL_SINGLE_REP_BINOP(Word32ShiftLeft, Shift, ShiftLeft, Word32)
-  DECL_SINGLE_REP_BINOP(Word64ShiftLeft, Shift, ShiftLeft, Word64)
-  DECL_MULTI_REP_BINOP(RotateRight, Shift, RotateRight)
-  DECL_SINGLE_REP_BINOP(Word32RotateRight, Shift, RotateRight, Word32)
-  DECL_SINGLE_REP_BINOP(Word64RotateRight, Shift, RotateRight, Word64)
-  DECL_MULTI_REP_BINOP(RotateLeft, Shift, RotateLeft)
-  DECL_SINGLE_REP_BINOP(Word32RotateLeft, Shift, RotateLeft, Word32)
-  DECL_SINGLE_REP_BINOP(Word64RotateLeft, Shift, RotateLeft, Word64)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
+  DECL_SINGLE_REP_BINOP(Word32ShiftLeft, Shift, ShiftLeft,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64ShiftLeft, Shift, ShiftLeft,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
+  DECL_SINGLE_REP_BINOP(Word32RotateRight, Shift, RotateRight,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64RotateRight, Shift, RotateRight,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(RotateLeft, Shift, WordRepresentation, RotateLeft)
+  DECL_SINGLE_REP_BINOP(Word32RotateLeft, Shift, RotateLeft,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Word64RotateLeft, Shift, RotateLeft,
+                        WordRepresentation::Word64())
 
   OpIndex ShiftRightLogical(OpIndex left, uint32_t right,
-                            MachineRepresentation rep) {
+                            WordRepresentation rep) {
     DCHECK_GE(right, 0);
-    DCHECK_LT(right, ElementSizeInBits(rep));
-    return ShiftRightLogical(left, Word32Constant(right), rep);
+    DCHECK_LT(right, rep.bit_width());
+    return ShiftRightLogical(left, this->Word32Constant(right), rep);
   }
   OpIndex ShiftRightArithmetic(OpIndex left, uint32_t right,
-                               MachineRepresentation rep) {
+                               WordRepresentation rep) {
     DCHECK_GE(right, 0);
-    DCHECK_LT(right, ElementSizeInBits(rep));
-    return ShiftRightArithmetic(left, Word32Constant(right), rep);
+    DCHECK_LT(right, rep.bit_width());
+    return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
   }
 
-  DECL_SINGLE_REP_BINOP_NO_KIND(Word32Equal, Equal, Word32)
-  DECL_SINGLE_REP_BINOP_NO_KIND(Word64Equal, Equal, Word64)
-  DECL_SINGLE_REP_BINOP_NO_KIND(Float32Equal, Equal, Float32)
-  DECL_SINGLE_REP_BINOP_NO_KIND(Float64Equal, Equal, Float64)
+  DECL_SINGLE_REP_BINOP_NO_KIND(Word32Equal, Equal,
+                                WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP_NO_KIND(Word64Equal, Equal,
+                                WordRepresentation::Word64())
+  DECL_SINGLE_REP_BINOP_NO_KIND(Float32Equal, Equal,
+                                FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP_NO_KIND(Float64Equal, Equal,
+                                FloatRepresentation::Float64())
 
-  DECL_MULTI_REP_BINOP(IntLessThan, Comparison, SignedLessThan)
-  DECL_SINGLE_REP_BINOP(Int32LessThan, Comparison, SignedLessThan, Word32)
-  DECL_SINGLE_REP_BINOP(Int64LessThan, Comparison, SignedLessThan, Word64)
-  DECL_MULTI_REP_BINOP(UintLessThan, Comparison, UnsignedLessThan)
-  DECL_SINGLE_REP_BINOP(Uint32LessThan, Comparison, UnsignedLessThan, Word32)
-  DECL_SINGLE_REP_BINOP(Uint64LessThan, Comparison, UnsignedLessThan, Word64)
-  DECL_MULTI_REP_BINOP(FloatLessThan, Comparison, SignedLessThan)
-  DECL_SINGLE_REP_BINOP(Float32LessThan, Comparison, SignedLessThan, Float32)
-  DECL_SINGLE_REP_BINOP(Float64LessThan, Comparison, SignedLessThan, Float64)
+  DECL_MULTI_REP_BINOP(IntLessThan, Comparison, RegisterRepresentation,
+                       SignedLessThan)
+  DECL_SINGLE_REP_BINOP(Int32LessThan, Comparison, SignedLessThan,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Int64LessThan, Comparison, SignedLessThan,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintLessThan, Comparison, RegisterRepresentation,
+                       UnsignedLessThan)
+  DECL_SINGLE_REP_BINOP(Uint32LessThan, Comparison, UnsignedLessThan,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_BINOP(Uint64LessThan, Comparison, UnsignedLessThan,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(FloatLessThan, Comparison, RegisterRepresentation,
+                       SignedLessThan)
+  DECL_SINGLE_REP_BINOP(Float32LessThan, Comparison, SignedLessThan,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_BINOP(Float64LessThan, Comparison, SignedLessThan,
+                        FloatRepresentation::Float64())
 
-  DECL_MULTI_REP_BINOP(IntLessThanOrEqual, Comparison, SignedLessThanOrEqual)
+  DECL_MULTI_REP_BINOP(IntLessThanOrEqual, Comparison, RegisterRepresentation,
+                       SignedLessThanOrEqual)
   DECL_SINGLE_REP_BINOP(Int32LessThanOrEqual, Comparison, SignedLessThanOrEqual,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Int64LessThanOrEqual, Comparison, SignedLessThanOrEqual,
-                        Word64)
-  DECL_MULTI_REP_BINOP(UintLessThanOrEqual, Comparison, UnsignedLessThanOrEqual)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(UintLessThanOrEqual, Comparison, RegisterRepresentation,
+                       UnsignedLessThanOrEqual)
   DECL_SINGLE_REP_BINOP(Uint32LessThanOrEqual, Comparison,
-                        UnsignedLessThanOrEqual, Word32)
+                        UnsignedLessThanOrEqual, WordRepresentation::Word32())
   DECL_SINGLE_REP_BINOP(Uint64LessThanOrEqual, Comparison,
-                        UnsignedLessThanOrEqual, Word64)
-  DECL_MULTI_REP_BINOP(FloatLessThanOrEqual, Comparison, SignedLessThanOrEqual)
+                        UnsignedLessThanOrEqual, WordRepresentation::Word64())
+  DECL_MULTI_REP_BINOP(FloatLessThanOrEqual, Comparison, RegisterRepresentation,
+                       SignedLessThanOrEqual)
   DECL_SINGLE_REP_BINOP(Float32LessThanOrEqual, Comparison,
-                        SignedLessThanOrEqual, Float32)
+                        SignedLessThanOrEqual, FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP(Float64LessThanOrEqual, Comparison,
-                        SignedLessThanOrEqual, Float64)
+                        SignedLessThanOrEqual, FloatRepresentation::Float64())
 
 #undef DECL_SINGLE_REP_BINOP
 #undef DECL_MULTI_REP_BINOP
 #undef DECL_SINGLE_REP_BINOP_NO_KIND
 
-#define DECL_MULTI_REP_UNARY(name, operation, kind)                        \
-  OpIndex name(OpIndex input, MachineRepresentation rep) {                 \
+#define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)              \
+  OpIndex name(OpIndex input, rep_type rep) {                              \
     return subclass().operation(input, operation##Op::Kind::k##kind, rep); \
   }
-#define DECL_SINGLE_REP_UNARY(name, operation, kind, rep)            \
-  OpIndex name(OpIndex input) {                                      \
-    return subclass().operation(input, operation##Op::Kind::k##kind, \
-                                MachineRepresentation::k##rep);      \
+#define DECL_SINGLE_REP_UNARY(name, operation, kind, rep)                  \
+  OpIndex name(OpIndex input) {                                            \
+    return subclass().operation(input, operation##Op::Kind::k##kind, rep); \
   }
 
-  DECL_MULTI_REP_UNARY(FloatAbs, FloatUnary, Abs)
-  DECL_SINGLE_REP_UNARY(Float32Abs, FloatUnary, Abs, Float32)
-  DECL_SINGLE_REP_UNARY(Float64Abs, FloatUnary, Abs, Float64)
-  DECL_MULTI_REP_UNARY(FloatNegate, FloatUnary, Negate)
-  DECL_SINGLE_REP_UNARY(Float32Negate, FloatUnary, Negate, Float32)
-  DECL_SINGLE_REP_UNARY(Float64Negate, FloatUnary, Negate, Float64)
-  DECL_SINGLE_REP_UNARY(Float64SilenceNaN, FloatUnary, SilenceNaN, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundDown, FloatUnary, RoundDown)
-  DECL_SINGLE_REP_UNARY(Float32RoundDown, FloatUnary, RoundDown, Float32)
-  DECL_SINGLE_REP_UNARY(Float64RoundDown, FloatUnary, RoundDown, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundUp, FloatUnary, RoundUp)
-  DECL_SINGLE_REP_UNARY(Float32RoundUp, FloatUnary, RoundUp, Float32)
-  DECL_SINGLE_REP_UNARY(Float64RoundUp, FloatUnary, RoundUp, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundToZero, FloatUnary, RoundToZero)
-  DECL_SINGLE_REP_UNARY(Float32RoundToZero, FloatUnary, RoundToZero, Float32)
-  DECL_SINGLE_REP_UNARY(Float64RoundToZero, FloatUnary, RoundToZero, Float64)
-  DECL_MULTI_REP_UNARY(FloatRoundTiesEven, FloatUnary, RoundTiesEven)
+  DECL_MULTI_REP_UNARY(FloatAbs, FloatUnary, FloatRepresentation, Abs)
+  DECL_SINGLE_REP_UNARY(Float32Abs, FloatUnary, Abs,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64Abs, FloatUnary, Abs,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatNegate, FloatUnary, FloatRepresentation, Negate)
+  DECL_SINGLE_REP_UNARY(Float32Negate, FloatUnary, Negate,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64Negate, FloatUnary, Negate,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64SilenceNaN, FloatUnary, SilenceNaN,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatRoundDown, FloatUnary, FloatRepresentation,
+                       RoundDown)
+  DECL_SINGLE_REP_UNARY(Float32RoundDown, FloatUnary, RoundDown,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64RoundDown, FloatUnary, RoundDown,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatRoundUp, FloatUnary, FloatRepresentation, RoundUp)
+  DECL_SINGLE_REP_UNARY(Float32RoundUp, FloatUnary, RoundUp,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64RoundUp, FloatUnary, RoundUp,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatRoundToZero, FloatUnary, FloatRepresentation,
+                       RoundToZero)
+  DECL_SINGLE_REP_UNARY(Float32RoundToZero, FloatUnary, RoundToZero,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64RoundToZero, FloatUnary, RoundToZero,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatRoundTiesEven, FloatUnary, FloatRepresentation,
+                       RoundTiesEven)
   DECL_SINGLE_REP_UNARY(Float32RoundTiesEven, FloatUnary, RoundTiesEven,
-                        Float32)
+                        FloatRepresentation::Float32())
   DECL_SINGLE_REP_UNARY(Float64RoundTiesEven, FloatUnary, RoundTiesEven,
-                        Float64)
-  DECL_SINGLE_REP_UNARY(Float64Log, FloatUnary, Log, Float64)
-  DECL_MULTI_REP_UNARY(FloatSqrt, FloatUnary, Sqrt)
-  DECL_SINGLE_REP_UNARY(Float32Sqrt, FloatUnary, Sqrt, Float32)
-  DECL_SINGLE_REP_UNARY(Float64Sqrt, FloatUnary, Sqrt, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Exp, FloatUnary, Exp, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Expm1, FloatUnary, Expm1, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Sin, FloatUnary, Sin, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Cos, FloatUnary, Cos, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Sinh, FloatUnary, Sinh, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Cosh, FloatUnary, Cosh, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Asin, FloatUnary, Asin, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Acos, FloatUnary, Acos, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Asinh, FloatUnary, Asinh, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Acosh, FloatUnary, Acosh, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Tan, FloatUnary, Tan, Float64)
-  DECL_SINGLE_REP_UNARY(Float64Tanh, FloatUnary, Tanh, Float64)
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log, FloatUnary, Log,
+                        FloatRepresentation::Float64())
+  DECL_MULTI_REP_UNARY(FloatSqrt, FloatUnary, FloatRepresentation, Sqrt)
+  DECL_SINGLE_REP_UNARY(Float32Sqrt, FloatUnary, Sqrt,
+                        FloatRepresentation::Float32())
+  DECL_SINGLE_REP_UNARY(Float64Sqrt, FloatUnary, Sqrt,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Exp, FloatUnary, Exp,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Expm1, FloatUnary, Expm1,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Sin, FloatUnary, Sin,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Cos, FloatUnary, Cos,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Sinh, FloatUnary, Sinh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Cosh, FloatUnary, Cosh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Asin, FloatUnary, Asin,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Acos, FloatUnary, Acos,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Asinh, FloatUnary, Asinh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Acosh, FloatUnary, Acosh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Tan, FloatUnary, Tan,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Tanh, FloatUnary, Tanh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log2, FloatUnary, Log2,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log10, FloatUnary, Log10,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Log1p, FloatUnary, Log1p,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Atan, FloatUnary, Atan,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Atanh, FloatUnary, Atanh,
+                        FloatRepresentation::Float64())
+  DECL_SINGLE_REP_UNARY(Float64Cbrt, FloatUnary, Cbrt,
+                        FloatRepresentation::Float64())
 
-  DECL_MULTI_REP_UNARY(WordReverseBytes, WordUnary, ReverseBytes)
-  DECL_SINGLE_REP_UNARY(Word32ReverseBytes, WordUnary, ReverseBytes, Word32)
-  DECL_SINGLE_REP_UNARY(Word64ReverseBytes, WordUnary, ReverseBytes, Word64)
-  DECL_MULTI_REP_UNARY(WordCountLeadingZeros, WordUnary, CountLeadingZeros)
+  DECL_MULTI_REP_UNARY(WordReverseBytes, WordUnary, WordRepresentation,
+                       ReverseBytes)
+  DECL_SINGLE_REP_UNARY(Word32ReverseBytes, WordUnary, ReverseBytes,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64ReverseBytes, WordUnary, ReverseBytes,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordCountLeadingZeros, WordUnary, WordRepresentation,
+                       CountLeadingZeros)
   DECL_SINGLE_REP_UNARY(Word32CountLeadingZeros, WordUnary, CountLeadingZeros,
-                        Word32)
+                        WordRepresentation::Word32())
   DECL_SINGLE_REP_UNARY(Word64CountLeadingZeros, WordUnary, CountLeadingZeros,
-                        Word64)
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordCountTrailingZeros, WordUnary, WordRepresentation,
+                       CountTrailingZeros)
+  DECL_SINGLE_REP_UNARY(Word32CountTrailingZeros, WordUnary, CountTrailingZeros,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64CountTrailingZeros, WordUnary, CountTrailingZeros,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordPopCount, WordUnary, WordRepresentation, PopCount)
+  DECL_SINGLE_REP_UNARY(Word32PopCount, WordUnary, PopCount,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64PopCount, WordUnary, PopCount,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordSignExtend8, WordUnary, WordRepresentation,
+                       SignExtend8)
+  DECL_SINGLE_REP_UNARY(Word32SignExtend8, WordUnary, SignExtend8,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64SignExtend8, WordUnary, SignExtend8,
+                        WordRepresentation::Word64())
+  DECL_MULTI_REP_UNARY(WordSignExtend16, WordUnary, WordRepresentation,
+                       SignExtend16)
+  DECL_SINGLE_REP_UNARY(Word32SignExtend16, WordUnary, SignExtend16,
+                        WordRepresentation::Word32())
+  DECL_SINGLE_REP_UNARY(Word64SignExtend16, WordUnary, SignExtend16,
+                        WordRepresentation::Word64())
 #undef DECL_SINGLE_REP_UNARY
 #undef DECL_MULTI_REP_UNARY
+
+  OpIndex Word32Select(OpIndex condition, OpIndex left, OpIndex right) {
+    return subclass().Select(condition, left, right,
+                             WordRepresentation::Word32());
+  }
+  OpIndex Word64Select(OpIndex condition, OpIndex left, OpIndex right) {
+    return subclass().Select(condition, left, right,
+                             WordRepresentation::Word64());
+  }
 
   OpIndex Word32Constant(uint32_t value) {
     return subclass().Constant(ConstantOp::Kind::kWord32, uint64_t{value});
@@ -270,15 +412,12 @@ class AssemblerInterface : public Superclass {
   OpIndex Word64Constant(int64_t value) {
     return Word64Constant(static_cast<uint64_t>(value));
   }
-  OpIndex WordConstant(uint64_t value, MachineRepresentation rep) {
-    switch (rep) {
-      case MachineRepresentation::kWord32:
-        DCHECK(value <= MaxUnsignedValue(MachineRepresentation::kWord32));
+  OpIndex WordConstant(uint64_t value, WordRepresentation rep) {
+    switch (rep.value()) {
+      case WordRepresentation::Word32():
         return Word32Constant(static_cast<uint32_t>(value));
-      case MachineRepresentation::kWord64:
+      case WordRepresentation::Word64():
         return Word64Constant(value);
-      default:
-        UNREACHABLE();
     }
   }
   OpIndex Float32Constant(float value) {
@@ -287,14 +426,12 @@ class AssemblerInterface : public Superclass {
   OpIndex Float64Constant(double value) {
     return subclass().Constant(ConstantOp::Kind::kFloat64, value);
   }
-  OpIndex FloatConstant(double value, MachineRepresentation rep) {
-    switch (rep) {
-      case MachineRepresentation::kFloat32:
+  OpIndex FloatConstant(double value, FloatRepresentation rep) {
+    switch (rep.value()) {
+      case FloatRepresentation::Float32():
         return Float32Constant(static_cast<float>(value));
-      case MachineRepresentation::kFloat64:
+      case FloatRepresentation::Float64():
         return Float64Constant(value);
-      default:
-        UNREACHABLE();
     }
   }
   OpIndex NumberConstant(double value) {
@@ -313,38 +450,109 @@ class AssemblerInterface : public Superclass {
   OpIndex ExternalConstant(ExternalReference value) {
     return subclass().Constant(ConstantOp::Kind::kExternal, value);
   }
-
-#define DECL_CHANGE(name, kind, from, to)                    \
-  OpIndex name(OpIndex input) {                              \
-    return subclass().Change(input, ChangeOp::Kind::k##kind, \
-                             MachineRepresentation::k##from, \
-                             MachineRepresentation::k##to);  \
+  OpIndex RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
+    DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
+    return subclass().Constant(mode == RelocInfo::WASM_CALL
+                                   ? ConstantOp::Kind::kRelocatableWasmCall
+                                   : ConstantOp::Kind::kRelocatableWasmStubCall,
+                               static_cast<uint64_t>(value));
   }
 
-  DECL_CHANGE(BitcastWord32ToWord64, Bitcast, Word32, Word64)
-  DECL_CHANGE(BitcastFloat32ToWord32, Bitcast, Float32, Word32)
-  DECL_CHANGE(BitcastWord32ToFloat32, Bitcast, Word32, Float32)
-  DECL_CHANGE(BitcastFloat64ToWord64, Bitcast, Float64, Word64)
-  DECL_CHANGE(BitcastWord6464ToFloat64, Bitcast, Word64, Float64)
-  DECL_CHANGE(ChangeUint32ToUint64, ZeroExtend, Word32, Word64)
-  DECL_CHANGE(ChangeInt32ToInt64, SignExtend, Word32, Word64)
-  DECL_CHANGE(ChangeInt32ToFloat64, SignedToFloat, Word32, Float64)
-  DECL_CHANGE(ChangeInt64ToFloat64, SignedToFloat, Word64, Float64)
-  DECL_CHANGE(ChangeUint32ToFloat64, UnsignedToFloat, Word32, Float64)
-  DECL_CHANGE(ChangeFloat64ToFloat32, FloatConversion, Float64, Float32)
-  DECL_CHANGE(ChangeFloat32ToFloat64, FloatConversion, Float32, Float64)
-  DECL_CHANGE(JSTruncateFloat64ToWord32, JSFloatTruncate, Float64, Word32)
-  DECL_CHANGE(TruncateFloat64ToInt32OverflowUndefined, SignedFloatTruncate,
+#define DECL_CHANGE(name, kind, assumption, from, to)                  \
+  OpIndex name(OpIndex input) {                                        \
+    return subclass().Change(                                          \
+        input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
+        RegisterRepresentation::from(), RegisterRepresentation::to()); \
+  }
+#define DECL_TRY_CHANGE(name, kind, from, to)                   \
+  OpIndex name(OpIndex input) {                                 \
+    return subclass().TryChange(input, TryChangeOp::Kind::kind, \
+                                FloatRepresentation::from(),    \
+                                WordRepresentation::to());      \
+  }
+
+  DECL_CHANGE(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(BitcastFloat32ToWord32, kBitcast, kNoAssumption, Float32, Word32)
+  DECL_CHANGE(BitcastWord32ToFloat32, kBitcast, kNoAssumption, Word32, Float32)
+  DECL_CHANGE(BitcastFloat64ToWord64, kBitcast, kNoAssumption, Float64, Word64)
+  DECL_CHANGE(BitcastWord64ToFloat64, kBitcast, kNoAssumption, Word64, Float64)
+  DECL_CHANGE(ChangeUint32ToUint64, kZeroExtend, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(ChangeInt32ToInt64, kSignExtend, kNoAssumption, Word32, Word64)
+  DECL_CHANGE(ChangeInt32ToFloat64, kSignedToFloat, kNoAssumption, Word32,
+              Float64)
+  DECL_CHANGE(ChangeInt64ToFloat64, kSignedToFloat, kNoAssumption, Word64,
+              Float64)
+  DECL_CHANGE(ChangeInt32ToFloat32, kSignedToFloat, kNoAssumption, Word32,
+              Float32)
+  DECL_CHANGE(ChangeInt64ToFloat32, kSignedToFloat, kNoAssumption, Word64,
+              Float32)
+  DECL_CHANGE(ChangeUint32ToFloat32, kUnsignedToFloat, kNoAssumption, Word32,
+              Float32)
+  DECL_CHANGE(ChangeUint64ToFloat32, kUnsignedToFloat, kNoAssumption, Word64,
+              Float32)
+  DECL_CHANGE(ReversibleInt64ToFloat64, kSignedToFloat, kReversible, Word64,
+              Float64)
+  DECL_CHANGE(ChangeUint64ToFloat64, kUnsignedToFloat, kNoAssumption, Word64,
+              Float64)
+  DECL_CHANGE(ReversibleUint64ToFloat64, kUnsignedToFloat, kReversible, Word64,
+              Float64)
+  DECL_CHANGE(ChangeUint32ToFloat64, kUnsignedToFloat, kNoAssumption, Word32,
+              Float64)
+  DECL_CHANGE(ChangeFloat64ToFloat32, kFloatConversion, kNoAssumption, Float64,
+              Float32)
+  DECL_CHANGE(ChangeFloat32ToFloat64, kFloatConversion, kNoAssumption, Float32,
+              Float64)
+  DECL_CHANGE(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,
               Float64, Word32)
-  DECL_CHANGE(TruncateFloat64ToInt32OverflowToMin,
-              SignedFloatTruncateOverflowToMin, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToInt32, SignedNarrowing, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToUint32, UnsignedNarrowing, Float64, Word32)
-  DECL_CHANGE(NarrowFloat64ToInt64, SignedNarrowing, Float64, Word64)
-  DECL_CHANGE(NarrowFloat64ToUint64, UnsignedNarrowing, Float64, Word64)
-  DECL_CHANGE(Float64ExtractLowWord32, ExtractLowHalf, Float64, Word32)
-  DECL_CHANGE(Float64ExtractHighWord32, ExtractHighHalf, Float64, Word32)
+
+#define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                     \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \
+              kSignedFloatTruncateOverflowToMin, kNoOverflow,                 \
+              Float##FloatBits, Word##ResultBits)                             \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowToMin,     \
+              kSignedFloatTruncateOverflowToMin, kNoAssumption,               \
+              Float##FloatBits, Word##ResultBits)                             \
+  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToInt##ResultBits,             \
+                  kSignedFloatTruncateOverflowUndefined, Float##FloatBits,    \
+                  Word##ResultBits)
+
+  DECL_SIGNED_FLOAT_TRUNCATE(64, 64)
+  DECL_SIGNED_FLOAT_TRUNCATE(64, 32)
+  DECL_SIGNED_FLOAT_TRUNCATE(32, 64)
+  DECL_SIGNED_FLOAT_TRUNCATE(32, 32)
+#undef DECL_SIGNED_FLOAT_TRUNCATE
+
+#define DECL_UNSIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowUndefined, \
+              kUnsignedFloatTruncateOverflowToMin, kNoOverflow,                \
+              Float##FloatBits, Word##ResultBits)                              \
+  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowToMin,     \
+              kUnsignedFloatTruncateOverflowToMin, kNoAssumption,              \
+              Float##FloatBits, Word##ResultBits)                              \
+  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToUint##ResultBits,             \
+                  kUnsignedFloatTruncateOverflowUndefined, Float##FloatBits,   \
+                  Word##ResultBits)
+
+  DECL_UNSIGNED_FLOAT_TRUNCATE(64, 64)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(64, 32)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(32, 64)
+  DECL_UNSIGNED_FLOAT_TRUNCATE(32, 32)
+#undef DECL_UNSIGNED_FLOAT_TRUNCATE
+
+  DECL_CHANGE(ReversibleFloat64ToInt32, kSignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word32)
+  DECL_CHANGE(ReversibleFloat64ToUint32, kUnsignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word32)
+  DECL_CHANGE(ReversibleFloat64ToInt64, kSignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word64)
+  DECL_CHANGE(ReversibleFloat64ToUint64, kUnsignedFloatTruncateOverflowToMin,
+              kReversible, Float64, Word64)
+  DECL_CHANGE(Float64ExtractLowWord32, kExtractLowHalf, kNoAssumption, Float64,
+              Word32)
+  DECL_CHANGE(Float64ExtractHighWord32, kExtractHighHalf, kNoAssumption,
+              Float64, Word32)
 #undef DECL_CHANGE
+#undef DECL_TRY_CHANGE
 
   using Base::Tuple;
   OpIndex Tuple(OpIndex a, OpIndex b) {
@@ -370,7 +578,8 @@ class AssemblerBase {
 };
 
 class Assembler
-    : public AssemblerInterface<Assembler, AssemblerBase<Assembler>> {
+    : public AssemblerInterface<Assembler, AssemblerBase<Assembler>>,
+      public OperationMatching<Assembler> {
  public:
   Block* NewBlock(Block::Kind kind) { return graph_.NewBlock(kind); }
 
@@ -388,7 +597,7 @@ class Assembler
     current_operation_origin_ = operation_origin;
   }
 
-  OpIndex Phi(base::Vector<const OpIndex> inputs, MachineRepresentation rep) {
+  OpIndex Phi(base::Vector<const OpIndex> inputs, RegisterRepresentation rep) {
     DCHECK(current_block()->IsMerge() &&
            inputs.size() == current_block()->Predecessors().size());
     return Base::Phi(inputs, rep);

@@ -6,7 +6,7 @@
 
 d8.file.execute('bigint-util.js');
 
-let random_dividends = []
+let random_dividends = [];
 let random_divisors = [];
 
 // This dummy ensures that the feedback for benchmark.run() in the Measure
@@ -30,7 +30,8 @@ new BenchmarkSuite('Divide-Small', [1000], [
 
 
 new BenchmarkSuite('Divide-Small-Truncated', [1000], [
-  new Benchmark('Divide-Small-Truncated', true, false, 0, TestDivideSmallTruncated)
+  new Benchmark('Divide-Small-Truncated', true, false, 0,
+    TestDivideSmallTruncated, SetUpTestDivideSmall)
 ]);
 
 
@@ -54,7 +55,7 @@ function TestDivideOne() {
 function SetUpTestDivideSmall() {
   random_dividends = [];
   for (let i = 0; i < TEST_ITERATIONS; ++i) {
-    const bigint = RandomBigIntWithBits(64);
+    const bigint = RandomBigIntWithBits(60);
     random_dividends.push(Math.random() < 0.5 ? -bigint : bigint);
   }
 

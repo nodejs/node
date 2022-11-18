@@ -918,30 +918,6 @@ domain Profiler
       # Functions contained in the script that has coverage data.
       array of FunctionCoverage functions
 
-  # Describes a type collected during runtime.
-  experimental type TypeObject extends object
-    properties
-      # Name of a type collected with type profiling.
-      string name
-
-  # Source offset and types for a parameter or return value.
-  experimental type TypeProfileEntry extends object
-    properties
-      # Source offset of the parameter or end of function for return values.
-      integer offset
-      # The types for this parameter or return value.
-      array of TypeObject types
-
-  # Type profile data collected during runtime for a JavaScript script.
-  experimental type ScriptTypeProfile extends object
-    properties
-      # JavaScript script id.
-      Runtime.ScriptId scriptId
-      # JavaScript script name or url.
-      string url
-      # Type profile entries for parameters and return values of the functions in the script.
-      array of TypeProfileEntry entries
-
   command disable
 
   command enable
@@ -976,9 +952,6 @@ domain Profiler
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
 
-  # Enable type profile.
-  experimental command startTypeProfile
-
   command stop
     returns
       # Recorded profile.
@@ -988,9 +961,6 @@ domain Profiler
   # executing optimized code.
   command stopPreciseCoverage
 
-  # Disable type profile. Disabling releases type profile data collected so far.
-  experimental command stopTypeProfile
-
   # Collect coverage data for the current isolate, and resets execution counters. Precise code
   # coverage needs to have started.
   command takePreciseCoverage
@@ -999,12 +969,6 @@ domain Profiler
       array of ScriptCoverage result
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
-
-  # Collect type profile.
-  experimental command takeTypeProfile
-    returns
-      # Type profile for all scripts since startTypeProfile() was turned on.
-      array of ScriptTypeProfile result
 
   event consoleProfileFinished
     parameters

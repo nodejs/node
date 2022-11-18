@@ -339,7 +339,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kNone:     // Fall through.
-    case MachineRepresentation::kMapWord:
+    case MachineRepresentation::kMapWord:  // Fall through.
       UNREACHABLE();
   }
   return opcode;
@@ -377,7 +377,7 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movdqu;
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kNone:     // Fall through.
-    case MachineRepresentation::kMapWord:
+    case MachineRepresentation::kMapWord:  // Fall through.
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -597,7 +597,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
   const bool is_seqcst =
       atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
-  if (FLAG_enable_unconditional_write_barriers &&
+  if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(store_rep.representation())) {
     write_barrier_kind = kFullWriteBarrier;
   }
@@ -606,7 +606,8 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     ? MemoryAccessMode::kMemoryAccessProtected
     : MemoryAccessMode::kMemoryAccessDirect;
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[] = {
@@ -1469,8 +1470,21 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   VisitMul(this, node, kX64Imul);
 }
 
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Imul, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Imul, &cont);
+}
+
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64ImulHigh32);
+}
+
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  VisitMulHigh(this, node, kX64ImulHigh64);
 }
 
 void InstructionSelector::VisitInt32Div(Node* node) {
@@ -1507,6 +1521,10 @@ void InstructionSelector::VisitUint64Mod(Node* node) {
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64UmulHigh32);
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  VisitMulHigh(this, node, kX64UmulHigh64);
 }
 
 // TryTruncateFloat32ToInt64 and TryTruncateFloat64ToInt64 operations attempt
@@ -2828,6 +2846,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
               case IrOpcode::kInt64SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kX64Sub, cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node, kX64Imul, cont);
               default:
                 break;
             }

@@ -383,14 +383,11 @@ namespace {
 
 class TestSetup {
  public:
-  TestSetup()
-      : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
-    i::FLAG_prof_browser_mode = false;
+  TestSetup() : old_flag_prof_browser_mode_(i::v8_flags.prof_browser_mode) {
+    i::v8_flags.prof_browser_mode = false;
   }
 
-  ~TestSetup() {
-    i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_;
-  }
+  ~TestSetup() { i::v8_flags.prof_browser_mode = old_flag_prof_browser_mode_; }
 
  private:
   bool old_flag_prof_browser_mode_;
@@ -725,7 +722,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::FLAG_turbo_inlining = false;
+  i::v8_flags.turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -804,7 +801,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
-  i::FLAG_turbo_inlining = false;
+  i::v8_flags.turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -889,7 +886,7 @@ TEST(LineNumber) {
 
   profiler.processor()->StopSynchronously();
 
-  bool is_lazy = i::FLAG_lazy;
+  bool is_lazy = i::v8_flags.lazy;
   CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, isolate,
                                     "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4, GetFunctionLineNumber(&profiler, &env, isolate,
@@ -904,9 +901,9 @@ TEST(LineNumber) {
 
 TEST(BailoutReason) {
 #ifndef V8_LITE_MODE
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_always_turbofan = false;
-  i::FLAG_turbofan = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.always_turbofan = false;
+  i::v8_flags.turbofan = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);

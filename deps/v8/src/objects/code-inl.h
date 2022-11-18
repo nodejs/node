@@ -787,7 +787,7 @@ bool CodeDataContainer::has_handler_table() const {
 
 int Code::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     DCHECK_EQ(size, 0);
     return 0;
   }
@@ -1232,7 +1232,7 @@ bool CodeDataContainer::is_wasm_code() const {
 #endif
 
 int Code::constant_pool_offset() const {
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return code_comments_offset();
   }
@@ -1240,7 +1240,7 @@ int Code::constant_pool_offset() const {
 }
 
 void Code::set_constant_pool_offset(int value) {
-  if (!v8_flags.enable_embedded_constant_pool) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return;
   }
@@ -1436,15 +1436,21 @@ Object CodeDataContainer::raw_code() const {
 }
 
 Object CodeDataContainer::raw_code(PtrComprCageBase cage_base) const {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Object value = TaggedField<Object, kCodeOffset>::load(cage_base, *this);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Object value = ExternalCodeField::load(cage_base, *this);
   return value;
+#else
+  UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  TaggedField<Object, kCodeOffset>::Release_Store(*this, value);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  ExternalCodeField::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+#else
+  UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 Object CodeDataContainer::raw_code(RelaxedLoadTag tag) const {
@@ -1454,10 +1460,12 @@ Object CodeDataContainer::raw_code(RelaxedLoadTag tag) const {
 
 Object CodeDataContainer::raw_code(PtrComprCageBase cage_base,
                                    RelaxedLoadTag) const {
-  Object value =
-      TaggedField<Object, kCodeOffset>::Relaxed_Load(cage_base, *this);
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Object value = ExternalCodeField::Relaxed_Load(cage_base, *this);
   return value;
+#else
+  UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)

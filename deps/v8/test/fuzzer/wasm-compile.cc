@@ -842,7 +842,7 @@ class WasmGenerator {
     Var local = GetRandomLocal(data);
     // TODO(manoskouk): Ideally we would check for subtyping here over type
     // equality, but we don't have a module.
-    // TODO(7748): Remove this condition if non-nullable locals are allowed.
+    // TODO(7748): Allow initialized non-nullable locals.
     if (nullable == kNullable && local.is_valid() &&
         local.type.is_object_reference() && type == local.type.heap_type()) {
       builder_->EmitWithU32V(kExprLocalGet, local.index);
@@ -2522,8 +2522,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       // performed by adding a function by {FunctionSig}, because we emit
       // everything in one recursive group which blocks signature
       // canonicalization.
-      // TODO(7748): Relax this when we implement type canonicalization and
-      // proper recursive-group support.
+      // TODO(7748): Relax this when we implement proper recursive-group
+      // support.
       functions.push_back(liftoff_as_reference
                               ? builder.AddFunction(function_signatures[i])
                               : builder.AddFunction(sig));

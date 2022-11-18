@@ -746,14 +746,17 @@ macro IsWord16WasmArrayMap(map: Map): bool {
 }
 
 // Non-standard experimental feature.
+// Arguments: array, start, count.
 transitioning javascript builtin ExperimentalWasmConvertArrayToString(
-    js-implicit context: NativeContext)(
-    array: JSAny, start: JSAny, count: JSAny): String {
+    js-implicit context: NativeContext)(...arguments): String {
   try {
-    const start = TryNumberToIntptr(start) otherwise goto InvalidArgument;
-    const count = TryNumberToIntptr(count) otherwise goto InvalidArgument;
+    if (arguments.length != 3) goto InvalidArgument;
+    const array = Cast<WasmArray>(arguments[0]) otherwise goto InvalidArgument;
+    const start = TryNumberToIntptr(arguments[1])
+        otherwise goto InvalidArgument;
+    const count = TryNumberToIntptr(arguments[2])
+        otherwise goto InvalidArgument;
 
-    const array = Cast<WasmArray>(array) otherwise goto InvalidArgument;
     if (!IsWord16WasmArrayMap(array.map)) goto InvalidArgument;
     const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
         array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
@@ -768,16 +771,17 @@ transitioning javascript builtin ExperimentalWasmConvertArrayToString(
 }
 
 // Non-standard experimental feature.
+// Arguments: string, sampleArray.
 transitioning javascript builtin ExperimentalWasmConvertStringToArray(
-    js-implicit context: NativeContext)(
-    string: JSAny, sampleArray: JSAny): WasmArray {
+    js-implicit context: NativeContext)(...arguments): WasmArray {
   try {
+    if (arguments.length != 2) goto InvalidArgument;
+    const string = Cast<String>(arguments[0]) otherwise goto InvalidArgument;
     const sampleArray =
-        Cast<WasmArray>(sampleArray) otherwise goto InvalidArgument;
+        Cast<WasmArray>(arguments[1]) otherwise goto InvalidArgument;
     const arrayMap = sampleArray.map;
     if (!IsWord16WasmArrayMap(arrayMap)) goto InvalidArgument;
 
-    const string = Cast<String>(string) otherwise goto InvalidArgument;
     const length = string.length;
 
     const result =

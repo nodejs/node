@@ -157,8 +157,6 @@ namespace interpreter {
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
-  V(CollectTypeProfile, ImplicitRegisterUse::kReadAccumulator,                 \
-    OperandType::kImm)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -228,8 +226,8 @@ namespace interpreter {
   /* GetSuperConstructor operator */                                           \
   V(GetSuperConstructor, ImplicitRegisterUse::kReadAccumulator,                \
     OperandType::kRegOut)                                                      \
-  V(FindNonDefaultConstructor, ImplicitRegisterUse::kNone, OperandType::kReg,  \
-    OperandType::kReg, OperandType::kRegOutPair)                               \
+  V(FindNonDefaultConstructorOrConstruct, ImplicitRegisterUse::kNone,          \
+    OperandType::kReg, OperandType::kReg, OperandType::kRegOutPair)            \
                                                                                \
   /* Call operations */                                                        \
   V(CallAnyReceiver, ImplicitRegisterUse::kWriteAccumulator,                   \
@@ -611,6 +609,22 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns the scaling applied to scalable operands if bytecode is
   // is a scaling prefix.
   static OperandScale PrefixBytecodeToOperandScale(Bytecode bytecode) {
+#ifdef V8_TARGET_OS_ANDROID
+    // The compiler is very smart, turning the switch into branchless code.
+    // However this triggers a CPU bug on some android devices (see
+    // crbug.com/1379788). We therefore intentionally use code the compiler has
+    // a harder time optimizing on Android. At least until clang 15.0 the
+    // current workaround prevents hitting the CPU bug.
+    // TODO(chromium:1379788): Remove this hack if we get an external fix.
+    if (bytecode == Bytecode::kWide || bytecode == Bytecode::kDebugBreakWide) {
+      return OperandScale::kDouble;
+    } else if (bytecode == Bytecode::kExtraWide ||
+               bytecode == Bytecode::kDebugBreakExtraWide) {
+      return OperandScale::kQuadruple;
+    } else {
+      UNREACHABLE();
+    }
+#else
     switch (bytecode) {
       case Bytecode::kExtraWide:
       case Bytecode::kDebugBreakExtraWide:
@@ -621,6 +635,7 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
       default:
         UNREACHABLE();
     }
+#endif
   }
 
   // Returns how accumulator is used by |bytecode|.

@@ -16,6 +16,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
@@ -52,6 +53,8 @@ class ConcurrentMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
     (*memory_chunk_data_)[chunk].live_bytes += by;
   }
 
@@ -145,9 +148,7 @@ class ConcurrentMarkingVisitorUtility {
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
       visitor->SynchronizePageAccess(heap_object);
-      BasicMemoryChunk* target_page =
-          BasicMemoryChunk::FromHeapObject(heap_object);
-      if (!visitor->is_shared_heap() && target_page->InSharedHeap()) continue;
+      if (!visitor->ShouldMarkObject(heap_object)) continue;
       visitor->MarkObject(host, heap_object);
       visitor->RecordSlot(host, slot, heap_object);
     }
@@ -262,7 +263,9 @@ class YoungGenerationConcurrentMarkingVisitor final
             heap->isolate(), worklists_local),
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
-  bool is_shared_heap() { return false; }
+  bool ShouldMarkObject(HeapObject object) const {
+    return !object.InSharedHeap();
+  }
 
   void SynchronizePageAccess(HeapObject heap_object) {
 #ifdef THREAD_SANITIZER
@@ -555,7 +558,7 @@ class ConcurrentMarkingVisitor final
     DCHECK(length.IsSmi());
     int size = T::SizeFor(Smi::ToInt(length));
     marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
-                                      size);
+                                      ALIGN_TO_ALLOCATION_ALIGNMENT(size));
     VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;

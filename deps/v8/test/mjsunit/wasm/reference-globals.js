@@ -380,3 +380,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /i31.new\[0\] expected type i32, found i64.const of type i64/);
 })();
+
+(function TestConstantExprFuncIndexOutOfBounds() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_index = builder.addStruct([makeField(kWasmFuncRef, true)]);
+  let func = builder.addFunction("element", kSig_i_i)
+    .addBody([kExprLocalGet, 0])
+    .exportFunc()
+
+  builder.addGlobal(wasmRefType(struct_index), false,
+                    [kExprRefFunc, func.index + 1, kExprStructNew, struct_index]);
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /function index #1 is out of bounds/);
+})();

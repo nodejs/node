@@ -45,8 +45,6 @@ using DisasmIa320Test = TestWithIsolate;
 
 #define __ assm.
 
-static void DummyStaticFunction(Object result) {}
-
 TEST_F(DisasmIa320Test, DisasmIa320) {
   HandleScope scope(isolate());
   v8::internal::byte buffer[8192];
@@ -292,8 +290,6 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
   __ nop();
   Handle<Code> ic = BUILTIN_CODE(isolate(), ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
-  __ nop();
-  __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
   __ nop();
 
   __ jmp(&L1);

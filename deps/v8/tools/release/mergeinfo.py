@@ -25,9 +25,9 @@ def git_execute(working_dir, args, verbose=False):
     print("Executing git command:" + str(command))
   p = Popen(args=command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
   output, err = p.communicate()
-  rc = p.returncode
-  if rc != 0:
+  if p.returncode != 0:
     raise Exception(err)
+  output = output.decode('utf-8')
   if verbose:
     print("Git return value: " + output)
   return output
@@ -74,7 +74,8 @@ def get_branches_for_commit(git_working_dir, hash_to_search):
                                            hash_to_search,
                                            '-a']).strip()
   branches = branches.splitlines()
-  return map(str.strip, branches)
+  return {branch.strip() for branch in branches}
+
 
 def is_lkgr(branches):
   return 'remotes/origin/lkgr' in branches
@@ -89,7 +90,7 @@ def get_first_canary(branches):
 
 def get_first_v8_version(branches):
   version_re = re.compile("remotes/origin/[0-9]+\.[0-9]+\.[0-9]+")
-  versions = filter(lambda branch: version_re.match(branch), branches)
+  versions = [branch for branch in branches if version_re.match(branch)]
   if len(versions) == 0:
     return "--"
   version = versions[0].split("/")[-1]

@@ -147,15 +147,14 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Ensure that the code range does not cross the 4Gb boundary and thus
-    // default compression scheme of truncating the Code pointers to 32-bits
-    // still works.
-    Address base = page_allocator_->begin();
-    Address last = base + page_allocator_->size() - 1;
-    CHECK_EQ(GetPtrComprCageBaseAddress(base),
-             GetPtrComprCageBaseAddress(last));
-  }
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Ensure that ExternalCodeCompressionScheme is applicable to all objects
+  // stored in the code range.
+  Address base = page_allocator_->begin();
+  Address last = base + page_allocator_->size() - 1;
+  CHECK_EQ(ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(base),
+           ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(last));
+#endif  // V8_EXTERNAL_CODE_SPACE
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See

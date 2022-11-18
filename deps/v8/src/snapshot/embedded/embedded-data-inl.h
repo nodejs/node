@@ -69,7 +69,7 @@ Address EmbeddedData::SafepointTableStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::SafepointTableSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
 #else
   DCHECK_LE(desc.handler_table_offset, desc.code_comments_offset_offset);
@@ -88,7 +88,7 @@ Address EmbeddedData::HandlerTableStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::HandlerTableSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
   return desc.constant_pool_offset - desc.handler_table_offset;
 #else
@@ -99,7 +99,7 @@ uint32_t EmbeddedData::HandlerTableSizeOf(Builtin builtin) const {
 
 Address EmbeddedData::ConstantPoolStartOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   const uint8_t* result = RawMetadata() + desc.constant_pool_offset;
   DCHECK_LE(desc.constant_pool_offset, data_size_);
@@ -111,7 +111,7 @@ Address EmbeddedData::ConstantPoolStartOf(Builtin builtin) const {
 
 uint32_t EmbeddedData::ConstantPoolSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-#if V8_EMBEDDED_CONSTANT_POOL
+#if V8_EMBEDDED_CONSTANT_POOL_BOOL
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   DCHECK_LE(desc.constant_pool_offset, desc.code_comments_offset_offset);
   return desc.code_comments_offset_offset - desc.constant_pool_offset;

@@ -88,7 +88,7 @@ class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
 
 ModuleResult DecodeWasmModule(
     const WasmFeatures& enabled, const byte* module_start,
-    const byte* module_end, bool verify_functions, ModuleOrigin origin,
+    const byte* module_end, bool validate_functions, ModuleOrigin origin,
     Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
     AccountingAllocator* allocator) {
@@ -113,7 +113,7 @@ ModuleResult DecodeWasmModule(
                                        ? base::ThreadTicks::Now()
                                        : base::ThreadTicks();
   ModuleResult result =
-      decoder.DecodeModule(counters, allocator, verify_functions);
+      decoder.DecodeModule(counters, allocator, validate_functions);
 
   // Record event metrics.
   metrics_event.wall_clock_duration_in_us = timer.Elapsed().InMicroseconds();
@@ -141,10 +141,10 @@ ModuleResult DecodeWasmModule(
 ModuleResult DecodeWasmModuleForDisassembler(const byte* module_start,
                                              const byte* module_end,
                                              AccountingAllocator* allocator) {
-  constexpr bool verify_functions = false;
+  constexpr bool validate_functions = false;
   ModuleDecoderImpl decoder(WasmFeatures::All(), module_start, module_end,
                             kWasmOrigin);
-  return decoder.DecodeModule(nullptr, allocator, verify_functions);
+  return decoder.DecodeModule(nullptr, allocator, validate_functions);
 }
 
 ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
@@ -172,13 +172,14 @@ void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
                                   base::Vector<const uint8_t> bytes,
-                                  uint32_t offset, bool verify_functions) {
-  impl_->DecodeSection(section_code, bytes, offset, verify_functions);
+                                  uint32_t offset) {
+  impl_->DecodeSection(section_code, bytes, offset);
 }
 
 void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,
-                                       uint32_t offset, bool verify_functions) {
-  impl_->DecodeFunctionBody(index, length, offset, verify_functions);
+                                       uint32_t offset,
+                                       bool validate_functions) {
+  impl_->DecodeFunctionBody(index, length, offset, validate_functions);
 }
 
 void ModuleDecoder::StartCodeSection(WireBytesRef section_bytes) {
@@ -190,9 +191,7 @@ bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
   return impl_->CheckFunctionsCount(functions_count, error_offset);
 }
 
-ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
-  return impl_->FinishDecoding(verify_functions);
-}
+ModuleResult ModuleDecoder::FinishDecoding() { return impl_->FinishDecoding(); }
 
 size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
                                              base::Vector<const uint8_t> bytes,
@@ -237,7 +236,7 @@ FunctionResult DecodeWasmFunctionForTesting(
   }
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
-  return decoder.DecodeSingleFunction(zone, wire_bytes, module);
+  return decoder.DecodeSingleFunctionForTesting(zone, wire_bytes, module);
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(

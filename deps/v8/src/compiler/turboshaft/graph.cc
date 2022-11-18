@@ -4,102 +4,12 @@
 
 #include "src/compiler/turboshaft/graph.h"
 
+#include <algorithm>
 #include <iomanip>
 
+#include "src/base/logging.h"
+
 namespace v8::internal::compiler::turboshaft {
-
-void Graph::GenerateDominatorTree() {
-  for (Block* block : bound_blocks_) {
-    if (block->index() == StartBlock().index()) {
-      // Start block has no dominators. We create a jmp_ edge to itself, so that
-      // the SetDominator algorithm does not need a special case for when the
-      // start block is reached.
-      block->jmp_ = block;
-      block->nxt_ = nullptr;
-      block->len_ = 0;
-      block->jmp_len_ = 0;
-      continue;
-    }
-    if (block->kind_ == Block::Kind::kBranchTarget) {
-      // kBranchTarget blocks always have a single predecessor, which dominates
-      // them.
-      DCHECK_EQ(block->PredecessorCount(), 1);
-      block->SetDominator(block->LastPredecessor());
-    } else if (block->kind_ == Block::Kind::kLoopHeader) {
-      // kLoopHeader blocks have 2 predecessors, but their dominator is
-      // always their first predecessor (the 2nd one is the loop's backedge).
-      DCHECK_EQ(block->PredecessorCount(), 2);
-      block->SetDominator(block->LastPredecessor()->NeighboringPredecessor());
-    } else {
-      // kMerge has (more or less) an arbitrary number of predecessors. We need
-      // to find the lowest common ancestor (LCA) of all of the predecessors.
-      DCHECK_EQ(block->kind_, Block::Kind::kMerge);
-      Block* dominator = block->LastPredecessor();
-      for (Block* pred = dominator->NeighboringPredecessor(); pred != nullptr;
-           pred = pred->NeighboringPredecessor()) {
-        dominator = dominator->GetCommonDominator(pred);
-      }
-      block->SetDominator(dominator);
-    }
-  }
-}
-
-template <class Derived>
-void RandomAccessStackDominatorNode<Derived>::SetDominator(Derived* dominator) {
-  DCHECK_NOT_NULL(dominator);
-  // Determining the jmp pointer
-  Derived* t = dominator->jmp_;
-  if (dominator->len_ - t->len_ == t->len_ - t->jmp_len_) {
-    t = t->jmp_;
-  } else {
-    t = dominator;
-  }
-  // Initializing fields
-  nxt_ = dominator;
-  jmp_ = t;
-  len_ = dominator->len_ + 1;
-  jmp_len_ = jmp_->len_;
-  dominator->AddChild(static_cast<Derived*>(this));
-}
-
-template <class Derived>
-Derived* RandomAccessStackDominatorNode<Derived>::GetCommonDominator(
-    RandomAccessStackDominatorNode<Derived>* b) {
-  RandomAccessStackDominatorNode* a = this;
-  if (b->len_ > a->len_) {
-    // Swapping |a| and |b| so that |a| always has a greater length.
-    std::swap(a, b);
-  }
-  DCHECK_GE(a->len_, 0);
-  DCHECK_GE(b->len_, 0);
-
-  // Going up the dominators of |a| in order to reach the level of |b|.
-  while (a->len_ != b->len_) {
-    DCHECK_GE(a->len_, 0);
-    if (a->jmp_len_ >= b->len_) {
-      a = a->jmp_;
-    } else {
-      a = a->nxt_;
-    }
-  }
-
-  // Going up the dominators of |a| and |b| simultaneously until |a| == |b|
-  while (a != b) {
-    DCHECK_EQ(a->len_, b->len_);
-    DCHECK_GE(a->len_, 0);
-    if (a->jmp_ == b->jmp_) {
-      // We found a common dominator, but we actually want to find the smallest
-      // one, so we go down in the current subtree.
-      a = a->nxt_;
-      b = b->nxt_;
-    } else {
-      a = a->jmp_;
-      b = b->jmp_;
-    }
-  }
-
-  return static_cast<Derived*>(a);
-}
 
 // PrintDominatorTree prints the dominator tree in a format that looks like:
 //

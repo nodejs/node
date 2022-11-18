@@ -14,7 +14,6 @@
 #include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
-#include "src/base/sanitizer/msan.h"
 #include "src/common/assert-scope.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
@@ -26,6 +25,7 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
@@ -99,16 +99,15 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
 
 Isolate* Heap::isolate() const { return Isolate::FromHeap(this); }
 
-#ifdef DEBUG
 bool Heap::IsMainThread() const {
   return isolate()->thread_id() == ThreadId::Current();
 }
 
 bool Heap::IsSharedMainThread() const {
-  Isolate* shared_isolate = isolate()->shared_isolate();
-  return shared_isolate && shared_isolate->thread_id() == ThreadId::Current();
+  if (!isolate()->has_shared_heap()) return false;
+  Isolate* shared_heap_isolate = isolate()->shared_heap_isolate();
+  return shared_heap_isolate->thread_id() == ThreadId::Current();
 }
-#endif
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
 
@@ -123,7 +122,7 @@ PagedSpace* Heap::space_for_maps() {
 
 ConcurrentAllocator* Heap::concurrent_allocator_for_maps() {
   return V8_LIKELY(shared_map_allocator_) ? shared_map_allocator_.get()
-                                          : shared_old_allocator_.get();
+                                          : shared_space_allocator_.get();
 }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
@@ -171,11 +170,12 @@ void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
 }
 
 PagedSpace* Heap::paged_space(int idx) {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE);
-  return static_cast<PagedSpace*>(space_[idx]);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE ||
+         idx == SHARED_SPACE);
+  return static_cast<PagedSpace*>(space_[idx].get());
 }
 
-Space* Heap::space(int idx) { return space_[idx]; }
+Space* Heap::space(int idx) { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
   return new_space_ ? new_space_->allocation_top_address() : nullptr;
@@ -353,93 +353,6 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
 }
 
-template <Heap::FindMementoMode mode>
-AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
-  Address object_address = object.address();
-  Address memento_address = object_address + object.SizeFromMap(map);
-  Address last_memento_word_address = memento_address + kTaggedSize;
-  // If the memento would be on another page, bail out immediately.
-  if (!Page::OnSamePage(object_address, last_memento_word_address)) {
-    return AllocationMemento();
-  }
-  HeapObject candidate = HeapObject::FromAddress(memento_address);
-  ObjectSlot candidate_map_slot = candidate.map_slot();
-  // This fast check may peek at an uninitialized word. However, the slow check
-  // below (memento_address == top) ensures that this is safe. Mark the word as
-  // initialized to silence MemorySanitizer warnings.
-  MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
-  if (!candidate_map_slot.contains_map_value(
-          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
-    return AllocationMemento();
-  }
-
-  // Bail out if the memento is below the age mark, which can happen when
-  // mementos survived because a page got moved within new space.
-  Page* object_page = Page::FromAddress(object_address);
-  if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
-    Address age_mark =
-        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
-    if (!object_page->Contains(age_mark)) {
-      return AllocationMemento();
-    }
-    // Do an exact check in the case where the age mark is on the same page.
-    if (object_address < age_mark) {
-      return AllocationMemento();
-    }
-  }
-
-  AllocationMemento memento_candidate = AllocationMemento::cast(candidate);
-
-  // Depending on what the memento is used for, we might need to perform
-  // additional checks.
-  Address top;
-  switch (mode) {
-    case Heap::kForGC:
-      return memento_candidate;
-    case Heap::kForRuntime:
-      if (memento_candidate.is_null()) return AllocationMemento();
-      // Either the object is the last object in the new space, or there is
-      // another object of at least word size (the header map word) following
-      // it, so suffices to compare ptr and top here.
-      top = NewSpaceTop();
-      DCHECK(memento_address >= new_space()->limit() ||
-             memento_address + AllocationMemento::kSize <= top);
-      if ((memento_address != top) && memento_candidate.IsValid()) {
-        return memento_candidate;
-      }
-      return AllocationMemento();
-    default:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-}
-
-void Heap::UpdateAllocationSite(Map map, HeapObject object,
-                                PretenuringFeedbackMap* pretenuring_feedback) {
-  DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
-#ifdef DEBUG
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(chunk->IsToPage(),
-                 v8_flags.minor_mc ||
-                     chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
-  DCHECK_IMPLIES(!chunk->InYoungGeneration(),
-                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
-#endif
-  if (!v8_flags.allocation_site_pretenuring ||
-      !AllocationSite::CanTrack(map.instance_type())) {
-    return;
-  }
-  AllocationMemento memento_candidate =
-      FindAllocationMemento<kForGC>(map, object);
-  if (memento_candidate.is_null()) return;
-
-  // Entering cached feedback is used in the parallel case. We are not allowed
-  // to dereference the allocation site and rather have to postpone all checks
-  // till actually merging the data.
-  Address key = memento_candidate.GetAllocationSiteUnchecked();
-  (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
-}
-
 bool Heap::IsPendingAllocationInternal(HeapObject object) {
   DCHECK(deserialization_complete());
 
@@ -485,6 +398,8 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
       return addr == large_space->pending_object();
     }
 
+    case SHARED_SPACE:
+    case SHARED_LO_SPACE:
     case RO_SPACE:
       UNREACHABLE();
   }

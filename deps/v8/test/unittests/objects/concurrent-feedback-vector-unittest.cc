@@ -161,7 +161,7 @@ static void CheckedWait(base::Semaphore& semaphore) {
 // Verify that a LoadIC can be cycled through different states and safely
 // read on a background thread.
 TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
-  FLAG_lazy_feedback_allocation = false;
+  v8_flags.lazy_feedback_allocation = false;
 
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   HandleScope handle_scope(i_isolate());

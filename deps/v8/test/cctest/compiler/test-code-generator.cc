@@ -693,13 +693,13 @@ class TestEnvironment : public HandleAndZoneScope {
       // The "setup" and "teardown" functions are relatively big, and with
       // runtime assertions enabled they get so big that memory during register
       // allocation becomes a problem. Temporarily disable such assertions.
-      bool old_enable_slow_asserts = FLAG_enable_slow_asserts;
-      FLAG_enable_slow_asserts = false;
+      bool old_enable_slow_asserts = v8_flags.enable_slow_asserts;
+      v8_flags.enable_slow_asserts = false;
 #endif
       Handle<Code> setup =
           BuildSetupFunction(main_isolate(), test_descriptor_, layout_);
 #ifdef ENABLE_SLOW_DCHECKS
-      FLAG_enable_slow_asserts = old_enable_slow_asserts;
+      v8_flags.enable_slow_asserts = old_enable_slow_asserts;
 #endif
       // FunctionTester maintains its own HandleScope which means that its
       // return value will be freed along with it. Copy the result into
@@ -1270,7 +1270,7 @@ TEST(FuzzAssembleMove) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1309,7 +1309,7 @@ TEST(FuzzAssembleParallelMove) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1335,7 +1335,7 @@ TEST(FuzzAssembleSwap) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1373,7 +1373,7 @@ TEST(FuzzAssembleMoveAndSwap) {
     }
 
     Handle<Code> test = c.FinalizeForExecuting();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       test->Print();
     }
 
@@ -1454,7 +1454,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kRegisterPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }
@@ -1483,7 +1483,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kStackSlotPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }
@@ -1512,7 +1512,7 @@ TEST(AssembleTailCallGap) {
     c.CheckAssembleTailCallGaps(instr, first_slot + 4,
                                 CodeGeneratorTester::kScalarPush);
     Handle<Code> code = c.Finalize();
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
   }

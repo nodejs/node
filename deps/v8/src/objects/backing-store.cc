@@ -135,6 +135,21 @@ void BackingStore::Clear() {
   type_specific_data_.v8_api_array_buffer_allocator = nullptr;
 }
 
+void BackingStore::FreeResizableMemory() {
+  DCHECK(free_on_destruct_);
+  DCHECK(!custom_deleter_);
+  DCHECK(is_resizable_by_js_ || is_wasm_memory_);
+  auto region =
+      GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
+
+  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
+  if (!region.is_empty()) {
+    FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+              region.size());
+  }
+  Clear();
+}
+
 BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                            size_t max_byte_length, size_t byte_capacity,
                            SharedFlag shared, ResizableFlag resizable,
@@ -147,7 +162,7 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
       byte_capacity_(byte_capacity),
       id_(next_backing_store_id_.fetch_add(1)),
       is_shared_(shared == SharedFlag::kShared),
-      is_resizable_(resizable == ResizableFlag::kResizable),
+      is_resizable_by_js_(resizable == ResizableFlag::kResizable),
       is_wasm_memory_(is_wasm_memory),
       holds_shared_ptr_to_allocator_(false),
       free_on_destruct_(free_on_destruct),
@@ -156,10 +171,10 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
       custom_deleter_(custom_deleter),
       empty_deleter_(empty_deleter) {
   // TODO(v8:11111): RAB / GSAB - Wasm integration.
-  DCHECK_IMPLIES(is_wasm_memory_, !is_resizable_);
-  DCHECK_IMPLIES(is_resizable_, !custom_deleter_);
-  DCHECK_IMPLIES(is_resizable_, free_on_destruct_);
-  DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_,
+  DCHECK_IMPLIES(is_wasm_memory_, !is_resizable_by_js_);
+  DCHECK_IMPLIES(is_resizable_by_js_, !custom_deleter_);
+  DCHECK_IMPLIES(is_resizable_by_js_, free_on_destruct_);
+  DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_by_js_,
                  byte_length_ == max_byte_length_);
   DCHECK_GE(max_byte_length_, byte_length_);
   DCHECK_GE(byte_capacity_, max_byte_length_);
@@ -173,14 +188,10 @@ BackingStore::~BackingStore() {
     return;
   }
 
-  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
-
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
     // TODO(v8:11111): RAB / GSAB - Wasm integration.
-    DCHECK(!is_resizable_);
-    DCHECK(free_on_destruct_);
-    DCHECK(!custom_deleter_);
+    DCHECK(!is_resizable_by_js_);
     size_t reservation_size =
         GetReservationSize(has_guard_regions_, byte_capacity_);
     TRACE_BS(
@@ -192,31 +203,14 @@ BackingStore::~BackingStore() {
       delete shared_data;
       type_specific_data_.shared_wasm_memory_data = nullptr;
     }
-
     // Wasm memories are always allocated through the page allocator.
-    auto region =
-        GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
-
-    if (!region.is_empty()) {
-      FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                region.size());
-    }
-    Clear();
+    FreeResizableMemory();
     return;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (is_resizable_) {
-    DCHECK(free_on_destruct_);
-    DCHECK(!custom_deleter_);
-    auto region =
-        GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
-
-    if (!region.is_empty()) {
-      FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                region.size());
-    }
-    Clear();
+  if (is_resizable_by_js_) {
+    FreeResizableMemory();
     return;
   }
   if (custom_deleter_) {
@@ -280,6 +274,14 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
       counters->array_buffer_new_size_failures()->AddSample(mb_length);
       return {};
     }
+#ifdef V8_ENABLE_SANDBOX
+    // Check to catch use of a non-sandbox-compatible ArrayBufferAllocator.
+    CHECK_WITH_MSG(GetProcessWideSandbox()->Contains(buffer_start),
+                   "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
+                   "must be allocated inside the sandbox address space. Please "
+                   "use an appropriate ArrayBuffer::Allocator to allocate "
+                   "these buffers, or disable the sandbox.");
+#endif
   }
 
   auto result = new BackingStore(buffer_start,                  // start

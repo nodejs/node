@@ -666,6 +666,7 @@ class ValueType {
 
   uint32_t bit_field_;
 };
+ASSERT_TRIVIALLY_COPYABLE(ValueType);
 
 inline constexpr intptr_t ValueType::kBitFieldOffset =
     offsetof(ValueType, bit_field_);

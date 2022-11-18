@@ -522,7 +522,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
         CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
         int32_t byte_length = static_cast<int32_t>(byte_length_size);
         Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-        if (buffer.is_resizable()) {
+        if (buffer.is_resizable_by_js()) {
           CHECK_LE(buffer.max_byte_length(),
                    std::numeric_limits<int32_t>::max());
           max_byte_length =
@@ -558,7 +558,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
     int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
     Maybe<int32_t> max_byte_length = Nothing<int32_t>();
-    if (buffer.is_resizable()) {
+    if (buffer.is_resizable_by_js()) {
       CHECK_LE(buffer.max_byte_length(), std::numeric_limits<int32_t>::max());
       max_byte_length = Just(static_cast<int32_t>(buffer.max_byte_length()));
     }
@@ -788,6 +788,8 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
         return SnapshotSpace::kCode;
       case MAP_SPACE:
         return SnapshotSpace::kMap;
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
@@ -1037,7 +1039,6 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 
   void VisitExternalReference(Code host, RelocInfo* rinfo) {}
   void VisitInternalReference(Code host, RelocInfo* rinfo) {}
-  void VisitRuntimeEntry(Code host, RelocInfo* reloc) { UNREACHABLE(); }
   void VisitOffHeapTarget(Code host, RelocInfo* target) {}
 
   int num_serialized_objects() const { return num_serialized_objects_; }
@@ -1122,12 +1123,6 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         (V8_EXTERNAL_CODE_SPACE_BOOL &&
          InstanceTypeChecker::IsCodeDataContainer(instance_type)));
   }
-}
-
-void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
-                                                     RelocInfo* rinfo) {
-  // We no longer serialize code that contains runtime entries.
-  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
@@ -1268,8 +1263,7 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
 
   DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
   Handle<Code> on_heap_code = Handle<Code>::cast(object_);

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_DEOPT_DATA_H_
 #define V8_COMPILER_TURBOSHAFT_DEOPT_DATA_H_
 
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/operations.h"
 

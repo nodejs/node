@@ -285,8 +285,11 @@ declare_args() {
       target_os == "fuchsia"
 
   # Enable control-flow integrity features, such as pointer authentication for
-  # ARM64.
-  v8_control_flow_integrity = false
+  # ARM64. Enable it by default for simulator builds and when native code
+  # supports it as well.
+  v8_control_flow_integrity =
+      v8_current_cpu == "arm64" &&
+      (target_is_simulator || arm_control_flow_integrity != "none")
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
@@ -465,6 +468,8 @@ if (v8_builtins_profiling_log_file == "default") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
     } else if (v8_current_cpu == "arm64") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/arm64.profile"
+    } else if (v8_current_cpu == "arm") {
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/arm.profile"
     }
   }
 }
@@ -496,14 +501,6 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
 
-# Check if it is a Chromium build and activate PAC/BTI if needed.
-# TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
-if (build_with_chromium && v8_current_cpu == "arm64" &&
-    (arm_control_flow_integrity == "standard" ||
-     arm_control_flow_integrity == "pac")) {
-  v8_control_flow_integrity = true
-}
-
 if (v8_enable_short_builtin_calls &&
     (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
   # Disable short calls when pointer compression is not enabled, except x64,
@@ -521,9 +518,8 @@ if (v8_enable_sandbox == "") {
   # once that is enabled everywhere by default.
   # TODO(chromium:1325784) the sandbox is not currently supported in Chromium
   # on Fuchsia.
-  v8_enable_sandbox =
-      build_with_chromium && v8_enable_pointer_compression_shared_cage &&
-      v8_enable_external_code_space && target_os != "fuchsia"
+  v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
+                      v8_enable_external_code_space && target_os != "fuchsia"
 }
 
 # Enable all available sandbox features if sandbox future is enabled.
@@ -1102,18 +1098,9 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
-    if (current_cpu == "arm64") {
-      # This will enable PAC+BTI in code generation and static code.
-      if (v8_control_flow_integrity &&
-          (!build_with_chromium || arm_control_flow_integrity == "standard")) {
-        cflags += [ "-mbranch-protection=standard" ]
-        asmflags = [ "-mmark-bti-property" ]
-      } else if (build_with_chromium && arm_control_flow_integrity == "pac") {
-        # This should enable PAC only in C++ code (and no CFI in runtime
-        # generated code). For details, see crbug.com/919548.
-        cflags += [ "-mbranch-protection=pac-ret" ]
-        asmflags = [ "-mbranch-protection=pac-ret" ]
-      }
+    if (current_cpu == "arm64" && v8_control_flow_integrity && is_clang) {
+      # Mark assembly code as BTI-compatible.
+      asmflags = [ "-mmark-bti-property" ]
     }
   }
 
@@ -1619,6 +1606,9 @@ action("postmortem-metadata") {
     "src/objects/js-objects-inl.h",
     "src/objects/js-promise.h",
     "src/objects/js-promise-inl.h",
+    "src/objects/js-raw-json.cc",
+    "src/objects/js-raw-json.h",
+    "src/objects/js-raw-json-inl.h",
     "src/objects/js-regexp.cc",
     "src/objects/js-regexp.h",
     "src/objects/js-regexp-inl.h",
@@ -1790,6 +1780,7 @@ torque_files = [
   "src/builtins/typed-array-sort.tq",
   "src/builtins/typed-array-subarray.tq",
   "src/builtins/typed-array-to-reversed.tq",
+  "src/builtins/typed-array-to-sorted.tq",
   "src/builtins/typed-array-values.tq",
   "src/builtins/typed-array-with.tq",
   "src/builtins/typed-array.tq",
@@ -1824,6 +1815,7 @@ torque_files = [
   "src/objects/js-objects.tq",
   "src/objects/js-promise.tq",
   "src/objects/js-proxy.tq",
+  "src/objects/js-raw-json.tq",
   "src/objects/js-regexp-string-iterator.tq",
   "src/objects/js-regexp.tq",
   "src/objects/js-shadow-realm.tq",
@@ -1870,6 +1862,7 @@ if (v8_enable_i18n_support) {
     "src/objects/js-collator.tq",
     "src/objects/js-date-time-format.tq",
     "src/objects/js-display-names.tq",
+    "src/objects/js-duration-format.tq",
     "src/objects/js-list-format.tq",
     "src/objects/js-locale.tq",
     "src/objects/js-number-format.tq",
@@ -2930,10 +2923,14 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/machine-optimization-assembler.h",
+    "src/compiler/turboshaft/operation-matching.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
+    "src/compiler/turboshaft/representations.h",
     "src/compiler/turboshaft/sidetable.h",
+    "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/utils.h",
     "src/compiler/turboshaft/value-numbering-assembler.h",
     "src/compiler/type-cache.h",
@@ -2941,6 +2938,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/typed-optimization.h",
     "src/compiler/typer.h",
     "src/compiler/types.h",
+    "src/compiler/use-info.h",
     "src/compiler/value-numbering-reducer.h",
     "src/compiler/verifier.h",
     "src/compiler/write-barrier-kind.h",
@@ -2956,7 +2954,6 @@ v8_header_set("v8_internal_headers") {
     "src/debug/debug-scope-iterator.h",
     "src/debug/debug-scopes.h",
     "src/debug/debug-stack-trace-iterator.h",
-    "src/debug/debug-type-profile.h",
     "src/debug/debug.h",
     "src/debug/interface-types.h",
     "src/debug/liveedit-diff.h",
@@ -3053,6 +3050,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/embedder-tracing.h",
     "src/heap/evacuation-allocator-inl.h",
     "src/heap/evacuation-allocator.h",
+    "src/heap/evacuation-verifier-inl.h",
+    "src/heap/evacuation-verifier.h",
     "src/heap/factory-base-inl.h",
     "src/heap/factory-base.h",
     "src/heap/factory-inl.h",
@@ -3090,6 +3089,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/mark-compact.h",
     "src/heap/marking-barrier-inl.h",
     "src/heap/marking-barrier.h",
+    "src/heap/marking-state-inl.h",
+    "src/heap/marking-state.h",
     "src/heap/marking-visitor-inl.h",
     "src/heap/marking-visitor.h",
     "src/heap/marking-worklist-inl.h",
@@ -3111,6 +3112,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/paged-spaces.h",
     "src/heap/parallel-work-item.h",
     "src/heap/parked-scope.h",
+    "src/heap/pretenuring-handler-inl.h",
+    "src/heap/pretenuring-handler.h",
     "src/heap/progress-bar.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.h",
@@ -3269,6 +3272,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-promise.h",
     "src/objects/js-proxy-inl.h",
     "src/objects/js-proxy.h",
+    "src/objects/js-raw-json-inl.h",
+    "src/objects/js-raw-json.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp-string-iterator-inl.h",
     "src/objects/js-regexp-string-iterator.h",
@@ -3431,7 +3436,6 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/experimental/experimental-compiler.h",
     "src/regexp/experimental/experimental-interpreter.h",
     "src/regexp/experimental/experimental.h",
-    "src/regexp/property-sequences.h",
     "src/regexp/regexp-ast.h",
     "src/regexp/regexp-bytecode-generator-inl.h",
     "src/regexp/regexp-bytecode-generator.h",
@@ -3455,6 +3459,8 @@ v8_header_set("v8_internal_headers") {
     "src/roots/roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
+    "src/sandbox/bounded-size-inl.h",
+    "src/sandbox/bounded-size.h",
     "src/sandbox/external-pointer-inl.h",
     "src/sandbox/external-pointer-table-inl.h",
     "src/sandbox/external-pointer-table.h",
@@ -3625,7 +3631,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/module-instantiate.h",
       "src/wasm/names-provider.h",
       "src/wasm/object-access.h",
-      "src/wasm/signature-map.h",
+      "src/wasm/pgo.h",
       "src/wasm/simd-shuffle.h",
       "src/wasm/stacks.h",
       "src/wasm/streaming-decoder.h",
@@ -3682,6 +3688,8 @@ v8_header_set("v8_internal_headers") {
       "src/objects/js-date-time-format.h",
       "src/objects/js-display-names-inl.h",
       "src/objects/js-display-names.h",
+      "src/objects/js-duration-format-inl.h",
+      "src/objects/js-duration-format.h",
       "src/objects/js-list-format-inl.h",
       "src/objects/js-list-format.h",
       "src/objects/js-locale-inl.h",
@@ -4229,6 +4237,9 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
+    "src/compiler/turboshaft/representations.cc",
+    "src/compiler/turboshaft/simplify-tf-loops.cc",
+    "src/compiler/turboshaft/utils.cc",
   ]
 
   public_deps = [
@@ -4369,7 +4380,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/debug/debug-scope-iterator.cc",
     "src/debug/debug-scopes.cc",
     "src/debug/debug-stack-trace-iterator.cc",
-    "src/debug/debug-type-profile.cc",
     "src/debug/debug.cc",
     "src/debug/liveedit-diff.cc",
     "src/debug/liveedit.cc",
@@ -4436,6 +4446,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/cppgc-js/unified-heap-marking-verifier.cc",
     "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
     "src/heap/embedder-tracing.cc",
+    "src/heap/evacuation-verifier.cc",
     "src/heap/factory-base.cc",
     "src/heap/factory.cc",
     "src/heap/finalization-registry-cleanup-task.cc",
@@ -4469,6 +4480,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/object-stats.cc",
     "src/heap/objects-visiting.cc",
     "src/heap/paged-spaces.cc",
+    "src/heap/pretenuring-handler.cc",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-spaces.cc",
     "src/heap/safepoint.cc",
@@ -4541,12 +4553,14 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-collator.cc",
     "src/objects/js-date-time-format.cc",
     "src/objects/js-display-names.cc",
+    "src/objects/js-duration-format.cc",
     "src/objects/js-function.cc",
     "src/objects/js-list-format.cc",
     "src/objects/js-locale.cc",
     "src/objects/js-number-format.cc",
     "src/objects/js-objects.cc",
     "src/objects/js-plural-rules.cc",
+    "src/objects/js-raw-json.cc",
     "src/objects/js-regexp.cc",
     "src/objects/js-relative-time-format.cc",
     "src/objects/js-segment-iterator.cc",
@@ -4615,7 +4629,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/experimental/experimental-compiler.cc",
     "src/regexp/experimental/experimental-interpreter.cc",
     "src/regexp/experimental/experimental.cc",
-    "src/regexp/property-sequences.cc",
     "src/regexp/regexp-ast.cc",
     "src/regexp/regexp-bytecode-generator.cc",
     "src/regexp/regexp-bytecode-peephole.cc",
@@ -4767,7 +4780,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/module-decoder.cc",
       "src/wasm/module-instantiate.cc",
       "src/wasm/names-provider.cc",
-      "src/wasm/signature-map.cc",
+      "src/wasm/pgo.cc",
       "src/wasm/simd-shuffle.cc",
       "src/wasm/stacks.cc",
       "src/wasm/streaming-decoder.cc",
@@ -5130,6 +5143,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/objects/js-collator.cc",
       "src/objects/js-date-time-format.cc",
       "src/objects/js-display-names.cc",
+      "src/objects/js-duration-format.cc",
       "src/objects/js-list-format.cc",
       "src/objects/js-locale.cc",
       "src/objects/js-number-format.cc",
@@ -5712,6 +5726,7 @@ v8_source_set("v8_bigint") {
 v8_header_set("v8_heap_base_headers") {
   sources = [
     "src/heap/base/active-system-pages.h",
+    "src/heap/base/basic-slot-set.h",
     "src/heap/base/stack.h",
     "src/heap/base/worklist.h",
   ]
@@ -5856,6 +5871,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/globals.h",
     "src/heap/cppgc/heap-base.cc",
     "src/heap/cppgc/heap-base.h",
+    "src/heap/cppgc/heap-config.h",
     "src/heap/cppgc/heap-consistency.cc",
     "src/heap/cppgc/heap-growing.cc",
     "src/heap/cppgc/heap-growing.h",
@@ -6253,7 +6269,7 @@ group("gn_all") {
 }
 
 group("v8_python_base") {
-  data = [ ".vpython" ]
+  data = [ ".vpython3" ]
 }
 
 group("v8_clusterfuzz") {

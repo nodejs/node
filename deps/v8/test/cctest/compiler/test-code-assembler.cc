@@ -468,7 +468,7 @@ TEST(ExceptionHandler) {
 
 TEST(TestCodeAssemblerCodeComment) {
 #ifdef V8_CODE_COMMENTS
-  i::FLAG_code_comments = true;
+  i::v8_flags.code_comments = true;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 0;
   CodeAssemblerTester asm_tester(isolate, kNumParams);

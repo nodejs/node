@@ -5,6 +5,7 @@
 #include "src/compiler/graph-assembler.h"
 
 #include "src/codegen/callable.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
 // For TNode types.
@@ -215,6 +216,10 @@ Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size) {
                        effect(), control()));
 }
 
+TNode<Map> JSGraphAssembler::LoadMap(TNode<HeapObject> object) {
+  return TNode<Map>::UncheckedCast(LoadField(AccessBuilder::ForMap(), object));
+}
+
 Node* JSGraphAssembler::LoadField(FieldAccess const& access, Node* object) {
   Node* value = AddNode(graph()->NewNode(simplified()->LoadField(access),
                                          object, effect(), control()));
@@ -364,14 +369,14 @@ TNode<Object> JSGraphAssembler::ConvertTaggedHoleToUndefined(
 
 TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
     ElementsKind kind, const FeedbackSource& feedback, TNode<JSArray> array,
-    TNode<FixedArrayBase> elements, TNode<Number> new_length,
+    TNode<FixedArrayBase> elements, TNode<Number> index_needed,
     TNode<Number> old_length) {
   GrowFastElementsMode mode = IsDoubleElementsKind(kind)
                                   ? GrowFastElementsMode::kDoubleElements
                                   : GrowFastElementsMode::kSmiOrObjectElements;
   return AddNode<FixedArrayBase>(graph()->NewNode(
       simplified()->MaybeGrowFastElements(mode, feedback), array, elements,
-      new_length, old_length, effect(), control()));
+      index_needed, old_length, effect(), control()));
 }
 
 Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,

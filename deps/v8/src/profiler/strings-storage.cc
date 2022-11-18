@@ -81,8 +81,8 @@ const char* StringsStorage::GetSymbol(Symbol sym) {
     return "<symbol>";
   }
   String description = String::cast(sym.description());
-  int length =
-      std::min(FLAG_heap_snapshot_string_limit.value(), description.length());
+  int length = std::min(v8_flags.heap_snapshot_string_limit.value(),
+                        description.length());
   auto data = description.ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0,
                                     length, &length);
   if (sym.is_private_name()) {
@@ -98,7 +98,7 @@ const char* StringsStorage::GetName(Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
     int length =
-        std::min(FLAG_heap_snapshot_string_limit.value(), str.length());
+        std::min(v8_flags.heap_snapshot_string_limit.value(), str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
@@ -117,7 +117,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
   if (name.IsString()) {
     String str = String::cast(name);
     int length =
-        std::min(FLAG_heap_snapshot_string_limit.value(), str.length());
+        std::min(v8_flags.heap_snapshot_string_limit.value(), str.length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);

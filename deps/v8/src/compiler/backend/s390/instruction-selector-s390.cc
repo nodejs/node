@@ -725,7 +725,8 @@ static void VisitGeneralStore(
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   Node* value = node->InputAt(2);
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -824,7 +825,7 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (FLAG_enable_unconditional_write_barriers &&
+  if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
@@ -1258,6 +1259,23 @@ static inline bool TryMatchInt64SubWithOverflow(InstructionSelector* selector,
   return TryMatchInt64OpWithOverflow<kS390_Sub64>(selector, node,
                                                   SubOperandMode);
 }
+
+void EmitInt64MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  S390OperandGenerator g(selector);
+  Int64BinopMatcher m(node);
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+
+  inputs[input_count++] = g.UseUniqueRegister(m.left().node());
+  inputs[input_count++] = g.UseUniqueRegister(m.right().node());
+  outputs[output_count++] = g.DefineAsRegister(node);
+  selector->EmitWithContinuation(kS390_Mul64WithOverflow, output_count, outputs,
+                                 input_count, inputs, cont);
+}
+
 #endif
 
 static inline bool TryMatchDoubleConstructFromInsert(
@@ -1471,6 +1489,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
 
 #define WORD64_BIN_OP_LIST(V)                                                  \
   V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)                       \
+  V(Word64, Int64MulHigh, kS390_MulHighS64, OperandMode::kAllowRRR, null)      \
+  V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null)     \
   V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                    \
       return TryMatchNegFromSub<Int64BinopMatcher, kS390_Neg64>(this, node);   \
     }))                                                                        \
@@ -1582,6 +1602,16 @@ void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
   Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
        g.UseFixed(node->InputAt(1), d2))
       ->MarkAsCall();
+}
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(
+        CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow : kNotEqual, ovf);
+    return EmitInt64MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt64MulWithOverflow(this, node, &cont);
 }
 
 static bool CompareLogical(FlagsContinuation* cont) {
@@ -1901,6 +1931,11 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitWord64BinOp(this, node, kS390_Sub64, SubOperandMode,
                                         cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(
+                    CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow
+                                                              : kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
 #endif
               default:
                 break;

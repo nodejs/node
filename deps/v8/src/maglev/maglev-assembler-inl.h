@@ -5,6 +5,10 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -131,6 +135,9 @@ struct CopyForDeferredHelper<MaglevCompilationInfo*>
 template <>
 struct CopyForDeferredHelper<Register>
     : public CopyForDeferredByValue<Register> {};
+template <>
+struct CopyForDeferredHelper<DoubleRegister>
+    : public CopyForDeferredByValue<DoubleRegister> {};
 // Bytecode offsets are copied by value.
 template <>
 struct CopyForDeferredHelper<BytecodeOffset>
@@ -187,10 +194,10 @@ struct FunctionArgumentsTupleHelper<R (&)(A...)> {
 };
 
 template <typename T>
-struct StripFirstTwoTupleArgs;
+struct StripFirstTupleArg;
 
-template <typename T1, typename T2, typename... T>
-struct StripFirstTwoTupleArgs<std::tuple<T1, T2, T...>> {
+template <typename T1, typename... T>
+struct StripFirstTupleArg<std::tuple<T1, T...>> {
   using Stripped = std::tuple<T...>;
 };
 
@@ -199,9 +206,8 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
  public:
   using FunctionPointer =
       typename FunctionArgumentsTupleHelper<Function>::FunctionPointer;
-  using Tuple = typename StripFirstTwoTupleArgs<
+  using Tuple = typename StripFirstTupleArg<
       typename FunctionArgumentsTupleHelper<Function>::Tuple>::Stripped;
-  static constexpr size_t kSize = FunctionArgumentsTupleHelper<Function>::kSize;
 
   template <typename... InArgs>
   explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
@@ -213,18 +219,12 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
   DeferredCodeInfoImpl(const DeferredCodeInfoImpl&) = delete;
 
-  void Generate(MaglevAssembler* masm, Label* return_label) override {
-    DoCall(masm, return_label, std::make_index_sequence<kSize - 2>{});
+  void Generate(MaglevAssembler* masm) override {
+    std::apply(function,
+               std::tuple_cat(std::make_tuple(masm), std::move(args)));
   }
 
  private:
-  template <size_t... I>
-  auto DoCall(MaglevAssembler* masm, Label* return_label,
-              std::index_sequence<I...>) {
-    // TODO(leszeks): This could be replaced with std::apply in C++17.
-    return function(masm, return_label, std::get<I>(args)...);
-  }
-
   FunctionPointer function;
   Tuple args;
 };
@@ -234,6 +234,16 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
 template <typename Function, typename... Args>
 inline DeferredCodeInfo* MaglevAssembler::PushDeferredCode(
     Function&& deferred_code_gen, Args&&... args) {
+  using FunctionPointer =
+      typename detail::FunctionArgumentsTupleHelper<Function>::FunctionPointer;
+  static_assert(
+      std::is_invocable_v<FunctionPointer, MaglevAssembler*,
+                          decltype(detail::CopyForDeferred(
+                              std::declval<MaglevCompilationInfo*>(),
+                              std::declval<Args>()))...>,
+      "Parameters of deferred_code_gen function should match arguments into "
+      "PushDeferredCode");
+
   using DeferredCodeInfoT = detail::DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
       compilation_info()->zone()->New<DeferredCodeInfoT>(
@@ -252,11 +262,10 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
                                               Args&&... args) {
   DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
       std::forward<Function>(deferred_code_gen), std::forward<Args>(args)...);
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     RecordComment("-- Jump to deferred code");
   }
   j(cond, &deferred_code->deferred_code_label);
-  bind(&deferred_code->return_label);
 }
 
 // ---

@@ -730,6 +730,9 @@ struct LiveRangeOrdering {
     return left->Start() < right->Start();
   }
 };
+// Bundle live ranges that are connected by phis and do not overlap. This tries
+// to restore some pre-SSA information and is used as a hint to allocate the
+// same spill slot or reuse the same register for connected live ranges.
 class LiveRangeBundle : public ZoneObject {
  public:
   void MergeSpillRangesAndClear();
@@ -799,6 +802,10 @@ class LiveRangeBundle : public ZoneObject {
   int reg_ = kUnassignedRegister;
 };
 
+// Register allocation splits LiveRanges so it can make more fine-grained
+// allocation and spilling decisions. The LiveRanges that belong to the same
+// virtual register form a linked-list, and the head of this list is a
+// TopLevelLiveRange.
 class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
  public:
   explicit TopLevelLiveRange(int vreg, MachineRepresentation rep);
@@ -1069,6 +1076,9 @@ struct PrintableLiveRange {
 std::ostream& operator<<(std::ostream& os,
                          const PrintableLiveRange& printable_range);
 
+// Represent the spill operand of a LiveRange and its use intervals. After
+// register allocation, disjoint spill ranges are merged and they get assigned
+// the same spill slot by OperandAssigner::AssignSpillSlots().
 class SpillRange final : public ZoneObject {
  public:
   static const int kUnassignedSlot = -1;
@@ -1111,6 +1121,8 @@ class SpillRange final : public ZoneObject {
   int byte_width_;
 };
 
+// A live range with the start and end position, and helper methods for the
+// ResolveControlFlow phase.
 class LiveRangeBound {
  public:
   explicit LiveRangeBound(LiveRange* range, bool skip)
@@ -1135,6 +1147,8 @@ struct FindResult {
   LiveRange* pred_cover_;
 };
 
+// An array of LiveRangeBounds belonging to the same TopLevelLiveRange. Sorted
+// by their start position for quick binary search.
 class LiveRangeBoundArray {
  public:
   LiveRangeBoundArray() : length_(0), start_(nullptr) {}
@@ -1478,6 +1492,11 @@ class LinearScanAllocator final : public RegisterAllocator {
                                         RangeWithRegisterSet* to_be_live);
 
   // Helper methods for allocating registers.
+
+  // Spilling a phi at range start can be beneficial when the phi input is
+  // already spilled and shares the same spill slot. This function tries to
+  // guess if spilling the phi is beneficial based on live range bundles and
+  // spilled phi inputs.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
   int PickRegisterThatIsAvailableLongest(
       LiveRange* current, int hint_reg,

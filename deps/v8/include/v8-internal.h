@@ -182,7 +182,7 @@ constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
-#endif  // V8_OS_ANDROID
+#endif  // V8_TARGET_OS_ANDROID
 constexpr size_t kSandboxSize = 1ULL << kSandboxSizeLog2;
 
 // Required alignment of the sandbox. For simplicity, we require the
@@ -222,6 +222,21 @@ constexpr size_t kSandboxMinimumReservationSize = 8ULL * GB;
 static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
               "The minimum reservation size for a sandbox must be larger than "
               "the pointer compression cage contained within it.");
+
+// The maximum buffer size allowed inside the sandbox. This is mostly dependent
+// on the size of the guard regions around the sandbox: an attacker must not be
+// able to construct a buffer that appears larger than the guard regions and
+// thereby "reach out of" the sandbox.
+constexpr size_t kMaxSafeBufferSizeForSandbox = 32ULL * GB - 1;
+static_assert(kMaxSafeBufferSizeForSandbox <= kSandboxGuardRegionSize,
+              "The maximum allowed buffer size must not be larger than the "
+              "sandbox's guard regions");
+
+constexpr size_t kBoundedSizeShift = 29;
+static_assert(1ULL << (64 - kBoundedSizeShift) ==
+                  kMaxSafeBufferSizeForSandbox + 1,
+              "The maximum size of a BoundedSize must be synchronized with the "
+              "kMaxSafeBufferSizeForSandbox");
 
 #endif  // V8_ENABLE_SANDBOX
 

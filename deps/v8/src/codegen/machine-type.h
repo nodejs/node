@@ -86,6 +86,8 @@ enum class MachineSemantic : uint8_t {
   kUint32,
   kInt64,
   kUint64,
+  kSignedBigInt64,
+  kUnsignedBigInt64,
   kNumber,
   kAny
 };
@@ -152,10 +154,6 @@ class MachineType {
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
   }
-  constexpr static MachineRepresentation TaggedRepresentation() {
-    return (kTaggedSize == 4) ? MachineRepresentation::kWord32
-                              : MachineRepresentation::kWord64;
-  }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
                                      : MachineRepresentation::kWord64;
@@ -192,6 +190,14 @@ class MachineType {
   constexpr static MachineType Uint64() {
     return MachineType(MachineRepresentation::kWord64,
                        MachineSemantic::kUint64);
+  }
+  constexpr static MachineType SignedBigInt64() {
+    return MachineType(MachineRepresentation::kWord64,
+                       MachineSemantic::kSignedBigInt64);
+  }
+  constexpr static MachineType UnsignedBigInt64() {
+    return MachineType(MachineRepresentation::kWord64,
+                       MachineSemantic::kUnsignedBigInt64);
   }
   constexpr static MachineType Float32() {
     return MachineType(MachineRepresentation::kFloat32,
@@ -234,7 +240,7 @@ class MachineType {
   }
   constexpr static MachineType SandboxedPointer() {
     return MachineType(MachineRepresentation::kSandboxedPointer,
-                       MachineSemantic::kNone);
+                       MachineSemantic::kInt64);
   }
   constexpr static MachineType Bool() {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kBool);

@@ -104,6 +104,13 @@ void WasmStreamingCallbackTestOnBytesReceived(
   streaming->OnBytesReceived(bytes, arraysize(bytes));
 }
 
+void WasmStreamingMoreFunctionsCanBeSerializedCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  std::shared_ptr<WasmStreaming> streaming =
+      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+  streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
+}
+
 TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
@@ -142,6 +149,11 @@ TEST_F(ApiWasmTest, WasmCompileToWasmModuleObject) {
   auto maybe_module = WasmModuleObject::Compile(
       isolate(), {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)});
   CHECK(!maybe_module.IsEmpty());
+}
+
+TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
+  TestWasmStreaming(WasmStreamingMoreFunctionsCanBeSerializedCallback,
+                    Promise::kPending);
 }
 
 namespace {

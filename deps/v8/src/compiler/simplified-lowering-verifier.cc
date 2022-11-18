@@ -26,6 +26,10 @@ bool IsNonTruncatingMachineTypeFor(const MachineType& mt, const Type& type) {
   if (type.IsNone()) return true;
   // TODO(nicohartmann@): Add more cases here.
   if (type.Is(Type::BigInt())) {
+    if (mt.representation() == MachineRepresentation::kWord64) {
+      return type.Is(Type::SignedBigInt64()) ||
+             type.Is(Type::UnsignedBigInt64());
+    }
     return mt.representation() == MachineRepresentation::kTaggedPointer ||
            mt.representation() == MachineRepresentation::kTagged;
   }
@@ -279,6 +283,13 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, input_type, InputTruncation(node, 0));
       break;
     }
+    case IrOpcode::kCheckBigInt64: {
+      Type input_type = InputType(node, 0);
+      input_type =
+          Type::Intersect(input_type, Type::SignedBigInt64(), graph_zone());
+      CheckAndSet(node, input_type, InputTruncation(node, 0));
+      break;
+    }
     case IrOpcode::kReturn: {
       const int return_value_count = ValueInputCountOfReturn(node->op());
       for (int i = 0; i < return_value_count; ++i) {
@@ -412,6 +423,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint32Div)
       CASE(CheckedUint32Mod)
       CASE(CheckedInt32Mul)
+      CASE(CheckedBigInt64Add)
       CASE(CheckedInt32ToTaggedSigned)
       CASE(CheckedInt64ToInt32)
       CASE(CheckedInt64ToTaggedSigned)
@@ -420,6 +432,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint32ToTaggedSigned)
       CASE(CheckedUint64Bounds)
       CASE(CheckedUint64ToInt32)
+      CASE(CheckedUint64ToInt64)
       CASE(CheckedUint64ToTaggedSigned)
       CASE(CheckedFloat64ToInt64)
       CASE(CheckedTaggedSignedToInt32)
@@ -475,6 +488,9 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Int64Sub)
       CASE(Int64SubWithOverflow)
       CASE(Int64Mul)
+      CASE(Int64MulHigh)
+      CASE(Uint64MulHigh)
+      CASE(Int64MulWithOverflow)
       CASE(Int64Div)
       CASE(Int64Mod)
       CASE(Uint64Div)

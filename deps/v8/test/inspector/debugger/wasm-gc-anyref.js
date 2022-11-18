@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-gc --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-type-reflection
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
@@ -17,8 +18,9 @@ let breakpointLocation = -1;
 
 InspectorTest.runAsyncTestSuite([
   async function test() {
-    instantiateWasm();
+    let wasm_promise = instantiateWasm();
     let scriptIds = await waitForWasmScripts();
+    await wasm_promise;  // Make sure the instantiation is finished.
 
     // Set a breakpoint.
     InspectorTest.log('Setting breakpoint');
@@ -66,10 +68,20 @@ async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let array_type = builder.addArray(kWasmI32);
+  let imported_ref_table =
+      builder.addImportedTable('import', 'any_table', 3, 3, kWasmAnyRef);
+  let imported_func_table =
+      builder.addImportedTable('import', 'func_table', 3, 3, kWasmFuncRef);
   let ref_table = builder.addTable(kWasmAnyRef, 4)
                          .exportAs('exported_ref_table');
+  let func_table = builder.addTable(kWasmFuncRef, 3)
+                         .exportAs('exported_func_table');
 
-  builder.addFunction('fill_ref_table', kSig_v_v)
+  let func = builder.addFunction('my_func', kSig_v_v).addBody([kExprNop]);
+  // Make the function "declared".
+  builder.addGlobal(kWasmFuncRef, false, [kExprRefFunc, func.index]);
+
+  builder.addFunction('fill_tables', kSig_v_v)
     .addBody([
       ...wasmI32Const(0), ...wasmI32Const(123),
       kGCPrefix, kExprStructNew, struct_type, kExprTableSet, ref_table.index,
@@ -83,6 +95,21 @@ async function instantiateWasm() {
       // apart.
       // ...wasmI32Const(2), ...wasmI32Const(30),
       // kGCPrefix, kExprI31New, kExprTableSet, ref_table.index,
+
+      // Fill imported any table.
+      ...wasmI32Const(1),
+      ...wasmI32Const(123), kGCPrefix, kExprStructNew, struct_type,
+      kExprTableSet, imported_ref_table,
+
+      // Fill imported func table.
+      ...wasmI32Const(1),
+      kExprRefFunc, func.index,
+      kExprTableSet, imported_func_table,
+
+      // Fill func table.
+      ...wasmI32Const(1),
+      kExprRefFunc, func.index,
+      kExprTableSet, func_table.index,
     ]).exportFunc();
 
   let body = [
@@ -114,11 +141,32 @@ async function instantiateWasm() {
   breakpointLocation = main.body_offset + body.length - 1;
 
   InspectorTest.log('Calling instantiate function.');
-  await WasmInspectorTest.instantiate(module_bytes);
+  let imports = `{'import' : {
+      'any_table': (() => {
+        let js_table =
+            new WebAssembly.Table({element: 'anyref', initial: 3, maximum: 3});
+        js_table.set(0, ['JavaScript', 'value']);
+        return js_table;
+      })(),
+      'func_table': (() => {
+        let func_table =
+            new WebAssembly.Table({element: 'anyfunc', initial: 3, maximum: 3});
+        func_table.set(0, new WebAssembly.Function(
+          {parameters:['i32', 'i32'], results: ['i32']},
+          function /*anonymous*/ (a, b) { return a * b; }));
+        return func_table;
+      })(),
+    }}`;
+  await WasmInspectorTest.instantiate(module_bytes, 'instance', imports);
   InspectorTest.log('Module instantiated.');
   await WasmInspectorTest.evalWithUrl(
-      'instance.exports.fill_ref_table()', 'fill_ref_table');
-  InspectorTest.log('Table populated.');
+    'instance.exports.fill_tables();', 'fill_tables');
+  await WasmInspectorTest.evalWithUrl(
+      `instance.exports.exported_func_table.set(0, new WebAssembly.Function(
+          {parameters:['i32', 'i32'], results: ['i32']},
+          function external_fct(a, b) { return a * b; }))`,
+      'add_func_to_table');
+  InspectorTest.log('Tables populated.');
 }
 
 async function waitForWasmScripts() {

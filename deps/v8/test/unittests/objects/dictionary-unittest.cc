@@ -204,7 +204,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
 
     // Even though we simulate a full heap, generating an identity hash
     // code in subsequent calls will not request GC.
-    if (!FLAG_single_generation) {
+    if (!v8_flags.single_generation) {
       SimulateFullSpace(heap()->new_space());
     }
     SimulateFullSpace(heap()->old_space());
@@ -276,9 +276,9 @@ TEST_F(DictionaryTest, HashTableRehash) {
 
 #ifdef DEBUG
 TEST_F(DictionaryTest, ObjectHashTableCausesGC) {
-  i::FLAG_stress_compaction = false;
+  i::v8_flags.stress_compaction = false;
   // For SimulateFullSpace in TestHashMapDoesNotCauseGC.
-  i::FLAG_stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation = false;
   TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate(), 1));
 }
 #endif

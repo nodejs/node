@@ -186,3 +186,19 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(['4394967296'], Object.getOwnPropertyNames(obj));
   assertEquals['lol', obj[4394967296]];
 })();
+
+(function TestObjectWithSlackElements() {
+  function createObjects() {
+    globalThis.foo = {};
+    globalThis.bar = {};
+    for (let i = 0; i < 100; ++i) {
+      globalThis.foo[i] = i;
+      globalThis.bar[i] = {};
+    }
+  }
+  const { foo, bar } = takeAndUseWebSnapshot(createObjects, ['foo', 'bar']);
+  for (let i = 0; i < 100; ++i) {
+    assertEquals(i, foo[i]);
+    assertEquals({}, bar[i]);
+  }
+})();

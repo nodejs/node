@@ -57,7 +57,7 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
 
 UnifiedHeapMarkingVerifier::UnifiedHeapMarkingVerifier(
     cppgc::internal::HeapBase& heap_base,
-    cppgc::internal::Heap::Config::CollectionType collection_type)
+    cppgc::internal::CollectionType collection_type)
     : MarkingVerifierBase(
           heap_base, collection_type, state_,
           std::make_unique<UnifiedHeapVerificationVisitor>(state_)) {}

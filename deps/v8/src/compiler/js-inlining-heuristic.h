@@ -30,9 +30,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
         broker_(broker),
         mode_(mode),
         max_inlined_bytecode_size_cumulative_(
-            FLAG_max_inlined_bytecode_size_cumulative),
+            v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            FLAG_max_inlined_bytecode_size_absolute) {}
+            v8_flags.max_inlined_bytecode_size_absolute) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 

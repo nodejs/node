@@ -507,11 +507,13 @@ let kExprArrayNewElem = 0x1f;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
-let kExprRefTest = 0x44;
+let kExprRefTest = 0x40;
+let kExprRefTestNull = 0x48;
+let kExprRefTestDeprecated = 0x44;
 let kExprRefCast = 0x45;
 let kExprBrOnCast = 0x46;
 let kExprBrOnCastFail = 0x47;
-let kExprRefCastNop = 0x48;
+let kExprRefCastNop = 0x4c;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;
 let kExprRefIsArray = 0x53;
@@ -1053,9 +1055,6 @@ class Binary {
   }
 
   emit_init_expr(expr) {
-    // TODO(manoskouk): This is redundant, remove it once we are confident we
-    // check everything.
-    checkExpr(expr);
     this.emit_bytes(expr);
     this.emit_u8(kExprEnd);
   }

@@ -517,6 +517,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
   }
+
   // 2. Let obj be ObjectCreate(O).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, obj, JSObject::ObjectCreate(isolate, prototype));
@@ -1172,35 +1173,6 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
   // BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral doesn't have to
   // save the accumulator.
   return *value;
-}
-
-RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  int position = args.smi_value_at(0);
-  Handle<Object> value = args.at(1);
-  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
-
-  if (maybe_vector->IsUndefined()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-
-  Handle<String> type = Object::TypeOf(isolate, value);
-  if (value->IsJSReceiver()) {
-    Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
-    type = JSReceiver::GetConstructorName(isolate, object);
-  } else if (value->IsNull(isolate)) {
-    // typeof(null) is object. But it's more user-friendly to annotate
-    // null as type "null".
-    type = Handle<String>(ReadOnlyRoots(isolate).null_string(), isolate);
-  }
-
-  DCHECK(vector->metadata().HasTypeProfileSlot());
-  FeedbackNexus nexus(vector, vector->GetTypeProfileSlot());
-  nexus.Collect(type, position);
-
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {

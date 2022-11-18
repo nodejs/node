@@ -900,14 +900,10 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
   }
 
-  Handle<FixedArray> export_wrappers;
-  CompileJsToWasmWrappers(isolate, shared_native_module->module(),
-                          &export_wrappers);
-
   Handle<Script> script =
       wasm_engine->GetOrCreateScript(isolate, shared_native_module, source_url);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, shared_native_module, script, export_wrappers);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, shared_native_module, script);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);

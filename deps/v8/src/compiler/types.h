@@ -423,6 +423,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type Constant(double value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
+  static Type Tuple(Type first, Type second, Zone* zone);
 
   static Type Union(Type type1, Type type2, Zone* zone);
   static Type Intersect(Type type1, Type type2, Zone* zone);

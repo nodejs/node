@@ -70,9 +70,9 @@ namespace {
 template <typename ProtocolCallback>
 class EvaluateCallbackWrapper : public EvaluateCallback {
  public:
-  static std::unique_ptr<EvaluateCallback> wrap(
+  static std::shared_ptr<EvaluateCallback> wrap(
       std::unique_ptr<ProtocolCallback> callback) {
-    return std::unique_ptr<EvaluateCallback>(
+    return std::shared_ptr<EvaluateCallback>(
         new EvaluateCallbackWrapper(std::move(callback)));
   }
   void sendSuccess(std::unique_ptr<protocol::Runtime::RemoteObject> result,

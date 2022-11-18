@@ -4,16 +4,16 @@
 
 #include "src/heap/global-handle-marking-visitor.h"
 
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 
 namespace v8 {
 namespace internal {
 
 GlobalHandleMarkingVisitor::GlobalHandleMarkingVisitor(
-    Heap& heap, MarkingState& marking_state,
-    MarkingWorklists::Local& local_marking_worklist)
+    Heap& heap, MarkingWorklists::Local& local_marking_worklist)
     : heap_(heap),
-      marking_state_(marking_state),
+      marking_state_(*heap_.marking_state()),
       local_marking_worklist_(local_marking_worklist),
       traced_node_bounds_(
           heap.isolate()->global_handles()->GetTracedNodeBounds()) {}

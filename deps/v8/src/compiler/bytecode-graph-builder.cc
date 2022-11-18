@@ -1672,20 +1672,6 @@ void BytecodeGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitCollectTypeProfile() {
-  PrepareEagerCheckpoint();
-
-  Node* position =
-      jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
-  Node* value = environment()->LookupAccumulator();
-  Node* vector = jsgraph()->Constant(feedback_vector());
-
-  const Operator* op = javascript()->CallRuntime(Runtime::kCollectTypeProfile);
-
-  Node* node = NewNode(op, position, value, vector);
-  environment()->RecordAfterState(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
   const Operator* op = javascript()->LoadContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
@@ -3229,9 +3215,18 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitFindNonDefaultConstructor() {
-  // TODO(v8:13091): Implement.
-  CHECK(false);
+void BytecodeGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
+  Node* this_function =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* new_target =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+
+  Node* node = NewNode(javascript()->FindNonDefaultConstructorOrConstruct(),
+                       this_function, new_target);
+
+  environment()->BindRegistersToProjections(
+      bytecode_iterator().GetRegisterOperand(2), node,
+      Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {

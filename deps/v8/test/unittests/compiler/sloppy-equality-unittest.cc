@@ -61,8 +61,8 @@ class TestSloppyEqualityFactory {
 };
 
 TEST_F(SloppyEqualityTest, SloppyEqualityTest) {
-  FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
-  FlagScope<bool> always_turbofan(&i::FLAG_always_turbofan, false);
+  FlagScope<bool> allow_natives_syntax(&i::v8_flags.allow_natives_syntax, true);
+  FlagScope<bool> always_turbofan(&i::v8_flags.always_turbofan, false);
   TestSloppyEqualityFactory f(zone());
   // TODO(nicohartmann@, v8:5660): Collect more precise feedback for some useful
   // cases.

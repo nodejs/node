@@ -14,6 +14,8 @@
 
 #include <inttypes.h>
 
+#include <optional>
+
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/base/v8-fallthrough.h"
@@ -924,8 +926,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(StartFunctionBody, Control* block) \
   F(FinishFunction)                    \
   F(OnFirstError)                      \
-  F(NextInstruction, WasmOpcode)       \
-  F(Forward, const Value& from, Value* to)
+  F(NextInstruction, WasmOpcode)
 
 #define INTERFACE_CONSTANT_FUNCTIONS(F) /*       force 80 columns           */ \
   F(I32Const, Value* result, int32_t value)                                    \
@@ -979,6 +980,7 @@ struct ControlBase : public PcForErrors<validate> {
     const IndexImmediate<validate>& imm)                                       \
   F(Trap, TrapReason reason)                                                   \
   F(NopForTestingUnsupportedInLiftoff)                                         \
+  F(Forward, const Value& from, Value* to)                                     \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
   F(BrOrRet, uint32_t depth, uint32_t drop_values)                             \
@@ -1064,7 +1066,10 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& dst_index, const Value& length)                               \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
-  F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
+  F(RefTest, const Value& obj, const Value& rtt, Value* result,                \
+    bool null_succeeds)                                                        \
+  F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
+    bool null_succeeds)                                                        \
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
   F(AssertNull, const Value& obj, Value* result)                               \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
@@ -1072,6 +1077,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
     Value* result_on_fallthrough, uint32_t depth)                              \
   F(RefIsData, const Value& object, Value* result)                             \
+  F(RefIsEq, const Value& object, Value* result)                               \
   F(RefIsI31, const Value& object, Value* result)                              \
   F(RefIsArray, const Value& object, Value* result)                            \
   F(RefAsData, const Value& object, Value* result)                             \
@@ -1149,7 +1155,7 @@ class WasmDecoder : public Decoder {
               WasmFeatures* detected, const FunctionSig* sig, const byte* start,
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
-        local_types_(zone),
+        compilation_zone_(zone),
         module_(module),
         enabled_(enabled),
         detected_(detected),
@@ -1170,20 +1176,13 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  Zone* zone() const { return local_types_.get_allocator().zone(); }
+  Zone* zone() const { return compilation_zone_; }
 
-  uint32_t num_locals() const {
-    DCHECK_EQ(num_locals_, local_types_.size());
-    return num_locals_;
-  }
+  uint32_t num_locals() const { return num_locals_; }
 
-  ValueType local_type(uint32_t index) const { return local_types_[index]; }
-
-  void InitializeLocalsFromSig() {
-    DCHECK_NOT_NULL(sig_);
-    DCHECK_EQ(0, this->local_types_.size());
-    local_types_.assign(sig_->parameters().begin(), sig_->parameters().end());
-    num_locals_ = static_cast<uint32_t>(sig_->parameters().size());
+  ValueType local_type(uint32_t index) const {
+    DCHECK_GE(num_locals_, index);
+    return local_types_[index];
   }
 
   // Decodes local definitions in the current decoder.
@@ -1191,6 +1190,12 @@ class WasmDecoder : public Decoder {
   // The decoded locals will be appended to {this->local_types_}.
   // The decoder's pc is not advanced.
   void DecodeLocals(const byte* pc, uint32_t* total_length) {
+    DCHECK_NULL(local_types_);
+    DCHECK_EQ(0, num_locals_);
+
+    // In a first step, count the number of locals and store the decoded
+    // entries.
+    num_locals_ = static_cast<uint32_t>(this->sig_->parameter_count());
     uint32_t length;
     *total_length = 0;
 
@@ -1202,7 +1207,12 @@ class WasmDecoder : public Decoder {
     *total_length += length;
     TRACE("local decls count: %u\n", entries);
 
-    while (entries-- > 0) {
+    struct DecodedLocalEntry {
+      uint32_t count;
+      ValueType type;
+    };
+    base::SmallVector<DecodedLocalEntry, 8> decoded_locals(entries);
+    for (uint32_t entry = 0; entry < entries; ++entry) {
       if (!VALIDATE(more())) {
         return DecodeError(
             end(), "expected more local decls but reached end of input");
@@ -1213,21 +1223,39 @@ class WasmDecoder : public Decoder {
       if (!VALIDATE(ok())) {
         return DecodeError(pc + *total_length, "invalid local count");
       }
-      DCHECK_LE(local_types_.size(), kV8MaxWasmFunctionLocals);
-      if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - local_types_.size())) {
+      DCHECK_LE(num_locals_, kV8MaxWasmFunctionLocals);
+      if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - num_locals_)) {
         return DecodeError(pc + *total_length, "local count too large");
       }
       *total_length += length;
 
       ValueType type = value_type_reader::read_value_type<validate>(
           this, pc + *total_length, &length, this->module_, enabled_);
-      if (!VALIDATE(type != kWasmBottom)) return;
+      if (!VALIDATE(ok())) return;
       *total_length += length;
 
-      local_types_.insert(local_types_.end(), count, type);
       num_locals_ += count;
+      decoded_locals[entry] = DecodedLocalEntry{count, type};
     }
     DCHECK(ok());
+
+    if (num_locals_ == 0) return;
+
+    // Now build the array of local types from the parsed entries.
+    local_types_ = compilation_zone_->NewArray<ValueType>(num_locals_);
+    ValueType* locals_ptr = local_types_;
+
+    if (sig_->parameter_count() > 0) {
+      std::copy(sig_->parameters().begin(), sig_->parameters().end(),
+                locals_ptr);
+      locals_ptr += sig_->parameter_count();
+    }
+
+    for (auto& entry : decoded_locals) {
+      std::fill_n(locals_ptr, entry.count, entry.type);
+      locals_ptr += entry.count;
+    }
+    DCHECK_EQ(locals_ptr, local_types_ + num_locals_);
   }
 
   // Shorthand that forwards to the {DecodeError} functions above, passing our
@@ -2027,6 +2055,13 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprRefTest:
+          case kExprRefTestNull: {
+            HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder,
+                                            pc + length, nullptr);
+            if (io) io->HeapType(imm);
+            return length + imm.length;
+          }
+          case kExprRefTestDeprecated:
           case kExprRefCast:
           case kExprRefCastNop: {
             IndexImmediate<validate> imm(decoder, pc + length, "type index");
@@ -2136,7 +2171,7 @@ class WasmDecoder : public Decoder {
   }
 
   // TODO(clemensb): This is only used by the interpreter; move there.
-  std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
+  V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // Handle "simple" opcodes with a fixed signature first.
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
@@ -2255,6 +2290,8 @@ class WasmDecoder : public Decoder {
           case kExprArrayLenDeprecated:
           case kExprArrayLen:
           case kExprRefTest:
+          case kExprRefTestNull:
+          case kExprRefTestDeprecated:
           case kExprRefCast:
           case kExprRefCastNop:
           case kExprBrOnCast:
@@ -2344,13 +2381,9 @@ class WasmDecoder : public Decoder {
     // clang-format on
   }
 
-  // The {Zone} is implicitly stored in the {ZoneAllocator} which is part of
-  // this {ZoneVector}. Hence save one field and just get it from there if
-  // needed (see {zone()} accessor below).
-  ZoneVector<ValueType> local_types_;
+  Zone* const compilation_zone_;
 
-  // Cached value, for speed (yes, it's measurably faster to load this value
-  // than to load the start and end pointer from a vector, subtract and shift).
+  ValueType* local_types_ = nullptr;
   uint32_t num_locals_ = 0;
 
   const WasmModule* module_;
@@ -2422,13 +2455,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DCHECK_EQ(this->num_locals(), 0);
 
     locals_offset_ = this->pc_offset();
-    this->InitializeLocalsFromSig();
-    uint32_t params_count = this->num_locals();
     uint32_t locals_length;
     this->DecodeLocals(this->pc(), &locals_length);
     if (this->failed()) return TraceFailed();
     this->consume_bytes(locals_length);
     int non_defaultable = 0;
+    uint32_t params_count =
+        static_cast<uint32_t>(this->sig_->parameter_count());
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
       if (!this->local_type(index).is_defaultable()) non_defaultable++;
     }
@@ -4241,20 +4274,37 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
-  // Checks if types are unrelated, thus type checking will always fail. Does
-  // not account for nullability.
+  // Returns true if type checking will always fail, either because the types
+  // are unrelated or because the target_type is one of the null sentinels and
+  // conversion to null does not succeed.
+  bool TypeCheckAlwaysFails(Value obj, HeapType expected_type,
+                            bool null_succeeds) {
+    bool types_unrelated =
+        !IsSubtypeOf(ValueType::Ref(expected_type), obj.type, this->module_) &&
+        !IsSubtypeOf(obj.type, ValueType::RefNull(expected_type),
+                     this->module_);
+    // For "unrelated" types the check can still succeed for the null value on
+    // instructions treating null as a successful check.
+    return (types_unrelated && (!null_succeeds || !obj.type.is_nullable())) ||
+           (!null_succeeds &&
+            (expected_type.representation() == HeapType::kNone ||
+             expected_type.representation() == HeapType::kNoFunc ||
+             expected_type.representation() == HeapType::kNoExtern));
+  }
   bool TypeCheckAlwaysFails(Value obj, Value rtt) {
-    return !IsSubtypeOf(ValueType::Ref(rtt.type.ref_index()), obj.type,
-                        this->module_) &&
-           !IsSubtypeOf(obj.type, ValueType::RefNull(rtt.type.ref_index()),
-                        this->module_);
+    // All old casts / checks treat null as failure.
+    const bool kNullSucceeds = false;
+    return TypeCheckAlwaysFails(obj, HeapType(rtt.type.ref_index()),
+                                kNullSucceeds);
   }
 
-  // Checks it {obj} is a subtype of {rtt}'s type, thus checking will always
-  // succeed. Does not account for nullability.
+  // Checks if {obj} is a subtype of type, thus checking will always
+  // succeed.
+  bool TypeCheckAlwaysSucceeds(Value obj, HeapType type) {
+    return IsSubtypeOf(obj.type, ValueType::RefNull(type), this->module_);
+  }
   bool TypeCheckAlwaysSucceeds(Value obj, Value rtt) {
-    return IsSubtypeOf(obj.type, ValueType::RefNull(rtt.type.ref_index()),
-                       this->module_);
+    return TypeCheckAlwaysSucceeds(obj, HeapType(rtt.type.ref_index()));
   }
 
 #define NON_CONST_ONLY                                                    \
@@ -4681,7 +4731,80 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
+      case kExprRefTestNull:
       case kExprRefTest: {
+        NON_CONST_ONLY
+        HeapTypeImmediate<validate> imm(
+            this->enabled_, this, this->pc_ + opcode_length, this->module_);
+        if (!VALIDATE(this->ok())) return 0;
+        opcode_length += imm.length;
+
+        std::optional<Value> rtt;
+        HeapType target_type = imm.type;
+        if (imm.type.is_index()) {
+          rtt = CreateValue(ValueType::Rtt(imm.type.ref_index()));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.type.ref_index(),
+                                             &rtt.value());
+          Push(rtt.value());
+        }
+
+        Value obj = Peek(rtt.has_value() ? 1 : 0);
+        Value value = CreateValue(kWasmI32);
+
+        if (!VALIDATE((obj.type.is_object_reference() &&
+                       IsSameTypeHierarchy(obj.type.heap_type(), target_type,
+                                           this->module_)) ||
+                      obj.type.is_bottom())) {
+          this->DecodeError(
+              obj.pc(),
+              "Invalid types for ref.test: %s of type %s has to "
+              "be in the same reference type hierarchy as (ref %s)",
+              SafeOpcodeNameAt(obj.pc()), obj.type.name().c_str(),
+              target_type.name().c_str());
+          return 0;
+        }
+        bool null_succeeds = opcode == kExprRefTestNull;
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, target_type))) {
+            if (rtt.has_value()) {
+              // Drop rtt.
+              CALL_INTERFACE(Drop);
+            }
+            // Type checking can still fail for null.
+            if (obj.type.is_nullable() && !null_succeeds) {
+              // We abuse ref.as_non_null, which isn't otherwise used as a unary
+              // operator, as a sentinel for the negation of ref.is_null.
+              CALL_INTERFACE(UnOp, kExprRefAsNonNull, obj, &value);
+            } else {
+              CALL_INTERFACE(Drop);
+              CALL_INTERFACE(I32Const, &value, 1);
+            }
+          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, target_type,
+                                                      null_succeeds))) {
+            if (rtt.has_value()) {
+              // Drop rtt.
+              CALL_INTERFACE(Drop);
+            }
+            CALL_INTERFACE(Drop);
+            CALL_INTERFACE(I32Const, &value, 0);
+          } else {
+            if (rtt.has_value()) {
+              // RTT => Cast to concrete (index) type.
+              CALL_INTERFACE(RefTest, obj, rtt.value(), &value, null_succeeds);
+            } else {
+              // No RTT => Cast to abstract (non-index) types.
+              CALL_INTERFACE(RefTestAbstract, obj, target_type, &value,
+                             null_succeeds);
+            }
+          }
+        }
+        Drop(1 + rtt.has_value());
+        Push(value);
+        return opcode_length;
+      }
+      case kExprRefTestDeprecated: {
         NON_CONST_ONLY
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
@@ -4718,7 +4841,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             CALL_INTERFACE(Drop);
             CALL_INTERFACE(I32Const, &value, 0);
           } else {
-            CALL_INTERFACE(RefTest, obj, rtt, &value);
+            CALL_INTERFACE(RefTest, obj, rtt, &value, /*null_succeeds*/ false);
           }
         }
         Drop(2);

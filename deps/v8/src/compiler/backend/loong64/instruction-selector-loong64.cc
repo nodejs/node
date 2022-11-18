@@ -492,12 +492,13 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (FLAG_enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
+  if (v8_flags.enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
   // TODO(loong64): I guess this could be done in a better way.
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -1079,8 +1080,16 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitRRR(this, kLoong64Mulh_w, node);
 }
 
+void InstructionSelector::VisitInt64MulHigh(Node* node) {
+  VisitRRR(this, kLoong64Mulh_d, node);
+}
+
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitRRR(this, kLoong64Mulh_wu, node);
+}
+
+void InstructionSelector::VisitUint64MulHigh(Node* node) {
+  VisitRRR(this, kLoong64Mulh_du, node);
 }
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
@@ -2021,14 +2030,15 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
   WriteBarrierKind write_barrier_kind = store_params.write_barrier_kind();
   MachineRepresentation rep = store_params.representation();
 
-  if (FLAG_enable_unconditional_write_barriers &&
+  if (v8_flags.enable_unconditional_write_barriers &&
       CanBeTaggedOrCompressedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
   InstructionCode code;
 
-  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedPointer(rep));
     DCHECK_EQ(kTaggedSize, 8);
 
@@ -2280,6 +2290,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
               case IrOpcode::kInt32MulWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kLoong64MulOvf_w, cont);
+              case IrOpcode::kInt64MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node, kLoong64MulOvf_d, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kLoong64AddOvf_d, cont);
@@ -2395,6 +2408,15 @@ void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kLoong64MulOvf_w, &cont);
+}
+
+void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kLoong64MulOvf_d, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kLoong64MulOvf_d, &cont);
 }
 
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {

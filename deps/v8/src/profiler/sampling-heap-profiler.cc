@@ -25,7 +25,7 @@ namespace internal {
 // Let u be a uniformly distributed random number between 0 and 1, then
 // next_sample = (- ln u) / λ
 intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
-  if (FLAG_sampling_heap_profiler_suppress_randomness)
+  if (v8_flags.sampling_heap_profiler_suppress_randomness)
     return static_cast<intptr_t>(rate);
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
@@ -96,8 +96,8 @@ void SamplingHeapProfiler::OnWeakCallback(
     const WeakCallbackInfo<Sample>& data) {
   Sample* sample = data.GetParameter();
   Heap* heap = reinterpret_cast<Isolate*>(data.GetIsolate())->heap();
-  bool is_minor_gc =
-      heap->current_or_last_garbage_collector() == GarbageCollector::SCAVENGER;
+  bool is_minor_gc = Heap::IsYoungGenerationCollector(
+      heap->current_or_last_garbage_collector());
   bool should_keep_sample =
       is_minor_gc
           ? (sample->profiler->flags_ &

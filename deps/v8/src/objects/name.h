@@ -190,6 +190,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // a forwarding index.
   inline uint32_t EnsureRawHash();
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
+  inline uint32_t RawHash();
 
   static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
   static inline bool IsHash(uint32_t raw_hash_field);

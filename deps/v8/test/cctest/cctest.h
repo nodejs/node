@@ -705,6 +705,8 @@ class V8_NODISCARD ManualGCScope {
  private:
   const bool flag_concurrent_marking_;
   const bool flag_concurrent_sweeping_;
+  const bool flag_concurrent_minor_mc_marking_;
+  const bool flag_concurrent_minor_mc_sweeping_;
   const bool flag_stress_concurrent_allocation_;
   const bool flag_stress_incremental_marking_;
   const bool flag_parallel_marking_;

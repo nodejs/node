@@ -31,7 +31,8 @@ BytecodeArrayWriter::BytecodeArrayWriter(
       last_bytecode_(Bytecode::kIllegal),
       last_bytecode_offset_(0),
       last_bytecode_had_source_info_(false),
-      elide_noneffectful_bytecodes_(FLAG_ignition_elide_noneffectful_bytecodes),
+      elide_noneffectful_bytecodes_(
+          v8_flags.ignition_elide_noneffectful_bytecodes),
       exit_seen_in_block_(false) {
   bytecodes_.reserve(512);  // Derived via experimentation.
 }
