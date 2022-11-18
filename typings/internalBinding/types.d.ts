@@ -5,6 +5,7 @@ declare function InternalBinding(binding: 'types'): {
   isArrayBuffer(value: unknown): value is ArrayBuffer;
   isArgumentsObject(value: unknown): value is ArrayLike<unknown>;
   isBoxedPrimitive(value: unknown): value is (BigInt | Boolean | Number | String | Symbol);
+  isArrayBufferDetached(value: unknown): boolean;
   isDataView(value: unknown): value is DataView;
   isExternal(value: unknown): value is Object;
   isMap(value: unknown): value is Map<unknown, unknown>;

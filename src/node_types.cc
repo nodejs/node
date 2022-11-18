@@ -61,6 +61,16 @@ static void IsBoxedPrimitive(const FunctionCallbackInfo<Value>& args) {
     args[0]->IsSymbolObject());
 }
 
+static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
+  if (args[0]->IsArrayBuffer()) {
+    auto buffer = args[0].As<v8::ArrayBuffer>();
+    args.GetReturnValue().Set(buffer->WasDetached());
+    return;
+  }
+
+  args.GetReturnValue().Set(false);
+}
+
 void InitializeTypes(Local<Object> target,
                      Local<Value> unused,
                      Local<Context> context,
@@ -71,6 +81,8 @@ void InitializeTypes(Local<Object> target,
 
   SetMethodNoSideEffect(context, target, "isAnyArrayBuffer", IsAnyArrayBuffer);
   SetMethodNoSideEffect(context, target, "isBoxedPrimitive", IsBoxedPrimitive);
+  SetMethodNoSideEffect(
+      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
 }
 
 }  // anonymous namespace
@@ -82,6 +94,7 @@ void RegisterTypesExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(IsAnyArrayBuffer);
   registry->Register(IsBoxedPrimitive);
+  registry->Register(IsArrayBufferDetached);
 }
 }  // namespace node
 

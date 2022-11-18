@@ -56,7 +56,7 @@ for (const [ value, _method ] of [
   for (const key of Object.keys(types)) {
     if ((types.isArrayBufferView(value) ||
          types.isAnyArrayBuffer(value)) && key.includes('Array') ||
-         key === 'isBoxedPrimitive') {
+         key === 'isBoxedPrimitive' || key === 'isArrayBufferDetached') {
       continue;
     }
 

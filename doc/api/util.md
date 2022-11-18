@@ -2024,6 +2024,27 @@ util.types.isAnyArrayBuffer(new ArrayBuffer());  // Returns true
 util.types.isAnyArrayBuffer(new SharedArrayBuffer());  // Returns true
 ```
 
+### `util.types.isArrayBufferDetached(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any}
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in [`ArrayBuffer`][] and
+is detached. Detached arrays have a byte length of 0, which prevents
+JavaScript from ever accessing underlying backing store.
+
+For example, we can end up with a detached buffer when using a BYOB
+(bring your own buffer) on a ReadableStream.
+
+```js
+util.types.isArrayBufferDetached(null); // Returns false
+util.types.isArrayBufferDetached(new ArrayBuffer()); // Returns false
+```
+
 ### `util.types.isArrayBufferView(value)`
 
 <!-- YAML
