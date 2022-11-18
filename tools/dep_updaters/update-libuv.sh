@@ -2,7 +2,7 @@
 set -e
 # Shell script to update libuv in the source tree to a specific version
 
-BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
+BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 LIBUV_VERSION=$1
 
@@ -12,7 +12,7 @@ if [ "$#" -le 0 ]; then
   exit 1
 fi
 
-echo "Making temporary workspace"
+echo "Making temporary workspace..."
 
 WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
@@ -26,7 +26,7 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-echo "Fetching libuv source archive"
+echo "Fetching libuv source archive..."
 curl -sL "https://api.github.com/repos/libuv/libuv/tarball/v$LIBUV_VERSION" | tar xzf -
 mv libuv-libuv-* uv
 

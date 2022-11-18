@@ -123,7 +123,7 @@ jobs:
               CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION$SUFFIX_STRING"
               if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-libuv.sh "$NEW_VERSION"
+                ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION"
               fi
     steps:
       - uses: actions/checkout@v3
