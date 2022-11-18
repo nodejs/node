@@ -670,7 +670,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
 {
   const stream = new Duplex({
-    write (chunk, enc, cb) {
+    write(chunk, enc, cb) {
       setImmediate(cb);
     }
   });
