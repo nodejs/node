@@ -58,7 +58,7 @@ const s = http.createServer(common.mustCall((req, res) => {
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     name: 'Error',
-    message: 'Cannot writeHead headers after they are sent to the client'
+    message: 'Cannot write headers after they are sent to the client'
   });
 
   res.end();
@@ -83,7 +83,7 @@ function runTest() {
     assert.throws(() => res.writeHead(200, [ 'test2', '2' ]), {
       code: 'ERR_HTTP_HEADERS_SENT',
       name: 'Error',
-      message: 'Cannot writeHead headers after they are sent to the client'
+      message: 'Cannot write headers after they are sent to the client'
     });
     res.end();
   });
