@@ -47,6 +47,9 @@ namespace compiler {
   V(S390_Mul32)                             \
   V(S390_Mul32WithOverflow)                 \
   V(S390_Mul64)                             \
+  V(S390_Mul64WithOverflow)                 \
+  V(S390_MulHighS64)                        \
+  V(S390_MulHighU64)                        \
   V(S390_MulHigh32)                         \
   V(S390_MulHighU32)                        \
   V(S390_MulFloat)                          \

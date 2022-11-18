@@ -707,6 +707,10 @@ int32_t ScanTimeZoneBracketedAnnotation(base::Vector<Char> str, int32_t s,
   int32_t len = ScanTimeZoneIdentifier(str, cur, r);
   cur += len;
   if (len == 0 || str.length() < (cur + 1) || (str[cur] != ']')) {
+    // Only ScanTimeZoneBracketedAnnotation know the post condition of
+    // TimeZoneIdentifier is not matched so we need to reset here.
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
     return 0;
   }
   cur++;
@@ -878,6 +882,10 @@ int32_t ScanCalendar(base::Vector<Char> str, int32_t s,
   int32_t len = ScanCalendarName(str, cur, r);
   if (len == 0) return 0;
   if ((str.length() < (cur + len + 1)) || (str[cur + len] != ']')) {
+    // Only ScanCalendar know the post condition of CalendarName is not met and
+    // need to reset here.
+    r->calendar_name_start = 0;
+    r->calendar_name_length = 0;
     return 0;
   }
   return 6 + len + 1;
@@ -1047,31 +1055,6 @@ int32_t ScanTemporalZonedDateTimeString(base::Vector<Char> str, int32_t s,
 
 SCAN_FORWARD(TemporalDateTimeString, CalendarDateTime, ParsedISO8601Result)
 
-//   Date [TimeSpecSeparator] TimeZone [Calendar]
-template <typename Char>
-int32_t ScanDate_TimeSpecSeparator_TimeZone_Calendar(base::Vector<Char> str,
-                                                     int32_t s,
-                                                     ParsedISO8601Result* r) {
-  int32_t cur = s;
-  int32_t len = ScanDate(str, cur, r);
-  if (len == 0) return 0;
-  cur = len;
-  cur += ScanTimeSpecSeparator(str, cur, r);
-  len = ScanTimeZone(str, cur, r);
-  if (len == 0) return 0;
-  cur += len;
-  cur += ScanCalendar(str, cur, r);
-  return cur - s;
-}
-
-// TemporalTimeZoneString:
-//   TimeZoneIdentifier
-//   Date [TimeSpecSeparator] TimeZone [Calendar]
-// The lookahead is at most 8 chars.
-SCAN_EITHER_FORWARD(TemporalTimeZoneString, TimeZoneIdentifier,
-                    Date_TimeSpecSeparator_TimeZone_Calendar,
-                    ParsedISO8601Result)
-
 // TemporalMonthDayString
 //   DateSpecMonthDay
 //   CalendarDateTime
@@ -1132,7 +1115,6 @@ SATISIFY(TemporalDateTimeString, ParsedISO8601Result)
 SATISIFY(DateTime, ParsedISO8601Result)
 SATISIFY(DateSpecYearMonth, ParsedISO8601Result)
 SATISIFY(DateSpecMonthDay, ParsedISO8601Result)
-SATISIFY(Date_TimeSpecSeparator_TimeZone_Calendar, ParsedISO8601Result)
 SATISIFY(CalendarDateTime, ParsedISO8601Result)
 SATISIFY(CalendarTime_L1, ParsedISO8601Result)
 SATISIFY(CalendarTime_L2, ParsedISO8601Result)
@@ -1152,31 +1134,10 @@ SATISIFY_EITHER(TemporalMonthDayString, DateSpecMonthDay, CalendarDateTime,
                 ParsedISO8601Result)
 SATISIFY(TimeZoneNumericUTCOffset, ParsedISO8601Result)
 SATISIFY(TimeZoneIdentifier, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalTimeZoneString, TimeZoneIdentifier,
-                Date_TimeSpecSeparator_TimeZone_Calendar, ParsedISO8601Result)
 SATISIFY(TemporalInstantString, ParsedISO8601Result)
 SATISIFY(TemporalZonedDateTimeString, ParsedISO8601Result)
 
 SATISIFY(CalendarName, ParsedISO8601Result)
-
-// TemporalCalendarString :
-//   CalendarName
-//   TemporalInstantString
-//   CalendarDateTime
-//   CalendarTime
-//   DateSpecYearMonth
-//   DateSpecMonthDay
-template <typename Char>
-bool SatisfyTemporalCalendarString(base::Vector<Char> str,
-                                   ParsedISO8601Result* r) {
-  IF_SATISFY_RETURN(CalendarName)
-  IF_SATISFY_RETURN(TemporalInstantString)
-  IF_SATISFY_RETURN(CalendarDateTime)
-  IF_SATISFY_RETURN(CalendarTime)
-  IF_SATISFY_RETURN(DateSpecYearMonth)
-  IF_SATISFY_RETURN(DateSpecMonthDay)
-  return false;
-}
 
 // Duration
 
@@ -1437,8 +1398,8 @@ IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalMonthDayString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalTimeString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalInstantString)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalZonedDateTimeString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalTimeZoneString)
-IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalCalendarString)
+IMPL_PARSE_METHOD(ParsedISO8601Result, TimeZoneIdentifier)
+IMPL_PARSE_METHOD(ParsedISO8601Result, CalendarName)
 IMPL_PARSE_METHOD(ParsedISO8601Result, TimeZoneNumericUTCOffset)
 IMPL_PARSE_METHOD(ParsedISO8601Duration, TemporalDurationString)
 

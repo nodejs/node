@@ -63,32 +63,34 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
                   std::make_pair(MachineType::AnyTagged(), y));
   }
 
-  TNode<BoolT> CppAbsoluteMulAndCanonicalize(TNode<BigInt> result,
-                                             TNode<BigInt> x, TNode<BigInt> y) {
+  TNode<Int32T> CppAbsoluteMulAndCanonicalize(TNode<BigInt> result,
+                                              TNode<BigInt> x,
+                                              TNode<BigInt> y) {
     TNode<ExternalReference> mutable_big_int_absolute_mul_and_canonicalize =
         ExternalConstant(
             ExternalReference::
                 mutable_big_int_absolute_mul_and_canonicalize_function());
-    TNode<BoolT> success = UncheckedCast<BoolT>(CallCFunction(
-        mutable_big_int_absolute_mul_and_canonicalize, MachineType::Bool(),
+    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
+        mutable_big_int_absolute_mul_and_canonicalize, MachineType::Int32(),
         std::make_pair(MachineType::AnyTagged(), result),
         std::make_pair(MachineType::AnyTagged(), x),
         std::make_pair(MachineType::AnyTagged(), y)));
-    return success;
+    return return_code;
   }
 
-  TNode<BoolT> CppAbsoluteDivAndCanonicalize(TNode<BigInt> result,
-                                             TNode<BigInt> x, TNode<BigInt> y) {
+  TNode<Int32T> CppAbsoluteDivAndCanonicalize(TNode<BigInt> result,
+                                              TNode<BigInt> x,
+                                              TNode<BigInt> y) {
     TNode<ExternalReference> mutable_big_int_absolute_div_and_canonicalize =
         ExternalConstant(
             ExternalReference::
                 mutable_big_int_absolute_div_and_canonicalize_function());
-    TNode<BoolT> success = UncheckedCast<BoolT>(CallCFunction(
-        mutable_big_int_absolute_div_and_canonicalize, MachineType::Bool(),
+    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
+        mutable_big_int_absolute_div_and_canonicalize, MachineType::Int32(),
         std::make_pair(MachineType::AnyTagged(), result),
         std::make_pair(MachineType::AnyTagged(), x),
         std::make_pair(MachineType::AnyTagged(), y)));
-    return success;
+    return return_code;
   }
 
   void CppBitwiseAndPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,

@@ -80,7 +80,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "sparkplug": ["--jitless", "--no-sparkplug"],
     "concurrent_sparkplug": ["--jitless"],
-    "maglev": ["--jitless"],
+    "maglev": ["--jitless", "--no-maglev"],
     "stress_maglev": ["--jitless"],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "code_serializer": [

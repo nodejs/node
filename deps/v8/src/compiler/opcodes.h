@@ -183,7 +183,8 @@
   V(JSStoreInArrayLiteral)             \
   V(JSDeleteProperty)                  \
   V(JSHasProperty)                     \
-  V(JSGetSuperConstructor)
+  V(JSGetSuperConstructor)             \
+  V(JSFindNonDefaultConstructorOrConstruct)
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \
@@ -287,6 +288,7 @@
   V(CheckedUint32ToTaggedSigned)      \
   V(CheckedUint64Bounds)              \
   V(CheckedUint64ToInt32)             \
+  V(CheckedUint64ToInt64)             \
   V(CheckedUint64ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
   V(CheckedFloat64ToInt64)            \
@@ -297,7 +299,8 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)
+  V(CheckedTaggedToTaggedPointer)     \
+  V(CheckedBigInt64Add)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -393,7 +396,8 @@
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
   V(BigIntNegate)                      \
-  V(CheckBigInt)
+  V(CheckBigInt)                       \
+  V(CheckBigInt64)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
@@ -601,10 +605,13 @@
   V(Int64Sub)                    \
   V(Int64SubWithOverflow)        \
   V(Int64Mul)                    \
+  V(Int64MulHigh)                \
+  V(Int64MulWithOverflow)        \
   V(Int64Div)                    \
   V(Int64Mod)                    \
   V(Uint64Div)                   \
-  V(Uint64Mod)
+  V(Uint64Mod)                   \
+  V(Uint64MulHigh)
 
 #define MACHINE_FLOAT32_UNOP_LIST(V) \
   V(Float32Abs)                      \

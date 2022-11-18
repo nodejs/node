@@ -56,25 +56,25 @@ function TestToSortedBasicBehaviorHelper(input) {
 }
 
 // Smi packed
-AssertToSortedAndSortSameResult([1,3,2,4]);
+TestToSortedBasicBehaviorHelper([1,3,2,4]);
 
 // Double packed
-AssertToSortedAndSortSameResult([1.1,3.3,2.2,4.4]);
+TestToSortedBasicBehaviorHelper([1.1,3.3,2.2,4.4]);
 
 // Packed
-AssertToSortedAndSortSameResult([true,false,1,42.42,null,"foo"]);
+TestToSortedBasicBehaviorHelper([true,false,1,42.42,null,"foo"]);
 
 // Smi holey
-AssertToSortedAndSortSameResult([1,,3,,2,,4,,]);
+TestToSortedBasicBehaviorHelper([1,,3,,2,,4,,]);
 
 // Double holey
-AssertToSortedAndSortSameResult([1.1,,3.3,,2.2,,4.4,,]);
+TestToSortedBasicBehaviorHelper([1.1,,3.3,,2.2,,4.4,,]);
 
 // Holey
-AssertToSortedAndSortSameResult([true,,false,,1,,42.42,,null,,"foo",,]);
+TestToSortedBasicBehaviorHelper([true,,false,,1,,42.42,,null,,"foo",,]);
 
 // Generic
-AssertToSortedAndSortSameResult({ length: 4,
+TestToSortedBasicBehaviorHelper({ length: 4,
                                   get "0"() { return "hello"; },
                                   get "1"() { return "cursed"; },
                                   get "2"() { return "java"; },
@@ -92,6 +92,12 @@ AssertToSortedAndSortSameResult({ length: 4,
   });
   assertEquals([1,2,3,4], s);
   assertEquals(0, a.length);
+})();
+
+(function TestBig() {
+  const a = [];
+  a[50001] = 42.42;
+  a.toSorted();
 })();
 
 (function TestTooBig() {

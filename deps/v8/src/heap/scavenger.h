@@ -12,6 +12,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/parallel-work-item.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 
 namespace v8 {
@@ -116,7 +117,6 @@ class Scavenger {
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.
   static const int kInterruptThreshold = 128;
-  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   inline Heap* heap() { return heap_; }
 
@@ -199,7 +199,8 @@ class Scavenger {
   PromotionList::Local promotion_list_local_;
   CopiedList::Local copied_list_local_;
   EphemeronTableList::Local ephemeron_table_list_local_;
-  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenturingHandler* const pretenuring_handler_;
+  PretenturingHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;
@@ -212,6 +213,7 @@ class Scavenger {
   const bool is_compacting_;
   const bool is_compacting_including_map_space_;
   const bool shared_string_table_;
+  const bool mark_shared_heap_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;

@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-V8_EXPORT_PRIVATE TypeCanonicalizer* GetTypeCanonicalizer() {
+TypeCanonicalizer* GetTypeCanonicalizer() {
   return GetWasmEngine()->type_canonicalizer();
 }
 
@@ -55,8 +55,34 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
   }
 }
 
-// An index in a type gets mapped to a relative index if it is inside the new
-// canonical group, or the canonical representative if it is not.
+uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
+  base::MutexGuard mutex_guard(&mutex_);
+// Types in the signature must be module-independent.
+#if DEBUG
+  for (ValueType type : sig->all()) DCHECK(!type.has_index());
+#endif
+  CanonicalGroup group;
+  group.types.resize(1);
+  group.types[0].type_def = TypeDefinition(sig, kNoSuperType);
+  group.types[0].is_relative_supertype = false;
+  int canonical_index = FindCanonicalGroup(group);
+  if (canonical_index < 0) {
+    canonical_index = static_cast<int>(canonical_supertypes_.size());
+    // We need to copy the signature in the local zone, or else we risk
+    // storing a dangling pointer in the future.
+    auto builder = FunctionSig::Builder(&zone_, sig->return_count(),
+                                        sig->parameter_count());
+    for (auto type : sig->returns()) builder.AddReturn(type);
+    for (auto type : sig->parameters()) builder.AddParam(type);
+    const FunctionSig* allocated_sig = builder.Build();
+    group.types[0].type_def = TypeDefinition(allocated_sig, kNoSuperType);
+    group.types[0].is_relative_supertype = false;
+    canonical_groups_.emplace(group, canonical_index);
+    canonical_supertypes_.emplace_back(kNoSuperType);
+  }
+  return canonical_index;
+}
+
 ValueType TypeCanonicalizer::CanonicalizeValueType(
     const WasmModule* module, ValueType type,
     uint32_t recursive_group_start) const {
@@ -88,8 +114,6 @@ bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
   return false;
 }
 
-// Map all type indices (including supertype) inside {type} to indices relative
-// to {recursive_group_start}.
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     const WasmModule* module, TypeDefinition type,
     uint32_t recursive_group_start) {

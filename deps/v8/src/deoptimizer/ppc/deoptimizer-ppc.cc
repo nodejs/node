@@ -35,7 +35,7 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 }
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  DCHECK(FLAG_enable_embedded_constant_pool);
+  DCHECK(V8_EMBEDDED_CONSTANT_POOL_BOOL);
   SetFrameSlot(offset, value);
 }
 

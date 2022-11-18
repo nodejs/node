@@ -8,6 +8,7 @@
 #include "include/cppgc/internal/base-page-handle.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
+#include "src/heap/base/basic-slot-set.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
@@ -20,6 +21,7 @@ class NormalPageSpace;
 class LargePageSpace;
 class HeapBase;
 class PageBackend;
+class SlotSet;
 
 class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
  public:
@@ -44,6 +46,9 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   ConstAddress PayloadStart() const;
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
+
+  // Size of the payload with the page header.
+  size_t AllocatedSize() const;
 
   // Returns the size of live objects on the page at the last GC.
   // The counter is update after sweeping.
@@ -92,14 +97,29 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
     contains_young_objects_ = value;
   }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  V8_INLINE SlotSet* slot_set() const { return slot_set_.get(); }
+  V8_INLINE SlotSet& GetOrAllocateSlotSet();
+  void ResetSlotSet();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
+  struct SlotSetDeleter {
+    void operator()(SlotSet*) const;
+    size_t page_size_ = 0;
+  };
+  void AllocateSlotSet();
+
   BaseSpace& space_;
   PageType type_;
   bool contains_young_objects_ = false;
+#if defined(CPPGC_YOUNG_GENERATION)
+  std::unique_ptr<SlotSet, SlotSetDeleter> slot_set_;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   size_t discarded_memory_ = 0;
 };
 
@@ -310,6 +330,13 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
+
+#if defined(CPPGC_YOUNG_GENERATION)
+SlotSet& BasePage::GetOrAllocateSlotSet() {
+  if (!slot_set_) AllocateSlotSet();
+  return *slot_set_;
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
 }  // namespace cppgc

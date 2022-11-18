@@ -23,9 +23,9 @@ class BytecodeGeneratorTest : public TestWithContext {
  public:
   BytecodeGeneratorTest() : printer_(isolate()) {}
   static void SetUpTestSuite() {
-    i::FLAG_always_turbofan = false;
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_enable_lazy_source_positions = false;
+    i::v8_flags.always_turbofan = false;
+    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.enable_lazy_source_positions = false;
     TestWithContext::SetUpTestSuite();
   }
 

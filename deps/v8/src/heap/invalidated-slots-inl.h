@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/invalidated-slots.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"

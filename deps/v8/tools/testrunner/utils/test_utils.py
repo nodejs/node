@@ -183,9 +183,16 @@ class TestRunnerTest(unittest.TestCase):
         json_out = clean_json_output(json_out_path, basedir)
         return TestResult(stdout.getvalue(), stderr.getvalue(), code, json_out, self)
 
-    def get_runner_class():
-      """Implement to return the runner class"""
-      return None
+  def get_runner_options(self, baseroot='testroot1'):
+    """Returns a list of all flags parsed by the test runner."""
+    with temp_base(baseroot=baseroot) as basedir:
+      runner = self.get_runner_class()(basedir=basedir)
+      parser = runner._create_parser()
+      return [i.get_opt_string() for i in parser.option_list]
+
+  def get_runner_class():
+    """Implement to return the runner class"""
+    return None
 
 
 class FakeOSContext(DefaultOSContext):

@@ -110,7 +110,7 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
   UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_AsyncGeneratorYield) {
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorYieldWithAwait) {
   // Runtime call is implemented in InterpreterIntrinsics and lowered in
   // JSIntrinsicLowering
   UNREACHABLE();

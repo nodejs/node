@@ -18,14 +18,14 @@
 
 // Since this changes visibility, it should always be last in a class
 // definition.
-#define OBJECT_CONSTRUCTORS(Type, ...)             \
- public:                                           \
-  constexpr Type() : __VA_ARGS__() {}              \
-                                                   \
- protected:                                        \
-  template <typename TFieldType, int kFieldOffset> \
-  friend class TaggedField;                        \
-                                                   \
+#define OBJECT_CONSTRUCTORS(Type, ...)                                         \
+ public:                                                                       \
+  constexpr Type() : __VA_ARGS__() {}                                          \
+                                                                               \
+ protected:                                                                    \
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
+  friend class TaggedField;                                                    \
+                                                                               \
   explicit inline Type(Address ptr)
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
@@ -698,15 +698,15 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }
 
-#define TQ_OBJECT_CONSTRUCTORS(Type)               \
- public:                                           \
-  constexpr Type() = default;                      \
-                                                   \
- protected:                                        \
-  template <typename TFieldType, int kFieldOffset> \
-  friend class TaggedField;                        \
-                                                   \
-  inline explicit Type(Address ptr);               \
+#define TQ_OBJECT_CONSTRUCTORS(Type)                                           \
+ public:                                                                       \
+  constexpr Type() = default;                                                  \
+                                                                               \
+ protected:                                                                    \
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
+  friend class TaggedField;                                                    \
+                                                                               \
+  inline explicit Type(Address ptr);                                           \
   friend class TorqueGenerated##Type<Type, Super>;
 
 #define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \

@@ -20,6 +20,11 @@ parser.add_argument(
     help='target cpu for V8 binary (for simulator builds), by default it\'s equal to `v8_target_cpu`'
 )
 parser.add_argument(
+    '--use-qemu',
+    default=False,
+    help='Use qemu for running cross-compiled V8 binary.',
+    action=argparse.BooleanOptionalAction)
+parser.add_argument(
     'benchmark_path',
     help='path to benchmark runner .js file, usually JetStream2\'s `cli.js`',
     type=Path)
@@ -67,6 +72,15 @@ if not args.benchmark_path.is_file() or args.benchmark_path.suffix != ".js":
   exit(1)
 
 has_goma_str = "true" if try_start_goma() else "false"
+cmd_prefix = []
+if args.use_qemu:
+  if args.v8_target_cpu == "arm":
+    cmd_prefix = ["qemu-arm", "-L", "/usr/arm-linux-gnueabihf/"]
+  elif args.v8_target_cpu == "arm64":
+    cmd_prefix = ["qemu-aarch64", "-L", "/usr/aarch64-linux-gnu/"]
+  else:
+    print(f"{args.v8_target_cpu} binaries can't be run with qemu")
+    exit(1)
 
 GN_ARGS_TEMPLATE = f"""\
 is_debug = false
@@ -82,8 +96,10 @@ for arch, gn_args in [(args.v8_target_cpu, GN_ARGS_TEMPLATE)]:
   benchmark_dir = args.benchmark_path.parent
   benchmark_file = args.benchmark_path.name
   log_path = (build_dir / "v8.builtins.pgo").absolute()
-  run([d8_path, f"--turbo-profiling-output={log_path}", benchmark_file],
-      cwd=benchmark_dir)
+  cmd = cmd_prefix + [
+      d8_path, f"--turbo-profiling-output={log_path}", benchmark_file
+  ]
+  run(cmd, cwd=benchmark_dir)
   get_hints_path = tools_pgo_dir / "get_hints.py"
   profile_path = tools_pgo_dir / f"{arch}.profile"
   run([get_hints_path, log_path, profile_path])

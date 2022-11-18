@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -727,9 +727,9 @@ TEST(JsonCborRoundtrip, EncodingDecoding) {
   span<uint8_t> ascii_in = SpanFrom(json);
   json::ParseJSON(ascii_in, encoder.get());
   std::vector<uint8_t> expected = {
-      0xd8,            // envelope
-      0x5a,            // byte string with 32 bit length
-      0,    0, 0, 94,  // length is 94 bytes
+      0xd8, 0x18,         // envelope
+      0x5a,               // byte string with 32 bit length
+      0,    0,    0, 95,  // length is 95 bytes
   };
   expected.push_back(0xbf);  // indef length map start
   EncodeString8(SpanFrom("string"), &expected);
@@ -752,7 +752,8 @@ TEST(JsonCborRoundtrip, EncodingDecoding) {
   EncodeString8(SpanFrom("null"), &expected);
   expected.push_back(7 << 5 | 22);  // RFC 7049 Section 2.3, Table 2: null
   EncodeString8(SpanFrom("array"), &expected);
-  expected.push_back(0xd8);  // envelope
+  expected.push_back(0xd8);  // envelope (tag first byte)
+  expected.push_back(0x18);  // envelope (tag second byte)
   expected.push_back(0x5a);  // byte string with 32 bit length
   // the length is 5 bytes (that's up to end indef length array below).
   for (uint8_t ch : std::array<uint8_t, 4>{{0, 0, 0, 5}})

@@ -1029,7 +1029,6 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
 TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(wasm_type_canonicalization);
   static const byte identical_group[] = {
       SECTION(Type,            // --
               ENTRY_COUNT(2),  // two identical rec. groups
@@ -1070,7 +1069,6 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
 TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  FLAG_SCOPE(wasm_type_canonicalization);
   static const byte invalid_supertype[] = {
       SECTION(Type, ENTRY_COUNT(1),                         // --
               kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
@@ -1310,16 +1308,13 @@ TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
   const WasmModule* module = result.value().get();
 
   EXPECT_EQ(5u, module->types.size());
-  EXPECT_EQ(5u, module->per_module_canonical_type_ids.size());
-  EXPECT_EQ(2u, module->signature_map.size());
+  EXPECT_EQ(5u, module->isorecursive_canonical_type_ids.size());
 
-  // No canonicalization for structs.
-  EXPECT_EQ(0u, module->per_module_canonical_type_ids[0]);
-  EXPECT_EQ(0u, module->per_module_canonical_type_ids[1]);
-  EXPECT_EQ(1u, module->per_module_canonical_type_ids[2]);
-  EXPECT_EQ(0u, module->per_module_canonical_type_ids[3]);
-  // No canonicalization for arrays.
-  EXPECT_EQ(0u, module->per_module_canonical_type_ids[4]);
+  EXPECT_EQ(0u, module->isorecursive_canonical_type_ids[0]);
+  EXPECT_EQ(1u, module->isorecursive_canonical_type_ids[1]);
+  EXPECT_EQ(2u, module->isorecursive_canonical_type_ids[2]);
+  EXPECT_EQ(1u, module->isorecursive_canonical_type_ids[3]);
+  EXPECT_EQ(3u, module->isorecursive_canonical_type_ids[4]);
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {

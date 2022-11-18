@@ -716,24 +716,35 @@ int SharedFunctionInfo::EndPosition() const {
   return kNoSourcePosition;
 }
 
-void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
+void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
+    FunctionLiteral* lit) {
   Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
-    ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
-    if (info.HasPositionInfo()) {
-      info.SetPositionInfo(start_position, end_position);
-    }
-  } else if (HasUncompiledData()) {
+    // Updating the ScopeInfo is safe since they are identical modulo
+    // source positions.
+    ScopeInfo new_scope_info = *lit->scope()->scope_info();
+    DCHECK(new_scope_info.Equals(ScopeInfo::cast(maybe_scope_info), true));
+    SetScopeInfo(new_scope_info);
+  } else if (!is_compiled()) {
+    CHECK(HasUncompiledData());
     if (HasUncompiledDataWithPreparseData()) {
-      // Clear out preparsed scope data, since the position setter invalidates
-      // any scope data.
       ClearPreparseData();
     }
-    uncompiled_data().set_start_position(start_position);
-    uncompiled_data().set_end_position(end_position);
-  } else {
-    UNREACHABLE();
+    uncompiled_data().set_start_position(lit->start_position());
+    uncompiled_data().set_end_position(lit->end_position());
+
+    if (!is_toplevel()) {
+      Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
+      if (outer_scope) {
+        // Use the raw accessor since we have to replace the existing outer
+        // scope.
+        set_raw_outer_scope_info_or_feedback_metadata(
+            *outer_scope->scope_info());
+      }
+    }
   }
+  SetFunctionTokenPosition(lit->function_token_position(),
+                           lit->start_position());
 }
 
 // static

@@ -1592,7 +1592,28 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   }
 
   // Elements.
-  SerializeElements(object, object_serializer_);
+  ElementsKind kind = object->GetElementsKind();
+  // We only serialize the actual elements excluding the slack part.
+  DCHECK(!IsDoubleElementsKind(kind));
+  if (!IsDictionaryElementsKind(kind)) {
+    uint32_t elements_length = object->elements().length();
+    if (IsHoleyElementsKindForRead(kind)) {
+      uint32_t max_element_index = 0;
+      FixedArray elements = FixedArray::cast(object->elements());
+      for (int i = elements_length - 1; i >= 0; i--) {
+        if (!elements.is_the_hole(isolate_, i)) {
+          max_element_index = i + 1;
+          break;
+        }
+      }
+      return SerializeElements(object, object_serializer_,
+                               Just(max_element_index));
+    } else {
+      return SerializeElements(object, object_serializer_,
+                               Just(elements_length));
+    }
+  }
+  SerializeElements(object, object_serializer_, Nothing<uint32_t>());
 }
 
 // Format (serialized array):
@@ -1606,11 +1627,17 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 //     - Element index
 //     - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
-  SerializeElements(array, array_serializer_);
+  uint32_t length;
+  if (!array->length().ToUint32(&length)) {
+    Throw("Invalid array length");
+    return;
+  }
+  SerializeElements(array, array_serializer_, Just(length));
 }
 
 void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
-                                              ValueSerializer& serializer) {
+                                              ValueSerializer& serializer,
+                                              Maybe<uint32_t> length) {
   // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
   // sealed & frozen objects.)
 
@@ -1634,9 +1661,8 @@ void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
       serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedArray> elements =
           handle(FixedArray::cast(object->elements()), isolate_);
-      uint32_t length = static_cast<uint32_t>(elements->length());
-      serializer.WriteUint32(length);
-      for (uint32_t i = 0; i < length; ++i) {
+      serializer.WriteUint32(length.ToChecked());
+      for (uint32_t i = 0; i < length.ToChecked(); ++i) {
         WriteValue(handle(elements->get(i), isolate_), serializer);
       }
       break;
@@ -1646,9 +1672,8 @@ void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
       serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedDoubleArray> elements =
           handle(FixedDoubleArray::cast(object->elements()), isolate_);
-      uint32_t length = static_cast<uint32_t>(elements->length());
-      serializer.WriteUint32(length);
-      for (uint32_t i = 0; i < length; ++i) {
+      serializer.WriteUint32(length.ToChecked());
+      for (uint32_t i = 0; i < length.ToChecked(); ++i) {
         if (!elements->is_the_hole(i)) {
           double double_value = elements->get_scalar(i);
           Handle<Object> element_value =
@@ -1692,7 +1717,7 @@ uint8_t WebSnapshotSerializerDeserializer::ArrayBufferKindToFlags(
     Handle<JSArrayBuffer> array_buffer) {
   return DetachedBitField::encode(array_buffer->was_detached()) |
          SharedBitField::encode(array_buffer->is_shared()) |
-         ResizableBitField::encode(array_buffer->is_resizable());
+         ResizableBitField::encode(array_buffer->is_resizable_by_js());
 }
 
 uint32_t WebSnapshotSerializerDeserializer::BigIntSignAndLengthToFlags(
@@ -1714,9 +1739,9 @@ uint32_t WebSnapshotSerializerDeserializer::BigIntFlagsToBitField(
 }
 
 // Format (serialized array buffer):
-// - ArrayBufferFlags, including was_detached, is_shared and is_resizable.
+// - ArrayBufferFlags, including was_detached, is_shared and is_resizable_by_js.
 // - Byte length
-// - if is_resizable
+// - if is_resizable_by_js
 //   - Max byte length
 // - Raw bytes
 void WebSnapshotSerializer::SerializeArrayBuffer(
@@ -1729,7 +1754,7 @@ void WebSnapshotSerializer::SerializeArrayBuffer(
   array_buffer_serializer_.WriteByte(ArrayBufferKindToFlags(array_buffer));
 
   array_buffer_serializer_.WriteUint32(static_cast<uint32_t>(byte_length));
-  if (array_buffer->is_resizable()) {
+  if (array_buffer->is_resizable_by_js()) {
     size_t max_byte_length = array_buffer->max_byte_length();
     if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
       Throw("Too large resizable array buffer");
@@ -2269,7 +2294,7 @@ bool WebSnapshotDeserializer::Deserialize(
   auto buffer_size = deserializer_->end_ - deserializer_->position_;
 
   base::ElapsedTimer timer;
-  if (FLAG_trace_web_snapshot) {
+  if (v8_flags.trace_web_snapshot) {
     timer.Start();
   }
   if (!DeserializeSnapshot(skip_exports)) {
@@ -2279,7 +2304,7 @@ bool WebSnapshotDeserializer::Deserialize(
     return false;
   }
 
-  if (FLAG_trace_web_snapshot) {
+  if (v8_flags.trace_web_snapshot) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Deserializing snapshot (%zu bytes) took %0.3f ms]\n", buffer_size,
            ms);
@@ -2359,7 +2384,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
 
 #ifdef VERIFY_HEAP
   // Verify the objects we produced during deserializing snapshot.
-  if (FLAG_verify_heap && !has_error()) {
+  if (v8_flags.verify_heap && !has_error()) {
     VerifyObjects();
   }
 #endif
@@ -3614,7 +3639,7 @@ void WebSnapshotDeserializer::DeserializeDataViews() {
     bool is_length_tracking = LengthTrackingBitField::decode(flags);
 
     if (is_length_tracking) {
-      CHECK(array_buffer->is_resizable());
+      CHECK(array_buffer->is_resizable_by_js());
     } else {
       if (!deserializer_->ReadUint32(&byte_length)) {
         Throw("Malformed data view");
@@ -3636,7 +3661,7 @@ void WebSnapshotDeserializer::DeserializeDataViews() {
                         byte_offset);
       raw_data_view.set_is_length_tracking(is_length_tracking);
       raw_data_view.set_is_backed_by_rab(!raw_array_buffer.is_shared() &&
-                                         raw_array_buffer.is_resizable());
+                                         raw_array_buffer.is_resizable_by_js());
     }
 
     data_views_.set(static_cast<int>(current_data_view_count_), *data_view);
@@ -3700,7 +3725,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
     bool is_length_tracking = LengthTrackingBitField::decode(flags);
 
     if (is_length_tracking) {
-      CHECK(array_buffer->is_resizable());
+      CHECK(array_buffer->is_resizable_by_js());
     } else {
       if (!deserializer_->ReadUint32(&byte_length)) {
         Throw("Malformed typed array");
@@ -3717,7 +3742,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
       }
     }
 
-    bool rabGsab = array_buffer->is_resizable() &&
+    bool rabGsab = array_buffer->is_resizable_by_js() &&
                    (!array_buffer->is_shared() || is_length_tracking);
     if (rabGsab) {
       map = handle(
@@ -3738,7 +3763,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
       raw.SetOffHeapDataPtr(isolate_, array_buffer->backing_store(),
                             byte_offset);
       raw.set_is_length_tracking(is_length_tracking);
-      raw.set_is_backed_by_rab(array_buffer->is_resizable() &&
+      raw.set_is_backed_by_rab(array_buffer->is_resizable_by_js() &&
                                !array_buffer->is_shared());
     }
 
@@ -3766,7 +3791,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
       // have been deserialized.
       Object export_value = std::get<0>(ReadValue());
 #ifdef VERIFY_HEAP
-      if (FLAG_verify_heap) {
+      if (v8_flags.verify_heap) {
         export_value.ObjectVerify(isolate_);
       }
 #endif
@@ -3797,7 +3822,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
     // been deserialized.
     Object export_value = std::get<0>(ReadValue());
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
+    if (v8_flags.verify_heap) {
       export_value.ObjectVerify(isolate_);
     }
 #endif

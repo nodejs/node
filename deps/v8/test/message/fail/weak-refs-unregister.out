@@ -1,6 +1,6 @@
-*%(basename)s:*: TypeError: unregisterToken ('1') must be an object
+*%(basename)s:*: TypeError: Invalid unregisterToken ('1')
 fg.unregister(1);
    ^
-TypeError: unregisterToken ('1') must be an object
+TypeError: Invalid unregisterToken ('1')
     at FinalizationRegistry.unregister (<anonymous>)
     at *%(basename)s:*:4

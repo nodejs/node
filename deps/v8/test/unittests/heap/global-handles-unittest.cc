@@ -30,6 +30,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/objects-inl.h"
@@ -496,7 +497,8 @@ TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   if (v8_flags.single_generation) {
     FlagAndGlobal fp;
     ConstructJSApiObject(isolate, context, &fp);
-    CHECK(!InYoungGeneration(isolate, fp.handle));
+    CHECK_IMPLIES(!v8_flags.single_generation,
+                  !InYoungGeneration(isolate, fp.handle));
     fp.flag = false;
     fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
     CollectAllGarbage();

@@ -2,7 +2,6 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/bit-field.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -12,6 +11,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/debug/interface-types.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
@@ -133,9 +133,6 @@ class WasmModuleObject
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script);
-  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<Script> script, Handle<FixedArray> export_wrappers);
 
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
@@ -899,7 +896,7 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset);
+      Handle<HeapNumber> uses_bitset);
 
   DECL_PRINTER(AsmWasmData)
 
@@ -1003,7 +1000,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   inline uint32_t element_offset(uint32_t index);
   inline Address ElementAddress(uint32_t index);
 
-  static int MaxLength(uint32_t element_size_bytes) {
+  static constexpr int MaxLength(uint32_t element_size_bytes) {
     // The total object size must fit into a Smi, for filler objects. To make
     // the behavior of Wasm programs independent from the Smi configuration,
     // we hard-code the smaller of the two supported ranges.

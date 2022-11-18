@@ -649,7 +649,7 @@ static inline void PrintStats(const ConsStringGenerationData& data) {
 
 template <typename BuildString>
 void TestStringCharacterStream(BuildString build, int test_cases) {
-  FLAG_gc_global = true;
+  v8_flags.gc_global = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
@@ -1154,7 +1154,7 @@ TEST(ReplaceInvalidUtf8) {
 }
 
 TEST(JSONStringifySliceMadeExternal) {
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   // Create a sliced string from a one-byte string.  The latter is turned
   // into a two-byte external string.  Check that JSON.stringify works.
@@ -1330,7 +1330,7 @@ TEST(CachedHashOverflow) {
 }
 
 TEST(SliceFromCons) {
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1365,7 +1365,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(InternalizeExternal) {
-  FLAG_stress_incremental_marking = false;
+  v8_flags.stress_incremental_marking = false;
   CcTest::InitializeVM();
   i::Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1394,7 +1394,7 @@ TEST(InternalizeExternal) {
 }
 
 TEST(SliceFromExternal) {
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1417,7 +1417,7 @@ TEST(SliceFromExternal) {
 TEST(TrivialSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
@@ -1446,7 +1446,7 @@ TEST(TrivialSlice) {
 TEST(SliceFromSlice) {
   // This tests whether a slice that contains the entire parent string
   // actually creates a new string (it should not).
-  if (!FLAG_string_slices) return;
+  if (!v8_flags.string_slices) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> result;
@@ -1854,9 +1854,9 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
 
 TEST(Regress876759) {
   // Thin strings are used in conjunction with young gen
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   // We don't create ThinStrings immediately when using the forwarding table.
-  if (FLAG_always_use_string_forwarding_table) return;
+  if (v8_flags.always_use_string_forwarding_table) return;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 

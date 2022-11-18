@@ -42,7 +42,7 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node) {
 }
 
 bool IsAlreadyBeingFolded(Node* node) {
-  DCHECK(FLAG_assert_types);
+  DCHECK(v8_flags.assert_types);
   if (node->opcode() == IrOpcode::kFoldConstant) return true;
   for (Edge edge : node->use_edges()) {
     if (NodeProperties::IsValueEdge(edge) &&
@@ -70,7 +70,7 @@ Reduction ConstantFoldingReducer::Reduce(Node* node) {
     Node* constant = TryGetConstant(jsgraph(), node);
     if (constant != nullptr) {
       DCHECK(NodeProperties::IsTyped(constant));
-      if (!FLAG_assert_types) {
+      if (!v8_flags.assert_types) {
         DCHECK_EQ(node->op()->ControlOutputCount(), 0);
         ReplaceWithValue(node, constant);
         return Replace(constant);

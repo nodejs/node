@@ -760,8 +760,8 @@ TEST_F(ScannerStreamsTest, TestOverlongAndInvalidSequences) {
 
 TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   // This test relies on the invariant that the scavenger will move objects
-  if (i::FLAG_single_generation) return;
-  i::FLAG_manual_evacuation_candidates_selection = true;
+  if (i::v8_flags.single_generation) return;
+  i::v8_flags.manual_evacuation_candidates_selection = true;
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(isolate());
 
@@ -798,8 +798,8 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
 
 TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   // This test relies on the invariant that the scavenger will move objects
-  if (i::FLAG_single_generation) return;
-  i::FLAG_manual_evacuation_candidates_selection = true;
+  if (i::v8_flags.single_generation) return;
+  i::v8_flags.manual_evacuation_candidates_selection = true;
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
   v8::HandleScope scope(isolate());
 

@@ -78,8 +78,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     CHECK(!v8_flags.stress_concurrent_allocation);
     FullGC();
     FullGC();
-    heap()->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
     heap()->old_space()->FreeLinearAllocationArea();
     for (Page* page : *heap()->old_space()) {
       page->MarkNeverAllocateForTesting();
@@ -88,10 +88,10 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   void GcAndSweep(i::AllocationSpace space) {
     heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
-    if (heap()->mark_compact_collector()->sweeping_in_progress()) {
+    if (heap()->sweeping_in_progress()) {
       SafepointScope scope(heap());
-      heap()->mark_compact_collector()->EnsureSweepingCompleted(
-          MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+      heap()->EnsureSweepingCompleted(
+          Heap::SweepingForcedFinalizationMode::kV8Only);
     }
   }
 };

@@ -28,8 +28,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     // visits the host object.
     return false;
   }
-  BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(value);
-  if (is_shared_heap_ != target_page->InSharedHeap()) return false;
+  if (!ShouldMarkObject(value)) return false;
 
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
@@ -45,6 +44,16 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
       }
     }
     return true;
+  }
+}
+
+bool MarkingBarrier::ShouldMarkObject(HeapObject object) const {
+  if (V8_LIKELY(!uses_shared_heap_)) return true;
+  if (v8_flags.shared_space) {
+    if (is_shared_heap_isolate_) return true;
+    return !object.InSharedHeap();
+  } else {
+    return is_shared_heap_isolate_ == object.InSharedHeap();
   }
 }
 

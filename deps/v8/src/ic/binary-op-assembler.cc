@@ -17,7 +17,8 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   Label do_fadd(this), if_lhsisnotnumber(this, Label::kDeferred),
       check_rhsisoddball(this, Label::kDeferred),
       call_with_oddball_feedback(this), call_with_any_feedback(this),
-      call_add_stub(this), end(this), bigint(this, Label::kDeferred);
+      call_add_stub(this), end(this), bigint(this, Label::kDeferred),
+      bigint64(this);
   TVARIABLE(Float64T, var_fadd_lhs);
   TVARIABLE(Float64T, var_fadd_rhs);
   TVARIABLE(Smi, var_type_feedback);
@@ -158,7 +159,16 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
       Goto(&call_with_any_feedback);
 
       BIND(&lhs_is_bigint);
-      Branch(IsBigInt(rhs_heap_object), &bigint, &call_with_any_feedback);
+      {
+        GotoIfNot(IsBigInt(rhs_heap_object), &call_with_any_feedback);
+        if (Is64()) {
+          GotoIfLargeBigInt(CAST(lhs), &bigint);
+          GotoIfLargeBigInt(CAST(rhs), &bigint);
+          Goto(&bigint64);
+        } else {
+          Goto(&bigint);
+        }
+      }
 
       BIND(&lhs_is_string);
       {
@@ -189,6 +199,30 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         InstanceTypeEqual(rhs_instance_type, ODDBALL_TYPE);
     GotoIf(rhs_is_oddball, &call_with_oddball_feedback);
     Goto(&call_with_any_feedback);
+  }
+
+  if (Is64()) {
+    BIND(&bigint64);
+    {
+      // Both {lhs} and {rhs} are of BigInt type and can fit in 64-bit
+      // registers.
+      Label if_overflow(this);
+      TVARIABLE(UintPtrT, lhs_raw);
+      TVARIABLE(UintPtrT, rhs_raw);
+      BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
+      BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
+      var_result = BigIntFromInt64(
+          TryIntPtrAdd(UncheckedCast<IntPtrT>(lhs_raw.value()),
+                       UncheckedCast<IntPtrT>(rhs_raw.value()), &if_overflow));
+
+      var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt64);
+      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(),
+                     slot_id, update_feedback_mode);
+      Goto(&end);
+
+      BIND(&if_overflow);
+      Goto(&bigint);
+    }
   }
 
   BIND(&bigint);
@@ -245,7 +279,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred),
-      if_both_bigint(this, Label::kDeferred);
+      if_both_bigint(this, Label::kDeferred), if_both_bigint64(this);
   TVARIABLE(Float64T, var_float_lhs);
   TVARIABLE(Float64T, var_float_rhs);
   TVARIABLE(Smi, var_type_feedback);
@@ -377,7 +411,14 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     BIND(&if_left_bigint);
     {
       GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
-      Branch(IsBigInt(CAST(rhs)), &if_both_bigint, &call_with_any_feedback);
+      GotoIfNot(IsBigInt(CAST(rhs)), &call_with_any_feedback);
+      if (Is64()) {
+        GotoIfLargeBigInt(CAST(lhs), &if_both_bigint);
+        GotoIfLargeBigInt(CAST(rhs), &if_both_bigint);
+        Goto(&if_both_bigint64);
+      } else {
+        Goto(&if_both_bigint);
+      }
     }
   }
 
@@ -394,31 +435,130 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     Goto(&call_stub);
   }
 
+  if (Is64()) {
+    BIND(&if_both_bigint64);
+    // TODO(panq): Remove the condition when all the operations are supported.
+    if (op == Operation::kSubtract || op == Operation::kMultiply) {
+      var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt64);
+      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(),
+                     slot_id, update_feedback_mode);
+
+      TVARIABLE(UintPtrT, lhs_raw);
+      TVARIABLE(UintPtrT, rhs_raw);
+      BigIntToRawBytes(CAST(lhs), &lhs_raw, &lhs_raw);
+      BigIntToRawBytes(CAST(rhs), &rhs_raw, &rhs_raw);
+
+      switch (op) {
+        case Operation::kSubtract: {
+          var_result = BigIntFromInt64(TryIntPtrSub(
+              UncheckedCast<IntPtrT>(lhs_raw.value()),
+              UncheckedCast<IntPtrT>(rhs_raw.value()), &if_both_bigint));
+          Goto(&end);
+          break;
+        }
+        case Operation::kMultiply: {
+          var_result = BigIntFromInt64(TryIntPtrMul(
+              UncheckedCast<IntPtrT>(lhs_raw.value()),
+              UncheckedCast<IntPtrT>(rhs_raw.value()), &if_both_bigint));
+          Goto(&end);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      Goto(&if_both_bigint);
+    }
+  }
+
   BIND(&if_both_bigint);
   {
     var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
     UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(), slot_id,
                    update_feedback_mode);
-    if (op == Operation::kSubtract) {
-      Label bigint_too_big(this);
-      var_result =
-          CallBuiltin(Builtin::kBigIntSubtractNoThrow, context(), lhs, rhs);
+    switch (op) {
+      case Operation::kSubtract: {
+        Label bigint_too_big(this);
+        var_result =
+            CallBuiltin(Builtin::kBigIntSubtractNoThrow, context(), lhs, rhs);
 
-      // Check for sentinel that signals BigIntTooBig exception.
-      GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
-      Goto(&end);
+        // Check for sentinel that signals BigIntTooBig exception.
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
 
-      BIND(&bigint_too_big);
-      {
         // Update feedback to prevent deopt loop.
         UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
                        maybe_feedback_vector(), slot_id, update_feedback_mode);
         ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+        break;
       }
-    } else {
-      var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,
-                               SmiConstant(op));
-      Goto(&end);
+      case Operation::kMultiply: {
+        Label bigint_too_big(this),
+            termination_requested(this, Label::kDeferred);
+        var_result =
+            CallBuiltin(Builtin::kBigIntMultiplyNoThrow, context(), lhs, rhs);
+
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
+
+        // Check for sentinel that signals TerminationReqeusted exception.
+        GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
+               &termination_requested);
+
+        // Handles BigIntTooBig exception.
+        // Update feedback to prevent deopt loop.
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       maybe_feedback_vector(), slot_id, update_feedback_mode);
+        ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+
+        BIND(&termination_requested);
+        TerminateExecution(context());
+        break;
+      }
+      case Operation::kDivide: {
+        Label bigint_div_zero(this),
+            termination_requested(this, Label::kDeferred);
+        var_result =
+            CallBuiltin(Builtin::kBigIntDivideNoThrow, context(), lhs, rhs);
+
+        GotoIfNot(TaggedIsSmi(var_result.value()), &end);
+
+        // Check for sentinel that signals TerminationReqeusted exception.
+        GotoIf(TaggedEqual(var_result.value(), SmiConstant(1)),
+               &termination_requested);
+
+        // Handles BigIntDivZero exception.
+        // Update feedback to prevent deopt loop.
+        UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                       maybe_feedback_vector(), slot_id, update_feedback_mode);
+        ThrowRangeError(context(), MessageTemplate::kBigIntDivZero);
+
+        BIND(&termination_requested);
+        TerminateExecution(context());
+        break;
+      }
+      case Operation::kBitwiseAnd: {
+        Label bigint_too_big(this);
+        var_result =
+            CallBuiltin(Builtin::kBigIntBitwiseAndNoThrow, context(), lhs, rhs);
+
+        // Check for sentinel that signals BigIntTooBig exception.
+        GotoIf(TaggedIsSmi(var_result.value()), &bigint_too_big);
+        Goto(&end);
+
+        BIND(&bigint_too_big);
+        {
+          // Update feedback to prevent deopt loop.
+          UpdateFeedback(SmiConstant(BinaryOperationFeedback::kAny),
+                         maybe_feedback_vector(), slot_id,
+                         update_feedback_mode);
+          ThrowRangeError(context(), MessageTemplate::kBigIntTooBig);
+        }
+        break;
+      }
+      default: {
+        var_result = CallRuntime(Runtime::kBigIntBinaryOp, context(), lhs, rhs,
+                                 SmiConstant(op));
+        Goto(&end);
+      }
     }
   }
 

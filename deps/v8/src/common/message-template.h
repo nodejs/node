@@ -115,6 +115,7 @@ namespace internal {
   T(InvalidArgument, "invalid_argument")                                       \
   T(InvalidArgumentForTemporal, "Invalid argument for Temporal %")             \
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
+  T(InvalidRawJsonValue, "Invalid value for JSON.rawJSON")                     \
   T(InvalidRegExpExecResult,                                                   \
     "RegExp exec method returned something other than an Object or null")      \
   T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
@@ -658,6 +659,7 @@ namespace internal {
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
   T(WasmExceptionError, "wasm exception")                                      \
+  T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
   T(AsmJsCompiled, "Converted asm.js to WebAssembly: %")                       \
@@ -685,17 +687,15 @@ namespace internal {
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
   T(TraceEventIDError, "Trace event id must be a number.")                     \
   /* Weak refs */                                                              \
-  T(WeakRefsUnregisterTokenMustBeObject,                                       \
-    "unregisterToken ('%') must be an object")                                 \
+  T(InvalidWeakRefsUnregisterToken, "Invalid unregisterToken ('%')")           \
   T(WeakRefsCleanupMustBeCallable,                                             \
     "FinalizationRegistry: cleanup must be callable")                          \
-  T(WeakRefsRegisterTargetMustBeObject,                                        \
-    "FinalizationRegistry.prototype.register: target must be an object")       \
+  T(InvalidWeakRefsRegisterTarget,                                             \
+    "FinalizationRegistry.prototype.register: invalid target")                 \
   T(WeakRefsRegisterTargetAndHoldingsMustNotBeSame,                            \
     "FinalizationRegistry.prototype.register: target and holdings must not "   \
     "be same")                                                                 \
-  T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
-    "WeakRef: target must be an object")                                       \
+  T(InvalidWeakRefsWeakRefConstructorTarget, "WeakRef: invalid target")        \
   T(OptionalChainingNoNew, "Invalid optional chain from new expression")       \
   T(OptionalChainingNoSuper, "Invalid optional chain from super property")     \
   T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")   \

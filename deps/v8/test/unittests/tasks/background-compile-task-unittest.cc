@@ -50,11 +50,12 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
 
   BackgroundCompileTask* NewBackgroundCompileTask(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
-      size_t stack_size = FLAG_stack_size) {
+      size_t stack_size = v8_flags.stack_size) {
     return new BackgroundCompileTask(
         isolate, shared, test::SourceCharacterStreamForShared(isolate, shared),
         isolate->counters()->worker_thread_runtime_call_stats(),
-        isolate->counters()->compile_function_on_background(), FLAG_stack_size);
+        isolate->counters()->compile_function_on_background(),
+        v8_flags.stack_size);
   }
 
  private:

@@ -20,6 +20,7 @@ namespace compiler {
 
 struct WasmTypeCheckConfig {
   bool object_can_be_null;
+  bool null_succeeds;
   uint8_t rtt_depth;
 };
 

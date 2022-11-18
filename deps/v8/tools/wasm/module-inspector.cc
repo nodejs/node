@@ -9,7 +9,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
-#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
@@ -235,7 +234,6 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 
     // Decode and print locals.
     uint32_t locals_length;
-    InitializeLocalsFromSig();
     DecodeLocals(pc_, &locals_length);
     if (failed()) {
       // TODO(jkummerow): Better error handling.

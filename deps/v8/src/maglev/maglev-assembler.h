@@ -12,25 +12,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-// Label allowed to be passed to deferred code.
-class ZoneLabelRef {
- public:
-  explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
-
-  static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
-    // This is an unsafe operation, {label} must be zone allocated.
-    return ZoneLabelRef(label);
-  }
-
-  Label* operator*() { return label_; }
-
- private:
-  Label* label_;
-
-  // Unsafe constructor. {label} must be zone allocated.
-  explicit ZoneLabelRef(Label* label) : label_(label) {}
-};
-
 class MaglevAssembler : public MacroAssembler {
  public:
   explicit MaglevAssembler(MaglevCodeGenState* code_gen_state)
@@ -101,6 +82,27 @@ class MaglevAssembler : public MacroAssembler {
   }
 
   MaglevCodeGenState* const code_gen_state_;
+};
+
+// Label allowed to be passed to deferred code.
+class ZoneLabelRef {
+ public:
+  explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
+  explicit inline ZoneLabelRef(MaglevAssembler* masm)
+      : ZoneLabelRef(masm->compilation_info()->zone()) {}
+
+  static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
+    // This is an unsafe operation, {label} must be zone allocated.
+    return ZoneLabelRef(label);
+  }
+
+  Label* operator*() { return label_; }
+
+ private:
+  Label* label_;
+
+  // Unsafe constructor. {label} must be zone allocated.
+  explicit ZoneLabelRef(Label* label) : label_(label) {}
 };
 
 }  // namespace maglev

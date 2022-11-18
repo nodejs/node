@@ -32,11 +32,10 @@ namespace internal {
 
 namespace {
 
-bool EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
-                                     HeapBase& heap) {
-  if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
+bool EnterIncrementalMarkingIfNeeded(MarkingConfig config, HeapBase& heap) {
+  if (config.marking_type == MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
-          Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+          MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     WriteBarrier::FlagUpdater::Enter();
     heap.set_incremental_marking_in_progress(true);
     return true;
@@ -44,11 +43,10 @@ bool EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   return false;
 }
 
-bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
-                                    HeapBase& heap) {
-  if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
+bool ExitIncrementalMarkingIfNeeded(MarkingConfig config, HeapBase& heap) {
+  if (config.marking_type == MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
-          Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+          MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     WriteBarrier::FlagUpdater::Exit();
     heap.set_incremental_marking_in_progress(false);
     return true;
@@ -87,7 +85,7 @@ class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
  public:
   using Handle = SingleThreadedHandle;
 
-  IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
+  IncrementalMarkingTask(MarkerBase*, StackState);
 
   static Handle Post(cppgc::TaskRunner*, MarkerBase*);
 
@@ -95,13 +93,13 @@ class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
   void Run() final;
 
   MarkerBase* const marker_;
-  MarkingConfig::StackState stack_state_;
+  StackState stack_state_;
   // TODO(chromium:1056170): Change to CancelableTask.
   Handle handle_;
 };
 
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
-    MarkerBase* marker, MarkingConfig::StackState stack_state)
+    MarkerBase* marker, StackState stack_state)
     : marker_(marker),
       stack_state_(stack_state),
       handle_(Handle::NonEmptyTag{}) {}
@@ -117,10 +115,9 @@ MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
   DCHECK_IMPLIES(marker->heap().stack_support() !=
                      HeapBase::StackSupport::kSupportsConservativeStackScan,
                  runner->NonNestableTasksEnabled());
-  MarkingConfig::StackState stack_state_for_task =
-      runner->NonNestableTasksEnabled()
-          ? MarkingConfig::StackState::kNoHeapPointers
-          : MarkingConfig::StackState::kMayContainHeapPointers;
+  const auto stack_state_for_task = runner->NonNestableTasksEnabled()
+                                        ? StackState::kNoHeapPointers
+                                        : StackState::kMayContainHeapPointers;
   auto task =
       std::make_unique<IncrementalMarkingTask>(marker, stack_state_for_task);
   auto handle = task->handle_;
@@ -152,9 +149,8 @@ MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
       mutator_marking_state_(heap, marking_worklists_,
                              heap.compactor().compaction_worklists()) {
-  DCHECK_IMPLIES(
-      config_.collection_type == MarkingConfig::CollectionType::kMinor,
-      heap_.generational_gc_supported());
+  DCHECK_IMPLIES(config_.collection_type == CollectionType::kMinor,
+                 heap_.generational_gc_supported());
 }
 
 MarkerBase::~MarkerBase() {
@@ -163,7 +159,7 @@ MarkerBase::~MarkerBase() {
   // and should thus already be marked.
   if (!marking_worklists_.not_fully_constructed_worklist()->IsEmpty()) {
 #if DEBUG
-    DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state);
+    DCHECK_NE(StackState::kNoHeapPointers, config_.stack_state);
     std::unordered_set<HeapObjectHeader*> objects =
         mutator_marking_state_.not_fully_constructed_worklist().Extract();
     for (HeapObjectHeader* object : objects) DCHECK(object->IsMarked());
@@ -229,7 +225,7 @@ void MarkerBase::StartMarking() {
     // Performing incremental or concurrent marking.
     schedule_.NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
-    VisitRoots(MarkingConfig::StackState::kNoHeapPointers);
+    VisitRoots(StackState::kNoHeapPointers);
     ScheduleIncrementalMarkingTask();
     if (config_.marking_type ==
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
@@ -244,14 +240,14 @@ void MarkerBase::StartMarking() {
 }
 
 void MarkerBase::HandleNotFullyConstructedObjects() {
-  if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
+  if (config_.stack_state == StackState::kNoHeapPointers) {
     mutator_marking_state_.FlushNotFullyConstructedObjects();
   } else {
     MarkNotFullyConstructedObjects();
   }
 }
 
-void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
+void MarkerBase::EnterAtomicPause(StackState stack_state) {
   StatsCollector::EnabledScope top_stats_scope(heap().stats_collector(),
                                                StatsCollector::kAtomicMark);
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
@@ -310,7 +306,7 @@ void MarkerBase::LeaveAtomicPause() {
   heap().SetStackStateOfPrevGC(config_.stack_state);
 }
 
-void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
+void MarkerBase::FinishMarking(StackState stack_state) {
   DCHECK(is_marking_);
   EnterAtomicPause(stack_state);
   {
@@ -383,7 +379,7 @@ void MarkerBase::ProcessWeakness() {
 #if defined(CPPGC_YOUNG_GENERATION)
   if (heap().generational_gc_supported()) {
     auto& remembered_set = heap().remembered_set();
-    if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
+    if (config_.collection_type == CollectionType::kMinor) {
       // Custom callbacks assume that untraced pointers point to not yet freed
       // objects. They must make sure that upon callback completion no
       // UntracedMember points to a freed object. This may not hold true if a
@@ -425,7 +421,7 @@ void MarkerBase::ProcessWeakness() {
   DCHECK(marking_worklists_.marking_worklist()->IsEmpty());
 }
 
-void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
+void MarkerBase::VisitRoots(StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                            StatsCollector::kMarkVisitRoots);
 
@@ -442,13 +438,13 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
     }
   }
 
-  if (stack_state != MarkingConfig::StackState::kNoHeapPointers) {
+  if (stack_state != StackState::kNoHeapPointers) {
     StatsCollector::DisabledScope stack_stats_scope(
         heap().stats_collector(), StatsCollector::kMarkVisitStack);
     heap().stack()->IteratePointers(&stack_visitor());
   }
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
+  if (config_.collection_type == CollectionType::kMinor) {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkVisitRememberedSets);
     heap().remembered_set().Visit(visitor(), mutator_marking_state_);
@@ -482,13 +478,12 @@ void MarkerBase::ScheduleIncrementalMarkingTask() {
       IncrementalMarkingTask::Post(foreground_task_runner_.get(), this);
 }
 
-bool MarkerBase::IncrementalMarkingStepForTesting(
-    MarkingConfig::StackState stack_state) {
+bool MarkerBase::IncrementalMarkingStepForTesting(StackState stack_state) {
   return IncrementalMarkingStep(stack_state);
 }
 
-bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
-  if (stack_state == MarkingConfig::StackState::kNoHeapPointers) {
+bool MarkerBase::IncrementalMarkingStep(StackState stack_state) {
+  if (stack_state == StackState::kNoHeapPointers) {
     mutator_marking_state_.FlushNotFullyConstructedObjects();
   }
   config_.stack_state = stack_state;

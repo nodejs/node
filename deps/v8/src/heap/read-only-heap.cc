@@ -9,6 +9,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -298,7 +299,7 @@ HeapObject ReadOnlyHeapObjectIterator::Next() {
     }
     HeapObject object = HeapObject::FromAddress(current_addr_);
     const int object_size = object.Size();
-    current_addr_ += object_size;
+    current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (object.IsFreeSpaceOrFiller()) {
       continue;

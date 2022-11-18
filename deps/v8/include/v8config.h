@@ -579,6 +579,37 @@ path. Add it with -I<path> to the command line
 #define V8_NO_UNIQUE_ADDRESS /* NOT SUPPORTED */
 #endif
 
+// Marks a type as being eligible for the "trivial" ABI despite having a
+// non-trivial destructor or copy/move constructor. Such types can be relocated
+// after construction by simply copying their memory, which makes them eligible
+// to be passed in registers. The canonical example is std::unique_ptr.
+//
+// Use with caution; this has some subtle effects on constructor/destructor
+// ordering and will be very incorrect if the type relies on its address
+// remaining constant. When used as a function argument (by value), the value
+// may be constructed in the caller's stack frame, passed in a register, and
+// then used and destructed in the callee's stack frame. A similar thing can
+// occur when values are returned.
+//
+// TRIVIAL_ABI is not needed for types which have a trivial destructor and
+// copy/move constructors, since those are automatically trivial by the ABI
+// spec.
+//
+// It is also not likely to be effective on types too large to be passed in one
+// or two registers on typical target ABIs.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#trivial-abi
+//   https://libcxx.llvm.org/docs/DesignDocs/UniquePtrTrivialAbi.html
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(trivial_abi)
+#define V8_TRIVIAL_ABI [[clang::trivial_abi]]
+#endif // __has_attribute(trivial_abi)
+#endif // defined(__clang__) && defined(__has_attribute)
+#if !defined(V8_TRIVIAL_ABI)
+#define V8_TRIVIAL_ABI
+#endif //!defined(V8_TRIVIAL_ABI)
+
 // Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)

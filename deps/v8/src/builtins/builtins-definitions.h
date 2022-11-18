@@ -198,6 +198,7 @@ namespace internal {
                                                                                \
   /* Maglev Compiler */                                                        \
   ASM(MaglevOnStackReplacement, OnStackReplacement)                            \
+  ASM(MaglevOutOfLinePrologue, NoContext)                                      \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
@@ -619,6 +620,8 @@ namespace internal {
   /* JSON */                                                                   \
   CPP(JsonParse)                                                               \
   CPP(JsonStringify)                                                           \
+  CPP(JsonRawJson)                                                             \
+  CPP(JsonIsRawJson)                                                           \
                                                                                \
   /* Web snapshots */                                                          \
   CPP(WebSnapshotSerialize)                                                    \
@@ -1021,7 +1024,7 @@ namespace internal {
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
   TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
-  TFS(AsyncGeneratorYield, kGenerator, kValue, kIsCaught)                      \
+  TFS(AsyncGeneratorYieldWithAwait, kGenerator, kValue, kIsCaught)             \
   TFS(AsyncGeneratorReturn, kGenerator, kValue, kIsCaught)                     \
   TFS(AsyncGeneratorResumeNext, kGenerator)                                    \
                                                                                \
@@ -1046,8 +1049,8 @@ namespace internal {
       kValue)                                                                  \
   TFJ(AsyncGeneratorAwaitRejectClosure, kJSArgcReceiverSlots + 1, kReceiver,   \
       kValue)                                                                  \
-  TFJ(AsyncGeneratorYieldResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,  \
-      kValue)                                                                  \
+  TFJ(AsyncGeneratorYieldWithAwaitResolveClosure, kJSArgcReceiverSlots + 1,    \
+      kReceiver, kValue)                                                       \
   TFJ(AsyncGeneratorReturnClosedResolveClosure, kJSArgcReceiverSlots + 1,      \
       kReceiver, kValue)                                                       \
   TFJ(AsyncGeneratorReturnClosedRejectClosure, kJSArgcReceiverSlots + 1,       \
@@ -1094,7 +1097,8 @@ namespace internal {
   TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
-  TFC(FindNonDefaultConstructor, FindNonDefaultConstructor)                    \
+  TFC(FindNonDefaultConstructorOrConstruct,                                    \
+      FindNonDefaultConstructorOrConstruct)                                    \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \
@@ -1750,6 +1754,16 @@ namespace internal {
   CPP(DisplayNamesPrototypeResolvedOptions)                            \
   /* ecma402 #sec-Intl.DisplayNames.supportedLocalesOf */              \
   CPP(DisplayNamesSupportedLocalesOf)                                  \
+  /* ecma402 #sec-intl-durationformat-constructor */                   \
+  CPP(DurationFormatConstructor)                                       \
+  /* ecma402 #sec-Intl.DurationFormat.prototype.format */              \
+  CPP(DurationFormatPrototypeFormat)                                   \
+  /* ecma402 #sec-Intl.DurationFormat.prototype.formatToParts */       \
+  CPP(DurationFormatPrototypeFormatToParts)                            \
+  /* ecma402 #sec-Intl.DurationFormat.prototype.resolvedOptions */     \
+  CPP(DurationFormatPrototypeResolvedOptions)                          \
+  /* ecma402 #sec-Intl.DurationFormat.supportedLocalesOf */            \
+  CPP(DurationFormatSupportedLocalesOf)                                \
   /* ecma402 #sec-intl.getcanonicallocales */                          \
   CPP(IntlGetCanonicalLocales)                                         \
   /* ecma402 #sec-intl.supportedvaluesof */                            \

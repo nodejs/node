@@ -36,8 +36,20 @@ macro FastCopy(
       otherwise unreachable;
   const srcPtr: RawPtr = src.data_ptr + Convert<intptr>(startOffset);
 
-  dcheck(countBytes <= dest.byte_length);
-  dcheck(countBytes <= src.byte_length - startOffset);
+  @if(DEBUG) {
+    const srcLength =
+        LoadJSTypedArrayLengthAndCheckDetached(src) otherwise unreachable;
+    const srcByteLength = GetTypedArrayElementsInfo(src).CalculateByteLength(
+        srcLength) otherwise unreachable;
+
+    const destLength =
+        LoadJSTypedArrayLengthAndCheckDetached(dest) otherwise unreachable;
+    const destByteLength = GetTypedArrayElementsInfo(dest).CalculateByteLength(
+        destLength) otherwise unreachable;
+
+    dcheck(countBytes <= destByteLength);
+    dcheck(countBytes <= srcByteLength - startOffset);
+  }
 
   if (IsSharedArrayBuffer(src.buffer)) {
     // SABs need a relaxed memmove to preserve atomicity.

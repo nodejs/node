@@ -9,7 +9,9 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/index-generator.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -42,7 +44,7 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
-      non_atomic_marking_state_.WhiteToGrey(obj)) {
+      non_atomic_marking_state()->WhiteToGrey(obj)) {
     local_marking_worklists_->Push(obj);
   }
 }
@@ -86,6 +88,16 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
 
 void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
   local_weak_objects()->transition_arrays_local.Push(array);
+}
+
+bool MarkCompactCollector::ShouldMarkObject(HeapObject object) const {
+  if (V8_LIKELY(!uses_shared_heap_)) return true;
+  if (v8_flags.shared_space) {
+    if (is_shared_heap_isolate_) return true;
+    return !object.InSharedHeap();
+  } else {
+    return is_shared_heap_isolate_ == object.InSharedHeap();
+  }
 }
 
 template <typename MarkingState>
@@ -199,8 +211,9 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // Map might be forwarded during GC.
         DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
         size = black_object.SizeFromMap(map);
-        CHECK_LE(addr + size, chunk_->area_end());
-        Address end = addr + size - kTaggedSize;
+        int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(size);
+        CHECK_LE(addr + aligned_size, chunk_->area_end());
+        Address end = addr + aligned_size - kTaggedSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
@@ -231,7 +244,8 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         map = Map::cast(map_object);
         DCHECK(map.IsMap(cage_base));
         size = object.SizeFromMap(map);
-        CHECK_LE(addr + size, chunk_->area_end());
+        CHECK_LE(addr + ALIGN_TO_ALLOCATION_ALIGNMENT(size),
+                 chunk_->area_end());
       }
 
       // We found a live object.
@@ -280,6 +294,64 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
 }
 
 Isolate* CollectorBase::isolate() { return heap()->isolate(); }
+
+class YoungGenerationMarkingTask;
+
+class PageMarkingItem : public ParallelWorkItem {
+ public:
+  explicit PageMarkingItem(MemoryChunk* chunk) : chunk_(chunk) {}
+  ~PageMarkingItem() = default;
+
+  void Process(YoungGenerationMarkingTask* task);
+
+ private:
+  inline Heap* heap() { return chunk_->heap(); }
+
+  void MarkUntypedPointers(YoungGenerationMarkingTask* task);
+
+  void MarkTypedPointers(YoungGenerationMarkingTask* task);
+
+  template <typename TSlot>
+  V8_INLINE SlotCallbackResult
+  CheckAndMarkObject(YoungGenerationMarkingTask* task, TSlot slot);
+
+  MemoryChunk* chunk_;
+};
+
+enum class YoungMarkingJobType { kAtomic, kIncremental };
+
+class YoungGenerationMarkingJob : public v8::JobTask {
+ public:
+  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
+                            MarkingWorklists* global_worklists,
+                            std::vector<PageMarkingItem> marking_items,
+                            YoungMarkingJobType young_marking_job_type)
+      : isolate_(isolate),
+        heap_(heap),
+        global_worklists_(global_worklists),
+        marking_items_(std::move(marking_items)),
+        remaining_marking_items_(marking_items_.size()),
+        generator_(marking_items_.size()),
+        young_marking_job_type_(young_marking_job_type) {}
+
+  void Run(JobDelegate* delegate) override;
+  size_t GetMaxConcurrency(size_t worker_count) const override;
+  bool incremental() const {
+    return young_marking_job_type_ == YoungMarkingJobType::kIncremental;
+  }
+
+ private:
+  void ProcessItems(JobDelegate* delegate);
+  void ProcessMarkingItems(YoungGenerationMarkingTask* task);
+
+  Isolate* isolate_;
+  Heap* heap_;
+  MarkingWorklists* global_worklists_;
+  std::vector<PageMarkingItem> marking_items_;
+  std::atomic_size_t remaining_marking_items_{0};
+  IndexGenerator generator_;
+  YoungMarkingJobType young_marking_job_type_;
+};
 
 }  // namespace internal
 }  // namespace v8

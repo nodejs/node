@@ -77,14 +77,15 @@ class ValueNumberingAssembler : public Assembler {
 
  public:
   ValueNumberingAssembler(Graph* graph, Zone* phase_zone)
-      : Assembler(graph, phase_zone), depths_heads_(phase_zone) {
+      : Assembler(graph, phase_zone),
+        dominator_path_(phase_zone),
+        depths_heads_(phase_zone) {
     table_ = phase_zone->NewVector<Entry>(
         base::bits::RoundUpToPowerOfTwo(
             std::max<size_t>(128, graph->op_id_capacity() / 2)),
         Entry());
     entry_count_ = 0;
     mask_ = table_.size() - 1;
-    current_depth_ = -1;
   }
 
 #define EMIT_OP(Name)                                    \
@@ -99,25 +100,30 @@ class ValueNumberingAssembler : public Assembler {
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP
 
-  void EnterBlock(const Block& block) {
-    int new_depth = block.Depth();
-    // Remember that this assembler should only be used for OptimizationPhases
-    // that visit the graph in VisitOrder::kDominator order. We can't properly
-    // check that here, but we do two checks, which should be enough to ensure
-    // that we are actually visiting the graph in dominator order:
-    //  - There should be only one block at depth 0 (the root).
-    //  - There should be no "jumps" downward in the dominator tree ({new_depth}
-    //    cannot be lower than {current_depth}+1).
-    DCHECK_IMPLIES(current_depth_ == 0, new_depth != 0);
-    DCHECK_LE(new_depth, current_depth_ + 1);
-    if (new_depth <= current_depth_) {
-      while (current_depth_ >= new_depth) {
+  bool Bind(Block* block) {
+    if (!Base::Bind(block)) return false;
+    ResetToBlock(block);
+    dominator_path_.push_back(block);
+    depths_heads_.push_back(nullptr);
+    return true;
+  }
+
+  // Resets {table_} up to the first dominator of {block} that it contains.
+  void ResetToBlock(Block* block) {
+    Block* target = block->GetDominator();
+    while (!dominator_path_.empty() && target != nullptr &&
+           dominator_path_.back() != target) {
+      if (dominator_path_.back()->Depth() > target->Depth()) {
         ClearCurrentDepthEntries();
-        --current_depth_;
+      } else if (dominator_path_.back()->Depth() < target->Depth()) {
+        target = target->GetDominator();
+      } else {
+        // {target} and {dominator_path.back} have the same depth but are not
+        // equal, so we go one level up for both.
+        ClearCurrentDepthEntries();
+        target = target->GetDominator();
       }
     }
-    current_depth_ = new_depth;
-    depths_heads_.push_back(nullptr);
   }
 
  private:
@@ -176,6 +182,7 @@ class ValueNumberingAssembler : public Assembler {
       --entry_count_;
     }
     depths_heads_.pop_back();
+    dominator_path_.pop_back();
   }
 
   // If the table is too full, double its size and re-insert the old entries.
@@ -254,7 +261,7 @@ class ValueNumberingAssembler : public Assembler {
     return V8_LIKELY(entry > table_.begin()) ? entry - 1 : table_.end() - 1;
   }
 
-  int current_depth_;
+  ZoneVector<Block*> dominator_path_;
   base::Vector<Entry> table_;
   size_t mask_;
   size_t entry_count_;

@@ -36,7 +36,7 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
 }
 
 MarkingVerifierBase::MarkingVerifierBase(
-    HeapBase& heap, Heap::Config::CollectionType collection_type,
+    HeapBase& heap, CollectionType collection_type,
     VerificationState& verification_state,
     std::unique_ptr<cppgc::Visitor> visitor)
     : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
@@ -45,7 +45,7 @@ MarkingVerifierBase::MarkingVerifierBase(
       collection_type_(collection_type) {}
 
 void MarkingVerifierBase::Run(
-    Heap::Config::StackState stack_state, uintptr_t stack_end,
+    StackState stack_state, uintptr_t stack_end,
     v8::base::Optional<size_t> expected_marked_bytes) {
   Traverse(heap_.raw_heap());
 // Avoid verifying the stack when running with TSAN as the TSAN runtime changes
@@ -61,7 +61,7 @@ void MarkingVerifierBase::Run(
 // TODO(chromium:1325007): Investigate if Oilpan verification can be moved
 // before V8 compaction or compaction never runs with stack.
 #if !defined(THREAD_SANITIZER) && !defined(CPPGC_POINTER_COMPRESSION)
-  if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
+  if (stack_state == StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
     heap_.stack()->IteratePointersUnsafe(this, stack_end);
     // The objects found through the unsafe iteration are only a subset of the
@@ -114,7 +114,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   DCHECK(!header.IsFree());
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (collection_type_ == Heap::Config::CollectionType::kMinor) {
+  if (collection_type_ == CollectionType::kMinor) {
     auto& caged_heap = CagedHeap::Instance();
     const auto age = CagedHeapLocalData::Get().age_table.GetAge(
         caged_heap.OffsetFromAddress(header.ObjectStart()));
@@ -185,7 +185,7 @@ class VerificationVisitor final : public cppgc::Visitor {
 }  // namespace
 
 MarkingVerifier::MarkingVerifier(HeapBase& heap_base,
-                                 Heap::Config::CollectionType collection_type)
+                                 CollectionType collection_type)
     : MarkingVerifierBase(heap_base, collection_type, state_,
                           std::make_unique<VerificationVisitor>(state_)) {}
 

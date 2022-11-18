@@ -521,6 +521,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
+#define WASM_REF_TEST_DEPRECATED(ref, typeidx) \
+  ref, WASM_GC_OP(kExprRefTestDeprecated), static_cast<byte>(typeidx)
 #define WASM_REF_TEST(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefTest), static_cast<byte>(typeidx)
 #define WASM_REF_CAST(ref, typeidx) \

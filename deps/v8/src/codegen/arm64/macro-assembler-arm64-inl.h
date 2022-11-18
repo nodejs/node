@@ -944,7 +944,7 @@ void TurboAssembler::Smull(const Register& rd, const Register& rn,
   smull(rd, rn, rm);
 }
 
-void MacroAssembler::Smulh(const Register& rd, const Register& rn,
+void TurboAssembler::Smulh(const Register& rd, const Register& rn,
                            const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -956,6 +956,13 @@ void TurboAssembler::Umull(const Register& rd, const Register& rn,
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   umaddl(rd, rn, rm, xzr);
+}
+
+void TurboAssembler::Umulh(const Register& rd, const Register& rn,
+                           const Register& rm) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  umulh(rd, rn, rm);
 }
 
 void TurboAssembler::Sxtb(const Register& rd, const Register& rn) {

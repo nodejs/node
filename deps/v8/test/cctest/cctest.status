@@ -280,9 +280,6 @@
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
-  # BUG(v8:8744).
-  'test-cpu-profiler/FunctionCallSample': [SKIP],
-
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers': ['arch == ia32 and mode == debug', SKIP],
@@ -558,7 +555,6 @@
   'test-debug-helper/GetObjectProperties': [SKIP],
   'test-js-context-specialization/*': [SKIP],
   'test-multiple-return/*': [SKIP],
-  'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
 

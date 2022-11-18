@@ -21,7 +21,7 @@ namespace internal {
 inline StrongTaggedValue::StrongTaggedValue(Object o)
     :
 #ifdef V8_COMPRESS_POINTERS
-      TaggedImpl(CompressTagged(o.ptr()))
+      TaggedImpl(CompressionScheme::CompressTagged(o.ptr()))
 #else
       TaggedImpl(o.ptr())
 #endif
@@ -30,7 +30,7 @@ inline StrongTaggedValue::StrongTaggedValue(Object o)
 
 Object StrongTaggedValue::ToObject(Isolate* isolate, StrongTaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
-  return Object(DecompressTaggedAny(isolate, object.ptr()));
+  return Object(CompressionScheme::DecompressTaggedAny(isolate, object.ptr()));
 #else
   return Object(object.ptr());
 #endif
@@ -39,7 +39,7 @@ Object StrongTaggedValue::ToObject(Isolate* isolate, StrongTaggedValue object) {
 inline TaggedValue::TaggedValue(MaybeObject o)
     :
 #ifdef V8_COMPRESS_POINTERS
-      TaggedImpl(CompressTagged(o.ptr()))
+      TaggedImpl(CompressionScheme::CompressTagged(o.ptr()))
 #else
       TaggedImpl(o.ptr())
 #endif
@@ -48,7 +48,8 @@ inline TaggedValue::TaggedValue(MaybeObject o)
 
 MaybeObject TaggedValue::ToMaybeObject(Isolate* isolate, TaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
-  return MaybeObject(DecompressTaggedAny(isolate, object.ptr()));
+  return MaybeObject(
+      CompressionScheme::DecompressTaggedAny(isolate, object.ptr()));
 #else
   return MaybeObject(object.ptr());
 #endif

@@ -109,7 +109,6 @@ ArrayBufferSweeper::~ArrayBufferSweeper() {
 void ArrayBufferSweeper::EnsureFinished() {
   if (!sweeping_in_progress()) return;
 
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
   TryAbortResult abort_result =
       heap_->isolate()->cancelable_task_manager()->TryAbort(job_->id_);
 

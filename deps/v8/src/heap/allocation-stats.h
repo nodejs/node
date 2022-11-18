@@ -59,6 +59,8 @@ class AllocationStats {
 #endif
 
   void IncreaseAllocatedBytes(size_t bytes, const BasicMemoryChunk* page) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(bytes, kObjectAlignment8GbHeap));
 #ifdef DEBUG
     size_t size = size_;
     DCHECK_GE(size + bytes, size);

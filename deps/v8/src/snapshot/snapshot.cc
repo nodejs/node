@@ -321,7 +321,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
         Snapshot::kAllowActiveIsolateForTesting |
-        ((isolate->shared_isolate() || ReadOnlyHeap::IsReadOnlySpaceShared())
+        ((isolate->has_shared_heap() || ReadOnlyHeap::IsReadOnlySpaceShared())
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     serialized_data = Snapshot::Create(isolate, *default_context,

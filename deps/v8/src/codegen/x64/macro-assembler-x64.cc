@@ -908,7 +908,7 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   j(not_zero, flags_need_processing);
 }
 
-void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector, Register closure,
     JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
@@ -918,12 +918,12 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   testl(flags, Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
   j(zero, &maybe_needs_logging);
 
-  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, jump_mode);
 
   bind(&maybe_needs_logging);
   testl(flags, Immediate(FeedbackVector::LogNextExecutionBit::kMask));
   j(zero, &maybe_has_optimized_code);
-  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution, jump_mode);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = flags;

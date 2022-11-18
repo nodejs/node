@@ -306,6 +306,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
         case kS390_Abs64:
         case kS390_Abs32:
         case kS390_Mul32:
+        case kS390_Mul64WithOverflow:
           return overflow;
         default:
           break;
@@ -1124,7 +1125,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     __ ComputeCodeStartAddress(ip);
     __ CmpS64(ip, kJavaScriptCallCodeStartRegister);
@@ -1237,7 +1238,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
@@ -1417,7 +1418,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch1 = i.TempRegister(1);
       OutOfLineRecordWrite* ool;
 
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
         // does not support that for now.
         __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32));
@@ -1695,6 +1696,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Mul64:
       ASSEMBLE_BIN_OP(RRInstr(MulS64), RM64Instr(MulS64), RIInstr(MulS64));
       break;
+    case kS390_Mul64WithOverflow: {
+      Register dst = i.OutputRegister(), src1 = i.InputRegister(0),
+               src2 = i.InputRegister(1);
+      DCHECK(!AreAliased(dst, src1, src2));
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        __ msgrkc(dst, src1, src2);
+      } else {
+        __ mgrk(r0, src1, src2);  // r0 = high 64-bits, r1 = low 64-bits.
+        __ lgr(dst, r1);
+        __ ShiftRightS64(r1, r1, Operand(63));
+        // Test whether {high} is a sign-extension of {result}.
+        __ CmpU64(r0, r1);
+      }
+      break;
+    }
     case kS390_MulHigh32:
       // zero-ext
       ASSEMBLE_BIN_OP(RRRInstr(MulHighS32), RRM32Instr(MulHighS32),
@@ -1704,6 +1720,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // zero-ext
       ASSEMBLE_BIN_OP(RRRInstr(MulHighU32), RRM32Instr(MulHighU32),
                       RRIInstr(MulHighU32));
+      break;
+    case kS390_MulHighU64:
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighU64), nullInstr, nullInstr);
+      break;
+    case kS390_MulHighS64:
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighS64), nullInstr, nullInstr);
       break;
     case kS390_MulFloat:
       ASSEMBLE_BIN_OP(DDInstr(meebr), DMTInstr(MulFloat32), nullInstr);
@@ -3240,7 +3262,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        if (FLAG_debug_code) {
+        if (v8_flags.debug_code) {
           __ stop();
         }
       }
@@ -3423,7 +3445,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (required_slots * kSystemPointerSize < FLAG_stack_size * KB) {
+      if (required_slots * kSystemPointerSize < v8_flags.stack_size * KB) {
         Register scratch = r1;
         __ LoadU64(
             scratch,
@@ -3441,7 +3463,7 @@ void CodeGenerator::AssembleConstructFrame() {
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map);
-      if (FLAG_debug_code) __ stop();
+      if (v8_flags.debug_code) __ stop();
 
       __ bind(&done);
     }
@@ -3503,7 +3525,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (parameter_slots != 0) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ CmpS64(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }

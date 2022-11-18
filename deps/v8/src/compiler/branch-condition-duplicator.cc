@@ -70,7 +70,7 @@ void BranchConditionDuplicator::DuplicateConditionIfNeeded(Node* node) {
   if (!IsBranch(node)) return;
 
   Node* condNode = node->InputAt(0);
-  if (condNode->UseCount() > 1 && CanDuplicate(condNode)) {
+  if (condNode->BranchUseCount() > 1 && CanDuplicate(condNode)) {
     node->ReplaceInput(0, DuplicateNode(condNode));
   }
 }

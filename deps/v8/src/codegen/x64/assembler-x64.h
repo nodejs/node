@@ -476,7 +476,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline Handle<CodeT> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
-  inline Address runtime_entry_at(Address pc);
 
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
@@ -710,6 +709,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mull(Operand src);
   // Multiply rax by src, put the result in rdx:rax.
   void mulq(Register src);
+  void mulq(Operand src);
 
 #define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
   void instruction##l(Register dst, Immediate imm8) {                       \
@@ -815,7 +815,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Calls
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(Address entry, RelocInfo::Mode rmode);
 
   // Explicitly emit a near call / near jump. The displacement is relative to
   // the next instructions (which starts at {pc_offset() + kNearJmpInstrSize}).
@@ -835,7 +834,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(Handle<CodeT> target, RelocInfo::Mode rmode);
-  void jmp(Address entry, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
@@ -2116,6 +2114,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
  private:
   Address addr_at(int pos) {
+    DCHECK_GE(pos, 0);
+    DCHECK_LT(pos, pc_offset());
     return reinterpret_cast<Address>(buffer_start_ + pos);
   }
   uint32_t long_at(int pos) {
@@ -2132,7 +2132,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void emitl(uint32_t x);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
-  inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   inline void emit(Immediate x);
   inline void emit(Immediate64 x);
 

@@ -160,6 +160,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  MemOperand ExternalReferenceAsOperand(ExternalReference reference,
+                                        Register scratch);
+
   inline void Move(Register output, MemOperand operand) {
     Ld_d(output, operand);
   }
@@ -384,6 +393,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Mulh_wu)
   DEFINE_INSTRUCTION(Mul_d)
   DEFINE_INSTRUCTION(Mulh_d)
+  DEFINE_INSTRUCTION(Mulh_du)
   DEFINE_INSTRUCTION2(Div_w)
   DEFINE_INSTRUCTION2(Div_d)
   DEFINE_INSTRUCTION2(Div_wu)
@@ -636,8 +646,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // overflow occured, otherwise it is zero or positive
   void SubOverflow_d(Register dst, Register left, const Operand& right,
                      Register overflow);
-  // MulOverflow_w sets overflow register to zero if no overflow occured
+  // MulOverflow_{w/d} set overflow register to zero if no overflow occured
   void MulOverflow_w(Register dst, Register left, const Operand& right,
+                     Register overflow);
+  void MulOverflow_d(Register dst, Register left, const Operand& right,
                      Register overflow);
 
   // TODO(LOONG_dev): LOONG64 Remove this constant
@@ -1054,8 +1066,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                                    Register feedback_vector);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector);
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {

@@ -27,8 +27,10 @@
   V(_, dateStyle_string, "dateStyle")                               \
   V(_, dateTimeField_string, "dateTimeField")                       \
   V(_, dayPeriod_string, "dayPeriod")                               \
+  V(_, daysDisplay_string, "daysDisplay")                           \
   V(_, decimal_string, "decimal")                                   \
   V(_, dialect_string, "dialect")                                   \
+  V(_, digital_string, "digital")                                   \
   V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
@@ -43,6 +45,7 @@
   V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
+  V(_, fractionalDigits_string, "fractionalDigits")                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
@@ -60,6 +63,7 @@
   V(_, hour12_string, "hour12")                                     \
   V(_, hourCycle_string, "hourCycle")                               \
   V(_, hourCycles_string, "hourCycles")                             \
+  V(_, hoursDisplay_string, "hoursDisplay")                         \
   V(_, ideo_string, "ideo")                                         \
   V(_, ignorePunctuation_string, "ignorePunctuation")               \
   V(_, Invalid_Date_string, "Invalid Date")                         \
@@ -78,6 +82,8 @@
   V(_, ltr_string, "ltr")                                           \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
   V(_, maximumSignificantDigits_string, "maximumSignificantDigits") \
+  V(_, microsecondsDisplay_string, "microsecondsDisplay")           \
+  V(_, millisecondsDisplay_string, "millisecondsDisplay")           \
   V(_, min2_string, "min2")                                         \
   V(_, minimalDays_string, "minimalDays")                           \
   V(_, minimumFractionDigits_string, "minimumFractionDigits")       \
@@ -85,8 +91,11 @@
   V(_, minimumSignificantDigits_string, "minimumSignificantDigits") \
   V(_, minus_0, "-0")                                               \
   V(_, minusSign_string, "minusSign")                               \
+  V(_, minutesDisplay_string, "minutesDisplay")                     \
+  V(_, monthsDisplay_string, "monthsDisplay")                       \
   V(_, morePrecision_string, "morePrecision")                       \
   V(_, nan_string, "nan")                                           \
+  V(_, nanosecondsDisplay_string, "nanosecondsDisplay")             \
   V(_, narrowSymbol_string, "narrowSymbol")                         \
   V(_, negative_string, "negative")                                 \
   V(_, never_string, "never")                                       \
@@ -106,6 +115,7 @@
   V(_, roundingPriority_string, "roundingPriority")                 \
   V(_, rtl_string, "rtl")                                           \
   V(_, scientific_string, "scientific")                             \
+  V(_, secondsDisplay_string, "secondsDisplay")                     \
   V(_, segment_string, "segment")                                   \
   V(_, SegmentIterator_string, "Segment Iterator")                  \
   V(_, Segments_string, "Segments")                                 \
@@ -125,6 +135,7 @@
   V(_, timeZoneName_string, "timeZoneName")                         \
   V(_, trailingZeroDisplay_string, "trailingZeroDisplay")           \
   V(_, trunc_string, "trunc")                                       \
+  V(_, two_digit_string, "2-digit")                                 \
   V(_, type_string, "type")                                         \
   V(_, unknown_string, "unknown")                                   \
   V(_, upper_string, "upper")                                       \
@@ -133,8 +144,10 @@
   V(_, unitDisplay_string, "unitDisplay")                           \
   V(_, weekday_string, "weekday")                                   \
   V(_, weekend_string, "weekend")                                   \
+  V(_, weeksDisplay_string, "weeksDisplay")                         \
   V(_, weekInfo_string, "weekInfo")                                 \
-  V(_, yearName_string, "yearName")
+  V(_, yearName_string, "yearName")                                 \
+  V(_, yearsDisplay_string, "yearsDisplay")
 #else  // V8_INTL_SUPPORT
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)
 #endif  // V8_INTL_SUPPORT
@@ -359,6 +372,7 @@
   V(_, Proxy_string, "Proxy")                                        \
   V(_, query_colon_string, "(?:)")                                   \
   V(_, RangeError_string, "RangeError")                              \
+  V(_, raw_json_string, "rawJSON")                                   \
   V(_, raw_string, "raw")                                            \
   V(_, ReferenceError_string, "ReferenceError")                      \
   V(_, ReflectGet_string, "Reflect.get")                             \
@@ -528,6 +542,8 @@
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)
 
+#define MINOR_INCREMENTAL_SCOPES(F) F(MINOR_MC_INCREMENTAL_START)
+
 #define TOP_MC_SCOPES(F) \
   F(MC_CLEAR)            \
   F(MC_EPILOGUE)         \
@@ -537,8 +553,16 @@
   F(MC_PROLOGUE)         \
   F(MC_SWEEP)
 
+#define TOP_MINOR_MC_SCOPES(F) \
+  F(MINOR_MC_CLEAR)            \
+  F(MINOR_MC_EVACUATE)         \
+  F(MINOR_MC_FINISH)           \
+  F(MINOR_MC_MARK)             \
+  F(MINOR_MC_SWEEP)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
+  MINOR_INCREMENTAL_SCOPES(F)                        \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
@@ -580,8 +604,6 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH_SWEEP_NEW_LO)                          \
-  F(MC_FINISH_SWEEP_NEW)                             \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
   F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
@@ -596,17 +618,18 @@
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_CODE_LO)                                \
+  F(MC_SWEEP_FINISH_NEW)                             \
   F(MC_SWEEP_LO)                                     \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_NEW)                                    \
+  F(MC_SWEEP_NEW_LO)                                 \
   F(MC_SWEEP_OLD)                                    \
+  F(MC_SWEEP_SHARED)                                 \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
-  F(MINOR_MC_CLEAR)                                  \
+  TOP_MINOR_MC_SCOPES(F)                             \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
-  F(MINOR_MC_CLEAR_WEAK_LISTS)                       \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
-  F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
   F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
@@ -617,19 +640,17 @@
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
-  F(MINOR_MC_FINISH)                                 \
   F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
-  F(MINOR_MC_FINISH_SWEEP_NEW)                       \
-  F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
+  F(MINOR_MC_MARK_FINISH_INCREMENTAL)                \
   F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
   F(MINOR_MC_MARK_ROOTS)                             \
-  F(MINOR_MC_MARK_WEAK)                              \
-  F(MINOR_MC_MARKING_DEQUE)                          \
-  F(MINOR_MC_RESET_LIVENESS)                         \
-  F(MINOR_MC_SWEEP)                                  \
+  F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
+  F(MINOR_MC_MARK_CLOSURE)                           \
   F(MINOR_MC_SWEEP_NEW)                              \
+  F(MINOR_MC_SWEEP_NEW_LO)                           \
+  F(MINOR_MC_SWEEP_FINISH_NEW)                       \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
@@ -664,6 +685,7 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
 #define TRACER_YOUNG_EPOCH_SCOPES(F)              \
@@ -673,6 +695,7 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(MINOR_MC_BACKGROUND_SWEEPING)                 \
   F(SCAVENGER)                                    \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)

@@ -61,7 +61,7 @@ class CageBaseGlobal final {
 #undef CPPGC_REQUIRE_CONSTANT_INIT
 #undef CPPGC_CONST
 
-class CompressedPointer final {
+class V8_TRIVIAL_ABI CompressedPointer final {
  public:
   using IntegralType = uint32_t;
 
@@ -170,7 +170,7 @@ class CompressedPointer final {
 
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
-class RawPointer final {
+class V8_TRIVIAL_ABI RawPointer final {
  public:
   using IntegralType = uintptr_t;
 

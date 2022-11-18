@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_CONCURRENT_ALLOCATOR_H_
 #define V8_HEAP_CONCURRENT_ALLOCATOR_H_
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/linear-allocation-area.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -37,10 +39,7 @@ class ConcurrentAllocator {
   static constexpr int kMaxLabSize = 32 * KB;
   static constexpr int kMaxLabObjectSize = 2 * KB;
 
-  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space)
-      : local_heap_(local_heap),
-        space_(space),
-        lab_(LocalAllocationBuffer::InvalidBuffer()) {}
+  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space);
 
   inline AllocationResult AllocateRaw(int object_size,
                                       AllocationAlignment alignment,
@@ -59,10 +58,20 @@ class ConcurrentAllocator {
       "size <= kMaxLabObjectSize will fit into a newly allocated LAB of size "
       "kLabSize after computing the alignment requirements.");
 
+  V8_EXPORT_PRIVATE V8_INLINE AllocationResult
+  AllocateInLabFastUnaligned(int size_in_bytes);
+
+  V8_EXPORT_PRIVATE V8_INLINE AllocationResult
+  AllocateInLabFastAligned(int size_in_bytes, AllocationAlignment alignment);
+
   V8_EXPORT_PRIVATE AllocationResult
   AllocateInLabSlow(int size_in_bytes, AllocationAlignment alignment,
                     AllocationOrigin origin);
-  bool EnsureLab(AllocationOrigin origin);
+  bool AllocateLab(AllocationOrigin origin);
+
+  base::Optional<std::pair<Address, size_t>> AllocateFromSpaceFreeList(
+      size_t min_size_in_bytes, size_t max_size_in_bytes,
+      AllocationOrigin origin);
 
   V8_EXPORT_PRIVATE AllocationResult
   AllocateOutsideLab(int size_in_bytes, AllocationAlignment alignment,
@@ -70,13 +79,23 @@ class ConcurrentAllocator {
 
   bool IsBlackAllocationEnabled() const;
 
+  // Checks whether the LAB is currently in use.
+  V8_INLINE bool IsLabValid() { return lab_.top() != kNullAddress; }
+
+  // Resets the LAB.
+  void ResetLab() { lab_ = LinearAllocationArea(kNullAddress, kNullAddress); }
+
+  // Installs a filler object between the LABs top and limit pointers.
+  void MakeLabIterable();
+
   // Returns the Heap of space_. This might differ from the LocalHeap's Heap for
   // shared spaces.
-  Heap* owning_heap() const;
+  Heap* owning_heap() const { return owning_heap_; }
 
   LocalHeap* const local_heap_;
   PagedSpace* const space_;
-  LocalAllocationBuffer lab_;
+  Heap* const owning_heap_;
+  LinearAllocationArea lab_;
 };
 
 }  // namespace internal

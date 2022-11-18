@@ -20,7 +20,7 @@ class GCCallbacksTest : public internal::TestWithHeapInternalsAndContext {
     CHECK_EQ(current_test_->gc_callbacks_isolate_, isolate);
     ++current_test_->prologue_call_count_alloc_;
 
-    if (!v8::internal::FLAG_single_generation) {
+    if (!i::v8_flags.single_generation) {
       // Simulate full heap to see if we will reenter this callback
       current_test_->SimulateFullSpace(current_test_->heap()->new_space());
     }
@@ -39,7 +39,7 @@ class GCCallbacksTest : public internal::TestWithHeapInternalsAndContext {
     CHECK_EQ(current_test_->gc_callbacks_isolate_, isolate);
     ++current_test_->epilogue_call_count_alloc_;
 
-    if (!v8::internal::FLAG_single_generation) {
+    if (!i::v8_flags.single_generation) {
       // Simulate full heap to see if we will reenter this callback
       current_test_->SimulateFullSpace(current_test_->heap()->new_space());
     }
@@ -120,7 +120,7 @@ GCCallbacksTest* GCCallbacksTest::current_test_ = nullptr;
 
 TEST_F(GCCallbacksTest, GCCallbacks) {
   // For SimulateFullSpace in PrologueCallbackAlloc and EpilogueCallbackAlloc.
-  i::FLAG_stress_concurrent_allocation = false;
+  i::v8_flags.stress_concurrent_allocation = false;
   v8::Isolate* isolate = context()->GetIsolate();
   gc_callbacks_isolate_ = isolate;
   isolate->AddGCPrologueCallback(PrologueCallback);

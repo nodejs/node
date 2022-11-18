@@ -31,20 +31,6 @@ FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
   return FeedbackSlot(slot);
 }
 
-FeedbackSlot FeedbackVectorSpec::AddTypeProfileSlot() {
-  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
-  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
-           FeedbackVector::GetIndex(slot));
-  return slot;
-}
-
-bool FeedbackVectorSpec::HasTypeProfileSlot() const {
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  if (slot_count() <= slot.ToInt()) return false;
-  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
-}
-
 static bool IsPropertyNameFeedback(MaybeObject feedback) {
   HeapObject heap_object;
   if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
@@ -184,8 +170,6 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "DefineKeyedOwnPropertyInLiteral";
     case FeedbackSlotKind::kLiteral:
       return "Literal";
-    case FeedbackSlotKind::kTypeProfile:
-      return "TypeProfile";
     case FeedbackSlotKind::kForIn:
       return "ForIn";
     case FeedbackSlotKind::kInstanceOf:
@@ -197,13 +181,6 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   }
 }
 
-bool FeedbackMetadata::HasTypeProfileSlot() const {
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return slot.ToInt() < slot_count() &&
-         GetKind(slot) == FeedbackSlotKind::kTypeProfile;
-}
-
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
   DCHECK(!is_empty());
   return metadata().GetKind(slot);
@@ -213,14 +190,6 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
                                          AcquireLoadTag tag) const {
   DCHECK(!is_empty());
   return metadata(tag).GetKind(slot);
-}
-
-FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
-  DCHECK(metadata().HasTypeProfileSlot());
-  FeedbackSlot slot =
-      FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  DCHECK_EQ(FeedbackSlotKind::kTypeProfile, GetKind(slot));
-  return slot;
 }
 
 // static
@@ -310,7 +279,6 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kSetKeyedStrict:
       case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-      case FeedbackSlotKind::kTypeProfile:
       case FeedbackSlotKind::kInstanceOf:
         vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
@@ -325,8 +293,7 @@ Handle<FeedbackVector> FeedbackVector::New(
   }
 
   Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(vector);
-  if (!isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile()) {
+  if (!isolate->is_best_effort_code_coverage()) {
     AddToVectorsForProfilingTools(isolate, result);
   }
   return result;
@@ -372,8 +339,7 @@ Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
 // static
 void FeedbackVector::AddToVectorsForProfilingTools(
     Isolate* isolate, Handle<FeedbackVector> vector) {
-  DCHECK(!isolate->is_best_effort_code_coverage() ||
-         isolate->is_collecting_type_profile());
+  DCHECK(!isolate->is_best_effort_code_coverage());
   if (!vector->shared_function_info().IsSubjectToDebugging()) return;
   Handle<ArrayList> list = Handle<ArrayList>::cast(
       isolate->factory()->feedback_vectors_for_profiling_tools());
@@ -613,16 +579,6 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
   bool feedback_updated = false;
 
   switch (kind()) {
-    case FeedbackSlotKind::kTypeProfile:
-      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
-        // We don't clear these kinds ever.
-      } else if (!IsCleared()) {
-        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
-        SetFeedback(UninitializedSentinel(), SKIP_WRITE_BARRIER);
-        feedback_updated = true;
-      }
-      break;
-
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kBinaryOp:
@@ -848,12 +804,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
       }
 
       return InlineCacheState::MEGAMORPHIC;
-    }
-    case FeedbackSlotKind::kTypeProfile: {
-      if (feedback == UninitializedSentinel()) {
-        return InlineCacheState::UNINITIALIZED;
-      }
-      return InlineCacheState::MONOMORPHIC;
     }
 
     case FeedbackSlotKind::kCloneObject: {
@@ -1353,120 +1303,6 @@ MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
     return config()->NewHandle(JSObject::cast(heap_object));
   }
   return MaybeHandle<JSObject>();
-}
-
-namespace {
-
-bool InList(Handle<ArrayList> types, Handle<String> type) {
-  for (int i = 0; i < types->Length(); i++) {
-    Object obj = types->Get(i);
-    if (String::cast(obj).Equals(*type)) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // anonymous namespace
-
-void FeedbackNexus::Collect(Handle<String> type, int position) {
-  DCHECK(IsTypeProfileKind(kind()));
-  DCHECK_GE(position, 0);
-  DCHECK(config()->can_write());
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  // Map source position to collection of types
-  Handle<SimpleNumberDictionary> types;
-
-  if (feedback == UninitializedSentinel()) {
-    types = SimpleNumberDictionary::New(isolate, 1);
-  } else {
-    types = handle(
-        SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-        isolate);
-  }
-
-  Handle<ArrayList> position_specific_types;
-
-  InternalIndex entry = types->FindEntry(isolate, position);
-  if (entry.is_not_found()) {
-    position_specific_types = ArrayList::New(isolate, 1);
-    types = SimpleNumberDictionary::Set(
-        isolate, types, position,
-        ArrayList::Add(isolate, position_specific_types, type));
-  } else {
-    DCHECK(types->ValueAt(entry).IsArrayList());
-    position_specific_types =
-        handle(ArrayList::cast(types->ValueAt(entry)), isolate);
-    if (!InList(position_specific_types, type)) {  // Add type
-      types = SimpleNumberDictionary::Set(
-          isolate, types, position,
-          ArrayList::Add(isolate, position_specific_types, type));
-    }
-  }
-  SetFeedback(*types);
-}
-
-std::vector<int> FeedbackNexus::GetSourcePositions() const {
-  DCHECK(IsTypeProfileKind(kind()));
-  std::vector<int> source_positions;
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-
-  if (feedback == UninitializedSentinel()) {
-    return source_positions;
-  }
-
-  Handle<SimpleNumberDictionary> types(
-      SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-      isolate);
-
-  for (int index = SimpleNumberDictionary::kElementsStartIndex;
-       index < types->length(); index += SimpleNumberDictionary::kEntrySize) {
-    int key_index = index + SimpleNumberDictionary::kEntryKeyIndex;
-    Object key = types->get(key_index);
-    if (key.IsSmi()) {
-      int position = Smi::cast(key).value();
-      source_positions.push_back(position);
-    }
-  }
-  return source_positions;
-}
-
-std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
-    uint32_t position) const {
-  DCHECK(IsTypeProfileKind(kind()));
-  Isolate* isolate = GetIsolate();
-
-  MaybeObject const feedback = GetFeedback();
-  std::vector<Handle<String>> types_for_position;
-  if (feedback == UninitializedSentinel()) {
-    return types_for_position;
-  }
-
-  Handle<SimpleNumberDictionary> types(
-      SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
-      isolate);
-
-  InternalIndex entry = types->FindEntry(isolate, position);
-  if (entry.is_not_found()) return types_for_position;
-
-  DCHECK(types->ValueAt(entry).IsArrayList());
-  Handle<ArrayList> position_specific_types =
-      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)), isolate);
-  for (int i = 0; i < position_specific_types->Length(); i++) {
-    Object t = position_specific_types->Get(i);
-    types_for_position.push_back(Handle<String>(String::cast(t), isolate));
-  }
-
-  return types_for_position;
-}
-
-void FeedbackNexus::ResetTypeProfile() {
-  DCHECK(IsTypeProfileKind(kind()));
-  SetFeedback(UninitializedSentinel());
 }
 
 FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)

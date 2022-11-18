@@ -1167,6 +1167,10 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         if (!was_found && !is_global_reference) it->NotFound();
         return result;
       }
+      case LookupIterator::WASM_OBJECT:
+        THROW_NEW_ERROR(it->isolate(),
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
+                        Object);
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<Object> result;
@@ -2505,6 +2509,10 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                     value, receiver, should_throw);
       }
 
+      case LookupIterator::WASM_OBJECT:
+        RETURN_FAILURE(it->isolate(), kThrowOnError,
+                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           Maybe<bool> result =
@@ -2722,6 +2730,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::WASM_OBJECT:
         UNREACHABLE();
     }
   }
@@ -2811,38 +2820,22 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
     }
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (receiver->IsWasmObject(isolate)) {
-    // Prepares given value for being stored into a field of given Wasm type
-    // or throw if the value can't be stored into the field.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign,
-        WasmObject::ToWasmValue(isolate, it->wasm_value_type(), to_assign),
-        Nothing<bool>());
-
-    // Store prepared value.
-    it->WriteDataValueToWasmObject(to_assign);
-
-  } else  // NOLINT(readability/braces)
-#endif    // V8_ENABLE_WEBASSEMBLY
-          // clang-format off
+  DCHECK(!receiver->IsWasmObject(isolate));
   if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate) ||
                   receiver->IsJSSharedArray(isolate))) {
-      // clang-format on
+    // Shared structs can only point to primitives or shared values.
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
+        Nothing<bool>());
+    it->WriteDataValue(to_assign, false);
+  } else {
+    // Possibly migrate to the most up-to-date map that will be able to store
+    // |value| under it->name().
+    it->PrepareForDataProperty(to_assign);
 
-      // Shared structs can only point to primitives or shared values.
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-          Nothing<bool>());
-      it->WriteDataValue(to_assign, false);
-    } else {
-      // Possibly migrate to the most up-to-date map that will be able to store
-      // |value| under it->name().
-      it->PrepareForDataProperty(to_assign);
-
-      // Write the property value.
-      it->WriteDataValue(to_assign, false);
-    }
+    // Write the property value.
+    it->WriteDataValue(to_assign, false);
+  }
 
 #if VERIFY_HEAP
   if (v8_flags.verify_heap) {

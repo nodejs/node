@@ -512,6 +512,9 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     inspector->Set(isolate, "callbackForTests",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::CallbackForTests));
+    inspector->Set(isolate, "runNestedMessageLoop",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::RunNestedMessageLoop));
     global->Set(isolate, "inspector", inspector);
   }
 
@@ -787,6 +790,15 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     v8::MaybeLocal<v8::Value> result =
         callback->Call(context, v8::Undefined(isolate), 0, nullptr);
     args.GetReturnValue().Set(result.ToLocalChecked());
+  }
+
+  static void RunNestedMessageLoop(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
+
+    data->task_runner()->RunMessageLoop(true);
   }
 };
 

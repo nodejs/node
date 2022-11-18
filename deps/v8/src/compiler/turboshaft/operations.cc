@@ -8,9 +8,7 @@
 #include <sstream>
 
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/platform.h"
 #include "src/codegen/machine-type.h"
-#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
@@ -49,6 +47,14 @@ std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
       return os << "ReverseBytes";
     case WordUnaryOp::Kind::kCountLeadingZeros:
       return os << "CountLeadingZeros";
+    case WordUnaryOp::Kind::kCountTrailingZeros:
+      return os << "CountTrailingZeros";
+    case WordUnaryOp::Kind::kPopCount:
+      return os << "PopCount";
+    case WordUnaryOp::Kind::kSignExtend8:
+      return os << "SignExtend8";
+    case WordUnaryOp::Kind::kSignExtend16:
+      return os << "SignExtend16";
   }
 }
 
@@ -70,8 +76,16 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
       return os << "RoundTiesEven";
     case FloatUnaryOp::Kind::kLog:
       return os << "Log";
+    case FloatUnaryOp::Kind::kLog2:
+      return os << "Log2";
+    case FloatUnaryOp::Kind::kLog10:
+      return os << "Log10";
+    case FloatUnaryOp::Kind::kLog1p:
+      return os << "Log1p";
     case FloatUnaryOp::Kind::kSqrt:
       return os << "Sqrt";
+    case FloatUnaryOp::Kind::kCbrt:
+      return os << "Cbrt";
     case FloatUnaryOp::Kind::kExp:
       return os << "Exp";
     case FloatUnaryOp::Kind::kExpm1:
@@ -96,30 +110,61 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
       return os << "Tan";
     case FloatUnaryOp::Kind::kTanh:
       return os << "Tanh";
+    case FloatUnaryOp::Kind::kAtan:
+      return os << "Atan";
+    case FloatUnaryOp::Kind::kAtanh:
+      return os << "Atanh";
   }
 }
 
 // static
-bool FloatUnaryOp::IsSupported(Kind kind, MachineRepresentation rep) {
+bool FloatUnaryOp::IsSupported(Kind kind, FloatRepresentation rep) {
+  switch (rep.value()) {
+    case FloatRepresentation::Float32():
+      switch (kind) {
+        case Kind::kRoundDown:
+          return SupportedOperations::float32_round_down();
+        case Kind::kRoundUp:
+          return SupportedOperations::float32_round_up();
+        case Kind::kRoundToZero:
+          return SupportedOperations::float32_round_to_zero();
+        case Kind::kRoundTiesEven:
+          return SupportedOperations::float32_round_ties_even();
+        default:
+          return true;
+      }
+    case FloatRepresentation::Float64():
+      switch (kind) {
+        case Kind::kRoundDown:
+          return SupportedOperations::float64_round_down();
+        case Kind::kRoundUp:
+          return SupportedOperations::float64_round_up();
+        case Kind::kRoundToZero:
+          return SupportedOperations::float64_round_to_zero();
+        case Kind::kRoundTiesEven:
+          return SupportedOperations::float64_round_ties_even();
+        default:
+          return true;
+      }
+  }
+}
+
+// static
+bool WordUnaryOp::IsSupported(Kind kind, WordRepresentation rep) {
   switch (kind) {
-    case Kind::kRoundDown:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_down()
-                 : SupportedOperations::float64_round_down();
-    case Kind::kRoundUp:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_up()
-                 : SupportedOperations::float64_round_up();
-    case Kind::kRoundToZero:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_to_zero()
-                 : SupportedOperations::float64_round_to_zero();
-    case Kind::kRoundTiesEven:
-      return rep == MachineRepresentation::kFloat32
-                 ? SupportedOperations::float32_round_ties_even()
-                 : SupportedOperations::float64_round_ties_even();
-    default:
+    case Kind::kCountLeadingZeros:
+    case Kind::kReverseBytes:
+    case Kind::kSignExtend8:
+    case Kind::kSignExtend16:
       return true;
+    case Kind::kCountTrailingZeros:
+      return rep == WordRepresentation::Word32()
+                 ? SupportedOperations::word32_ctz()
+                 : SupportedOperations::word64_ctz();
+    case Kind::kPopCount:
+      return rep == WordRepresentation::Word32()
+                 ? SupportedOperations::word32_popcnt()
+                 : SupportedOperations::word64_popcnt();
   }
 }
 
@@ -155,18 +200,14 @@ std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind) {
 
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
   switch (kind) {
-    case ChangeOp::Kind::kSignedNarrowing:
-      return os << "SignedNarrowing";
-    case ChangeOp::Kind::kUnsignedNarrowing:
-      return os << "UnsignedNarrowing";
     case ChangeOp::Kind::kFloatConversion:
       return os << "FloatConversion";
-    case ChangeOp::Kind::kSignedFloatTruncate:
-      return os << "SignedFloatTruncate";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
+    case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
+      return os << "UnsignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kSignedToFloat:
       return os << "SignedToFloat";
     case ChangeOp::Kind::kUnsignedToFloat:
@@ -181,6 +222,26 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "SignExtend";
     case ChangeOp::Kind::kBitcast:
       return os << "Bitcast";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind) {
+  switch (kind) {
+    case TryChangeOp::Kind::kSignedFloatTruncateOverflowUndefined:
+      return os << "SignedFloatTruncateOverflowUndefined";
+    case TryChangeOp::Kind::kUnsignedFloatTruncateOverflowUndefined:
+      return os << "UnsignedFloatTruncateOverflowUndefined";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
+  switch (assumption) {
+    case ChangeOp::Assumption::kNoAssumption:
+      return os << "NoAssumption";
+    case ChangeOp::Assumption::kNoOverflow:
+      return os << "NoOverflow";
+    case ChangeOp::Assumption::kReversible:
+      return os << "Reversible";
   }
 }
 
@@ -248,6 +309,14 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kCompressedHeapObject:
       os << "compressed heap object: " << handle();
+      break;
+    case Kind::kRelocatableWasmCall:
+      os << "relocatable wasm call: 0x"
+         << reinterpret_cast<void*>(storage.integral);
+      break;
+    case Kind::kRelocatableWasmStubCall:
+      os << "relocatable wasm stub call: 0x"
+         << reinterpret_cast<void*>(storage.integral);
       break;
   }
   os << "]";
@@ -465,8 +534,8 @@ std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
     os << "Reading";
   } else if (opProperties == OpProperties::Writing()) {
     os << "Writing";
-  } else if (opProperties == OpProperties::CanDeopt()) {
-    os << "CanDeopt";
+  } else if (opProperties == OpProperties::CanAbort()) {
+    os << "CanAbort";
   } else if (opProperties == OpProperties::AnySideEffects()) {
     os << "AnySideEffects";
   } else if (opProperties == OpProperties::BlockTerminator()) {

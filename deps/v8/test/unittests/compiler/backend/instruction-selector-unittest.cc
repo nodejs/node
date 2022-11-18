@@ -19,7 +19,7 @@ namespace compiler {
 
 InstructionSelectorTest::InstructionSelectorTest()
     : TestWithNativeContextAndZone(kCompressGraphZone),
-      rng_(FLAG_random_seed) {}
+      rng_(v8_flags.random_seed) {}
 
 InstructionSelectorTest::~InstructionSelectorTest() = default;
 
@@ -28,7 +28,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = ExportForTest();
-  if (FLAG_trace_turbo) {
+  if (v8_flags.trace_turbo) {
     StdoutStream{} << "=== Schedule before instruction selection ==="
                    << std::endl
                    << *schedule;
@@ -52,7 +52,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       source_position_mode, features, InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing);
   selector.SelectInstructions();
-  if (FLAG_trace_turbo) {
+  if (v8_flags.trace_turbo) {
     StdoutStream{} << "=== Code sequence after instruction selection ==="
                    << std::endl
                    << sequence;

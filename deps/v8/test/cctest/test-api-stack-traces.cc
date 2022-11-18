@@ -867,8 +867,8 @@ TEST(DynamicWithSourceURLInStackTraceString) {
 }
 
 UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
-  // We must set FLAG_stack_size before initializing the isolate.
-  v8::internal::FLAG_stack_size = 150;
+  // We must set v8_flags.stack_size before initializing the isolate.
+  v8::internal::v8_flags.stack_size = 150;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);

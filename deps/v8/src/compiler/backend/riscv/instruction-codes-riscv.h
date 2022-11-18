@@ -18,7 +18,9 @@ namespace compiler {
   V(RiscvSub64)                            \
   V(RiscvSubOvf64)                         \
   V(RiscvMulHigh64)                        \
+  V(RiscvMulHighU64)                       \
   V(RiscvMul64)                            \
+  V(RiscvMulOvf64)                         \
   V(RiscvDiv64)                            \
   V(RiscvDivU64)                           \
   V(RiscvMod64)                            \

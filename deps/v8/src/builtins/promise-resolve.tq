@@ -161,6 +161,12 @@ ResolvePromise(implicit context: Context)(
     }
     goto Slow;
   } label Slow deferred {
+    // Skip "then" lookup for Wasm objects as they are opaque.
+    @if(V8_ENABLE_WEBASSEMBLY)
+    if (Is<WasmObject>(resolution)) {
+      return FulfillPromise(promise, resolution);
+    }
+
     // 9. Let then be Get(resolution, "then").
     // 10. If then is an abrupt completion, then
     try {

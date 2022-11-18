@@ -75,9 +75,11 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (v8_flags.minor_mc && new_space()) {
-    paged_new_space()->paged_space()->free_list()->RepairLists(this);
-  }
+
+  // Ensure that all young generation pages are iterable. It must be after heap
+  // setup, so that the maps have been created.
+  if (new_space()) new_space()->MakeIterable();
+
   CreateApiObjects();
 
   // Create initial objects
@@ -876,9 +878,11 @@ void Heap::CreateInitialObjects() {
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
   set_pending_optimize_for_test_bytecode(roots.undefined_value());
   set_shared_wasm_memories(roots.empty_weak_array_list());
+  set_locals_block_list_cache(roots.undefined_value());
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
   set_active_suspender(roots.undefined_value());
+  set_js_to_wasm_wrappers(roots.empty_weak_array_list());
   set_wasm_canonical_rtts(roots.empty_weak_array_list());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1025,8 +1029,8 @@ void Heap::CreateInitialObjects() {
     set_async_generator_await_reject_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
-        isolate(), Builtin::kAsyncGeneratorYieldResolveClosure, 1);
-    set_async_generator_yield_resolve_shared_fun(*info);
+        isolate(), Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure, 1);
+    set_async_generator_yield_with_await_resolve_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorReturnResolveClosure, 1);

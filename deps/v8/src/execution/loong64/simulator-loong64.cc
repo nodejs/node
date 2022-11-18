@@ -45,42 +45,6 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
   }
 }
 
-static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
-static uint64_t MultiplyHighUnsigned(uint64_t u, uint64_t v) {
-  uint64_t u0, v0, w0;
-  uint64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
 #ifdef PRINT_SIM_LOG
 inline void printf_instr(const char* _Format, ...) {
   va_list varList;
@@ -3793,13 +3757,13 @@ void Simulator::DecodeTypeOp17() {
       printf_instr("MULH_D\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), MultiplyHighSigned(rj(), rk()));
+      SetResult(rd_reg(), base::bits::SignedMulHigh64(rj(), rk()));
       break;
     case MULH_DU:
       printf_instr("MULH_DU\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), MultiplyHighUnsigned(rj_u(), rk_u()));
+      SetResult(rd_reg(), base::bits::UnsignedMulHigh64(rj_u(), rk_u()));
       break;
     case MULW_D_W: {
       printf_instr("MULW_D_W\t %s: %016lx, %s, %016lx, %s, %016lx\n",

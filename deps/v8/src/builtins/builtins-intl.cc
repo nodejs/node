@@ -21,6 +21,7 @@
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-display-names-inl.h"
+#include "src/objects/js-duration-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"
@@ -381,6 +382,51 @@ BUILTIN(DisplayNamesPrototypeOf) {
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSDisplayNames::Of(isolate, holder, code_obj));
+}
+
+// Intl.DurationFormat
+BUILTIN(DurationFormatConstructor) {
+  HandleScope scope(isolate);
+
+  return DisallowCallConstructor<JSDurationFormat>(
+      args, isolate, v8::Isolate::UseCounterFeature::kDurationFormat,
+      "Intl.DurationFormat");
+}
+
+BUILTIN(DurationFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSDurationFormat, holder,
+                 "Intl.DurationFormat.prototype.resolvedOptions");
+  return *JSDurationFormat::ResolvedOptions(isolate, holder);
+}
+
+BUILTIN(DurationFormatSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.DurationFormat.supportedLocalesOf",
+                   JSDurationFormat::GetAvailableLocales(), locales, options));
+}
+
+BUILTIN(DurationFormatPrototypeFormat) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSDurationFormat, holder,
+                 "Intl.DurationFormat.prototype.format");
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSDurationFormat::Format(isolate, holder, value));
+}
+
+BUILTIN(DurationFormatPrototypeFormatToParts) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSDurationFormat, holder,
+                 "Intl.DurationFormat.prototype.formatToParts");
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDurationFormat::FormatToParts(isolate, holder, value));
 }
 
 // Intl.NumberFormat

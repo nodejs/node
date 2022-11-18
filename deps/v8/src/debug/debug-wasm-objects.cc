@@ -729,6 +729,18 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
   return ToInternalString(name, isolate);
 }
 
+// Returns the type name for the given value. Uses the module object for
+// providing user-defined type names if available, otherwise falls back
+// to numbers for indexed types.
+Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
+                              Handle<WasmModuleObject> module_object) {
+  if (!module_object.is_null()) {
+    return GetRefTypeName(isolate, type, module_object->native_module());
+  }
+  std::string name = type.name();
+  return isolate->factory()->InternalizeString({name.data(), name.length()});
+}
+
 }  // namespace
 
 // static
@@ -905,49 +917,54 @@ Handle<WasmValueObject> WasmValueObject::New(
     }
     case wasm::kRefNull:
     case wasm::kRef: {
-      t = GetRefTypeName(isolate, value.type(), module_object->native_module());
       Handle<Object> ref = value.to_ref();
       if (ref->IsWasmStruct()) {
         WasmTypeInfo type_info = ref->GetHeapObject().map().wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info.type_index());
-        t = GetRefTypeName(
-            isolate, type,
-            type_info.instance().module_object().native_module());
-        v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref),
-                                module_object);
+        Handle<WasmModuleObject> module(type_info.instance().module_object(),
+                                        isolate);
+        t = GetRefTypeName(isolate, type, module->native_module());
+        v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref), module);
       } else if (ref->IsWasmArray()) {
         WasmTypeInfo type_info = ref->GetHeapObject().map().wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info.type_index());
-        t = GetRefTypeName(
-            isolate, type,
-            type_info.instance().module_object().native_module());
-        v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref),
-                               module_object);
+        Handle<WasmModuleObject> module(type_info.instance().module_object(),
+                                        isolate);
+        t = GetRefTypeName(isolate, type, module->native_module());
+        v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
       } else if (ref->IsWasmInternalFunction()) {
-        v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
-                   isolate);
+        auto internal_fct = Handle<WasmInternalFunction>::cast(ref);
+        v = handle(internal_fct->external(), isolate);
+        // If the module is not provided by the caller, retrieve it from the
+        // instance object. If the function was created in JavaScript using
+        // `new WebAssembly.Function(...)`, a module for name resolution is not
+        // available.
+        if (module_object.is_null() &&
+            internal_fct->ref().IsWasmInstanceObject()) {
+          module_object = handle(
+              WasmInstanceObject::cast(internal_fct->ref()).module_object(),
+              isolate);
+        }
+        t = GetRefTypeName(isolate, value.type(), module_object);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
                  ref->IsString() ||
-                 value.type().is_reference_to(wasm::HeapType::kExtern)) {
+                 value.type().is_reference_to(wasm::HeapType::kExtern) ||
+                 value.type().is_reference_to(wasm::HeapType::kAny)) {
+        t = GetRefTypeName(isolate, value.type(), module_object);
         v = ref;
       } else {
         // Fail gracefully.
         base::EmbeddedVector<char, 64> error;
         int len = SNPrintF(error, "unimplemented object type: %d",
                            HeapObject::cast(*ref).map().instance_type());
+        t = GetRefTypeName(isolate, value.type(), module_object);
         v = isolate->factory()->InternalizeString(error.SubVector(0, len));
       }
       break;
     }
-    case wasm::kRtt: {
-      // TODO(7748): Expose RTTs to DevTools.
-      t = isolate->factory()->InternalizeString(base::StaticCharVector("rtt"));
-      v = isolate->factory()->InternalizeString(
-          base::StaticCharVector("(unimplemented)"));
-      break;
-    }
+    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:
       UNREACHABLE();
@@ -1037,8 +1054,11 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   for (int i = 0; i < length; ++i) {
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
     wasm::WasmValue wasm_value(entry, table->type());
-    Handle<WasmModuleObject> module(
-        WasmInstanceObject::cast(table->instance()).module_object(), isolate);
+    Handle<WasmModuleObject> module;
+    if (table->instance().IsWasmInstanceObject()) {
+      module = Handle<WasmModuleObject>(
+          WasmInstanceObject::cast(table->instance()).module_object(), isolate);
+    }
     Handle<Object> debug_value =
         WasmValueObject::New(isolate, wasm_value, module);
     entries->set(i, *debug_value);

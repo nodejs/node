@@ -86,6 +86,7 @@
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
 //         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSDisplayNames        // If V8_INTL_SUPPORT enabled.
+//         - JSDurationFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
 //         - JSLocale              // If V8_INTL_SUPPORT enabled.
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
@@ -334,6 +335,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool IsNoSharedNameSentinel() const;
   V8_INLINE bool IsPrivateSymbol() const;
   V8_INLINE bool IsPublicSymbol() const;
+
+#if !V8_ENABLE_WEBASSEMBLY
+  // Dummy implementation on builds without WebAssembly.
+  bool IsWasmObject(Isolate* = nullptr) const { return false; }
+#endif
 
   enum class Conversion { kToNumber, kToNumeric };
 
@@ -738,6 +744,12 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                          Address value);
 
   //
+  // BoundedSize field accessors.
+  //
+  inline size_t ReadBoundedSizeField(size_t offset) const;
+  inline void WriteBoundedSizeField(size_t offset, size_t value);
+
+  //
   // ExternalPointer_t field accessors.
   //
   template <ExternalPointerTag tag>
@@ -778,6 +790,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   static MaybeHandle<Object> ShareSlow(Isolate* isolate,
                                        Handle<HeapObject> value,
                                        ShouldThrow throw_if_cannot_be_shared);
+
+  // Whether this Object can be held weakly, i.e. whether it can be used as a
+  // key in WeakMap, as a key in WeakSet, as the target of a WeakRef, or as a
+  // target or unregister token of a FinalizationRegistry.
+  inline bool CanBeHeldWeakly() const;
 
  protected:
   inline Address field_address(size_t offset) const {
@@ -904,7 +921,7 @@ class MapWord {
  private:
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
-  template <typename TFieldType, int kFieldOffset>
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
 
   explicit MapWord(Address value) : value_(value) {}

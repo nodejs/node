@@ -1205,6 +1205,9 @@ class Simulator : public SimulatorBase {
   EVALUATE(CZXT);
   EVALUATE(CDZT);
   EVALUATE(CXZT);
+  EVALUATE(MG);
+  EVALUATE(MGRK);
+
 #undef EVALUATE
 };
 

@@ -449,7 +449,7 @@ bytecode array length: 5
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
-  /*   45 S> */ B(LdaSmi), I8(3),
+  /*   56 S> */ B(LdaSmi), I8(3),
   /*   59 S> */ B(Return),
 ]
 constant pool: [

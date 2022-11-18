@@ -16,9 +16,9 @@ namespace internal {
 class EntryFrameConstants : public AllStatic {
  public:
   // Need to take constant pool into account.
-  static constexpr int kCallerFPOffset =
-      v8_flags.enable_embedded_constant_pool.value() ? -4 * kSystemPointerSize
-                                                     : -3 * kSystemPointerSize;
+  static constexpr int kCallerFPOffset = V8_EMBEDDED_CONSTANT_POOL_BOOL
+                                             ? -4 * kSystemPointerSize
+                                             : -3 * kSystemPointerSize;
 };
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {

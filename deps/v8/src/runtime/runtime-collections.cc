@@ -79,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   int hash = args.smi_value_at(2);
 
 #ifdef DEBUG
-  DCHECK(key->IsJSReceiver());
+  DCHECK(key->CanBeHeldWeakly());
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
@@ -102,7 +102,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   int hash = args.smi_value_at(3);
 
 #ifdef DEBUG
-  DCHECK(key->IsJSReceiver());
+  DCHECK(key->CanBeHeldWeakly());
   DCHECK(EphemeronHashTable::IsKey(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);

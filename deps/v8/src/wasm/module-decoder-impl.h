@@ -471,7 +471,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeSection(SectionCode section_code,
                      base::Vector<const uint8_t> bytes, uint32_t offset,
-                     bool verify_functions = true) {
+                     bool validate_functions = true) {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -507,7 +507,7 @@ class ModuleDecoderTemplate : public Decoder {
         DecodeStartSection();
         break;
       case kCodeSectionCode:
-        DecodeCodeSection(verify_functions);
+        DecodeCodeSection(validate_functions);
         break;
       case kElementSectionCode:
         DecodeElementSection();
@@ -684,9 +684,7 @@ class ModuleDecoderTemplate : public Decoder {
             const FunctionSig* sig = consume_sig(module_->signature_zone.get());
             if (!ok()) break;
             module_->add_signature(sig, kNoSuperType);
-            if (v8_flags.wasm_type_canonicalization) {
-              type_canon->AddRecursiveGroup(module_.get(), 1);
-            }
+            type_canon->AddRecursiveGroup(module_.get(), 1);
             break;
           }
           case kWasmArrayTypeCode:
@@ -727,17 +725,13 @@ class ModuleDecoderTemplate : public Decoder {
           TypeDefinition type = consume_subtype_definition();
           if (ok()) module_->add_type(type);
         }
-        if (ok() && v8_flags.wasm_type_canonicalization) {
-          type_canon->AddRecursiveGroup(module_.get(), group_size);
-        }
+        if (ok()) type_canon->AddRecursiveGroup(module_.get(), group_size);
       } else {
         tracer_.TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
           module_->add_type(type);
-          if (v8_flags.wasm_type_canonicalization) {
-            type_canon->AddRecursiveGroup(module_.get(), 1);
-          }
+          type_canon->AddRecursiveGroup(module_.get(), 1);
         }
       }
     }
@@ -760,7 +754,6 @@ class ModuleDecoderTemplate : public Decoder {
         continue;
       }
     }
-    module_->signature_map.Freeze();
   }
 
   void DecodeImportSection() {
@@ -794,7 +787,6 @@ class ModuleDecoderTemplate : public Decoder {
                                         import->index,  // func_index
                                         0,              // sig_index
                                         {0, 0},         // code
-                                        0,              // feedback slots
                                         true,           // imported
                                         false,          // exported
                                         false});        // declared
@@ -891,7 +883,6 @@ class ModuleDecoderTemplate : public Decoder {
                                     func_index,  // func_index
                                     0,           // sig_index
                                     {0, 0},      // code
-                                    0,           // feedback slots
                                     false,       // imported
                                     false,       // exported
                                     false});     // declared
@@ -1127,7 +1118,7 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  void DecodeCodeSection(bool verify_functions) {
+  void DecodeCodeSection(bool validate_functions) {
     // Make sure global offset were calculated before they get accessed during
     // function compilation.
     CalculateGlobalOffsets(module_.get());
@@ -1157,7 +1148,7 @@ class ModuleDecoderTemplate : public Decoder {
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;
-      DecodeFunctionBody(function_index, size, offset, verify_functions);
+      DecodeFunctionBody(function_index, size, offset, validate_functions);
 
       // Now that the function has been decoded, we can compute module offsets.
       for (; inst_traces_it != this->inst_traces_.end() &&
@@ -1201,15 +1192,15 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
-                          bool verify_functions) {
+                          bool validate_functions) {
     WasmFunction* function = &module_->functions[index];
     function->code = {offset, length};
     tracer_.FunctionBody(function, pc_ - (pc_offset() - offset));
-    if (verify_functions) {
+    if (validate_functions) {
       ModuleWireBytes bytes(module_start_, module_end_);
-      VerifyFunctionBody(module_->signature_zone->allocator(),
-                         index + module_->num_imported_functions, bytes,
-                         module_.get(), function);
+      ValidateFunctionBody(module_->signature_zone->allocator(),
+                           index + module_->num_imported_functions, bytes,
+                           module_.get(), function);
     }
   }
 
@@ -1354,7 +1345,7 @@ class ModuleDecoderTemplate : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t(func_idx) <= last_func_idx) {
+        if (int64_t{func_idx} <= last_func_idx) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1374,7 +1365,7 @@ class ModuleDecoderTemplate : public Decoder {
           for (uint32_t k = 0; k < mark_size; k++) {
             trace_mark_id |= inner.consume_u8("trace mark id") << k * 8;
           }
-          if (int64_t(func_off) <= last_func_off) {
+          if (int64_t{func_off} <= last_func_off) {
             inner.errorf("Invalid branch offset: %d", func_off);
             break;
           }
@@ -1513,7 +1504,7 @@ class ModuleDecoderTemplate : public Decoder {
       int64_t last_func_idx = -1;
       for (uint32_t i = 0; i < func_count; i++) {
         uint32_t func_idx = inner.consume_u32v("function index");
-        if (int64_t(func_idx) <= last_func_idx) {
+        if (int64_t{func_idx} <= last_func_idx) {
           inner.errorf("Invalid function index: %d", func_idx);
           break;
         }
@@ -1526,7 +1517,7 @@ class ModuleDecoderTemplate : public Decoder {
         int64_t last_br_off = -1;
         for (uint32_t j = 0; j < num_hints; ++j) {
           uint32_t br_off = inner.consume_u32v("branch instruction offset");
-          if (int64_t(br_off) <= last_br_off) {
+          if (int64_t{br_off} <= last_br_off) {
             inner.errorf("Invalid branch offset: %d", br_off);
             break;
           }
@@ -1636,7 +1627,7 @@ class ModuleDecoderTemplate : public Decoder {
     return true;
   }
 
-  ModuleResult FinishDecoding(bool verify_functions = true) {
+  ModuleResult FinishDecoding() {
     if (ok() && CheckMismatchedCounts()) {
       // We calculate the global offsets here, because there may not be a
       // global section and code section that would have triggered the
@@ -1645,23 +1636,18 @@ class ModuleDecoderTemplate : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
 
-    ModuleResult result = toResult(std::move(module_));
-    if (verify_functions && result.ok() && intermediate_error_.has_error()) {
-      // Copy error message and location.
-      return ModuleResult{std::move(intermediate_error_)};
-    }
-    return result;
+    return toResult(std::move(module_));
   }
 
   // Decodes an entire module.
   ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
-                            bool verify_functions = true) {
+                            bool validate_functions = true) {
     StartDecoding(counters, allocator);
     uint32_t offset = 0;
     base::Vector<const byte> orig_bytes(start(), end() - start());
     DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
     if (failed()) {
-      return FinishDecoding(verify_functions);
+      return FinishDecoding();
     }
     // Size of the module header.
     offset += 8;
@@ -1674,7 +1660,7 @@ class ModuleDecoderTemplate : public Decoder {
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
         DecodeSection(section_iter.section_code(), section_iter.payload(),
-                      offset, verify_functions);
+                      offset, validate_functions);
       }
       // Shift the offset by the remaining section payload
       offset += section_iter.payload_length();
@@ -1688,26 +1674,21 @@ class ModuleDecoderTemplate : public Decoder {
       return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
     }
 
-    return FinishDecoding(verify_functions);
+    return FinishDecoding();
   }
 
   // Decodes a single anonymous function starting at {start_}.
-  FunctionResult DecodeSingleFunction(Zone* zone,
-                                      const ModuleWireBytes& wire_bytes,
-                                      const WasmModule* module) {
+  FunctionResult DecodeSingleFunctionForTesting(
+      Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module) {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
-    if (!ok()) return FunctionResult{std::move(intermediate_error_)};
     WasmFunction function;
     function.sig = consume_sig(zone);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
+    if (!ok()) return FunctionResult{std::move(error_)};
 
-    if (ok())
-      VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
-
-    if (intermediate_error_.has_error()) {
-      return FunctionResult{std::move(intermediate_error_)};
-    }
+    ValidateFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
+    if (!ok()) return FunctionResult{std::move(error_)};
 
     return FunctionResult{std::make_unique<WasmFunction>(function)};
   }
@@ -1756,7 +1737,6 @@ class ModuleDecoderTemplate : public Decoder {
       kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
           kLastKnownModuleSection,
       "not enough bits");
-  WasmError intermediate_error_;
   ModuleOrigin origin_;
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "constant expr. zone"};
@@ -1824,9 +1804,9 @@ class ModuleDecoderTemplate : public Decoder {
   }
 
   // Verifies the body (code) of a given function.
-  void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
-                          const ModuleWireBytes& wire_bytes,
-                          const WasmModule* module, WasmFunction* function) {
+  void ValidateFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
+                            const ModuleWireBytes& wire_bytes,
+                            const WasmModule* module, WasmFunction* function) {
     if (v8_flags.trace_wasm_decoder) {
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
@@ -1838,19 +1818,19 @@ class ModuleDecoderTemplate : public Decoder {
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
 
     WasmFeatures unused_detected_features = WasmFeatures::None();
-    DecodeResult result = VerifyWasmCode(allocator, enabled_features_, module,
-                                         &unused_detected_features, body);
+    DecodeResult result = wasm::ValidateFunctionBody(
+        allocator, enabled_features_, module, &unused_detected_features, body);
 
     // If the decode failed and this is the first error, set error code and
     // location.
-    if (result.failed() && intermediate_error_.empty()) {
+    if (result.failed() && error_.empty()) {
       // Wrap the error message from the function decoder.
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
       std::ostringstream error_msg;
       error_msg << "in function " << func_name << ": "
                 << result.error().message();
-      intermediate_error_ = WasmError{result.error().offset(), error_msg.str()};
+      error_ = WasmError{result.error().offset(), error_msg.str()};
     }
   }
 
@@ -2366,7 +2346,9 @@ class ModuleDecoderTemplate : public Decoder {
       } else {
         type = table_type;
         // Active segments with function indices must reference a function
-        // table. TODO(7748): Add support for anyref tables when we have them.
+        // table. (Using struct / array indices doesn't provide any value
+        // as such an index doesn't refer to a unique object instance unlike
+        // functions.)
         if (V8_UNLIKELY(
                 !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()))) {
           errorf(pos,

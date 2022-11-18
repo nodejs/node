@@ -38,7 +38,7 @@ static const int64_t kRandomSeeds[] = {-1, 1, 42, 100, 1234567890, 987654321};
 
 TEST(RandomSeedFlagIsUsed) {
   for (unsigned n = 0; n < arraysize(kRandomSeeds); ++n) {
-    FLAG_random_seed = static_cast<int>(kRandomSeeds[n]);
+    v8_flags.random_seed = static_cast<int>(kRandomSeeds[n]);
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate* i = v8::Isolate::New(create_params);
@@ -63,7 +63,7 @@ double ChiSquared(int m, int n) {
 // Test for correlations between recent bits from the PRNG, or bits that are
 // biased.
 void RandomBitCorrelation(int random_bit) {
-  FLAG_random_seed = 31415926;
+  v8_flags.random_seed = 31415926;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);

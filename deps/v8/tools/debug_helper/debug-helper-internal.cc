@@ -23,8 +23,10 @@ bool IsPointerCompressed(uintptr_t address) {
 uintptr_t EnsureDecompressed(uintptr_t address,
                              uintptr_t any_uncompressed_ptr) {
   if (!COMPRESS_POINTERS_BOOL || !IsPointerCompressed(address)) return address;
-  return i::DecompressTaggedAny(any_uncompressed_ptr,
-                                static_cast<i::Tagged_t>(address));
+  // TODO(v8:11880): ExternalCodeCompressionScheme might be needed here for
+  // decompressing Code pointers from external code space.
+  return i::V8HeapCompressionScheme::DecompressTaggedAny(
+      any_uncompressed_ptr, static_cast<i::Tagged_t>(address));
 }
 
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result) {

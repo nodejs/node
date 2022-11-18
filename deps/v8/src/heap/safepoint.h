@@ -133,7 +133,7 @@ class IsolateSafepoint final {
   }
 
   Isolate* isolate() const;
-  Isolate* shared_isolate() const;
+  Isolate* shared_heap_isolate() const;
 
   Barrier barrier_;
   Heap* heap_;
@@ -186,8 +186,7 @@ class GlobalSafepoint final {
   void EnterGlobalSafepointScope(Isolate* initiator);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
-  Isolate* const shared_isolate_;
-  Heap* const shared_heap_;
+  Isolate* const shared_heap_isolate_;
   base::Mutex clients_mutex_;
   Isolate* clients_head_ = nullptr;
 
@@ -202,7 +201,7 @@ class V8_NODISCARD GlobalSafepointScope {
 
  private:
   Isolate* const initiator_;
-  Isolate* const shared_isolate_;
+  Isolate* const shared_heap_isolate_;
 };
 
 }  // namespace internal

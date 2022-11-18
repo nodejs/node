@@ -17,9 +17,8 @@ namespace compiler {
 
 class MachineGraph;
 
-// Eliminate allocated objects which are only assigned to.
-// Current restrictions: Does not work for arrays (until they are also allocated
-// with AllocateRaw). Does not work if the allocated object is passed to a phi.
+// Eliminate allocated objects with no uses other than as store targets.
+// Future work: Also exclude phis and renamings from uses.
 class WasmEscapeAnalysis final : public AdvancedReducer {
  public:
   WasmEscapeAnalysis(Editor* editor, MachineGraph* mcgraph)

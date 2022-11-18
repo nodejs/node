@@ -80,6 +80,7 @@ namespace compiler {
   V(Arm64Mul32)                                      \
   V(Arm64Smlal)                                      \
   V(Arm64Smlal2)                                     \
+  V(Arm64Smulh)                                      \
   V(Arm64Smull)                                      \
   V(Arm64Smull2)                                     \
   V(Arm64Uadalp)                                     \
@@ -87,6 +88,7 @@ namespace compiler {
   V(Arm64Umlal)                                      \
   V(Arm64Umlal2)                                     \
   V(Arm64Umull)                                      \
+  V(Arm64Umulh)                                      \
   V(Arm64Umull2)                                     \
   V(Arm64Madd)                                       \
   V(Arm64Madd32)                                     \

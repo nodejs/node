@@ -158,15 +158,30 @@ class TemporalParserTest : public TestWithIsolate {
     }
   }
 
-  void VerifyParseTemporalCalendarStringSuccess(
-      const char* str, const std::string& calendar_name) {
+  void VerifyParseCalendarNameSuccess(const char* str) {
     Handle<String> input = MakeString(str);
     base::Optional<ParsedISO8601Result> result =
-        TemporalParser::ParseTemporalCalendarString(i_isolate(), input);
+        TemporalParser::ParseCalendarName(i_isolate(), input);
     CHECK(result.has_value());
     ParsedISO8601Result actual = *result;
-    CheckCalendar(i_isolate(), input, actual.calendar_name_start,
-                  actual.calendar_name_length, calendar_name);
+    // For ParseCalendarName, we just validate the input fully match
+    // CalendarName, therefore, the test pass if the start is 0 and
+    // the calendar_name_length is the same as the length of the input.
+    CHECK_EQ(actual.calendar_name_start, 0);
+    CHECK_EQ(actual.calendar_name_length, input->length());
+  }
+
+  void VerifyParseTimeZoneIdentifierSuccess(const char* str) {
+    Handle<String> input = MakeString(str);
+    base::Optional<ParsedISO8601Result> result =
+        TemporalParser::ParseTimeZoneIdentifier(i_isolate(), input);
+    CHECK(result.has_value());
+    ParsedISO8601Result actual = *result;
+    // For ParseTimeZoneIdentifier, we just validate the input fully match
+    // TimeZoneIdentifier, therefore, the test pass if the start is 0 and
+    // the tzi_name_length is the same as the length of the input.
+    CHECK_EQ(actual.tzi_name_start, 0);
+    CHECK_EQ(actual.tzi_name_length, input->length());
   }
 
   void VerifyParseTemporalTimeStringSuccess(const char* str, int32_t time_hour,
@@ -1601,47 +1616,6 @@ TEST_F(TemporalParserTest, TemporalZonedDateTimeStringIllegal) {
   VERIFY_PARSE_FAIL_ON_ZONED_DATE_TIME(TemporalZonedDateTimeString);
 }
 
-TEST_F(TemporalParserTest, TemporalCalendarStringSuccess) {
-  // CalendarName
-  VerifyParseTemporalCalendarStringSuccess("chinese", "chinese");
-  VerifyParseTemporalCalendarStringSuccess("roc", "roc");
-  VerifyParseTemporalCalendarStringSuccess("indian", "indian");
-  VerifyParseTemporalCalendarStringSuccess("persian", "persian");
-  VerifyParseTemporalCalendarStringSuccess("abcd-efghi", "abcd-efghi");
-  VerifyParseTemporalCalendarStringSuccess("abcd-efghi", "abcd-efghi");
-  VerifyParseTemporalCalendarStringSuccess(
-      "a2345678-b2345678-c2345678-d7654321",
-      "a2345678-b2345678-c2345678-d7654321");
-  // TemporalInstantString
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08z[ABCD]", "");
-  // CalendarDateTime
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08[u-ca=chinese]",
-                                           "chinese");
-  VerifyParseTemporalCalendarStringSuccess("2021-11-08[ABCDEFG][u-ca=chinese]",
-                                           "chinese");
-  VerifyParseTemporalCalendarStringSuccess(
-      "2021-11-08[ABCDEFG/hijklmn][u-ca=roc]", "roc");
-  // Time
-  VerifyParseTemporalCalendarStringSuccess("23:45:59", "");
-  // DateSpecYearMonth
-  VerifyParseTemporalCalendarStringSuccess("2021-12", "");
-  // DateSpecMonthDay
-  VerifyParseTemporalCalendarStringSuccess("--12-31", "");
-  VerifyParseTemporalCalendarStringSuccess("12-31", "");
-  VerifyParseTemporalCalendarStringSuccess("--1231", "");
-}
-
-TEST_F(TemporalParserTest, TemporalCalendarStringIllegal) {
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=a]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdef-ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdefghijkl]");
-  // It is a Syntax Error if DateExtendedYear is "-000000"
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "-0000000304[u-ca=abcdef-ab]");
-  VERIFY_PARSE_FAIL(TemporalCalendarString, "\u22120000000304[u-ca=abcdef-ab]");
-}
-
 constexpr int64_t empty = ParsedISO8601Duration::kEmpty;
 
 // Test basic cases.
@@ -2058,6 +2032,242 @@ TEST_F(TemporalParserTest, TimeZoneNumericUTCOffsetIllegal) {
   // fraction too long
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "-073401.0000000000");
   VERIFY_PARSE_FAIL(TimeZoneNumericUTCOffset, "+073401,9876543219");
+}
+
+TEST_F(TemporalParserTest, TimeZoneIdentifierSucccess) {
+  // TimeZoneIANAName:
+  //  Etc/GMT ASCIISign UnpaddedHour:
+  VerifyParseTimeZoneIdentifierSuccess("Etc/GMT+0");
+  VerifyParseTimeZoneIdentifierSuccess("Etc/GMT+1");
+  VerifyParseTimeZoneIdentifierSuccess("Etc/GMT+11");
+  VerifyParseTimeZoneIdentifierSuccess("Etc/GMT+23");
+  //  TimeZoneIANANameTail
+  VerifyParseTimeZoneIdentifierSuccess("_");
+  VerifyParseTimeZoneIdentifierSuccess("_/_");
+  VerifyParseTimeZoneIdentifierSuccess("a.");
+  VerifyParseTimeZoneIdentifierSuccess("a..");
+  VerifyParseTimeZoneIdentifierSuccess("a_");
+  VerifyParseTimeZoneIdentifierSuccess("a-");
+  VerifyParseTimeZoneIdentifierSuccess("a-b");
+  VerifyParseTimeZoneIdentifierSuccess("a-b/c");
+  VerifyParseTimeZoneIdentifierSuccess("abcdefghijklmn");
+  VerifyParseTimeZoneIdentifierSuccess("abcdefghijklmn/ABCDEFGHIJKLMN");
+
+  //  TimeZoneIANALegacyName
+  VerifyParseTimeZoneIdentifierSuccess("Etc/GMT0");
+  VerifyParseTimeZoneIdentifierSuccess("GMT0");
+  VerifyParseTimeZoneIdentifierSuccess("GMT-0");
+  VerifyParseTimeZoneIdentifierSuccess("GMT+0");
+  VerifyParseTimeZoneIdentifierSuccess("EST5EDT");
+  VerifyParseTimeZoneIdentifierSuccess("CST6CDT");
+  VerifyParseTimeZoneIdentifierSuccess("MST7MDT");
+  VerifyParseTimeZoneIdentifierSuccess("PST8PDT");
+
+  // TimeZoneUTCOffsetName
+  //  Sign Hour
+  VerifyParseTimeZoneIdentifierSuccess("+00");
+  VerifyParseTimeZoneIdentifierSuccess("+23");
+  VerifyParseTimeZoneIdentifierSuccess("-00");
+  VerifyParseTimeZoneIdentifierSuccess("-23");
+  VerifyParseTimeZoneIdentifierSuccess("\u221200");
+  VerifyParseTimeZoneIdentifierSuccess("\u221223");
+  //  Sign Hour : MinuteSecond
+  VerifyParseTimeZoneIdentifierSuccess("+00:00");
+  VerifyParseTimeZoneIdentifierSuccess("+23:59");
+  VerifyParseTimeZoneIdentifierSuccess("-00:00");
+  VerifyParseTimeZoneIdentifierSuccess("-23:59");
+  VerifyParseTimeZoneIdentifierSuccess("\u221200:00");
+  VerifyParseTimeZoneIdentifierSuccess("\u221223:59");
+  //  Sign Hour MinuteSecond
+  VerifyParseTimeZoneIdentifierSuccess("+0000");
+  VerifyParseTimeZoneIdentifierSuccess("+2359");
+  VerifyParseTimeZoneIdentifierSuccess("-0000");
+  VerifyParseTimeZoneIdentifierSuccess("-2359");
+  VerifyParseTimeZoneIdentifierSuccess("\u22120000");
+  VerifyParseTimeZoneIdentifierSuccess("\u22122359");
+
+  //  Sign Hour : MinuteSecond : MinuteSecond Fractionopt
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00");
+  VerifyParseTimeZoneIdentifierSuccess("+23:59:59");
+  VerifyParseTimeZoneIdentifierSuccess("-00:00:00");
+  VerifyParseTimeZoneIdentifierSuccess("-23:59:59");
+  VerifyParseTimeZoneIdentifierSuccess("\u221200:00:00");
+  VerifyParseTimeZoneIdentifierSuccess("\u221223:59:59");
+
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.0");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,0");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.10");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,01");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.012");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,010");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.0123");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,0120");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.01234");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,01230");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.012345");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,012340");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.0123450");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,0123456");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,01234567");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.01234560");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00,012345678");
+  VerifyParseTimeZoneIdentifierSuccess("+00:00:00.012345680");
+
+  //  Sign Hour MinuteSecond MinuteSecond Fractionopt
+  VerifyParseTimeZoneIdentifierSuccess("+000000");
+  VerifyParseTimeZoneIdentifierSuccess("+235959");
+  VerifyParseTimeZoneIdentifierSuccess("-000000");
+  VerifyParseTimeZoneIdentifierSuccess("-235959");
+  VerifyParseTimeZoneIdentifierSuccess("\u2212000000");
+  VerifyParseTimeZoneIdentifierSuccess("\u2212235959");
+
+  VerifyParseTimeZoneIdentifierSuccess("-000000.0");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,0");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.10");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,01");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.012");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,010");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.0123");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,0120");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.01234");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,01230");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.012345");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,012340");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.0123450");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,0123456");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,01234567");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.01234560");
+  VerifyParseTimeZoneIdentifierSuccess("-000000,012345678");
+  VerifyParseTimeZoneIdentifierSuccess("-000000.012345680");
+}
+TEST_F(TemporalParserTest, TimeZoneIdentifierIllegal) {
+  //  Etc/GMT ASCIISign Hour:
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "[Etc/GMT+1]");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "Etc/GMT+01");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "Etc/GMT+24");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, ".");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "..");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "A/..");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "A/.");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-ab");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "abcdefghijklmno");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "abcdefghijklmno/ABCDEFGHIJKLMN");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "abcdefghijklmn/ABCDEFGHIJKLMNO");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "a1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "Etc/GMT1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "GMT1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "GMT+1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "GMT-1");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "EDT5EST");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "CDT6CST");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "MDT7MST");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "PDT8PST");
+
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+2");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+24");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-24");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221224");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+0:60");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:5");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:60");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:60");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221200:60");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+24:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-24:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221224:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+0060");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00590");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0060");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22120060");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+2459");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-2459");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22122459");
+
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+0000:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+23:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+2300:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:5900");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+0059:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:0059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+0000:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0000:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-23:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-2300:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:5900");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0059:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:0059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0000:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221200:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22120000:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221223:0000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22122300:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221200:5900");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22120059:00");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221200:0059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u22120000:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0:0059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:059");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-000:59");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0005:9");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-0000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00000000");
+
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+240000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+006000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+000060");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-240000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-006000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-000060");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u2212240000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u2212006000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u2212000060");
+
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+00:00:00.0000000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-00:00:00.0000000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u221200:00:00.0000000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "+000000.0000000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "-000000.0000000000");
+  VERIFY_PARSE_FAIL(TimeZoneIdentifier, "\u2212000000.0000000000");
+}
+
+TEST_F(TemporalParserTest, CalendarNameSuccess) {
+  // CalendarName
+  VerifyParseCalendarNameSuccess("chinese");
+  VerifyParseCalendarNameSuccess("roc");
+  VerifyParseCalendarNameSuccess("indian");
+  VerifyParseCalendarNameSuccess("persian");
+  VerifyParseCalendarNameSuccess("abcd-efghi");
+  VerifyParseCalendarNameSuccess("abcd-efghi");
+  VerifyParseCalendarNameSuccess("a2345678-b2345678-c2345678-d7654321");
+}
+
+TEST_F(TemporalParserTest, CalendarNameIllegal) {
+  VERIFY_PARSE_FAIL(CalendarName, "20210304[u-ca=]");
+  VERIFY_PARSE_FAIL(CalendarName, "20210304[u-ca=a]");
+  VERIFY_PARSE_FAIL(CalendarName, "20210304[u-ca=ab]");
+  VERIFY_PARSE_FAIL(CalendarName, "20210304[u-ca=abcdef-ab]");
+  VERIFY_PARSE_FAIL(CalendarName, "20210304[u-ca=abcdefghijkl]");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(CalendarName, "-0000000304[u-ca=abcdef-ab]");
+  VERIFY_PARSE_FAIL(CalendarName, "\u22120000000304[u-ca=abcdef-ab]");
+  // TemporalInstantString
+  VERIFY_PARSE_FAIL(CalendarName, "2021-11-08z[ABCD]");
+  // CalendarDateTime
+  VERIFY_PARSE_FAIL(CalendarName, "2021-11-08[u-ca=chinese]");
+  VERIFY_PARSE_FAIL(CalendarName, "2021-11-08[ABCDEFG][u-ca=chinese]");
+  VERIFY_PARSE_FAIL(CalendarName, "2021-11-08[ABCDEFG/hijklmn][u-ca=roc]");
+  // Time
+  VERIFY_PARSE_FAIL(CalendarName, "23:45:59");
+  // DateSpecYearMonth
+  VERIFY_PARSE_FAIL(CalendarName, "2021-12");
+  // DateSpecMonthDay
+  VERIFY_PARSE_FAIL(CalendarName, "--12-31");
+  VERIFY_PARSE_FAIL(CalendarName, "12-31");
+  VERIFY_PARSE_FAIL(CalendarName, "--1231");
 }
 
 }  // namespace internal

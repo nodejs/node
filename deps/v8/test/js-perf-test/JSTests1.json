@@ -129,6 +129,20 @@
           ]
         },
         {
+          "name": "Add-No-Opt",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax", "--no-turbofan"],
+          "resources": ["add-no-opt.js", "bigint-util.js"],
+          "test_flags": ["add-no-opt"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Add-Small" },
+            { "name": "Add-Large" },
+            { "name": "Add-LargerThanSmall" },
+            { "name": "Add-Random" }
+          ]
+        },
+        {
           "name": "Subtract",
           "main": "run.js",
           "flags": ["--allow-natives-syntax"],

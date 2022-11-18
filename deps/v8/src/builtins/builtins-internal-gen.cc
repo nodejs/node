@@ -1305,8 +1305,15 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 // architectures.
 #ifndef V8_TARGET_ARCH_X64
 void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
-  using D = OnStackReplacementDescriptor;
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOnStackReplacement>::type;
   static_assert(D::kParameterCount == 1);
+  masm->Trap();
+}
+void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
+  using D =
+      i::CallInterfaceDescriptorFor<Builtin::kMaglevOutOfLinePrologue>::type;
+  static_assert(D::kParameterCount == 0);
   masm->Trap();
 }
 #endif  // V8_TARGET_ARCH_X64
@@ -1502,7 +1509,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 
-TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
+TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
   auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1511,8 +1518,9 @@ TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
   Label found_default_base_ctor(this, &constructor),
       found_something_else(this, &constructor);
 
-  FindNonDefaultConstructor(context, this_function, constructor,
-                            &found_default_base_ctor, &found_something_else);
+  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
+                                       &found_default_base_ctor,
+                                       &found_something_else);
 
   BIND(&found_default_base_ctor);
   {

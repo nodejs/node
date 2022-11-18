@@ -58,12 +58,22 @@ using protocol::Response;
 
 class EvaluateCallback {
  public:
+  static void sendSuccess(
+      std::weak_ptr<EvaluateCallback> callback, InjectedScript* injectedScript,
+      std::unique_ptr<protocol::Runtime::RemoteObject> result,
+      protocol::Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails);
+  static void sendFailure(std::weak_ptr<EvaluateCallback> callback,
+                          InjectedScript* injectedScript,
+                          const protocol::DispatchResponse& response);
+
+  virtual ~EvaluateCallback() = default;
+
+ private:
   virtual void sendSuccess(
       std::unique_ptr<protocol::Runtime::RemoteObject> result,
       protocol::Maybe<protocol::Runtime::ExceptionDetails>
           exceptionDetails) = 0;
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
-  virtual ~EvaluateCallback() = default;
 };
 
 class InjectedScript final {
@@ -114,7 +124,7 @@ class InjectedScript final {
                           v8::MaybeLocal<v8::Value> value,
                           const String16& objectGroup, WrapMode wrapMode,
                           bool replMode, bool throwOnSideEffect,
-                          std::unique_ptr<EvaluateCallback> callback);
+                          std::shared_ptr<EvaluateCallback> callback);
 
   Response findObject(const RemoteObjectId&, v8::Local<v8::Value>*) const;
   String16 objectGroupName(const RemoteObjectId&) const;
@@ -221,6 +231,8 @@ class InjectedScript final {
   String16 bindObject(v8::Local<v8::Value>, const String16& groupName);
 
  private:
+  friend class EvaluateCallback;
+
   v8::Local<v8::Object> commandLineAPI();
   void unbindObject(int id);
 
@@ -230,8 +242,7 @@ class InjectedScript final {
 
   class ProtocolPromiseHandler;
   void discardEvaluateCallbacks();
-  std::unique_ptr<EvaluateCallback> takeEvaluateCallback(
-      EvaluateCallback* callback);
+  void deleteEvaluateCallback(std::shared_ptr<EvaluateCallback> callback);
   Response addExceptionToDetails(
       v8::Local<v8::Value> exception,
       protocol::Runtime::ExceptionDetails* exceptionDetails,
@@ -245,7 +256,7 @@ class InjectedScript final {
   std::unordered_map<int, v8::Global<v8::Value>> m_idToWrappedObject;
   std::unordered_map<int, String16> m_idToObjectGroupName;
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
-  std::unordered_set<EvaluateCallback*> m_evaluateCallbacks;
+  std::unordered_set<std::shared_ptr<EvaluateCallback>> m_evaluateCallbacks;
   bool m_customPreviewEnabled = false;
 };
 
