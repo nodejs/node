@@ -516,6 +516,7 @@
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api/WasmSetJitCodeEventHandler': [SKIP],
+  'test-api-array-buffer/ArrayBuffer_NonDetachableWasDetached': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
