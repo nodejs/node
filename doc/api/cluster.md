@@ -987,12 +987,12 @@ import cluster from 'node:cluster';
 cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'https'],
-  silent: true
+  silent: true,
 });
 cluster.fork(); // https worker
 cluster.setupPrimary({
   exec: 'worker.js',
-  args: ['--use', 'http']
+  args: ['--use', 'http'],
 });
 cluster.fork(); // http worker
 ```
@@ -1003,12 +1003,12 @@ const cluster = require('node:cluster');
 cluster.setupPrimary({
   exec: 'worker.js',
   args: ['--use', 'https'],
-  silent: true
+  silent: true,
 });
 cluster.fork(); // https worker
 cluster.setupPrimary({
   exec: 'worker.js',
-  args: ['--use', 'http']
+  args: ['--use', 'http'],
 });
 cluster.fork(); // http worker
 ```

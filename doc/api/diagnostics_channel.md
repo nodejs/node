@@ -62,7 +62,7 @@ diagnostics_channel.subscribe('my-channel', onMessage);
 if (channel.hasSubscribers) {
   // Publish data to the channel
   channel.publish({
-    some: 'data'
+    some: 'data',
   });
 }
 
@@ -87,7 +87,7 @@ diagnostics_channel.subscribe('my-channel', onMessage);
 if (channel.hasSubscribers) {
   // Publish data to the channel
   channel.publish({
-    some: 'data'
+    some: 'data',
   });
 }
 
@@ -298,7 +298,7 @@ import diagnostics_channel from 'node:diagnostics_channel';
 const channel = diagnostics_channel.channel('my-channel');
 
 channel.publish({
-  some: 'message'
+  some: 'message',
 });
 ```
 
@@ -308,7 +308,7 @@ const diagnostics_channel = require('node:diagnostics_channel');
 const channel = diagnostics_channel.channel('my-channel');
 
 channel.publish({
-  some: 'message'
+  some: 'message',
 });
 ```
 
