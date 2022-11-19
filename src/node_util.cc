@@ -23,6 +23,7 @@ using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
 using v8::ONLY_WRITABLE;
@@ -379,26 +380,44 @@ void Initialize(Local<Object> target,
         .Check();
   }
 
-#define V(name)                                                               \
-  target->Set(context,                                                        \
-              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
-              Integer::New(env->isolate(), Promise::PromiseState::name))      \
-    .FromJust()
-  V(kPending);
-  V(kFulfilled);
-  V(kRejected);
+  {
+    Local<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
+#define V(name)                                                                \
+  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Promise::PromiseState::name));
+
+    V(kPending);
+    V(kFulfilled);
+    V(kRejected);
 #undef V
 
 #define V(name)                                                                \
-  target                                                                       \
-      ->Set(context,                                                           \
-            FIXED_ONE_BYTE_STRING(env->isolate(), #name),                      \
-            Integer::New(env->isolate(), Environment::ExitInfoField::name))    \
-      .FromJust()
-  V(kExiting);
-  V(kExitCode);
-  V(kHasExitCode);
+  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Environment::ExitInfoField::name));
+
+    V(kExiting);
+    V(kExitCode);
+    V(kHasExitCode);
 #undef V
+
+#define V(name)                                                                \
+  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, PropertyFilter::name));
+
+    V(ALL_PROPERTIES);
+    V(ONLY_WRITABLE);
+    V(ONLY_ENUMERABLE);
+    V(ONLY_CONFIGURABLE);
+    V(SKIP_STRINGS);
+    V(SKIP_SYMBOLS);
+#undef V
+
+    target
+        ->Set(context,
+              env->constants_string(),
+              tmpl->NewInstance(context).ToLocalChecked())
+        .Check();
+  }
 
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
@@ -413,16 +432,6 @@ void Initialize(Local<Object> target,
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
-  Local<Object> constants = Object::New(env->isolate());
-  NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
-  NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
-  NODE_DEFINE_CONSTANT(constants, ONLY_ENUMERABLE);
-  NODE_DEFINE_CONSTANT(constants, ONLY_CONFIGURABLE);
-  NODE_DEFINE_CONSTANT(constants, SKIP_STRINGS);
-  NODE_DEFINE_CONSTANT(constants, SKIP_SYMBOLS);
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
-              constants).Check();
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
