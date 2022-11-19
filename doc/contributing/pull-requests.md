@@ -108,7 +108,7 @@ git checkout -b my-branch -t upstream/HEAD
 ### Step 3: Code
 
 Pull requests in Node.js typically involve changes to
-one or more of a few places in the code base.
+one or more of a few places in the repository.
 
 * C/C++ code contained in the `src` directory
 * JavaScript code contained in the `lib` directory
