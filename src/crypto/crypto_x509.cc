@@ -453,6 +453,8 @@ void X509Certificate::CheckPrivateKey(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args[0]);
   CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
 
+  ClearErrorOnReturn clear_error_on_return;
+
   args.GetReturnValue().Set(
       X509_check_private_key(
           cert->get(),
