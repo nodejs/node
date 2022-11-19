@@ -58,7 +58,6 @@ const s = http.createServer(common.mustCall((req, res) => {
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     name: 'Error',
-    message: 'Cannot write headers after they are sent to the client'
   });
 
   res.end();
@@ -78,17 +77,16 @@ function runTest() {
 }
 
 {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     res.writeHead(200, [ 'test', '1' ]);
     assert.throws(() => res.writeHead(200, [ 'test2', '2' ]), {
       code: 'ERR_HTTP_HEADERS_SENT',
       name: 'Error',
-      message: 'Cannot write headers after they are sent to the client'
     });
     res.end();
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     http.get({ port: server.address().port }, (res) => {
       assert.strictEqual(res.headers.test, '1');
       assert.strictEqual('test2' in res.headers, false);
@@ -96,5 +94,5 @@ function runTest() {
         server.close();
       }));
     });
-  });
+  }));
 }
