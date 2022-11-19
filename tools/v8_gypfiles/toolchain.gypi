@@ -1125,7 +1125,7 @@
             'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
           }],
           [ 'v8_target_arch=="ppc64"', {
-            'cflags': [ '-maix64', '-fdollars-in-identifiers' ],
+            'cflags': [ '-maix64', '-fdollars-in-identifiers', '-fno-extern-tls-init' ],
             'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
