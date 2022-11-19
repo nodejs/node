@@ -10,12 +10,6 @@ const { Session } = require('inspector');
 
 const session = new Session();
 
-function compareIgnoringOrder(array1, array2) {
-  const set = new Set(array1);
-  const test = set.size === array2.length && array2.every((el) => set.has(el));
-  assert.ok(test, `[${array1}] differs from [${array2}]`);
-}
-
 function post(message, data) {
   return new Promise((resolve, reject) => {
     session.post(message, data, (err, result) => {
@@ -48,25 +42,33 @@ async function test() {
   session.on('NodeTracing.dataCollected', (n) => traceNotification = n);
   session.on('NodeTracing.tracingComplete', () => tracingComplete = true);
   const { categories } = await post('NodeTracing.getCategories');
-  compareIgnoringOrder(['node',
-                        'node.async_hooks',
-                        'node.bootstrap',
-                        'node.console',
-                        'node.dns.native',
-                        'node.net.native',
-                        'node.environment',
-                        'node.fs.sync',
-                        'node.fs_dir.sync',
-                        'node.fs.async',
-                        'node.fs_dir.async',
-                        'node.perf',
-                        'node.perf.usertiming',
-                        'node.perf.timerify',
-                        'node.promises.rejections',
-                        'node.vm.script',
-                        'v8',
-                        'node.http',
-  ], categories);
+  const expectedCategories = [
+    'node',
+    'node.async_hooks',
+    'node.bootstrap',
+    'node.console',
+    'node.dns.native',
+    'node.environment',
+    'node.fs.async',
+    'node.fs.sync',
+    'node.fs_dir.async',
+    'node.fs_dir.sync',
+    'node.http',
+    'node.net.native',
+    'node.perf',
+    'node.perf.timerify',
+    'node.perf.usertiming',
+    'node.promises.rejections',
+    'node.threadpoolwork.async',
+    'node.threadpoolwork.sync',
+    'node.vm.script',
+    'v8',
+  ].sort();
+  assert.ok(categories.length === expectedCategories.length);
+  categories.forEach((category, index) => {
+    const value = expectedCategories[index];
+    assert.ok(category === value, `${category} is out of order, expect ${value}`);
+  });
 
   const traceConfig = { includedCategories: ['v8'] };
   await post('NodeTracing.start', { traceConfig });
