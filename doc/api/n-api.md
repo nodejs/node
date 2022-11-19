@@ -898,6 +898,24 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside the function body is not necessary.
 
+#### `napi_cleanup_hook`
+
+<!-- YAML
+added: REPLACEME
+napiVersion: 3
+-->
+
+Function pointer used with [`napi_add_env_cleanup_hook`][]. It will be called
+when the environment is being torn down.
+
+Callback functions must satisfy the following signature:
+
+```c
+typedef void (*napi_cleanup_hook)(void* data);
+```
+
+* `[in] data`: The data that was passed to [`napi_add_env_cleanup_hook`][].
+
 #### `napi_async_cleanup_hook`
 
 <!-- YAML
@@ -1799,7 +1817,7 @@ napiVersion: 3
 
 ```c
 NODE_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
-                                                  void (*fun)(void* arg),
+                                                  napi_cleanup_hook fun,
                                                   void* arg);
 ```
 

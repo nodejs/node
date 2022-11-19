@@ -671,8 +671,9 @@ void NAPI_CDECL napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
-napi_status NAPI_CDECL napi_add_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg) {
+napi_status NAPI_CDECL napi_add_env_cleanup_hook(napi_env env,
+                                                 napi_cleanup_hook fun,
+                                                 void* arg) {
   CHECK_ENV(env);
   CHECK_ARG(env, fun);
 
@@ -681,8 +682,9 @@ napi_status NAPI_CDECL napi_add_env_cleanup_hook(
   return napi_ok;
 }
 
-napi_status NAPI_CDECL napi_remove_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg) {
+napi_status NAPI_CDECL napi_remove_env_cleanup_hook(napi_env env,
+                                                    napi_cleanup_hook fun,
+                                                    void* arg) {
   CHECK_ENV(env);
   CHECK_ARG(env, fun);
 
