@@ -74,15 +74,3 @@ if (common.hasIntl) {
                 (e) => e.code === 'ERR_INVALID_URL',
                 'parsing http://\u00AD/bad.com/');
 }
-
-{
-  const badURLs = [
-    'https://evil.com:.example.com',
-    'git+ssh://git@github.com:npm/npm',
-  ];
-  badURLs.forEach((badURL) => {
-    assert.throws(() => { url.parse(badURL); },
-                  (e) => e.code === 'ERR_INVALID_URL',
-                  `parsing ${badURL}`);
-  });
-}
