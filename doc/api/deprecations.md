@@ -3303,12 +3303,16 @@ issued for `url.parse()` vulnerabilities.
 <!-- YAML
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45526
+    description: Runtime deprecation.
+  - version:
     - v19.2.0
     pr-url: https://github.com/nodejs/node/pull/45576
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 [`url.parse()`][] accepts URLs with ports that are not numbers. This behavior
 might result in host name spoofing with unexpected input. These URLs will throw
