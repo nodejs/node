@@ -107,13 +107,13 @@ git checkout -b my-branch -t upstream/HEAD
 
 ### Step 3: Code
 
-The vast majority of pull requests opened against the `nodejs/node`
-repository includes changes to one or more of the following:
+Pull requests in Node.js typically involve changes to
+one or more of a few places in the repository.
 
-* the C/C++ code contained in the `src` directory
-* the JavaScript code contained in the `lib` directory
-* the documentation in `doc/api`
-* tests within the `test` directory.
+* C/C++ code contained in the `src` directory
+* JavaScript code contained in the `lib` directory
+* Documentation in `doc/api`
+* Tests within the `test` directory
 
 If you are modifying code, please be sure to run `make lint` (or
 `vcbuild.bat lint` on Windows) to ensure that the changes follow the Node.js
