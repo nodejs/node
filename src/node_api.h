@@ -208,11 +208,11 @@ napi_get_uv_event_loop(napi_env env, struct uv_loop_s** loop);
 NAPI_EXTERN napi_status NAPI_CDECL napi_fatal_exception(napi_env env,
                                                         napi_value err);
 
-NAPI_EXTERN napi_status NAPI_CDECL napi_add_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_add_env_cleanup_hook(napi_env env, napi_cleanup_hook fun, void* arg);
 
-NAPI_EXTERN napi_status NAPI_CDECL napi_remove_env_cleanup_hook(
-    napi_env env, void(NAPI_CDECL* fun)(void* arg), void* arg);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_remove_env_cleanup_hook(napi_env env, napi_cleanup_hook fun, void* arg);
 
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_open_callback_scope(napi_env env,
