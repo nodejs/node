@@ -99,33 +99,6 @@ class ModuleWrap;
 class Environment;
 class Realm;
 
-enum class FsStatsOffset {
-  kDev = 0,
-  kMode,
-  kNlink,
-  kUid,
-  kGid,
-  kRdev,
-  kBlkSize,
-  kIno,
-  kSize,
-  kBlocks,
-  kATimeSec,
-  kATimeNsec,
-  kMTimeSec,
-  kMTimeNsec,
-  kCTimeSec,
-  kCTimeNsec,
-  kBirthTimeSec,
-  kBirthTimeNsec,
-  kFsStatsFieldsNumber
-};
-
-// Stat fields buffers contain twice the number of entries in an uv_stat_t
-// because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
-constexpr size_t kFsStatsBufferLength =
-    static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
-
 // Disables zero-filling for ArrayBuffer allocations in this scope. This is
 // similar to how we implement Buffer.allocUnsafe() in JS land.
 class NoArrayBufferZeroFillScope {
