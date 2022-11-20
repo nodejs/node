@@ -52,6 +52,9 @@
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+            'include_dirs': [
+              'tools/msvs/pch',
+            ],
             'sources': [
               '<(_msvs_precompiled_header)',
               '<(_msvs_precompiled_source)',

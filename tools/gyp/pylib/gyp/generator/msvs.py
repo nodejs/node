@@ -1232,7 +1232,7 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
     _ToolAppend(tools, "VCPostBuildEventTool", "CommandLine", postbuild)
     # Turn on precompiled headers if appropriate.
     if precompiled_header:
-        precompiled_header = os.path.split(precompiled_header)[1]
+        # precompiled_header = os.path.split(precompiled_header)[1]
         _ToolAppend(tools, "VCCLCompilerTool", "UsePrecompiledHeader", "2")
         _ToolAppend(
             tools, "VCCLCompilerTool", "PrecompiledHeaderThrough", precompiled_header
@@ -3416,7 +3416,7 @@ def _FinalizeMSBuildSettings(spec, configuration):
     )
     # Turn on precompiled headers if appropriate.
     if precompiled_header:
-        precompiled_header = os.path.split(precompiled_header)[1]
+        # precompiled_header = os.path.split(precompiled_header)[1]
         _ToolAppend(msbuild_settings, "ClCompile", "PrecompiledHeader", "Use")
         _ToolAppend(
             msbuild_settings, "ClCompile", "PrecompiledHeaderFile", precompiled_header
