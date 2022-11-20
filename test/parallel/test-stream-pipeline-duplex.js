@@ -29,7 +29,7 @@ const assert = require('assert');
   // Must call when last stream is Duplex from function
   pipeline(
     Readable.from(['a', 'b', 'c', 'd']),
-    Duplex.from(async function* stopAfterFirst(stream) {
+    Duplex.from(async function*(stream) {
       for await (const chunk of stream) {
         yield chunk;
       }
