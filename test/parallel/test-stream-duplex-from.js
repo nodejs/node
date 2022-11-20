@@ -299,3 +299,21 @@ const { Blob } = require('buffer');
     assert.strictEqual(res, 'foobar');
   })).on('close', common.mustCall());
 }
+
+{
+  // Ensure piping to duplexified async iterator trigger the data call
+  let i = 0;
+
+  const data = ['a', 'b', 'c', 'd'];
+
+  const cb = common.mustCall((chunk) => {
+    assert.strictEqual(chunk, data[i++]);
+  }, 4);
+
+  Readable.from(data).pipe(Duplex.from(async function* stopAfterFirst(stream) {
+    for await (const chunk of stream) {
+      cb(chunk);
+      yield chunk;
+    }
+  }));
+}
