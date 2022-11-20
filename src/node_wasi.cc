@@ -1733,4 +1733,4 @@ static void Initialize(Local<Object> target,
 }  // namespace wasi
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::Initialize)

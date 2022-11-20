@@ -419,9 +419,9 @@ void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "ChannelWrap", channel_wrap);
 }
 
-// Run the `Initialize` function when loading this module through
+// Run the `Initialize` function when loading this binding through
 // `internalBinding('cares_wrap')` in Node.js's built-in JavaScript code:
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
 If the C++ binding is loaded during bootstrap, it needs to be registered
@@ -438,10 +438,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace util
 }  // namespace node
 
-// The first argument passed to `NODE_MODULE_EXTERNAL_REFERENCE`,
+// The first argument passed to `NODE_BINDING_EXTERNAL_REFERENCE`,
 // which is `util` here, needs to be added to the
 // `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
-NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
 ```
 
 Otherwise, you might see an error message like this when building the

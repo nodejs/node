@@ -476,5 +476,5 @@ void Initialize(Local<Object> target,
 }  // namespace util
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)

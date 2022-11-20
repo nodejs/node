@@ -450,6 +450,6 @@ MaybeLocal<Object> AddressToJS(Environment* env,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(tcp_wrap, node::TCPWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(tcp_wrap,
-                               node::TCPWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(tcp_wrap, node::TCPWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(tcp_wrap,
+                                node::TCPWrap::RegisterExternalReferences)

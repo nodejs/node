@@ -9,30 +9,30 @@
 #include <string>
 
 #if HAVE_OPENSSL
-#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
+#define NODE_BUILTIN_OPENSSL_BINDINGS(V) V(crypto) V(tls_wrap)
 #else
-#define NODE_BUILTIN_OPENSSL_MODULES(V)
+#define NODE_BUILTIN_OPENSSL_BINDINGS(V)
 #endif
 
 #if NODE_HAVE_I18N_SUPPORT
-#define NODE_BUILTIN_ICU_MODULES(V) V(icu)
+#define NODE_BUILTIN_ICU_BINDINGS(V) V(icu)
 #else
-#define NODE_BUILTIN_ICU_MODULES(V)
+#define NODE_BUILTIN_ICU_BINDINGS(V)
 #endif
 
 #if HAVE_INSPECTOR
-#define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
+#define NODE_BUILTIN_PROFILER_BINDINGS(V) V(profiler)
 #else
-#define NODE_BUILTIN_PROFILER_MODULES(V)
+#define NODE_BUILTIN_PROFILER_BINDINGS(V)
 #endif
 
-// A list of built-in modules. In order to do module registration
-// in node::Init(), need to add built-in modules in the following list.
-// Then in binding::RegisterBuiltinModules(), it calls modules' registration
-// function. This helps the built-in modules are loaded properly when
+// A list of built-in bindings. In order to do binding registration
+// in node::Init(), need to add built-in bindings in the following list.
+// Then in binding::RegisterBuiltinBindings(), it calls bindings' registration
+// function. This helps the built-in bindings are loaded properly when
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
-#define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
+#define NODE_BUILTIN_STANDARD_BINDINGS(V)                                      \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
   V(block_list)                                                                \
@@ -86,20 +86,20 @@
   V(worker)                                                                    \
   V(zlib)
 
-#define NODE_BUILTIN_MODULES(V)                                                \
-  NODE_BUILTIN_STANDARD_MODULES(V)                                             \
-  NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
-  NODE_BUILTIN_ICU_MODULES(V)                                                  \
-  NODE_BUILTIN_PROFILER_MODULES(V)
+#define NODE_BUILTIN_BINDINGS(V)                                               \
+  NODE_BUILTIN_STANDARD_BINDINGS(V)                                            \
+  NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
+  NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
+  NODE_BUILTIN_PROFILER_BINDINGS(V)
 
-// This is used to load built-in modules. Instead of using
+// This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
-// function for each built-in modules explicitly in
-// binding::RegisterBuiltinModules(). This is only forward declaration.
-// The definitions are in each module's implementation when calling
-// the NODE_MODULE_CONTEXT_AWARE_INTERNAL.
+// function for each built-in bindings explicitly in
+// binding::RegisterBuiltinBindings(). This is only forward declaration.
+// The definitions are in each binding's implementation when calling
+// the NODE_BINDING_CONTEXT_AWARE_INTERNAL.
 #define V(modname) void _register_##modname();
-NODE_BUILTIN_MODULES(V)
+NODE_BUILTIN_BINDINGS(V)
 #undef V
 
 #ifdef _AIX
@@ -552,9 +552,9 @@ inline struct node_module* FindModule(struct node_module* list,
   return mp;
 }
 
-static Local<Object> InitModule(Environment* env,
-                                node_module* mod,
-                                Local<String> module) {
+static Local<Object> InitInternalBinding(Environment* env,
+                                         node_module* mod,
+                                         Local<String> module) {
   // Internal bindings don't have a "module" object, only exports.
   Local<Function> ctor = env->binding_data_ctor_template()
                              ->GetFunction(env->context())
@@ -578,7 +578,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
 
   node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
-    exports = InitModule(env, mod, module);
+    exports = InitInternalBinding(env, mod, module);
     env->internal_bindings.insert(mod);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
@@ -595,7 +595,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
                     builtins::BuiltinLoader::GetConfigString(env->isolate()))
               .FromJust());
   } else {
-    return THROW_ERR_INVALID_MODULE(env, "No such module: %s", *module_v);
+    return THROW_ERR_INVALID_MODULE(env, "No such binding: %s", *module_v);
   }
 
   args.GetReturnValue().Set(exports);
@@ -626,7 +626,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   if (mod == nullptr) {
     return THROW_ERR_INVALID_MODULE(
-        env, "No such module was linked: %s", *module_name_v);
+        env, "No such binding was linked: %s", *module_name_v);
   }
 
   Local<Object> module = Object::New(env->isolate());
@@ -642,8 +642,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     mod->nm_register_func(exports, module, mod->nm_priv);
   } else {
     return THROW_ERR_INVALID_MODULE(
-        env,
-        "Linked moduled has no declared entry point.");
+        env, "Linked binding has no declared entry point.");
   }
 
   auto effective_exports =
@@ -652,11 +651,11 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(effective_exports);
 }
 
-// Call built-in modules' _register_<module name> function to
-// do module registration explicitly.
-void RegisterBuiltinModules() {
+// Call built-in bindings' _register_<module name> function to
+// do binding registration explicitly.
+void RegisterBuiltinBindings() {
 #define V(modname) _register_##modname();
-  NODE_BUILTIN_MODULES(V)
+  NODE_BUILTIN_BINDINGS(V)
 #undef V
 }
 
@@ -668,5 +667,5 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace binding
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(binding,
-                               node::binding::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(binding,
+                                node::binding::RegisterExternalReferences)
