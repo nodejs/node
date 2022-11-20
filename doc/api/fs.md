@@ -4448,6 +4448,9 @@ watch('somedir', (eventType, filename) => {
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45536
+    description: Changed default interval to 1000.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: The `bigint` option is now supported.
@@ -4461,7 +4464,7 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} **Default:** `false`
   * `persistent` {boolean} **Default:** `true`
-  * `interval` {integer} **Default:** `5007`
+  * `interval` {integer} **Default:** `1000`
 * `listener` {Function}
   * `current` {fs.Stats}
   * `previous` {fs.Stats}
