@@ -216,7 +216,7 @@ function _validateContent(report, fields = []) {
     for (let i = 0; i < jsHeapFields.length - 1; i++) {
       assert(
         Number.isSafeInteger(heap[jsHeapFields[i]]),
-        `heap.${jsHeapFields[i]} is not a safe integer`
+        `heap.${jsHeapFields[i]} is not a safe integer`,
       );
     }
     assert(typeof heap.heapSpaces === 'object' && heap.heapSpaces !== null);
