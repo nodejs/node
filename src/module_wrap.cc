@@ -814,5 +814,5 @@ void ModuleWrap::Initialize(Local<Object> target,
 }  // namespace loader
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(module_wrap,
-                                   node::loader::ModuleWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(module_wrap,
+                                    node::loader::ModuleWrap::Initialize)

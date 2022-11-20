@@ -747,7 +747,7 @@ void BuiltinLoader::RegisterExternalReferences(
 }  // namespace builtins
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(builtins,
-                                   node::builtins::BuiltinLoader::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(builtins,
+                                    node::builtins::BuiltinLoader::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
     builtins, node::builtins::BuiltinLoader::RegisterExternalReferences)

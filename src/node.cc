@@ -753,8 +753,8 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Initialize node_start_time to get relative uptime.
   per_process::node_start_time = uv_hrtime();
 
-  // Register built-in modules
-  binding::RegisterBuiltinModules();
+  // Register built-in bindings
+  binding::RegisterBuiltinBindings();
 
   // Make inherited handles noninheritable.
   if (!(flags & ProcessInitializationFlags::kEnableStdioInheritance) &&
@@ -1254,5 +1254,5 @@ int Stop(Environment* env) {
 #if !HAVE_INSPECTOR
 void Initialize() {}
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR

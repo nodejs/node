@@ -181,5 +181,5 @@ void HandleWrap::RegisterExternalReferences(
 
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(handle_wrap,
-                               node::HandleWrap::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(handle_wrap,
+                                node::HandleWrap::RegisterExternalReferences)

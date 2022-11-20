@@ -975,5 +975,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace worker
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
-NODE_MODULE_EXTERNAL_REFERENCE(worker, node::worker::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
+NODE_BINDING_EXTERNAL_REFERENCE(worker,
+                                node::worker::RegisterExternalReferences)

@@ -462,4 +462,4 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
 }
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(env_var, node::RegisterEnvVarExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(env_var, node::RegisterEnvVarExternalReferences)

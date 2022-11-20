@@ -399,7 +399,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace inspector
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector,
-                                  node::inspector::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(inspector,
-                               node::inspector::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(inspector, node::inspector::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(inspector,
+                                node::inspector::RegisterExternalReferences)

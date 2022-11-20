@@ -217,5 +217,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace report
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(report, node::report::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(report, node::report::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(report, node::report::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(report,
+                                node::report::RegisterExternalReferences)

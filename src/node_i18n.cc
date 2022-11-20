@@ -903,7 +903,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace i18n
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(icu, node::i18n::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(icu, node::i18n::RegisterExternalReferences)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

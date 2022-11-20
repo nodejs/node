@@ -71,5 +71,5 @@ void RegisterTimerExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(timers, node::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(timers, node::RegisterTimerExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(timers, node::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(timers, node::RegisterTimerExternalReferences)

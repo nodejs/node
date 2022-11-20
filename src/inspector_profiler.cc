@@ -524,6 +524,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace profiler
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(profiler,
-                               node::profiler::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(profiler,
+                                node::profiler::RegisterExternalReferences)

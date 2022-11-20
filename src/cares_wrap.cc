@@ -1976,6 +1976,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace cares_wrap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(cares_wrap,
-                               node::cares_wrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, node::cares_wrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(cares_wrap,
+                                node::cares_wrap::RegisterExternalReferences)

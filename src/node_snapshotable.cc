@@ -1503,6 +1503,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace mksnapshot
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(mksnapshot,
-                               node::mksnapshot::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(mksnapshot,
+                                node::mksnapshot::RegisterExternalReferences)

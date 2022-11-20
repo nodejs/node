@@ -1520,6 +1520,6 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace worker
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(messaging, node::worker::InitMessaging)
-NODE_MODULE_EXTERNAL_REFERENCE(messaging,
-                               node::worker::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(messaging, node::worker::InitMessaging)
+NODE_BINDING_EXTERNAL_REFERENCE(messaging,
+                                node::worker::RegisterExternalReferences)

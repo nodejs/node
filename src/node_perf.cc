@@ -387,6 +387,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace performance
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(performance,
-                               node::performance::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(performance,
+                                node::performance::RegisterExternalReferences)

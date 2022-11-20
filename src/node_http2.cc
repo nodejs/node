@@ -3362,4 +3362,4 @@ void Initialize(Local<Object> target,
 }  // namespace http2
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(http2, node::http2::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(http2, node::http2::Initialize)

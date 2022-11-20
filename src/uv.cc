@@ -137,5 +137,5 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace uv
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::uv::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(uv, node::uv::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(uv, node::uv::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(uv, node::uv::RegisterExternalReferences)

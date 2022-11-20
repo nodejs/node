@@ -1943,5 +1943,5 @@ MaybeLocal<Value> URL::ToObject(Environment* env) const {
 }  // namespace url
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(url, node::url::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(url, node::url::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(url, node::url::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(url, node::url::RegisterExternalReferences)

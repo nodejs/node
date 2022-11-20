@@ -156,6 +156,6 @@ TTYWrap::TTYWrap(Environment* env,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(tty_wrap, node::TTYWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(tty_wrap,
-                               node::TTYWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(tty_wrap, node::TTYWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(tty_wrap,
+                                node::TTYWrap::RegisterExternalReferences)

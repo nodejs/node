@@ -1425,6 +1425,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace contextify
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(contextify, node::contextify::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(contextify,
-                               node::contextify::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(contextify, node::contextify::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(contextify,
+                                node::contextify::RegisterExternalReferences)
