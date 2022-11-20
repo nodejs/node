@@ -317,5 +317,5 @@ void RegisterDtraceExternalReferences(ExternalReferenceRegistry* registry) {
 }
 
 }  // namespace node
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(dtrace, node::InitializeDTrace)
-NODE_MODULE_EXTERNAL_REFERENCE(dtrace, node::RegisterDtraceExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(dtrace, node::InitializeDTrace)
+NODE_BINDING_EXTERNAL_REFERENCE(dtrace, node::RegisterDtraceExternalReferences)

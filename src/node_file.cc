@@ -2784,5 +2784,5 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs, node::fs::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(fs, node::fs::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs, node::fs::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(fs, node::fs::RegisterExternalReferences)
