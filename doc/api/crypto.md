@@ -3740,7 +3740,7 @@ changes:
   * `groupName`: {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
   * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
-    **Default:** `'named'`
+    **Default:** `'named'`.
   * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
   * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * `callback`: {Function}
@@ -3854,7 +3854,7 @@ changes:
   * `groupName`: {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
   * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
-    **Default:** `'named'`
+    **Default:** `'named'`.
   * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
   * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * Returns: {Object}
