@@ -12,7 +12,7 @@ const hooked = {};
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
     hooked[asyncId] = resource;
-  }
+  },
 }).enable();
 
 const server = http.createServer((req, res) => {
