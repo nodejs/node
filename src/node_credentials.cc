@@ -483,6 +483,6 @@ static void Initialize(Local<Object> target,
 }  // namespace credentials
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(credentials, node::credentials::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(credentials,
-                               node::credentials::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(credentials, node::credentials::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(credentials,
+                                node::credentials::RegisterExternalReferences)

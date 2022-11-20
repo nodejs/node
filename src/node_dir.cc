@@ -425,5 +425,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(fs_dir, node::fs_dir::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(fs_dir,
+                                node::fs_dir::RegisterExternalReferences)

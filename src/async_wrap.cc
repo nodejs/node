@@ -703,6 +703,6 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(async_wrap,
-                               node::AsyncWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(async_wrap,
+                                node::AsyncWrap::RegisterExternalReferences)

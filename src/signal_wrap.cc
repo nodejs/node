@@ -174,7 +174,6 @@ bool HasSignalJSHandler(int signum) {
 }
 }  // namespace node
 
-
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(signal_wrap,
-                               node::SignalWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(signal_wrap,
+                                node::SignalWrap::RegisterExternalReferences)

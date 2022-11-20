@@ -85,5 +85,5 @@ void RegisterTypesExternalReferences(ExternalReferenceRegistry* registry) {
 }
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(types, node::InitializeTypes)
-NODE_MODULE_EXTERNAL_REFERENCE(types, node::RegisterTypesExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(types, node::InitializeTypes)
+NODE_BINDING_EXTERNAL_REFERENCE(types, node::RegisterTypesExternalReferences)

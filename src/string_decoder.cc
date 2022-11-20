@@ -342,7 +342,7 @@ void RegisterStringDecoderExternalReferences(
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(string_decoder,
-                                   node::InitializeStringDecoder)
-NODE_MODULE_EXTERNAL_REFERENCE(string_decoder,
-                               node::RegisterStringDecoderExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(string_decoder,
+                                    node::InitializeStringDecoder)
+NODE_BINDING_EXTERNAL_REFERENCE(string_decoder,
+                                node::RegisterStringDecoderExternalReferences)

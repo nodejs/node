@@ -255,6 +255,6 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(pipe_wrap,
-                               node::PipeWrap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(pipe_wrap,
+                                node::PipeWrap::RegisterExternalReferences)
