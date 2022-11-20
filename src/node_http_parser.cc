@@ -1254,4 +1254,4 @@ void InitializeHttpParser(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(http_parser, node::InitializeHttpParser)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(http_parser, node::InitializeHttpParser)

@@ -806,4 +806,4 @@ void UDPWrap::GetSendQueueCount(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(udp_wrap, node::UDPWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(udp_wrap, node::UDPWrap::Initialize)

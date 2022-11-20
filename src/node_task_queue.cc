@@ -226,6 +226,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace task_queue
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(task_queue,
-                               node::task_queue::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(task_queue,
+                                node::task_queue::RegisterExternalReferences)
