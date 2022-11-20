@@ -63,6 +63,10 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     assert.strictEqual(require.resolve.paths(mod), null);
   });
 
+  builtinModules.forEach((mod) => {
+    assert.strictEqual(require.resolve.paths(`node:${mod}`), null);
+  });
+
   // node_modules.
   const resolvedPaths = require.resolve.paths('eslint');
   assert.strictEqual(Array.isArray(resolvedPaths), true);
