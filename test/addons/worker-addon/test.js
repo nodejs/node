@@ -13,12 +13,12 @@ switch (process.argv[2]) {
   case 'worker-twice':
   case 'worker': {
     const worker = new Worker(`require(${JSON.stringify(binding)});`, {
-      eval: true
+      eval: true,
     });
     if (process.argv[2] === 'worker-twice') {
       worker.on('exit', common.mustCall(() => {
         new Worker(`require(${JSON.stringify(binding)});`, {
-          eval: true
+          eval: true,
         });
       }));
     }
@@ -52,7 +52,7 @@ for (const { test, expected } of [
       'ctor cleanup dtor ctor cleanup dtor ',
     ].concat(libcMayBeMusl ? [
       'ctor cleanup cleanup dtor ',
-    ] : [])
+    ] : []),
   },
 ]) {
   console.log('spawning test', test);
