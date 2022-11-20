@@ -1180,5 +1180,6 @@ void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(errors, node::errors::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(errors, node::errors::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(errors, node::errors::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(errors,
+                                node::errors::RegisterExternalReferences)

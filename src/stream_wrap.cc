@@ -415,7 +415,7 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_wrap,
-                                   node::LibuvStreamWrap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(stream_wrap,
+                                    node::LibuvStreamWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(
     stream_wrap, node::LibuvStreamWrap::RegisterExternalReferences)

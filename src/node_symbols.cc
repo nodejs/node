@@ -29,4 +29,4 @@ static void Initialize(Local<Object> target,
 }  // namespace symbols
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(symbols, node::symbols::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(symbols, node::symbols::Initialize)

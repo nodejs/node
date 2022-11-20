@@ -629,6 +629,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace process
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(process_methods, node::process::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(process_methods,
-                               node::process::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(process_methods, node::process::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(process_methods,
+                                node::process::RegisterExternalReferences)
