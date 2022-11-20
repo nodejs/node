@@ -97,7 +97,7 @@ function environment() {
      */
     function getNpmPackageVersion(pkg, { global = false } = {}) {
         const npmBinArgs = ["bin", "-g"];
-        const npmLsArgs = ["ls", "--depth=0", "--json", "eslint"];
+        const npmLsArgs = ["ls", "--depth=0", "--json", pkg];
 
         if (global) {
             npmLsArgs.push("-g");
