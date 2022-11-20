@@ -540,5 +540,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace serdes
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::serdes::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(serdes, node::serdes::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(serdes, node::serdes::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(serdes,
+                                node::serdes::RegisterExternalReferences)

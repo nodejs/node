@@ -332,5 +332,4 @@ void InitializeStreamPipe(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_pipe,
-                                   node::InitializeStreamPipe)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(stream_pipe, node::InitializeStreamPipe)

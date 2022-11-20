@@ -1430,5 +1430,5 @@ void DefineZlibConstants(Local<Object> target) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(zlib, node::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(zlib, node::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(zlib, node::RegisterExternalReferences)

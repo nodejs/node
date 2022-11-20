@@ -886,6 +886,5 @@ BaseObjectPtr<BaseObject> SocketAddressBase::TransferData::Deserialize(
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(
-    block_list,
-    node::SocketAddressBlockListWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    block_list, node::SocketAddressBlockListWrap::Initialize)

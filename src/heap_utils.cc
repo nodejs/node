@@ -486,6 +486,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace heap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(heap_utils,
-                               node::heap::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(heap_utils,
+                                node::heap::RegisterExternalReferences)
