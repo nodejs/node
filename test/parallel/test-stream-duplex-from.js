@@ -301,12 +301,17 @@ const { Blob } = require('buffer');
 }
 
 {
-  // Ensure piping to duplexified async iterator without calling data does not trigger the data call
-  const cb = common.mustNotCall();
+  // Ensure piping to duplexified async iterator trigger the data call
 
-  Readable.from(['a', 'b', 'c', 'd']).pipe(Duplex.from(async function*(stream) {
+  const data = ['a', 'b', 'c', 'd'];
+
+  const cb = common.mustCall((chunk) => {
+    assert.strictEqual(chunk, data.shift());
+  }, data.length);
+
+  Readable.from(data.slice(0)).pipe(Duplex.from(async function*(stream) {
     for await (const chunk of stream) {
-      cb();
+      cb(chunk);
       yield chunk;
     }
   }));
