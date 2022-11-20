@@ -667,3 +667,17 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     ).end();
   });
 }
+
+{
+  const stream = new Duplex({
+    write(chunk, enc, cb) {
+      setImmediate(cb);
+    }
+  });
+
+  stream.end('foo');
+
+  finished(stream, { readable: false }, common.mustCall((err) => {
+    assert(!err);
+  }));
+}
