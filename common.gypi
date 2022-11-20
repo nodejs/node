@@ -91,6 +91,7 @@
 
     'conditions': [
       ['OS == "win"', {
+        'clang%': 1,
         'os_posix': 0,
         'v8_postmortem_support%': 0,
         'obj_dir': '<(PRODUCT_DIR)/obj',
