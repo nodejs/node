@@ -52,7 +52,7 @@ async function prepareKeys() {
           Buffer.from(spki, 'hex'),
           { name },
           true,
-          ['deriveKey', 'deriveBits']),
+          []),
       ]);
       keys[name] = {
         privateKey,
@@ -180,7 +180,7 @@ async function prepareKeys() {
       name: 'X448',
       public: keys.X448.publicKey
     }, keys.X448.publicKey, null), {
-      message: /baseKey must be a private key/
+      name: 'InvalidAccessError'
     });
   }
 
@@ -190,7 +190,7 @@ async function prepareKeys() {
       name: 'X448',
       public: keys.X448.privateKey
     }, keys.X448.publicKey, null), {
-      message: /algorithm\.public must be a public key/
+      name: 'InvalidAccessError'
     });
   }
 
@@ -207,7 +207,7 @@ async function prepareKeys() {
       name: 'X448',
       public: key
     }, keys.X448.publicKey, null), {
-      message: /algorithm\.public must be a public key/
+      name: 'InvalidAccessError'
     });
   }
 })().then(common.mustCall());
