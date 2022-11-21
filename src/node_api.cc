@@ -633,7 +633,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   // Create a new napi_env for this specific module.
   napi_env env = v8impl::NewEnv(context, module_filename);
 
-  napi_value _exports;
+  napi_value _exports = nullptr;
   env->CallIntoModule([&](napi_env env) {
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
