@@ -61,6 +61,6 @@ function onexit() {
       { type: 'PROCESSWRAP', id: 'process:3', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:7', triggerAsyncId: 'signal:1' },
       { type: 'PIPEWRAP', id: 'pipe:8', triggerAsyncId: 'signal:1' },
-      { type: 'PIPEWRAP', id: 'pipe:9', triggerAsyncId: 'signal:1' } ]
+      { type: 'PIPEWRAP', id: 'pipe:9', triggerAsyncId: 'signal:1' } ],
   );
 }

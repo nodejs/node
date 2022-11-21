@@ -41,6 +41,6 @@ function onexit() {
       { type: 'TCPCONNECTWRAP',
         id: 'tcpconnect:1', triggerAsyncId: 'tcp:1' },
       { type: 'TCPWRAP', id: 'tcp:2', triggerAsyncId: 'tcpserver:1' },
-      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'tcp:2' } ]
+      { type: 'SHUTDOWNWRAP', id: 'shutdown:1', triggerAsyncId: 'tcp:2' } ],
   );
 }

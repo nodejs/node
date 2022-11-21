@@ -20,7 +20,7 @@ server.listen(0, common.mustCall(() => {
   http.get({
     host: '::1',
     family: 6,
-    port: server.address().port
+    port: server.address().port,
   }, common.mustCall());
 }));
 
@@ -48,6 +48,6 @@ process.on('exit', () => {
         triggerAsyncId: null },
       { type: 'SHUTDOWNWRAP',
         id: 'shutdown:1',
-        triggerAsyncId: 'tcp:2' } ]
+        triggerAsyncId: 'tcp:2' } ],
   );
 });
