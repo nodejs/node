@@ -55,6 +55,132 @@ Here is the security disclosure policy for Node.js
   the release process above to ensure that the disclosure is handled in a
   consistent manner.
 
+## The Node.js threat model
+
+In the Node.js threat model, there are trusted elements such as the
+underlying operating system. Vulnerabilities that require the compromise
+of these trusted elements are outside the scope of the Node.js threat
+model.
+
+For a vulnerability to be eligible for a bug bounty, it must be a
+vulnerability in the context of the Node.js threat model. In other
+words, it cannot assume that a trusted element (such as the operating
+system) has been compromised.
+
+Being able to cause the following through control of the elements that Node.js
+does not trust is considered a vulnerability:
+
+* Disclosure or loss of integrity or confidentiality of data protected through
+  the correct use of Node.js APIs.
+* The unavailability of the runtime, including the unbounded degradation of its
+  performance.
+
+If Node.js loads configuration files or runs code by default (without a
+specific request from the user), and this is not documented, it is considered a
+vulnerability.
+Vulnerabilities related to this case may be fixed by a documentation update.
+
+**Node.js does NOT trust**:
+
+1. The data from network connections that are created through the use of Node.js
+   APIs and which is transformed/validated by Node.js before being passed to the
+   application. This includes:
+   * HTTP APIs (all flavors) client and server APIs.
+   * DNS APIs.
+2. Consumers of data protected through the use of Node.js APIs (for example
+   people who have access to data encrypted through the Node.js crypto APIs).
+3. The file content or other I/O that is opened for reading or writing by the
+   use of Node.js APIs (ex: stdin, stdout, stderr).
+
+In other words, if the data passing through Node.js to/from the application
+can trigger actions other than those documented for the APIs, there is likely
+a security vulnerability. Examples of unwanted actions are polluting globals,
+causing an unrecoverable crash, or any other unexpected side effects that can
+lead to a loss of confidentiality, integrity, or availability.
+
+**Node.js trusts everything else**. As some examples this includes:
+
+1. The developers and infrastructure that runs it.
+2. The operating system that Node.js is running under and its configuration,
+   along with anything under control of the operating system.
+3. The code it is asked to run including JavaScript and native code, even if
+   said code is dynamically loaded, e.g. all dependencies installed from the
+   npm registry.
+   The code run inherits all the privileges of the execution user.
+4. Inputs provided to it by the code it is asked to run, as it is the
+   responsibility of the application to perform the required input validations.
+5. Any connection used for inspector (debugger protocol) regardless of being
+   opened by command line options or Node.js APIs, and regardless of the remote
+   end being on the local machine or remote.
+6. The file system when requiring a module.
+   See <https://nodejs.org/api/modules.html#all-together>.
+
+Any unexpected behavior from the data manipulation from Node.js Internal
+functions are considered a vulnerability.
+
+In addition to addressing vulnerabilities based on the above, the project works
+to avoid APIs and internal implementations that make it "easy" for application
+code to use the APIs incorrectly in a way that results in vulnerabilities within
+the application code itself. While we don’t consider those vulnerabilities in
+Node.js itself and will not necessarily issue a CVE we do want them to be
+reported privately to Node.js first.
+We often choose to work to improve our APIs based on those reports and issue
+fixes either in regular or security releases depending on how much of a risk to
+the community they pose.
+
+### Examples of vulneratibities
+
+#### Improper Certificate Validation (CWE-295)
+
+* Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
+  in certficates used to connect to a TLS/SSL endpoint. If certificates can be
+  crafted which result in incorrect validation by the Node.js APIs that is
+  considered a vulnerability.
+
+#### Inconsistent Interpretation of HTTP Requests (CWE-444)
+
+* Node.js provides APIs to accept http connections. Those APIs parse the
+  headers received for a connection and pass them on to the application.
+  Bugs in parsing those headers which can result in request smuggling are
+  considered vulnerabilities.
+
+#### Missing Cryptographic Step (CWE-325)
+
+* Node.js provides APIs to encrypt data. Bugs that would allow an attacker
+  to get the orginal data without requiring the encryption key are
+  considered vulnerabilities.
+
+#### External Control of System or Configuration Setting (CWE-15)
+
+* If Node.js automatically loads a configuration file which is not documented
+  and modification of that configuration can affect the confidentiality of
+  data protected using the Node.js APIs this is considered a vulnerability.
+
+### Examples of non-vulneratibities
+
+#### Malicious Third-Party Modules (CWE-1357)
+
+* Code is trusted by Node.js, therefore any scenario that requires a malicious
+  third-party module cannot result in a vulnerability in Node.js.
+
+#### Prototype Pollution Attacks (CWE-1321)
+
+* Node.js trusts the inputs provided to it by application code.
+  It is up to the application to sanitize appropriately, therefore any scenario
+  that requires control over user input is not considered a vulnerability.
+
+#### Uncontrolled Search Path Element (CWE-427)
+
+* Node.js trusts the file system in the environment accessible to it.
+  Therefore, it is not a vulnerability if it accesses/loads files from any path
+  that is accessible to it.
+
+#### External Control of System or Configuration Setting (CWE-15)
+
+* If Node.js automatically loads a configuration file which is documented
+  no scenario that requires modification of that configuration file is
+  considered a vulnerability.
+
 ## Receiving security updates
 
 Security notifications will be distributed via the following methods.
