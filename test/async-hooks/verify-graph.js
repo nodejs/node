@@ -20,7 +20,7 @@ function pruneTickObjects(activities) {
   const tickObject = {
     found: true,
     index: null,
-    data: null
+    data: null,
   };
 
   if (!Array.isArray(activities))
@@ -42,7 +42,7 @@ function pruneTickObjects(activities) {
       tickObject.data = activities[tickObject.index];
       const triggerId = {
         new: tickObject.data.triggerAsyncId,
-        old: tickObject.data.uid
+        old: tickObject.data.uid,
       };
 
       activities.forEach(function repointTriggerId(x) {
@@ -85,7 +85,7 @@ module.exports = function verifyGraph(hooks, graph) {
     errors.push({
       id: node.id,
       expectedTid: node.triggerAsyncId,
-      actualTid: uidtoid[x.triggerAsyncId]
+      actualTid: uidtoid[x.triggerAsyncId],
     });
   }
 
@@ -93,8 +93,8 @@ module.exports = function verifyGraph(hooks, graph) {
     errors.forEach((x) =>
       console.error(
         `'${x.id}' expected to be triggered by '${x.expectedTid}', ` +
-        `but was triggered by '${x.actualTid}' instead.`
-      )
+        `but was triggered by '${x.actualTid}' instead.`,
+      ),
     );
   }
   assert.strictEqual(errors.length, 0);
