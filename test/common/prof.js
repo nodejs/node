@@ -13,7 +13,7 @@ function getHeapProfiles(dir) {
 
 function findFirstFrameInNode(root, func) {
   const first = root.children.find(
-    (child) => child.callFrame.functionName === func
+    (child) => child.callFrame.functionName === func,
   );
   if (first) {
     return first;
@@ -53,7 +53,7 @@ const TEST_ALLOCATION = kHeapProfInterval * 2;
 const env = {
   ...process.env,
   TEST_ALLOCATION,
-  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER'
+  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
 };
 
 // TODO(joyeecheung): share the fixutres with v8 coverage tests
@@ -63,5 +63,5 @@ module.exports = {
   findFirstFrame,
   kHeapProfInterval,
   TEST_ALLOCATION,
-  env
+  env,
 };
