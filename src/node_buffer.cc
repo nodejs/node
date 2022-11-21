@@ -520,6 +520,20 @@ MaybeLocal<Object> New(Environment* env,
 
 namespace {
 
+// TODO: Buffer.from(buf, fromEnc).toString(buf, toEnc)
+void BufferToString(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
+
+  enum encoding fromEnc = static_cast<enum encoding>(args[1].As<Int32>()->Value());
+  enum encoding toEnc = static_cast<enum encoding>(args[2].As<Int32>()->Value());
+  Local<Object> buf;
+
+  if (New(args.GetIsolate(), args[0].As<String>(), fromEnc).ToLocal(&buf))
+    args.GetReturnValue().Set(buf);
+}
+
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsInt32());
@@ -1325,6 +1339,7 @@ void Initialize(Local<Object> target,
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
   SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
+  SetMethodNoSideEffect(context, target, "bufferToString", BufferToString);
   SetMethodNoSideEffect(context, target, "decodeUTF8", DecodeUTF8);
 
   SetMethodNoSideEffect(context, target, "byteLengthUtf8", ByteLengthUtf8);
@@ -1382,6 +1397,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
+  registry->Register(BufferToString);
   registry->Register(CreateFromString);
   registry->Register(DecodeUTF8);
 
