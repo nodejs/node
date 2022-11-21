@@ -10,6 +10,7 @@ function run_test() {
     // Source file [algorithm_name]_vectors.js provides the getTestVectors method
     // for the algorithm that drives these tests.
     var testVectors = getTestVectors();
+    var invalidTestVectors = getInvalidTestVectors();
 
     // Test verification first, because signing tests rely on that working
     testVectors.forEach(function(vector) {
@@ -407,6 +408,32 @@ function run_test() {
         all_promises.push(promise);
     });
 
+    // Test invalid signatures
+    invalidTestVectors.forEach(function(vector) {
+        var promise = importVectorKeys(vector, ["verify"], ["sign"])
+        .then(function(vectors) {
+            var algorithm = {name: vector.algorithmName, hash: vector.hashName};
+            promise_test(function(test) {
+                var operation = subtle.verify(algorithm, vector.publicKey, vector.signature, vector.plaintext)
+                .then(function(is_verified) {
+                    assert_false(is_verified, "Signature unexpectedly verified");
+                }, function(err) {
+                    assert_unreached("Verification should not throw error " + vector.name + ": " + err.message + "'");
+                });
+
+                return operation;
+            }, vector.name + " verification");
+
+        }, function(err) {
+            // We need a failed test if the importVectorKey operation fails, so
+            // we know we never tested verification.
+            promise_test(function(test) {
+                assert_unreached("importVectorKeys failed for " + vector.name + ". Message: ''" + err.message + "''");
+            }, "importVectorKeys step: " + vector.name + " verification");
+        });
+
+        all_promises.push(promise);
+    });
 
     promise_test(function() {
         return Promise.all(all_promises)
