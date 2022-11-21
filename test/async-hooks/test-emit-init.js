@@ -17,7 +17,7 @@ const hooks1 = initHooks({
     assert.strictEqual(type, expectedType);
     assert.strictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
-  })
+  }),
 });
 
 hooks1.enable();
@@ -33,7 +33,7 @@ initHooks({
     assert.strictEqual(type, expectedType);
     assert.notStrictEqual(triggerAsyncId, expectedTriggerId);
     assert.strictEqual(resource.key, expectedResource.key);
-  })
+  }),
 }).enable();
 
 async_hooks.emitInit(expectedId, expectedType, null, expectedResource);

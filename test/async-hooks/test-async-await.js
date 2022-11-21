@@ -22,7 +22,7 @@ const hooks = initHooks({
   onbefore,
   onafter,
   ondestroy: null,  // Intentionally not tested, since it will be removed soon
-  onpromiseResolve
+  onpromiseResolve,
 });
 hooks.enable();
 
