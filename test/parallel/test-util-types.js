@@ -67,6 +67,15 @@ for (const [ value, _method ] of [
   }
 }
 
+// Check detached array buffers.
+{
+  [null, undefined].forEach((entry) => assert(types.isArrayBufferDetached(entry) === false));
+
+  const { buffer } = new Uint8Array([1, 2, 3]);
+  new MessageChannel().port1.postMessage('', [buffer]);
+  assert(types.isArrayBufferDetached(buffer));
+}
+
 // Check boxed primitives.
 [
   new Boolean(),
