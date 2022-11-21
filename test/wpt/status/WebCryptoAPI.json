@@ -7,41 +7,5 @@
   },
   "idlharness.https.any.js": {
     "skip": "Various non-IDL-compliant things"
-  },
-  "import_export/okp_importKey_failures_Ed25519.https.any.js": {
-    "fail": {
-      "expected": [
-        "Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign])",
-        "Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])"
-      ]
-    }
-  },
-  "import_export/okp_importKey_failures_Ed448.https.any.js": {
-    "fail": {
-      "expected": [
-        "Invalid key pair: importKey(jwk(private), {name: Ed448}, true, [sign])",
-        "Invalid key pair: importKey(jwk(private), {name: Ed448}, true, [sign, sign])"
-      ]
-    }
-  },
-  "import_export/okp_importKey_failures_X25519.https.any.js": {
-    "fail": {
-      "expected": [
-        "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey])",
-        "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits, deriveKey])",
-        "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits])",
-        "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey, deriveBits, deriveKey, deriveBits])"
-      ]
-    }
-  },
-  "import_export/okp_importKey_failures_X448.https.any.js": {
-    "fail": {
-      "expected": [
-        "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveKey])",
-        "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveBits, deriveKey])",
-        "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveBits])",
-        "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits, deriveKey, deriveBits])"
-      ]
-    }
   }
 }
