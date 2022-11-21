@@ -333,19 +333,19 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
   const rsaPrivate = crypto.createPrivateKey(
     fixtures.readKey('rsa_private_2048.pem'));
 
-  for (const [name, [publicUsage, privateUsage]] of Object.entries({
-    'ECDSA': ['verify', 'sign'],
-    'ECDH': ['deriveBits', 'deriveBits'],
-  })) {
+  for (const [name, publicUsages, privateUsages] of [
+    ['ECDSA', ['verify'], ['sign']],
+    ['ECDH', [], ['deriveBits', 'deriveBits']],
+  ]) {
     assert.rejects(subtle.importKey(
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, [publicUsage]), { message: /Invalid key type/ });
+      true, publicUsages), { message: /Invalid key type/ });
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, [privateUsage]), { message: /Invalid key type/ });
+      true, privateUsages), { message: /Invalid key type/ });
   }
 }
