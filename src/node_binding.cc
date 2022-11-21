@@ -652,7 +652,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Call built-in bindings' _register_<module name> function to
-// do module registration explicitly.
+// do binding registration explicitly.
 void RegisterBuiltinBindings() {
 #define V(modname) _register_##modname();
   NODE_BUILTIN_BINDINGS(V)

@@ -749,7 +749,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Initialize node_start_time to get relative uptime.
   per_process::node_start_time = uv_hrtime();
 
-  // Register built-in modules
+  // Register built-in bindings
   binding::RegisterBuiltinBindings();
 
   // Make inherited handles noninheritable.
