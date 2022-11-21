@@ -11,14 +11,6 @@
   "import_export/okp_importKey_failures_Ed25519.https.any.js": {
     "fail": {
       "expected": [
-        "Bad key length: importKey(jwk(private), {name: Ed25519}, true, [sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed25519}, false, [sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed25519}, false, [sign, sign])",
-        "Bad key length: importKey(jwk (public) , {name: Ed25519}, true, [verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed25519}, false, [verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed25519}, true, [verify, verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed25519}, false, [verify, verify])",
         "Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign])",
         "Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])"
       ]
@@ -27,14 +19,6 @@
   "import_export/okp_importKey_failures_Ed448.https.any.js": {
     "fail": {
       "expected": [
-        "Bad key length: importKey(jwk(private), {name: Ed448}, true, [sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed448}, false, [sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed448}, true, [sign, sign])",
-        "Bad key length: importKey(jwk(private), {name: Ed448}, false, [sign, sign])",
-        "Bad key length: importKey(jwk (public) , {name: Ed448}, true, [verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed448}, false, [verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed448}, true, [verify, verify])",
-        "Bad key length: importKey(jwk (public) , {name: Ed448}, false, [verify, verify])",
         "Invalid key pair: importKey(jwk(private), {name: Ed448}, true, [sign])",
         "Invalid key pair: importKey(jwk(private), {name: Ed448}, true, [sign, sign])"
       ]
@@ -43,16 +27,6 @@
   "import_export/okp_importKey_failures_X25519.https.any.js": {
     "fail": {
       "expected": [
-        "Bad key length: importKey(jwk (public) , {name: X25519}, true, [])",
-        "Bad key length: importKey(jwk (public) , {name: X25519}, false, [])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, true, [deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, false, [deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, true, [deriveBits, deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, false, [deriveBits, deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, true, [deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, false, [deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, true, [deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X25519}, false, [deriveKey, deriveBits, deriveKey, deriveBits])",
         "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey])",
         "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits, deriveKey])",
         "Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits])",
@@ -63,16 +37,6 @@
   "import_export/okp_importKey_failures_X448.https.any.js": {
     "fail": {
       "expected": [
-        "Bad key length: importKey(jwk(private), {name: X448}, true, [deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X448}, false, [deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X448}, true, [deriveBits, deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X448}, false, [deriveBits, deriveKey])",
-        "Bad key length: importKey(jwk(private), {name: X448}, true, [deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X448}, false, [deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X448}, true, [deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad key length: importKey(jwk(private), {name: X448}, false, [deriveKey, deriveBits, deriveKey, deriveBits])",
-        "Bad key length: importKey(jwk (public) , {name: X448}, true, [])",
-        "Bad key length: importKey(jwk (public) , {name: X448}, false, [])",
         "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveKey])",
         "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveBits, deriveKey])",
         "Invalid key pair: importKey(jwk(private), {name: X448}, true, [deriveBits])",
