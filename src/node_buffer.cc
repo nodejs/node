@@ -522,16 +522,18 @@ namespace {
 
 // TODO: Buffer.from(buf, fromEnc).toString(buf, toEnc)
 void BufferToString(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsInt32());
-  CHECK(args[2]->IsInt32());
+    // ArrayBufferViewContents<char> buffer(args[0]); // Error
+    CHECK(args[0]->IsString());
+    CHECK(args[1]->IsString());
+    CHECK(args[2]->IsString());
 
-  enum encoding fromEnc = static_cast<enum encoding>(args[1].As<Int32>()->Value());
-  enum encoding toEnc = static_cast<enum encoding>(args[2].As<Int32>()->Value());
-  Local<Object> buf;
+    Environment* env = Environment::GetCurrent(args);
+    enum encoding fromEnc = ParseEncoding(env->isolate(), args[1], UTF8);
+    enum encoding toEnc = ParseEncoding(env->isolate(), args[2], UTF8);
 
-  if (New(args.GetIsolate(), args[0].As<String>(), fromEnc).ToLocal(&buf))
-    args.GetReturnValue().Set(buf);
+    Local<Object> buf;
+    if (New(args.GetIsolate(), args[0].As<String>(), fromEnc).ToLocal(&buf))
+      args.GetReturnValue().Set(buf);
 }
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
