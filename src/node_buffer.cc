@@ -522,18 +522,44 @@ namespace {
 
 // TODO: Buffer.from(buf, fromEnc).toString(buf, toEnc)
 void BufferToString(const FunctionCallbackInfo<Value>& args) {
-    // ArrayBufferViewContents<char> buffer(args[0]); // Error
-    CHECK(args[0]->IsString());
-    CHECK(args[1]->IsString());
-    CHECK(args[2]->IsString());
+  CHECK_GE(args.Length(), 3);
+  CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView());
+  CHECK(args[1]->IsString());
+  CHECK(args[2]->IsString());
 
-    Environment* env = Environment::GetCurrent(args);
-    enum encoding fromEnc = ParseEncoding(env->isolate(), args[1], UTF8);
-    enum encoding toEnc = ParseEncoding(env->isolate(), args[2], UTF8);
+  ArrayBufferViewContents<char> buffer(args[0]);
+  size_t length = buffer.length();
+  if (length == 0) {
+    return args.GetReturnValue().SetEmptyString();
+  }
 
-    Local<Object> buf;
-    if (New(args.GetIsolate(), args[0].As<String>(), fromEnc).ToLocal(&buf))
-      args.GetReturnValue().Set(buf);
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  enum encoding from_encoding = ParseEncoding(isolate, args[1], UTF8);
+  enum encoding to_encoding = ParseEncoding(isolate, args[2], UTF8);
+
+  if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+      args[0]->IsArrayBufferView()) {
+    ArrayBufferViewContents<char> buffer(args[0]);
+  }
+
+  if (buffer.length() == 0) {
+    return args.GetReturnValue().SetEmptyString();
+  }
+
+  Local<Value> error;
+  MaybeLocal<Value> maybe_ret = StringBytes::Encode(
+      isolate, buffer.data() + start, length, encoding, &error);
+
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    isolate->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(ret);
 }
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
