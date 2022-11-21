@@ -147,7 +147,7 @@ the community they pose.
 #### Missing Cryptographic Step (CWE-325)
 
 * Node.js provides APIs to encrypt data. Bugs that would allow an attacker
-  to get the orginal data without requiring the encryption key are
+  to get the original data without requiring the decryption key are
   considered vulnerabilities.
 
 #### External Control of System or Configuration Setting (CWE-15)
