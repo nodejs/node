@@ -523,6 +523,8 @@ namespace {
 // TODO: Buffer.from(buf, fromEnc).toString(buf, toEnc)
 void BufferToString(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 3);
+
+  // TODO: btoa('a') is throwing error: assertion failed
   CHECK(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
         args[0]->IsArrayBufferView());
   CHECK(args[1]->IsString());
@@ -534,30 +536,31 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
   enum encoding from_encoding = ParseEncoding(isolate, args[1], UTF8);
   enum encoding to_encoding = ParseEncoding(isolate, args[2], UTF8);
 
+  Local<Value> error;
+  MaybeLocal<Value> maybe_ret;
+
   if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
       args[0]->IsArrayBufferView()) {
     ArrayBufferViewContents<char> buffer(args[0]);
-
     if (buffer.length() == 0) {
       return args.GetReturnValue().SetEmptyString();
     }
-    Local<Value> error;
-    MaybeLocal<Value> maybe_ret = StringBytes::Encode(
+    maybe_ret = StringBytes::Encode(
         isolate, buffer.data(), buffer.length(), from_encoding, &error);
-
-    Local<Value> ret;
-    if (!maybe_ret.ToLocal(&ret)) {
-      CHECK(!error.IsEmpty());
-      isolate->ThrowException(error);
-      return;
-    }
-    args.GetReturnValue().Set(ret);
   } else if (args[0]->IsString()) {
-    Local<Object> buf;
-    if (New(isolate, args[0].As<String>(), from_encoding).ToLocal(&buf)) {
-      args.GetReturnValue().Set(buf);
-    }
+    ArrayBufferViewContents<char> buffer(args[0]);
+    size_t length = buffer.length();
+    const char* data =  buffer.data();
+    maybe_ret = StringBytes::Encode(
+        isolate, data, length, to_encoding, &error);
   }
+  Local<Value> ret;
+  if (!maybe_ret.ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    isolate->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(ret);
 }
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
