@@ -543,23 +543,27 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
   if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
       args[0]->IsArrayBufferView()) {
     ArrayBufferViewContents<char> buffer(args[0]);
-  }
 
-  if (buffer.length() == 0) {
-    return args.GetReturnValue().SetEmptyString();
-  }
+    if (buffer.length() == 0) {
+      return args.GetReturnValue().SetEmptyString();
+    }
+    Local<Value> error;
+    MaybeLocal<Value> maybe_ret = StringBytes::Encode(
+        isolate, buffer.data() + start, length, encoding, &error);
 
-  Local<Value> error;
-  MaybeLocal<Value> maybe_ret = StringBytes::Encode(
-      isolate, buffer.data() + start, length, encoding, &error);
-
-  Local<Value> ret;
-  if (!maybe_ret.ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
-    return;
+    Local<Value> ret;
+    if (!maybe_ret.ToLocal(&ret)) {
+      CHECK(!error.IsEmpty());
+      isolate->ThrowException(error);
+      return;
+    }
+    args.GetReturnValue().Set(ret);
+  } else if (args[0]->IsString()) {
+    Local<Object> buf;
+    if (New(isolate, args[0].As<String>(), enc).ToLocal(&buf)) {
+      args.GetReturnValue().Set(buf);
+    }
   }
-  args.GetReturnValue().Set(ret);
 }
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
