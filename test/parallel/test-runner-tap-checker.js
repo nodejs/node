@@ -17,25 +17,25 @@ function TAPChecker(input) {
 [
   ['TAP version 14', 'missing TAP plan'],
   [`
-  TAP version 14
-  1..1
+TAP version 14
+1..1
   `, 'missing Test Points'],
   [`
-  TAP version 14
-  1..1
-  ok 2
+TAP version 14
+1..1
+ok 2
   `, 'test 2 is out of plan range 1..1'],
   [`
-  TAP version 14
-  3..1
-  ok 2
+TAP version 14
+3..1
+ok 2
   `, 'plan start 3 is greater than plan end 1'],
   [`
-  TAP version 14
-  2..3
-  ok 1
-  ok 2
-  ok 3
+TAP version 14
+2..3
+ok 1
+ok 2
+ok 3
   `, 'test 1 is out of plan range 2..3'],
 
 ].forEach(([str, message]) => {
