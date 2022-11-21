@@ -51,7 +51,7 @@ async function prepareKeys() {
           Buffer.from(spki, 'hex'),
           { name },
           true,
-          ['deriveKey', 'deriveBits']),
+          []),
       ]);
       keys[name] = {
         privateKey,
@@ -150,20 +150,20 @@ async function prepareKeys() {
         },
         keys.X448.publicKey,
         ...otherArgs),
-      { message: /baseKey must be a private key/ });
+      { name: 'InvalidAccessError' });
   }
 
   {
-    // Base key is not a private key
+    // Public is not a public key
     await assert.rejects(
       subtle.deriveKey(
         {
           name: 'X448',
           public: keys.X448.privateKey
         },
-        keys.X448.publicKey,
+        keys.X448.privateKey,
         ...otherArgs),
-      { message: /algorithm\.public must be a public key/ });
+      { name: 'InvalidAccessError' });
   }
 
   {
@@ -183,6 +183,6 @@ async function prepareKeys() {
         },
         keys.X448.publicKey,
         ...otherArgs),
-      { message: /algorithm\.public must be a public key/ });
+      { name: 'InvalidAccessError' });
   }
 })().then(common.mustCall());
