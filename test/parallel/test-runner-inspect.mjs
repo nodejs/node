@@ -37,7 +37,6 @@ tmpdir.refresh();
   assert.match(stderr,
                /Warning: Using the inspector with --test forces running at a concurrency of 1\. Use the inspectPort option to run with concurrency/);
   assert.match(stdout, /not ok 1 - .+index\.js/);
-  assert.match(stdout, /stderr: \|-\r?\n\s+Debugger listening on/);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
 }
