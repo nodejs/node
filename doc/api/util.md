@@ -2034,15 +2034,18 @@ added: REPLACEME
 * Returns: {boolean}
 
 Returns `true` if the value is a built-in [`ArrayBuffer`][] and
-is detached. Detached arrays have a byte length of 0, which prevents
-JavaScript from ever accessing underlying backing store.
-
-For example, we can end up with a detached buffer when using a BYOB
-(bring your own buffer) on a ReadableStream.
+is detached. For example, we can end up with a detached buffer
+when using a BYOB (bring your own buffer) on a ReadableStream.
+Detached arrays have a `byteLength` of 0, and their contents can
+not be accessed in JavaScript.
 
 ```js
 util.types.isArrayBufferDetached(null); // Returns false
 util.types.isArrayBufferDetached(new ArrayBuffer()); // Returns false
+
+const { buffer } = new Uint8Array([1, 2, 3]);
+new MessageChannel().port1.postMessage('', [buffer]);
+util.types.isArrayBufferDetached(buffer); // Returns true
 ```
 
 ### `util.types.isArrayBufferView(value)`
