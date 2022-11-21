@@ -109,6 +109,22 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./tools/update-acorn-walk.sh
               fi
+          - id: libuv
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(gh api repos/libuv/libuv/releases/latest -q '.tag_name|ltrimstr("v")')
+              VERSION_H="./deps/uv/include/uv/version.h"
+              CURRENT_MAJOR_VERSION=$(grep "#define UV_VERSION_MAJOR" $VERSION_H | sed -n "s/^.*MAJOR \(.*\)/\1/p")
+              CURRENT_MINOR_VERSION=$(grep "#define UV_VERSION_MINOR" $VERSION_H | sed -n "s/^.*MINOR \(.*\)/\1/p")
+              CURRENT_PATCH_VERSION=$(grep "#define UV_VERSION_PATCH" $VERSION_H | sed -n "s/^.*PATCH \(.*\)/\1/p")
+              CURRENT_SUFFIX_VERSION=$(grep "#define UV_VERSION_SUFFIX" $VERSION_H | sed -n "s/^.*SUFFIX \"\(.*\)\"/\1/p")
+              SUFFIX_STRING=$([[ -z "$CURRENT_SUFFIX_VERSION" ]] && echo "" || echo "-$CURRENT_SUFFIX_VERSION")
+              CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION$SUFFIX_STRING"
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/dep_updaters/update-libuv.sh "$NEW_VERSION"
+              fi
     steps:
       - uses: actions/checkout@v3
         with:
