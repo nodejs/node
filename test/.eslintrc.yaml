@@ -72,7 +72,6 @@ globals:
 
 overrides:
   - files:
-      - addons/*/*.js
       - async-hooks/*.js
       - es-module/*.js
       - es-module/*.mjs
