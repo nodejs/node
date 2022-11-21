@@ -41,7 +41,7 @@ function createJSHeapSnapshot(stream = getHeapSnapshot()) {
       type,
       to: toNode,
       from: fromNode,
-      name: typeof name_or_index === 'string' ? name_or_index : null
+      name: typeof name_or_index === 'string' ? name_or_index : null,
     };
     toNode.incomingEdges.push(edge);
     fromNode.outgoingEdges.push(edge);
@@ -130,7 +130,7 @@ class State {
           const check = typeof expectedEdge === 'function' ? expectedEdge :
             (edge) => (isEdge(edge, expectedEdge));
           const hasChild = rootNodes.some(
-            (node) => node.outgoingEdges.some(check)
+            (node) => node.outgoingEdges.some(check),
           );
           // Don't use assert with a custom message here. Otherwise the
           // inspection in the message is done eagerly and wastes a lot of CPU
@@ -164,7 +164,7 @@ class State {
   // Validate our internal embedded graph representation
   validateGraph(rootName, expected, { loose = false } = {}) {
     const rootNodes = this.embedderGraph.filter(
-      (node) => node.name === rootName
+      (node) => node.name === rootName,
     );
     if (loose) {
       assert(rootNodes.length >= expected.length,
@@ -185,7 +185,7 @@ class State {
           // inspection in the message is done eagerly and wastes a lot of CPU
           // time.
           const hasChild = rootNodes.some(
-            (node) => node.edges.some(check)
+            (node) => node.edges.some(check),
           );
           if (!hasChild) {
             throw new Error(
@@ -221,16 +221,16 @@ function getHeapSnapshotOptionTests() {
           // We don't have anything special to test here yet
           // because we don't use cppgc or embedder heap tracer.
           { edge_name: 'nonNumeric', node_name: 'test' },
-        ]
-      }]
+        ],
+      }],
     },
     {
       options: { exposeNumericValues: true },
       expected: [{
         children: [
           { edge_name: 'numeric', node_name: 'smi number' },
-        ]
-      }]
+        ],
+      }],
     },
   ];
   return {
@@ -245,5 +245,5 @@ function getHeapSnapshotOptionTests() {
 module.exports = {
   recordState,
   validateSnapshotNodes,
-  getHeapSnapshotOptionTests
+  getHeapSnapshotOptionTests,
 };

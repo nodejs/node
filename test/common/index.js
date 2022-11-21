@@ -39,7 +39,7 @@ const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
 const {
   atob,
-  btoa
+  btoa,
 } = require('buffer');
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
@@ -98,7 +98,7 @@ if (process.argv.length === 2 &&
         console.log(
           'NOTE: The test started as a child_process using these flags:',
           inspect(flags),
-          'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.'
+          'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.',
         );
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
         const options = { encoding: 'utf8', stdio: 'inherit' };
@@ -175,7 +175,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: inspect(new Error()).substr(6)
+        stack: inspect(new Error()).substr(6),
       };
     },
     before() { },
@@ -435,7 +435,7 @@ function _mustCallInner(fn, criteria = 1, field) {
     [field]: criteria,
     actual: 0,
     stack: inspect(new Error()),
-    name: fn.name || '<anonymous>'
+    name: fn.name || '<anonymous>',
   };
 
   // Add the exit listener only once to avoid listener leak warnings
@@ -478,7 +478,7 @@ function hasMultiLocalhost() {
 
 function skipIfEslintMissing() {
   if (!fs.existsSync(
-    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint')
+    path.join(__dirname, '..', '..', 'tools', 'node_modules', 'eslint'),
   )) {
     skip('missing ESLint');
   }
@@ -567,7 +567,7 @@ function mustNotMutateObjectDeep(original) {
     },
     setPrototypeOf(target, prototype) {
       assert.fail(`Expected no side effects, got set prototype to ${prototype}`);
-    }
+    },
   };
 
   const proxy = new Proxy(original, _mustNotMutateObjectDeepHandler);
@@ -670,7 +670,7 @@ function expectWarning(nameOrMap, expected, code) {
       if (!catchWarning[warning.name]) {
         throw new TypeError(
           `"${warning.name}" was triggered without being expected.\n` +
-          inspect(warning)
+          inspect(warning),
         );
       }
       catchWarning[warning.name](warning);
@@ -1034,5 +1034,5 @@ module.exports = new Proxy(common, {
     if (!validProperties.has(prop))
       throw new Error(`Using invalid common property: '${prop}'`);
     return obj[prop];
-  }
+  },
 });

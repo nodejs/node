@@ -45,7 +45,7 @@ function runWithSnapshot(entry, env) {
     env: {
       ...process.env,
       ...env,
-    }
+    },
   });
 
   const stderr = child.stderr.toString();

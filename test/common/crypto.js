@@ -30,11 +30,11 @@ function testDH({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
                 expectedValue) {
   const buf1 = crypto.diffieHellman({
     privateKey: alicePrivateKey,
-    publicKey: bobPublicKey
+    publicKey: bobPublicKey,
   });
   const buf2 = crypto.diffieHellman({
     privateKey: bobPrivateKey,
-    publicKey: alicePublicKey
+    publicKey: alicePublicKey,
   });
   assert.deepStrictEqual(buf1, buf2);
 
@@ -44,5 +44,5 @@ function testDH({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
 
 module.exports = {
   modp2buf,
-  testDH
+  testDH,
 };
