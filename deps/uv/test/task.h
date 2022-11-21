@@ -375,4 +375,11 @@ UNUSED static int can_ipv6(void) {
   "Cygwin runtime hangs on listen+connect in same process."
 #endif
 
+#if !defined(__linux__) && \
+    !defined(__FreeBSD__) && \
+    !defined(_WIN32)
+# define NO_CPU_AFFINITY \
+  "affinity not supported on this platform."
+#endif
+
 #endif /* TASK_H_ */

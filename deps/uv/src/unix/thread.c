@@ -41,6 +41,17 @@
 #include <gnu/libc-version.h>  /* gnu_get_libc_version() */
 #endif
 
+#if defined(__linux__)
+# include <sched.h>
+# define uv__cpu_set_t cpu_set_t
+#elif defined(__FreeBSD__)
+# include <sys/param.h>
+# include <sys/cpuset.h>
+# include <pthread_np.h>
+# define uv__cpu_set_t cpuset_t
+#endif
+
+
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
 
@@ -284,6 +295,106 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV__ERR(err);
 }
 
+#if defined(__linux__) || defined(__FreeBSD__)
+
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  int r;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  if (oldmask != NULL) {
+    r = uv_thread_getaffinity(tid, oldmask, mask_size);
+    if (r < 0)
+      return r;
+  }
+
+  CPU_ZERO(&cpuset);
+  for (i = 0; i < cpumasksize; i++)
+    if (cpumask[i])
+      CPU_SET(i, &cpuset);
+
+#if defined(__ANDROID__)
+  if (sched_setaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_setaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+
+  return UV__ERR(r);
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int r;
+  int i;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  CPU_ZERO(&cpuset);
+#if defined(__ANDROID__)
+  if (sched_getaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_getaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+  if (r)
+    return UV__ERR(r);
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = !!CPU_ISSET(i, &cpuset);
+
+  return 0;
+}
+#else
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+#endif /* defined(__linux__) || defined(UV_BSD_H) */
+
+int uv_thread_getcpu(void) {
+#if defined(__linux__) || defined(__FreeBSD__)
+  int cpu;
+
+  cpu = sched_getcpu();
+  if (cpu < 0)
+    return UV__ERR(errno);
+
+  return cpu;
+#else
+  return UV_ENOTSUP;
+#endif
+}
 
 uv_thread_t uv_thread_self(void) {
   return pthread_self();

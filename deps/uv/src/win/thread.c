@@ -180,6 +180,81 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV_EIO;
 }
 
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  DWORD_PTR oldthreadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = 0;
+  for (i = 0; i < cpumasksize; i++) {
+    if (cpumask[i]) {
+      if (procmask & (1 << i))
+        threadmask |= 1 << i;
+      else
+        return UV_EINVAL;
+    }
+  }
+
+  oldthreadmask = SetThreadAffinityMask(*tid, threadmask);
+  if (oldthreadmask == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  if (oldmask != NULL) {
+    for (i = 0; i < cpumasksize; i++)
+      oldmask[i] = (oldthreadmask >> i) & 1;
+  }
+
+  return 0;
+}
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = SetThreadAffinityMask(*tid, procmask);
+  if (threadmask == 0 || SetThreadAffinityMask(*tid, threadmask) == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = (threadmask >> i) & 1;
+
+  return 0;
+}
+
+int uv_thread_getcpu(void) {
+  return GetCurrentProcessorNumber();
+}
 
 uv_thread_t uv_thread_self(void) {
   uv_thread_t key;

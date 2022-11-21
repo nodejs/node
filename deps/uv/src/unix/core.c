@@ -72,6 +72,8 @@ extern char** environ;
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/wait.h>
+# include <sys/param.h>
+# include <sys/cpuset.h>
 # if defined(__FreeBSD__)
 #  define uv__accept4 accept4
 # endif
@@ -1416,6 +1418,13 @@ uv_pid_t uv_os_getppid(void) {
   return getppid();
 }
 
+int uv_cpumask_size(void) {
+#if defined(__linux__) || defined(__FreeBSD__)
+  return CPU_SETSIZE;
+#else
+  return UV_ENOTSUP;
+#endif
+}
 
 int uv_os_getpriority(uv_pid_t pid, int* priority) {
   int r;
