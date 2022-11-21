@@ -528,12 +528,6 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsString());
 
-  ArrayBufferViewContents<char> buffer(args[0]);
-  size_t length = buffer.length();
-  if (length == 0) {
-    return args.GetReturnValue().SetEmptyString();
-  }
-
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -549,7 +543,7 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
     }
     Local<Value> error;
     MaybeLocal<Value> maybe_ret = StringBytes::Encode(
-        isolate, buffer.data() + start, length, encoding, &error);
+        isolate, buffer.data(), buffer.length(), from_encoding, &error);
 
     Local<Value> ret;
     if (!maybe_ret.ToLocal(&ret)) {
@@ -560,7 +554,7 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
   } else if (args[0]->IsString()) {
     Local<Object> buf;
-    if (New(isolate, args[0].As<String>(), enc).ToLocal(&buf)) {
+    if (New(isolate, args[0].As<String>(), from_encoding).ToLocal(&buf)) {
       args.GetReturnValue().Set(buf);
     }
   }
