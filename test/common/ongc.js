@@ -21,7 +21,7 @@ function onGC(obj, gcListener) {
         this.gcListener.ongc();
         onGcAsyncHook.disable();
       }
-    }
+    },
   }).enable();
   onGcAsyncHook.gcListener = gcListener;
 
