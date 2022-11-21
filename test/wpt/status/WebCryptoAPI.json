@@ -59,14 +59,6 @@
   "import_export/okp_importKey_failures_X25519.https.any.js": {
     "fail": {
       "expected": [
-        "Bad usages: importKey(spki, {name: X25519}, true, [deriveKey])",
-        "Bad usages: importKey(spki, {name: X25519}, false, [deriveKey])",
-        "Bad usages: importKey(spki, {name: X25519}, true, [deriveBits])",
-        "Bad usages: importKey(spki, {name: X25519}, false, [deriveBits])",
-        "Bad usages: importKey(jwk (public) , {name: X25519}, true, [deriveKey])",
-        "Bad usages: importKey(jwk (public) , {name: X25519}, false, [deriveKey])",
-        "Bad usages: importKey(jwk (public) , {name: X25519}, true, [deriveBits])",
-        "Bad usages: importKey(jwk (public) , {name: X25519}, false, [deriveBits])",
         "Bad key length: importKey(spki, {name: X25519}, true, [])",
         "Bad key length: importKey(spki, {name: X25519}, false, [])",
         "Bad key length: importKey(pkcs8, {name: X25519}, true, [deriveKey])",
@@ -97,14 +89,6 @@
   "import_export/okp_importKey_failures_X448.https.any.js": {
     "fail": {
       "expected": [
-        "Bad usages: importKey(spki, {name: X448}, true, [deriveKey])",
-        "Bad usages: importKey(spki, {name: X448}, false, [deriveKey])",
-        "Bad usages: importKey(spki, {name: X448}, true, [deriveBits])",
-        "Bad usages: importKey(spki, {name: X448}, false, [deriveBits])",
-        "Bad usages: importKey(jwk (public) , {name: X448}, true, [deriveKey])",
-        "Bad usages: importKey(jwk (public) , {name: X448}, false, [deriveKey])",
-        "Bad usages: importKey(jwk (public) , {name: X448}, true, [deriveBits])",
-        "Bad usages: importKey(jwk (public) , {name: X448}, false, [deriveBits])",
         "Bad key length: importKey(spki, {name: X448}, true, [])",
         "Bad key length: importKey(spki, {name: X448}, false, [])",
         "Bad key length: importKey(pkcs8, {name: X448}, true, [deriveKey])",
