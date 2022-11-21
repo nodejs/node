@@ -32,8 +32,8 @@ if (process.env.inspectPort === 'addTwo') {
 
 const stream = run({ files: [fixtures.path('test-runner/run_inspect_assert.js')], inspectPort });
 if (expectedError) {
-  stream.on('test:fail', common.mustCall(({ error }) => {
-    assert.deepStrictEqual({ name: error.cause.name, code: error.cause.code }, expectedError);
+  stream.on('test:fail', common.mustCall(({ details }) => {
+    assert.deepStrictEqual({ name: details.error.cause.name, code: details.error.cause.code }, expectedError);
   }));
 } else {
   stream.on('test:fail', common.mustNotCall());
