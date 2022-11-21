@@ -14,92 +14,46 @@ function TAPChecker(input) {
   parser.check();
 }
 
-{
-  assert.throws(() => TAPChecker('TAP version 14'), {
-    name: 'Error',
+[
+  ['TAP version 14', 'missing TAP plan'],
+  [`
+  TAP version 14
+  1..1
+  `, 'missing Test Points'],
+  [`
+  TAP version 14
+  1..1
+  ok 2
+  `, 'test 2 is out of plan range 1..1'],
+  [`
+  TAP version 14
+  3..1
+  ok 2
+  `, 'plan start 3 is greater than plan end 1'],
+  [`
+  TAP version 14
+  2..3
+  ok 1
+  ok 2
+  ok 3
+  `, 'test 1 is out of plan range 2..3'],
+
+].forEach(([str, message]) => {
+  assert.throws(() => TAPChecker(str), {
     code: 'ERR_TAP_VALIDATION_ERROR',
-    message: 'missing TAP plan',
+    message,
   });
-}
+});
 
-{
-  assert.throws(
-    () =>
-      TAPChecker(`
-TAP version 14
-1..1
-`),
-    {
-      name: 'Error',
-      code: 'ERR_TAP_VALIDATION_ERROR',
-      message: 'missing Test Points',
-    }
-  );
-}
-
-{
-
-  // Valid TAP14 should not throw
-  TAPChecker(`
+// Valid TAP14 should not throw
+TAPChecker(`
 TAP version 14
 1..1
 ok
 `);
-}
 
-{
-  assert.throws(
-    () =>
-      TAPChecker(`
-TAP version 14
-1..1
-ok 2
-`),
-    {
-      name: 'Error',
-      code: 'ERR_TAP_VALIDATION_ERROR',
-      message: 'test 2 is out of plan range 1..1',
-    }
-  );
-}
-
-{
-  assert.throws(
-    () =>
-      TAPChecker(`
-TAP version 14
-3..1
-ok 2
-`),
-    {
-      name: 'Error',
-      code: 'ERR_TAP_VALIDATION_ERROR',
-      message: 'plan start 3 is greater than plan end 1',
-    }
-  );
-}
-
-{
-  assert.throws(
-    () =>
-      TAPChecker(`
-TAP version 14
-2..3
-ok 1
-ok 2
-ok 3
-`),
-    {
-      name: 'Error',
-      code: 'ERR_TAP_VALIDATION_ERROR',
-      message: 'test 1 is out of plan range 2..3',
-    }
-  );
-}
-
-{
 // Valid comment line shout not throw.
-  TAPChecker(`
+TAPChecker(`
 TAP version 14
 1..5
 ok 1 - approved operating system
@@ -109,19 +63,15 @@ ok 3 - # SKIP no /sys directory
 ok 4 - # SKIP no /sys directory
 ok 5 - # SKIP no /sys directory
 `);
-}
 
-{
 // Valid empty test plan should not throw.
-  TAPChecker(`
+TAPChecker(`
 TAP version 14
 1..0 # skip because English-to-French translator isn't installed
 `);
-}
 
-{
 // Valid test plan count should not throw.
-  TAPChecker(`
+TAPChecker(`
 TAP version 14
 1..4
 ok 1 - Creating test program
@@ -130,11 +80,8 @@ not ok 3 - infinite loop # TODO halting problem unsolved
 not ok 4 - infinite loop 2 # TODO halting problem unsolved
 `);
 
-}
-
-{
 // Valid YAML diagnostic should not throw.
-  TAPChecker(`
+TAPChecker(`
 TAP version 14
 ok - created Board
 ok
@@ -162,14 +109,11 @@ ok
 ok - board has 7 tiles + starter tile
 1..9
 `);
-}
 
-{
-  // Valid Bail out should not throw.
-  TAPChecker(`
+// Valid Bail out should not throw.
+TAPChecker(`
 TAP version 14
 1..573
 not ok 1 - database handle
 Bail out! Couldn't connect to database.
 `);
-}
