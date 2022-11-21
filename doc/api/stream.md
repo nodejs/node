@@ -882,8 +882,10 @@ pass.unpipe(writable);
 // readableFlowing is now false.
 
 pass.on('data', (chunk) => { console.log(chunk.toString()); });
+// readableFlowing is still false.
 pass.write('ok');  // Will not emit 'data'.
 pass.resume();     // Must be called to make stream emit 'data'.
+// readableFlowing is now true.
 ```
 
 While `readable.readableFlowing` is `false`, data may be accumulating
