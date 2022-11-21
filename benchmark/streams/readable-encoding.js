@@ -17,6 +17,8 @@ function main({ n, encoding, len, op }) {
   const s = new Readable({
     objectMode: false,
   });
+  function noop() {}
+  s._read = noop;
 
   bench.start();
   switch (op) {
