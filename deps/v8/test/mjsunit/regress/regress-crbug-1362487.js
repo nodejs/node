@@ -13,4 +13,4 @@ class MyInt8Array extends Int8Array {
 const rab2 = new ArrayBuffer(1000, {'maxByteLength': 4000});
 const ta = new Int8Array(rab2);
 ta.constructor = MyInt8Array;
-ta.slice();
+assertThrows(() => { ta.slice(); }, TypeError);

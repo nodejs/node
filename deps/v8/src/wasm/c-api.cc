@@ -434,6 +434,7 @@ struct ManagedData {
 
 void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
                             void (*finalizer)(void*)) {
+  v8::Isolate::Scope isolate_scope(isolate());
   i::HandleScope scope(i_isolate());
   // Ideally we would specify the total size kept alive by {info} here,
   // but all we get from the embedder is a {void*}, so our best estimate
@@ -484,6 +485,7 @@ auto Store::make(Engine*) -> own<Store> {
   // and hence must not be called by anything reachable via this file.
 
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
     // Create context.
@@ -1000,6 +1002,7 @@ auto Trap::copy() const -> own<Trap> { return impl(this)->copy(); }
 auto Trap::make(Store* store_abs, const Message& message) -> own<Trap> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   i::Handle<i::String> string = VecToString(isolate, message);
   i::Handle<i::JSObject> exception =
@@ -1012,6 +1015,7 @@ auto Trap::make(Store* store_abs, const Message& message) -> own<Trap> {
 
 auto Trap::message() const -> Message {
   auto isolate = impl(this)->isolate();
+  v8::Isolate::Scope isolate_scope(impl(this)->store()->isolate());
   i::HandleScope handle_scope(isolate);
 
   i::Handle<i::JSMessageObject> message =
@@ -1085,6 +1089,7 @@ auto Foreign::copy() const -> own<Foreign> { return impl(this)->copy(); }
 
 auto Foreign::make(Store* store_abs) -> own<Foreign> {
   StoreImpl* store = impl(store_abs);
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
 
@@ -1116,6 +1121,7 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
 auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
   CheckAndHandleInterrupts(isolate);
   i::wasm::ModuleWireBytes bytes(
@@ -1440,6 +1446,7 @@ constexpr i::wasm::ValueType SignatureHelper::kMarker;
 auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
   i::Handle<i::Managed<FuncData>> embedder_data =
@@ -1649,6 +1656,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   auto func = impl(this);
   auto store = func->store();
   auto isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   i::Object raw_function_data =
       func->v8_object()->shared().function_data(v8::kAcquireLoad);
@@ -1718,6 +1726,8 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
+
+  isolate->set_context(*v8::Utils::OpenHandle(*store->context()));
 
   const ownvec<ValType>& param_types = self->type->params();
   const ownvec<ValType>& result_types = self->type->results();
@@ -1816,6 +1826,7 @@ auto Global::copy() const -> own<Global> { return impl(this)->copy(); }
 auto Global::make(Store* store_abs, const GlobalType* type, const Val& val)
     -> own<Global> {
   StoreImpl* store = impl(store_abs);
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
@@ -1882,6 +1893,7 @@ auto Global::get() const -> Val {
 }
 
 void Global::set(const Val& val) {
+  v8::Isolate::Scope isolate_scope(impl(this)->store()->isolate());
   i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
   switch (val.kind()) {
     case I32:
@@ -1926,6 +1938,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
     -> own<Table> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
   CheckAndHandleInterrupts(isolate);
 
@@ -2012,6 +2025,7 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   if (index >= static_cast<size_t>(table->current_length())) return false;
   i::Isolate* isolate = table->GetIsolate();
+  v8::Isolate::Scope isolate_scope(impl(this)->store()->isolate());
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
@@ -2032,6 +2046,7 @@ auto Table::size() const -> size_t {
 auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   i::Isolate* isolate = table->GetIsolate();
+  v8::Isolate::Scope isolate_scope(impl(this)->store()->isolate());
   i::HandleScope scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
@@ -2058,6 +2073,7 @@ auto Memory::copy() const -> own<Memory> { return impl(this)->copy(); }
 auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
   CheckAndHandleInterrupts(isolate);
 
@@ -2108,6 +2124,7 @@ auto Memory::size() const -> pages_t {
 auto Memory::grow(pages_t delta) -> bool {
   i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
   i::Isolate* isolate = memory->GetIsolate();
+  v8::Isolate::Scope isolate_scope(impl(this)->store()->isolate());
   i::HandleScope handle_scope(isolate);
   int32_t old = i::WasmMemoryObject::Grow(isolate, memory, delta);
   return old != -1;
@@ -2129,6 +2146,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
   StoreImpl* store = impl(store_abs);
   const implement<Module>::type* module = impl(module_abs);
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
 
@@ -2199,6 +2217,7 @@ auto Instance::exports() const -> ownvec<Extern> {
   const implement<Instance>::type* instance = impl(this);
   StoreImpl* store = instance->store();
   i::Isolate* isolate = store->i_isolate();
+  v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
   i::Handle<i::WasmInstanceObject> instance_obj = instance->v8_object();

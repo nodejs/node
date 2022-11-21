@@ -68,7 +68,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
   }
   BIND(&fast_loop);
   {
-    Label if_exception_during_fast_iteration(this);
+    Label if_exception_during_fast_iteration(this, Label::kDeferred);
     TNode<JSArray> initial_entries_jsarray =
         UncheckedCast<JSArray>(initial_entries);
 #if DEBUG
@@ -178,7 +178,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     // to the collection does not call user code that could mutate the elements
     // or collection.
     BuildFastLoop<IntPtrT>(IntPtrConstant(0), length, set_entry, 1,
-                           IndexAdvanceMode::kPost);
+                           LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
     Goto(&exit);
   }
   BIND(&if_doubles);
@@ -199,7 +199,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
         AddConstructorEntry(variant, context, collection, add_func, entry);
       };
       BuildFastLoop<IntPtrT>(IntPtrConstant(0), length, set_entry, 1,
-                             IndexAdvanceMode::kPost);
+                             LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
       Goto(&exit);
     }
   }

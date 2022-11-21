@@ -347,7 +347,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   DisallowGarbageCollection no_gc;
-  if (is_compiled()) {
+  if (HasFeedbackMetadata()) {
     if (v8_flags.trace_flush_bytecode) {
       CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
       PrintF(scope.file(), "[discarding compiled metadata for ");
@@ -386,6 +386,17 @@ void SharedFunctionInfo::DiscardCompiled(
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
 
+  MaybeHandle<UncompiledData> data;
+  if (!shared_info->HasUncompiledDataWithPreparseData()) {
+    // Create a new UncompiledData, without pre-parsed scope.
+    data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
+        inferred_name_val, start_position, end_position);
+  }
+
+  // If the GC runs after changing one but not both fields below, it could see
+  // the SharedFunctionInfo in an unexpected state.
+  DisallowGarbageCollection no_gc;
+
   shared_info->DiscardCompiledMetadata(isolate);
 
   // Replace compiled data with a new UncompiledData object.
@@ -393,14 +404,12 @@ void SharedFunctionInfo::DiscardCompiled(
     // If this is uncompiled data with a pre-parsed scope data, we can just
     // clear out the scope data and keep the uncompiled data.
     shared_info->ClearPreparseData();
+    DCHECK(data.is_null());
   } else {
-    // Create a new UncompiledData, without pre-parsed scope, and update the
-    // function data to point to it. Use the raw function data setter to avoid
-    // validity checks, since we're performing the unusual task of decompiling.
-    Handle<UncompiledData> data =
-        isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            inferred_name_val, start_position, end_position);
-    shared_info->set_function_data(*data, kReleaseStore);
+    // Update the function data to point to the UncompiledData without preparse
+    // data created above. Use the raw function data setter to avoid validity
+    // checks, since we're performing the unusual task of decompiling.
+    shared_info->set_function_data(*data.ToHandleChecked(), kReleaseStore);
   }
 }
 

@@ -16,6 +16,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-origin-table.h"
@@ -35,6 +36,7 @@ namespace {
 
 struct ScheduleBuilder {
   const Graph& input_graph;
+  JSHeapBroker* broker;
   CallDescriptor* call_descriptor;
   Zone* graph_zone;
   Zone* phase_zone;
@@ -353,7 +355,8 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
           o = machine.Int64SubWithOverflow();
           break;
         case OverflowCheckedBinopOp::Kind::kSignedMul:
-          UNREACHABLE();
+          o = machine.Int64MulWithOverflow();
+          break;
       }
       break;
     default:
@@ -835,13 +838,21 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
-  const Operator* o = op.rep == WordRepresentation::Word32()
+  // If there is a Select, then it should only be one that is supported by the
+  // machine, and it should be meant to be implementation with cmove.
+  DCHECK_EQ(op.implem, SelectOp::Implementation::kCMove);
+  DCHECK((op.rep == RegisterRepresentation::Word32() &&
+          SupportedOperations::word32_select()) ||
+         (op.rep == RegisterRepresentation::Word64() &&
+          SupportedOperations::word64_select()));
+
+  const Operator* o = op.rep == RegisterRepresentation::Word32()
                           ? machine.Word32Select().op()
                           : machine.Word64Select().op();
-  return AddNode(
-      o, {GetNode(op.condition()), GetNode(op.left()), GetNode(op.right())});
-}
 
+  return AddNode(
+      o, {GetNode(op.cond()), GetNode(op.vtrue()), GetNode(op.vfalse())});
+}
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
 }
@@ -879,34 +890,27 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
                                        RelocInfo::WASM_STUB_CALL);
   }
 }
+
 Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == LoadOp::Kind::kTaggedBase) {
+  if (op.kind.tagged_base) {
     CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
   Node* base = GetNode(op.base());
-  return AddNode(op.kind == LoadOp::Kind::kRawAligned
-                     ? machine.Load(op.loaded_rep.ToMachineType())
-                 : op.kind == LoadOp::Kind::kRawUnaligned
-                     ? machine.UnalignedLoad(op.loaded_rep.ToMachineType())
-                     : machine.ProtectedLoad(op.loaded_rep.ToMachineType()),
-                 {base, IntPtrConstant(offset)});
-}
-Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
-  intptr_t offset = op.offset;
-  if (op.kind == LoadOp::Kind::kTaggedBase) {
-    CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
-    offset -= kHeapObjectTag;
+  Node* index;
+  if (op.index().valid()) {
+    index = GetNode(op.index());
+    if (op.element_size_log2 != 0) {
+      index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
+    }
+    if (offset != 0) {
+      index = IntPtrAdd(index, IntPtrConstant(offset));
+    }
+  } else {
+    index = IntPtrConstant(offset);
   }
-  Node* base = GetNode(op.base());
-  Node* index = GetNode(op.index());
-  if (op.element_size_log2 != 0) {
-    index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
-  }
-  if (offset != 0) {
-    index = IntPtrAdd(index, IntPtrConstant(offset));
-  }
+
   MachineType loaded_rep = op.loaded_rep.ToMachineType();
   if (op.result_rep == RegisterRepresentation::Compressed()) {
     if (loaded_rep == MachineType::AnyTagged()) {
@@ -915,64 +919,56 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
       loaded_rep = MachineType::CompressedPointer();
     }
   }
-  return AddNode(op.kind == LoadOp::Kind::kRawAligned ? machine.Load(loaded_rep)
-                 : op.kind == LoadOp::Kind::kRawUnaligned
-                     ? machine.UnalignedLoad(loaded_rep)
-                     : machine.ProtectedLoad(loaded_rep),
-                 {base, index});
+  const Operator* o;
+  if (op.kind.maybe_unaligned) {
+    DCHECK(!op.kind.with_trap_handler);
+    o = machine.UnalignedLoad(loaded_rep);
+  } else if (op.kind.with_trap_handler) {
+    DCHECK(!op.kind.maybe_unaligned);
+    o = machine.ProtectedLoad(loaded_rep);
+  } else {
+    o = machine.Load(loaded_rep);
+  }
+  return AddNode(o, {base, index});
 }
-Node* ScheduleBuilder::ProcessOperation(const ProtectedLoadOp& op) {
-  return AddNode(machine.ProtectedLoad(op.loaded_rep.ToMachineType()),
-                 {GetNode(op.base()), GetNode(op.index())});
-}
+
 Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == StoreOp::Kind::kTaggedBase) {
+  if (op.kind.tagged_base) {
     CHECK(offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
   Node* base = GetNode(op.base());
-  Node* value = GetNode(op.value());
-  const Operator* o;
-  if (IsAlignedAccess(op.kind)) {
-    o = machine.Store(StoreRepresentation(
-        op.stored_rep.ToMachineType().representation(), op.write_barrier));
+  Node* index;
+  if (op.index().valid()) {
+    index = GetNode(op.index());
+    if (op.element_size_log2 != 0) {
+      index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
+    }
+    if (offset != 0) {
+      index = IntPtrAdd(index, IntPtrConstant(offset));
+    }
   } else {
+    index = IntPtrConstant(offset);
+  }
+  Node* value = GetNode(op.value());
+
+  const Operator* o;
+  if (op.kind.maybe_unaligned) {
+    DCHECK(!op.kind.with_trap_handler);
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
     o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
-  }
-  return AddNode(o, {base, IntPtrConstant(offset), value});
-}
-Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
-  intptr_t offset = op.offset;
-  if (op.kind == IndexedStoreOp::Kind::kTaggedBase) {
-    CHECK(offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag);
-    offset -= kHeapObjectTag;
-  }
-  Node* base = GetNode(op.base());
-  Node* index = GetNode(op.index());
-  Node* value = GetNode(op.value());
-  if (op.element_size_log2 != 0) {
-    index = IntPtrShl(index, IntPtrConstant(op.element_size_log2));
-  }
-  if (offset != 0) {
-    index = IntPtrAdd(index, IntPtrConstant(offset));
-  }
-  const Operator* o;
-  if (IsAlignedAccess(op.kind)) {
+  } else if (op.kind.with_trap_handler) {
+    DCHECK(!op.kind.maybe_unaligned);
+    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
+  } else {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
-  } else {
-    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
   }
   return AddNode(o, {base, index, value});
 }
-Node* ScheduleBuilder::ProcessOperation(const ProtectedStoreOp& op) {
-  return AddNode(
-      machine.ProtectedStore(op.stored_rep.ToMachineType().representation()),
-      {GetNode(op.base()), GetNode(op.index()), GetNode(op.value())});
-}
+
 Node* ScheduleBuilder::ProcessOperation(const RetainOp& op) {
   return AddNode(common.Retain(), {GetNode(op.retained())});
 }
@@ -1074,6 +1070,15 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {
   return AddNode(common.Projection(op.index), {GetNode(op.input())});
+}
+Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
+  // Static asserts should be (statically asserted and) removed by turboshaft.
+  UnparkedScopeIfNeeded scope(broker);
+  AllowHandleDereference allow_handle_dereference;
+  std::cout << input_graph.Get(op.input());
+  FATAL(
+      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
+      op.source);
 }
 
 std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
@@ -1202,7 +1207,8 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
   for (OpIndex i : op.arguments()) {
     inputs.push_back(GetNode(i));
   }
-  return AddNode(common.Call(op.descriptor), base::VectorOf(inputs));
+  return AddNode(common.Call(op.descriptor->descriptor),
+                 base::VectorOf(inputs));
 }
 Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
   base::SmallVector<Node*, 16> inputs;
@@ -1210,7 +1216,8 @@ Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
   for (OpIndex i : op.arguments()) {
     inputs.push_back(GetNode(i));
   }
-  Node* call = MakeNode(common.TailCall(op.descriptor), base::VectorOf(inputs));
+  Node* call = MakeNode(common.TailCall(op.descriptor->descriptor),
+                        base::VectorOf(inputs));
   schedule->AddTailCall(current_block, call);
   current_block = nullptr;
   return nullptr;
@@ -1282,12 +1289,14 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 }  // namespace
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
+                                        JSHeapBroker* broker,
                                         CallDescriptor* call_descriptor,
                                         Zone* graph_zone, Zone* phase_zone,
                                         SourcePositionTable* source_positions,
                                         NodeOriginTable* origins) {
-  ScheduleBuilder builder{graph,      call_descriptor,  graph_zone,
-                          phase_zone, source_positions, origins};
+  ScheduleBuilder builder{graph,      broker,     call_descriptor,
+                          graph_zone, phase_zone, source_positions,
+                          origins};
   return builder.Run();
 }
 

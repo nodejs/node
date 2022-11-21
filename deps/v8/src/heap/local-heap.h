@@ -130,6 +130,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // iterable heap.
   void MakeLinearAllocationAreaIterable();
 
+  // Makes the shared LAB iterable.
+  void MakeSharedLinearAllocationAreaIterable();
+
   // Fetches a pointer to the local heap from the thread local storage.
   // It is intended to be used in handle and write barrier code where it is
   // difficult to get a pointer to the current instance of local heap otherwise.
@@ -307,6 +310,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void SetUpMainThread();
   void SetUp();
+  void SetUpSharedMarking();
 
   Heap* heap_;
   bool is_main_thread_;
@@ -332,14 +336,16 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
 
+  MarkingBarrier* saved_marking_barrier_ = nullptr;
+
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
   friend class GlobalSafepoint;
-  friend class IsolateSafepoint;
   friend class Heap;
   friend class Isolate;
+  friend class IsolateSafepoint;
+  friend class IsolateSafepointScope;
   friend class ParkedScope;
-  friend class SafepointScope;
   friend class UnparkedScope;
 };
 

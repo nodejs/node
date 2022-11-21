@@ -104,14 +104,23 @@
 #  endif
 #endif
 
-/* Local functions. */
-local z_crc_t multmodp OF((z_crc_t a, z_crc_t b));
-local z_crc_t x2nmodp OF((z_off64_t n, unsigned k));
-
 /* If available, use the ARM processor CRC32 instruction. */
 #if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32) && W == 8 \
     && defined(USE_CANONICAL_ARMV8_CRC32)
 #  define ARMCRC32_CANONICAL_ZLIB
+#endif
+
+/* Local functions. */
+local z_crc_t multmodp OF((z_crc_t a, z_crc_t b));
+local z_crc_t x2nmodp OF((z_off64_t n, unsigned k));
+
+#if defined(W) && (!defined(ARMCRC32_CANONICAL_ZLIB) || defined(DYNAMIC_CRC_TABLE))
+    local z_word_t byte_swap OF((z_word_t word));
+#endif
+
+#if defined(W) && !defined(ARMCRC32_CANONICAL_ZLIB)
+    local z_crc_t crc_word OF((z_word_t data));
+    local z_word_t crc_word_big OF((z_word_t data));
 #endif
 
 #if defined(W) && (!defined(ARMCRC32_CANONICAL_ZLIB) || defined(DYNAMIC_CRC_TABLE))

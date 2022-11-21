@@ -71,7 +71,7 @@ class WasmInterpreter {
   enum ExceptionHandlingResult { HANDLED, UNWOUND };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                  const ModuleWireBytes& wire_bytes,
+                  ModuleWireBytes wire_bytes,
                   Handle<WasmInstanceObject> instance);
 
   ~WasmInterpreter();
@@ -111,8 +111,9 @@ class WasmInterpreter {
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.
-  static ControlTransferMap ComputeControlTransfersForTesting(
-      Zone* zone, const WasmModule* module, const byte* start, const byte* end);
+  static ControlTransferMap ComputeControlTransfersForTesting(Zone* zone,
+                                                              const byte* start,
+                                                              const byte* end);
 
  private:
   Zone zone_;

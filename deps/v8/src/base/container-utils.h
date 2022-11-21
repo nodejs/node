@@ -6,7 +6,9 @@
 #define V8_BASE_CONTAINER_UTILS_H_
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
+#include <vector>
 
 namespace v8::base {
 
@@ -59,15 +61,10 @@ inline size_t erase_at(C& container, size_t index, size_t count = 1) {
 // TODO(C++20): Replace with std::erase_if.
 template <typename C, typename P>
 inline size_t erase_if(C& container, const P& predicate) {
-  size_t count = 0;
-  auto e = end(container);
-  for (auto it = begin(container); it != e;) {
-    it = std::find_if(it, e, predicate);
-    if (it == e) break;
-    it = container.erase(it);
-    e = end(container);
-    ++count;
-  }
+  auto it =
+      std::remove_if(std::begin(container), std::end(container), predicate);
+  auto count = std::distance(it, std::end(container));
+  container.erase(it, std::end(container));
   return count;
 }
 
@@ -75,6 +72,18 @@ inline size_t erase_if(C& container, const P& predicate) {
 template <typename C, typename P>
 inline size_t count_if(const C& container, const P& predicate) {
   return std::count_if(begin(container), end(container), predicate);
+}
+
+// Helper for std::all_of.
+template <typename C, typename P>
+inline bool all_of(const C& container, const P& predicate) {
+  return std::all_of(begin(container), end(container), predicate);
+}
+
+// Helper for std::none_of.
+template <typename C, typename P>
+inline bool none_of(const C& container, const P& predicate) {
+  return std::none_of(begin(container), end(container), predicate);
 }
 
 // Returns true iff all elements of {container} compare equal using operator==.
@@ -85,6 +94,21 @@ inline bool all_equal(const C& container) {
   const auto& value = *b;
   return std::all_of(++b, end(container),
                      [&](const auto& v) { return v == value; });
+}
+
+// Returns true iff all elements of {container} compare equal to {value} using
+// operator==.
+template <typename C, typename T>
+inline bool all_equal(const C& container, const T& value) {
+  return std::all_of(begin(container), end(container),
+                     [&](const auto& v) { return v == value; });
+}
+
+// Appends to vector {v} all the elements in the range {begin(container)} and
+// {end(container)}.
+template <typename T, typename A, typename C>
+inline void vector_append(std::vector<T, A>& v, const C& container) {
+  v.insert(end(v), begin(container), end(container));
 }
 
 }  // namespace v8::base

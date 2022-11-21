@@ -20,24 +20,27 @@ assertEquals(foo_int32(), 2);
 %OptimizeMaglevOnNextCall(foo_int32);
 assertEquals(foo_int32(), 2);
 
-// This examples creates a simple exception handler block where the trampoline
-// has an int32 value that overflows and it needs to create a HeapNumber.
-function foo_int32_overflow(x) {
-  try {
-    x = x + x;
-    throw "Error";
-  } catch {
-    return x;
-  }
-}
-%PrepareFunctionForOptimization(foo_int32_overflow);
-assertEquals(foo_int32_overflow(1), 2);
-%OptimizeMaglevOnNextCall(foo_int32_overflow);
-assertEquals(foo_int32_overflow(0x3FFFFFFF), 0x7FFFFFFE);
-// If we call it with a HeapNumber, we deopt before the exception:
-assertTrue(%ActiveTierIsMaglev(foo_int32_overflow));
-assertEquals(foo_int32_overflow(1.1), 2.2);
-assertFalse(%ActiveTierIsMaglev(foo_int32_overflow));
+// TODO(leszeks): There is currently no way for this to happen, because all
+// Int32 ops are eagerly checked for Smi overflow.
+//
+// // This examples creates a simple exception handler block where the trampoline
+// // has an int32 value that overflows and it needs to create a HeapNumber.
+// function foo_int32_overflow(x) {
+//   try {
+//     x = x + x;
+//     throw "Error";
+//   } catch {
+//     return x;
+//   }
+// }
+// %PrepareFunctionForOptimization(foo_int32_overflow);
+// assertEquals(foo_int32_overflow(1), 2);
+// %OptimizeMaglevOnNextCall(foo_int32_overflow);
+// assertEquals(foo_int32_overflow(0x3FFFFFFF), 0x7FFFFFFE);
+// assertTrue(%ActiveTierIsMaglev(foo_int32_overflow));
+// // If we call it with a HeapNumber, we deopt before the exception:
+// assertEquals(foo_int32_overflow(1.1), 2.2);
+// assertTrue(%ActiveTierIsMaglev(foo_int32_overflow));
 
 // This examples creates a simple exception handler block where the trampoline
 // has an float64 value and needs to convert to a tagged value.

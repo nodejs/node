@@ -312,7 +312,7 @@ void TrySettingEmptyEnumCache(JSReceiver object) {
   map.SetEnumLength(0);
 }
 
-bool CheckAndInitalizeEmptyEnumCache(JSReceiver object) {
+bool CheckAndInitializeEmptyEnumCache(JSReceiver object) {
   if (object.map().EnumLength() == kInvalidEnumCacheSentinel) {
     TrySettingEmptyEnumCache(object);
   }
@@ -342,7 +342,7 @@ void FastKeyAccumulator::Prepare() {
         only_own_has_simple_elements_ = false;
       }
     }
-    bool has_no_properties = CheckAndInitalizeEmptyEnumCache(current);
+    bool has_no_properties = CheckAndInitializeEmptyEnumCache(current);
     if (has_no_properties) continue;
     last_prototype = current;
     has_empty_prototype_ = false;
@@ -368,7 +368,7 @@ Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
   return isolate->factory()->CopyFixedArrayUpTo(array, length);
 }
 
-// Initializes and directly returns the enume cache. Users of this function
+// Initializes and directly returns the enum cache. Users of this function
 // have to make sure to never directly leak the enum cache.
 Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
                                            Handle<JSObject> object) {
@@ -398,51 +398,8 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     return ReduceFixedArrayTo(isolate, keys, enum_length);
   }
 
-  Handle<DescriptorArray> descriptors =
-      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
-  isolate->counters()->enum_cache_misses()->Increment();
-
-  // Create the keys array.
-  int index = 0;
-  bool fields_only = true;
-  keys = isolate->factory()->NewFixedArray(enum_length);
-  for (InternalIndex i : map->IterateOwnDescriptors()) {
-    DisallowGarbageCollection no_gc;
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.IsDontEnum()) continue;
-    Object key = descriptors->GetKey(i);
-    if (key.IsSymbol()) continue;
-    keys->set(index, key);
-    if (details.location() != PropertyLocation::kField) fields_only = false;
-    index++;
-  }
-  DCHECK_EQ(index, keys->length());
-
-  // Optionally also create the indices array.
-  Handle<FixedArray> indices = isolate->factory()->empty_fixed_array();
-  if (fields_only) {
-    indices = isolate->factory()->NewFixedArray(enum_length);
-    index = 0;
-    for (InternalIndex i : map->IterateOwnDescriptors()) {
-      DisallowGarbageCollection no_gc;
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (details.IsDontEnum()) continue;
-      Object key = descriptors->GetKey(i);
-      if (key.IsSymbol()) continue;
-      DCHECK_EQ(PropertyKind::kData, details.kind());
-      DCHECK_EQ(PropertyLocation::kField, details.location());
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-      indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
-      index++;
-    }
-    DCHECK_EQ(index, indices->length());
-  }
-
-  DescriptorArray::InitializeOrChangeEnumCache(descriptors, isolate, keys,
-                                               indices);
-  if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
-
-  return keys;
+  return FastKeyAccumulator::InitializeFastPropertyEnumCache(isolate, map,
+                                                             enum_length);
 }
 
 template <bool fast_properties>
@@ -451,7 +408,6 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                                GetKeysConversion convert,
                                                bool skip_indices) {
   Handle<FixedArray> keys;
-  ElementsAccessor* accessor = object->GetElementsAccessor();
   if (fast_properties) {
     keys = GetFastEnumPropertyKeys(isolate, object);
   } else {
@@ -463,6 +419,7 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
   if (skip_indices) {
     result = keys;
   } else {
+    ElementsAccessor* accessor = object->GetElementsAccessor(isolate);
     result = accessor->PrependElementIndices(isolate, object, keys, convert,
                                              ONLY_ENUMERABLE);
   }
@@ -518,7 +475,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   if (enum_length == kInvalidEnumCacheSentinel) {
     Handle<FixedArray> keys;
     // Try initializing the enum cache and return own properties.
-    if (GetOwnKeysWithUninitializedEnumCache().ToHandle(&keys)) {
+    if (GetOwnKeysWithUninitializedEnumLength().ToHandle(&keys)) {
       if (v8_flags.trace_for_in_enumerate) {
         PrintF("| strings=%d symbols=0 elements=0 || prototypes>=1 ||\n",
                keys->length());
@@ -534,10 +491,70 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
                                       skip_indices_);
 }
 
+// static
+Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
+    Isolate* isolate, Handle<Map> map, int enum_length,
+    AllocationType allocation) {
+  DCHECK_EQ(kInvalidEnumCacheSentinel, map->EnumLength());
+  DCHECK_GT(enum_length, 0);
+  DCHECK_EQ(enum_length, map->NumberOfEnumerableProperties());
+  DCHECK(!map->is_dictionary_map());
+
+  Handle<DescriptorArray> descriptors =
+      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
+
+  // The enum cache should have been a hit if the number of enumerable
+  // properties is fewer than what's already in the cache.
+  DCHECK_LT(descriptors->enum_cache().keys().length(), enum_length);
+  isolate->counters()->enum_cache_misses()->Increment();
+
+  // Create the keys array.
+  int index = 0;
+  bool fields_only = true;
+  Handle<FixedArray> keys =
+      isolate->factory()->NewFixedArray(enum_length, allocation);
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    DisallowGarbageCollection no_gc;
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.IsDontEnum()) continue;
+    Object key = descriptors->GetKey(i);
+    if (key.IsSymbol()) continue;
+    keys->set(index, key);
+    if (details.location() != PropertyLocation::kField) fields_only = false;
+    index++;
+  }
+  DCHECK_EQ(index, keys->length());
+
+  // Optionally also create the indices array.
+  Handle<FixedArray> indices = isolate->factory()->empty_fixed_array();
+  if (fields_only) {
+    indices = isolate->factory()->NewFixedArray(enum_length, allocation);
+    index = 0;
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
+      DisallowGarbageCollection no_gc;
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.IsDontEnum()) continue;
+      Object key = descriptors->GetKey(i);
+      if (key.IsSymbol()) continue;
+      DCHECK_EQ(PropertyKind::kData, details.kind());
+      DCHECK_EQ(PropertyLocation::kField, details.location());
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
+      index++;
+    }
+    DCHECK_EQ(index, indices->length());
+  }
+
+  DescriptorArray::InitializeOrChangeEnumCache(descriptors, isolate, keys,
+                                               indices, allocation);
+  if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
+  return keys;
+}
+
 MaybeHandle<FixedArray>
-FastKeyAccumulator::GetOwnKeysWithUninitializedEnumCache() {
+FastKeyAccumulator::GetOwnKeysWithUninitializedEnumLength() {
   Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
-  // Uninitalized enum cache
+  // Uninitialized enum length
   Map map = object->map();
   if (object->elements() != ReadOnlyRoots(isolate_).empty_fixed_array() &&
       object->elements() !=

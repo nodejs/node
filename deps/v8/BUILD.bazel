@@ -39,6 +39,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_trace_baseline_exec
 # v8_enable_trace_feedback_updates
 # v8_enable_atomic_object_field_writes
+# v8_enable_conservative_stack_scanning
 # v8_enable_concurrent_marking
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_profiling
@@ -1381,6 +1382,8 @@ filegroup(
         "src/handles/global-handles-inl.h",
         "src/handles/global-handles.cc",
         "src/handles/global-handles.h",
+        "src/handles/traced-handles.cc",
+        "src/handles/traced-handles.h",
         "src/handles/handles-inl.h",
         "src/handles/handles.cc",
         "src/handles/handles.h",
@@ -1426,6 +1429,8 @@ filegroup(
         "src/heap/cppgc-js/cpp-marking-state-inl.h",
         "src/heap/cppgc-js/cpp-snapshot.cc",
         "src/heap/cppgc-js/cpp-snapshot.h",
+        "src/heap/cppgc-js/cross-heap-remembered-set.cc",
+        "src/heap/cppgc-js/cross-heap-remembered-set.h",
         "src/heap/cppgc-js/unified-heap-marking-state.cc",
         "src/heap/cppgc-js/unified-heap-marking-state.h",
         "src/heap/cppgc-js/unified-heap-marking-state-inl.h",
@@ -1456,8 +1461,6 @@ filegroup(
         "src/heap/gc-tracer.cc",
         "src/heap/gc-tracer-inl.h",
         "src/heap/gc-tracer.h",
-        "src/heap/global-handle-marking-visitor.cc",
-        "src/heap/global-handle-marking-visitor.h",
         "src/heap/heap-allocator-inl.h",
         "src/heap/heap-allocator.cc",
         "src/heap/heap-allocator.h",
@@ -1564,6 +1567,8 @@ filegroup(
         "src/heap/stress-scavenge-observer.h",
         "src/heap/sweeper.cc",
         "src/heap/sweeper.h",
+        "src/heap/traced-handles-marking-visitor.cc",
+        "src/heap/traced-handles-marking-visitor.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
         "src/ic/call-optimization.cc",
@@ -1963,6 +1968,7 @@ filegroup(
         "src/profiler/heap-snapshot-generator-inl.h",
         "src/profiler/heap-snapshot-generator.cc",
         "src/profiler/heap-snapshot-generator.h",
+        "src/profiler/output-stream-writer.h",
         "src/profiler/profile-generator-inl.h",
         "src/profiler/profile-generator.cc",
         "src/profiler/profile-generator.h",
@@ -2664,6 +2670,8 @@ filegroup(
         "src/compiler/all-nodes.h",
         "src/compiler/allocation-builder.h",
         "src/compiler/allocation-builder-inl.h",
+        "src/compiler/backend/bitcast-elider.cc",
+        "src/compiler/backend/bitcast-elider.h",
         "src/compiler/backend/code-generator.cc",
         "src/compiler/backend/code-generator.h",
         "src/compiler/backend/code-generator-impl.h",
@@ -2877,6 +2885,7 @@ filegroup(
         "src/compiler/store-store-elimination.cc",
         "src/compiler/store-store-elimination.h",
         "src/compiler/turboshaft/assembler.h",
+        "src/compiler/turboshaft/branch-elimination-reducer.h",
         "src/compiler/turboshaft/decompression-optimization.cc",
         "src/compiler/turboshaft/decompression-optimization.h",
         "src/compiler/turboshaft/deopt-data.h",
@@ -2885,9 +2894,11 @@ filegroup(
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph.cc",
         "src/compiler/turboshaft/graph.h",
+        "src/compiler/turboshaft/index.h",
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
-        "src/compiler/turboshaft/machine-optimization-assembler.h",
+        "src/compiler/turboshaft/layered-hash-map.h",
+        "src/compiler/turboshaft/machine-optimization-reducer.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
         "src/compiler/turboshaft/operation-matching.h",
@@ -2897,12 +2908,15 @@ filegroup(
         "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/turboshaft/representations.cc",
         "src/compiler/turboshaft/representations.h",
+        "src/compiler/turboshaft/select-lowering-reducer.h",
         "src/compiler/turboshaft/sidetable.h",
         "src/compiler/turboshaft/simplify-tf-loops.cc",
         "src/compiler/turboshaft/simplify-tf-loops.h",
+        "src/compiler/turboshaft/snapshot-table.h",
         "src/compiler/turboshaft/utils.cc",
         "src/compiler/turboshaft/utils.h",
-        "src/compiler/turboshaft/value-numbering-assembler.h",
+        "src/compiler/turboshaft/value-numbering-reducer.h",
+        "src/compiler/turboshaft/variable-reducer.h",
         "src/compiler/type-cache.cc",
         "src/compiler/type-cache.h",
         "src/compiler/type-narrowing-reducer.cc",
@@ -3152,16 +3166,16 @@ filegroup(
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are
         # linked directly into mksnapshot, they must use the actual target cpu.
-        "@v8//bazel/config:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_s390x": ["src/heap/base/asm/s390/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_riscv64": ["src/heap/base/asm/riscv64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_ppc64le": ["src/heap/base/asm/ppc/push_registers_asm.cc"],
-        "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.asm"],
-        "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.asm"],
-        "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
+        "@v8//bazel/config:is_inline_asm_ia32": ["src/heap/base/asm/ia32/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_x64": ["src/heap/base/asm/x64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm": ["src/heap/base/asm/arm/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_s390x": ["src/heap/base/asm/s390/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_riscv64": ["src/heap/base/asm/riscv64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_ppc64le": ["src/heap/base/asm/ppc/save_registers_asm.cc"],
+        "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/save_registers_masm.asm"],
+        "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/save_registers_masm.asm"],
+        "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/save_registers_masm.S"],
     }),
 )
 
@@ -3241,6 +3255,8 @@ filegroup(
         "src/inspector/v8-debugger.h",
         "src/inspector/v8-debugger-agent-impl.cc",
         "src/inspector/v8-debugger-agent-impl.h",
+        "src/inspector/v8-debugger-barrier.cc",
+        "src/inspector/v8-debugger-barrier.h",
         "src/inspector/v8-debugger-id.cc",
         "src/inspector/v8-debugger-id.h",
         "src/inspector/v8-debugger-script.cc",
@@ -3541,12 +3557,14 @@ v8_mksnapshot(
 cc_library(
     name = "icu/generated_torque_headers",
     hdrs = [":icu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "icu",
 )
 
 cc_library(
     name = "noicu/generated_torque_headers",
     hdrs = [":noicu/generated_torque_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "noicu",
 )
 
@@ -3556,6 +3574,7 @@ v8_library(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
 )
 
 cc_library(
@@ -3564,6 +3583,7 @@ cc_library(
         "src/torque/kythe-data.h",
         "src/torque/torque-compiler.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     include_prefix = "third_party/v8",
     includes = ["."],
 )
@@ -3573,7 +3593,7 @@ cc_library(
     srcs = [
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3590,6 +3610,7 @@ v8_library(
         ":v8_base_without_compiler_files",
         ":v8_common_libshared_files",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [
         ":icu/generated_torque_headers",
         "//external:icu",
@@ -3615,6 +3636,7 @@ v8_library(
     name = "v8",
     srcs = [":v8_inspector_files"],
     hdrs = [":public_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     icu_srcs = [":icu/snapshot_files"],
     noicu_deps = [":noicu/v8_libshared"],
@@ -3627,6 +3649,7 @@ v8_library(
     name = "wee8",
     srcs = [":wee8_files"],
     hdrs = [":public_wasm_c_api_header_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     strip_include_prefix = "third_party",
     visibility = ["//visibility:public"],
     deps = [":noicu/v8"],
@@ -3656,6 +3679,7 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     deps = ["v8_libbase"],
 )
 
@@ -3667,6 +3691,7 @@ v8_binary(
         ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
+    copts = ["-Wno-implicit-fallthrough"],
     defines = [
         "V8_INTL_SUPPORT",
         "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC",
@@ -3685,7 +3710,7 @@ v8_binary(
         "src/torque/torque.cc",
         ":torque_base_files",
     ],
-    copts = select({
+    copts = ["-Wno-implicit-fallthrough"] + select({
         "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
@@ -3700,6 +3725,7 @@ v8_binary(
 v8_binary(
     name = "mksnapshot",
     srcs = [":mksnapshot_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8_libshared"],
     linkopts = select({
         "@v8//bazel/config:is_android": ["-llog"],
@@ -3711,6 +3737,7 @@ v8_binary(
 v8_binary(
     name = "d8",
     srcs = [":d8_files"],
+    copts = ["-Wno-implicit-fallthrough"],
     icu_deps = [":icu/v8"],
     noicu_deps = [":noicu/v8"],
 )

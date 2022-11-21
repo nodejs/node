@@ -17,18 +17,25 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 5
+frame size: 9
 parameter count: 1
-bytecode array length: 19
+bytecode array length: 38
 bytecodes: [
   /*   93 E> */ B(CreateRestParameter),
                 B(Star2),
                 B(Mov), R(closure), R(1),
-  /*   93 S> */ B(Ldar), R(1),
-  /*   93 E> */ B(GetSuperConstructor), R(4),
+  /*   93 S> */ B(FindNonDefaultConstructorOrConstruct), R(1), R(0), R(7),
+                B(Mov), R(2), R(5),
+                B(Ldar), R(7),
+                B(Mov), R(1), R(3),
+                B(Mov), R(0), R(6),
+                B(Mov), R(8), R(4),
+                B(JumpIfTrue), U8(12),
                 B(ThrowIfNotSuperConstructor), R(4),
-                B(Ldar), R(0),
-  /*   93 E> */ B(ConstructWithSpread), R(4), R(2), U8(1), U8(0),
+                B(Ldar), R(6),
+  /*   93 E> */ B(ConstructWithSpread), R(4), R(5), U8(1), U8(0),
+                B(Star4),
+                B(Ldar), R(4),
   /*   93 S> */ B(Return),
 ]
 constant pool: [
@@ -49,9 +56,9 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 8
+frame size: 11
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 51
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star3),
@@ -59,11 +66,15 @@ bytecodes: [
                 B(Mov), R(3), R(2),
   /*  140 S> */ B(LdaSmi), I8(1),
                 B(Star6),
-                B(Ldar), R(closure),
-  /*  140 E> */ B(GetSuperConstructor), R(5),
-                B(ThrowIfNotSuperConstructor), R(5),
-                B(Ldar), R(0),
+  /*  140 E> */ B(FindNonDefaultConstructorOrConstruct), R(closure), R(0), R(9),
                 B(Mov), R(3), R(7),
+                B(Ldar), R(9),
+                B(Mov), R(1), R(4),
+                B(Mov), R(0), R(8),
+                B(Mov), R(10), R(5),
+                B(JumpIfTrue), U8(12),
+                B(ThrowIfNotSuperConstructor), R(5),
+                B(Ldar), R(8),
   /*  140 E> */ B(ConstructWithSpread), R(5), R(6), U8(2), U8(0),
                 B(Star5),
                 B(Ldar), R(this),
@@ -93,7 +104,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 94
+bytecode array length: 101
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star3),
@@ -122,10 +133,12 @@ bytecodes: [
                 B(JumpLoop), U8(31), I8(0), U8(18),
                 B(LdaSmi), I8(1),
                 B(StaInArrayLiteral), R(6), R(7), U8(12),
-                B(Ldar), R(4),
-  /*  140 E> */ B(GetSuperConstructor), R(5),
-                B(ThrowIfNotSuperConstructor), R(5),
+  /*  140 E> */ B(FindNonDefaultConstructorOrConstruct), R(4), R(0), R(8),
+                B(Ldar), R(8),
                 B(Mov), R(0), R(7),
+                B(Mov), R(9), R(5),
+                B(JumpIfTrue), U8(9),
+                B(ThrowIfNotSuperConstructor), R(5),
                 B(CallJSRuntime), U8(%reflect_construct), R(5), U8(3),
                 B(Star5),
                 B(Ldar), R(this),

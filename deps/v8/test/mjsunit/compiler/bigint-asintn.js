@@ -27,6 +27,8 @@ if(%Is64Bit()) {
   // The next time the function is optimized, speculation should be disabled
   // so the builtin call is kept, which won't deoptimize again.
   %PrepareFunctionForOptimization(f);
+  assertEquals(-1n, f(7n));
+  assertEquals(1n, f(9n));
   %OptimizeFunctionOnNextCall(f);
 }
 assertEquals(-1n, f(7n));

@@ -441,30 +441,28 @@ void TurboAssembler::LoadExternalPointerField(
     Register scratch, IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    DCHECK_NE(kExternalPointerNullTag, tag);
-    DCHECK(!IsSharedExternalPointerType(tag));
-    DCHECK(!field_operand.AddressUsesRegister(scratch));
-    if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
-      DCHECK(root_array_available_);
-      movq(scratch, Operand(kRootRegister,
-                            IsolateData::external_pointer_table_offset() +
-                                Internals::kExternalPointerTableBufferOffset));
-    } else {
-      DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
-      movq(scratch,
-           Operand(scratch, IsolateData::external_pointer_table_offset() +
-                                Internals::kExternalPointerTableBufferOffset));
-    }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(tag));
+  DCHECK(!field_operand.AddressUsesRegister(scratch));
+  if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
+    DCHECK(root_array_available_);
+    movq(scratch, Operand(kRootRegister,
+                          IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  } else {
+    DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
+    movq(scratch,
+         Operand(scratch, IsolateData::external_pointer_table_offset() +
+                              Internals::kExternalPointerTableBufferOffset));
+  }
     movl(destination, field_operand);
     shrq(destination, Immediate(kExternalPointerIndexShift));
     movq(destination, Operand(scratch, destination, times_8, 0));
     movq(scratch, Immediate64(~tag));
     andq(destination, scratch);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+#else
   movq(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void TurboAssembler::CallEphemeronKeyBarrier(Register object,
@@ -1897,10 +1895,23 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
+  } else if (root_array_available_ && options().isolate_independent_code) {
+    // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+    // non-isolate-independent code. In many cases it might be cheaper than
+    // embedding the relocatable value.
+    // TODO(v8:9706): Fix-it! This load will always uncompress the value
+    // even when we are loading a compressed embedded object.
+    IndirectLoadConstant(kScratchRegister, Handle<HeapObject>::cast(source));
+    cmp_tagged(dst, kScratchRegister);
+  } else if (COMPRESS_POINTERS_BOOL) {
+    EmbeddedObjectIndex index =
+        AddEmbeddedObject(Handle<HeapObject>::cast(source));
+    DCHECK(is_uint32(index));
+    cmpl(dst, Immediate(static_cast<int>(index),
+                        RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
   } else {
     Move(kScratchRegister, Handle<HeapObject>::cast(source),
-         COMPRESS_POINTERS_BOOL ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
-                                : RelocInfo::FULL_EMBEDDED_OBJECT);
+         RelocInfo::FULL_EMBEDDED_OBJECT);
     cmp_tagged(dst, kScratchRegister);
   }
 }
@@ -2081,9 +2092,24 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
 
 void TurboAssembler::Jump(Operand op) { jmp(op); }
 
+void TurboAssembler::Jump(Operand op, Condition cc) {
+  Label skip;
+  j(NegateCondition(cc), &skip, Label::kNear);
+  Jump(op);
+  bind(&skip);
+}
+
 void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
   jmp(kScratchRegister);
+}
+
+void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode,
+                          Condition cc) {
+  Label skip;
+  j(NegateCondition(cc), &skip, Label::kNear);
+  Jump(destination, rmode);
+  bind(&skip);
 }
 
 void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
@@ -2104,10 +2130,7 @@ void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   Builtin builtin = Builtin::kNoBuiltinId;
   if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
-    Label skip;
-    j(NegateCondition(cc), &skip, Label::kNear);
-    TailCallBuiltin(builtin);
-    bind(&skip);
+    TailCallBuiltin(builtin, cc);
     return;
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
@@ -2217,6 +2240,27 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
   }
 }
 
+void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute:
+      Jump(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET, cc);
+      break;
+    case BuiltinCallJumpMode::kPCRelative:
+      near_j(cc, static_cast<intptr_t>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
+      break;
+    case BuiltinCallJumpMode::kIndirect:
+      Jump(EntryFromBuiltinAsOperand(builtin), cc);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      j(cc, code, RelocInfo::CODE_TARGET);
+      break;
+    }
+  }
+}
+
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
   ASM_CODE_COMMENT(this);
@@ -2297,12 +2341,10 @@ void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // Given the fields layout we can read the Code reference as a full word.
-  static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
-                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  // Compute the Code object pointer from the code entry point.
   movq(destination, FieldOperand(code_data_container_object,
-                                 CodeDataContainer::kCodeOffset));
+                                 CodeDataContainer::kCodeEntryPointOffset));
+  subq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
@@ -2884,7 +2926,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -2949,19 +2991,13 @@ void MacroAssembler::StackOverflowCheck(
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeType type) {
+                                    InvokeType type) {
     ASM_CODE_COMMENT(this);
     if (expected_parameter_count == actual_parameter_count) {
       Move(rax, actual_parameter_count);
       return;
     }
     Label regular_invoke;
-    // If the expected parameter count is equal to the adaptor sentinel, no need
-    // to push undefined value as arguments.
-    if (kDontAdaptArgumentsSentinel != 0) {
-      cmpl(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
-      j(equal, &regular_invoke, Label::kFar);
-    }
 
     // If overapplication or if the actual argument count is equal to the
     // formal parameter count, no need to push extra undefined values.

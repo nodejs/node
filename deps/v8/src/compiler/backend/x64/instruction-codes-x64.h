@@ -409,6 +409,8 @@ namespace compiler {
   V(X64I32x4AllTrue)                                 \
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
+  V(X64Blendvpd)                                     \
+  V(X64Blendvps)                                     \
   V(X64Pblendvb)                                     \
   V(X64TraceInstruction)
 

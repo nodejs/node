@@ -226,6 +226,7 @@
   V(_, dot_for_string, ".for")                                       \
   V(_, dot_generator_object_string, ".generator_object")             \
   V(_, dot_home_object_string, ".home_object")                       \
+  V(_, dot_new_target_string, ".new.target")                         \
   V(_, dot_result_string, ".result")                                 \
   V(_, dot_repl_result_string, ".repl_result")                       \
   V(_, dot_static_home_object_string, ".static_home_object")         \
@@ -456,41 +457,43 @@
   V(_, years_string, "years")                                        \
   V(_, zero_string, "0")
 
-#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)    \
-  V(_, array_buffer_wasm_memory_symbol)        \
-  V(_, call_site_info_symbol)                  \
-  V(_, console_context_id_symbol)              \
-  V(_, console_context_name_symbol)            \
-  V(_, class_fields_symbol)                    \
-  V(_, class_positions_symbol)                 \
-  V(_, elements_transition_symbol)             \
-  V(_, error_end_pos_symbol)                   \
-  V(_, error_script_symbol)                    \
-  V(_, error_stack_symbol)                     \
-  V(_, error_start_pos_symbol)                 \
-  V(_, frozen_symbol)                          \
-  V(_, interpreter_trampoline_symbol)          \
-  V(_, mega_dom_symbol)                        \
-  V(_, megamorphic_symbol)                     \
-  V(_, native_context_index_symbol)            \
-  V(_, nonextensible_symbol)                   \
-  V(_, not_mapped_symbol)                      \
-  V(_, promise_debug_marker_symbol)            \
-  V(_, promise_debug_message_symbol)           \
-  V(_, promise_forwarding_handler_symbol)      \
-  V(_, promise_handled_by_symbol)              \
-  V(_, promise_awaited_by_symbol)              \
-  V(_, regexp_result_names_symbol)             \
-  V(_, regexp_result_regexp_input_symbol)      \
-  V(_, regexp_result_regexp_last_index_symbol) \
-  V(_, sealed_symbol)                          \
-  V(_, strict_function_transition_symbol)      \
-  V(_, wasm_exception_tag_symbol)              \
-  V(_, wasm_exception_values_symbol)           \
-  V(_, wasm_uncatchable_symbol)                \
-  V(_, wasm_wrapped_object_symbol)             \
-  V(_, wasm_debug_proxy_cache_symbol)          \
-  V(_, wasm_debug_proxy_names_symbol)          \
+#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)         \
+  V(_, array_buffer_wasm_memory_symbol)             \
+  V(_, call_site_info_symbol)                       \
+  V(_, console_context_id_symbol)                   \
+  V(_, console_context_name_symbol)                 \
+  V(_, class_fields_symbol)                         \
+  V(_, class_positions_symbol)                      \
+  V(_, elements_transition_symbol)                  \
+  V(_, error_end_pos_symbol)                        \
+  V(_, error_script_symbol)                         \
+  V(_, error_stack_symbol)                          \
+  V(_, error_start_pos_symbol)                      \
+  V(_, frozen_symbol)                               \
+  V(_, interpreter_trampoline_symbol)               \
+  V(_, mega_dom_symbol)                             \
+  V(_, megamorphic_symbol)                          \
+  V(_, native_context_index_symbol)                 \
+  V(_, nonextensible_symbol)                        \
+  V(_, not_mapped_symbol)                           \
+  V(_, promise_debug_marker_symbol)                 \
+  V(_, promise_debug_message_symbol)                \
+  V(_, promise_forwarding_handler_symbol)           \
+  V(_, promise_handled_by_symbol)                   \
+  V(_, promise_awaited_by_symbol)                   \
+  V(_, regexp_result_names_symbol)                  \
+  V(_, regexp_result_regexp_input_symbol)           \
+  V(_, regexp_result_regexp_last_index_symbol)      \
+  V(_, sealed_symbol)                               \
+  V(_, strict_function_transition_symbol)           \
+  V(_, template_literal_function_literal_id_symbol) \
+  V(_, template_literal_slot_id_symbol)             \
+  V(_, wasm_exception_tag_symbol)                   \
+  V(_, wasm_exception_values_symbol)                \
+  V(_, wasm_uncatchable_symbol)                     \
+  V(_, wasm_wrapped_object_symbol)                  \
+  V(_, wasm_debug_proxy_cache_symbol)               \
+  V(_, wasm_debug_proxy_names_symbol)               \
   V(_, uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
@@ -618,7 +621,6 @@
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_CODE_LO)                                \
-  F(MC_SWEEP_FINISH_NEW)                             \
   F(MC_SWEEP_LO)                                     \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_NEW)                                    \
@@ -630,6 +632,7 @@
   TOP_MINOR_MC_SCOPES(F)                             \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
+  F(MINOR_MC_COMPLETE_SWEEPING)                      \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
   F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
@@ -648,9 +651,10 @@
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_CLOSURE_PARALLEL)                  \
   F(MINOR_MC_MARK_CLOSURE)                           \
+  F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
+  F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
-  F(MINOR_MC_SWEEP_FINISH_NEW)                       \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \

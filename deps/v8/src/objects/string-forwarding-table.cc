@@ -76,7 +76,7 @@ void StringForwardingTable::Block::UpdateAfterEvacuation(
       DCHECK(!object.InSharedWritableHeap());
       MapWord map_word = object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
-        HeapObject forwarded_object = map_word.ToForwardingAddress();
+        HeapObject forwarded_object = map_word.ToForwardingAddress(object);
         record(index)->set_original_string(forwarded_object);
       } else {
         record(index)->set_original_string(deleted_element());
@@ -190,7 +190,7 @@ int StringForwardingTable::AddExternalResourceAndHash(String string,
   constexpr bool is_one_byte =
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
-  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+  DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
                  string.InSharedHeap());
   int index = next_free_index_++;
   uint32_t index_in_block;

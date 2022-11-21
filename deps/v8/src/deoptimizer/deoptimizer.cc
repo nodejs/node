@@ -175,22 +175,6 @@ class FrameWriter {
   unsigned top_offset_;
 };
 
-Code Deoptimizer::FindDeoptimizingCode(Address addr) {
-  if (function_.IsHeapObject()) {
-    // Search all deoptimizing code in the native context of the function.
-    Isolate* isolate = isolate_;
-    NativeContext native_context = function_.native_context();
-    Object element = native_context.DeoptimizedCodeListHead();
-    while (!element.IsUndefined(isolate)) {
-      CodeT code = CodeT::cast(element);
-      CHECK(CodeKindCanDeoptimize(code.kind()));
-      if (code.contains(isolate, addr)) return FromCodeT(code);
-      element = code.next_code_link();
-    }
-  }
-  return Code();
-}
-
 // We rely on this function not causing a GC. It is called from generated code
 // without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
@@ -299,8 +283,8 @@ class ActivationsFinder : public ThreadVisitor {
 };
 }  // namespace
 
-// Move marked code from the optimized code list to the deoptimized code list,
-// and replace pc on the stack for codes marked for deoptimization.
+// Move marked code out of the optimized code list, and replace pc on the stack
+// for codes marked for deoptimization.
 // static
 void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   DisallowGarbageCollection no_gc;
@@ -346,8 +330,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   // deoptimization and have not been found in stack frames.
   std::set<CodeT> codes;
 
-  // Move marked code from the optimized code list to the deoptimized code list.
-  // Walk over all optimized code objects in this native context.
+  // Move marked code out of the optimized code list. Walk over all optimized
+  // code objects in this native context.
   CodeT prev;
   Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
@@ -368,10 +352,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
         // There was no previous node, the next node is the new head.
         native_context.SetOptimizedCodeListHead(next);
       }
-
-      // Move the code to the _deoptimized_ code list.
-      code.set_next_code_link(native_context.DeoptimizedCodeListHead());
-      native_context.SetDeoptimizedCodeListHead(code);
+      code.set_next_code_link(ReadOnlyRoots(isolate).undefined_value());
     } else {
       // Not marked; preserve this element.
       prev = code;
@@ -432,7 +413,7 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
   Object element = native_context.OptimizedCodeListHead();
   Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
-    Code code = FromCodeT(CodeT::cast(element));
+    CodeT code = CodeT::cast(element);
     CHECK(CodeKindCanDeoptimize(code.kind()));
     code.set_marked_for_deoptimization(true);
     element = code.next_code_link();
@@ -563,8 +544,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
 }
 
 Code Deoptimizer::FindOptimizedCode() {
-  Code compiled_code = FindDeoptimizingCode(from_);
-  if (!compiled_code.is_null()) return compiled_code;
   CodeLookupResult lookup_result = isolate_->FindCodeObject(from_);
   return lookup_result.code();
 }
@@ -625,26 +604,6 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
   }
 
   UNREACHABLE();
-}
-
-int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
-  int length = 0;
-  // Count all entries in the deoptimizing code list of every context.
-  Object context = isolate->heap()->native_contexts_list();
-  while (!context.IsUndefined(isolate)) {
-    NativeContext native_context = NativeContext::cast(context);
-    Object element = native_context.DeoptimizedCodeListHead();
-    while (!element.IsUndefined(isolate)) {
-      Code code = FromCodeT(CodeT::cast(element));
-      DCHECK(CodeKindCanDeoptimize(code.kind()));
-      if (!code.marked_for_deoptimization()) {
-        length++;
-      }
-      element = code.next_code_link();
-    }
-    context = Context::cast(context).next_context_link();
-  }
-  return length;
 }
 
 namespace {

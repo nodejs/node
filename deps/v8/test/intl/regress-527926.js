@@ -16,4 +16,4 @@ assertEquals("03:00", fmt.format(date));
 
 fmt = new Intl.DateTimeFormat(
     'ru', {hour:'2-digit', minute: '2-digit', hour12: true});
-assertEquals("03:00 AM", fmt.format(date));
+assertEquals("03:00\u202fAM", fmt.format(date));

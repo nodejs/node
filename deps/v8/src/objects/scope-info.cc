@@ -22,11 +22,10 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-bool ScopeInfo::Equals(ScopeInfo other,
-                       bool ignore_position_and_module_info) const {
+bool ScopeInfo::Equals(ScopeInfo other, bool is_live_edit_compare) const {
   if (length() != other.length()) return false;
   for (int index = 0; index < length(); ++index) {
-    if (ignore_position_and_module_info && HasPositionInfo() &&
+    if (is_live_edit_compare && HasPositionInfo() &&
         index >= PositionInfoIndex() && index <= PositionInfoIndex() + 1) {
       continue;
     }
@@ -44,12 +43,12 @@ bool ScopeInfo::Equals(ScopeInfo other,
           return false;
         }
       } else if (entry.IsScopeInfo()) {
-        if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry),
-                                           ignore_position_and_module_info)) {
+        if (!is_live_edit_compare && !ScopeInfo::cast(entry).Equals(
+                                         ScopeInfo::cast(other_entry), false)) {
           return false;
         }
       } else if (entry.IsSourceTextModuleInfo()) {
-        if (!ignore_position_and_module_info &&
+        if (!is_live_edit_compare &&
             !SourceTextModuleInfo::cast(entry).Equals(
                 SourceTextModuleInfo::cast(other_entry))) {
           return false;

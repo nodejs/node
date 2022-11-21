@@ -295,7 +295,7 @@ DOM.defineCustomElement('view/profiler-panel',
     const profileNode = e.target.data;
     if (!profileNode) return;
     const logEntry = profileNode.codeEntry.logEntry;
-    this.dispatchEvent(new ToolTipEvent(logEntry, e.target));
+    this.dispatchEvent(new ToolTipEvent(logEntry, e.target, e.ctrlKey));
   }
 
   _handleFlameChartClick(e) {

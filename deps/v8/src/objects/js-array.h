@@ -160,11 +160,14 @@ class JSArrayIterator
 };
 
 // Helper class for JSArrays that are template literal objects
-class TemplateLiteralObject {
+class TemplateLiteralObject
+    : public TorqueGeneratedTemplateLiteralObject<TemplateLiteralObject,
+                                                  JSArray> {
  public:
-  static const int kRawFieldOffset = JSArray::kLengthOffset + kTaggedSize;
-  static inline void SetRaw(Handle<JSArray> template_object,
-                            Handle<JSArray> raw_object);
+  DECL_CAST(TemplateLiteralObject)
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(TemplateLiteralObject)
 };
 
 }  // namespace internal

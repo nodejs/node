@@ -501,6 +501,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
+  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
@@ -630,6 +631,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Label* if_overflow);
   TNode<IntPtrT> TryIntPtrMul(TNode<IntPtrT> a, TNode<IntPtrT> b,
                               Label* if_overflow);
+  TNode<IntPtrT> TryIntPtrDiv(TNode<IntPtrT> a, TNode<IntPtrT> b,
+                              Label* if_div_zero);
+  TNode<IntPtrT> TryIntPtrMod(TNode<IntPtrT> a, TNode<IntPtrT> b,
+                              Label* if_div_zero);
   TNode<Int32T> TryInt32Mul(TNode<Int32T> a, TNode<Int32T> b,
                             Label* if_overflow);
   TNode<Smi> TrySmiAdd(TNode<Smi> a, TNode<Smi> b, Label* if_overflow);
@@ -838,16 +843,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
   // is cached in or moved to CodeT.
-  TNode<Code> FromCodeT(TNode<CodeT> code) {
+  TNode<Code> FromCodeTNonBuiltin(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-#if V8_TARGET_BIG_ENDIAN
-#error "This code requires updating for big-endian architectures"
-#endif
-    // Given the fields layout we can read the Code reference as a full word.
-    static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
-                  CodeDataContainer::kCodeOffset + kTaggedSize);
-    TNode<Object> o = BitcastWordToTagged(Load<RawPtrT>(
-        code, IntPtrConstant(CodeDataContainer::kCodeOffset - kHeapObjectTag)));
+    // Compute the Code object pointer from the code entry point.
+    TNode<RawPtrT> code_entry = Load<RawPtrT>(
+        code, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset -
+                             kHeapObjectTag));
+    TNode<Object> o = BitcastWordToTagged(IntPtrSub(
+        code_entry, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
     return CAST(o);
 #else
     return code;
@@ -1856,9 +1859,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  void StoreJSSharedStructInObjectField(TNode<HeapObject> object,
-                                        TNode<IntPtrT> offset,
-                                        TNode<Object> value);
+  void StoreSharedObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
+                              TNode<Object> value);
 
   void StoreJSSharedStructPropertyArrayElement(TNode<PropertyArray> array,
                                                TNode<IntPtrT> index,
@@ -2467,17 +2469,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<Object> value);
   void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
                               Label* if_number, TVariable<Word32T>* var_word32,
-                              Label* if_bigint,
+                              Label* if_bigint, Label* if_bigint64,
                               TVariable<BigInt>* var_maybe_bigint);
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
                                           TVariable<Word32T>* var_word32,
-                                          Label* if_bigint,
+                                          Label* if_bigint, Label* if_bigint64,
                                           TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
   void TaggedPointerToWord32OrBigIntWithFeedback(
       TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
-      TVariable<Word32T>* var_word32, Label* if_bigint,
+      TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
       TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback);
 
   TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
@@ -2507,11 +2509,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Int32T> ChangeBoolToInt32(TNode<BoolT> b);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric);
-  void TaggedToNumericWithFeedback(TNode<Context> context, TNode<Object> value,
-                                   TVariable<Numeric>* var_numeric,
-                                   TVariable<Smi>* var_feedback);
+  void TaggedToBigIntWithFeedback(TNode<Context> context, TNode<Object> value,
+                                  Label* if_not_bigint, Label* if_bigint,
+                                  Label* if_bigint64,
+                                  TVariable<BigInt>* var_bigint,
+                                  TVariable<Smi>* var_feedback);
 
   // Ensures that {var_shared_value} is shareable across Isolates, and throws if
   // not.
@@ -3592,6 +3594,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);
 
   enum class IndexAdvanceMode { kPre, kPost };
+  enum class LoopUnrollingMode { kNo, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
@@ -3600,15 +3603,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TIndex> BuildFastLoop(
       const VariableList& var_list, TNode<TIndex> start_index,
       TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
 
   template <typename TIndex>
   TNode<TIndex> BuildFastLoop(
       TNode<TIndex> start_index, TNode<TIndex> end_index,
       const FastLoopBody<TIndex>& body, int increment,
+      LoopUnrollingMode unrolling_mode,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
     return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
-                         increment, advance_mode);
+                         increment, unrolling_mode, advance_mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
@@ -3621,6 +3626,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
       ElementsKind kind, TNode<TIndex> first_element_inclusive,
       TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
+      LoopUnrollingMode loop_unrolling_mode,
       ForEachDirection direction = ForEachDirection::kReverse);
 
   template <typename TIndex>
@@ -3931,6 +3937,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Print(TNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
+  void PrintErr(const char* s);
+  void PrintErr(const char* prefix, TNode<MaybeObject> tagged_value);
+  void PrintErr(TNode<MaybeObject> tagged_value) {
+    return PrintErr(nullptr, tagged_value);
+  }
+  void PrintToStream(const char* s, int stream);
+  void PrintToStream(const char* prefix, TNode<MaybeObject> tagged_value,
+                     int stream);
 
   template <class... TArgs>
   TNode<HeapObject> MakeTypeError(MessageTemplate message,
@@ -4302,9 +4316,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
-                       TVariable<Numeric>* var_numeric,
-                       TVariable<Smi>* var_feedback);
+  void TaggedToBigInt(TNode<Context> context, TNode<Object> value,
+                      Label* if_not_bigint, Label* if_bigint,
+                      Label* if_bigint64, TVariable<BigInt>* var_bigint,
+                      TVariable<Smi>* var_feedback);
 
   enum IsKnownTaggedPointer { kNo, kYes };
   template <Object::Conversion conversion>
@@ -4313,6 +4328,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<Word32T>* var_word32,
                                   IsKnownTaggedPointer is_known_tagged_pointer,
                                   Label* if_bigint = nullptr,
+                                  Label* if_bigint64 = nullptr,
                                   TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 

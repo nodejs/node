@@ -57,6 +57,15 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.setPauseOnExceptions({state: 'none'});
   },
 
+  async function testBreakOnCaughtException() {
+    await Protocol.Debugger.setPauseOnExceptions({state: 'caught'});
+    await evaluate('caught()');
+    await evaluate('uncaught()');
+    await evaluate('uncaughtFinally()');
+    await evaluate('caughtFinally()');
+    await Protocol.Debugger.setPauseOnExceptions({state: 'none'});
+  },
+
   async function testBreakOnUncaughtException() {
     await Protocol.Debugger.setPauseOnExceptions({state: 'uncaught'});
     await evaluate('caught()');

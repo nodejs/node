@@ -41,6 +41,9 @@ class StatsCounter;
   V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
+  V(is_shared_space_isolate_flag_address,                                      \
+    "is_shared_space_isolate_flag_address")                                    \
+  V(uses_shared_heap_flag_address, "uses_shared_heap_flag_address")            \
   V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
   V(new_space_allocation_limit_address,                                        \
     "Heap::NewSpaceAllocationLimitAddress()")                                  \
@@ -184,12 +187,31 @@ class StatsCounter;
     "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
   V(mutable_big_int_absolute_div_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteDivAndCanonicalize")                                \
+  V(mutable_big_int_absolute_mod_and_canonicalize_function,                    \
+    "MutableBigInt_AbsoluteModAndCanonicalize")                                \
   V(mutable_big_int_bitwise_and_pp_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosPosAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_nn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndNegNegAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_pn_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_or_pp_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosPosAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_nn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrNegNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_or_pn_and_canonicalize_function,                   \
+    "MutableBigInt_BitwiseOrPosNegAndCanonicalize")                            \
+  V(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosPosAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorNegNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseXorPosNegAndCanonicalize")                           \
+  V(mutable_big_int_left_shift_and_canonicalize_function,                      \
+    "MutableBigInt_LeftShiftAndCanonicalize")                                  \
+  V(big_int_right_shift_result_length_function, "RightShiftResultLength")      \
+  V(mutable_big_int_right_shift_and_canonicalize_function,                     \
+    "MutableBigInt_RightShiftAndCanonicalize")                                 \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \
@@ -272,7 +294,8 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
-  IF_WASM(V, wasm_array_fill_with_zeroes, "wasm::array_fill_with_zeroes")      \
+  IF_WASM(V, wasm_array_fill_with_number_or_null,                              \
+          "wasm::array_fill_with_number_or_null")                              \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
@@ -289,6 +312,8 @@ class StatsCounter;
   V(address_of_wasm_int32_overflow_as_float, "wasm_int32_overflow_as_float")   \
   V(supports_cetss_address, "CpuFeatures::supports_cetss_address")             \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
+  V(write_barrier_shared_marking_from_code_function,                           \
+    "WriteBarrier::SharedMarkingFromCode")                                     \
   V(shared_barrier_from_code_function, "WriteBarrier::SharedFromCode")         \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \
@@ -337,6 +362,10 @@ class StatsCounter;
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
+    "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
+    "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #ifdef V8_INTL_SUPPORT

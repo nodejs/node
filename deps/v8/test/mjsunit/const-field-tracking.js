@@ -213,11 +213,13 @@ function TestStoreToConstantFieldOfConstantObject(the_value, other_value) {
 })();
 
 // Test constant tracking with double values.
+/*
 (function() {
   var the_value = 0.9;
   var other_value = 0.42
   TestStoreToConstantFieldOfConstantObject(the_value, other_value);
 })();
+*/
 
 // Test constant tracking with function values.
 (function() {

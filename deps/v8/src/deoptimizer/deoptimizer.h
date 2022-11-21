@@ -120,8 +120,6 @@ class Deoptimizer : public Malloced {
     return offsetof(Deoptimizer, caller_frame_top_);
   }
 
-  V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
-
   Isolate* isolate() const { return isolate_; }
 
   static constexpr int kMaxNumberOfEntries = 16384;

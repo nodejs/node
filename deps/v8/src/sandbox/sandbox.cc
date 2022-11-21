@@ -93,29 +93,17 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   // otherwise wouldn't always be able to allocate objects inside of it.
   CHECK_LT(kSandboxSize, address_space_limit);
 
-#if defined(V8_OS_WIN)
-  if (!IsWindows8Point1OrGreater()) {
-    // On Windows pre 8.1, reserving virtual memory is an expensive operation,
-    // apparently because the OS already charges for the memory required for
-    // all page table entries. For example, a 1TB reservation increases private
-    // memory usage by 2GB. As such, it is not possible to create a proper
-    // sandbox there and so a partially reserved sandbox is created which
-    // doesn't reserve most of the virtual memory, and so doesn't incur the
-    // cost, but also doesn't provide the desired security benefits.
-    max_reservation_size = kSandboxMinimumReservationSize;
-  }
-#endif  // V8_OS_WIN
-
   if (!vas->CanAllocateSubspaces()) {
-    // If we cannot create virtual memory subspaces, we also need to fall back
-    // to creating a partially reserved sandbox. In practice, this should only
-    // happen on Windows version before Windows 10, maybe including early
-    // Windows 10 releases, where the necessary memory management APIs, in
-    // particular, VirtualAlloc2, are not available. This check should also in
-    // practice subsume the preceeding one for Windows 8 and earlier, but we'll
-    // keep both just to be sure since there the partially reserved sandbox is
-    // technically required for a different reason (large virtual memory
-    // reservations being too expensive).
+    // If we cannot create virtual memory subspaces, we fall back to creating a
+    // partially reserved sandbox. This will happen for example on older
+    // Windows versions (before Windows 10) where the necessary memory
+    // management APIs, in particular, VirtualAlloc2, are not available.
+    // Since reserving virtual memory is an expensive operation on Windows
+    // before version 8.1 (reserving 1TB of address space will increase private
+    // memory usage by around 2GB), we only reserve the minimal amount of
+    // address space here. This way, we don't incur the cost of reserving
+    // virtual memory, but also don't get the desired security properties as
+    // unrelated mappings may end up inside the sandbox.
     max_reservation_size = kSandboxMinimumReservationSize;
   }
 

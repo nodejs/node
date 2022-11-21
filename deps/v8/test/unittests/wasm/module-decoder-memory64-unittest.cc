@@ -32,8 +32,7 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
     static constexpr WasmFeatures kEnabledFeatures{
         WasmFeature::kFeature_memory64};
     return DecodeWasmModule(
-        kEnabledFeatures, module_bytes.data(),
-        module_bytes.data() + module_bytes.size(), false, kWasmOrigin,
+        kEnabledFeatures, base::VectorOf(module_bytes), false, kWasmOrigin,
         isolate()->counters(), isolate()->metrics_recorder(),
         v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
         wasm::GetWasmEngine()->allocator());

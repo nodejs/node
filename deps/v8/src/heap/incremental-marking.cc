@@ -272,6 +272,7 @@ void IncrementalMarking::MarkRoots() {
 
     heap()->isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         &visitor);
+    heap()->isolate()->traced_handles()->IterateYoungRoots(&visitor);
 
     std::vector<PageMarkingItem> marking_items;
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
@@ -309,6 +310,10 @@ void IncrementalMarking::StartMarkingMajor() {
 
   heap_->InvokeIncrementalMarkingPrologueCallbacks();
 
+  // Temporary checks for diagnosing https://crbug.com/1380114.
+  heap_->isolate()->traced_handles()->CheckNodeMarkingStateIsConsistent(
+      false, &MarkCompactCollector::IsUnmarkedHeapObject);
+
   is_compacting_ = major_collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
@@ -322,7 +327,8 @@ void IncrementalMarking::StartMarkingMajor() {
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
     // PrepareForTrace should be called before visitor initialization in
     // StartMarking. It is only used with CppHeap.
-    heap_->local_embedder_heap_tracer()->PrepareForTrace(embedder_flags);
+    heap_->local_embedder_heap_tracer()->PrepareForTrace(
+        embedder_flags, LocalEmbedderHeapTracer::CollectionType::kMajor);
   }
 
   major_collector_->StartMarking();
@@ -333,7 +339,7 @@ void IncrementalMarking::StartMarkingMajor() {
 
   MarkingBarrier::ActivateAll(heap(), is_compacting_,
                               MarkingBarrierType::kMajor);
-  GlobalHandles::EnableMarkingBarrier(heap()->isolate());
+  heap()->isolate()->traced_handles()->SetIsMarking(true);
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
@@ -395,6 +401,8 @@ void IncrementalMarking::StartMarkingMinor() {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] (MinorMC) Running\n");
   }
+
+  DCHECK(!is_compacting_);
 }
 
 void IncrementalMarking::StartBlackAllocation() {
@@ -402,7 +410,6 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(IsMarking());
   black_allocation_ = true;
   heap()->old_space()->MarkLinearAllocationAreaBlack();
-  if (heap()->map_space()) heap()->map_space()->MarkLinearAllocationAreaBlack();
   {
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking Code objects requires write access to the Code page header");
@@ -427,7 +434,6 @@ void IncrementalMarking::StartBlackAllocation() {
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
-  if (heap()->map_space()) heap()->map_space()->UnmarkLinearAllocationArea();
   {
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking Code objects requires write access to the Code page header");
@@ -488,7 +494,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
         // Hence, we can discard them.
         return false;
       }
-      HeapObject dest = map_word.ToForwardingAddress();
+      HeapObject dest = map_word.ToForwardingAddress(obj);
       USE(this);
       DCHECK_IMPLIES(marking_state->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       if (dest.InSharedHeap()) {

@@ -969,8 +969,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
             TNode<Object> prev_value =
                 LoadValueByKeyIndex(properties, var_name_index.value());
 
-            BranchIfSameValue(prev_value, p->value(), &done, slow,
-                              SameValueMode::kNumbersOnly);
+            Branch(TaggedEqual(prev_value, p->value()), &done, slow);
           } else {
             Goto(&overwrite);
           }

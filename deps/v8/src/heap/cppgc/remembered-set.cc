@@ -93,11 +93,6 @@ void VisitSlot(const HeapBase& heap, const BasePage& page, Address slot,
   // may have mixed young/old objects. Check here precisely if the object is
   // old.
   if (slot_header.IsYoung()) return;
-  // The design of young generation requires collections to be executed at the
-  // top level (with the guarantee that no objects are currently being in
-  // construction). This can be ensured by running young GCs from safe points
-  // or by reintroducing nested allocation scopes that avoid finalization.
-  DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
 
 #if defined(CPPGC_POINTER_COMPRESSION)
   void* value = nullptr;
@@ -241,17 +236,34 @@ void VisitRememberedSourceObjects(
     // may have mixed young/old objects. Check here precisely if the object is
     // old.
     if (source_hoh->IsYoung()) continue;
-    // The design of young generation requires collections to be executed at the
-    // top level (with the guarantee that no objects are currently being in
-    // construction). This can be ensured by running young GCs from safe points
-    // or by reintroducing nested allocation scopes that avoid finalization.
-    DCHECK(!source_hoh->template IsInConstruction<AccessMode::kNonAtomic>());
 
     const TraceCallback trace_callback =
         GlobalGCInfoTable::GCInfoFromIndex(source_hoh->GetGCInfoIndex()).trace;
 
     // Process eagerly to avoid reaccounting.
     trace_callback(&visitor, source_hoh->ObjectStart());
+  }
+}
+
+// Revisit in-construction objects from previous GCs. We must do it to make
+// sure that we don't miss any initializing pointer writes if a previous GC
+// happened while an object was in-construction.
+void RevisitInConstructionObjects(
+    std::set<HeapObjectHeader*>& remembered_in_construction_objects,
+    Visitor& visitor, ConservativeTracingVisitor& conservative_visitor) {
+  for (HeapObjectHeader* hoh : remembered_in_construction_objects) {
+    DCHECK(hoh);
+    // The object must be marked on previous GC.
+    DCHECK(hoh->IsMarked());
+
+    if (hoh->template IsInConstruction<AccessMode::kNonAtomic>()) {
+      conservative_visitor.TraceConservatively(*hoh);
+    } else {
+      // If the object is fully constructed, trace precisely.
+      const TraceCallback trace_callback =
+          GlobalGCInfoTable::GCInfoFromIndex(hoh->GetGCInfoIndex()).trace;
+      trace_callback(&visitor, hoh->ObjectStart());
+    }
   }
 }
 
@@ -297,6 +309,12 @@ void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
   remembered_weak_callbacks_.insert(item);
 }
 
+void OldToNewRememberedSet::AddInConstructionObjectToBeRetraced(
+    HeapObjectHeader& hoh) {
+  DCHECK(heap_.generational_gc_supported());
+  remembered_in_construction_objects_.current.insert(&hoh);
+}
+
 void OldToNewRememberedSet::InvalidateRememberedSlotsInRange(void* begin,
                                                              void* end) {
   DCHECK(heap_.generational_gc_supported());
@@ -313,12 +331,15 @@ void OldToNewRememberedSet::InvalidateRememberedSourceObject(
   remembered_source_objects_.erase(&header);
 }
 
-void OldToNewRememberedSet::Visit(Visitor& visitor,
-                                  MutatorMarkingState& marking_state) {
+void OldToNewRememberedSet::Visit(
+    Visitor& visitor, ConservativeTracingVisitor& conservative_visitor,
+    MutatorMarkingState& marking_state) {
   DCHECK(heap_.generational_gc_supported());
   VisitRememberedSlots(heap_, marking_state, remembered_uncompressed_slots_,
                        remembered_slots_for_verification_);
   VisitRememberedSourceObjects(remembered_source_objects_, visitor);
+  RevisitInConstructionObjects(remembered_in_construction_objects_.previous,
+                               visitor, conservative_visitor);
 }
 
 void OldToNewRememberedSet::ExecuteCustomCallbacks(LivenessBroker broker) {
@@ -342,6 +363,8 @@ void OldToNewRememberedSet::Reset() {
 #if DEBUG
   remembered_slots_for_verification_.clear();
 #endif  // DEBUG
+  remembered_in_construction_objects_.Reset();
+  // Custom weak callbacks is alive across GCs.
 }
 
 bool OldToNewRememberedSet::IsEmpty() const {
@@ -349,6 +372,18 @@ bool OldToNewRememberedSet::IsEmpty() const {
   return remembered_uncompressed_slots_.empty() &&
          remembered_source_objects_.empty() &&
          remembered_weak_callbacks_.empty();
+}
+
+void OldToNewRememberedSet::RememberedInConstructionObjects::Reset() {
+  // Make sure to keep the still-in-construction objects in the remembered set,
+  // as otherwise, being marked, the marker won't be able to observe them.
+  std::copy_if(previous.begin(), previous.end(),
+               std::inserter(current, current.begin()),
+               [](const HeapObjectHeader* h) {
+                 return h->template IsInConstruction<AccessMode::kNonAtomic>();
+               });
+  previous = std::move(current);
+  current.clear();
 }
 
 }  // namespace internal

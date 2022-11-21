@@ -19,10 +19,7 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace fuzzer {
+namespace v8::internal::wasm::fuzzer {
 
 namespace {
 
@@ -131,7 +128,7 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
                   kWasmNullExternRef, kWasmNullFuncRef});
   }
   if (include_generics == kIncludeGenerics) {
-    types.insert(types.end(), {kWasmDataRef, kWasmAnyRef, kWasmEqRef});
+    types.insert(types.end(), {kWasmStructRef, kWasmAnyRef, kWasmEqRef});
   }
 
   // The last index of user-defined types allowed is different based on the
@@ -634,8 +631,7 @@ class WasmGenerator {
     // Emit call.
     // If the return types of the callee happen to match the return types of the
     // caller, generate a tail call.
-    // TODO(thibaudm): Re-enable when crbug.com/1269989 is fixed.
-    bool use_return_call = false;
+    bool use_return_call = random_byte > 127;
     if (use_return_call &&
         std::equal(sig->returns().begin(), sig->returns().end(),
                    builder_->signature()->returns().begin(),
@@ -864,10 +860,8 @@ class WasmGenerator {
       bool can_be_defaultable = std::all_of(
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
-      bool is_mutable = std::all_of(
-          struct_gen->mutabilities().begin(), struct_gen->mutabilities().end(),
-          [](bool mutability) -> bool { return mutability; });
-      if (new_default && can_be_defaultable && is_mutable) {
+
+      if (new_default && can_be_defaultable) {
         builder_->EmitWithPrefix(kExprStructNewDefault);
         builder_->EmitU32V(index);
       } else {
@@ -2111,8 +2105,10 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         }
         random = data->get<uint8_t>() % (num_data_types + emit_i31ref);
       }
-      if (random < num_data_types) {
-        GenerateRef(HeapType(HeapType::kData), data, nullability);
+      if (random < num_structs_) {
+        GenerateRef(HeapType(HeapType::kStruct), data, nullability);
+      } else if (random < num_data_types) {
+        GenerateRef(HeapType(HeapType::kArray), data, nullability);
       } else {
         GenerateRef(HeapType(HeapType::kI31), data, nullability);
       }
@@ -2132,18 +2128,18 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       GenerateRef(HeapType(random), data, nullability);
       return;
     }
-    case HeapType::kData: {
+    case HeapType::kStruct: {
       DCHECK(liftoff_as_reference_);
       constexpr uint8_t fallback_to_dataref = 2;
-      uint8_t random = data->get<uint8_t>() %
-                       (num_arrays_ + num_structs_ + fallback_to_dataref);
+      uint8_t random =
+          data->get<uint8_t>() % (num_structs_ + fallback_to_dataref);
       // Try generating one of the alternatives
       // and continue to the rest of the methods in case it fails.
-      if (random >= num_arrays_ + num_structs_) {
+      if (random >= num_structs_) {
         if (GenerateOneOf(alternatives_other, type, data, nullability)) {
           return;
         }
-        random = data->get<uint8_t>() % (num_arrays_ + num_structs_);
+        random = data->get<uint8_t>() % num_structs_;
       }
       GenerateRef(HeapType(random), data, nullability);
       return;
@@ -2384,7 +2380,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
     }
     case kRef: {
       switch (type.heap_type().representation()) {
-        case HeapType::kData:
+        case HeapType::kStruct:
         case HeapType::kAny:
         case HeapType::kEq: {
           // We materialize all these types with a struct because they are all
@@ -2610,15 +2606,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
-  EXPERIMENTAL_FLAG_SCOPE(gc);
-  EXPERIMENTAL_FLAG_SCOPE(simd);
-  EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;
 }
 
-}  // namespace fuzzer
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::fuzzer

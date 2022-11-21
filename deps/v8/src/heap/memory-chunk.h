@@ -152,6 +152,9 @@ class MemoryChunk : public BasicMemoryChunk {
     return invalidated_slots_[type];
   }
 
+  bool HasRecordedSlots() const;
+  bool HasRecordedOldToNewSlots() const;
+
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.

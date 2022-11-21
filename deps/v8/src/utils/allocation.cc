@@ -129,6 +129,16 @@ void* AllocWithRetry(size_t size, MallocFn malloc_fn) {
   return result;
 }
 
+base::AllocationResult<void*> AllocAtLeastWithRetry(size_t size) {
+  base::AllocationResult<char*> result = {nullptr, 0u};
+  for (int i = 0; i < kAllocationTries; ++i) {
+    result = base::AllocateAtLeast<char>(size);
+    if (V8_LIKELY(result.ptr != nullptr)) break;
+    OnCriticalMemoryPressure();
+  }
+  return {result.ptr, result.count};
+}
+
 void* AlignedAllocWithRetry(size_t size, size_t alignment) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
@@ -156,7 +166,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  if (FLAG_randomize_all_allocations) {
+  if (v8_flags.randomize_all_allocations) {
     hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
   }
   void* result = nullptr;

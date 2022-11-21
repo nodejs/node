@@ -70,6 +70,14 @@ void ConservativeMarkingVisitor::VisitInConstructionConservatively(
   // hold a reference to themselves.
   if (!marking_state_.MarkNoPush(header)) return;
   marking_state_.AccountMarkedBytes(header);
+#if defined(CPPGC_YOUNG_GENERATION)
+  // An in-construction object can add a reference to a young object that may
+  // miss the write-barrier on an initializing store. Remember object in the
+  // root-set to be retraced on the next GC.
+  if (heap_.generational_gc_supported()) {
+    heap_.remembered_set().AddInConstructionObjectToBeRetraced(header);
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   callback(this, header);
 }
 

@@ -712,7 +712,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                                 var_to_offset.value(), smi_value);
             Increment(&var_to_offset, kTaggedSize);
           },
-          kInt32Size, IndexAdvanceMode::kPost);
+          kInt32Size, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
     }
 
     var_result = match_info;

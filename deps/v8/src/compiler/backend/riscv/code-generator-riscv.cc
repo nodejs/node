@@ -4782,6 +4782,66 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
+AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
+  auto rep = LocationOperand::cast(source)->representation();
+  int new_slots = RoundUp<2>(ElementSizeInPointers(rep));
+  RiscvOperandConverter g(this, nullptr);
+  int last_frame_slot_id =
+      frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+  int sp_delta = frame_access_state_->sp_delta();
+  int slot_id = last_frame_slot_id + sp_delta + new_slots;
+  AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+  if (source->IsRegister()) {
+    __ Push(g.ToRegister(source));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else if (source->IsStackSlot()) {
+    UseScratchRegisterScope temps(tasm());
+    Register scratch = temps.Acquire();
+    __ LoadWord(scratch, g.ToMemOperand(source));
+    __ Push(scratch);
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  } else {
+    // No push instruction for this operand type. Bump the stack pointer and
+    // assemble the move.
+    __ SubWord(sp, sp, Operand(new_slots * kSystemPointerSize));
+    frame_access_state()->IncreaseSPDelta(new_slots);
+    AssembleMove(source, &stack_slot);
+  }
+  temp_slots_ += new_slots;
+  return stack_slot;
+}
+
+void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
+  int new_slots = RoundUp<2>(ElementSizeInPointers(rep));
+  frame_access_state()->IncreaseSPDelta(-new_slots);
+  RiscvOperandConverter g(this, nullptr);
+  if (dest->IsRegister()) {
+    __ Pop(g.ToRegister(dest));
+  } else if (dest->IsStackSlot()) {
+    UseScratchRegisterScope temps(tasm());
+    Register scratch = temps.Acquire();
+    __ Pop(scratch);
+    __ StoreWord(scratch, g.ToMemOperand(dest));
+  } else {
+    int last_frame_slot_id =
+        frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+    int sp_delta = frame_access_state_->sp_delta();
+    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
+    AssembleMove(&stack_slot, dest);
+    __ AddWord(sp, sp, Operand(new_slots * kSystemPointerSize));
+  }
+  temp_slots_ -= new_slots;
+}
+
+void CodeGenerator::PopTempStackSlots() {
+  if (temp_slots_ > 0) {
+    frame_access_state()->IncreaseSPDelta(-temp_slots_);
+    __ AddWord(sp, sp, Operand(temp_slots_ * kSystemPointerSize));
+    temp_slots_ = 0;
+  }
+}
+
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   // On 64-bit RISC-V we emit the jump tables inline.
   UNREACHABLE();

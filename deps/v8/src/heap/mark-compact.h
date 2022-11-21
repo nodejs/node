@@ -285,6 +285,8 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
+
   inline Heap* heap() const { return heap_; }
   inline Isolate* isolate();
 
@@ -307,7 +309,7 @@ class CollectorBase {
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
 
-  bool is_new_space_shrinking_ = false;
+  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;
@@ -335,6 +337,10 @@ class MarkCompactCollector final : public CollectorBase {
   static MarkCompactCollector* From(CollectorBase* collector) {
     return static_cast<MarkCompactCollector*>(collector);
   }
+
+  // Callback function for telling whether the object *p is an unmarked
+  // heap object.
+  static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process) final;
@@ -448,7 +454,7 @@ class MarkCompactCollector final : public CollectorBase {
   V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
   // Finds an object header based on a `maybe_inner_ptr`. It returns
@@ -529,10 +535,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();
-
-  // Callback function for telling whether the object *p is an unmarked
-  // heap object.
-  static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
 
   // Retain dying maps for `v8_flags.retain_maps_for_n_gc` garbage collections
   // to increase chances of reusing of map transition tree in future.
@@ -699,11 +701,14 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void CleanupPromotedPages();
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
   void Finish() final;
 
   void VisitObject(HeapObject obj) final;
+
+  // Perform Wrapper Tracing if in use.
+  void PerformWrapperTracing();
 
  private:
   class RootMarkingVisitor;

@@ -44,6 +44,7 @@
 //     - JSReceiver  (suitable for property access)
 //       - JSObject
 //         - JSArray
+//           - TemplateLiteralObject
 //         - JSArrayBuffer
 //         - JSArrayBufferView
 //           - JSTypedArray
@@ -181,7 +182,6 @@
 //       - DebugInfo
 //       - BreakPoint
 //       - BreakPointInfo
-//       - CachedTemplateObject
 //       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
@@ -869,6 +869,16 @@ V8_INLINE static bool HasWeakHeapObjectTag(const Object value) {
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
 // value in a heap object's first word.
+//
+// When external code space is enabled forwarding pointers are encoded as
+// Smi values representing a diff from the source or map word host object
+// address in kObjectAlignment chunks. Such a representation has the following
+// properties:
+// a) it can hold both positive an negative diffs for full pointer compression
+//    cage size (HeapObject address has only valuable 30 bits while Smis have
+//    31 bits),
+// b) it's independent of the pointer compression base and pointer compression
+//    scheme.
 class MapWord {
  public:
   // Normal state: the map word contains a map pointer.
@@ -888,16 +898,11 @@ class MapWord {
   inline bool IsForwardingAddress() const;
 
   // Create a map word from a forwarding address.
-  static inline MapWord FromForwardingAddress(HeapObject object);
+  static inline MapWord FromForwardingAddress(HeapObject map_word_host,
+                                              HeapObject object);
 
-  // View this map word as a forwarding address. The parameterless version
-  // is allowed to be used for objects allocated in the main pointer compression
-  // cage, while the second variant uses the value of the cage base explicitly
-  // and thus can be used in situations where one has to deal with both cases.
-  // Note, that the parameterless version is preferred because it avoids
-  // unnecessary recompressions.
-  inline HeapObject ToForwardingAddress();
-  inline HeapObject ToForwardingAddress(PtrComprCageBase host_cage_base);
+  // View this map word as a forwarding address.
+  inline HeapObject ToForwardingAddress(HeapObject map_word_host);
 
   inline Address ptr() { return value_; }
 

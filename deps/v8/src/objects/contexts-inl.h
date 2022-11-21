@@ -311,14 +311,6 @@ Object NativeContext::OptimizedCodeListHead() {
   return get(OPTIMIZED_CODE_LIST);
 }
 
-void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
-}
-
-Object NativeContext::DeoptimizedCodeListHead() {
-  return get(DEOPTIMIZED_CODE_LIST);
-}
-
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
 }  // namespace internal

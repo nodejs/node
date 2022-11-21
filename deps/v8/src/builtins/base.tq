@@ -358,7 +358,12 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
   ...
 }
 
+const kBigIntMaxLengthBits:
+    constexpr uintptr generates 'BigInt::kMaxLengthBits';
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
+const kBigIntDigitSize: constexpr intptr generates 'kSystemPointerSize';
+const kBitsPerByte: constexpr intptr generates 'kBitsPerByte';
+const kBigIntDigitBits: intptr = kBigIntDigitSize * kBitsPerByte;
 
 extern enum MessageTemplate {
   kAllPromisesRejected,
@@ -603,8 +608,11 @@ extern macro SelectBooleanConstant(bool): Boolean;
 
 extern macro Print(constexpr string): void;
 extern macro Print(constexpr string, Object): void;
-extern macro Comment(constexpr string): void;
 extern macro Print(Object): void;
+extern macro PrintErr(constexpr string): void;
+extern macro PrintErr(constexpr string, Object): void;
+extern macro PrintErr(Object): void;
+extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )
@@ -957,6 +965,8 @@ extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
 extern operator '*' macro Int64Mul(int64, int64): int64;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
 extern operator '/' macro Int64Div(int64, int64): int64;
+extern operator '%' macro IntPtrMod(intptr, intptr): intptr;
+extern operator '%' macro Int64Mod(int64, int64): int64;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
 extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;

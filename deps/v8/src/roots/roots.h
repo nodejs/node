@@ -330,8 +330,8 @@ class Symbol;
   V(HeapObject, current_microtask, CurrentMicrotask)                        \
   /* KeepDuringJob set for JS WeakRefs */                                   \
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
-  V(Object, pending_optimize_for_test_bytecode,                             \
-    PendingOptimizeForTestBytecode)                                         \
+  V(Object, functions_marked_for_manual_optimization,                       \
+    FunctionsMarkedForManualOptimization)                                   \
   V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
   /* EphemeronHashTable for debug scopes (local debug evaluate) */          \

@@ -390,6 +390,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CallBuiltinByIndex(Register builtin_index);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin, Condition cc);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
@@ -418,8 +419,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void CodeDataContainerFromCodeT(Register destination, Register codet);
 
   void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(Address destination, RelocInfo::Mode rmode, Condition cc);
   void Jump(const ExternalReference& reference);
   void Jump(Operand op);
+  void Jump(Operand op, Condition cc);
   void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode);
   void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode, Condition cc);
 
@@ -943,8 +946,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  private:
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   void EnterExitFramePrologue(Register saved_rax_reg,
                               StackFrame::Type frame_type);

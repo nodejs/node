@@ -137,6 +137,8 @@ class BasicMemoryChunk {
 
   static constexpr MainThreadFlags kInSharedHeap = IN_SHARED_HEAP;
 
+  static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
+
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);

@@ -234,24 +234,23 @@ ElementAccessFeedback const& ElementAccessFeedback::Refine(
     DCHECK(!group.empty());
     TransitionGroup new_group(broker->zone());
     for (size_t i = 1; i < group.size(); ++i) {
-      MapRef source = MakeRefAssumeMemoryFence(broker, *group[i]);
+      MapRef source = group[i];
       if (inferred.find(source) != inferred.end()) {
-        new_group.push_back(source.object());
+        new_group.push_back(source);
       }
     }
 
-    MapRef target = MakeRefAssumeMemoryFence(broker, *group.front());
+    MapRef target = group.front();
     bool const keep_target =
         inferred.find(target) != inferred.end() || new_group.size() > 1;
     if (keep_target) {
-      new_group.push_back(target.object());
+      new_group.push_back(target);
       // The target must be at the front, the order of sources doesn't matter.
       std::swap(new_group[0], new_group[new_group.size() - 1]);
     }
 
     if (!new_group.empty()) {
-      DCHECK(new_group.size() == 1 ||
-             new_group.front().equals(target.object()));
+      DCHECK(new_group.size() == 1 || new_group.front().equals(target));
       refined_feedback.transition_groups_.push_back(std::move(new_group));
     }
   }
@@ -402,11 +401,8 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   for (auto const& group : transition_groups()) {
-    for (Handle<Map> map : group) {
-      // We assume a memory fence because {map} was read earlier from
-      // the feedback vector and was store ordered on insertion into the
-      // vector.
-      if (!MakeRefAssumeMemoryFence(broker, map).IsStringMap()) return false;
+    for (MapRef map : group) {
+      if (!map.IsStringMap()) return false;
     }
   }
   return true;
@@ -816,12 +812,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   }
 
   using TransitionGroup = ElementAccessFeedback::TransitionGroup;
-  struct HandleLess {
-    bool operator()(Handle<Map> x, Handle<Map> y) const {
-      return x.address() < y.address();
-    }
-  };
-  ZoneMap<Handle<Map>, TransitionGroup, HandleLess> transition_groups(zone());
+  ZoneRefMap<MapRef, TransitionGroup> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
   for (const MapRef& map : maps) {
@@ -838,14 +829,14 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     }
 
     if (transition_target.is_null()) {
-      TransitionGroup group(1, map.object(), zone());
-      transition_groups.insert({map.object(), group});
+      TransitionGroup group(1, map, zone());
+      transition_groups.insert({map, group});
     } else {
-      Handle<Map> target = CanonicalPersistentHandle(transition_target);
+      MapRef target = MakeRefAssumeMemoryFence(this, transition_target);
       TransitionGroup new_group(1, target, zone());
       TransitionGroup& actual_group =
           transition_groups.insert({target, new_group}).first->second;
-      actual_group.push_back(map.object());
+      actual_group.push_back(map);
     }
   }
 
@@ -866,12 +857,12 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 #ifdef ENABLE_SLOW_DCHECKS
   // Check that each of the group's maps occurs exactly once in the whole
   // feedback. This implies that "a source is not a target".
-  for (Handle<Map> map : group) {
+  for (MapRef map : group) {
     int count = 0;
     for (TransitionGroup const& some_group : transition_groups()) {
-      count += std::count_if(
-          some_group.begin(), some_group.end(),
-          [&](Handle<Map> some_map) { return some_map.equals(map); });
+      count +=
+          std::count_if(some_group.begin(), some_group.end(),
+                        [&](MapRef some_map) { return some_map.equals(map); });
     }
     CHECK_EQ(count, 1);
   }

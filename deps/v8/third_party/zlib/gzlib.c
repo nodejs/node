@@ -30,7 +30,7 @@ local gzFile gz_open OF((const void *, int, const char *));
 
    The gz_strwinerror function does not change the current setting of
    GetLastError. */
-char ZLIB_INTERNAL *gz_strwinerror (error)
+char ZLIB_INTERNAL *gz_strwinerror(error)
      DWORD error;
 {
     static char buf[1024];

@@ -48,6 +48,13 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 
 #define UNIMPLEMENTED() FATAL("unimplemented code")
 #define UNREACHABLE() FATAL("unreachable code")
+// g++ versions <= 8 cannot use UNREACHABLE() in a constexpr function.
+// TODO(miladfarca): Remove once all compilers handle this properly.
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ <= 8)
+#define CONSTEXPR_UNREACHABLE() abort()
+#else
+#define CONSTEXPR_UNREACHABLE() UNREACHABLE()
+#endif
 
 namespace v8 {
 namespace base {

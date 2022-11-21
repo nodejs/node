@@ -234,10 +234,17 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   // context and not the declaration context.
   Handle<Context> context(isolate->context().declaration_context(), isolate);
 
+  // For debug-evaluate we always use sloppy eval, in which case context could
+  // also be a module context. As module contexts re-use the extension slot
+  // we need to check for this.
+  const bool is_debug_evaluate_in_module =
+      isolate->context().IsDebugEvaluateContext() && context->IsModuleContext();
+
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
          context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() &&
-          context->scope_info().is_declaration_scope()));
+          context->scope_info().is_declaration_scope()) ||
+         is_debug_evaluate_in_module);
 
   bool is_var = value->IsUndefined(isolate);
   DCHECK_IMPLIES(!is_var, value->IsJSFunction());
@@ -288,10 +295,11 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
     object = Handle<JSObject>::cast(holder);
 
-  } else if (context->has_extension()) {
+  } else if (context->has_extension() && !is_debug_evaluate_in_module) {
     object = handle(context->extension_object(), isolate);
     DCHECK(object->IsJSContextExtensionObject());
-  } else if (context->scope_info().HasContextExtensionSlot()) {
+  } else if (context->scope_info().HasContextExtensionSlot() &&
+             !is_debug_evaluate_in_module) {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.

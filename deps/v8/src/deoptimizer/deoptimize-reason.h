@@ -40,6 +40,7 @@ namespace internal {
   V(NaN, "NaN")                                                                \
   V(NoCache, "no cache")                                                       \
   V(NotABigInt, "not a BigInt")                                                \
+  V(NotABigInt64, "not a BigInt64")                                            \
   V(NotAHeapNumber, "not a heap number")                                       \
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
   V(NotAJavaScriptObjectOrNullOrUndefined,                                     \
@@ -52,6 +53,7 @@ namespace internal {
   V(NotAString, "not a String")                                                \
   V(NotASymbol, "not a Symbol")                                                \
   V(NotInt32, "not int32")                                                     \
+  V(NotUint32, "not unsigned int32")                                           \
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(Smi, "Smi")                                                                \

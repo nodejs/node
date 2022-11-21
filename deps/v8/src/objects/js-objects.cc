@@ -1532,8 +1532,7 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
        desc->enumerable() == current->enumerable()) &&
       (!desc->has_configurable() ||
        desc->configurable() == current->configurable()) &&
-      (!desc->has_value() ||
-       (current->has_value() && current->value()->SameValue(*desc->value()))) &&
+      (!desc->has_value() || current->value().is_identical_to(desc->value())) &&
       (!desc->has_writable() ||
        (current->has_writable() && current->writable() == desc->writable())) &&
       (!desc->has_get() ||
@@ -1613,7 +1612,11 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       }
       // 7a ii. If Desc.[[Value]] is present and SameValue(Desc.[[Value]],
       // current.[[Value]]) is false, return false.
-      if (desc->has_value() && !desc->value()->SameValue(*current->value())) {
+      if (desc->has_value()) {
+        // We'll succeed applying the property, but the value is already the
+        // same and the property is read-only, so skip actually writing the
+        // property. Otherwise we may try to e.g., write to frozen elements.
+        if (desc->value()->SameValue(*current->value())) return Just(true);
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,

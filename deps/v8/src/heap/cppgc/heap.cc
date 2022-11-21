@@ -63,9 +63,6 @@ namespace {
 
 void CheckConfig(GCConfig config, HeapBase::MarkingType marking_support,
                  HeapBase::SweepingType sweeping_support) {
-  CHECK_WITH_MSG((config.collection_type != CollectionType::kMinor) ||
-                     (config.stack_state == StackState::kNoHeapPointers),
-                 "Minor GCs with stack is currently not supported");
   CHECK_LE(static_cast<int>(config.marking_type),
            static_cast<int>(marking_support));
   CHECK_LE(static_cast<int>(config.sweeping_type),
@@ -149,8 +146,13 @@ void Heap::StartGarbageCollection(GCConfig config) {
   epoch_++;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (config.collection_type == CollectionType::kMajor)
+  if (config.collection_type == CollectionType::kMajor &&
+      generational_gc_supported()) {
+    stats_collector()->NotifyUnmarkingStarted(config.collection_type);
+    cppgc::internal::StatsCollector::EnabledScope stats_scope(
+        stats_collector(), cppgc::internal::StatsCollector::kUnmark);
     SequentialUnmarker unmarker(raw_heap());
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   const MarkingConfig marking_config{config.collection_type, config.stack_state,
@@ -164,8 +166,9 @@ void Heap::FinalizeGarbageCollection(StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
-  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
   in_atomic_pause_ = true;
+
+  stack()->SaveContext();
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Check if the young generation was enabled. We must enable young generation
@@ -185,7 +188,7 @@ void Heap::FinalizeGarbageCollection(StackState stack_state) {
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   MarkingVerifier verifier(*this, config_.collection_type);
-  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
+  verifier.Run(config_.stack_state,
                stats_collector()->marked_bytes_on_current_cycle() +
                    bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
@@ -193,6 +196,8 @@ void Heap::FinalizeGarbageCollection(StackState stack_state) {
   DCHECK_EQ(0u, bytes_allocated_in_prefinalizers);
 #endif
   USE(bytes_allocated_in_prefinalizers);
+
+  stack()->ClearContext();
 
 #if defined(CPPGC_YOUNG_GENERATION)
   ResetRememberedSet();

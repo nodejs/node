@@ -142,6 +142,12 @@ InspectorTest.ContextGroup = class {
     this.id = utils.createContextGroup();
   }
 
+  waitForDebugger() {
+    return new Promise(resolve => {
+      utils.waitForDebugger(this.id, resolve);
+    });
+  }
+
   createContext(name) {
     utils.createContext(this.id, name || '');
   }

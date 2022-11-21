@@ -49,15 +49,17 @@ class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
+class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    int compilation_id, v8::metrics::Recorder::ContextId context_id);
+    Isolate* isolate, WasmFeatures enabled_features, ErrorThrower* thrower,
+    std::shared_ptr<const WasmModule> module, ModuleWireBytes wire_bytes,
+    int compilation_id, v8::metrics::Recorder::ContextId context_id,
+    ProfileInformation* pgo_info);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
@@ -78,7 +80,7 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
+bool CompileLazy(Isolate*, WasmInstanceObject, int func_index);
 
 // Throws the compilation error after failed lazy compilation.
 void ThrowLazyCompilationError(Isolate* isolate,
@@ -136,7 +138,7 @@ class WrapperQueue {
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
-  AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
+  AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
                   Handle<Context> context, Handle<Context> incumbent_context,
                   const char* api_method_name,
@@ -258,7 +260,6 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
   const DynamicTiering dynamic_tiering_;
-  const bool wasm_lazy_compilation_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.

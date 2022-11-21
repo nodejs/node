@@ -157,65 +157,58 @@ void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
 void ExternalPointerSlot::init(Isolate* isolate, Address value,
                                ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-    ExternalPointerHandle handle =
-        table.AllocateAndInitializeEntry(isolate, value, tag);
-    // Use a Release_Store to ensure that the store of the pointer into the
-    // table is not reordered after the store of the handle. Otherwise, other
-    // threads may access an uninitialized table entry and crash.
-    Release_StoreHandle(handle);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+  ExternalPointerHandle handle =
+      table.AllocateAndInitializeEntry(isolate, value, tag);
+  // Use a Release_Store to ensure that the store of the pointer into the
+  // table is not reordered after the store of the handle. Otherwise, other
+  // threads may access an uninitialized table entry and crash.
+  Release_StoreHandle(handle);
+#else
   store(isolate, value, tag);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef V8_ENABLE_SANDBOX
 ExternalPointerHandle ExternalPointerSlot::Relaxed_LoadHandle() const {
-  // TODO(saelo): here and below: remove cast once ExternalPointerHandle is
-  // always 32 bit large.
-  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
-  return base::AsAtomic32::Relaxed_Load(handle_location);
+  return base::AsAtomic32::Relaxed_Load(location());
 }
 
 void ExternalPointerSlot::Relaxed_StoreHandle(
     ExternalPointerHandle handle) const {
-  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
-  return base::AsAtomic32::Relaxed_Store(handle_location, handle);
+  return base::AsAtomic32::Relaxed_Store(location(), handle);
 }
 
 void ExternalPointerSlot::Release_StoreHandle(
     ExternalPointerHandle handle) const {
-  auto handle_location = reinterpret_cast<ExternalPointerHandle*>(location());
-  return base::AsAtomic32::Release_Store(handle_location, handle);
+  return base::AsAtomic32::Release_Store(location(), handle);
 }
 #endif  // V8_ENABLE_SANDBOX
 
 Address ExternalPointerSlot::load(const Isolate* isolate,
                                   ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    const ExternalPointerTable& table =
-        GetExternalPointerTableForTag(isolate, tag);
-    ExternalPointerHandle handle = Relaxed_LoadHandle();
-    return table.Get(handle, tag);
-  }
-#endif  // V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  const ExternalPointerTable& table =
+      GetExternalPointerTableForTag(isolate, tag);
+  ExternalPointerHandle handle = Relaxed_LoadHandle();
+  return table.Get(handle, tag);
+#else
   return ReadMaybeUnalignedValue<Address>(address());
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void ExternalPointerSlot::store(Isolate* isolate, Address value,
                                 ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-    ExternalPointerHandle handle = Relaxed_LoadHandle();
-    table.Set(handle, value, tag);
-    return;
-  }
-#endif  // V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+  ExternalPointerHandle handle = Relaxed_LoadHandle();
+  table.Set(handle, value, tag);
+#else
   WriteMaybeUnalignedValue<Address>(address(), value);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 ExternalPointerSlot::RawContent

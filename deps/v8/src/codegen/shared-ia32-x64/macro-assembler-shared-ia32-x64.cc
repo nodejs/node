@@ -102,6 +102,31 @@ void SharedTurboAssembler::Movlps(XMMRegister dst, XMMRegister src1,
     movlps(dst, src2);
   }
 }
+void SharedTurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvpd(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvpd(dst, src2);
+  }
+}
+
+void SharedTurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vblendvps(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    blendvps(dst, src2);
+  }
+}
 
 void SharedTurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
                                     XMMRegister src2, XMMRegister mask) {

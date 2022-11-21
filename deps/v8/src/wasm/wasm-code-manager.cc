@@ -515,9 +515,6 @@ int WasmCode::GetSourcePositionBefore(int offset) {
   return position;
 }
 
-// static
-constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
-
 WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : protect_code_memory_(!V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
                            v8_flags.wasm_write_protect_code_memory &&
@@ -622,20 +619,21 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                         minimum_size),
                total_reserved / 4);
 
-  if (V8_UNLIKELY(minimum_size > WasmCodeAllocator::kMaxCodeSpaceSize)) {
+  const size_t max_code_space_size =
+      size_t{v8_flags.wasm_max_code_space_size_mb} * MB;
+  if (V8_UNLIKELY(minimum_size > max_code_space_size)) {
     auto oom_detail = base::FormattedString{}
                       << "required reservation minimum (" << minimum_size
                       << ") is bigger than supported maximum ("
-                      << WasmCodeAllocator::kMaxCodeSpaceSize << ")";
+                      << max_code_space_size << ")";
     V8::FatalProcessOutOfMemory(nullptr,
                                 "Exceeding maximum wasm code space size",
                                 oom_detail.PrintToArray().data());
     UNREACHABLE();
   }
 
-  // Limit by the maximum supported code space size.
-  size_t reserve_size =
-      std::min(WasmCodeAllocator::kMaxCodeSpaceSize, suggested_size);
+  // Limit by the maximum code space size.
+  size_t reserve_size = std::min(max_code_space_size, suggested_size);
 
   return reserve_size;
 }
@@ -777,7 +775,8 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
     committed_code_space_.fetch_add(commit_end - commit_start);
     // Committed code cannot grow bigger than maximum code space size.
-    DCHECK_LE(committed_code_space_.load(), v8_flags.wasm_max_code_space * MB);
+    DCHECK_LE(committed_code_space_.load(),
+              v8_flags.wasm_max_committed_code_mb * MB);
     if (protect_code_memory_) {
       DCHECK_LT(0, writers_count_);
       InsertIntoWritableRegions({commit_start, commit_end - commit_start},
@@ -785,7 +784,6 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
-  allocated_code_space_.Merge(code_space);
   generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
 
   TRACE_HEAP("Code alloc for %p: 0x%" PRIxPTR ",+%zu\n", this,
@@ -1791,6 +1789,9 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegionLocked(
     base::AddressRegion code_region) const {
   allocation_mutex_.AssertHeld();
   auto jump_table_usable = [code_region](const WasmCode* jump_table) {
+    // We only ever need to check for suitable jump tables if
+    // {kNeedsFarJumpsBetweenCodeSpaces} is true.
+    if constexpr (!kNeedsFarJumpsBetweenCodeSpaces) UNREACHABLE();
     Address table_start = jump_table->instruction_start();
     Address table_end = table_start + jump_table->instructions().size();
     // Compute the maximum distance from anywhere in the code region to anywhere
@@ -1798,11 +1799,13 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegionLocked(
     size_t max_distance = std::max(
         code_region.end() > table_start ? code_region.end() - table_start : 0,
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
-    // We can allow a max_distance that is equal to kMaxCodeSpaceSize, because
-    // every call or jump will target an address *within* the region, but never
-    // exactly the end of the region. So all occuring offsets are actually
-    // smaller than max_distance.
-    return max_distance <= WasmCodeAllocator::kMaxCodeSpaceSize;
+    // kDefaultMaxWasmCodeSpaceSizeMb is <= the maximum near call distance on
+    // the current platform.
+    // We can allow a max_distance that is equal to
+    // kDefaultMaxWasmCodeSpaceSizeMb, because every call or jump will target an
+    // address *within* the region, but never exactly the end of the region. So
+    // all occuring offsets are actually smaller than max_distance.
+    return max_distance <= kDefaultMaxWasmCodeSpaceSizeMb * MB;
   };
 
   for (auto& code_space_data : code_space_data_) {
@@ -1887,14 +1890,19 @@ NativeModule::~NativeModule() {
   import_wrapper_cache_.reset();
 
   // If experimental PGO support is enabled, serialize the PGO data now.
-  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_to_file)) {
-    DumpProfileToFile(module_.get(), wire_bytes());
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
+    DumpProfileToFile(module_.get(), wire_bytes(), tiering_budgets_.get());
   }
 }
 
 WasmCodeManager::WasmCodeManager()
-    : max_committed_code_space_(v8_flags.wasm_max_code_space * MB),
-      critical_committed_code_space_(max_committed_code_space_ / 2) {}
+    : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
+      critical_committed_code_space_(max_committed_code_space_ / 2) {
+  // Check that --wasm-max-code-space-size-mb is not set bigger than the default
+  // value. Otherwise we run into DCHECKs or other crashes later.
+  CHECK_GE(kDefaultMaxWasmCodeSpaceSizeMb,
+           v8_flags.wasm_max_code_space_size_mb);
+}
 
 WasmCodeManager::~WasmCodeManager() {
   // No more committed code space.
@@ -2331,11 +2339,38 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());
+  std::vector<std::unique_ptr<WasmCode>> generated_code;
+  generated_code.reserve(results.size());
+
   // First, allocate code space for all the results.
+  // Never add more than half of a code space at once. This leaves some space
+  // for jump tables and other overhead. We could use {OverheadPerCodeSpace},
+  // but that's only an approximation, so we are conservative here and never use
+  // more than half a code space.
+  size_t max_code_batch_size = v8_flags.wasm_max_code_space_size_mb * MB / 2;
   size_t total_code_space = 0;
   for (auto& result : results) {
     DCHECK(result.succeeded());
-    total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
+    size_t new_code_space =
+        RoundUp<kCodeAlignment>(result.code_desc.instr_size);
+    if (total_code_space + new_code_space > max_code_batch_size) {
+      // Split off the first part of the {results} vector and process it
+      // separately. This method then continues with the rest.
+      size_t split_point = &result - results.begin();
+      CHECK_WITH_MSG(
+          split_point != 0,
+          "A single code object needs more than half of the code space size");
+      auto first_results = AddCompiledCode(results.SubVector(0, split_point));
+      generated_code.insert(generated_code.end(),
+                            std::make_move_iterator(first_results.begin()),
+                            std::make_move_iterator(first_results.end()));
+      // Continue processing the rest of the vector. This change to the
+      // {results} vector does not invalidate iterators (which are just
+      // pointers). In particular, the end pointer stays the same.
+      results += split_point;
+      total_code_space = 0;
+    }
+    total_code_space += new_code_space;
   }
   base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_tables;
@@ -2353,9 +2388,6 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   // {results} vector in smaller chunks).
   CHECK(jump_tables.is_valid());
 
-  std::vector<std::unique_ptr<WasmCode>> generated_code;
-  generated_code.reserve(results.size());
-
   // Now copy the generated code into the code space and relocate it.
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer->start());
@@ -2371,6 +2403,10 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
         jump_tables));
   }
   DCHECK_EQ(0, code_space.size());
+
+  // Check that we added the expected amount of code objects, even if we split
+  // the {results} vector.
+  DCHECK_EQ(generated_code.capacity(), generated_code.size());
 
   return generated_code;
 }

@@ -1615,6 +1615,7 @@ class ScheduleLateNodeVisitor {
     if (!node->op()->HasProperty(Operator::kPure)) return block;
     // TODO(titzer): fix the special case of splitting of projections.
     if (node->opcode() == IrOpcode::kProjection) return block;
+    // Wasm-gc uses LoadImmutable for things that we want deduplicated.
 
     // The {block} is common dominator of all uses of {node}, so we cannot
     // split anything unless the {block} has at least two successors.
@@ -1647,10 +1648,12 @@ class ScheduleLateNodeVisitor {
       marking_queue_.pop_front();
       if (IsMarked(top_block)) continue;
       bool marked = true;
-      for (BasicBlock* successor : top_block->successors()) {
-        if (!IsMarked(successor)) {
-          marked = false;
-          break;
+      if (top_block->loop_depth() == block->loop_depth()) {
+        for (BasicBlock* successor : top_block->successors()) {
+          if (!IsMarked(successor)) {
+            marked = false;
+            break;
+          }
         }
       }
       if (marked) MarkBlock(top_block);

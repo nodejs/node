@@ -14,6 +14,18 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+std::unique_ptr<MarkingWorklists::Local> GetV8MarkingWorklists(
+    Heap* heap, cppgc::internal::CollectionType collection_type) {
+  if (!heap) return {};
+  auto* worklist =
+      (collection_type == cppgc::internal::CollectionType::kMajor)
+          ? heap->mark_compact_collector()->marking_worklists()
+          : heap->minor_mark_compact_collector()->marking_worklists();
+  return std::make_unique<MarkingWorklists::Local>(worklist);
+}
+}  // namespace
+
 UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
     HeapBase& heap, cppgc::internal::BasicMarkingState& marking_state,
     UnifiedHeapMarkingState& unified_heap_marking_state)
@@ -67,13 +79,11 @@ MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
 
 ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
     HeapBase& heap, Heap* v8_heap,
-    cppgc::internal::ConcurrentMarkingState& marking_state)
+    cppgc::internal::ConcurrentMarkingState& marking_state,
+    CppHeap::CollectionType collectione_type)
     : UnifiedHeapMarkingVisitorBase(heap, marking_state,
                                     concurrent_unified_heap_marking_state_),
-      local_marking_worklist_(
-          v8_heap ? std::make_unique<MarkingWorklists::Local>(
-                        v8_heap->mark_compact_collector()->marking_worklists())
-                  : nullptr),
+      local_marking_worklist_(GetV8MarkingWorklists(v8_heap, collectione_type)),
       concurrent_unified_heap_marking_state_(v8_heap,
                                              local_marking_worklist_.get()) {}
 

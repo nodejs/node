@@ -30,10 +30,9 @@ class DeferredCodeInfo {
 
 class MaglevCodeGenState {
  public:
-  MaglevCodeGenState(Isolate* isolate, MaglevCompilationInfo* compilation_info,
+  MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
                      MaglevSafepointTableBuilder* safepoint_table_builder)
-      : isolate_(isolate),
-        compilation_info_(compilation_info),
+      : compilation_info_(compilation_info),
         safepoint_table_builder_(safepoint_table_builder) {}
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
@@ -63,7 +62,6 @@ class MaglevCodeGenState {
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  Isolate* isolate() const { return isolate_; }
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   MaglevGraphLabeller* graph_labeller() const {
     return compilation_info_->graph_labeller();
@@ -76,7 +74,6 @@ class MaglevCodeGenState {
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
  private:
-  Isolate* const isolate_;
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
 

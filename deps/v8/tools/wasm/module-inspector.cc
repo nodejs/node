@@ -242,17 +242,18 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     }
     uint32_t total_length = 0;
     uint32_t length;
-    uint32_t entries = read_u32v<validate>(pc_, &length);
+    uint32_t entries = read_u32v<ValidationTag>(pc_, &length);
     PrintHexBytes(out, length, pc_, 4);
     out << " // " << entries << " entries in locals list";
     out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
     total_length += length;
     while (entries-- > 0) {
       uint32_t count_length;
-      uint32_t count = read_u32v<validate>(pc_ + total_length, &count_length);
+      uint32_t count =
+          read_u32v<ValidationTag>(pc_ + total_length, &count_length);
       uint32_t type_length;
-      ValueType type = value_type_reader::read_value_type<validate>(
-          this, pc_ + total_length + count_length, &type_length, nullptr,
+      ValueType type = value_type_reader::read_value_type<ValidationTag>(
+          this, pc_ + total_length + count_length, &type_length,
           WasmFeatures::All());
       PrintHexBytes(out, count_length + type_length, pc_ + total_length, 4);
       out << " // " << count << (count != 1 ? " locals" : " local")
@@ -340,10 +341,10 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     while (pc_ < end_) {
       WasmOpcode opcode = GetOpcode();
       if (opcode == kExprI32Const) {
-        ImmI32Immediate<Decoder::kNoValidation> imm(this, pc_ + 1);
+        ImmI32Immediate imm(this, pc_ + 1, Decoder::kNoValidation);
         stats.RecordImmediate(opcode, imm.value);
       } else if (opcode == kExprLocalGet || opcode == kExprGlobalGet) {
-        IndexImmediate<Decoder::kNoValidation> imm(this, pc_ + 1, "");
+        IndexImmediate imm(this, pc_ + 1, "", Decoder::kNoValidation);
         stats.RecordImmediate(opcode, static_cast<int>(imm.index));
       }
       uint32_t length = WasmDecoder::OpcodeLength(this, pc_);
@@ -359,11 +360,10 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
 class HexDumpModuleDis;
 class DumpingModuleDecoder : public ModuleDecoderTemplate<HexDumpModuleDis> {
  public:
-  DumpingModuleDecoder(const ModuleWireBytes wire_bytes,
-                       HexDumpModuleDis* module_dis)
-      : ModuleDecoderTemplate<HexDumpModuleDis>(
-            WasmFeatures::All(), wire_bytes.start(), wire_bytes.end(),
-            kWasmOrigin, *module_dis) {}
+  DumpingModuleDecoder(ModuleWireBytes wire_bytes, HexDumpModuleDis* module_dis)
+      : ModuleDecoderTemplate<HexDumpModuleDis>(WasmFeatures::All(),
+                                                wire_bytes.module_bytes(),
+                                                kWasmOrigin, *module_dis) {}
 
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
@@ -734,7 +734,7 @@ class FormatConverter {
     wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     status_ = kIoInitialized;
     ModuleResult result =
-        DecodeWasmModuleForDisassembler(start(), end(), &allocator_);
+        DecodeWasmModuleForDisassembler(raw_bytes(), &allocator_);
     if (result.failed()) {
       WasmError error = result.error();
       std::cerr << "Decoding error: " << error.message() << " at offset "
@@ -768,10 +768,10 @@ class FormatConverter {
 
   void SectionStats() {
     DCHECK_EQ(status_, kModuleReady);
-    Decoder decoder(start(), end());
+    Decoder decoder(raw_bytes());
     decoder.consume_bytes(kModuleHeaderSize, "module header");
 
-    uint32_t module_size = static_cast<uint32_t>(end() - start());
+    uint32_t module_size = static_cast<uint32_t>(raw_bytes().size());
     int digits = GetNumDigits(module_size);
     size_t kMinNameLength = 8;
     // 18 = kMinNameLength + strlen(" section: ").
@@ -797,7 +797,7 @@ class FormatConverter {
 
   void Strip() {
     DCHECK_EQ(status_, kModuleReady);
-    Decoder decoder(start(), end());
+    Decoder decoder(raw_bytes());
     out_.write(reinterpret_cast<const char*>(decoder.pc()), kModuleHeaderSize);
     decoder.consume_bytes(kModuleHeaderSize);
     NoTracer no_tracer;
@@ -866,7 +866,9 @@ class FormatConverter {
     DCHECK_EQ(status_, kModuleReady);
     MultiLineStringBuilder sb;
     ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_);
-    md.PrintModule({0, 2});
+    // 100 GB is an approximation of "unlimited".
+    size_t max_mb = 100'000;
+    md.PrintModule({0, 2}, max_mb);
     sb.WriteTo(out_);
   }
 
@@ -1040,8 +1042,9 @@ class FormatConverter {
     }
   }
 
-  byte* start() { return raw_bytes_.data(); }
-  byte* end() { return start() + raw_bytes_.size(); }
+  base::Vector<const uint8_t> raw_bytes() const {
+    return base::VectorOf(raw_bytes_);
+  }
   const WasmModule* module() { return module_.get(); }
   NamesProvider* names() { return names_provider_.get(); }
 
@@ -1049,7 +1052,7 @@ class FormatConverter {
   Output output_;
   std::ostream& out_;
   Status status_{kNotReady};
-  std::vector<byte> raw_bytes_;
+  std::vector<uint8_t> raw_bytes_;
   ModuleWireBytes wire_bytes_{{}};
   std::shared_ptr<WasmModule> module_;
   std::unique_ptr<NamesProvider> names_provider_;

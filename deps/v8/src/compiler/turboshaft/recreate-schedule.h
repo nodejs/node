@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_RECREATE_SCHEDULE_H_
 
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-origin-table.h"
 
 namespace v8::internal {
@@ -25,6 +26,7 @@ struct RecreateScheduleResult {
 };
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
+                                        JSHeapBroker* broker,
                                         CallDescriptor* call_descriptor,
                                         Zone* graph_zone, Zone* phase_zone,
                                         SourcePositionTable* source_positions,

@@ -227,13 +227,10 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
 // This flag enables the mode when V8 does not create trampoline Code objects
 // for builtins. It should be enough to have only CodeDataContainer objects.
-// TODO(v8:11880): remove the flag one the Code-less builtins mode works.
-#define V8_REMOVE_BUILTINS_CODE_OBJECTS true
 class CodeDataContainer;
 using CodeT = CodeDataContainer;
 #else
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
-#define V8_REMOVE_BUILTINS_CODE_OBJECTS false
 class Code;
 using CodeT = Code;
 #endif
@@ -383,9 +380,26 @@ constexpr int kMaxDoubleStringLength = 24;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
+// Do not access directly, but via the {--wasm-max-committed-code-mb} flag.
 // Just below 4GB, such that {kMaxWasmCodeMemory} fits in a 32-bit size_t.
-constexpr size_t kMaxWasmCodeMB = 4095;
-constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
+constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
+
+// The actual maximum code space size used can be configured with
+// --max-wasm-code-space-size. This constant is the default value, and at the
+// same time the maximum allowed value (checked by the WasmCodeManager).
+#if V8_TARGET_ARCH_ARM64
+// ARM64 only supports direct calls within a 128 MB range.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
+#elif V8_TARGET_ARCH_PPC64
+// Branches only take 26 bits.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 32;
+#else
+// Use 1024 MB limit for code spaces on other platforms. This is smaller than
+// the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
+// big reservations, and to ensure that distances within a code space fit
+// within a 32-bit signed integer.
+constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 1024;
+#endif
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
@@ -882,7 +896,6 @@ class JSObject;
 class LocalIsolate;
 class MacroAssembler;
 class Map;
-class MapSpace;
 class MarkCompactCollector;
 template <typename T>
 class MaybeHandle;
@@ -983,25 +996,24 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 // consecutive.
 enum AllocationSpace {
   RO_SPACE,         // Immortal, immovable and immutable objects,
-  OLD_SPACE,        // Old generation regular object space.
-  CODE_SPACE,       // Old generation code object space, marked executable.
-  MAP_SPACE,        // Old generation map object space, non-movable.
-  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
   NEW_SPACE,        // Young generation space for regular objects collected
                     // with Scavenger/MinorMC.
+  OLD_SPACE,        // Old generation regular object space.
+  CODE_SPACE,       // Old generation code object space, marked executable.
+  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
+  NEW_LO_SPACE,     // Young generation large object space.
   LO_SPACE,         // Old generation large object space.
   CODE_LO_SPACE,    // Old generation large code object space.
-  NEW_LO_SPACE,     // Young generation large object space.
   SHARED_LO_SPACE,  // Space shared between multiple isolates. Optional.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = SHARED_LO_SPACE,
-  FIRST_MUTABLE_SPACE = OLD_SPACE,
+  FIRST_MUTABLE_SPACE = NEW_SPACE,
   LAST_MUTABLE_SPACE = SHARED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = SHARED_SPACE,
-  FIRST_SWEEPABLE_SPACE = OLD_SPACE,
-  LAST_SWEEPABLE_SPACE = NEW_SPACE
+  FIRST_SWEEPABLE_SPACE = NEW_SPACE,
+  LAST_SWEEPABLE_SPACE = SHARED_SPACE
 };
 constexpr int kSpaceTagSize = 4;
 static_assert(FIRST_SPACE == 0);
@@ -1010,10 +1022,10 @@ enum class AllocationType : uint8_t {
   kYoung,      // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
   kOld,        // Regular object allocated in OLD_SPACE or LO_SPACE
   kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,        // Map object allocated in MAP_SPACE
+  kMap,        // Map object allocated in OLD_SPACE
   kReadOnly,   // Object allocated in RO_SPACE
   kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
-  kSharedMap,  // Map object in MAP_SPACE in the shared heap
+  kSharedMap,  // Map object in OLD_SPACE in the shared heap
 };
 
 // These values are persisted to logs. Entries should not be renumbered and

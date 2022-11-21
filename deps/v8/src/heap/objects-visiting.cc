@@ -139,8 +139,6 @@ struct WeakListVisitor<Context> {
       // Code objects are always allocated in Code space, we do not have to
       // visit them during scavenges.
       DoWeakList<CodeT>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
-      DoWeakList<CodeT>(heap, context, retainer,
-                        Context::DEOPTIMIZED_CODE_LIST);
     }
   }
 
@@ -163,7 +161,6 @@ struct WeakListVisitor<Context> {
 
   static void VisitPhantomObject(Heap* heap, Context context) {
     ClearWeakList<CodeT>(heap, context.get(Context::OPTIMIZED_CODE_LIST));
-    ClearWeakList<CodeT>(heap, context.get(Context::DEOPTIMIZED_CODE_LIST));
   }
 };
 

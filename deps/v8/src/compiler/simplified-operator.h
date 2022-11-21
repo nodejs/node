@@ -788,7 +788,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntSubtract();
   const Operator* BigIntMultiply();
   const Operator* BigIntDivide();
+  const Operator* BigIntModulus();
   const Operator* BigIntBitwiseAnd();
+  const Operator* BigIntBitwiseOr();
+  const Operator* BigIntBitwiseXor();
+  const Operator* BigIntShiftLeft();
+  const Operator* BigIntShiftRight();
   const Operator* BigIntNegate();
 
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
@@ -815,7 +820,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntMultiply(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntDivide(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntModulus(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntBitwiseAnd(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntBitwiseOr(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntBitwiseXor(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftLeft(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntShiftRight(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntAsIntN(int bits,
                                           const FeedbackSource& feedback);
@@ -917,7 +927,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
-  const Operator* CheckedBigInt64Add();
+  const Operator* CheckedInt64Add();
+  const Operator* CheckedInt64Sub();
+  const Operator* CheckedInt64Mul();
+  const Operator* CheckedInt64Div();
+  const Operator* CheckedInt64Mod();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
@@ -932,7 +946,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckBigInt(const FeedbackSource& feedback);
-  const Operator* CheckBigInt64(const FeedbackSource& feedback);
+  const Operator* CheckedBigIntToBigInt64(const FeedbackSource& feedback);
   const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode,
                                                 const FeedbackSource& feedback);
   const Operator* CheckedUint32Div();
@@ -1084,6 +1098,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 #endif
 
   const Operator* DateNow();
+
+  // Math.min/max for JSArray with PACKED_DOUBLE_ELEMENTS.
+  const Operator* DoubleArrayMin();
+  const Operator* DoubleArrayMax();
+
   // Unsigned32Divide is a special operator to express the division of two
   // Unsigned32 inputs and truncating the result to Unsigned32. It's semantics
   // is equivalent to NumberFloor(NumberDivide(x:Unsigned32, y:Unsigned32)) but

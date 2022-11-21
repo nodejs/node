@@ -18,10 +18,10 @@ const d1 = new Date("2020-05-25T00:00:00.000Z");
 const d2 = new Date("2020-05-31T00:00:00.000Z");
 
 // Before tz2020a change will get "May 25, 2020 at 1:00:00 AM GMT+1"
-assertEquals("May 25, 2020 at 12:00:00 AM GMT", df1.format(d1));
+assertEquals("May 25, 2020 at 12:00:00\u202fAM GMT", df1.format(d1));
 
 // Before tz2020a change will get "May 31, 2020 at 1:00:00 AM GMT+1"
-assertEquals("May 31, 2020 at 12:00:00 AM GMT", df1.format(d2));
+assertEquals("May 31, 2020 at 12:00:00\u202fAM GMT", df1.format(d2));
 
 // B. Test Canada's Yukon advanced to -07 year-round on 2020-03-08.
 const df2 = new Intl.DateTimeFormat(
@@ -33,11 +33,11 @@ const d4 = new Date("2021-03-09T00:00Z");
 // Before tz2020a change will get "March 8, 2020 at 5:00:00 PM PDT"
 // In tz2020a it should be "March 8, 2020 at 5:00:00 PM MST"
 // but tz2020b roll this back.
-assertEquals("March 8, 2020 at 5:00:00 PM PDT", df2.format(d3));
+assertEquals("March 8, 2020 at 5:00:00\u202fPM PDT", df2.format(d3));
 
 // Before tz2020a change will get "March 8, 2021 at 4:00:00 PM PST"
 // After tz2021a1 it now become "March 8, 2021 at 5:00:00 PM GMT-7".
-assertEquals("March 8, 2021 at 5:00:00 PM GMT-7", df2.format(d4));
+assertEquals("March 8, 2021 at 5:00:00\u202fPM GMT-7", df2.format(d4));
 
 // C. Test America/Nuuk renamed from America/Godthab.
 

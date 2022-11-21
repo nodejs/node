@@ -27,7 +27,6 @@ class V8_NODISCARD SanitizeNativeContextScope final {
                              const DisallowGarbageCollection& no_gc)
       : native_context_(native_context),
         optimized_code_list_(native_context.OptimizedCodeListHead()),
-        deoptimized_code_list_(native_context.DeoptimizedCodeListHead()),
         no_gc_(no_gc) {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {
@@ -39,7 +38,6 @@ class V8_NODISCARD SanitizeNativeContextScope final {
       DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
       // Code lists.
       DCHECK(optimized_code_list_.IsUndefined(isolate));
-      DCHECK(deoptimized_code_list_.IsUndefined(isolate));
     }
 #endif
     microtask_queue_external_pointer_ =
@@ -48,13 +46,11 @@ class V8_NODISCARD SanitizeNativeContextScope final {
             .GetAndClearContentForSerialization(no_gc);
     Object undefined = ReadOnlyRoots(isolate).undefined_value();
     native_context.SetOptimizedCodeListHead(undefined);
-    native_context.SetDeoptimizedCodeListHead(undefined);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
     native_context_.SetOptimizedCodeListHead(optimized_code_list_);
-    native_context_.SetDeoptimizedCodeListHead(deoptimized_code_list_);
     native_context_
         .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
@@ -65,7 +61,6 @@ class V8_NODISCARD SanitizeNativeContextScope final {
   NativeContext native_context_;
   ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
   const Object optimized_code_list_;
-  const Object deoptimized_code_list_;
   const DisallowGarbageCollection& no_gc_;
 };
 
@@ -203,12 +198,11 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 }
 
 bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
-  // Scripts should be referred only through shared function infos.  We can't
-  // allow them to be part of the context snapshot because they contain a
-  // unique ID, and deserializing several context snapshots containing script
-  // would cause dupes.
-  DCHECK(!o.IsScript());
-  return o.IsName() || o.IsSharedFunctionInfo() || o.IsHeapNumber() ||
+  // We can't allow scripts to be part of the context snapshot because they
+  // contain a unique ID, and deserializing several context snapshots containing
+  // script would cause dupes.
+  return o.IsName() || o.IsScript() || o.IsSharedFunctionInfo() ||
+         o.IsHeapNumber() ||
          (V8_EXTERNAL_CODE_SPACE_BOOL && o.IsCodeDataContainer()) ||
          o.IsCode() || o.IsScopeInfo() || o.IsAccessorInfo() ||
          o.IsTemplateInfo() || o.IsClassPositions() ||

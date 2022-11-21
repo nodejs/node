@@ -27,8 +27,14 @@ ALL_VARIANT_FLAGS = {
     # https://chromium-review.googlesource.com/c/452620/ for more discussion.
     # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
     # "TurboFan-only" in the stress variant. The WebAssembly configuration is
-    # independent of JS optimizations, so we can combine those configs.
-    "nooptimization": [["--no-turbofan", "--liftoff", "--no-wasm-tier-up"]],
+    # independent of JS optimizations, so we can combine those configs. We
+    # disable lazy compilation to have one test variant that tests eager
+    # compilation. "Liftoff-only" and eager compilation is not a problem,
+    # because test functions do typically not get optimized to TurboFan anyways.
+    "nooptimization": [[
+        "--no-turbofan", "--liftoff", "--no-wasm-tier-up",
+        "--no-wasm-lazy-compilation"
+    ]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
         "--no-liftoff", "--stress-lazy-source-positions",

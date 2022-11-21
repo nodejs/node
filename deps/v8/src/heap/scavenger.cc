@@ -145,7 +145,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                          MemoryChunk::IS_EXECUTABLE));
       // Shared heap pages do not have evacuation candidates outside an atomic
       // shared GC pause.
-      DCHECK(!target.InSharedWritableHeap());
+      DCHECK_IMPLIES(!v8_flags.shared_space, !target.InSharedWritableHeap());
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
@@ -296,7 +296,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     CHECK(Heap::InFromPage(heap_object));
     MapWord first_word = heap_object.map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
-    HeapObject dest = first_word.ToForwardingAddress();
+    HeapObject dest = first_word.ToForwardingAddress(heap_object);
     HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
     CHECK_IMPLIES(Heap::InYoungGeneration(dest),
                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
@@ -364,7 +364,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(
           heap_->tracer(),
           GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->global_handles()->ComputeWeaknessForYoungObjects(
+      isolate_->traced_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
     }
     {
@@ -373,16 +373,22 @@ void ScavengerCollector::CollectGarbage() {
       // Scavenger treats all weak roots except for global handles as strong.
       // That is why we don't set skip_weak = true here and instead visit
       // global handles separately.
-      base::EnumSet<SkipRoot> options({SkipRoot::kExternalStringTable,
-                                       SkipRoot::kGlobalHandles,
-                                       SkipRoot::kOldGeneration});
+      base::EnumSet<SkipRoot> options(
+          {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
+           SkipRoot::kOldGeneration, SkipRoot::kConservativeStack});
       if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
         options.Add(SkipRoot::kStack);
       }
       heap_->IterateRoots(&root_scavenge_visitor, options);
       isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
           &root_scavenge_visitor);
+      isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
       scavengers[kMainThreadId]->Publish();
+      // Temporary checks for diagnosing https://crbug.com/1380114.
+      if (isolate_->heap()->incremental_marking()->IsMarking()) {
+        isolate_->traced_handles()->CheckNodeMarkingStateIsConsistent(
+            true, &MarkCompactCollector::IsUnmarkedHeapObject);
+      }
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
@@ -410,6 +416,8 @@ void ScavengerCollector::CollectGarbage() {
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
       GlobalHandlesWeakRootsUpdatingVisitor visitor;
       isolate_->global_handles()->ProcessWeakYoungObjects(
+          &visitor, &IsUnscavengedHeapObjectSlot);
+      isolate_->traced_handles()->ProcessYoungObjects(
           &visitor, &IsUnscavengedHeapObjectSlot);
     }
 
@@ -495,13 +503,13 @@ void ScavengerCollector::CollectGarbage() {
   }
 
   isolate_->global_handles()->UpdateListOfYoungNodes();
+  isolate_->traced_handles()->UpdateListOfYoungNodes();
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 }
 
 void ScavengerCollector::IterateStackAndScavenge(
-
     RootScavengeVisitor* root_scavenge_visitor,
     std::vector<std::unique_ptr<Scavenger>>* scavengers, int main_thread_id) {
   // Scan the stack, scavenge the newly discovered objects, and report
@@ -513,7 +521,7 @@ void ScavengerCollector::IterateStackAndScavenge(
     survived_bytes_before +=
         scavenger->bytes_copied() + scavenger->bytes_promoted();
   }
-  heap_->IterateStackRoots(root_scavenge_visitor);
+  heap_->IterateStackRoots(root_scavenge_visitor, StackState::kNoHeapPointers);
   (*scavengers)[main_thread_id]->Process();
   size_t survived_bytes_after = 0;
   for (auto& scavenger : *scavengers) {
@@ -549,7 +557,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
-    object.set_map_word(MapWord::FromMap(map), kRelaxedStore);
+    object.set_map_word(map, kRelaxedStore);
 
     if (is_compacting && marking_state->IsBlack(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {
@@ -625,8 +633,6 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
-      is_compacting_including_map_space_(is_compacting_ &&
-                                         v8_flags.compact_maps),
       shared_string_table_(shared_old_allocator_.get() != nullptr),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()) {}
 
@@ -643,12 +649,8 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
 
-  if (is_compacting_including_map_space_) {
-    // When we compact map space, we also want to visit the map word.
-    target.IterateFast(map, size, &visitor);
-  } else {
-    target.IterateBodyFast(map, size, &visitor);
-  }
+  // Iterate all outgoing pointers including map word.
+  target.IterateFast(map, size, &visitor);
 
   if (map.IsJSArrayBufferMap()) {
     DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
@@ -700,7 +702,8 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   }
 
   RememberedSet<OLD_TO_NEW>::IterateTyped(
-      page, [=](SlotType slot_type, Address slot_address) {
+      page, [this, page, record_old_to_shared_slots](SlotType slot_type,
+                                                     Address slot_address) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot_address,
             [this, page, slot_type, slot_address,

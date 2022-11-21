@@ -359,6 +359,7 @@ class InConstructionObjectReferringToGlobalHandle final
   InConstructionObjectReferringToGlobalHandle(Heap* heap,
                                               v8::Local<v8::Object> wrapper)
       : wrapper_(reinterpret_cast<v8::Isolate*>(heap->isolate()), wrapper) {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
   }

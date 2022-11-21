@@ -243,7 +243,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
                                              TimesSystemPointerSize(reg_index));
         UnsafeStoreFixedArrayElement(parameters_and_registers, index, value);
       },
-      1, IndexAdvanceMode::kPost);
+      1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
   // Iterate over register file and write values into array.
   // The mapping of register to array index must match that used in
@@ -262,7 +262,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
                                              TimesSystemPointerSize(reg_index));
         UnsafeStoreFixedArrayElement(parameters_and_registers, index, value);
       },
-      1, IndexAdvanceMode::kPost);
+      1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
   // The return value is unused, defaulting to undefined.
   Return(UndefinedConstant());
@@ -304,7 +304,7 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
                                      StaleRegisterConstant(),
                                      SKIP_WRITE_BARRIER);
       },
-      1, IndexAdvanceMode::kPost);
+      1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
   Return(LoadJSGeneratorObjectInputOrDebugPos(generator));
 }

@@ -9,17 +9,22 @@
 
 namespace v8::internal::wasm {
 
+constexpr uint8_t kFunctionExecutedBit = 1 << 0;
+constexpr uint8_t kFunctionTieredUpBit = 1 << 1;
+
 class ProfileGenerator {
  public:
-  ProfileGenerator(const WasmModule* module)
+  ProfileGenerator(const WasmModule* module,
+                   const uint32_t* tiering_budget_array)
       : module_(module),
-        type_feedback_mutex_guard_(&module->type_feedback.mutex) {}
+        type_feedback_mutex_guard_(&module->type_feedback.mutex),
+        tiering_budget_array_(tiering_budget_array) {}
 
   base::OwnedVector<uint8_t> GetProfileData() {
     ZoneBuffer buffer{&zone_};
 
     SerializeTypeFeedback(buffer);
-    // TODO(13209): Serialize tiering information.
+    SerializeTieringInfo(buffer);
 
     return base::OwnedVector<uint8_t>::Of(buffer);
   }
@@ -34,7 +39,7 @@ class ProfileGenerator {
     std::vector<uint32_t> ordered_function_indexes;
     ordered_function_indexes.reserve(feedback_for_function.size());
     for (const auto& entry : feedback_for_function) {
-      // Skip functions for which we have to feedback.
+      // Skip functions for which we have no feedback.
       if (entry.second.feedback_vector.empty()) continue;
       ordered_function_indexes.push_back(entry.first);
     }
@@ -64,11 +69,36 @@ class ProfileGenerator {
     }
   }
 
+  void SerializeTieringInfo(ZoneBuffer& buffer) {
+    std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
+        module_->type_feedback.feedback_for_function;
+    const uint32_t initial_budget = v8_flags.wasm_tiering_budget;
+    for (uint32_t declared_index = 0;
+         declared_index < module_->num_declared_functions; ++declared_index) {
+      uint32_t func_index = declared_index + module_->num_imported_functions;
+      auto feedback_it = feedback_for_function.find(func_index);
+      int prio = feedback_it == feedback_for_function.end()
+                     ? 0
+                     : feedback_it->second.tierup_priority;
+      DCHECK_LE(0, prio);
+      uint32_t remaining_budget = tiering_budget_array_[declared_index];
+      DCHECK_GE(initial_budget, remaining_budget);
+
+      bool was_tiered_up = prio > 0;
+      bool was_executed = was_tiered_up || remaining_budget != initial_budget;
+
+      // TODO(13209): Make this less V8-specific for productionization.
+      buffer.write_u8((was_executed ? kFunctionExecutedBit : 0) |
+                      (was_tiered_up ? kFunctionTieredUpBit : 0));
+    }
+  }
+
  private:
   const WasmModule* module_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "wasm::ProfileGenerator"};
   base::MutexGuard type_feedback_mutex_guard_;
+  const uint32_t* const tiering_budget_array_;
 };
 
 void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
@@ -113,18 +143,42 @@ void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
   }
 }
 
-void RestoreProfileData(WasmModule* module,
-                        base::Vector<uint8_t> profile_data) {
+std::unique_ptr<ProfileInformation> DeserializeTieringInformation(
+    Decoder& decoder, WasmModule* module) {
+  std::vector<uint32_t> executed_functions;
+  std::vector<uint32_t> tiered_up_functions;
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  for (uint32_t func_index = start; func_index < end; ++func_index) {
+    uint8_t tiering_info = decoder.consume_u8("tiering info");
+    CHECK_EQ(0, tiering_info & ~3);
+    bool was_executed = tiering_info & kFunctionExecutedBit;
+    bool was_tiered_up = tiering_info & kFunctionTieredUpBit;
+    if (was_tiered_up) tiered_up_functions.push_back(func_index);
+    if (was_executed) executed_functions.push_back(func_index);
+  }
+
+  return std::make_unique<ProfileInformation>(std::move(executed_functions),
+                                              std::move(tiered_up_functions));
+}
+
+std::unique_ptr<ProfileInformation> RestoreProfileData(
+    WasmModule* module, base::Vector<uint8_t> profile_data) {
   Decoder decoder{profile_data.begin(), profile_data.end()};
 
   DeserializeTypeFeedback(decoder, module);
+  std::unique_ptr<ProfileInformation> pgo_info =
+      DeserializeTieringInformation(decoder, module);
 
   CHECK(decoder.ok());
   CHECK_EQ(decoder.pc(), decoder.end());
+
+  return pgo_info;
 }
 
 void DumpProfileToFile(const WasmModule* module,
-                       base::Vector<const uint8_t> wire_bytes) {
+                       base::Vector<const uint8_t> wire_bytes,
+                       uint32_t* tiering_budget_array) {
   CHECK(!wire_bytes.empty());
   // File are named `profile-wasm-<hash>`.
   // We use the same hash as for reported scripts, to make it easier to
@@ -133,7 +187,7 @@ void DumpProfileToFile(const WasmModule* module,
   base::EmbeddedVector<char, 32> filename;
   SNPrintF(filename, "profile-wasm-%08x", hash);
 
-  ProfileGenerator profile_generator{module};
+  ProfileGenerator profile_generator{module, tiering_budget_array};
   base::OwnedVector<uint8_t> profile_data = profile_generator.GetProfileData();
 
   PrintF("Dumping Wasm PGO data to file '%s' (%zu bytes)\n", filename.begin(),
@@ -145,8 +199,8 @@ void DumpProfileToFile(const WasmModule* module,
   }
 }
 
-void LoadProfileFromFile(WasmModule* module,
-                         base::Vector<const uint8_t> wire_bytes) {
+std::unique_ptr<ProfileInformation> LoadProfileFromFile(
+    WasmModule* module, base::Vector<const uint8_t> wire_bytes) {
   CHECK(!wire_bytes.empty());
   // File are named `profile-wasm-<hash>`.
   // We use the same hash as for reported scripts, to make it easier to
@@ -158,7 +212,7 @@ void LoadProfileFromFile(WasmModule* module,
   FILE* file = base::OS::FOpen(filename.begin(), "rb");
   if (!file) {
     PrintF("No Wasm PGO data found: Cannot open file '%s'\n", filename.begin());
-    return;
+    return {};
   }
 
   fseek(file, 0, SEEK_END);
@@ -176,11 +230,7 @@ void LoadProfileFromFile(WasmModule* module,
 
   base::Fclose(file);
 
-  RestoreProfileData(module, profile_data.as_vector());
-
-  // Check that the generated profile is deterministic.
-  DCHECK_EQ(profile_data.as_vector(),
-            ProfileGenerator{module}.GetProfileData().as_vector());
+  return RestoreProfileData(module, profile_data.as_vector());
 }
 
 }  // namespace v8::internal::wasm

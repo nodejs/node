@@ -376,6 +376,9 @@ declare_args() {
   # Compile V8 using zlib as dependency.
   # Sets -DV8_USE_ZLIB
   v8_use_zlib = true
+
+  # Make ValueDeserializer crash if the data to deserialize is invalid.
+  v8_value_deserializer_hard_fail = false
 }
 
 # Derived defaults.
@@ -1055,6 +1058,9 @@ config("features") {
   if (v8_use_zlib) {
     defines += [ "V8_USE_ZLIB" ]
   }
+  if (v8_value_deserializer_hard_fail) {
+    defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
+  }
 }
 
 config("toolchain") {
@@ -1460,6 +1466,10 @@ config("toolchain") {
       "/wd4715",  # 'function' : not all control paths return a value'
                   # MSVC does not analyze switch (enum) for completeness.
     ]
+
+    # TODO(https://crbug.com/1377771): Keep MSVC on C++17 until source code is
+    # made compatible with C++20.
+    cflags_cc = [ "/std:c++17" ]
   }
 
   if (!is_clang && !is_win) {
@@ -1476,6 +1486,11 @@ config("toolchain") {
       # Disable gcc warnings for using enum constant in boolean context.
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97266
       "-Wno-int-in-bool-context",
+
+      # Disable gcc deprecation warnings, which are firing on implicit capture
+      # of `this` in capture-by-value lambdas and preventing a build roll which
+      # enables C++20 (see https://crbug.com/1374227).
+      "-Wno-deprecated",
     ]
   }
 
@@ -2268,6 +2283,8 @@ action("v8_dump_build_config") {
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
+    "v8_enable_conservative_stack_scanning=" +
+        "$v8_enable_conservative_stack_scanning",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_single_generation=$v8_enable_single_generation",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
@@ -2443,57 +2460,57 @@ v8_source_set("v8_initializers") {
 
   if (v8_current_cpu == "x86") {
     sources += [
-      ### gcmole(arch:ia32) ###
+      ### gcmole(ia32) ###
       "src/builtins/ia32/builtins-ia32.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
-      ### gcmole(arch:x64) ###
+      ### gcmole(x64) ###
       "src/builtins/x64/builtins-x64.cc",
     ]
   } else if (v8_current_cpu == "arm") {
     sources += [
-      ### gcmole(arch:arm) ###
+      ### gcmole(arm) ###
       "src/builtins/arm/builtins-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [
-      ### gcmole(arch:arm64) ###
+      ### gcmole(arm64) ###
       "src/builtins/arm64/builtins-arm64.cc",
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
-      ### gcmole(arch:mips64el) ###
+      ### gcmole(mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
     ]
   } else if (v8_current_cpu == "loong64") {
     sources += [
-      ### gcmole(arch:loong64) ###
+      ### gcmole(loong64) ###
       "src/builtins/loong64/builtins-loong64.cc",
     ]
   } else if (v8_current_cpu == "ppc") {
     sources += [
-      ### gcmole(arch:ppc) ###
+      ### gcmole(ppc) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
-      ### gcmole(arch:ppc64) ###
+      ### gcmole(ppc64) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
-      ### gcmole(arch:s390) ###
+      ### gcmole(s390) ###
       "src/builtins/s390/builtins-s390.cc",
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [
-      ### gcmole(arch:riscv64) ###
+      ### gcmole(riscv64) ###
       "src/builtins/riscv/builtins-riscv.cc",
     ]
   } else if (v8_current_cpu == "riscv32") {
     sources += [
-      ### gcmole(arch:riscv32) ###
+      ### gcmole(riscv32) ###
       "src/builtins/riscv/builtins-riscv.cc",
     ]
   }
@@ -2803,6 +2820,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/all-nodes.h",
     "src/compiler/allocation-builder-inl.h",
     "src/compiler/allocation-builder.h",
+    "src/compiler/backend/bitcast-elider.h",
     "src/compiler/backend/code-generator-impl.h",
     "src/compiler/backend/code-generator.h",
     "src/compiler/backend/frame-elider.h",
@@ -2917,22 +2935,28 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/state-values-utils.h",
     "src/compiler/store-store-elimination.h",
     "src/compiler/turboshaft/assembler.h",
+    "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/decompression-optimization.h",
     "src/compiler/turboshaft/deopt-data.h",
     "src/compiler/turboshaft/fast-hash.h",
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
-    "src/compiler/turboshaft/machine-optimization-assembler.h",
+    "src/compiler/turboshaft/index.h",
+    "src/compiler/turboshaft/layered-hash-map.h",
+    "src/compiler/turboshaft/machine-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matching.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/turboshaft/representations.h",
+    "src/compiler/turboshaft/select-lowering-reducer.h",
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
+    "src/compiler/turboshaft/snapshot-table.h",
     "src/compiler/turboshaft/utils.h",
-    "src/compiler/turboshaft/value-numbering-assembler.h",
+    "src/compiler/turboshaft/value-numbering-reducer.h",
+    "src/compiler/turboshaft/variable-reducer.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
@@ -3024,6 +3048,7 @@ v8_header_set("v8_internal_headers") {
     "src/handles/maybe-handles.h",
     "src/handles/persistent-handles.h",
     "src/handles/shared-object-conveyor-handles.h",
+    "src/handles/traced-handles.h",
     "src/heap/allocation-observer.h",
     "src/heap/allocation-result.h",
     "src/heap/allocation-stats.h",
@@ -3042,6 +3067,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/cppgc-js/cpp-marking-state-inl.h",
     "src/heap/cppgc-js/cpp-marking-state.h",
     "src/heap/cppgc-js/cpp-snapshot.h",
+    "src/heap/cppgc-js/cross-heap-remembered-set.h",
     "src/heap/cppgc-js/unified-heap-marking-state-inl.h",
     "src/heap/cppgc-js/unified-heap-marking-state.h",
     "src/heap/cppgc-js/unified-heap-marking-verifier.h",
@@ -3063,7 +3089,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer-inl.h",
     "src/heap/gc-tracer.h",
-    "src/heap/global-handle-marking-visitor.h",
     "src/heap/heap-allocator-inl.h",
     "src/heap/heap-allocator.h",
     "src/heap/heap-controller.h",
@@ -3130,6 +3155,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/stress-marking-observer.h",
     "src/heap/stress-scavenge-observer.h",
     "src/heap/sweeper.h",
+    "src/heap/traced-handles-marking-visitor.h",
     "src/heap/weak-object-worklists.h",
     "src/ic/call-optimization.h",
     "src/ic/handler-configuration-inl.h",
@@ -3422,6 +3448,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/heap-profiler.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
+    "src/profiler/output-stream-writer.h",
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.h",
     "src/profiler/profiler-listener.h",
@@ -3742,7 +3769,8 @@ v8_header_set("v8_internal_headers") {
   }
 
   if (v8_current_cpu == "x86") {
-    sources += [  ### gcmole(arch:ia32) ###
+    sources += [
+      ### gcmole(ia32) ###
       "src/baseline/ia32/baseline-assembler-ia32-inl.h",
       "src/baseline/ia32/baseline-compiler-ia32-inl.h",
       "src/codegen/ia32/assembler-ia32-inl.h",
@@ -3760,7 +3788,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [  ### gcmole(arch:x64) ###
+    sources += [
+      ### gcmole(x64) ###
       "src/baseline/x64/baseline-assembler-x64-inl.h",
       "src/baseline/x64/baseline-compiler-x64-inl.h",
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -3796,7 +3825,8 @@ v8_header_set("v8_internal_headers") {
       }
     }
   } else if (v8_current_cpu == "arm") {
-    sources += [  ### gcmole(arch:arm) ###
+    sources += [
+      ### gcmole(arm) ###
       "src/baseline/arm/baseline-assembler-arm-inl.h",
       "src/baseline/arm/baseline-compiler-arm-inl.h",
       "src/codegen/arm/assembler-arm-inl.h",
@@ -3814,7 +3844,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [  ### gcmole(arch:arm64) ###
+    sources += [
+      ### gcmole(arm64) ###
       "src/baseline/arm64/baseline-assembler-arm64-inl.h",
       "src/baseline/arm64/baseline-compiler-arm64-inl.h",
       "src/codegen/arm64/assembler-arm64-inl.h",
@@ -3856,7 +3887,8 @@ v8_header_set("v8_internal_headers") {
       sources += [ "src/diagnostics/unwinding-info-win64.h" ]
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    sources += [  ### gcmole(arch:mips64el) ###
+    sources += [
+      ### gcmole(mips64el) ###
       "src/baseline/mips64/baseline-assembler-mips64-inl.h",
       "src/baseline/mips64/baseline-compiler-mips64-inl.h",
       "src/codegen/mips64/assembler-mips64-inl.h",
@@ -3872,7 +3904,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
   } else if (v8_current_cpu == "loong64") {
-    sources += [  ### gcmole(arch:loong64) ###
+    sources += [
+      ### gcmole(loong64) ###
       "src/baseline/loong64/baseline-assembler-loong64-inl.h",
       "src/baseline/loong64/baseline-compiler-loong64-inl.h",
       "src/codegen/loong64/assembler-loong64-inl.h",
@@ -3888,7 +3921,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/loong64/liftoff-assembler-loong64.h",
     ]
   } else if (v8_current_cpu == "ppc") {
-    sources += [  ### gcmole(arch:ppc) ###
+    sources += [
+      ### gcmole(ppc) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
@@ -3904,7 +3938,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "ppc64") {
-    sources += [  ### gcmole(arch:ppc64) ###
+    sources += [
+      ### gcmole(ppc64) ###
       "src/baseline/ppc/baseline-assembler-ppc-inl.h",
       "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
@@ -3922,7 +3957,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
+    sources += [
+      ### gcmole(s390) ###
       "src/baseline/s390/baseline-assembler-s390-inl.h",
       "src/baseline/s390/baseline-compiler-s390-inl.h",
       "src/codegen/s390/assembler-s390-inl.h",
@@ -3940,7 +3976,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
   } else if (v8_current_cpu == "riscv64") {
-    sources += [  ### gcmole(arch:riscv64) ###
+    sources += [
+      ### gcmole(riscv64) ###
       "src/baseline/riscv/baseline-assembler-riscv-inl.h",
       "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv-inl.h",
@@ -3979,7 +4016,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
     ]
   } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
+    sources += [
+      ### gcmole(riscv32) ###
       "src/baseline/riscv/baseline-assembler-riscv-inl.h",
       "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       "src/codegen/riscv/assembler-riscv.h",
@@ -4041,6 +4079,7 @@ v8_compiler_sources = [
   "src/compiler/access-info.cc",
   "src/compiler/add-type-assertions-reducer.cc",
   "src/compiler/all-nodes.cc",
+  "src/compiler/backend/bitcast-elider.cc",
   "src/compiler/backend/code-generator.cc",
   "src/compiler/backend/frame-elider.cc",
   "src/compiler/backend/gap-resolver.cc",
@@ -4429,6 +4468,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/local-handles.cc",
     "src/handles/persistent-handles.cc",
     "src/handles/shared-object-conveyor-handles.cc",
+    "src/handles/traced-handles.cc",
     "src/heap/allocation-observer.cc",
     "src/heap/array-buffer-sweeper.cc",
     "src/heap/base-space.cc",
@@ -4442,6 +4482,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/concurrent-marking.cc",
     "src/heap/cppgc-js/cpp-heap.cc",
     "src/heap/cppgc-js/cpp-snapshot.cc",
+    "src/heap/cppgc-js/cross-heap-remembered-set.cc",
     "src/heap/cppgc-js/unified-heap-marking-state.cc",
     "src/heap/cppgc-js/unified-heap-marking-verifier.cc",
     "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
@@ -4453,7 +4494,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/free-list.cc",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-tracer.cc",
-    "src/heap/global-handle-marking-visitor.cc",
     "src/heap/heap-allocator.cc",
     "src/heap/heap-controller.cc",
     "src/heap/heap-layout-tracer.cc",
@@ -4491,6 +4531,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/stress-marking-observer.cc",
     "src/heap/stress-scavenge-observer.cc",
     "src/heap/sweeper.cc",
+    "src/heap/traced-handles-marking-visitor.cc",
     "src/heap/weak-object-worklists.cc",
     "src/ic/call-optimization.cc",
     "src/ic/handler-configuration.cc",
@@ -4737,6 +4778,7 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-assembler.cc",
       "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
@@ -4752,7 +4794,8 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_webassembly) {
-    sources += [  ### gcmole(all) ###
+    sources += [
+      ### gcmole(all) ###
       "src/asmjs/asm-js.cc",
       "src/asmjs/asm-parser.cc",
       "src/asmjs/asm-scanner.cc",
@@ -4834,7 +4877,8 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_current_cpu == "x86") {
-    sources += [  ### gcmole(arch:ia32) ###
+    sources += [
+      ### gcmole(ia32) ###
       "src/codegen/ia32/assembler-ia32.cc",
       "src/codegen/ia32/cpu-ia32.cc",
       "src/codegen/ia32/macro-assembler-ia32.cc",
@@ -4849,7 +4893,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
     ]
   } else if (v8_current_cpu == "x64") {
-    sources += [  ### gcmole(arch:x64) ###
+    sources += [
+      ### gcmole(x64) ###
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.cc",
       "src/codegen/x64/assembler-x64.cc",
       "src/codegen/x64/cpu-x64.cc",
@@ -4887,7 +4932,8 @@ v8_source_set("v8_base_without_compiler") {
       }
     }
   } else if (v8_current_cpu == "arm") {
-    sources += [  ### gcmole(arch:arm) ###
+    sources += [
+      ### gcmole(arm) ###
       "src/codegen/arm/assembler-arm.cc",
       "src/codegen/arm/constants-arm.cc",
       "src/codegen/arm/cpu-arm.cc",
@@ -4905,7 +4951,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
-    sources += [  ### gcmole(arch:arm64) ###
+    sources += [
+      ### gcmole(arm64) ###
       "src/codegen/arm64/assembler-arm64.cc",
       "src/codegen/arm64/cpu-arm64.cc",
       "src/codegen/arm64/decoder-arm64.cc",
@@ -4952,7 +4999,8 @@ v8_source_set("v8_base_without_compiler") {
       sources += [ "src/diagnostics/unwinding-info-win64.cc" ]
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
-    sources += [  ### gcmole(arch:mips64el) ###
+    sources += [
+      ### gcmole(mips64el) ###
       "src/codegen/mips64/assembler-mips64.cc",
       "src/codegen/mips64/constants-mips64.cc",
       "src/codegen/mips64/cpu-mips64.cc",
@@ -4969,7 +5017,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "loong64") {
-    sources += [  ### gcmole(arch:loong64) ###
+    sources += [
+      ### gcmole(loong64) ###
       "src/codegen/loong64/assembler-loong64.cc",
       "src/codegen/loong64/constants-loong64.cc",
       "src/codegen/loong64/cpu-loong64.cc",
@@ -4986,7 +5035,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/loong64/regexp-macro-assembler-loong64.cc",
     ]
   } else if (v8_current_cpu == "ppc") {
-    sources += [  ### gcmole(arch:ppc) ###
+    sources += [
+      ### gcmole(ppc) ###
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/constants-ppc.cc",
       "src/codegen/ppc/cpu-ppc.cc",
@@ -5004,7 +5054,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
     ]
   } else if (v8_current_cpu == "ppc64") {
-    sources += [  ### gcmole(arch:ppc64) ###
+    sources += [
+      ### gcmole(ppc64) ###
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/constants-ppc.cc",
       "src/codegen/ppc/cpu-ppc.cc",
@@ -5022,7 +5073,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
+    sources += [
+      ### gcmole(s390) ###
       "src/codegen/s390/assembler-s390.cc",
       "src/codegen/s390/constants-s390.cc",
       "src/codegen/s390/cpu-s390.cc",
@@ -5040,7 +5092,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
     ]
   } else if (v8_current_cpu == "riscv64") {
-    sources += [  ### gcmole(arch:riscv64) ###
+    sources += [
+      ### gcmole(riscv64) ###
       "src/codegen/riscv/assembler-riscv.cc",
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
@@ -5066,7 +5119,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
     ]
   } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
+    sources += [
+      ### gcmole(riscv32) ###
       "src/codegen/riscv/assembler-riscv.cc",
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
@@ -5745,31 +5799,31 @@ v8_source_set("v8_heap_base") {
 
   if (is_clang || !is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_asm.cc" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_asm.cc" ]
     } else if (current_cpu == "arm") {
-      sources += [ "src/heap/base/asm/arm/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm/save_registers_asm.cc" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_asm.cc" ]
     } else if (current_cpu == "ppc64") {
-      sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ppc/save_registers_asm.cc" ]
     } else if (current_cpu == "s390x") {
-      sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/s390/save_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
-      sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/mips64/save_registers_asm.cc" ]
     } else if (current_cpu == "loong64") {
-      sources += [ "src/heap/base/asm/loong64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/loong64/save_registers_asm.cc" ]
     } else if (current_cpu == "riscv64" || current_cpu == "riscv32") {
-      sources += [ "src/heap/base/asm/riscv/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/riscv/save_registers_asm.cc" ]
     }
   } else if (is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_masm.asm" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_masm.asm" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_masm.S" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_masm.S" ]
     }
   }
 

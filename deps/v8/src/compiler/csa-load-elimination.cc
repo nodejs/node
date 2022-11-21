@@ -354,7 +354,15 @@ Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
   if (!(is_mutable ? &state->immutable_state : &state->mutable_state)
            ->Lookup(object, offset)
            .IsEmpty()) {
-    return AssertUnreachable(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* unreachable =
+        graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
+    auto rep = ObjectAccessOf(node->op()).machine_type.representation();
+    Node* dead_value =
+        graph()->NewNode(jsgraph()->common()->DeadValue(rep), unreachable);
+    ReplaceWithValue(node, dead_value, unreachable, control);
+    node->Kill();
+    return Replace(dead_value);
   }
   HalfState const* half_state =
       is_mutable ? &state->mutable_state : &state->immutable_state;

@@ -13,8 +13,6 @@ const char* BaseSpace::GetSpaceName(AllocationSpace space) {
       return "new_space";
     case OLD_SPACE:
       return "old_space";
-    case MAP_SPACE:
-      return "map_space";
     case CODE_SPACE:
       return "code_space";
     case SHARED_SPACE:

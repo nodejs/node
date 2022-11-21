@@ -61,7 +61,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
 
   heap_->safepoint()->AddLocalHeap(this, [this] {
     if (!is_main_thread()) {
-      WriteBarrier::SetForThread(marking_barrier_.get());
+      saved_marking_barrier_ =
+          WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
             heap_->incremental_marking()->IsCompacting(),
@@ -69,6 +70,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                 ? MarkingBarrierType::kMinor
                 : MarkingBarrierType::kMajor);
       }
+
+      SetUpSharedMarking();
     }
   });
 
@@ -91,8 +94,12 @@ LocalHeap::~LocalHeap() {
       CodePageHeaderModificationScope rwx_write_scope(
           "Publishing of marking barrier results for Code space pages requires "
           "write access to Code page headers");
-      marking_barrier_->Publish();
-      WriteBarrier::ClearForThread(marking_barrier_.get());
+      marking_barrier_->PublishIfNeeded();
+      marking_barrier_->PublishSharedIfNeeded();
+      MarkingBarrier* overwritten =
+          WriteBarrier::SetForThread(saved_marking_barrier_);
+      DCHECK_EQ(overwritten, marking_barrier_.get());
+      USE(overwritten);
     }
   });
 
@@ -104,11 +111,16 @@ LocalHeap::~LocalHeap() {
   DCHECK(gc_epilogue_callbacks_.IsEmpty());
 }
 
-void LocalHeap::SetUpMainThreadForTesting() { SetUpMainThread(); }
+void LocalHeap::SetUpMainThreadForTesting() {
+  Unpark();
+  SetUpMainThread();
+}
 
 void LocalHeap::SetUpMainThread() {
   DCHECK(is_main_thread());
+  DCHECK(IsRunning());
   SetUp();
+  SetUpSharedMarking();
 }
 
 void LocalHeap::SetUp() {
@@ -128,6 +140,30 @@ void LocalHeap::SetUp() {
 
   DCHECK_NULL(marking_barrier_);
   marking_barrier_ = std::make_unique<MarkingBarrier>(this);
+}
+
+void LocalHeap::SetUpSharedMarking() {
+#if DEBUG
+  // Ensure the thread is either in the running state or holds the safepoint
+  // lock. This guarantees that the state of incremental marking can't change
+  // concurrently (this requires a safepoint).
+  if (is_main_thread()) {
+    DCHECK(IsRunning());
+  } else {
+    heap()->safepoint()->AssertActive();
+  }
+#endif  // DEBUG
+
+  Isolate* isolate = heap_->isolate();
+
+  if (isolate->has_shared_heap() && !isolate->is_shared_heap_isolate()) {
+    if (isolate->shared_heap_isolate()
+            ->heap()
+            ->incremental_marking()
+            ->IsMarking()) {
+      marking_barrier_->ActivateShared();
+    }
+  }
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -358,6 +394,12 @@ void LocalHeap::MakeLinearAllocationAreaIterable() {
   code_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
+void LocalHeap::MakeSharedLinearAllocationAreaIterable() {
+  if (shared_old_space_allocator_) {
+    shared_old_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
+}
+
 void LocalHeap::MarkLinearAllocationAreaBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   code_space_allocator_->MarkLinearAllocationAreaBlack();
@@ -420,14 +462,14 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
 
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
                                       GCType gc_type) {
-  DCHECK(!IsParked());
+  DCHECK(IsRunning());
   gc_epilogue_callbacks_.Add(callback, LocalIsolate::FromHeap(this), gc_type,
                              data);
 }
 
 void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
                                          void* data) {
-  DCHECK(!IsParked());
+  DCHECK(IsRunning());
   gc_epilogue_callbacks_.Remove(callback, data);
 }
 

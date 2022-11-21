@@ -259,7 +259,7 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
         StoreFixedArrayElement(
             wrapped_args, IntPtrAdd(index, IntPtrConstant(1)), wrapped_value);
       },
-      1, IndexAdvanceMode::kPost);
+      1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
   TVARIABLE(Object, var_exception);
   TNode<Object> result;

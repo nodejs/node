@@ -92,8 +92,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, 3, CodeKind::BUILTIN,
-                             "setup");  // Include receiver.
+  CodeAssemblerTester tester(isolate, JSParameterCount(2), CodeKind::BUILTIN,
+                             "setup");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.

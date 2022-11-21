@@ -2790,21 +2790,19 @@ bool Intl::RemoveCollation(const char* collation) {
 
 // See the list in ecma402 #sec-issanctionedsimpleunitidentifier
 std::set<std::string> Intl::SanctionedSimpleUnits() {
-  return std::set<std::string>({"acre",       "bit",        "byte",
-                                "celsius",    "centimeter", "day",
-                                "degree",     "fahrenheit", "fluid-ounce",
-                                "foot",       "gallon",     "gigabit",
-                                "gigabyte",   "gram",       "hectare",
-                                "hour",       "inch",       "kilobit",
-                                "kilobyte",   "kilogram",   "kilometer",
-                                "liter",      "megabit",    "megabyte",
-                                "meter",      "mile",       "mile-scandinavian",
-                                "millimeter", "milliliter", "millisecond",
-                                "minute",     "month",      "ounce",
-                                "percent",    "petabyte",   "pound",
-                                "second",     "stone",      "terabit",
-                                "terabyte",   "week",       "yard",
-                                "year"});
+  return std::set<std::string>(
+      {"acre",        "bit",         "byte",        "celsius",
+       "centimeter",  "day",         "degree",      "fahrenheit",
+       "fluid-ounce", "foot",        "gallon",      "gigabit",
+       "gigabyte",    "gram",        "hectare",     "hour",
+       "inch",        "kilobit",     "kilobyte",    "kilogram",
+       "kilometer",   "liter",       "megabit",     "megabyte",
+       "meter",       "microsecond", "mile",        "mile-scandinavian",
+       "millimeter",  "milliliter",  "millisecond", "minute",
+       "month",       "nanosecond",  "ounce",       "percent",
+       "petabyte",    "pound",       "second",      "stone",
+       "terabit",     "terabyte",    "week",        "yard",
+       "year"});
 }
 
 // ecma-402/#sec-isvalidtimezonename

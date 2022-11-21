@@ -85,7 +85,8 @@ class CodeSerializer : public Serializer {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options);
+      ScriptOriginOptions origin_options,
+      MaybeHandle<Script> maybe_cached_script = {});
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
   StartDeserializeOffThread(LocalIsolate* isolate,

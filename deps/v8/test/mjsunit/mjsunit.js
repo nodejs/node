@@ -196,6 +196,7 @@ var V8OptimizationStatus = {
   kBaseline: 1 << 15,
   kTopmostFrameIsInterpreted: 1 << 16,
   kTopmostFrameIsBaseline: 1 << 17,
+  kIsLazy: 1 << 18,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -206,6 +207,9 @@ var isNeverOptimize;
 
 // Returns true if --always-turbofan mode is on.
 var isAlwaysOptimize;
+
+// Returns true if given function in lazily compiled.
+var isLazy;
 
 // Returns true if given function in interpreted.
 var isInterpreted;
@@ -526,7 +530,7 @@ var prettyPrinted;
   };
 
   function executeCode(code) {
-    if (typeof code === 'function')  return code();
+    if (typeof code === 'function') return code();
     if (typeof code === 'string') return eval(code);
     failWithMessage(
         'Given code is neither function nor string, but ' + (typeof code) +
@@ -730,6 +734,7 @@ var prettyPrinted;
   assertUnoptimized = function assertUnoptimized(
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
     // Tests that use assertUnoptimized() do not make sense if --always-turbofan
     // option is provided. Such tests must add --no-always-turbofan to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
@@ -749,6 +754,7 @@ var prettyPrinted;
   assertOptimized = function assertOptimized(
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
+    name_opt = name_opt ?? fun.name;
     // Tests that use assertOptimized() do not make sense for Lite mode where
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
@@ -787,6 +793,13 @@ var prettyPrinted;
   isAlwaysOptimize = function isAlwaysOptimize() {
     var opt_status = OptimizationStatus(undefined, "");
     return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
+  }
+
+  isLazy = function isLazy(fun) {
+    var opt_status = OptimizationStatus(fun, '');
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kIsLazy) !== 0;
   }
 
   isInterpreted = function isInterpreted(fun) {

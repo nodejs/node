@@ -239,6 +239,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The high 8 bits are set to zero.
   void label_at_put(Label* L, int at_offset);
 
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
+
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);

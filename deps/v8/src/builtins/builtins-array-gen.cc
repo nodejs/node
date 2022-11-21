@@ -241,7 +241,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
           a_ = processor(this, value.value(), index);
         }
       },
-      incr, advance_mode);
+      incr, LoopUnrollingMode::kNo, advance_mode);
 }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {

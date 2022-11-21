@@ -9,10 +9,10 @@
 from multiprocessing import cpu_count
 from pathlib import Path
 
+import argparse
 import collections
 import difflib
 import json
-import optparse
 import os
 import re
 import subprocess
@@ -222,56 +222,40 @@ def invoke_clang_plugin_for_each_file(filenames, plugin, plugin_args, options):
 # -----------------------------------------------------------------------------
 
 
-def parse_gn_file(options, for_test):
+def build_file_list(options, for_test):
+  """Calculates the list of source files to be checked with gcmole.
+
+  The list comprises all files from marked source sections in the
+  listed BUILD.gn files. All files preceeded by the following comment and
+  until the end of the source section are used:
+  ### gcmole(arch) ###
+  Where arch can either be all (all architectures) or one of the supported V8
+  architectures.
+
+  The structure of these directives is also checked by presubmit via:
+  tools/v8_presubmit.py::GCMoleProcessor.
+
+  Returns: List of file paths (of type Path).
+  """
   if for_test:
-    return {"all": [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]}
-  result = {}
+    return [options.v8_root_dir / "tools/gcmole/gcmole-test.cc"]
+  result = []
   gn_files = [
       ("BUILD.gn", re.compile('"([^"]*?\.cc)"'), ""),
       ("test/cctest/BUILD.gn", re.compile('"(test-[^"]*?\.cc)"'),
        Path("test/cctest/")),
   ]
-  for filename, pattern, prefix in gn_files:
+  gn_re = re.compile(f"### gcmole\((all|{options.v8_target_cpu})\) ###(.*?)\]",
+                     re.MULTILINE | re.DOTALL)
+  for filename, file_pattern, prefix in gn_files:
     path = options.v8_root_dir / filename
     with open(path) as gn_file:
       gn = gn_file.read()
-      for condition, sources in re.findall("### gcmole\((.*?)\) ###(.*?)\]", gn,
-                                           re.MULTILINE | re.DOTALL):
-        if condition not in result:
-          result[condition] = []
-        for file in pattern.findall(sources):
-          result[condition].append(options.v8_root_dir / prefix / file)
+      for _, sources in gn_re.findall(gn):
+        for file in file_pattern.findall(sources):
+          result.append(options.v8_root_dir / prefix / file)
 
   return result
-
-
-def evaluate_condition(cond, props):
-  if cond == "all":
-    return True
-
-  m = re.match("(\w+):(\w+)", cond)
-  if m is None:
-    fatal("failed to parse condition: {}", cond)
-  p, v = m.groups()
-  if p not in props:
-    fatal("undefined configuration property: {}", p)
-
-  return props[p] == v
-
-
-def build_file_list(options, for_test):
-  sources = parse_gn_file(options, for_test)
-  props = {
-      "os": "linux",
-      "arch": options.v8_target_cpu,
-      "mode": "debug",
-      "simulator": ""
-  }
-  ret = []
-  for condition, files in list(sources.items()):
-    if evaluate_condition(condition, props):
-      ret += files
-  return ret
 
 
 # -----------------------------------------------------------------------------
@@ -326,18 +310,11 @@ IS_SPECIAL_WITH_ALLOW_LIST = merge_regexp({
 })
 
 
-class GCSuspectsCollector:
+class CallGraph:
 
-  def __init__(self, options):
-    self.gc = {}
-    self.gc_caused = collections.defaultdict(lambda: set())
-    self.funcs = {}
+  def __init__(self):
+    self.funcs = collections.defaultdict(set)
     self.current_caller = None
-    self.allowlist = options.allowlist
-    self.is_special = IS_SPECIAL_WITH_ALLOW_LIST if self.allowlist else IS_SPECIAL_WITHOUT_ALLOW_LIST
-
-  def add_cause(self, name, cause):
-    self.gc_caused[name].add(cause)
 
   def parse(self, lines):
     for funcname in lines:
@@ -345,52 +322,70 @@ class GCSuspectsCollector:
         continue
 
       if funcname[0] != "\t":
-        self.resolve(funcname)
+        # Always inserting the current caller makes the serialized version
+        # more compact.
+        self.funcs[funcname]
         self.current_caller = funcname
       else:
-        name = funcname[1:]
-        callers_for_name = self.resolve(name)
-        callers_for_name.add(self.current_caller)
+        self.funcs[funcname[1:]].add(self.current_caller)
+
+
+class GCSuspectsCollector:
+
+  def __init__(self, options, funcs):
+    self.gc = {}
+    self.gc_caused = collections.defaultdict(set)
+    self.funcs = funcs
+    if options.allowlist:
+      self.is_special = IS_SPECIAL_WITH_ALLOW_LIST
+    else:
+      self.is_special = IS_SPECIAL_WITHOUT_ALLOW_LIST
+
+  def add_cause(self, name, cause):
+    self.gc_caused[name].add(cause)
 
   def resolve(self, name):
-    if name not in self.funcs:
-      self.funcs[name] = set()
-      m = self.is_special.search(name)
-      if m:
-        if m.group("gc"):
-          self.gc[name] = True
-          self.add_cause(name, "<GC>")
-        elif m.group("safepoint"):
-          self.gc[name] = True
-          self.add_cause(name, "<Safepoint>")
-        elif m.group("allow"):
-          self.gc[name] = False
+    m = self.is_special.search(name)
+    if not m:
+      return
 
-    return self.funcs[name]
+    if m.group("gc"):
+      self.gc[name] = True
+      self.add_cause(name, "<GC>")
+    elif m.group("safepoint"):
+      self.gc[name] = True
+      self.add_cause(name, "<Safepoint>")
+    elif m.group("allow"):
+      self.gc[name] = False
 
   def propagate(self):
     log("Propagating GC information")
 
-    def mark(funcname, callers):
-      for caller in callers:
+    def mark(funcname):
+      for caller in self.funcs[funcname]:
         if caller not in self.gc:
           self.gc[caller] = True
-          mark(caller, self.funcs[caller])
+          mark(caller)
         self.add_cause(caller, funcname)
 
-    for funcname, callers in list(self.funcs.items()):
+    for funcname in self.funcs:
+      self.resolve(funcname)
+
+    for funcname in self.funcs:
       if self.gc.get(funcname, False):
-        mark(funcname, callers)
+        mark(funcname)
 
 
 def generate_gc_suspects(files, options):
   # Reset the global state.
-  collector = GCSuspectsCollector(options)
+  call_graph = CallGraph()
 
   log("Building GC Suspects for {}", options.v8_target_cpu)
   for _, stdout, _ in invoke_clang_plugin_for_each_file(files, "dump-callees",
                                                         [], options):
-    collector.parse(stdout.splitlines())
+    call_graph.parse(stdout.splitlines())
+
+  collector = GCSuspectsCollector(options, call_graph.funcs)
   collector.propagate()
   # TODO(cbruni): remove once gcmole.cc is migrated
   write_gcmole_results(collector, options, options.v8_root_dir)
@@ -533,108 +528,106 @@ def relative_parents(path, level=0):
   return Path(os.path.relpath(str(path.resolve().parents[level])))
 
 
-def main(args):
+def main(argv):
   # Get a clean parent path relative to PWD
   default_root_dir = relative_parents(Path(__file__), level=2)
-  if len(args) >= 1:
-    default_gcmole_dir = relative_parents(Path(args[0]))
+  if len(argv) >= 1:
+    default_gcmole_dir = relative_parents(Path(argv[0]))
   if default_gcmole_dir or not default_gcmole_dir.exists():
     default_gcmole_dir = default_root_dir / 'tools' / 'gcmole'
-
-  parser = optparse.OptionParser()
-  archs = list(ARCHITECTURES.keys())
-  parser.add_option(
-      "--v8-root-dir",
-      metavar="DIR",
-      default=default_root_dir,
-      help="V8 checkout directory. Default: '{}'".format(
-          default_root_dir.absolute()))
-  parser.add_option(
-      "--v8-target-cpu",
-      type="choice",
-      default="x64",
-      choices=archs,
-      help="Tested CPU architecture. Choices: {}".format(archs),
-      metavar="CPU")
   default_clang_bin_dir = default_gcmole_dir / 'gcmole-tools/bin'
-  parser.add_option(
-      "--clang-bin-dir",
-      metavar="DIR",
-      help="Build dir of the custom clang version for gcmole." + \
-      "Default: env['CLANG_DIR'] or '{}'".format(default_clang_bin_dir))
-  parser.add_option(
-      "--clang-plugins-dir",
-      metavar="DIR",
-      help="Containing dir for libgcmole.so."
-      "Default: env['CLANG_PLUGINS'] or '{}'".format(default_gcmole_dir))
-  parser.add_option(
-      "--v8-build-dir",
-      metavar="BUILD_DIR",
-      help="GN build dir for v8. Default: 'out/CPU.Release'. "
-      "Config must match cpu specified by --v8-target-cpu")
-  parser.add_option(
-      "--out-dir",
-      metavar="DIR",
-      help="Output location for the gcsuspect and gcauses file."
-      "Default: BUILD_DIR/gen/tools/gcmole")
-  parser.add_option(
-      "--is-bot",
-      action="store_true",
-      default=False,
-      help="Flag for setting build bot specific settings.")
 
-  group = optparse.OptionGroup(parser, "GCMOLE options")
-  group.add_option(
-      "--reuse-gcsuspects",
-      action="store_true",
-      default=False,
-      help="Don't build gcsuspects file and reuse previously generated one.")
-  group.add_option(
-      "--sequential",
-      action="store_true",
-      default=False,
-      help="Don't use parallel python runner.")
-  group.add_option(
-      "--verbose",
-      action="store_true",
-      default=False,
-      help="Print commands to console before executing them.")
-  group.add_option(
-      "--no-dead-vars",
-      action="store_false",
-      dest="dead_vars",
-      default=True,
-      help="Don't perform dead variable analysis.")
-  group.add_option(
-      "--verbose-trace",
-      action="store_true",
-      default=False,
-      help="Enable verbose tracing from the plugin itself."
-      "This can be useful to debug finding dead variable.")
-  group.add_option(
-      "--no-allowlist",
-      action="store_true",
-      default=True,
-      dest="allowlist",
-      help="When building gcsuspects allowlist certain functions as if they can be "
-      "causing GC. Currently used to reduce number of false positives in dead "
-      "variables analysis. See TODO for ALLOWLIST in gcmole.py")
-  group.add_option(
-      "--test-run",
-      action="store_true",
-      default=False,
-      help="Test gcmole on tools/gcmole/gcmole-test.cc")
-  parser.add_option_group(group)
+  def add_common_args(parser):
+    archs = list(ARCHITECTURES.keys())
+    parser.add_argument(
+        "--v8-root-dir",
+        metavar="DIR",
+        default=default_root_dir,
+        help="V8 checkout directory. Default: '{}'".format(
+            default_root_dir.absolute()))
+    parser.add_argument(
+        "--v8-target-cpu",
+        default="x64",
+        choices=archs,
+        help="Tested CPU architecture. Choices: {}".format(archs),
+        metavar="CPU")
+    parser.add_argument(
+        "--clang-bin-dir",
+        metavar="DIR",
+        help="Build dir of the custom clang version for gcmole." + \
+        "Default: env['CLANG_DIR'] or '{}'".format(default_clang_bin_dir))
+    parser.add_argument(
+        "--clang-plugins-dir",
+        metavar="DIR",
+        help="Containing dir for libgcmole.so."
+        "Default: env['CLANG_PLUGINS'] or '{}'".format(default_gcmole_dir))
+    parser.add_argument(
+        "--v8-build-dir",
+        metavar="BUILD_DIR",
+        help="GN build dir for v8. Default: 'out/CPU.Release'. "
+        "Config must match cpu specified by --v8-target-cpu")
+    parser.add_argument(
+        "--out-dir",
+        metavar="DIR",
+        help="Output location for the gcsuspect and gcauses file."
+        "Default: BUILD_DIR/gen/tools/gcmole")
+    parser.add_argument(
+        "--is-bot",
+        action="store_true",
+        default=False,
+        help="Flag for setting build bot specific settings.")
 
-  (options, args) = parser.parse_args()
+    group = parser.add_argument_group("GCMOLE options")
+    group.add_argument(
+        "--reuse-gcsuspects",
+        action="store_true",
+        default=False,
+        help="Don't build gcsuspects file and reuse previously generated one.")
+    group.add_argument(
+        "--sequential",
+        action="store_true",
+        default=False,
+        help="Don't use parallel python runner.")
+    group.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Print commands to console before executing them.")
+    group.add_argument(
+        "--no-dead-vars",
+        action="store_false",
+        dest="dead_vars",
+        default=True,
+        help="Don't perform dead variable analysis.")
+    group.add_argument(
+        "--verbose-trace",
+        action="store_true",
+        default=False,
+        help="Enable verbose tracing from the plugin itself."
+        "This can be useful to debug finding dead variable.")
+    group.add_argument(
+        "--no-allowlist",
+        action="store_true",
+        default=True,
+        dest="allowlist",
+        help="When building gcsuspects allowlist certain functions as if they can be "
+        "causing GC. Currently used to reduce number of false positives in dead "
+        "variables analysis. See TODO for ALLOWLIST in gcmole.py")
+    group.add_argument(
+        "--test-run",
+        action="store_true",
+        default=False,
+        help="Test gcmole on tools/gcmole/gcmole-test.cc")
 
-  if not options.v8_target_cpu:
-    # Backwards compatibility
-    if len(args) > 0 and args[0] in archs:
-      options.v8_target_cpu = args[0]
-      log("Using --v8-target-cpu={}", options.v8_target_cpu)
-    else:
-      parser.error("Missing --v8-target-cpu option")
+  parser = argparse.ArgumentParser()
+  subps = parser.add_subparsers()
+
+  subp = subps.add_parser(
+      "full", description="Run both gcmole analysis passes.")
+  add_common_args(subp)
+  subp.set_defaults(func=full_run)
+
+  options = parser.parse_args(argv[1:])
 
   verify_and_convert_dirs(parser, options, default_gcmole_dir,
                           default_clang_bin_dir)
@@ -642,6 +635,10 @@ def main(args):
   prepare_gcmole_files(options)
   verify_build_config(parser, options)
 
+  options.func(options)
+
+
+def full_run(options):
   any_errors_found = False
   if not test_run(options):
     any_errors_found = True
@@ -700,13 +697,15 @@ def verify_and_convert_dirs(parser, options, default_tools_gcmole_dir,
   else:
     options.out_dir = Path(options.out_dir)
 
-  for flag in [
-      "--v8-root-dir", "--v8-build-dir", "--clang-bin-dir",
-      "--clang-plugins-dir", "--out-dir"
+  for flag, path in [
+      ("--v8-root-dir", options.v8_root_dir),
+      ("--v8-build-dir", options.v8_build_dir),
+      ("--clang-bin-dir", options.clang_bin_dir),
+      ("--clang-plugins-dir", options.clang_plugins_dir),
+      ("--out-dir", options.out_dir),
   ]:
-    dir = getattr(options, parser.get_option(flag).dest)
-    if not dir.is_dir():
-      parser.error("{}='{}' does not exist!".format(flag, dir))
+    if not path.is_dir():
+      parser.error(f"{flag}='{path}' does not exist!")
 
 
 def verify_clang_plugin(parser, options):

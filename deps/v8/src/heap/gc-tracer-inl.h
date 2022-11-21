@@ -138,7 +138,9 @@ bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
 
 bool GCTracer::IsSweepingInProgress() const {
   return (current_.type == Event::MARK_COMPACTOR ||
-          current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
+          current_.type == Event::INCREMENTAL_MARK_COMPACTOR ||
+          current_.type == Event::MINOR_MARK_COMPACTOR ||
+          current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR) &&
          current_.state == Event::State::SWEEPING;
 }
 #endif

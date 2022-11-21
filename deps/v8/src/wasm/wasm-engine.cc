@@ -259,6 +259,10 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
       auto conflicting_module = it->second.value().lock();
       if (conflicting_module != nullptr) {
         DCHECK_EQ(conflicting_module->wire_bytes(), wire_bytes);
+        // This return might delete {native_module} if we were the last holder.
+        // That in turn can call {NativeModuleCache::Erase}, which takes the
+        // mutex. This is not a problem though, since the {MutexGuard} above is
+        // released before the {native_module}, per the definition order.
         return conflicting_module;
       }
     }
@@ -462,7 +466,7 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              const ModuleWireBytes& bytes,
+                              ModuleWireBytes bytes,
                               std::string* error_message) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
@@ -471,8 +475,8 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
     return false;
   }
   auto result = DecodeWasmModule(
-      enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
+      enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
+      isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, allocator());
   if (result.failed() && error_message) {
@@ -482,7 +486,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
     base::Vector<const byte> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -495,10 +499,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // the context id in here.
   v8::metrics::Recorder::ContextId context_id =
       v8::metrics::Recorder::ContextId::Empty();
-  ModuleResult result = DecodeWasmModule(
-      WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(), context_id,
-      DecodingMethod::kSync, allocator());
+  ModuleResult result =
+      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.module_bytes(), false,
+                       origin, isolate->counters(), isolate->metrics_recorder(),
+                       context_id, DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -511,9 +515,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
+  constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, compilation_id, context_id);
+      bytes, compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
@@ -531,17 +536,17 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    const ModuleWireBytes& bytes) {
+    ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
   std::shared_ptr<WasmModule> module;
   {
-    ModuleResult result = DecodeWasmModule(
-        enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-        isolate->counters(), isolate->metrics_recorder(), context_id,
-        DecodingMethod::kSync, allocator());
+    ModuleResult result =
+        DecodeWasmModule(enabled, bytes.module_bytes(), false, kWasmOrigin,
+                         isolate->counters(), isolate->metrics_recorder(),
+                         context_id, DecodingMethod::kSync, allocator());
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};
@@ -550,15 +555,16 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // If experimental PGO via files is enabled, load profile information now.
-  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_from_file)) {
-    LoadProfileFromFile(module.get(), bytes.module_bytes());
+  std::unique_ptr<ProfileInformation> pgo_info;
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+    pgo_info = LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
-                            compilation_id, context_id);
+                            compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -636,9 +642,8 @@ void WasmEngine::AsyncInstantiate(
 
 void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::shared_ptr<CompilationResultResolver> resolver,
-    const ModuleWireBytes& bytes, bool is_shared,
-    const char* api_method_name_for_errors) {
+    std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
+    bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
   if (!v8_flags.wasm_async_compilation) {
@@ -1018,6 +1023,14 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
+#if defined(V8_COMPRESS_POINTERS)
+  // The null value is not accessible on mksnapshot runs.
+  if (isolate->snapshot_available()) {
+    null_tagged_compressed_ = V8HeapCompressionScheme::CompressTagged(
+        isolate->factory()->null_value()->ptr());
+  }
+#endif
+
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
@@ -1083,37 +1096,55 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
 void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   if (code_vec.empty()) return;
-  base::MutexGuard guard(&mutex_);
-  NativeModule* native_module = code_vec[0]->native_module();
-  DCHECK_EQ(1, native_modules_.count(native_module));
-  for (Isolate* isolate : native_modules_[native_module]->isolates) {
-    DCHECK_EQ(1, isolates_.count(isolate));
-    IsolateInfo* info = isolates_[isolate].get();
-    if (info->log_codes == false) continue;
-    if (info->log_codes_task == nullptr) {
-      auto new_task = std::make_unique<LogCodesTask>(
-          &mutex_, &info->log_codes_task, isolate, this);
-      info->log_codes_task = new_task.get();
-      info->foreground_task_runner->PostTask(std::move(new_task));
-    }
-    if (info->code_to_log.empty()) {
-      isolate->stack_guard()->RequestLogWasmCode();
-    }
-    for (WasmCode* code : code_vec) {
-      DCHECK_EQ(native_module, code->native_module());
-      code->IncRef();
-    }
+  using TaskToSchedule =
+      std::pair<std::shared_ptr<v8::TaskRunner>, std::unique_ptr<LogCodesTask>>;
+  std::vector<TaskToSchedule> to_schedule;
+  {
+    base::MutexGuard guard(&mutex_);
+    NativeModule* native_module = code_vec[0]->native_module();
+    DCHECK_EQ(1, native_modules_.count(native_module));
+    for (Isolate* isolate : native_modules_[native_module]->isolates) {
+      DCHECK_EQ(1, isolates_.count(isolate));
+      IsolateInfo* info = isolates_[isolate].get();
+      if (info->log_codes == false) continue;
+      if (info->log_codes_task == nullptr) {
+        auto new_task = std::make_unique<LogCodesTask>(
+            &mutex_, &info->log_codes_task, isolate, this);
+        info->log_codes_task = new_task.get();
+        // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
+        // Posting the task in the mutex can cause the following deadlock (only
+        // in d8): When d8 shuts down, it sets a terminate to the task runner.
+        // When the terminate flag in the taskrunner is set, all newly posted
+        // tasks get destroyed immediately. When the LogCodesTask gets
+        // destroyed, it takes the WasmEngine::mutex_ lock to deregister itself
+        // from the IsolateInfo. Therefore, as the LogCodesTask may get
+        // destroyed immediately when it gets posted, it cannot get posted when
+        // the WasmEngine::mutex_ lock is held.
+        to_schedule.emplace_back(info->foreground_task_runner,
+                                 std::move(new_task));
+      }
+      if (info->code_to_log.empty()) {
+        isolate->stack_guard()->RequestLogWasmCode();
+      }
+      for (WasmCode* code : code_vec) {
+        DCHECK_EQ(native_module, code->native_module());
+        code->IncRef();
+      }
 
-    auto script_it = info->scripts.find(native_module);
-    // If the script does not yet exist, logging will happen later. If the weak
-    // handle is cleared already, we also don't need to log any more.
-    if (script_it == info->scripts.end()) continue;
-    auto& log_entry = info->code_to_log[script_it->second.script_id()];
-    if (!log_entry.source_url) {
-      log_entry.source_url = script_it->second.source_url();
+      auto script_it = info->scripts.find(native_module);
+      // If the script does not yet exist, logging will happen later. If the
+      // weak handle is cleared already, we also don't need to log any more.
+      if (script_it == info->scripts.end()) continue;
+      auto& log_entry = info->code_to_log[script_it->second.script_id()];
+      if (!log_entry.source_url) {
+        log_entry.source_url = script_it->second.source_url();
+      }
+      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
+                            code_vec.end());
     }
-    log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                          code_vec.end());
+  }
+  for (auto& [runner, task] : to_schedule) {
+    runner->PostTask(std::move(task));
   }
 }
 
@@ -1222,32 +1253,31 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
   return native_module;
 }
 
-bool WasmEngine::UpdateNativeModuleCache(
-    bool error, std::shared_ptr<NativeModule>* native_module,
+std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
+    bool has_error, std::shared_ptr<NativeModule> native_module,
     Isolate* isolate) {
-  // Pass {native_module} by value here to keep it alive until at least after
-  // we returned from {Update}. Otherwise, we might {Erase} it inside {Update}
-  // which would lock the mutex twice.
-  auto prev = native_module->get();
-  *native_module = native_module_cache_.Update(*native_module, error);
-
-  if (prev == native_module->get()) return true;
+  // Keep the previous pointer, but as a `void*`, because we only want to use it
+  // later to compare pointers, and never need to dereference it.
+  void* prev = native_module.get();
+  native_module =
+      native_module_cache_.Update(std::move(native_module), has_error);
+  if (prev == native_module.get()) return native_module;
 
   bool recompile_module = false;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, native_modules_.count(native_module->get()));
-    native_modules_[native_module->get()]->isolates.insert(isolate);
+    DCHECK_EQ(1, native_modules_.count(native_module.get()));
+    native_modules_[native_module.get()]->isolates.insert(isolate);
     DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module->get());
+    isolates_[isolate]->native_modules.insert(native_module.get());
     if (isolates_[isolate]->keep_tiered_down) {
-      native_module->get()->SetTieringState(kTieredDown);
+      native_module->SetTieringState(kTieredDown);
       recompile_module = true;
     }
   }
   // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->get()->RecompileForTiering();
-  return false;
+  if (recompile_module) native_module->RecompileForTiering();
+  return native_module;
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {

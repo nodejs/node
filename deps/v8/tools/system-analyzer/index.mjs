@@ -328,12 +328,11 @@ class App {
       throw new Error(
           `Unknown tooltip content type: ${content.constructor?.name}`);
     }
-    this.setToolTip(content, event.positionOrTargetNode);
-  }
-
-  setToolTip(content, positionOrTargetNode) {
-    this._view.toolTip.positionOrTargetNode = positionOrTargetNode;
-    this._view.toolTip.content = content;
+    this._view.toolTip.data = {
+      content: content,
+      positionOrTargetNode: event.positionOrTargetNode,
+      immediate: event.immediate,
+    };
   }
 
   restartApp() {

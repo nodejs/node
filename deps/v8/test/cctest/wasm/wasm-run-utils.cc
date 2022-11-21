@@ -152,6 +152,9 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
     // structs from moving.
     test_module_->functions.reserve(kMaxFunctions);
+    DCHECK_NULL(test_module_->validated_functions);
+    test_module_->validated_functions =
+        std::make_unique<std::atomic<uint8_t>[]>((kMaxFunctions + 7) / 8);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
   test_module_->functions.push_back({sig,      // sig
@@ -181,6 +184,11 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     interpreter_->AddFunctionForTesting(&test_module_->functions.back());
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
+  if (!instance_object_.is_null()) {
+    Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
+        static_cast<int>(test_module_->functions.size()));
+    instance_object_->set_wasm_internal_functions(*funcs);
+  }
   return index;
 }
 
@@ -411,9 +419,10 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   std::vector<compiler::WasmLoopInfo> loops;
-  DecodeResult result = BuildTFGraph(
-      zone->allocator(), WasmFeatures::All(), nullptr, builder,
-      &unused_detected_features, body, &loops, nullptr, 0, kRegularFunction);
+  DecodeResult result =
+      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
+                   &unused_detected_features, body, &loops, nullptr, nullptr, 0,
+                   kRegularFunction);
   if (result.failed()) {
 #ifdef DEBUG
     if (!v8_flags.trace_wasm_decoder) {
@@ -421,7 +430,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
       v8_flags.trace_wasm_decoder = true;
       result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, &loops,
-                            nullptr, 0, kRegularFunction);
+                            nullptr, nullptr, 0, kRegularFunction);
     }
 #endif
 
@@ -617,9 +626,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
+    WasmFeatures unused_detected_features;
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        nullptr, nullptr, nullptr));
+        nullptr, nullptr, &unused_detected_features));
   }
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));

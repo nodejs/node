@@ -270,7 +270,8 @@ Handle<Code> CSATestRunner::create_find_entry(Isolate* isolate) {
                      isolate);
   }
   static_assert(kFindEntryParams == 2);  // (table, key)
-  compiler::CodeAssemblerTester asm_tester(isolate, kFindEntryParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kFindEntryParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -293,7 +294,8 @@ Handle<Code> CSATestRunner::create_find_entry(Isolate* isolate) {
 
 Handle<Code> CSATestRunner::create_get_data(Isolate* isolate) {
   static_assert(kGetDataParams == 2);  // (table, entry)
-  compiler::CodeAssemblerTester asm_tester(isolate, kGetDataParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kGetDataParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -316,7 +318,8 @@ Handle<Code> CSATestRunner::create_get_data(Isolate* isolate) {
 
 Handle<Code> CSATestRunner::create_put(Isolate* isolate) {
   static_assert(kPutParams == 4);  // (table, entry, value, details)
-  compiler::CodeAssemblerTester asm_tester(isolate, kPutParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kPutParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -343,7 +346,8 @@ Handle<Code> CSATestRunner::create_delete(Isolate* isolate) {
                      isolate);
   }
   static_assert(kDeleteParams == 2);  // (table, entry)
-  compiler::CodeAssemblerTester asm_tester(isolate, kDeleteParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kDeleteParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -369,7 +373,8 @@ Handle<Code> CSATestRunner::create_add(Isolate* isolate) {
                      isolate);
   }
   static_assert(kAddParams == 4);  // (table, key, value, details)
-  compiler::CodeAssemblerTester asm_tester(isolate, kAddParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kAddParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -393,7 +398,8 @@ Handle<Code> CSATestRunner::create_add(Isolate* isolate) {
 
 Handle<Code> CSATestRunner::create_allocate(Isolate* isolate) {
   static_assert(kAllocateParams == 1);  // (capacity)
-  compiler::CodeAssemblerTester asm_tester(isolate, kAllocateParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kAllocateParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<IntPtrT> capacity = m.SmiToIntPtr(m.Parameter<Smi>(1));
@@ -408,7 +414,8 @@ Handle<Code> CSATestRunner::create_allocate(Isolate* isolate) {
 
 Handle<Code> CSATestRunner::create_get_counts(Isolate* isolate) {
   static_assert(kGetCountsParams == 1);  // (table)
-  compiler::CodeAssemblerTester asm_tester(isolate, kGetCountsParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kGetCountsParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);
@@ -441,7 +448,8 @@ Handle<Code> CSATestRunner::create_get_counts(Isolate* isolate) {
 
 Handle<Code> CSATestRunner::create_copy(Isolate* isolate) {
   static_assert(kCopyParams == 1);  // (table)
-  compiler::CodeAssemblerTester asm_tester(isolate, kCopyParams + 1);
+  compiler::CodeAssemblerTester asm_tester(isolate,
+                                           JSParameterCount(kCopyParams));
   CodeStubAssembler m(asm_tester.state());
   {
     TNode<SwissNameDictionary> table = m.Parameter<SwissNameDictionary>(1);

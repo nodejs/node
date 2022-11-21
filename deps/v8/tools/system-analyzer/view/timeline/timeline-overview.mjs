@@ -110,7 +110,8 @@ DOM.defineCustomElement('view/timeline/timeline-overview',
     if (!toolTipContent) {
       toolTipContent = `Time ${formatDurationMicros(timeMicros)}`;
     }
-    this.dispatchEvent(new ToolTipEvent(toolTipContent, this._indicatorNode));
+    this.dispatchEvent(
+        new ToolTipEvent(toolTipContent, this._indicatorNode, e.ctrlKey));
   }
 
   _findLogEntryAtTime(time, maxTimeDistance) {

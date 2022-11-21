@@ -429,7 +429,8 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options) {
+    ScriptOriginOptions origin_options,
+    MaybeHandle<Script> maybe_cached_script) {
   if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
@@ -468,6 +469,22 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (v8_flags.profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
+
+  // Check whether the newly deserialized data should be merged into an
+  // existing Script from the Isolate compilation cache. If so, perform
+  // the merge in a single-threaded manner since this deserialization was
+  // single-threaded.
+  if (Handle<Script> cached_script;
+      maybe_cached_script.ToHandle(&cached_script)) {
+    BackgroundMergeTask merge;
+    merge.SetUpOnMainThread(isolate, cached_script);
+    CHECK(merge.HasPendingBackgroundWork());
+    Handle<Script> new_script = handle(Script::cast(result->script()), isolate);
+    merge.BeginMergeInBackground(isolate->AsLocalIsolate(), new_script);
+    CHECK(merge.HasPendingForegroundWork());
+    result = merge.CompleteMergeInForeground(isolate, new_script);
+  }
+
   BaselineBatchCompileIfSparkplugCompiled(isolate,
                                           Script::cast(result->script()));
   if (v8_flags.profile_deserialization) {

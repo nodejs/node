@@ -695,6 +695,13 @@ Node::Uses::const_iterator Node::Uses::begin() const {
 
 Node::Uses::const_iterator Node::Uses::end() const { return const_iterator(); }
 
+inline Node::Uses::const_iterator begin(const Node::Uses& uses) {
+  return uses.begin();
+}
+inline Node::Uses::const_iterator end(const Node::Uses& uses) {
+  return uses.end();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

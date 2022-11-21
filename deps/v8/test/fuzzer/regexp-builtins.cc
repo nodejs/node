@@ -453,7 +453,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Flag definitions.
 
-  FLAG_allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax = true;
 
   // V8 setup.
 

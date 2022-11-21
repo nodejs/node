@@ -275,7 +275,7 @@ inline StackSwitchFrame::StackSwitchFrame(StackFrameIteratorBase* iterator)
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
-inline WasmCompileLazyFrame::WasmCompileLazyFrame(
+inline WasmLiftoffSetupFrame::WasmLiftoffSetupFrame(
     StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 #endif  // V8_ENABLE_WEBASSEMBLY

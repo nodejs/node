@@ -24,6 +24,7 @@ namespace internal {
 class MarkingStateBase {
  public:
   inline MarkingStateBase(HeapBase&, MarkingWorklists&);
+  virtual ~MarkingStateBase() = default;
 
   MarkingStateBase(const MarkingStateBase&) = delete;
   MarkingStateBase& operator=(const MarkingStateBase&) = delete;
@@ -33,7 +34,7 @@ class MarkingStateBase {
 
   inline void PushMarked(HeapObjectHeader&, TraceDescriptor desc);
 
-  void Publish() { marking_worklist_.Publish(); }
+  V8_EXPORT_PRIVATE virtual void Publish();
 
   MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
     return marking_worklist_;
@@ -107,8 +108,8 @@ void MarkingStateBase::PushMarked(HeapObjectHeader& header,
 
 class BasicMarkingState : public MarkingStateBase {
  public:
-  inline BasicMarkingState(HeapBase& heap, MarkingWorklists&,
-                           CompactionWorklists*);
+  BasicMarkingState(HeapBase& heap, MarkingWorklists&, CompactionWorklists*);
+  ~BasicMarkingState() override = default;
 
   BasicMarkingState(const BasicMarkingState&) = delete;
   BasicMarkingState& operator=(const BasicMarkingState&) = delete;
@@ -136,17 +137,7 @@ class BasicMarkingState : public MarkingStateBase {
   inline void AccountMarkedBytes(size_t);
   size_t marked_bytes() const { return marked_bytes_; }
 
-  void Publish() {
-    MarkingStateBase::Publish();
-    previously_not_fully_constructed_worklist_.Publish();
-    weak_callback_worklist_.Publish();
-    parallel_weak_callback_worklist_.Publish();
-    write_barrier_worklist_.Publish();
-    concurrent_marking_bailout_worklist_.Publish();
-    discovered_ephemeron_pairs_worklist_.Publish();
-    ephemeron_pairs_for_processing_worklist_.Publish();
-    if (IsCompactionEnabled()) movable_slots_worklist_->Publish();
-  }
+  V8_EXPORT_PRIVATE void Publish() override;
 
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local&
   previously_not_fully_constructed_worklist() {
@@ -177,10 +168,6 @@ class BasicMarkingState : public MarkingStateBase {
   MarkingWorklists::WeakContainersWorklist& weak_containers_worklist() {
     return weak_containers_worklist_;
   }
-  MarkingWorklists::RetraceMarkedObjectsWorklist::Local&
-  retrace_marked_objects_worklist() {
-    return retrace_marked_objects_worklist_;
-  }
 
   CompactionWorklists::MovableReferencesWorklist::Local*
   movable_slots_worklist() {
@@ -200,10 +187,6 @@ class BasicMarkingState : public MarkingStateBase {
  protected:
   inline void RegisterWeakContainer(HeapObjectHeader&);
 
-  inline bool IsCompactionEnabled() const {
-    return movable_slots_worklist_.get();
-  }
-
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
@@ -217,8 +200,6 @@ class BasicMarkingState : public MarkingStateBase {
   MarkingWorklists::EphemeronPairsWorklist::Local
       ephemeron_pairs_for_processing_worklist_;
   MarkingWorklists::WeakContainersWorklist& weak_containers_worklist_;
-  MarkingWorklists::RetraceMarkedObjectsWorklist::Local
-      retrace_marked_objects_worklist_;
   // Existence of the worklist (|movable_slot_worklist_| != nullptr) denotes
   // that compaction is currently enabled and slots must be recorded.
   std::unique_ptr<CompactionWorklists::MovableReferencesWorklist::Local>
@@ -229,32 +210,6 @@ class BasicMarkingState : public MarkingStateBase {
   bool discovered_new_ephemeron_pairs_ = false;
   bool in_atomic_pause_ = false;
 };
-
-BasicMarkingState::BasicMarkingState(HeapBase& heap,
-                                     MarkingWorklists& marking_worklists,
-                                     CompactionWorklists* compaction_worklists)
-    : MarkingStateBase(heap, marking_worklists),
-      previously_not_fully_constructed_worklist_(
-          *marking_worklists.previously_not_fully_constructed_worklist()),
-      weak_callback_worklist_(*marking_worklists.weak_callback_worklist()),
-      parallel_weak_callback_worklist_(
-          *marking_worklists.parallel_weak_callback_worklist()),
-      write_barrier_worklist_(*marking_worklists.write_barrier_worklist()),
-      concurrent_marking_bailout_worklist_(
-          *marking_worklists.concurrent_marking_bailout_worklist()),
-      discovered_ephemeron_pairs_worklist_(
-          *marking_worklists.discovered_ephemeron_pairs_worklist()),
-      ephemeron_pairs_for_processing_worklist_(
-          *marking_worklists.ephemeron_pairs_for_processing_worklist()),
-      weak_containers_worklist_(*marking_worklists.weak_containers_worklist()),
-      retrace_marked_objects_worklist_(
-          *marking_worklists.retrace_marked_objects_worklist()) {
-  if (compaction_worklists) {
-    movable_slots_worklist_ =
-        std::make_unique<CompactionWorklists::MovableReferencesWorklist::Local>(
-            *compaction_worklists->movable_slots_worklist());
-  }
-}
 
 void BasicMarkingState::RegisterWeakReferenceIfNeeded(
     const void* object, TraceDescriptor desc, WeakCallback weak_callback,
@@ -362,11 +317,14 @@ void BasicMarkingState::AccountMarkedBytes(size_t marked_bytes) {
   marked_bytes_ += marked_bytes;
 }
 
-class MutatorMarkingState : public BasicMarkingState {
+class MutatorMarkingState final : public BasicMarkingState {
  public:
   MutatorMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
                       CompactionWorklists* compaction_worklists)
-      : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
+      : BasicMarkingState(heap, marking_worklists, compaction_worklists),
+        retrace_marked_objects_worklist_(
+            *marking_worklists.retrace_marked_objects_worklist()) {}
+  ~MutatorMarkingState() override = default;
 
   inline bool MarkNoPush(HeapObjectHeader& header) {
     return MutatorMarkingState::BasicMarkingState::MarkNoPush(header);
@@ -389,6 +347,13 @@ class MutatorMarkingState : public BasicMarkingState {
 
   inline bool IsMarkedWeakContainer(HeapObjectHeader&);
 
+  MarkingWorklists::RetraceMarkedObjectsWorklist::Local&
+  retrace_marked_objects_worklist() {
+    return retrace_marked_objects_worklist_;
+  }
+
+  V8_EXPORT_PRIVATE void Publish() override;
+
  private:
   // Weak containers are strongly retraced during conservative stack scanning.
   // Stack scanning happens once per GC at the start of the atomic pause.
@@ -398,13 +363,16 @@ class MutatorMarkingState : public BasicMarkingState {
     static constexpr size_t kMaxCacheSize = 8;
 
    public:
-    inline bool Contains(const HeapObjectHeader*);
+    inline bool Contains(const HeapObjectHeader*) const;
     inline void Insert(const HeapObjectHeader*);
 
    private:
     std::vector<const HeapObjectHeader*> recently_retraced_cache_;
     size_t last_used_index_ = -1;
   } recently_retraced_weak_containers_;
+
+  MarkingWorklists::RetraceMarkedObjectsWorklist::Local
+      retrace_marked_objects_worklist_;
 };
 
 void MutatorMarkingState::ReTraceMarkedWeakContainer(cppgc::Visitor& visitor,
@@ -450,7 +418,7 @@ bool MutatorMarkingState::IsMarkedWeakContainer(HeapObjectHeader& header) {
 }
 
 bool MutatorMarkingState::RecentlyRetracedWeakContainers::Contains(
-    const HeapObjectHeader* header) {
+    const HeapObjectHeader* header) const {
   return std::find(recently_retraced_cache_.begin(),
                    recently_retraced_cache_.end(),
                    header) != recently_retraced_cache_.end();
@@ -465,13 +433,15 @@ void MutatorMarkingState::RecentlyRetracedWeakContainers::Insert(
     recently_retraced_cache_[last_used_index_] = header;
 }
 
-class ConcurrentMarkingState : public BasicMarkingState {
+class ConcurrentMarkingState final : public BasicMarkingState {
  public:
   ConcurrentMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
                          CompactionWorklists* compaction_worklists)
       : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
 
-  ~ConcurrentMarkingState() { DCHECK_EQ(last_marked_bytes_, marked_bytes_); }
+  ~ConcurrentMarkingState() override {
+    DCHECK_EQ(last_marked_bytes_, marked_bytes_);
+  }
 
   size_t RecentlyMarkedBytes() {
     return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);

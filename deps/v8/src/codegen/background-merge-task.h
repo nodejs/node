@@ -33,6 +33,11 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
                          const ScriptDetails& script_details,
                          LanguageMode language_mode);
 
+  // Alternative step 1: on the main thread, if the caller has already looked up
+  // the script in the Isolate compilation cache, set up the necessary
+  // persistent data for the background merge.
+  void SetUpOnMainThread(Isolate* isolate, Handle<Script> cached_script);
+
   // Step 2: on the background thread, update pointers in the new Script's
   // object graph to point to corresponding objects from the cached Script where
   // appropriate. May only be called if HasPendingBackgroundWork returned true.
@@ -73,13 +78,13 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
   std::vector<Handle<SharedFunctionInfo>> used_new_sfis_;
 
   // SharedFunctionInfos from the cached script which were not compiled, with
-  // function_data and feedback_metadata from the corresponding new
-  // SharedFunctionInfo. If the SharedFunctionInfo from the cached script is
-  // still uncompiled when finishing, the main thread must set the two fields.
+  // the corresponding new SharedFunctionInfo. If the SharedFunctionInfo from
+  // the cached script is still uncompiled when finishing, the main thread must
+  // copy all fields from the new SharedFunctionInfo to the SharedFunctionInfo
+  // from the cached script.
   struct NewCompiledDataForCachedSfi {
     Handle<SharedFunctionInfo> cached_sfi;
-    Handle<Object> function_data;
-    Handle<FeedbackMetadata> feedback_metadata;
+    Handle<SharedFunctionInfo> new_sfi;
   };
   std::vector<NewCompiledDataForCachedSfi> new_compiled_data_for_cached_sfis_;
 

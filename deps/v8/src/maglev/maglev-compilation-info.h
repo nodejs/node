@@ -30,9 +30,9 @@ class JSHeapBroker;
 
 namespace maglev {
 
-class Graph;
 class MaglevCompilationUnit;
 class MaglevGraphLabeller;
+class MaglevCodeGenerator;
 
 // A list of v8_flag values copied into the MaglevCompilationInfo for
 // guaranteed {immutable,threadsafe} access.
@@ -66,21 +66,8 @@ class MaglevCompilationInfo final {
     return graph_labeller_.get();
   }
 
-  void set_graph(Graph* graph) { graph_ = graph; }
-  Graph* graph() const { return graph_; }
-
-  void set_translation_array_builder(
-      std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
-      std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-          deopt_literals);
-  TranslationArrayBuilder& translation_array_builder() const {
-    DCHECK(translation_array_builder_);
-    return *translation_array_builder_;
-  }
-  IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals() const {
-    DCHECK(deopt_literals_);
-    return *deopt_literals_;
-  }
+  void set_code_generator(std::unique_ptr<MaglevCodeGenerator> code_generator);
+  MaglevCodeGenerator* code_generator() const { return code_generator_.get(); }
 
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
@@ -88,6 +75,7 @@ class MaglevCompilationInfo final {
   bool Name() const { return Name##_; }
   MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
+  bool collect_source_positions() const { return collect_source_positions_; }
 
   bool specialize_to_function_context() const {
     return specialize_to_function_context_;
@@ -117,15 +105,12 @@ class MaglevCompilationInfo final {
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 
   // Produced off-thread during ExecuteJobImpl.
-  Graph* graph_ = nullptr;
-
-  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
-  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-      deopt_literals_;
+  std::unique_ptr<MaglevCodeGenerator> code_generator_;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
+  bool collect_source_positions_;
 
   // If enabled, the generated code can rely on the function context to be a
   // constant (known at compile-time). This opens new optimization

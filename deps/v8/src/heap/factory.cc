@@ -415,9 +415,13 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
-                                        Handle<FixedArray> indices) {
-  auto result =
-      NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, AllocationType::kOld);
+                                        Handle<FixedArray> indices,
+                                        AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
+  DCHECK_EQ(allocation == AllocationType::kSharedOld,
+            keys->InSharedHeap() && indices->InSharedHeap());
+  auto result = NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, allocation);
   DisallowGarbageCollection no_gc;
   result.set_keys(*keys);
   result.set_indices(*indices);
@@ -825,39 +829,6 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
                                   allocation);
 }
 
-namespace {
-struct Wtf16Decoder {
-  int length_;
-  bool is_one_byte_;
-  explicit Wtf16Decoder(const base::Vector<const uint16_t>& data)
-      : length_(data.length()),
-        is_one_byte_(String::IsOneByte(data.begin(), length_)) {}
-  bool is_invalid() const { return false; }
-  bool is_one_byte() const { return is_one_byte_; }
-  int utf16_length() const { return length_; }
-  template <typename Char>
-  void Decode(Char* out, const base::Vector<const uint16_t>& data) {
-    CopyChars(out, data.begin(), length_);
-  }
-};
-}  // namespace
-
-MaybeHandle<String> Factory::NewStringFromUtf16(Handle<WasmArray> array,
-                                                uint32_t start, uint32_t end,
-                                                AllocationType allocation) {
-  DCHECK_EQ(sizeof(uint16_t), array->type()->element_type().value_kind_size());
-  DCHECK_LE(start, end);
-  DCHECK_LE(end, array->length());
-  // {end - start} can never be more than what the Utf8Decoder can handle.
-  static_assert(WasmArray::MaxLength(sizeof(uint16_t)) <= kMaxInt);
-  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
-    const uint16_t* contents =
-        reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
-    return {contents + start, end - start};
-  };
-  return NewStringFromBytes<Wtf16Decoder>(isolate(), peek_bytes, allocation,
-                                          MessageTemplate::kNone);
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(
@@ -2490,7 +2461,7 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     const int no_flags = 0;
     Handle<CodeDataContainer> code_data_container =
         NewCodeDataContainer(no_flags, AllocationType::kOld);
@@ -2838,19 +2809,26 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
 }
 
 Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
-    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings) {
+    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+    int function_literal_id, int slot_id) {
   Handle<JSArray> raw_object =
       NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
                              raw_strings->length(), AllocationType::kOld);
   JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
 
   Handle<NativeContext> native_context = isolate()->native_context();
-  Handle<JSArray> template_object = NewJSArrayWithUnverifiedElements(
-      handle(native_context->js_array_template_literal_object_map(), isolate()),
-      cooked_strings, cooked_strings->length(), AllocationType::kOld);
-  TemplateLiteralObject::SetRaw(template_object, raw_object);
-  DCHECK_EQ(template_object->map(),
+  Handle<TemplateLiteralObject> template_object =
+      Handle<TemplateLiteralObject>::cast(NewJSArrayWithUnverifiedElements(
+          handle(native_context->js_array_template_literal_object_map(),
+                 isolate()),
+          cooked_strings, cooked_strings->length(), AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+  TemplateLiteralObject raw_template_object = *template_object;
+  DCHECK_EQ(raw_template_object.map(),
             native_context->js_array_template_literal_object_map());
+  raw_template_object.set_raw(*raw_object);
+  raw_template_object.set_function_literal_id(function_literal_id);
+  raw_template_object.set_slot_id(slot_id);
   return template_object;
 }
 
@@ -3029,7 +3007,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   result->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                std::move(backing_store));
+                std::move(backing_store), isolate());
   return result;
 }
 
@@ -3048,7 +3026,7 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                      std::move(backing_store));
+                      std::move(backing_store), isolate());
   return array_buffer;
 }
 
@@ -3064,7 +3042,8 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
   ResizableFlag resizable = backing_store->is_resizable_by_js()
                                 ? ResizableFlag::kResizable
                                 : ResizableFlag::kNotResizable;
-  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store));
+  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store),
+                isolate());
   return result;
 }
 
@@ -3982,18 +3961,24 @@ Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
 Handle<JSSharedStruct> Factory::NewJSSharedStruct(
     Handle<JSFunction> constructor) {
   SharedObjectSafePublishGuard publish_guard;
+
+  Handle<Map> instance_map(constructor->initial_map(), isolate());
+  Handle<PropertyArray> property_array;
+  const int num_oob_fields =
+      instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
+      instance_map->GetInObjectProperties();
+  if (num_oob_fields > 0) {
+    property_array =
+        NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
+  }
+
   Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
       NewJSObject(constructor, AllocationType::kSharedOld));
 
-  Handle<Map> instance_map(instance->map(), isolate());
-  if (instance_map->HasOutOfObjectProperties()) {
-    int num_oob_fields =
-        instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
-        instance_map->GetInObjectProperties();
-    Handle<PropertyArray> property_array =
-        NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
-    instance->SetProperties(*property_array);
-  }
+  // The struct object has not been fully initialized yet. Disallow allocation
+  // from this point on.
+  DisallowGarbageCollection no_gc;
+  if (!property_array.is_null()) instance->SetProperties(*property_array);
 
   return instance;
 }

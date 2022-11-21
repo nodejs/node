@@ -1553,6 +1553,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << byte_length();
   os << "\n - max_byte_length: " << max_byte_length();
+  os << "\n - detach key: " << detach_key();
   if (is_external()) os << "\n - external";
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
@@ -2065,7 +2066,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_table_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
+  PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);

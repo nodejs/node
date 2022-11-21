@@ -59,13 +59,14 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   typedArray.byte_offset = byteOffset;
   if (isLengthTracking) {
     dcheck(IsResizableArrayBuffer(buffer));
-    // Make the byte_length of length-tracking TAs zero, so that we won't
-    // accidentally use it and access invalid data.
+    // Set the byte_length and length fields of length-tracking TAs to zero, so
+    // that we won't accidentally use them and access invalid data.
     typedArray.byte_length = 0;
+    typedArray.length = 0;
   } else {
     typedArray.byte_length = byteLength;
+    typedArray.length = length;
   }
-  typedArray.length = length;
   typedArray.bit_field.is_length_tracking = isLengthTracking;
   typedArray.bit_field.is_backed_by_rab =
       IsResizableArrayBuffer(buffer) && !IsSharedArrayBuffer(buffer);
@@ -329,11 +330,18 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
 
   // 2. Perform ? ValidateTypedArray(newTypedArray).
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
+  const newTypedArrayLength =
+      ValidateTypedArrayAndGetLength(context, newTypedArrayObj, methodName);
   const newTypedArray: JSTypedArray =
-      ValidateTypedArray(context, newTypedArrayObj, methodName);
-  // TODO(v8:11111): bit_field should be initialized to 0.
-  newTypedArray.bit_field.is_length_tracking = false;
-  newTypedArray.bit_field.is_backed_by_rab = false;
+      UnsafeCast<JSTypedArray>(newTypedArrayObj);
+
+  dcheck(
+      newTypedArray.bit_field.is_backed_by_rab ==
+      (IsResizableArrayBuffer(newTypedArray.buffer) &&
+       !IsSharedArrayBuffer(newTypedArray.buffer)));
+  dcheck(
+      !newTypedArray.bit_field.is_length_tracking ||
+      IsResizableArrayBuffer(newTypedArray.buffer));
 
   if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, methodName);
@@ -342,7 +350,7 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   // 3. If argumentList is a List of a single Number, then
   //   a. If newTypedArray.[[ArrayLength]] < argumentList[0], throw a
   //      TypeError exception.
-  if (newTypedArray.length < Convert<uintptr>(length)) deferred {
+  if (newTypedArrayLength < Convert<uintptr>(length)) deferred {
       ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
     }
 
@@ -470,7 +478,7 @@ transitioning macro TypedArraySpeciesCreateByLength(implicit context: Context)(
   const typedArray: JSTypedArray = TypedArraySpeciesCreate(
       methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
       Undefined);
-  if (typedArray.length < length) deferred {
+  if (LoadJSTypedArrayLength(typedArray) < length) deferred {
       ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
     }
   return typedArray;

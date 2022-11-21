@@ -28,10 +28,7 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace fuzzer {
+namespace v8::internal::wasm::fuzzer {
 
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
@@ -43,10 +40,10 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   // Create the native module.
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(),
-      kNoVerifyFunctions, ModuleOrigin::kWasmOrigin, isolate->counters(),
+      enabled_features, wire_bytes.module_bytes(), kNoVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());
   CHECK(module_res.ok());
@@ -86,7 +83,7 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
   return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 
-void InterpretAndExecuteModule(i::Isolate* isolate,
+void InterpretAndExecuteModule(Isolate* isolate,
                                Handle<WasmModuleObject> module_object,
                                Handle<WasmModuleObject> module_ref,
                                int32_t* max_steps, int32_t* nondeterminism) {
@@ -231,8 +228,8 @@ std::string HeapTypeToJSByteEncoding(HeapType heap_type) {
       return "kEqRefCode";
     case HeapType::kI31:
       return "kI31RefCode";
-    case HeapType::kData:
-      return "kDataRefCode";
+    case HeapType::kStruct:
+      return "kStructRefCode";
     case HeapType::kArray:
       return "kArrayRefCode";
     case HeapType::kAny:
@@ -260,8 +257,8 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmEqRef";
     case HeapType::kI31:
       return "kWasmI31Ref";
-    case HeapType::kData:
-      return "kWasmDataRef";
+    case HeapType::kStruct:
+      return "kWasmStructRef";
     case HeapType::kArray:
       return "kWasmArrayRef";
     case HeapType::kExtern:
@@ -309,7 +306,7 @@ std::string ValueTypeToConstantName(ValueType type) {
           return "kWasmAnyRef";
         case HeapType::kBottom:
           UNREACHABLE();
-        case HeapType::kData:
+        case HeapType::kStruct:
         case HeapType::kArray:
         case HeapType::kI31:
         default:
@@ -346,18 +343,18 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 // representation of the expression, compatible with wasm-module-builder.js.
 class InitExprInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
 
-  struct Value : public ValueBase<validate> {
+  struct Value : public ValueBase<ValidationTag> {
     template <typename... Args>
     explicit Value(Args&&... args) V8_NOEXCEPT
         : ValueBase(std::forward<Args>(args)...) {}
   };
 
-  using Control = ControlBase<Value, validate>;
+  using Control = ControlBase<Value, ValidationTag>;
   using FullDecoder =
-      WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
+      WasmFullDecoder<ValidationTag, InitExprInterface, decoding_mode>;
 
   explicit InitExprInterface(StdoutStream& os) : os_(os) { os_ << "["; }
 
@@ -386,8 +383,7 @@ class InitExprInterface {
     os_ << "...wasmF64Const(" << value << "), ";
   }
 
-  void S128Const(FullDecoder* decoder, Simd128Immediate<validate>& imm,
-                 Value* result) {
+  void S128Const(FullDecoder* decoder, Simd128Immediate& imm, Value* result) {
     os_ << "kSimdPrefix, kExprS128Const, " << std::hex;
     for (int i = 0; i < kSimd128Size; i++) {
       os_ << "0x" << static_cast<int>(imm.value[i]) << ", ";
@@ -411,37 +407,33 @@ class InitExprInterface {
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
-                 const GlobalIndexImmediate<validate>& imm) {
+                 const GlobalIndexImmediate& imm) {
     os_ << "kWasmGlobalGet, " << index(imm.index);
   }
 
   // The following operations assume non-rtt versions of the instructions.
-  void StructNew(FullDecoder* decoder,
-                 const StructIndexImmediate<validate>& imm, const Value& rtt,
-                 const Value args[], Value* result) {
+  void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
+                 const Value& rtt, const Value args[], Value* result) {
     os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
   }
 
-  void StructNewDefault(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
+  void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
                         const Value& rtt, Value* result) {
     os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
   }
 
-  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 const Value& rtt, Value* result) {
     os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
   }
 
-  void ArrayNewDefault(FullDecoder* decoder,
-                       const ArrayIndexImmediate<validate>& imm,
+  void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, const Value& rtt, Value* result) {
     os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
-  void ArrayNewFixed(FullDecoder* decoder,
-                     const ArrayIndexImmediate<validate>& imm,
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                      const base::Vector<Value>& elements, const Value& rtt,
                      Value* result) {
     os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
@@ -449,8 +441,8 @@ class InitExprInterface {
   }
 
   void ArrayNewSegment(FullDecoder* decoder,
-                       const ArrayIndexImmediate<validate>& array_imm,
-                       const IndexImmediate<validate>& data_segment_imm,
+                       const ArrayIndexImmediate& array_imm,
+                       const IndexImmediate& data_segment_imm,
                        const Value& offset_value, const Value& length_value,
                        const Value& rtt, Value* result) {
     // TODO(7748): Implement.
@@ -464,8 +456,8 @@ class InitExprInterface {
   // Since we treat all instructions as rtt-less, we should not print rtts.
   void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {}
 
-  void StringConst(FullDecoder* decoder,
-                   const StringConstImmediate<validate>& imm, Value* result) {
+  void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
+                   Value* result) {
     os_ << "...GCInstr(kExprStringConst), " << index(imm.index);
   }
 
@@ -498,7 +490,7 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
       FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
                         module_bytes.start() + ref.end_offset());
       WasmFeatures detected;
-      WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
+      WasmFullDecoder<Decoder::FullValidationTag, InitExprInterface,
                       kConstantExpression>
           decoder(zone, module, WasmFeatures::All(), &detected, body, os);
       decoder.DecodeFunctionBody();
@@ -511,9 +503,9 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
+      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());
@@ -682,7 +674,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls;
-    DecodeLocalDecls(enabled_features, &decls, module, func_code.begin(),
+    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
                      func_code.end(), &tmp_zone);
     if (decls.num_locals) {
       os << "  ";
@@ -722,18 +714,29 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
-void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
-  struct EnableStagedWasmFeatures {
-    explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+  struct EnableExperimentalWasmFeatures {
+    explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
+      // Enable all staged features.
+#define ENABLE_STAGED_FEATURES(feat, ...) \
   v8_flags.experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
+
+      // Enable non-staged experimental features that we also want to fuzz.
+      v8_flags.experimental_wasm_gc = true;
+
+      // Enforce implications from enabling features.
+      FlagList::EnforceFlagImplications();
+
+      // Last, install any conditional features. Implications are handled
+      // implicitly.
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
     }
   };
   // The compiler will properly synchronize the constructor call.
-  static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
+  static EnableExperimentalWasmFeatures one_time_enable_experimental_features(
+      isolate);
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
@@ -746,7 +749,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // respect that limit.
   if (data.size() > max_input_size()) return;
 
-  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
   i_isolate->clear_pending_exception();
@@ -758,7 +761,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-  OneTimeEnableStagedWasmFeatures(isolate);
+  EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
   HandleScope scope(i_isolate);
@@ -787,15 +790,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
   // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
 
-// Control whether Liftoff or the interpreter will be used as the reference
-// tier.
-// TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86) || \
-    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
-  bool liftoff_as_reference = configuration_byte & 1;
-#else
-  bool liftoff_as_reference = false;
-#endif
+  // Control whether Liftoff or the interpreter will be used as the reference
+  // tier.
+  bool liftoff_as_reference =
+      v8_flags.experimental_wasm_gc || (configuration_byte & 1);
+
   FlagScope<bool> turbo_mid_tier_regalloc(
       &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
 
@@ -812,7 +811,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, true);
   }
 
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
@@ -854,7 +853,4 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                             module_ref, &max_steps, &nondeterminism);
 }
 
-}  // namespace fuzzer
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::fuzzer

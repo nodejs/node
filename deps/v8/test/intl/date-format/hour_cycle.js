@@ -7,14 +7,14 @@ let noon = new Date(2019, 3, 4, 12);
 let df_11 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h11"})
 assertEquals("h11", df_11.resolvedOptions().hourCycle);
-assertEquals("0:00 AM", df_11.format(midnight));
-assertEquals("0:00 PM", df_11.format(noon));
+assertEquals("0:00\u202fAM", df_11.format(midnight));
+assertEquals("0:00\u202fPM", df_11.format(noon));
 
 let df_12 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h12"})
 assertEquals("h12", df_12.resolvedOptions().hourCycle);
-assertEquals("12:00 AM", df_12.format(midnight));
-assertEquals("12:00 PM", df_12.format(noon));
+assertEquals("12:00\u202fAM", df_12.format(midnight));
+assertEquals("12:00\u202fPM", df_12.format(noon));
 
 let df_23 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h23"})

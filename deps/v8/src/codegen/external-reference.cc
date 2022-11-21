@@ -25,6 +25,7 @@
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
@@ -337,6 +338,9 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
+FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
+                   WriteBarrier::SharedMarkingFromCode)
+
 FUNCTION_REFERENCE(shared_barrier_from_code_function,
                    WriteBarrier::SharedFromCode)
 
@@ -454,8 +458,8 @@ IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
         wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_zeroes,
-        wasm::array_fill_with_zeroes_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_number_or_null,
+        wasm::array_fill_with_number_or_null_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -511,6 +515,18 @@ ExternalReference ExternalReference::heap_is_marking_flag_address(
 ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
+}
+
+ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->is_shared_space_isolate_flag_address());
+}
+
+ExternalReference ExternalReference::uses_shared_heap_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->uses_shared_heap_flag_address());
 }
 
 ExternalReference ExternalReference::new_space_allocation_top_address(
@@ -587,7 +603,7 @@ ExternalReference ExternalReference::address_of_log_or_trace_osr() {
 
 ExternalReference
 ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
-  return ExternalReference(&FLAG_harmony_symbol_as_weakmap_key);
+  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
@@ -950,6 +966,20 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const base::uc16, const base::uc16>();
 }
 
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_shifts() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindShifts());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_sizes() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindSizes());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 namespace {
 
 void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
@@ -1103,6 +1133,9 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
 FUNCTION_REFERENCE(mutable_big_int_absolute_div_and_canonicalize_function,
                    MutableBigInt_AbsoluteDivAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_absolute_mod_and_canonicalize_function,
+                   MutableBigInt_AbsoluteModAndCanonicalize)
+
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pp_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosPosAndCanonicalize)
 
@@ -1111,6 +1144,33 @@ FUNCTION_REFERENCE(mutable_big_int_bitwise_and_nn_and_canonicalize_function,
 
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pn_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_or_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseOrPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_xor_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseXorPosNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_left_shift_and_canonicalize_function,
+                   MutableBigInt_LeftShiftAndCanonicalize)
+
+FUNCTION_REFERENCE(big_int_right_shift_result_length_function,
+                   RightShiftResultLength)
+
+FUNCTION_REFERENCE(mutable_big_int_right_shift_and_canonicalize_function,
+                   MutableBigInt_RightShiftAndCanonicalize)
 
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 

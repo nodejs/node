@@ -17,6 +17,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
@@ -238,10 +239,8 @@ void Accessors::SharedArrayLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-
-  Object value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
-
-  Object result = Smi::FromInt(JSObject::cast(value).elements().length());
+  auto holder = JSSharedArray::cast(*Utils::OpenHandle(*info.Holder()));
+  Object result = Smi::FromInt(holder.elements().length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 

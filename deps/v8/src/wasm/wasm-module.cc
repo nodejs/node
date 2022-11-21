@@ -47,11 +47,11 @@ template void NameMap::FinishInitialization();
 template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
+    ModuleWireBytes wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
   if (!has_functions_) {
     has_functions_ = true;
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
+    DecodeFunctionNames(wire_bytes.module_bytes(), function_names_);
   }
   const WireBytesRef* result = function_names_.Get(function_index);
   if (!result) return WireBytesRef();
@@ -194,14 +194,14 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 }
 
 // Get a string stored in the module bytes representing a function name.
-WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
+WasmName ModuleWireBytes::GetNameOrNull(int func_index,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
-      *this, function->func_index));
+  return GetNameOrNull(
+      module->lazily_generated_names.LookupFunctionName(*this, func_index));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
-  os << "#" << name.function_->func_index;
+  os << "#" << name.func_index_;
   if (!name.name_.empty()) {
     if (name.name_.begin()) {
       os << ":";
@@ -555,7 +555,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   std::vector<CustomSectionOffset> custom_sections =
-      DecodeCustomSections(wire_bytes.begin(), wire_bytes.end());
+      DecodeCustomSections(wire_bytes);
 
   std::vector<Handle<Object>> matching_sections;
 

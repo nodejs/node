@@ -56,10 +56,10 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
       FunctionBody body(&sig, ref.offset(), start, end);
       WasmFeatures detected;
-      // We use kFullValidation so we do not have to create another template
+      // We use FullValidationTag so we do not have to create another template
       // instance of WasmFullDecoder, which would cost us >50Kb binary code
       // size.
-      WasmFullDecoder<Decoder::kFullValidation, ConstantExpressionInterface,
+      WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                       kConstantExpression>
           decoder(zone, instance->module(), WasmFeatures::All(), &detected,
                   body, instance->module(), isolate, instance);

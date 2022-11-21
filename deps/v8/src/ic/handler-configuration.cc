@@ -344,6 +344,15 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
                                MaybeObjectHandle::Weak(proxy));
 }
 
+bool LoadHandler::CanHandleHolderNotLookupStart(Object handler) {
+  if (handler.IsSmi()) {
+    auto kind = LoadHandler::KindBits::decode(handler.ToSmi().value());
+    return kind == LoadHandler::Kind::kSlow ||
+           kind == LoadHandler::Kind::kNonExistent;
+  }
+  return handler.IsLoadHandler();
+}
+
 #if defined(OBJECT_PRINT)
 namespace {
 void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {

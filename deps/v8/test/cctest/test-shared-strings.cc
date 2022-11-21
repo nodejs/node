@@ -57,9 +57,13 @@ class MultiClientIsolateTest {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = allocator.get();
     main_isolate_ = v8::Isolate::New(create_params);
+    i_main_isolate()->Enter();
   }
 
-  ~MultiClientIsolateTest() { main_isolate_->Dispose(); }
+  ~MultiClientIsolateTest() {
+    i_main_isolate()->Exit();
+    main_isolate_->Dispose();
+  }
 
   v8::Isolate* main_isolate() const { return main_isolate_; }
 

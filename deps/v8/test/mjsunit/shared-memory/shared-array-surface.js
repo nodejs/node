@@ -9,6 +9,12 @@
 (function TestNoPrototype() {
   // For now the experimental shared arrays don't have a prototype.
   assertNull(Object.getPrototypeOf(new SharedArray(10)));
+
+  assertNull(SharedArray.prototype);
+
+  assertThrows(() => {
+    SharedArray.prototype = {};
+  });
 })();
 
 (function TestPrimitives() {
@@ -106,4 +112,10 @@
     assertEquals(index, String(i));
     i++;
   }
+})();
+
+(function TestProxyLengthGetter() {
+  let a = new SharedArray(2);
+  let proxy = new Proxy(a, {});
+  assertEquals(2, proxy.length);
 })();

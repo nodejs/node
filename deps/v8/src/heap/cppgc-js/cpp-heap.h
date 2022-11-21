@@ -16,10 +16,12 @@ static_assert(
 #include "src/base/flags.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/heap/cppgc-js/cross-heap-remembered-set.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 
@@ -147,8 +149,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
 
-  void RunMinorGCIfNeeded(StackState);
-
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
   void AllocatedObjectSizeDecreased(size_t) final;
@@ -162,6 +162,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate* isolate() const { return isolate_; }
 
+  ::heap::base::Stack* stack() final;
+
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
@@ -170,6 +172,12 @@ class V8_EXPORT_PRIVATE CppHeap final
   const cppgc::EmbedderStackState* override_stack_state() const override;
   void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
   size_t epoch() const override;
+
+  V8_INLINE void RememberCrossHeapReferenceIfNeeded(
+      v8::internal::JSObject host_obj, void* value);
+  template <typename F>
+  inline void VisitCrossHeapRememberedSetIfNeeded(F f);
+  void ResetCrossHeapRememberedSet();
 
  private:
   void ReduceGCCapabilititesFromFlags();
@@ -189,6 +197,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   MarkingType SelectMarkingType() const;
   SweepingType SelectSweepingType() const;
 
+  bool TracingInitialized() const { return collection_type_.has_value(); }
+
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
   // |collection_type_| is initialized when marking is in progress.
@@ -196,6 +206,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   GarbageCollectionFlags current_gc_flags_;
 
   std::unique_ptr<MinorGCHeapGrowing> minor_gc_heap_growing_;
+  CrossHeapRememberedSet cross_heap_remembered_set_;
 
   std::unique_ptr<cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver>
       sweeping_on_mutator_thread_observer_;
@@ -213,6 +224,21 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   friend class MetricRecorderAdapter;
 };
+
+void CppHeap::RememberCrossHeapReferenceIfNeeded(
+    v8::internal::JSObject host_obj, void* value) {
+  if (!generational_gc_supported()) return;
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,
+                                                       value);
+}
+
+template <typename F>
+void CppHeap::VisitCrossHeapRememberedSetIfNeeded(F f) {
+  if (!generational_gc_supported()) return;
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.Visit(*isolate_, std::move(f));
+}
 
 DEFINE_OPERATORS_FOR_FLAGS(CppHeap::GarbageCollectionFlags)
 

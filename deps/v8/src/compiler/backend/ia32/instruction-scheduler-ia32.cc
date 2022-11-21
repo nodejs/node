@@ -89,6 +89,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
+    case kIA32Blendvpd:
+    case kIA32Blendvps:
     case kIA32Pblendvb:
     case kIA32Cvttps2dq:
     case kIA32Cvttpd2dq:

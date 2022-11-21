@@ -7,7 +7,7 @@
 
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
-#include "src/heap/marking-worklist.h"
+#include "src/heap/marking-worklist-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/progress-bar.h"
@@ -146,13 +146,12 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTable* table = IsSharedExternalPointerType(tag)
-                                      ? shared_external_pointer_table_
-                                      : external_pointer_table_;
-    table->Mark(handle, slot.address());
-  }
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  ExternalPointerTable* table = IsSharedExternalPointerType(tag)
+                                    ? shared_external_pointer_table_
+                                    : external_pointer_table_;
+  table->Mark(handle, slot.address());
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -213,7 +212,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
     // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-    Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+    Code baseline_code =
+        FromCodeT(baseline_codet, ObjectVisitorWithCageBases::code_cage_base(),
+                  kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
     VisitPointer(baseline_code,
                  baseline_code.RawField(
@@ -587,6 +588,23 @@ int YoungGenerationMarkingVisitorBase<
   object.YoungMarkExtension();
   int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
   JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
+  if (!worklists_local_->SupportsExtractWrapper())
+    return this->VisitJSObject(map, object);
+  if (!concrete_visitor()->ShouldVisit(object)) return 0;
+  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
+  const bool valid_snapshot =
+      worklists_local_->ExtractWrapper(map, object, wrapper_snapshot);
+  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
+  if (size && valid_snapshot) {
+    // Success: The object needs to be processed for embedder references.
+    worklists_local_->PushExtractedWrapper(wrapper_snapshot);
+  }
   return size;
 }
 

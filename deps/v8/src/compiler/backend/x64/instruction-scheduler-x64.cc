@@ -354,6 +354,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S8x2Reverse:
     case kX64V128AnyTrue:
     case kX64I8x16AllTrue:
+    case kX64Blendvpd:
+    case kX64Blendvps:
     case kX64Pblendvb:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags

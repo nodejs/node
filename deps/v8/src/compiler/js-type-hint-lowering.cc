@@ -165,8 +165,18 @@ class JSSpeculativeBinopBuilder final {
         return simplified()->SpeculativeBigIntMultiply(hint);
       case IrOpcode::kJSDivide:
         return simplified()->SpeculativeBigIntDivide(hint);
+      case IrOpcode::kJSModulus:
+        return simplified()->SpeculativeBigIntModulus(hint);
       case IrOpcode::kJSBitwiseAnd:
         return simplified()->SpeculativeBigIntBitwiseAnd(hint);
+      case IrOpcode::kJSBitwiseOr:
+        return simplified()->SpeculativeBigIntBitwiseOr(hint);
+      case IrOpcode::kJSBitwiseXor:
+        return simplified()->SpeculativeBigIntBitwiseXor(hint);
+      case IrOpcode::kJSShiftLeft:
+        return simplified()->SpeculativeBigIntShiftLeft(hint);
+      case IrOpcode::kJSShiftRight:
+        return simplified()->SpeculativeBigIntShiftRight(hint);
       default:
         break;
     }
@@ -416,7 +426,12 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
           op->opcode() == IrOpcode::kJSSubtract ||
           op->opcode() == IrOpcode::kJSMultiply ||
           op->opcode() == IrOpcode::kJSDivide ||
-          op->opcode() == IrOpcode::kJSBitwiseAnd) {
+          op->opcode() == IrOpcode::kJSModulus ||
+          op->opcode() == IrOpcode::kJSBitwiseAnd ||
+          op->opcode() == IrOpcode::kJSBitwiseOr ||
+          op->opcode() == IrOpcode::kJSBitwiseXor ||
+          op->opcode() == IrOpcode::kJSShiftLeft ||
+          op->opcode() == IrOpcode::kJSShiftRight) {
         if (Node* node = b.TryBuildBigIntBinop()) {
           return LoweringResult::SideEffectFree(node, node, control);
         }

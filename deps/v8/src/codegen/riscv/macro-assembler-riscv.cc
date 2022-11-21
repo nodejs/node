@@ -4405,7 +4405,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
-      Call(BuiltinEntry(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
+      near_call(static_cast<int>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect: {
       LoadEntryFromBuiltin(builtin, t6);
@@ -4439,7 +4439,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
-      Jump(BuiltinEntry(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
+      near_jump(static_cast<int>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect: {
       LoadEntryFromBuiltin(builtin, t6);
@@ -4475,6 +4475,7 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void TurboAssembler::PatchAndJump(Address target) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   auipc(scratch, 0);  // Load PC into scratch
@@ -4791,12 +4792,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   DCHECK_EQ(actual_parameter_count, a0);
   DCHECK_EQ(expected_parameter_count, a2);
 
-  // If the expected parameter count is equal to the adaptor sentinel, no need
-  // to push undefined value as arguments.
-  if (kDontAdaptArgumentsSentinel != 0) {
-    Branch(&regular_invoke, eq, expected_parameter_count,
-           Operand(kDontAdaptArgumentsSentinel));
-  }
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
   SubWord(expected_parameter_count, expected_parameter_count,
@@ -5540,7 +5535,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Push(scratch);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+  if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP)
+    Push(kWasmInstanceRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

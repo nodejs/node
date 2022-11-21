@@ -18,6 +18,9 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+ZoneLabelRef::ZoneLabelRef(MaglevAssembler* masm)
+    : ZoneLabelRef(masm->compilation_info()->zone()) {}
+
 void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                              BasicBlock* if_false, BasicBlock* next_block) {
   // We don't have any branch probability information, so try to jump
@@ -72,7 +75,7 @@ Register MaglevAssembler::FromAnyToRegister(const Input& input,
 }
 
 inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
-  info->deopting_call_return_pc = pc_offset_for_safepoint();
+  info->set_deopting_call_return_pc(pc_offset_for_safepoint());
   code_gen_state()->PushLazyDeopt(info);
   safepoint_table_builder()->DefineSafepoint(this);
 }
@@ -88,6 +91,72 @@ inline void MaglevAssembler::DefineExceptionHandlerAndLazyDeoptPoint(
     NodeBase* node) {
   DefineExceptionHandlerPoint(node);
   DefineLazyDeoptPoint(node->lazy_deopt_info());
+}
+
+inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
+                                                       Register object,
+                                                       int offset) {
+  movq(result, FieldOperand(object, offset));
+#ifdef V8_ENABLE_SANDBOX
+  shrq(result, Immediate(kBoundedSizeShift));
+#endif  // V8_ENABLE_SANDBOX
+}
+
+inline void MaglevAssembler::LoadExternalPointerField(Register result,
+                                                      Operand operand) {
+#ifdef V8_ENABLE_SANDBOX
+  LoadSandboxedPointerField(result, operand);
+#else
+  movq(result, operand);
+#endif
+}
+
+inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
+                                             int size) {
+  if (size == 1) {
+    movsxbl(result, operand);
+  } else if (size == 2) {
+    movsxwl(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(result, operand);
+  }
+}
+
+inline void MaglevAssembler::LoadUnsignedField(Register result, Operand operand,
+                                               int size) {
+  if (size == 1) {
+    movzxbl(result, operand);
+  } else if (size == 2) {
+    movzxwl(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(result, operand);
+  }
+}
+
+inline void MaglevAssembler::StoreField(Operand operand, Register value,
+                                        int size) {
+  DCHECK(size == 1 || size == 2 || size == 4);
+  if (size == 1) {
+    movb(operand, value);
+  } else if (size == 2) {
+    movw(operand, value);
+  } else {
+    DCHECK_EQ(size, 4);
+    movl(operand, value);
+  }
+}
+
+inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
+  if (size == 2) {
+    bswapl(value);
+    sarl(value, Immediate(16));
+  } else if (size == 4) {
+    bswapl(value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
 }
 
 // ---
@@ -274,12 +343,12 @@ inline void MaglevAssembler::JumpToDeferredIf(Condition cond,
 
 inline void MaglevAssembler::RegisterEagerDeopt(EagerDeoptInfo* deopt_info,
                                                 DeoptimizeReason reason) {
-  if (deopt_info->reason != DeoptimizeReason::kUnknown) {
-    DCHECK_EQ(deopt_info->reason, reason);
+  if (deopt_info->reason() != DeoptimizeReason::kUnknown) {
+    DCHECK_EQ(deopt_info->reason(), reason);
   }
-  if (deopt_info->deopt_entry_label.is_unused()) {
+  if (deopt_info->deopt_entry_label()->is_unused()) {
     code_gen_state()->PushEagerDeopt(deopt_info);
-    deopt_info->reason = reason;
+    deopt_info->set_reason(reason);
   }
 }
 
@@ -289,7 +358,7 @@ inline void MaglevAssembler::EmitEagerDeopt(NodeT* node,
   static_assert(NodeT::kProperties.can_eager_deopt());
   RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  jmp(&node->eager_deopt_info()->deopt_entry_label);
+  jmp(node->eager_deopt_info()->deopt_entry_label());
 }
 
 template <typename NodeT>
@@ -299,7 +368,7 @@ inline void MaglevAssembler::EmitEagerDeoptIf(Condition cond,
   static_assert(NodeT::kProperties.can_eager_deopt());
   RegisterEagerDeopt(node->eager_deopt_info(), reason);
   RecordComment("-- Jump to eager deopt");
-  j(cond, &node->eager_deopt_info()->deopt_entry_label);
+  j(cond, node->eager_deopt_info()->deopt_entry_label());
 }
 
 }  // namespace maglev

@@ -197,30 +197,50 @@ void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
   env->Global()->Set(env, v8_str(name), func).FromJust();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate,
+                            v8::StackState stack_state) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
+  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
+  if (stack_state == v8::StackState::kNoHeapPointers)
+    scope.emplace(iso->heap());
   iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllGarbage(i::Isolate* isolate) {
+void CcTest::CollectAllGarbage(i::Isolate* isolate,
+                               v8::StackState stack_state) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
+  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
+  if (stack_state == v8::StackState::kNoHeapPointers)
+    scope.emplace(iso->heap());
   iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
+void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate,
+                                        v8::StackState stack_state) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
+  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
+  if (stack_state == v8::StackState::kNoHeapPointers)
+    scope.emplace(iso->heap());
   iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
+void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate,
+                                      v8::StackState stack_state) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
+  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
+  if (stack_state == v8::StackState::kNoHeapPointers)
+    scope.emplace(iso->heap());
   iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                         i::GarbageCollectionReason::kTesting);
 }
 
-void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
+void CcTest::CollectSharedGarbage(i::Isolate* isolate,
+                                  v8::StackState stack_state) {
   i::Isolate* iso = isolate ? isolate : i_isolate();
+  v8::base::Optional<i::DisableConservativeStackScanningScopeForTesting> scope;
+  if (stack_state == v8::StackState::kNoHeapPointers)
+    scope.emplace(iso->heap());
   iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -440,8 +460,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate)
       flag_concurrent_sweeping_(i::v8_flags.concurrent_sweeping),
       flag_concurrent_minor_mc_marking_(
           i::v8_flags.concurrent_minor_mc_marking),
-      flag_concurrent_minor_mc_sweeping_(
-          i::v8_flags.concurrent_minor_mc_sweeping),
       flag_stress_concurrent_allocation_(
           i::v8_flags.stress_concurrent_allocation),
       flag_stress_incremental_marking_(i::v8_flags.stress_incremental_marking),
@@ -458,7 +476,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate)
   i::v8_flags.concurrent_marking = false;
   i::v8_flags.concurrent_sweeping = false;
   i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.concurrent_minor_mc_sweeping = false;
   i::v8_flags.stress_incremental_marking = false;
   i::v8_flags.stress_concurrent_allocation = false;
   // Parallel marking has a dependency on concurrent marking.
@@ -470,7 +487,6 @@ ManualGCScope::~ManualGCScope() {
   i::v8_flags.concurrent_marking = flag_concurrent_marking_;
   i::v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
   i::v8_flags.concurrent_minor_mc_marking = flag_concurrent_minor_mc_marking_;
-  i::v8_flags.concurrent_minor_mc_sweeping = flag_concurrent_minor_mc_sweeping_;
   i::v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
   i::v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
   i::v8_flags.parallel_marking = flag_parallel_marking_;

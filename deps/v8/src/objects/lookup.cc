@@ -927,20 +927,14 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
     // base::bit_cast or value(), will change its value on ia32 (the x87
     // stack is used to return values and stores to the stack silently clear the
     // signalling bit).
-    if (bits == kHoleNanInt64) {
-      // Uninitialized double field.
-      return true;
-    }
-    return Object::SameNumberValue(base::bit_cast<double>(bits),
-                                   value.Number());
-  } else {
-    Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-    if (current_value.IsUninitialized(isolate()) || current_value == value) {
-      return true;
-    }
-    return current_value.IsNumber(isolate_) && value.IsNumber(isolate_) &&
-           Object::SameNumberValue(current_value.Number(), value.Number());
+    // Only allow initializing stores to double to stay constant.
+    return bits == kHoleNanInt64;
   }
+
+  Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
+  // Only allow exact same objects to ensure we don't need expensive
+  // validation in optimized code.
+  return current_value.IsUninitialized(isolate()) || current_value == value;
 }
 
 bool LookupIterator::IsConstDictValueEqualTo(Object value) const {
@@ -1496,8 +1490,8 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
   // TODO(jgruber): Support other string kinds.
   Map string_map = string.map(isolate, kAcquireLoad);
   InstanceType type = string_map.instance_type();
-  if (!(InstanceTypeChecker::IsInternalizedString(type)) ||
-      InstanceTypeChecker::IsThinString(type)) {
+  if (!(InstanceTypeChecker::IsInternalizedString(type) ||
+        InstanceTypeChecker::IsThinString(type))) {
     return kGaveUp;
   }
 

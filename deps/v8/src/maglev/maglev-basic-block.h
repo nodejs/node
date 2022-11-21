@@ -50,24 +50,27 @@ class BasicBlock {
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
-  bool is_empty_block() const { return is_empty_block_; }
+  bool is_edge_split_block() const { return is_edge_split_block_; }
 
-  MergePointRegisterState& empty_block_register_state() {
-    DCHECK(is_empty_block());
-    return *empty_block_register_state_;
+  MergePointRegisterState& edge_split_block_register_state() {
+    DCHECK(is_edge_split_block());
+    return *edge_split_block_register_state_;
   }
 
-  void set_empty_block_register_state(MergePointRegisterState* register_state) {
-    DCHECK(is_empty_block());
-    empty_block_register_state_ = register_state;
+  void set_edge_split_block_register_state(
+      MergePointRegisterState* register_state) {
+    DCHECK(is_edge_split_block());
+    edge_split_block_register_state_ = register_state;
   }
 
-  void set_empty_block() {
-    DCHECK(nodes_.is_empty());
+  void set_edge_split_block() {
+    DCHECK_IMPLIES(!nodes_.is_empty(),
+                   nodes_.LengthForTest() == 1 &&
+                       nodes_.first()->Is<IncreaseInterruptBudget>());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
-    is_empty_block_ = true;
-    empty_block_register_state_ = nullptr;
+    is_edge_split_block_ = true;
+    edge_split_block_register_state_ = nullptr;
   }
 
   Phi::List* phis() const {
@@ -92,19 +95,19 @@ class BasicBlock {
     DCHECK(has_state());
     return state_;
   }
-  bool has_state() const { return !is_empty_block() && state_ != nullptr; }
+  bool has_state() const { return !is_edge_split_block() && state_ != nullptr; }
 
   bool is_exception_handler_block() const {
     return has_state() && state_->is_exception_handler();
   }
 
  private:
-  bool is_empty_block_ = false;
+  bool is_edge_split_block_ = false;
   Node::List nodes_;
   ControlNode* control_node_;
   union {
     MergePointInterpreterFrameState* state_;
-    MergePointRegisterState* empty_block_register_state_;
+    MergePointRegisterState* edge_split_block_register_state_;
   };
   Label label_;
 };

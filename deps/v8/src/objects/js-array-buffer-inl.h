@@ -64,7 +64,16 @@ size_t JSArrayBuffer::GetByteLength() const {
     // BackingStore).
     DCHECK_EQ(0, byte_length());
 
-    return GetBackingStore()->byte_length(std::memory_order_seq_cst);
+    // If the byte length is read after the JSArrayBuffer object is allocated
+    // but before it's attached to the backing store, GetBackingStore returns
+    // nullptr. This is rare, but can happen e.g., when memory measurements
+    // are enabled (via performance.measureMemory()).
+    auto backing_store = GetBackingStore();
+    if (!backing_store) {
+      return 0;
+    }
+
+    return backing_store->byte_length(std::memory_order_seq_cst);
   }
   return byte_length();
 }
@@ -146,6 +155,8 @@ void JSArrayBuffer::clear_padding() {
            FIELD_SIZE(kOptionalPaddingOffset));
   }
 }
+
+ACCESSORS(JSArrayBuffer, detach_key, Object, kDetachKeyOffset)
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);

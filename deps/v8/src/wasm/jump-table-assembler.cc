@@ -142,14 +142,27 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  if (!TurboAssembler::IsNearCallOffset(
-          (reinterpret_cast<byte*>(target) - pc_) / kInstrSize)) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  static constexpr ptrdiff_t kCodeEntryMarkerSize = kInstrSize;
+#else
+  static constexpr ptrdiff_t kCodeEntryMarkerSize = 0;
+#endif
+
+  byte* jump_pc = pc_ + kCodeEntryMarkerSize;
+  ptrdiff_t jump_distance = reinterpret_cast<byte*>(target) - jump_pc;
+  DCHECK_EQ(0, jump_distance % kInstrSize);
+  int64_t instr_offset = jump_distance / kInstrSize;
+  if (!TurboAssembler::IsNearCallOffset(instr_offset)) {
     return false;
   }
 
   CodeEntry();
 
-  Jump(target, RelocInfo::NO_INFO);
+  DCHECK_EQ(jump_pc, pc_);
+  DCHECK_EQ(instr_offset,
+            reinterpret_cast<Instr*>(target) - reinterpret_cast<Instr*>(pc_));
+  DCHECK(is_int26(instr_offset));
+  b(static_cast<int>(instr_offset));
   return true;
 }
 

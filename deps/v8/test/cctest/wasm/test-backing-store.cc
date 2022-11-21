@@ -28,7 +28,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     // Embedder requests contents.
     ManuallyExternalizedBuffer external(buffer);
 
-    buffer->Detach();
+    JSArrayBuffer::Detach(buffer).Check();
     CHECK(buffer->was_detached());
 
     // Make sure we can write to the buffer without crashing

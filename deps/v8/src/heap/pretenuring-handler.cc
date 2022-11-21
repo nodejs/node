@@ -25,7 +25,7 @@ void PretenturingHandler::MergeAllocationSitePretenuringFeedback(
     site = site_and_count.first;
     MapWord map_word = site.map_word(cage_base, kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
-      site = AllocationSite::cast(map_word.ToForwardingAddress());
+      site = AllocationSite::cast(map_word.ToForwardingAddress(site));
     }
 
     // We have not validated the allocation site yet, since we have not

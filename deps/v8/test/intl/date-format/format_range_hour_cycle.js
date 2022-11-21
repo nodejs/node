@@ -7,38 +7,38 @@ let noon = new Date(2019, 3, 4, 12);
 let df_11 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h11"})
 assertEquals("h11", df_11.resolvedOptions().hourCycle);
-assertEquals("0:00 AM", df_11.formatRange(midnight, midnight));
-assertEquals("0:00 PM", df_11.formatRange(noon, noon));
+assertEquals("0:00\u202fAM", df_11.formatRange(midnight, midnight));
+assertEquals("0:00\u202fPM", df_11.formatRange(noon, noon));
 
 let df_11_t = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", hourCycle: "h11"})
 assertEquals("h11", df_11_t.resolvedOptions().hourCycle);
-assertEquals("0:00 AM", df_11_t.formatRange(midnight, midnight));
-assertEquals("0:00 PM", df_11_t.formatRange(noon, noon));
+assertEquals("0:00\u202fAM", df_11_t.formatRange(midnight, midnight));
+assertEquals("0:00\u202fPM", df_11_t.formatRange(noon, noon));
 
 let df_11_dt = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", dateStyle: "short", hourCycle: "h11"})
 assertEquals("h11", df_11_dt.resolvedOptions().hourCycle);
-assertEquals("4/4/19, 0:00 AM", df_11_dt.formatRange(midnight, midnight));
-assertEquals("4/4/19, 0:00 PM", df_11_dt.formatRange(noon, noon));
+assertEquals("4/4/19, 0:00\u202fAM", df_11_dt.formatRange(midnight, midnight));
+assertEquals("4/4/19, 0:00\u202fPM", df_11_dt.formatRange(noon, noon));
 
 let df_12 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h12"})
 assertEquals("h12", df_12.resolvedOptions().hourCycle);
-assertEquals("12:00 AM", df_12.formatRange(midnight, midnight));
-assertEquals("12:00 PM", df_12.formatRange(noon, noon));
+assertEquals("12:00\u202fAM", df_12.formatRange(midnight, midnight));
+assertEquals("12:00\u202fPM", df_12.formatRange(noon, noon));
 
 let df_12_t = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", hourCycle: "h12"})
 assertEquals("h12", df_12_t.resolvedOptions().hourCycle);
-assertEquals("12:00 AM", df_12_t.formatRange(midnight, midnight));
-assertEquals("12:00 PM", df_12_t.formatRange(noon, noon));
+assertEquals("12:00\u202fAM", df_12_t.formatRange(midnight, midnight));
+assertEquals("12:00\u202fPM", df_12_t.formatRange(noon, noon));
 
 let df_12_dt = new Intl.DateTimeFormat(
     "en", {timeStyle: "short", dateStyle: "short", hourCycle: "h12"})
 assertEquals("h12", df_12_dt.resolvedOptions().hourCycle);
-assertEquals("4/4/19, 12:00 AM", df_12_dt.formatRange(midnight, midnight));
-assertEquals("4/4/19, 12:00 PM", df_12_dt.formatRange(noon, noon));
+assertEquals("4/4/19, 12:00\u202fAM", df_12_dt.formatRange(midnight, midnight));
+assertEquals("4/4/19, 12:00\u202fPM", df_12_dt.formatRange(noon, noon));
 
 let df_23 = new Intl.DateTimeFormat(
     "en", {hour: "numeric", minute: "numeric", hourCycle: "h23"})

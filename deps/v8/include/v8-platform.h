@@ -923,6 +923,7 @@ class Platform {
 
   /**
    * Allows the embedder to manage memory page allocations.
+   * Returning nullptr will cause V8 to use the default page allocator.
    */
   virtual PageAllocator* GetPageAllocator() = 0;
 

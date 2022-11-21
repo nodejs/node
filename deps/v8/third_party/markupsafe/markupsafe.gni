@@ -1,0 +1,6 @@
+markupsafe_sources = [
+  "//third_party/markupsafe/__init__.py",
+  "//third_party/markupsafe/_compat.py",
+  "//third_party/markupsafe/_constants.py",
+  "//third_party/markupsafe/_native.py",
+]

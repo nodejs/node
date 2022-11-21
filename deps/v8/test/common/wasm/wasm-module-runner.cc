@@ -25,7 +25,7 @@ namespace testing {
 
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
-                                                const ModuleWireBytes& bytes) {
+                                                ModuleWireBytes bytes) {
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module =
       GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
@@ -34,7 +34,7 @@ MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
 }
 
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes) {
   MaybeHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
@@ -106,6 +106,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
         arguments[i] = isolate->factory()->null_value();
         break;
       case kRef:
+        arguments[i] = isolate->factory()->undefined_value();
+        break;
       case kRtt:
       case kI8:
       case kI16:

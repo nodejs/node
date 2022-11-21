@@ -152,7 +152,7 @@ void innerCallFunctionOn(
   if (inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeFunctionValue = functionScript->Run(scope.context());
   }
@@ -181,7 +181,7 @@ void innerCallFunctionOn(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
         scope.context(), functionValue.As<v8::Function>(), recv, argc,
@@ -241,11 +241,13 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
 
 V8RuntimeAgentImpl::V8RuntimeAgentImpl(
     V8InspectorSessionImpl* session, protocol::FrontendChannel* FrontendChannel,
-    protocol::DictionaryValue* state)
+    protocol::DictionaryValue* state,
+    std::shared_ptr<V8DebuggerBarrier> debuggerBarrier)
     : m_session(session),
       m_state(state),
       m_frontend(FrontendChannel),
       m_inspector(session->inspector()),
+      m_debuggerBarrier(debuggerBarrier),
       m_enabled(false) {}
 
 V8RuntimeAgentImpl::~V8RuntimeAgentImpl() = default;
@@ -299,7 +301,7 @@ void V8RuntimeAgentImpl::evaluate(
         return;
       }
     }
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::debug::EvaluateGlobalMode mode =
         v8::debug::EvaluateGlobalMode::kDefault;
@@ -447,7 +449,7 @@ Response V8RuntimeAgentImpl::getProperties(
   if (!response.IsSuccess()) return response;
 
   scope.ignoreExceptionsAndMuteConsole();
-  v8::MicrotasksScope microtasks_scope(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks_scope(scope.context(),
                                        v8::MicrotasksScope::kRunMicrotasks);
   if (!scope.object()->IsObject())
     return Response::ServerError("Value with given id is not an object");
@@ -491,6 +493,13 @@ Response V8RuntimeAgentImpl::releaseObjectGroup(const String16& objectGroup) {
 }
 
 Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
+  if (m_debuggerBarrier) {
+    m_debuggerBarrier.reset();
+    return Response::Success();
+  }
+  // TODO(chromium:1352175): the below is provisional until client-side changes
+  // land. The call should come through the barrier only once client properly
+  // communicates whether the session is waiting for debugger.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
@@ -615,7 +624,7 @@ void V8RuntimeAgentImpl::runScript(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = script->Run(scope.context());
   }
@@ -700,7 +709,13 @@ Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
 
 void V8RuntimeAgentImpl::terminateExecution(
     std::unique_ptr<TerminateExecutionCallback> callback) {
-  m_inspector->debugger()->terminateExecution(std::move(callback));
+  v8::HandleScope handles(m_inspector->isolate());
+  v8::Local<v8::Context> defaultContext =
+      m_inspector->client()->ensureDefaultContextInGroup(
+          m_session->contextGroupId());
+
+  m_inspector->debugger()->terminateExecution(defaultContext,
+                                              std::move(callback));
 }
 
 namespace {
@@ -794,7 +809,7 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
   v8::Local<v8::Object> global = localContext->Global();
   v8::Local<v8::String> v8Name = toV8String(m_inspector->isolate(), name);
   v8::Local<v8::Value> functionValue;
-  v8::MicrotasksScope microtasks(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks(localContext,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   if (v8::Function::New(localContext, bindingCallback, v8Name)
           .ToLocal(&functionValue)) {

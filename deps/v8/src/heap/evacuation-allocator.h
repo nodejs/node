@@ -35,10 +35,6 @@ class EvacuationAllocator {
     heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
     heap_->code_space()->MergeCompactionSpace(
         compaction_spaces_.Get(CODE_SPACE));
-    if (heap_->map_space()) {
-      heap_->map_space()->MergeCompactionSpace(
-          compaction_spaces_.Get(MAP_SPACE));
-    }
     if (heap_->shared_space()) {
       heap_->shared_space()->MergeCompactionSpace(
           compaction_spaces_.Get(SHARED_SPACE));

@@ -151,14 +151,6 @@ def _default_args():
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
-        }) + select({
-            "@v8//bazel/config:is_debug":[
-                "-fvisibility=default",
-            ],
-            "//conditions:default": [
-                "-fvisibility=hidden",
-                "-fvisibility-inlines-hidden",
-            ],
         }),
         includes = ["include"],
         linkopts = select({
@@ -518,6 +510,7 @@ def build_config_content(cpu, icu):
         ("v8_current_cpu", cpu),
         ("v8_dict_property_const_tracking", "false"),
         ("v8_enable_atomic_object_field_writes", "false"),
+        ("v8_enable_conservative_stack_scanning", "false"),
         ("v8_enable_concurrent_marking", "false"),
         ("v8_enable_i18n_support", icu),
         ("v8_enable_verify_predictable", "false"),

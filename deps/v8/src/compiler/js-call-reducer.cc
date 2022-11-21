@@ -6,6 +6,7 @@
 
 #include <functional>
 
+#include "src/base/container-utils.h"
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
@@ -28,8 +29,11 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/use-info.h"
+#include "src/flags/flags.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
@@ -46,32 +50,26 @@ namespace compiler {
 #define _ [&]()
 
 class JSCallReducerAssembler : public JSGraphAssembler {
- protected:
-  class CatchScope;
-
- private:
   static constexpr bool kMarkLoopExits = true;
 
  public:
-  JSCallReducerAssembler(JSCallReducer* reducer, Node* node)
+  JSCallReducerAssembler(JSCallReducer* reducer, Node* node,
+                         Node* effect = nullptr, Node* control = nullptr)
       : JSGraphAssembler(
             reducer->JSGraphForGraphAssembler(),
-            reducer->ZoneForGraphAssembler(),
+            reducer->ZoneForGraphAssembler(), BranchSemantics::kJS,
             [reducer](Node* n) { reducer->RevisitForGraphAssembler(n); },
             kMarkLoopExits),
         dependencies_(reducer->dependencies()),
-        node_(node),
-        outermost_catch_scope_(
-            CatchScope::Outermost(reducer->ZoneForGraphAssembler())),
-        catch_scope_(&outermost_catch_scope_) {
-    InitializeEffectControl(NodeProperties::GetEffectInput(node),
-                            NodeProperties::GetControlInput(node));
+        node_(node) {
+    InitializeEffectControl(
+        effect ? effect : NodeProperties::GetEffectInput(node),
+        control ? control : NodeProperties::GetControlInput(node));
 
     // Finish initializing the outermost catch scope.
     bool has_handler =
         NodeProperties::IsExceptionalCall(node, &outermost_handler_);
     outermost_catch_scope_.set_has_handler(has_handler);
-    outermost_catch_scope_.set_gasm(this);
   }
 
   TNode<Object> ReduceJSCallWithArrayLikeOrSpreadOfEmpty(
@@ -83,6 +81,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Boolean> ReduceStringPrototypeStartsWith(
       const StringRef& search_element_string);
   TNode<String> ReduceStringPrototypeSlice();
+  TNode<Object> ReduceJSCallMathMinMaxWithArrayLike(Builtin builtin);
 
   TNode<Object> TargetInput() const { return JSCallNode{node_ptr()}.target(); }
 
@@ -93,163 +92,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   TNode<Object> ReceiverInput() const { return ReceiverInputAs<Object>(); }
 
-  CatchScope* catch_scope() const { return catch_scope_; }
-  Node* outermost_handler() const { return outermost_handler_; }
-
   Node* node_ptr() const { return node_; }
-
- protected:
-  using NodeGenerator0 = std::function<TNode<Object>()>;
-  using VoidGenerator0 = std::function<void()>;
-
-  // TODO(jgruber): Currently IfBuilder0 and IfBuilder1 are implemented as
-  // separate classes. If, in the future, we encounter additional use cases that
-  // return more than 1 value, we should merge these back into a single variadic
-  // implementation.
-  class IfBuilder0 final {
-   public:
-    IfBuilder0(JSGraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
-        : gasm_(gasm),
-          cond_(cond),
-          negate_cond_(negate_cond),
-          initial_effect_(gasm->effect()),
-          initial_control_(gasm->control()) {}
-
-    IfBuilder0& ExpectTrue() {
-      DCHECK_EQ(hint_, BranchHint::kNone);
-      hint_ = BranchHint::kTrue;
-      return *this;
-    }
-    IfBuilder0& ExpectFalse() {
-      DCHECK_EQ(hint_, BranchHint::kNone);
-      hint_ = BranchHint::kFalse;
-      return *this;
-    }
-
-    IfBuilder0& Then(const VoidGenerator0& body) {
-      then_body_ = body;
-      return *this;
-    }
-    IfBuilder0& Else(const VoidGenerator0& body) {
-      else_body_ = body;
-      return *this;
-    }
-
-    ~IfBuilder0() {
-      // Ensure correct usage: effect/control must not have been modified while
-      // the IfBuilder0 instance is alive.
-      DCHECK_EQ(gasm_->effect(), initial_effect_);
-      DCHECK_EQ(gasm_->control(), initial_control_);
-
-      // Unlike IfBuilder1, this supports an empty then or else body. This is
-      // possible since the merge does not take any value inputs.
-      DCHECK(then_body_ || else_body_);
-
-      if (negate_cond_) std::swap(then_body_, else_body_);
-
-      auto if_true = (hint_ == BranchHint::kFalse) ? gasm_->MakeDeferredLabel()
-                                                   : gasm_->MakeLabel();
-      auto if_false = (hint_ == BranchHint::kTrue) ? gasm_->MakeDeferredLabel()
-                                                   : gasm_->MakeLabel();
-      auto merge = gasm_->MakeLabel();
-      gasm_->Branch(cond_, &if_true, &if_false);
-
-      gasm_->Bind(&if_true);
-      if (then_body_) then_body_();
-      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge);
-
-      gasm_->Bind(&if_false);
-      if (else_body_) else_body_();
-      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge);
-
-      gasm_->Bind(&merge);
-    }
-
-    IfBuilder0(const IfBuilder0&) = delete;
-    IfBuilder0& operator=(const IfBuilder0&) = delete;
-
-   private:
-    JSGraphAssembler* const gasm_;
-    const TNode<Boolean> cond_;
-    const bool negate_cond_;
-    const Effect initial_effect_;
-    const Control initial_control_;
-    BranchHint hint_ = BranchHint::kNone;
-    VoidGenerator0 then_body_;
-    VoidGenerator0 else_body_;
-  };
-
-  IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
-  IfBuilder0 IfNot(TNode<Boolean> cond) { return {this, cond, true}; }
-
-  template <typename T>
-  class IfBuilder1 {
-    using If1BodyFunction = std::function<TNode<T>()>;
-
-   public:
-    IfBuilder1(JSGraphAssembler* gasm, TNode<Boolean> cond)
-        : gasm_(gasm), cond_(cond) {}
-
-    V8_WARN_UNUSED_RESULT IfBuilder1& ExpectTrue() {
-      DCHECK_EQ(hint_, BranchHint::kNone);
-      hint_ = BranchHint::kTrue;
-      return *this;
-    }
-
-    V8_WARN_UNUSED_RESULT IfBuilder1& ExpectFalse() {
-      DCHECK_EQ(hint_, BranchHint::kNone);
-      hint_ = BranchHint::kFalse;
-      return *this;
-    }
-
-    V8_WARN_UNUSED_RESULT IfBuilder1& Then(const If1BodyFunction& body) {
-      then_body_ = body;
-      return *this;
-    }
-    V8_WARN_UNUSED_RESULT IfBuilder1& Else(const If1BodyFunction& body) {
-      else_body_ = body;
-      return *this;
-    }
-
-    V8_WARN_UNUSED_RESULT TNode<T> Value() {
-      DCHECK(then_body_);
-      DCHECK(else_body_);
-      auto if_true = (hint_ == BranchHint::kFalse) ? gasm_->MakeDeferredLabel()
-                                                   : gasm_->MakeLabel();
-      auto if_false = (hint_ == BranchHint::kTrue) ? gasm_->MakeDeferredLabel()
-                                                   : gasm_->MakeLabel();
-      auto merge = gasm_->MakeLabel(kPhiRepresentation);
-      gasm_->Branch(cond_, &if_true, &if_false);
-
-      gasm_->Bind(&if_true);
-      TNode<T> then_result = then_body_();
-      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge, then_result);
-
-      gasm_->Bind(&if_false);
-      TNode<T> else_result = else_body_();
-      if (gasm_->HasActiveBlock()) {
-        gasm_->Goto(&merge, else_result);
-      }
-
-      gasm_->Bind(&merge);
-      return merge.PhiAt<T>(0);
-    }
-
-   private:
-    static constexpr MachineRepresentation kPhiRepresentation =
-        MachineRepresentation::kTagged;
-
-    JSGraphAssembler* const gasm_;
-    const TNode<Boolean> cond_;
-    BranchHint hint_ = BranchHint::kNone;
-    If1BodyFunction then_body_;
-    If1BodyFunction else_body_;
-  };
-
-  template <typename T>
-  IfBuilder1<T> SelectIf(TNode<Boolean> cond) {
-    return {this, cond};
-  }
 
   // Simplified operators.
   TNode<Number> SpeculativeToNumber(
@@ -276,9 +119,6 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                         TNode<Object> arg0, TNode<Object> arg1,
                         TNode<Object> arg2, TNode<Object> arg3,
                         FrameState frame_state);
-  TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
-                               TNode<Object> arg0, TNode<Object> arg1,
-                               FrameState frame_state);
 
   // Emplace a copy of the call node into the graph at current effect/control.
   TNode<Object> CopyNode();
@@ -294,6 +134,22 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     return NumberAdd(value, OneConstant());
   }
 
+  TNode<Number> LoadMapElementsKind(TNode<Map> map);
+
+  template <typename T, typename U>
+  TNode<T> EnterMachineGraph(TNode<U> input, UseInfo use_info) {
+    return AddNode<T>(
+        graph()->NewNode(common()->EnterMachineGraph(use_info), input));
+  }
+
+  template <typename T, typename U>
+  TNode<T> ExitMachineGraph(TNode<U> input,
+                            MachineRepresentation output_representation,
+                            Type output_type) {
+    return AddNode<T>(graph()->NewNode(
+        common()->ExitMachineGraph(output_representation, output_type), input));
+  }
+
   void MaybeInsertMapChecks(MapInference* inference,
                             bool has_stability_dependency) {
     // TODO(jgruber): Implement MapInference::InsertMapChecks in graph
@@ -304,124 +160,6 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       InitializeEffectControl(e, control());
     }
   }
-
-  // TODO(jgruber): Currently, it's the responsibility of the developer to note
-  // which operations may throw and appropriately wrap these in a call to
-  // MayThrow (see e.g. JSCall3 and CallRuntime2). A more methodical approach
-  // would be good.
-  TNode<Object> MayThrow(const NodeGenerator0& body) {
-    TNode<Object> result = body();
-
-    if (catch_scope()->has_handler()) {
-      // The IfException node is later merged into the outer graph.
-      // Note: AddNode is intentionally not called since effect and control
-      // should not be updated.
-      Node* if_exception =
-          graph()->NewNode(common()->IfException(), effect(), control());
-      catch_scope()->RegisterIfExceptionNode(if_exception);
-
-      // Control resumes here.
-      AddNode(graph()->NewNode(common()->IfSuccess(), control()));
-    }
-
-    return result;
-  }
-
-  // A catch scope represents a single catch handler. The handler can be
-  // custom catch logic within the reduction itself; or a catch handler in the
-  // outside graph into which the reduction will be integrated (in this case
-  // the scope is called 'outermost').
-  class V8_NODISCARD CatchScope {
-   private:
-    // Only used to partially construct the outermost scope.
-    explicit CatchScope(Zone* zone) : if_exception_nodes_(zone) {}
-
-    // For all inner scopes.
-    CatchScope(Zone* zone, JSCallReducerAssembler* gasm)
-        : gasm_(gasm),
-          parent_(gasm->catch_scope_),
-          has_handler_(true),
-          if_exception_nodes_(zone) {
-      gasm_->catch_scope_ = this;
-    }
-
-   public:
-    ~CatchScope() { gasm_->catch_scope_ = parent_; }
-
-    static CatchScope Outermost(Zone* zone) { return CatchScope{zone}; }
-    static CatchScope Inner(Zone* zone, JSCallReducerAssembler* gasm) {
-      return {zone, gasm};
-    }
-
-    bool has_handler() const { return has_handler_; }
-    bool is_outermost() const { return parent_ == nullptr; }
-    CatchScope* parent() const { return parent_; }
-
-    // Should only be used to initialize the outermost scope (inner scopes
-    // always have a handler and are passed the gasm pointer at construction).
-    void set_has_handler(bool v) {
-      DCHECK(is_outermost());
-      has_handler_ = v;
-    }
-    void set_gasm(JSCallReducerAssembler* v) {
-      DCHECK(is_outermost());
-      gasm_ = v;
-    }
-
-    bool has_exceptional_control_flow() const {
-      return !if_exception_nodes_.empty();
-    }
-
-    void RegisterIfExceptionNode(Node* if_exception) {
-      DCHECK(has_handler());
-      if_exception_nodes_.push_back(if_exception);
-    }
-
-    void MergeExceptionalPaths(TNode<Object>* exception_out, Effect* effect_out,
-                               Control* control_out) {
-      DCHECK(has_handler());
-      DCHECK(has_exceptional_control_flow());
-
-      const int size = static_cast<int>(if_exception_nodes_.size());
-
-      if (size == 1) {
-        // No merge needed.
-        Node* e = if_exception_nodes_.at(0);
-        *exception_out = TNode<Object>::UncheckedCast(e);
-        *effect_out = Effect(e);
-        *control_out = Control(e);
-      } else {
-        DCHECK_GT(size, 1);
-
-        Node* merge = gasm_->graph()->NewNode(gasm_->common()->Merge(size),
-                                              size, if_exception_nodes_.data());
-
-        // These phis additionally take {merge} as an input. Temporarily add
-        // it to the list.
-        if_exception_nodes_.push_back(merge);
-        const int size_with_merge =
-            static_cast<int>(if_exception_nodes_.size());
-
-        Node* ephi = gasm_->graph()->NewNode(gasm_->common()->EffectPhi(size),
-                                             size_with_merge,
-                                             if_exception_nodes_.data());
-        Node* phi = gasm_->graph()->NewNode(
-            gasm_->common()->Phi(MachineRepresentation::kTagged, size),
-            size_with_merge, if_exception_nodes_.data());
-        if_exception_nodes_.pop_back();
-
-        *exception_out = TNode<Object>::UncheckedCast(phi);
-        *effect_out = Effect(ephi);
-        *control_out = Control(merge);
-      }
-    }
-
-   private:
-    JSCallReducerAssembler* gasm_ = nullptr;
-    CatchScope* const parent_ = nullptr;
-    bool has_handler_ = false;
-    NodeVector if_exception_nodes_;
-  };
 
   class TryCatchBuilder0 {
    public:
@@ -613,7 +351,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
           JSCallRuntime2(Runtime::kThrowTypeError,
                          NumberConstant(static_cast<double>(
                              MessageTemplate::kCalledNonCallable)),
-                         maybe_callable, frame_state);
+                         maybe_callable, ContextInput(), frame_state);
           Unreachable();  // The runtime call throws unconditionally.
         })
         .ExpectTrue();
@@ -659,17 +397,11 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     return FrameState(NodeProperties::GetFrameStateInput(node_));
   }
 
-  JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
-
   CompilationDependencies* dependencies() const { return dependencies_; }
 
  private:
   CompilationDependencies* const dependencies_;
   Node* const node_;
-  CatchScope outermost_catch_scope_;
-  Node* outermost_handler_;
-  CatchScope* catch_scope_;
-  friend class CatchScope;
 };
 
 enum class ArrayReduceDirection { kLeft, kRight };
@@ -1109,16 +841,6 @@ TNode<Object> JSCallReducerAssembler::JSCall4(
   });
 }
 
-TNode<Object> JSCallReducerAssembler::JSCallRuntime2(
-    Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Object> arg1,
-    FrameState frame_state) {
-  return MayThrow(_ {
-    return AddNode<Object>(
-        graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
-                         ContextInput(), frame_state, effect(), control()));
-  });
-}
-
 TNode<Object> JSCallReducerAssembler::CopyNode() {
   return MayThrow(_ {
     Node* copy = graph()->CloneNode(node_ptr());
@@ -1134,6 +856,7 @@ TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
       graph()->NewNode(javascript()->CreateArray(1, base::nullopt), ctor, ctor,
                        size, ContextInput(), frame_state, effect(), control()));
 }
+
 TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
     ElementsKind kind, const NativeContextRef& native_context) {
   // TODO(jgruber): Port AllocationBuilder to JSGraphAssembler.
@@ -1154,6 +877,15 @@ TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
   Node* result = ab.Finish();
   InitializeEffectControl(result, control());
   return TNode<JSArray>::UncheckedCast(result);
+}
+
+TNode<Number> JSCallReducerAssembler::LoadMapElementsKind(TNode<Map> map) {
+  TNode<Number> bit_field2 =
+      LoadField<Number>(AccessBuilder::ForMapBitField2(), map);
+  return NumberShiftRightLogical(
+      NumberBitwiseAnd(bit_field2,
+                       NumberConstant(Map::Bits2::ElementsKindBits::kMask)),
+      NumberConstant(Map::Bits2::ElementsKindBits::kShift));
 }
 
 TNode<Object> JSCallReducerAssembler::ReduceMathUnary(const Operator* op) {
@@ -1326,6 +1058,62 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
       .Value();
 }
 
+TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
+    Builtin builtin) {
+  JSCallWithArrayLikeNode n(node_ptr());
+  TNode<Object> arguments_list = n.Argument(0);
+
+  auto call_builtin = MakeLabel();
+  auto done = MakeLabel(MachineRepresentation::kTagged);
+
+  // Check if {arguments_list} is a JSArray.
+  GotoIf(ObjectIsSmi(arguments_list), &call_builtin);
+  TNode<Map> arguments_list_map =
+      LoadField<Map>(AccessBuilder::ForMap(),
+                     TNode<HeapObject>::UncheckedCast(arguments_list));
+  TNode<Number> arguments_list_instance_type = LoadField<Number>(
+      AccessBuilder::ForMapInstanceType(), arguments_list_map);
+  auto check_instance_type =
+      NumberEqual(arguments_list_instance_type, NumberConstant(JS_ARRAY_TYPE));
+  GotoIfNot(check_instance_type, &call_builtin);
+
+  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS or
+  // HOLEY_DOUBLE_ELEMENTS.
+  TNode<Number> arguments_list_elements_kind =
+      LoadMapElementsKind(arguments_list_map);
+
+  static_assert(PACKED_DOUBLE_ELEMENTS == 4);
+  static_assert(HOLEY_DOUBLE_ELEMENTS == 5);
+  auto check_elements_kind = NumberEqual(
+      NumberBitwiseOr(arguments_list_elements_kind, NumberConstant(1)),
+      NumberConstant(HOLEY_DOUBLE_ELEMENTS));
+  GotoIfNot(check_elements_kind, &call_builtin);
+
+  // If {arguments_list} is a JSArray with PACKED_DOUBLE_ELEMENTS, calculate the
+  // result with inlined loop.
+  TNode<JSArray> array_arguments_list =
+      TNode<JSArray>::UncheckedCast(arguments_list);
+  Goto(&done, builtin == Builtin::kMathMax
+                  ? DoubleArrayMax(array_arguments_list)
+                  : DoubleArrayMin(array_arguments_list));
+
+  // Otherwise, call BuiltinMathMin/Max as usual.
+  Bind(&call_builtin);
+  TNode<Object> call = CopyNode();
+  CallParameters const& p = n.Parameters();
+
+  // Set SpeculationMode to kDisallowSpeculation to avoid infinite
+  // recursion.
+  NodeProperties::ChangeOp(
+      call, javascript()->CallWithArrayLike(
+                p.frequency(), p.feedback(),
+                SpeculationMode::kDisallowSpeculation, p.feedback_relation()));
+  Goto(&done, call);
+
+  Bind(&done);
+  return done.PhiAt<Object>(0);
+}
+
 TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
     ZoneVector<const MapRef*> maps, bool needs_fallback_builtin_call) {
   TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
@@ -1334,7 +1122,8 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
   TNode<Number> index_num = CheckSmi(index);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
 
-  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Map> receiver_map =
+      TNode<Map>::UncheckedCast(LoadField(AccessBuilder::ForMap(), receiver));
 
   auto out = MakeLabel(MachineRepresentation::kTagged);
 
@@ -2515,6 +2304,26 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
 }
 
 #undef _
+
+std::pair<Node*, Node*> JSCallReducer::ReleaseEffectAndControlFromAssembler(
+    JSCallReducerAssembler* gasm) {
+  auto catch_scope = gasm->catch_scope();
+  DCHECK(catch_scope->is_outermost());
+
+  if (catch_scope->has_handler() &&
+      catch_scope->has_exceptional_control_flow()) {
+    TNode<Object> handler_exception;
+    Effect handler_effect{nullptr};
+    Control handler_control{nullptr};
+    gasm->catch_scope()->MergeExceptionalPaths(
+        &handler_exception, &handler_effect, &handler_control);
+
+    ReplaceWithValue(gasm->outermost_handler(), handler_exception,
+                     handler_effect, handler_control);
+  }
+
+  return {gasm->effect(), gasm->control()};
+}
 
 Reduction JSCallReducer::ReplaceWithSubgraph(JSCallReducerAssembler* gasm,
                                              Node* subgraph) {
@@ -4836,13 +4645,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
     case Builtin::kDataViewPrototypeGetByteLength:
-      return ReduceArrayBufferViewAccessor(
-          node, JS_DATA_VIEW_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteLength());
+      return ReduceArrayBufferViewByteLengthAccessor(node, JS_DATA_VIEW_TYPE);
     case Builtin::kDataViewPrototypeGetByteOffset:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteOffset());
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), builtin);
     case Builtin::kDataViewPrototypeGetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalUint8Array);
@@ -4892,16 +4699,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat64Array);
     case Builtin::kTypedArrayPrototypeByteLength:
-      return ReduceArrayBufferViewAccessor(
-          node, JS_TYPED_ARRAY_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteLength());
+      return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE);
     case Builtin::kTypedArrayPrototypeByteOffset:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteOffset());
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), builtin);
     case Builtin::kTypedArrayPrototypeLength:
-      return ReduceArrayBufferViewAccessor(
-          node, JS_TYPED_ARRAY_TYPE, AccessBuilder::ForJSTypedArrayLength());
+      return ReduceTypedArrayPrototypeLength(node);
     case Builtin::kTypedArrayPrototypeToStringTag:
       return ReduceTypedArrayPrototypeToStringTag(node);
     case Builtin::kMathAbs:
@@ -5193,6 +4997,13 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   if (TargetIsClassConstructor(node, broker())) {
     return NoChange();
   }
+
+  base::Optional<Reduction> maybe_result =
+      TryReduceJSCallMathMinMaxWithArrayLike(node);
+  if (maybe_result.has_value()) {
+    return maybe_result.value();
+  }
+
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
       p.feedback(), p.speculation_mode(), p.feedback_relation(), n.target(),
@@ -7423,6 +7234,113 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
   return Replace(value);
 }
 
+Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
+    Node* node, InstanceType instance_type) {
+  DCHECK(instance_type == JS_TYPED_ARRAY_TYPE ||
+         instance_type == JS_DATA_VIEW_TYPE);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(instance_type)) {
+    return inference.NoChange();
+  }
+
+  std::set<ElementsKind> elements_kinds;
+  bool maybe_rab_gsab = false;
+  if (instance_type == JS_DATA_VIEW_TYPE) {
+    maybe_rab_gsab = true;
+  } else {
+    for (const auto& map : inference.GetMaps()) {
+      ElementsKind kind = map.elements_kind();
+      elements_kinds.insert(kind);
+      if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
+    }
+  }
+
+  if (!v8_flags.harmony_rab_gsab || !maybe_rab_gsab) {
+    // We do not perform any change depending on this inference.
+    Reduction unused_reduction = inference.NoChange();
+    USE(unused_reduction);
+    // Call default implementation for non-rab/gsab TAs.
+    return ReduceArrayBufferViewAccessor(
+        node, JS_TYPED_ARRAY_TYPE,
+        AccessBuilder::ForJSArrayBufferViewByteLength(),
+        Builtin::kTypedArrayPrototypeByteLength);
+  } else if (!v8_flags.turbo_rab_gsab) {
+    return inference.NoChange();
+  }
+
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control,
+                                      CallParametersOf(node->op()).feedback());
+
+  const bool depended_on_detaching_protector =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  if (!depended_on_detaching_protector && instance_type == JS_DATA_VIEW_TYPE) {
+    // DataView prototype accessors throw on detached ArrayBuffers instead of
+    // return 0, so skip the optimization.
+    //
+    // TODO(turbofan): Ideally we would bail out if the buffer is actually
+    // detached.
+    return inference.NoChange();
+  }
+
+  JSCallReducerAssembler a(this, node);
+  TNode<JSTypedArray> typed_array =
+      TNode<JSTypedArray>::UncheckedCast(receiver);
+  TNode<Number> length = a.ArrayBufferViewByteLength(
+      typed_array, instance_type, std::move(elements_kinds), a.ContextInput());
+
+  return ReplaceWithSubgraph(&a, length);
+}
+
+Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(JS_TYPED_ARRAY_TYPE)) {
+    return inference.NoChange();
+  }
+
+  std::set<ElementsKind> elements_kinds;
+  bool maybe_rab_gsab = false;
+  for (const auto& map : inference.GetMaps()) {
+    ElementsKind kind = map.elements_kind();
+    elements_kinds.insert(kind);
+    if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
+  }
+
+  if (!v8_flags.harmony_rab_gsab || !maybe_rab_gsab) {
+    // We do not perform any change depending on this inference.
+    Reduction unused_reduction = inference.NoChange();
+    USE(unused_reduction);
+    // Call default implementation for non-rab/gsab TAs.
+    return ReduceArrayBufferViewAccessor(node, JS_TYPED_ARRAY_TYPE,
+                                         AccessBuilder::ForJSTypedArrayLength(),
+                                         Builtin::kTypedArrayPrototypeLength);
+  } else if (!v8_flags.turbo_rab_gsab) {
+    return inference.NoChange();
+  }
+
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control,
+                                      CallParametersOf(node->op()).feedback());
+
+  JSCallReducerAssembler a(this, node);
+  TNode<JSTypedArray> typed_array =
+      TNode<JSTypedArray>::UncheckedCast(receiver);
+  TNode<Number> length = a.TypedArrayLength(
+      typed_array, std::move(elements_kinds), a.ContextInput());
+
+  return ReplaceWithSubgraph(&a, length);
+}
+
 // ES #sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   JSCallNode n(node);
@@ -7931,7 +7849,8 @@ Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
-    Node* node, InstanceType instance_type, FieldAccess const& access) {
+    Node* node, InstanceType instance_type, FieldAccess const& access,
+    Builtin builtin) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
@@ -7942,15 +7861,15 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     return inference.NoChange();
   }
 
-  // TODO(v8:11111): We skip this optimization for RAB/GSAB for now. Should
-  // have some optimization here eventually.
-  for (const auto& map : inference.GetMaps()) {
-    if (IsRabGsabTypedArrayElementsKind(map.elements_kind())) {
-      return inference.NoChange();
-    }
-  }
+  DCHECK_IMPLIES((builtin == Builtin::kTypedArrayPrototypeLength ||
+                  builtin == Builtin::kTypedArrayPrototypeByteLength),
+                 base::none_of(inference.GetMaps(), [](const auto& map) {
+                   return IsRabGsabTypedArrayElementsKind(map.elements_kind());
+                 }));
 
-  CHECK(inference.RelyOnMapsViaStability(dependencies()));
+  if (!inference.RelyOnMapsViaStability(dependencies())) {
+    return inference.NoChange();
+  }
 
   const bool depended_on_detaching_protector =
       dependencies()->DependOnArrayBufferDetachingProtector();
@@ -8054,11 +7973,20 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
   } else {
-    // We only deal with DataViews here that have Smi [[ByteLength]]s.
-    Node* byte_length = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteLength()),
-                         receiver, effect, control);
+    Node* byte_length;
+    if (!v8_flags.harmony_rab_gsab) {
+      // We only deal with DataViews here that have Smi [[ByteLength]]s.
+      byte_length = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferViewByteLength()),
+                           receiver, effect, control);
+    } else {
+      JSCallReducerAssembler a(this, node);
+      byte_length = a.ArrayBufferViewByteLength(
+          TNode<JSArrayBufferView>::UncheckedCast(receiver), JS_DATA_VIEW_TYPE,
+          {}, a.ContextInput());
+      std::tie(effect, control) = ReleaseEffectAndControlFromAssembler(&a);
+    }
 
     if (element_size > 1) {
       // For non-byte accesses we also need to check that the {offset}
@@ -8404,6 +8332,113 @@ Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
   }
 
   return NoChange();
+}
+
+base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
+    Node* node) {
+  if (!v8_flags.turbo_optimize_math_minmax) return base::nullopt;
+
+  JSCallWithArrayLikeNode n(node);
+  CallParameters const& p = n.Parameters();
+  Node* target = n.target();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return base::nullopt;
+  }
+
+  if (n.ArgumentCount() != 1) {
+    return base::nullopt;
+  }
+
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return base::nullopt;
+  }
+
+  // These ops are handled by ReduceCallOrConstructWithArrayLikeOrSpread.
+  // IrOpcode::kJSCreateEmptyLiteralArray is not included, since arguments_list
+  // for Math.min/min is not likely to keep empty.
+  Node* arguments_list = n.Argument(0);
+  if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray ||
+      arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
+    return base::nullopt;
+  }
+
+  HeapObjectMatcher m(target);
+  if (m.HasResolvedValue()) {
+    ObjectRef target_ref = m.Ref(broker());
+    if (target_ref.IsJSFunction()) {
+      JSFunctionRef function = target_ref.AsJSFunction();
+
+      // Don't inline cross native context.
+      if (!function.native_context().equals(native_context())) {
+        return base::nullopt;
+      }
+
+      SharedFunctionInfoRef shared = function.shared();
+      Builtin builtin =
+          shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
+      if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
+        return ReduceJSCallMathMinMaxWithArrayLike(node, builtin);
+      } else {
+        return base::nullopt;
+      }
+    }
+  }
+
+  // Try specialize the JSCallWithArrayLike node with feedback target.
+  if (ShouldUseCallICFeedback(target) &&
+      p.feedback_relation() == CallFeedbackRelation::kTarget &&
+      p.feedback().IsValid()) {
+    ProcessedFeedback const& feedback =
+        broker()->GetFeedbackForCall(p.feedback());
+    if (feedback.IsInsufficient()) {
+      return base::nullopt;
+    }
+    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
+    if (feedback_target.has_value() && feedback_target->map().is_callable()) {
+      Node* target_function = jsgraph()->Constant(*feedback_target);
+      ObjectRef target_ref = feedback_target.value();
+      if (!target_ref.IsJSFunction()) {
+        return base::nullopt;
+      }
+      JSFunctionRef function = target_ref.AsJSFunction();
+      SharedFunctionInfoRef shared = function.shared();
+      Builtin builtin =
+          shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
+      if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
+        // Check that the {target} is still the {target_function}.
+        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
+                                       target_function);
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+            effect, control);
+
+        // Specialize the JSCallWithArrayLike node to the {target_function}.
+        NodeProperties::ReplaceValueInput(node, target_function,
+                                          n.TargetIndex());
+        NodeProperties::ReplaceEffectInput(node, effect);
+        // Try to further reduce the Call MathMin/Max with double array.
+        return Changed(node).FollowedBy(
+            ReduceJSCallMathMinMaxWithArrayLike(node, builtin));
+      }
+    }
+  }
+
+  return base::nullopt;
+}
+
+Reduction JSCallReducer::ReduceJSCallMathMinMaxWithArrayLike(Node* node,
+                                                             Builtin builtin) {
+  JSCallWithArrayLikeNode n(node);
+  DCHECK_NE(n.Parameters().speculation_mode(),
+            SpeculationMode::kDisallowSpeculation);
+  DCHECK_EQ(n.ArgumentCount(), 1);
+
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceJSCallMathMinMaxWithArrayLike(builtin);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 CompilationDependencies* JSCallReducer::dependencies() const {

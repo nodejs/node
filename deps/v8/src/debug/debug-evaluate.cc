@@ -274,7 +274,11 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     scope_info->SetIsDebugEvaluateScope();
 
     if (v8_flags.experimental_reuse_locals_blocklists) {
-      if (rit == context_chain_.rbegin()) {
+      // In the case where the "paused function scope" is the script scope
+      // itself, we don't need (and don't have) a blocklist.
+      const bool paused_scope_is_script_scope =
+          scope_iterator_.Done() || scope_iterator_.InInnerScope();
+      if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
         // The DebugEvaluateContext we create for the closure scope is the only
         // DebugEvaluateContext with a block list. This means we'll retrieve
         // the existing block list from the paused function scope
@@ -608,7 +612,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeLastIndexOf:
     case Builtin::kArrayPrototypeSlice:
     case Builtin::kArrayPrototypeToLocaleString:
+    case Builtin::kArrayPrototypeToReversed:
+    case Builtin::kArrayPrototypeToSorted:
+    case Builtin::kArrayPrototypeToSpliced:
     case Builtin::kArrayPrototypeToString:
+    case Builtin::kArrayPrototypeWith:
     case Builtin::kArrayForEach:
     case Builtin::kArrayEvery:
     case Builtin::kArraySome:
@@ -649,6 +657,9 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kTypedArrayPrototypeReduce:
     case Builtin::kTypedArrayPrototypeReduceRight:
     case Builtin::kTypedArrayPrototypeForEach:
+    case Builtin::kTypedArrayPrototypeToReversed:
+    case Builtin::kTypedArrayPrototypeToSorted:
+    case Builtin::kTypedArrayPrototypeWith:
     // ArrayBuffer builtins.
     case Builtin::kArrayBufferConstructor:
     case Builtin::kArrayBufferPrototypeGetByteLength:
@@ -1115,6 +1126,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayReduceRightLoopContinuation:
     case Builtin::kArraySomeLoopContinuation:
     case Builtin::kArrayTimSort:
+    case Builtin::kArrayTimSortIntoCopy:
     case Builtin::kCall_ReceiverIsAny:
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:
@@ -1141,6 +1153,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kFindOrderedHashSetEntry:
     case Builtin::kFlatMapIntoArray:
     case Builtin::kFlattenIntoArray:
+    case Builtin::kGenericArrayToReversed:
+    case Builtin::kGenericArrayWith:
     case Builtin::kGetProperty:
     case Builtin::kHasProperty:
     case Builtin::kCreateHTML:
@@ -1166,6 +1180,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kToName:
     case Builtin::kToObject:
     case Builtin::kToString:
+    case Builtin::kTypedArrayMergeSort:
 #ifdef V8_IS_TSAN
     case Builtin::kTSANRelaxedStore8IgnoreFP:
     case Builtin::kTSANRelaxedStore8SaveFP:
@@ -1204,6 +1219,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kFastCreateDataProperty:
       switch (caller) {
         case Builtin::kArrayPrototypeSlice:
+        case Builtin::kArrayPrototypeToSpliced:
+        case Builtin::kArrayPrototypeWith:
         case Builtin::kArrayFilter:
           return true;
         default:
@@ -1212,6 +1229,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kSetProperty:
       switch (caller) {
         case Builtin::kArrayPrototypeSlice:
+        case Builtin::kArrayPrototypeToSorted:
         case Builtin::kTypedArrayPrototypeMap:
         case Builtin::kStringPrototypeMatchAll:
           return true;

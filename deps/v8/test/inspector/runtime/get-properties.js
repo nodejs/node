@@ -114,6 +114,10 @@ InspectorTest.runAsyncTestSuite([
 
   function testTypedArrayNonIndexedPropertiesOnly() {
     return logExpressionProperties('new Int8Array(1)', {nonIndexedPropertiesOnly: true, ownProperties: true});
+  },
+
+  function testWeakRef() {
+    return logExpressionProperties('new WeakRef(globalThis)');
   }
 ]);
 

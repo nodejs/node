@@ -96,13 +96,13 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
                               int size,
                               PromotionHeapChoice promotion_heap_choice) {
   // Copy the content of source to target.
-  target.set_map_word(MapWord::FromMap(map), kRelaxedStore);
+  target.set_map_word(map, kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
                     source.address() + kTaggedSize, size - kTaggedSize);
 
   // This release CAS is paired with the load acquire in ScavengeObject.
-  if (!source.release_compare_and_swap_map_word(
-          MapWord::FromMap(map), MapWord::FromForwardingAddress(target))) {
+  if (!source.release_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
+                                                          target)) {
     // Other task migrated the object.
     return false;
   }
@@ -141,7 +141,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     if (!self_success) {
       allocator_.FreeLast(NEW_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);
-      HeapObjectReference::Update(slot, map_word.ToForwardingAddress());
+      HeapObjectReference::Update(slot, map_word.ToForwardingAddress(object));
       DCHECK(!Heap::InFromPage(*slot));
       return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
@@ -189,7 +189,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
     if (!self_success) {
       allocator_.FreeLast(OLD_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);
-      HeapObjectReference::Update(slot, map_word.ToForwardingAddress());
+      HeapObjectReference::Update(slot, map_word.ToForwardingAddress(object));
       DCHECK(!Heap::InFromPage(*slot));
       return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
@@ -199,8 +199,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
 
     // During incremental marking we want to push every object in order to
     // record slots for map words. Necessary for map space compaction.
-    if (object_fields == ObjectFields::kMaybePointers ||
-        is_compacting_including_map_space_) {
+    if (object_fields == ObjectFields::kMaybePointers || is_compacting_) {
       promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
@@ -224,8 +223,8 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
           BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());
-    if (object.release_compare_and_swap_map_word(
-            MapWord::FromMap(map), MapWord::FromForwardingAddress(object))) {
+    if (object.release_compare_and_swap_map_word_forwarded(
+            MapWord::FromMap(map), object)) {
       surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
       if (object_fields == ObjectFields::kMaybePointers) {
@@ -325,25 +324,23 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
     HeapObjectReference::Update(slot, first);
 
     if (!Heap::InYoungGeneration(first)) {
-      object.set_map_word(MapWord::FromForwardingAddress(first), kReleaseStore);
+      object.set_map_word_forwarded(first, kReleaseStore);
       return REMOVE_SLOT;
     }
 
     MapWord first_word = first.map_word(kAcquireLoad);
     if (first_word.IsForwardingAddress()) {
-      HeapObject target = first_word.ToForwardingAddress();
+      HeapObject target = first_word.ToForwardingAddress(first);
 
       HeapObjectReference::Update(slot, target);
-      object.set_map_word(MapWord::FromForwardingAddress(target),
-                          kReleaseStore);
+      object.set_map_word_forwarded(target, kReleaseStore);
       return Heap::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Map first_map = first_word.ToMap();
     SlotCallbackResult result = EvacuateObjectDefault(
         first_map, slot, first, first.SizeFromMap(first_map),
         Map::ObjectFieldsFrom(first_map.visitor_id()));
-    object.set_map_word(MapWord::FromForwardingAddress(slot.ToHeapObject()),
-                        kReleaseStore);
+    object.set_map_word_forwarded(slot.ToHeapObject(), kReleaseStore);
     return result;
   }
   DCHECK_EQ(ObjectFields::kMaybePointers,
@@ -424,7 +421,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   // If the first word is a forwarding address, the object has already been
   // copied.
   if (first_word.IsForwardingAddress()) {
-    HeapObject dest = first_word.ToForwardingAddress();
+    HeapObject dest = first_word.ToForwardingAddress(object);
     HeapObjectReference::Update(p, dest);
     DCHECK_IMPLIES(Heap::InYoungGeneration(dest),
                    Heap::InToPage(dest) || Heap::IsLargeObject(dest));
@@ -466,6 +463,33 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   // times in the remembered set. We remove the redundant slot now.
   return REMOVE_SLOT;
 }
+
+class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
+ public:
+  explicit ScavengeVisitor(Scavenger* scavenger);
+
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final;
+
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final;
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final;
+
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
+  Scavenger* const scavenger_;
+};
 
 void ScavengeVisitor::VisitPointers(HeapObject host, ObjectSlot start,
                                     ObjectSlot end) {
@@ -534,6 +558,10 @@ int ScavengeVisitor::VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
   int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
   JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
   return size;
+}
+
+int ScavengeVisitor::VisitJSApiObject(Map map, JSObject object) {
+  return VisitJSObject(map, object);
 }
 
 int ScavengeVisitor::VisitEphemeronHashTable(Map map,

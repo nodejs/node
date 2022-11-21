@@ -9,8 +9,7 @@
 
 #include "include/v8-traced-handle.h"
 #include "src/base/logging.h"
-#include "src/handles/global-handles-inl.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
@@ -20,21 +19,11 @@
 namespace v8 {
 namespace internal {
 
-class BasicTracedReferenceExtractor {
+class BasicTracedReferenceExtractor final {
  public:
-  static Object GetObjectForMarking(const TracedReferenceBase& ref) {
-    Address* global_handle_location = const_cast<Address*>(
+  static Address* GetObjectSlotForMarking(const TracedReferenceBase& ref) {
+    return const_cast<Address*>(
         reinterpret_cast<const Address*>(ref.GetSlotThreadSafe()));
-    // We cannot assume that the reference is non-null as we may get here by
-    // tracing an ephemeron which doesn't have early bailouts, see
-    // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
-    if (!global_handle_location) return Object();
-
-    // The load synchronizes internal bitfields that are also read atomically
-    // from the concurrent marker.
-    Object object = GlobalHandles::Acquire(global_handle_location);
-    GlobalHandles::MarkTraced(global_handle_location);
-    return object;
   }
 };
 
@@ -42,13 +31,18 @@ void UnifiedHeapMarkingState::MarkAndPush(
     const TracedReferenceBase& reference) {
   // The following code will crash with null pointer derefs when finding a
   // non-empty `TracedReferenceBase` when `CppHeap` is in detached mode.
-
-  Object object = BasicTracedReferenceExtractor::GetObjectForMarking(reference);
+  Address* traced_handle_location =
+      BasicTracedReferenceExtractor::GetObjectSlotForMarking(reference);
+  // We cannot assume that the reference is non-null as we may get here by
+  // tracing an ephemeron which doesn't have early bailouts, see
+  // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
+  if (!traced_handle_location) {
+    return;
+  }
+  Object object = TracedHandles::Mark(traced_handle_location);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
-    // objects are just passed around as Smis. This branch also filters out
-    // intentionally passed `Smi::zero()` that indicate that there's no object
-    // to mark.
+    // objects are just passed around as Smis.
     return;
   }
   HeapObject heap_object = HeapObject::cast(object);

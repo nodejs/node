@@ -582,7 +582,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
     Node* target = raw.HeapConstant(inner);
-    Node** inputs = zone.NewArray<Node*>(kNumParams + 1);
+    Node** inputs = zone.NewArray<Node*>(JSParameterCount(kNumParams));
     int input_count = 0;
     inputs[input_count++] = target;
     for (int i = 0; i < kNumParams; i++) {
