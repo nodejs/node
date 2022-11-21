@@ -3739,6 +3739,8 @@ changes:
   * `generator`: {number} Custom generator (DH). **Default:** `2`.
   * `groupName`: {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
+  * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
+    **Default:** `'named'`.
   * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
   * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * `callback`: {Function}
@@ -3851,6 +3853,8 @@ changes:
   * `generator`: {number} Custom generator (DH). **Default:** `2`.
   * `groupName`: {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
+  * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
+    **Default:** `'named'`.
   * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
   * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
 * Returns: {Object}
