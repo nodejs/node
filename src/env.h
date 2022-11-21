@@ -454,9 +454,6 @@ struct DeserializeRequest {
   v8::Global<v8::Object> holder;
   int index;
   InternalFieldInfoBase* info = nullptr;  // Owned by the request
-
-  // Move constructor
-  DeserializeRequest(DeserializeRequest&& other) = default;
 };
 
 struct EnvSerializeInfo {
@@ -520,13 +517,6 @@ struct SnapshotData {
   static bool FromBlob(SnapshotData* out, FILE* in);
 
   ~SnapshotData();
-
-  SnapshotData(const SnapshotData&) = delete;
-  SnapshotData& operator=(const SnapshotData&) = delete;
-  SnapshotData(SnapshotData&&) = delete;
-  SnapshotData& operator=(SnapshotData&&) = delete;
-
-  SnapshotData() = default;
 };
 
 void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code);
