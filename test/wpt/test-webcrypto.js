@@ -8,6 +8,8 @@ const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('WebCryptoAPI');
 
+runner.pretendGlobalThisAs('Window');
+
 // Set Node.js flags required for the tests.
 runner.setFlags(['--experimental-global-webcrypto']);
 
