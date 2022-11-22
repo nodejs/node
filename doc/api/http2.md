@@ -43,7 +43,7 @@ let http2;
 try {
   http2 = require('node:http2');
 } catch (err) {
-  console.log('http2 support is disabled!');
+  console.error('http2 support is disabled!');
 }
 ```
 
@@ -61,7 +61,7 @@ let http2;
 try {
   http2 = await import('node:http2');
 } catch (err) {
-  console.log('http2 support is disabled!');
+  console.error('http2 support is disabled!');
 }
 ```
 
@@ -1850,7 +1850,7 @@ server.on('stream', (stream) => {
       }
     } catch (err) {
       // Perform actual error handling.
-      console.log(err);
+      console.error(err);
     }
     stream.end();
   }
