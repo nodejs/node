@@ -11,6 +11,8 @@ const {
   webcrypto: { subtle },
 } = require('crypto');
 
+const assert = require('assert');
+
 const { Worker, isMainThread, workerData } = require('worker_threads');
 
 if (isMainThread) {
@@ -28,4 +30,5 @@ if (isMainThread) {
   })().then(common.mustCall());
 } else {
   console.log(workerData);
+  assert.notDeepStrictEqual(workerData, {});
 }
