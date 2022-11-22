@@ -63,7 +63,6 @@ process.env.HAS_STARTED_WORKER = 1;
       assert.strictEqual(keyToString(key), repr);
 
       port2.once('message', common.mustCall(({ key }) => {
-        console.log(repr);
         assert.strictEqual(keyToString(key), repr);
       }));
     }
