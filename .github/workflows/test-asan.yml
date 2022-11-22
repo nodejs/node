@@ -39,7 +39,7 @@ permissions:
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       CC: clang
       CXX: clang++
