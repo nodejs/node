@@ -41,7 +41,7 @@ function makeHook(trackedTypes) {
 
     before(asyncId) { log(asyncId, 'before'); },
     after(asyncId) { log(asyncId, 'after'); },
-    destroy(asyncId) { log(asyncId, 'destroy'); }
+    destroy(asyncId) { log(asyncId, 'destroy'); },
   }).enable();
 
   return {
@@ -51,7 +51,7 @@ function makeHook(trackedTypes) {
     },
     ids() {
       return new Set(eventMap.keys());
-    }
+    },
   };
 }
 
@@ -150,7 +150,7 @@ throws(
       code: 'ERR_INVALID_THIS',
       name: /TypeError/,
       message: 'Value of "this" must be of type EventEmitterAsyncResource',
-      stack: new RegExp(`at get ${getter}`)
+      stack: new RegExp(`at get ${getter}`),
     }
   );
 });
