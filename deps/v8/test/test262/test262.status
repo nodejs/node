@@ -636,6 +636,9 @@
   'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
 
+  # https://crbug.com/1244145
+  'language/expressions/dynamic-import/usage-from-eval': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=12524
   'built-ins/Date/prototype/setHours/arg-coercion-order': [FAIL],
   'built-ins/Date/prototype/setMinutes/arg-coercion-order': [FAIL],

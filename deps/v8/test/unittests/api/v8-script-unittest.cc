@@ -33,8 +33,8 @@ v8::MaybeLocal<Module> ResolveToTopLevelAwait(Local<Context> context,
                                               Local<FixedArray> assertions,
                                               Local<Module> referrer) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::ScriptOrigin origin(isolate, specifier, 0, 0, false, -1, Local<Value>(),
-                          false, false, true);
+  v8::ScriptOrigin origin(specifier, 0, 0, false, -1, Local<Value>(), false,
+                          false, true);
 
   String::Utf8Value specifier_string(isolate, specifier);
   std::string source_string =
@@ -68,7 +68,7 @@ class ScriptTest : public TestWithContext {
     v8::Local<v8::Context> context = v8::Context::New(isolate());
     v8::Context::Scope cscope(context);
 
-    v8::ScriptOrigin origin(isolate(), NewString("root.mjs"), 0, 0, false, -1,
+    v8::ScriptOrigin origin(NewString("root.mjs"), 0, 0, false, -1,
                             Local<Value>(), false, false, true);
     v8::ScriptCompiler::Source source(NewString(source_str), origin);
     Local<Module> root =
@@ -111,7 +111,7 @@ class ScriptTest : public TestWithContext {
 
 TEST_F(ScriptTest, UnboundScriptPosition) {
   const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0);
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::ScriptCompiler::Source script_source(NewString("var foo;"), origin);
 
   Local<Script> script =

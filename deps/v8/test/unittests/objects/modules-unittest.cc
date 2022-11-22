@@ -29,8 +29,8 @@ using v8::String;
 using v8::Value;
 
 ScriptOrigin ModuleOrigin(Local<v8::Value> resource_name, Isolate* isolate) {
-  ScriptOrigin origin(isolate, resource_name, 0, 0, false, -1,
-                      Local<v8::Value>(), false, false, true);
+  ScriptOrigin origin(resource_name, 0, 0, false, -1, Local<v8::Value>(), false,
+                      false, true);
   return origin;
 }
 

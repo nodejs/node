@@ -267,26 +267,6 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
   if (!String::cast(*name).Equals(String::cast(script.name()))) {
     return false;
   }
-
-  // TODO(cbruni, chromium:1244145): Remove once migrated to the context
-  Handle<Object> maybe_host_defined_options;
-  if (!host_defined_options_.ToHandle(&maybe_host_defined_options)) {
-    maybe_host_defined_options = isolate_->factory()->empty_fixed_array();
-  }
-  FixedArray host_defined_options =
-      FixedArray::cast(*maybe_host_defined_options);
-  FixedArray script_options = FixedArray::cast(script.host_defined_options());
-  int length = host_defined_options.length();
-  if (length != script_options.length()) return false;
-
-  for (int i = 0; i < length; i++) {
-    // host-defined options is a v8::PrimitiveArray.
-    DCHECK(host_defined_options.get(i).IsPrimitive());
-    DCHECK(script_options.get(i).IsPrimitive());
-    if (!host_defined_options.get(i).StrictEquals(script_options.get(i))) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -295,13 +275,11 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source,
                                Isolate* isolate)
     : ScriptCacheKey(source, script_details->name_obj,
                      script_details->line_offset, script_details->column_offset,
-                     script_details->origin_options,
-                     script_details->host_defined_options, isolate) {}
+                     script_details->origin_options, isolate) {}
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                                int line_offset, int column_offset,
                                v8::ScriptOriginOptions origin_options,
-                               MaybeHandle<Object> host_defined_options,
                                Isolate* isolate)
     : HashTableKey(static_cast<uint32_t>(ScriptHash(*source, name, line_offset,
                                                     column_offset,
@@ -312,7 +290,6 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
       line_offset_(line_offset),
       column_offset_(column_offset),
       origin_options_(origin_options),
-      host_defined_options_(host_defined_options),
       isolate_(isolate) {
   DCHECK(Smi::IsValid(static_cast<int>(Hash())));
 }
@@ -469,11 +446,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   if (script->name().IsString(isolate)) {
     script_name = handle(script->name(), isolate);
   }
-  Handle<FixedArray> host_defined_options(script->host_defined_options(),
-                                          isolate);
   ScriptCacheKey key(src, script_name, script->line_offset(),
                      script->column_offset(), script->origin_options(),
-                     host_defined_options, isolate);
+                     isolate);
   Handle<Object> k = key.AsHandle(isolate, value);
 
   // Check whether there is already a matching entry. If so, we must overwrite

@@ -762,8 +762,8 @@ ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
   options->Set(isolate, 0,
                v8::Uint32::New(isolate, kHostDefinedOptionsMagicConstant));
   options->Set(isolate, 1, resource_name);
-  return ScriptOrigin(isolate, resource_name, 0, 0, false, -1, Local<Value>(),
-                      false, false, type == v8::ScriptType::kModule, options);
+  return ScriptOrigin(resource_name, 0, 0, false, -1, Local<Value>(), false,
+                      false, type == v8::ScriptType::kModule, options);
 }
 
 bool IsValidHostDefinedOptions(Local<Context> context, Local<Data> options,
@@ -868,15 +868,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       delete cached_data;
     }
     if (options.compile_only) return true;
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
-      i::Handle<i::Script> i_script(
-          i::Script::cast(Utils::OpenHandle(*script)->shared().script()),
-          i_isolate);
-      // TODO(cbruni, chromium:1244145): remove once context-allocated.
-      i_script->set_host_defined_options(i::FixedArray::cast(
-          *Utils::OpenHandle(*(origin.GetHostDefinedOptions()))));
-    }
-    maybe_result = script->Run(realm);
+    maybe_result = script->Run(realm, origin.GetHostDefinedOptions());
     if (options.code_cache_options ==
         ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
       // Serialize and store it in memory for the next execution.
@@ -3161,7 +3153,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
     Local<String> source =
         String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
     Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
-    ScriptOrigin origin(isolate, name);
+    ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
     stringify_function_.Reset(

@@ -206,3 +206,16 @@ macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
         scopeInfo.context_local_names_hashtable, name) otherwise goto NotFound;
   }
 }
+
+@export
+macro LoadContextElementWithName(
+    scopeInfo: ScopeInfo, name: Name, scriptContext: Context):
+    Object labels NotFound {
+  let index: intptr = IndexOfLocalName(scopeInfo, name) otherwise NotFound;
+  if (scopeInfo.flags.has_context_extension_slot) {
+    index += ContextSlot::MIN_CONTEXT_SLOTS + 1;
+  } else {
+    index += ContextSlot::MIN_CONTEXT_SLOTS;
+  }
+  return LoadContextElement(scriptContext, index);
+}

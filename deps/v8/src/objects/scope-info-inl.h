@@ -33,6 +33,14 @@ int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
 
 ObjectSlot ScopeInfo::data_start() { return RawField(OffsetOfElementAt(0)); }
 
+bool ScopeInfo::HasContextExtensionSlot() const {
+  return HasContextExtensionSlotBit::decode(Flags());
+}
+
+bool ScopeInfo::NeedsContext() const {
+  return ContextLocalCount() > 0 || HasContextExtensionSlot();
+}
+
 bool ScopeInfo::HasInlinedLocalNames() const {
   return ContextLocalCount() < kScopeInfoMaxInlinedLocalNamesSize;
 }

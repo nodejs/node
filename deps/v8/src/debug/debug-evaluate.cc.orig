@@ -75,8 +75,9 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
     isolate->debug()->StartSideEffectCheckMode();
   }
   // TODO(cbruni, 1244145): Use host-defined options from script context.
-  Handle<Object> host_defined_options(
-      function->context().host_defined_options(), isolate);
+  Handle<FixedArray> host_defined_options(
+      Script::cast(function->shared().script()).host_defined_options(),
+      isolate);
   MaybeHandle<Object> result = Execution::CallScript(
       isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
       host_defined_options);

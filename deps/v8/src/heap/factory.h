@@ -365,8 +365,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<NativeContext> NewNativeContext();
 
   // Create a script context.
-  Handle<Context> NewScriptContext(Handle<NativeContext> outer,
-                                   Handle<ScopeInfo> scope_info);
+  Handle<Context> NewScriptContext(
+      Handle<NativeContext> outer, Handle<ScopeInfo> scope_info,
+      MaybeHandle<Object> maybe_host_defined_options = kNullMaybeHandle);
 
   // Create an empty script context table.
   Handle<ScriptContextTable> NewScriptContextTable();
@@ -681,7 +682,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<WasmCapiFunctionData> data);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
+  Handle<SourceTextModule> NewSourceTextModule(
+      Handle<SharedFunctionInfo> code, Handle<Object> host_defined_options);
   Handle<SyntheticModule> NewSyntheticModule(
       Handle<String> module_name, Handle<FixedArray> export_names,
       v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);

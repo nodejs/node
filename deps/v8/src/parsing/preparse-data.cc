@@ -26,8 +26,10 @@ namespace {
 
 using ScopeSloppyEvalCanExtendVarsBit = base::BitField8<bool, 0, 1>;
 using InnerScopeCallsEvalField = ScopeSloppyEvalCanExtendVarsBit::Next<bool, 1>;
-using NeedsPrivateNameContextChainRecalcField =
+using InnerScopeCallsDynamicImportField =
     InnerScopeCallsEvalField::Next<bool, 1>;
+using NeedsPrivateNameContextChainRecalcField =
+    InnerScopeCallsDynamicImportField::Next<bool, 1>;
 using ShouldSaveClassVariableIndexField =
     NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
 
@@ -366,6 +368,8 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval()) |
+      InnerScopeCallsDynamicImportField::encode(
+          scope->inner_scope_calls_dynamic_import()) |
       NeedsPrivateNameContextChainRecalcField::encode(
           scope->is_function_scope() &&
           scope->AsDeclarationScope()
@@ -666,7 +670,10 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     scope->RecordEvalCall();
   }
   if (InnerScopeCallsEvalField::decode(scope_data_flags)) {
-    scope->RecordInnerScopeEvalCall();
+    scope->RecordInnerScopeCallsEval();
+  }
+  if (InnerScopeCallsDynamicImportField::decode(scope_data_flags)) {
+    scope->RecordInnerScopeCallsDynamicImport();
   }
   if (NeedsPrivateNameContextChainRecalcField::decode(scope_data_flags)) {
     scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();

@@ -291,7 +291,6 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_shared_function_infos(roots.empty_weak_fixed_array(),
                                   SKIP_WRITE_BARRIER);
     raw.set_flags(0);
-    raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
     raw.set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     raw.set_script_or_modules(roots.empty_array_list());

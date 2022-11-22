@@ -33,11 +33,15 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
     import_assertions = args.at<Object>(2);
   }
 
+  Handle<Object> host_defined_options(isolate->context().host_defined_options(),
+                                      isolate);
+
   Handle<Script> referrer_script =
       GetEvalOrigin(isolate, Script::cast(function->shared().script()));
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           isolate->RunHostImportModuleDynamicallyCallback(
-                               referrer_script, specifier, import_assertions));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      isolate->RunHostImportModuleDynamicallyCallback(
+          referrer_script, specifier, host_defined_options, import_assertions));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {

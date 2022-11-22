@@ -125,6 +125,9 @@
   # OOM flakes in isolates tests because too many largish heaps are created.
   'asm/asm-heap': [PASS, NO_VARIANTS, ['isolates', SKIP]],
 
+  # https://crbug.com/1244145
+  "harmony/modules-import-16": [FAIL],
+
   # Slow tests.
   'array-functions-prototype-misc': [PASS, SLOW],
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],

@@ -132,9 +132,9 @@ bool Context::has_extension() const {
   return scope_info().HasContextExtensionSlot() && !extension().IsUndefined();
 }
 
-HeapObject Context::extension() const {
+Object Context::extension() const {
   DCHECK(scope_info().HasContextExtensionSlot());
-  return HeapObject::cast(get(EXTENSION_INDEX));
+  return Object::cast(get(EXTENSION_INDEX));
 }
 
 NativeContext Context::native_context() const {

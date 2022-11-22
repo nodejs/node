@@ -2337,7 +2337,6 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - id: " << id();
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
-  os << "\n - host_defined_options: " << Brief(host_defined_options());
   os << "\n - compilation type: " << compilation_type();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY

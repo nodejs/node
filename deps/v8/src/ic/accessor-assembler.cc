@@ -3434,13 +3434,9 @@ void AccessorAssembler::ScriptContextTableLookup(
         ScriptContextTable::kFirstContextSlotIndex * kTaggedSize));
     TNode<ScopeInfo> scope_info =
         CAST(LoadContextElement(script_context, Context::SCOPE_INFO_INDEX));
+    TNode<Object> result =
+        LoadContextElementWithName(scope_info, name, script_context, &loop);
 
-    TNode<IntPtrT> context_local_index =
-        IndexOfLocalName(scope_info, name, &loop);
-
-    TNode<IntPtrT> var_index = IntPtrAdd(
-        IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
-    TNode<Object> result = LoadContextElement(script_context, var_index);
     GotoIf(IsTheHole(result), found_hole);
     Return(result);
   }

@@ -6,6 +6,7 @@
 #define V8_EXECUTION_EXECUTION_H_
 
 #include "src/common/globals.h"
+#include "src/handles/maybe-handles.h"
 
 namespace v8 {
 namespace internal {

@@ -2425,7 +2425,7 @@ bool WebSnapshotDeserializer::DeserializeScript() {
             NewStringType::kNormal, static_cast<int>(remaining_bytes))
             .ToLocalChecked();
 
-    ScriptOrigin origin(v8_isolate, Utils::ToLocal(script_name_));
+    ScriptOrigin origin(Utils::ToLocal(script_name_));
 
     ScriptCompiler::Source script_source(source, origin);
     Local<UnboundScript> script;

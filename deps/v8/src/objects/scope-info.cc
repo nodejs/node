@@ -243,12 +243,13 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
         IsDebugEvaluateScopeBit::encode(scope->is_debug_evaluate_scope()) |
         ForceContextAllocationBit::encode(
-            scope->ForceContextForLanguageMode()) |
+            scope->ForceContextForLanguageMode() ||
+            scope->NeedsHostDefinedOptions()) |
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsReplModeScopeBit::encode(scope->is_repl_mode_scope()) |
-        HasLocalsBlockListBit::encode(false);
+        HasLocalsBlockListBit::encode(false) | IsEmptyBit::encode(false);
     scope_info.set_flags(flags);
 
     scope_info.set_parameter_count(parameter_count);
@@ -456,7 +457,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false) |
+      IsEmptyBit::encode(false);
   scope_info->set_flags(flags);
 
   scope_info->set_parameter_count(0);
@@ -534,7 +536,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
-      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
+      IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false) |
+      IsEmptyBit::encode(false);
   auto raw_scope_info = *scope_info;
   raw_scope_info.set_flags(flags);
   raw_scope_info.set_parameter_count(parameter_count);
@@ -712,10 +715,6 @@ int ScopeInfo::ContextLength() const {
   if (!has_context) return 0;
   return ContextHeaderLength() + context_locals +
          (function_name_context_slot ? 1 : 0);
-}
-
-bool ScopeInfo::HasContextExtensionSlot() const {
-  return HasContextExtensionSlotBit::decode(Flags());
 }
 
 int ScopeInfo::ContextHeaderLength() const {

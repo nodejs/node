@@ -1643,13 +1643,6 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
       script.source_mapping_url(isolate).IsUndefined(isolate)) {
     script.set_source_mapping_url(*source_map_url);
   }
-  Handle<Object> host_defined_options;
-  if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
-    // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
-    if (host_defined_options->IsFixedArray()) {
-      script.set_host_defined_options(FixedArray::cast(*host_defined_options));
-    }
-  }
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

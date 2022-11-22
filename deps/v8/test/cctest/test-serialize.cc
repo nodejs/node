@@ -1555,7 +1555,7 @@ v8::StartupData CreateCustomSnapshotWithKeep() {
       v8::Local<v8::String> source_str = v8_str(
           "function f() { return Math.abs(1); }\n"
           "function g() { return String.raw(1); }");
-      v8::ScriptOrigin origin(isolate, v8_str("test"));
+      v8::ScriptOrigin origin(v8_str("test"));
       v8::ScriptCompiler::Source source(source_str, origin);
       CompileRun(isolate->GetCurrentContext(), &source,
                  v8::ScriptCompiler::kEagerCompile);
@@ -1797,17 +1797,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<String> src = isolate->factory()->NewStringFromAsciiChecked(source);
   AlignedCachedData* cache = nullptr;
 
-  Handle<FixedArray> default_host_defined_options =
-      isolate->factory()->NewFixedArray(2);
-  default_host_defined_options->set(0, Smi::FromInt(0));
-  const char* default_host_defined_option_1_string = "custom string";
-  Handle<String> default_host_defined_option_1 =
-      isolate->factory()->NewStringFromAsciiChecked(
-          default_host_defined_option_1_string);
-  default_host_defined_options->set(1, *default_host_defined_option_1);
-
   ScriptDetails default_script_details(src);
-  default_script_details.host_defined_options = default_host_defined_options;
   CompileScriptAndProduceCache(isolate, src, default_script_details, &cache,
                                v8::ScriptCompiler::kNoCompileOptions);
 
@@ -1820,8 +1810,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   {
     ScriptDetails script_details(src);
-    script_details.host_defined_options =
-        default_script_details.host_defined_options;
     auto lookup_result = isolate->compilation_cache()->LookupScript(
         src, script_details, LanguageMode::kSloppy);
     CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *copy);
@@ -1830,14 +1818,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   {
     // Lookup with strictly equal host_defined_options should succeed:
     ScriptDetails script_details(src);
-    Handle<FixedArray> host_defined_options =
-        isolate->factory()->NewFixedArray(2);
-    host_defined_options->set(0, default_host_defined_options->get(0));
-    Handle<String> host_defined_option_1 =
-        isolate->factory()->NewStringFromAsciiChecked(
-            default_host_defined_option_1_string);
-    host_defined_options->set(1, *host_defined_option_1);
-    script_details.host_defined_options = host_defined_options;
     auto lookup_result = isolate->compilation_cache()->LookupScript(
         src, script_details, LanguageMode::kSloppy);
     CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *copy);
@@ -1847,8 +1827,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
     // Lookup with different string with same contents should succeed:
     ScriptDetails script_details(
         isolate->factory()->NewStringFromAsciiChecked(source));
-    script_details.host_defined_options =
-        default_script_details.host_defined_options;
     auto lookup_result = isolate->compilation_cache()->LookupScript(
         src, script_details, LanguageMode::kSloppy);
     CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *copy);
@@ -1902,45 +1880,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
         src, script_details, LanguageMode::kSloppy);
     CHECK(lookup_result.script().is_null() &&
           lookup_result.toplevel_sfi().is_null());
-  }
-
-  {
-    // Lookup with different host_defined_options should fail:
-    ScriptDetails script_details(src);
-    script_details.host_defined_options = isolate->factory()->NewFixedArray(5);
-    auto lookup_result = isolate->compilation_cache()->LookupScript(
-        src, script_details, LanguageMode::kSloppy);
-    CHECK(lookup_result.script().is_null() &&
-          lookup_result.toplevel_sfi().is_null());
-  }
-
-  // Compile the script again with different options.
-  ScriptDetails alternative_script_details(src);
-  Handle<SharedFunctionInfo> alternative_toplevel_sfi =
-      Compiler::GetSharedFunctionInfoForScript(
-          isolate, src, alternative_script_details,
-          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-          NOT_NATIVES_CODE)
-          .ToHandleChecked();
-  CHECK_NE(*copy, *alternative_toplevel_sfi);
-
-  {
-    // The original script can still be found.
-    ScriptDetails script_details(src);
-    script_details.host_defined_options =
-        default_script_details.host_defined_options;
-    auto lookup_result = isolate->compilation_cache()->LookupScript(
-        src, script_details, LanguageMode::kSloppy);
-    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(), *copy);
-  }
-
-  {
-    // The new script can also be found.
-    ScriptDetails script_details(src);
-    auto lookup_result = isolate->compilation_cache()->LookupScript(
-        src, script_details, LanguageMode::kSloppy);
-    CHECK_EQ(*lookup_result.toplevel_sfi().ToHandleChecked(),
-             *alternative_toplevel_sfi);
   }
 
   delete cache;
@@ -2538,7 +2477,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate1, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
     v8::ScriptCompiler::CompileOptions options;
     switch (cacheType) {
@@ -2594,7 +2533,7 @@ TEST(CodeSerializerIsolates) {
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
@@ -2640,7 +2579,7 @@ TEST(CodeSerializerIsolatesEager) {
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
@@ -2683,7 +2622,7 @@ TEST(CodeSerializerAfterExecute) {
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
@@ -2733,7 +2672,7 @@ TEST(CodeSerializerFlagChange) {
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::ScriptCompiler::CompileUnboundScript(
         isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
@@ -2763,7 +2702,7 @@ TEST(CodeSerializerBitFlip) {
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::String> source_str = v8_str(js_source);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::ScriptCompiler::CompileUnboundScript(
         isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
@@ -2793,7 +2732,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
     CompileRun(source2);
 
     v8::Local<v8::String> source_str = v8_str(source3);
-    v8::ScriptOrigin origin(isolate1, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(
@@ -2824,7 +2763,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
     CompileRun(source1);
 
     v8::Local<v8::String> source_str = v8_str(source3);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
@@ -3658,8 +3597,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
       v8::Local<v8::Signature> signature =
           v8::Signature::New(isolate, v8::FunctionTemplate::New(isolate));
 
-      v8::ScriptOrigin origin(isolate, v8_str(""), {}, {}, {}, {}, {}, {}, {},
-                              true);
+      v8::ScriptOrigin origin(v8_str(""), {}, {}, {}, {}, {}, {}, {}, true);
       v8::ScriptCompiler::Source source(
           v8::String::NewFromUtf8Literal(
               isolate, "export let a = 42; globalThis.a = {};"),

@@ -100,6 +100,7 @@ InvokeParams InvokeParams::SetUpForNew(Isolate* isolate,
   params.is_construct = true;
   params.execution_target = Execution::Target::kCallable;
   params.reschedule_terminate = true;
+  DCHECK(!params.IsScript());
   return params;
 }
 
@@ -186,7 +187,6 @@ Handle<CodeT> JSEntry(Isolate* isolate, Execution::Target execution_target,
 MaybeHandle<Context> NewScriptContext(Isolate* isolate,
                                       Handle<JSFunction> function,
                                       Handle<FixedArray> host_defined_options) {
-  // TODO(cbruni, 1244145): Use passed in host_defined_options.
   // Creating a script context is a side effect, so abort if that's not
   // allowed.
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
@@ -258,8 +258,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
     }
   }
 
-  Handle<Context> result =
-      isolate->factory()->NewScriptContext(native_context, scope_info);
+  Handle<Context> result = isolate->factory()->NewScriptContext(
+      native_context, scope_info, host_defined_options);
 
   result->Initialize(isolate);
   // In REPL mode, we are allowed to add/modify let/const variables.
@@ -468,6 +468,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
 MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
                                        const InvokeParams& params) {
+  // DCHECK(!params.IsScript());
   bool is_termination = false;
   MaybeHandle<Object> maybe_result;
   if (params.exception_out != nullptr) {

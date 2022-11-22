@@ -66,8 +66,7 @@ class ScriptCacheKey : public HashTableKey {
                  Isolate* isolate);
   ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                  int line_offset, int column_offset,
-                 v8::ScriptOriginOptions origin_options,
-                 MaybeHandle<Object> host_defined_options, Isolate* isolate);
+                 v8::ScriptOriginOptions origin_options, Isolate* isolate);
 
   bool IsMatch(Object other) override;
   bool MatchesOrigin(Script script);
@@ -97,7 +96,6 @@ class ScriptCacheKey : public HashTableKey {
   int line_offset_;
   int column_offset_;
   v8::ScriptOriginOptions origin_options_;
-  MaybeHandle<Object> host_defined_options_;
   Isolate* isolate_;
 };
 

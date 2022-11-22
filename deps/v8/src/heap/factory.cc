@@ -1296,8 +1296,9 @@ Handle<NativeContext> Factory::NewNativeContext() {
   return handle(context, isolate());
 }
 
-Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
-                                          Handle<ScopeInfo> scope_info) {
+Handle<Context> Factory::NewScriptContext(
+    Handle<NativeContext> outer, Handle<ScopeInfo> scope_info,
+    MaybeHandle<Object> maybe_host_defined_options) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Context context =
@@ -1307,6 +1308,9 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
   DisallowGarbageCollection no_gc;
   context.set_scope_info(*scope_info);
   context.set_previous(*outer);
+  if (scope_info->HasContextExtensionSlot()) {
+    context.set_extension(*(maybe_host_defined_options.ToHandleChecked()));
+  }
   DCHECK(context.IsScriptContext());
   return handle(context, isolate());
 }
@@ -1522,7 +1526,6 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
                                          SKIP_WRITE_BARRIER);
     new_script.set_eval_from_position(old_script.eval_from_position());
     new_script.set_flags(old_script.flags());
-    new_script.set_host_defined_options(old_script.host_defined_options());
     new_script.set_source_hash(*undefined_value(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     new_script.set_script_or_modules(*list);
@@ -2956,7 +2959,7 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(
-    Handle<SharedFunctionInfo> sfi) {
+    Handle<SharedFunctionInfo> sfi, Handle<Object> host_defined_options) {
   Handle<SourceTextModuleInfo> module_info(
       sfi->scope_info().ModuleDescriptorInfo(), isolate());
   Handle<ObjectHashTable> exports =
@@ -2994,6 +2997,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module.set_cycle_root(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module.set_async_parent_modules(roots.empty_array_list());
   module.set_pending_async_dependencies(0);
+  module.set_host_defined_options(*host_defined_options);
   return handle(module, isolate());
 }
 

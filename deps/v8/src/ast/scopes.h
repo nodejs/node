@@ -296,13 +296,37 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // eval call.
   inline void RecordEvalCall();
 
-  void RecordInnerScopeEvalCall() {
+  void RecordInnerScopeCallsEval() {
+    DisallowGarbageCollection no_gc;
+    if (inner_scope_calls_eval_) return;
     inner_scope_calls_eval_ = true;
     for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
       if (scope->inner_scope_calls_eval_) return;
       scope->inner_scope_calls_eval_ = true;
     }
+  }
+
+  void RecordInnerScopeCallsDynamicImport() {
+    DisallowGarbageCollection no_gc;
+    if (inner_scope_calls_dynamic_import_) return;
+    set_inner_scope_calls_dynamic_import();
+    for (Scope* scope = outer_scope(); scope != nullptr;
+         scope = scope->outer_scope()) {
+      if (scope->inner_scope_calls_dynamic_import_) return;
+      scope->set_inner_scope_calls_dynamic_import();
+    }
+  }
+
+  void set_inner_scope_calls_dynamic_import() {
+    if (inner_scope_calls_dynamic_import_) return;
+    inner_scope_calls_dynamic_import_ = true;
+    if (!has_context_extension_slot_) {
+      has_context_extension_slot_ = HasContextExtensionSlot();
+      DCHECK_EQ(num_heap_slots_, Context::MIN_CONTEXT_SLOTS);
+      num_heap_slots_ = ContextHeaderLength();
+    }
+    DCHECK_GE(num_heap_slots_, ContextHeaderLength());
   }
 
   // Set the language mode flag (unless disabled by a global flag).
@@ -396,6 +420,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
+  bool inner_scope_calls_dynamic_import() const {
+    return inner_scope_calls_dynamic_import_;
+  }
   bool private_name_lookup_skips_outer_class() const {
     return private_name_lookup_skips_outer_class_;
   }
@@ -429,6 +456,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
+    DCHECK_IMPLIES(HasContextExtensionSlot(), has_context_extension_slot_);
+    DCHECK_IMPLIES(has_context_extension_slot_,
+                   num_heap_slots() >= Context::MIN_CONTEXT_EXTENDED_SLOTS);
     return num_heap_slots() > 0;
   }
 
@@ -502,21 +532,30 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
+  bool NeedsHostDefinedOptions() const {
+    // For dynamic imports we need to provide host-defined options.
+    return inner_scope_calls_dynamic_import_;
+  }
+
   bool HasContextExtensionSlot() const {
     switch (scope_type_) {
       case MODULE_SCOPE:
       case WITH_SCOPE:  // DebugEvaluateContext as well
         return true;
-      default:
-        DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,
-                       scope_type_ == FUNCTION_SCOPE ||
-                           scope_type_ == EVAL_SCOPE ||
-                           scope_type_ == BLOCK_SCOPE);
+      case CATCH_SCOPE:
+      case CLASS_SCOPE:
+        return false;
+      case SCRIPT_SCOPE:
+        return NeedsHostDefinedOptions();
+      case FUNCTION_SCOPE:
+      case EVAL_SCOPE:
+      case BLOCK_SCOPE:
         DCHECK_IMPLIES(sloppy_eval_can_extend_vars_, is_declaration_scope());
         return sloppy_eval_can_extend_vars_;
     }
     UNREACHABLE();
   }
+
   int ContextHeaderLength() const {
     return HasContextExtensionSlot() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
                                      : Context::MIN_CONTEXT_SLOTS;
@@ -832,6 +871,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // True if one of the inner scopes or the scope itself calls eval.
   bool inner_scope_calls_eval_ : 1;
+  // True if the scope or any inner scope calls dynamic import.
+  bool inner_scope_calls_dynamic_import_ : 1;
+
+  bool has_context_extension_slot_ : 1;
+
   bool force_context_allocation_for_parameters_ : 1;
 
   // True if it holds 'var' declarations.
@@ -926,7 +970,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
       //      isn't extendable anyway, or
       //   3. This is a debug evaluate and all bets are off.
       DeclarationScope* outer_decl_scope = outer_scope()->GetDeclarationScope();
-      while (outer_decl_scope->is_eval_scope()) {
+      while (outer_decl_scope->is_eval_scope() &&
+             !outer_decl_scope->is_declaration_scope()) {
+        DeclarationScope* next = outer_decl_scope->GetDeclarationScope();
+        DCHECK_NE(outer_decl_scope, next);
         outer_decl_scope = outer_decl_scope->GetDeclarationScope();
       }
       if (outer_decl_scope->is_debug_evaluate_scope()) {
@@ -942,7 +989,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     }
 
     sloppy_eval_can_extend_vars_ = true;
+    has_context_extension_slot_ = true;
     num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
+    DCHECK(HasContextExtensionSlot());
   }
 
   bool sloppy_eval_can_extend_vars() const {
@@ -1368,7 +1417,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 void Scope::RecordEvalCall() {
   calls_eval_ = true;
   GetDeclarationScope()->RecordDeclarationScopeEvalCall();
-  RecordInnerScopeEvalCall();
+  RecordInnerScopeCallsEval();
   // The eval contents might access "super" (if it's inside a function that
   // binds super).
   DeclarationScope* receiver_scope = GetReceiverScope();
@@ -1385,9 +1434,11 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_unresolved_(scope->unresolved_list_.end()),
       top_local_(scope->GetClosureScope()->locals_.end()) {
   // Reset in order to record eval calls during this Snapshot's lifetime.
-  outer_scope_and_calls_eval_.GetPointer()->calls_eval_ = false;
-  outer_scope_and_calls_eval_.GetPointer()->sloppy_eval_can_extend_vars_ =
-      false;
+  Scope* outer_scope = outer_scope_and_calls_eval_.GetPointer();
+  outer_scope->calls_eval_ = false;
+  outer_scope->sloppy_eval_can_extend_vars_ = false;
+  outer_scope->has_context_extension_slot_ =
+      outer_scope->HasContextExtensionSlot();
 }
 
 class ModuleScope final : public DeclarationScope {

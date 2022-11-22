@@ -190,7 +190,7 @@ bool SharedFunctionInfo::is_script() const {
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
-  return is_script() && scope_info(kAcquireLoad).ContextLocalCount() > 0;
+  return is_script() && scope_info(kAcquireLoad).NeedsContext();
 }
 
 template <typename IsolateT>

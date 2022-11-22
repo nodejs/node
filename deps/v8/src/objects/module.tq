@@ -23,5 +23,5 @@ extern class JSModuleNamespace extends JSSpecialObject {
 
 extern class ScriptOrModule extends Struct {
   resource_name: Object;
-  host_defined_options: FixedArray;
+  host_defined_options: Object;
 }

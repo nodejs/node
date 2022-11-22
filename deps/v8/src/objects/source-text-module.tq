@@ -44,6 +44,8 @@ extern class SourceTextModule extends Module {
   // The number of currently evaluating async dependencies of this module.
   pending_async_dependencies: Smi;
 
+  host_defined_options: Object;
+
   flags: SmiTagged<SourceTextModuleFlags>;
 }
 

@@ -244,7 +244,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
   already_resolved_ = true;
 #endif
   set_language_mode(scope_info->language_mode());
-  DCHECK_EQ(ContextHeaderLength(), num_heap_slots_);
   private_name_lookup_skips_outer_class_ =
       scope_info->PrivateNameLookupSkipsOuterClass();
   // We don't really need to use the preparsed scope data; this is just to
@@ -276,6 +275,8 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   if (scope_info->SloppyEvalCanExtendVars()) {
     DCHECK(!is_eval_scope());
     sloppy_eval_can_extend_vars_ = true;
+    has_context_extension_slot_ = HasContextExtensionSlot();
+    num_heap_slots_ = ContextHeaderLength();
   }
   if (scope_info->ClassScopeHasPrivateBrand()) {
     DCHECK(IsClassConstructor(function_kind()));
@@ -358,7 +359,10 @@ void Scope::SetDefaults() {
   is_debug_evaluate_scope_ = false;
 
   inner_scope_calls_eval_ = false;
+  inner_scope_calls_dynamic_import_ = false;
   force_context_allocation_for_parameters_ = false;
+
+  has_context_extension_slot_ = HasContextExtensionSlot();
 
   is_declaration_scope_ = false;
 
@@ -860,6 +864,9 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
+  if (inner_scope_calls_dynamic_import_) {
+    outer_scope()->set_inner_scope_calls_dynamic_import();
+  }
 
   // No need to propagate sloppy_eval_can_extend_vars_, since if it was relevant
   // to this scope we would have had to bail out at the top.
@@ -899,11 +906,17 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
       if (inner_scope->inner_scope_calls_eval_) {
         new_parent->inner_scope_calls_eval_ = true;
       }
+      if (inner_scope->inner_scope_calls_dynamic_import_) {
+        new_parent->set_inner_scope_calls_dynamic_import();
+      }
       DCHECK_NE(inner_scope, new_parent);
     }
     inner_scope->outer_scope_ = new_parent;
     if (inner_scope->inner_scope_calls_eval_) {
       new_parent->inner_scope_calls_eval_ = true;
+    }
+    if (inner_scope->inner_scope_calls_dynamic_import_) {
+      new_parent->set_inner_scope_calls_dynamic_import();
     }
     new_parent->inner_scope_ = new_parent->sibling_;
     inner_scope->sibling_ = nullptr;
@@ -1949,6 +1962,12 @@ void Scope::Print(int n) {
     Indent(n1, "// scope skips outer class for #-names\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
+  if (inner_scope_calls_dynamic_import_) {
+    Indent(n1, "// inner scope calls 'import'\n");
+  }
+  if (has_context_extension_slot_) {
+    Indent(n1, "// has context extension slot\n");
+  }
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
@@ -2596,6 +2615,7 @@ void Scope::AllocateVariablesRecursively() {
     // scope.
     bool must_have_context =
         scope->is_with_scope() || scope->is_module_scope() ||
+        scope->NeedsHostDefinedOptions() ||
 #if V8_ENABLE_WEBASSEMBLY
         scope->IsAsmModule() ||
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2607,12 +2627,17 @@ void Scope::AllocateVariablesRecursively() {
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
-    if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
-        !must_have_context) {
+    if (!must_have_context &&
+        scope->num_heap_slots() == scope->ContextHeaderLength()) {
       scope->num_heap_slots_ = 0;
     }
-
-    // Allocation done.
+    DCHECK_EQ(scope->has_context_extension_slot_,
+              scope->HasContextExtensionSlot());
+    DCHECK_IMPLIES(scope->has_context_extension_slot_, must_have_context);
+    DCHECK_IMPLIES(
+        scope->has_context_extension_slot_,
+        scope->num_heap_slots() >= Context::MIN_CONTEXT_EXTENDED_SLOTS);
+    DCHECK_IMPLIES(must_have_context, scope->num_heap_slots() > 0);
     DCHECK(scope->num_heap_slots_ == 0 ||
            scope->num_heap_slots_ >= scope->ContextHeaderLength());
     return Iteration::kDescend;

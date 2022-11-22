@@ -179,17 +179,15 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), i_isolate);
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), i_isolate);
-  i::Handle<i::Object> host_defined_options(script->host_defined_options(),
-                                            i_isolate);
+  i::Handle<i::Object> host_defined_options;
   ScriptOriginOptions options(script->origin_options());
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
   is_wasm = script->type() == i::Script::TYPE_WASM;
 #endif  // V8_ENABLE_WEBASSEMBLY
   v8::ScriptOrigin origin(
-      reinterpret_cast<v8::Isolate*>(i_isolate), Utils::ToLocal(scriptName),
-      script->line_offset(), script->column_offset(),
-      options.IsSharedCrossOrigin(), script->id(),
+      Utils::ToLocal(scriptName), script->line_offset(),
+      script->column_offset(), options.IsSharedCrossOrigin(), script->id(),
       Utils::ToLocal(source_map_url), options.IsOpaque(), is_wasm,
       options.IsModule(), Utils::ToLocal(host_defined_options));
   return origin;
@@ -2142,11 +2140,10 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   }
 
   i::Handle<i::Object> receiver = i_isolate->global_proxy();
-  // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
-  i::Handle<i::Object> options(
-      i::Script::cast(fun->shared().script()).host_defined_options(),
-      i_isolate);
   Local<Value> result;
+  i::Handle<i::Object> options = host_defined_options.IsEmpty()
+                                     ? i_isolate->factory()->empty_fixed_array()
+                                     : Utils::OpenHandle(*host_defined_options);
   has_pending_exception = !ToLocal<Value>(
       i::Execution::CallScript(i_isolate, fun, receiver, options), &result);
 
@@ -2500,18 +2497,16 @@ Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
 
 namespace {
 
-i::ScriptDetails GetScriptDetails(
-    i::Isolate* i_isolate, Local<Value> resource_name, int resource_line_offset,
-    int resource_column_offset, Local<Value> source_map_url,
-    Local<Data> host_defined_options, ScriptOriginOptions origin_options) {
+i::ScriptDetails GetScriptDetails(i::Isolate* i_isolate,
+                                  Local<Value> resource_name,
+                                  int resource_line_offset,
+                                  int resource_column_offset,
+                                  Local<Value> source_map_url,
+                                  ScriptOriginOptions origin_options) {
   i::ScriptDetails script_details(Utils::OpenHandle(*(resource_name), true),
                                   origin_options);
   script_details.line_offset = resource_line_offset;
   script_details.column_offset = resource_column_offset;
-  script_details.host_defined_options =
-      host_defined_options.IsEmpty()
-          ? i_isolate->factory()->empty_fixed_array()
-          : Utils::OpenHandle(*(host_defined_options));
   if (!source_map_url.IsEmpty()) {
     script_details.source_map_url = Utils::OpenHandle(*(source_map_url));
   }
@@ -2536,7 +2531,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   i::ScriptDetails script_details = GetScriptDetails(
       i_isolate, source->resource_name, source->resource_line_offset,
       source->resource_column_offset, source->source_map_url,
-      source->host_defined_options, source->resource_options);
+      source->resource_options);
 
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info;
   if (options == kConsumeCodeCache) {
@@ -2615,7 +2610,12 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
+  i::Handle<i::Object> host_defined_options =
+      source->host_defined_options.IsEmpty()
+          ? i_isolate->factory()->empty_fixed_array()
+          : Utils::OpenHandle(*source->host_defined_options);
+  return ToApiHandle<Module>(
+      i_isolate->factory()->NewSourceTextModule(shared, host_defined_options));
 }
 
 // static
@@ -2690,7 +2690,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     i::ScriptDetails script_details = GetScriptDetails(
         i_isolate, source->resource_name, source->resource_line_offset,
         source->resource_column_offset, source->source_map_url,
-        source->host_defined_options, source->resource_options);
+        source->resource_options);
 
     std::unique_ptr<i::AlignedCachedData> cached_data;
     if (options == kConsumeCodeCache) {
@@ -2714,16 +2714,19 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
   }
   // TODO(cbruni): remove script_or_module_out paramater
   if (script_or_module_out != nullptr) {
-    i::Handle<i::JSFunction> function =
-        i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*result));
+    auto function = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*result));
     i::Isolate* i_isolate = function->GetIsolate();
     i::Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
     i::Handle<i::Script> script(i::Script::cast(shared->script()), i_isolate);
+    i::Handle<i::Object> host_defined_options =
+        source->host_defined_options.IsEmpty()
+            ? i_isolate->factory()->empty_fixed_array()
+            : Utils::OpenHandle(*source->host_defined_options);
     // TODO(cbruni, v8:12302): Avoid creating tempory ScriptOrModule objects.
     auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
         i_isolate->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
     script_or_module->set_resource_name(script->name());
-    script_or_module->set_host_defined_options(script->host_defined_options());
+    script_or_module->set_host_defined_options(*host_defined_options);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     i::Handle<i::ArrayList> list =
         i::handle(script->script_or_modules(), i_isolate);
@@ -2767,10 +2770,9 @@ void ScriptCompiler::ConsumeCodeCacheTask::SourceTextAvailable(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::String> str = Utils::OpenHandle(*(source_text));
-  i::ScriptDetails script_details =
-      GetScriptDetails(i_isolate, origin.ResourceName(), origin.LineOffset(),
-                       origin.ColumnOffset(), origin.SourceMapUrl(),
-                       origin.GetHostDefinedOptions(), origin.Options());
+  i::ScriptDetails script_details = GetScriptDetails(
+      i_isolate, origin.ResourceName(), origin.LineOffset(),
+      origin.ColumnOffset(), origin.SourceMapUrl(), origin.Options());
   impl_->SourceTextAvailable(i_isolate, str, script_details);
 }
 
@@ -2804,10 +2806,9 @@ i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
     i::Isolate* i_isolate, ScriptCompiler::StreamedSource* v8_source,
     Local<String> full_source_string, const ScriptOrigin& origin) {
   i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-  i::ScriptDetails script_details =
-      GetScriptDetails(i_isolate, origin.ResourceName(), origin.LineOffset(),
-                       origin.ColumnOffset(), origin.SourceMapUrl(),
-                       origin.GetHostDefinedOptions(), origin.Options());
+  i::ScriptDetails script_details = GetScriptDetails(
+      i_isolate, origin.ResourceName(), origin.LineOffset(),
+      origin.ColumnOffset(), origin.SourceMapUrl(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
       i_isolate, str, script_details, data);
@@ -2849,8 +2850,13 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   has_pending_exception = !maybe_sfi.ToHandle(&sfi);
   if (has_pending_exception) i_isolate->ReportPendingMessages();
   RETURN_ON_FAILED_EXECUTION(Module);
-  RETURN_ESCAPED(
-      ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(sfi)));
+  // TODO(cleanup)
+  i::Handle<i::Object> options =
+      origin.GetHostDefinedOptions().IsEmpty()
+          ? i_isolate->factory()->empty_fixed_array()
+          : Utils::OpenHandle(*origin.GetHostDefinedOptions());
+  RETURN_ESCAPED(ToApiHandle<Module>(
+      i_isolate->factory()->NewSourceTextModule(sfi, options)));
 }
 
 uint32_t ScriptCompiler::CachedDataVersionTag() {
@@ -3059,21 +3065,6 @@ ScriptOrigin Message::GetScriptOrigin() const {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Script> script(self->script(), i_isolate);
   return GetScriptOriginForScript(i_isolate, script);
-}
-
-void ScriptOrigin::VerifyHostDefinedOptions() const {
-  // TODO(cbruni, chromium:1244145): Remove checks once we allow arbitrary
-  // host-defined options.
-  USE(v8_isolate_);
-  if (host_defined_options_.IsEmpty()) return;
-  Utils::ApiCheck(host_defined_options_->IsFixedArray(), "ScriptOrigin()",
-                  "Host-defined options has to be a PrimitiveArray");
-  i::Handle<i::FixedArray> options =
-      Utils::OpenHandle(*host_defined_options_.As<FixedArray>());
-  for (int i = 0; i < options->length(); i++) {
-    Utils::ApiCheck(options->get(i).IsPrimitive(), "ScriptOrigin()",
-                    "PrimitiveArray can only contain primtive values");
-  }
 }
 
 v8::Local<Value> Message::GetScriptResourceName() const {
@@ -5372,15 +5363,14 @@ Local<Value> Function::GetDebugName() const {
 
 ScriptOrigin Function::GetScriptOrigin() const {
   auto self = Utils::OpenHandle(this);
-  auto i_isolate = reinterpret_cast<v8::Isolate*>(self->GetIsolate());
-  if (!self->IsJSFunction()) return v8::ScriptOrigin(i_isolate, Local<Value>());
+  if (!self->IsJSFunction()) return v8::ScriptOrigin(Local<Value>());
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared().script().IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared().script()),
                                 func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
-  return v8::ScriptOrigin(i_isolate, Local<Value>());
+  return v8::ScriptOrigin(Local<Value>());
 }
 
 const int Function::kLineOffsetNotFound = -1;

@@ -594,15 +594,16 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline Object next_context_link() const;
 
   inline bool has_extension() const;
-  inline HeapObject extension() const;
+  inline Object extension() const;
   V8_EXPORT_PRIVATE void set_extension(
-      HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Object object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object() const;
   JSReceiver extension_receiver() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
   SourceTextModule module() const;
+  Object host_defined_options() const;
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
@@ -699,7 +700,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   class BodyDescriptor;
 
 #ifdef VERIFY_HEAP
-  V8_EXPORT_PRIVATE void VerifyExtensionSlot(HeapObject extension);
+  V8_EXPORT_PRIVATE void VerifyExtensionSlot(Object extension);
 #endif
 
  private:

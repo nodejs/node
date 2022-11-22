@@ -151,7 +151,6 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   }
 
   if (InstanceTypeChecker::IsScript(instance_type)) {
-    Handle<FixedArray> host_options;
     Handle<Object> context_data;
     {
       DisallowGarbageCollection no_gc;
@@ -167,16 +166,11 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
         script_obj.set_context_data(roots.undefined_value());
       }
       context_data = handle(raw_context_data, isolate());
-      // We don't want to serialize host options to avoid serializing
-      // unnecessary object graph.
-      host_options = handle(script_obj.host_defined_options(), isolate());
-      script_obj.set_host_defined_options(roots.empty_fixed_array());
     }
     SerializeGeneric(obj);
     {
       DisallowGarbageCollection no_gc;
       Script script_obj = Script::cast(*obj);
-      script_obj.set_host_defined_options(*host_options);
       script_obj.set_context_data(*context_data);
     }
     return;

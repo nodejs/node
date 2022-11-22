@@ -82,7 +82,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ContextLength() const;
   int ContextHeaderLength() const;
 
-  bool HasContextExtensionSlot() const;
+  inline bool NeedsContext() const;
+  inline bool HasContextExtensionSlot() const;
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;

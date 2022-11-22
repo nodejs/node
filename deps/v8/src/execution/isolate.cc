@@ -4992,6 +4992,7 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
+    Handle<Object> host_defined_options,
     MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>::cast(native_context()));
@@ -5020,14 +5021,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     clear_pending_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
-  Handle<FixedArray> host_defined_options;
-  Handle<Object> resource_name;
-  if (maybe_referrer.is_null()) {
-    host_defined_options = factory()->empty_fixed_array();
-    resource_name = factory()->null_value();
-  } else {
-    Handle<Script> referrer = maybe_referrer.ToHandleChecked();
-    host_defined_options = handle(referrer->host_defined_options(), this);
+  Handle<Object> resource_name = factory()->null_value();
+  Handle<Script> referrer;
+  if (maybe_referrer.ToHandle(&referrer)) {
     resource_name = handle(referrer->name(), this);
   }
 
