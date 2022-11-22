@@ -22,6 +22,7 @@
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
+    'node_enable_v8_vtunejit%': 'false',
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',

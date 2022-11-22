@@ -160,6 +160,13 @@ parser.add_argument("--partly-static",
     help="Generate an executable with libgcc and libstdc++ libraries. This "
          "will not work on OSX when using the default compilation environment")
 
+parser.add_argument("--enable-vtune-profiling",
+    action="store_true",
+    dest="enable_vtune_profiling",
+    help="Enable profiling support for Intel VTune profiler to profile "
+         "JavaScript code executed in Node.js. This feature is only available "
+         "for x32, x86, and x64 architectures.")
+
 parser.add_argument("--enable-pgo-generate",
     action="store_true",
     dest="enable_pgo_generate",
@@ -1279,6 +1286,15 @@ def configure_node(o):
 
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
+
+  if target_arch in ('x86', 'x64', 'ia32', 'x32'):
+    o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
+  elif options.enable_vtune_profiling:
+    raise Exception(
+       'The VTune profiler for JavaScript is only supported on x32, x86, and x64 '
+       'architectures.')
+  else:
+    o['variables']['node_enable_v8_vtunejit'] = 'false'
 
   if flavor != 'linux' and (options.enable_pgo_generate or options.enable_pgo_use):
     raise Exception(

@@ -52,6 +52,7 @@ set i18n_arg=
 set download_arg=
 set build_release=
 set configure_flags=
+set enable_vtune_arg=
 set build_addons=
 set dll=
 set enable_static=
@@ -137,6 +138,7 @@ if /i "%1"=="without-intl"  set i18n_arg=none&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
+if /i "%1"=="enable-vtune" set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="static"           set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
@@ -190,6 +192,7 @@ if defined nocorepack       set configure_flags=%configure_flags% --without-core
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
+if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll              set configure_flags=%configure_flags% --shared
 if defined enable_static    set configure_flags=%configure_flags% --enable-static
 if defined no_NODE_OPTIONS  set configure_flags=%configure_flags% --without-node-options
@@ -765,13 +768,14 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
 echo   vcbuild.bat release msi              : builds release build and MSI installer package
 echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
+echo   vcbuild.bat enable-vtune             : builds Node.js with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
 echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
