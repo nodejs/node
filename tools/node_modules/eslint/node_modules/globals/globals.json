@@ -419,6 +419,7 @@
 		"clearTimeout": false,
 		"clientInformation": false,
 		"ClipboardEvent": false,
+		"ClipboardItem": false,
 		"close": false,
 		"closed": false,
 		"CloseEvent": false,

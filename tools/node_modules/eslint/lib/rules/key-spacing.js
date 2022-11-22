@@ -335,6 +335,19 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
+         * Determines if the given property is key-value property.
+         * @param {ASTNode} property Property node to check.
+         * @returns {boolean} Whether the property is a key-value property.
+         */
+        function isKeyValueProperty(property) {
+            return !(
+                (property.method ||
+                property.shorthand ||
+                property.kind !== "init" || property.type !== "Property") // Could be "ExperimentalSpreadProperty" or "SpreadElement"
+            );
+        }
+
+        /**
          * Checks whether a property is a member of the property group it follows.
          * @param {ASTNode} lastMember The last Property known to be in the group.
          * @param {ASTNode} candidate The next Property that might be in the group.
@@ -342,9 +355,9 @@ module.exports = {
          */
         function continuesPropertyGroup(lastMember, candidate) {
             const groupEndLine = lastMember.loc.start.line,
-                candidateStartLine = candidate.loc.start.line;
+                candidateValueStartLine = (isKeyValueProperty(candidate) ? candidate.value : candidate).loc.start.line;
 
-            if (candidateStartLine - groupEndLine <= 1) {
+            if (candidateValueStartLine - groupEndLine <= 1) {
                 return true;
             }
 
@@ -358,7 +371,7 @@ module.exports = {
             if (
                 leadingComments.length &&
                 leadingComments[0].loc.start.line - groupEndLine <= 1 &&
-                candidateStartLine - last(leadingComments).loc.end.line <= 1
+                candidateValueStartLine - last(leadingComments).loc.end.line <= 1
             ) {
                 for (let i = 1; i < leadingComments.length; i++) {
                     if (leadingComments[i].loc.start.line - leadingComments[i - 1].loc.end.line > 1) {
@@ -369,19 +382,6 @@ module.exports = {
             }
 
             return false;
-        }
-
-        /**
-         * Determines if the given property is key-value property.
-         * @param {ASTNode} property Property node to check.
-         * @returns {boolean} Whether the property is a key-value property.
-         */
-        function isKeyValueProperty(property) {
-            return !(
-                (property.method ||
-                property.shorthand ||
-                property.kind !== "init" || property.type !== "Property") // Could be "ExperimentalSpreadProperty" or "SpreadElement"
-            );
         }
 
         /**
