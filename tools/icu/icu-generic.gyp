@@ -93,7 +93,6 @@
         },
         'defines': [
           'U_ATTRIBUTE_DEPRECATED=',
-          '_CRT_SECURE_NO_DEPRECATE=',
           'U_STATIC_IMPLEMENTATION=1',
         ],
       },
