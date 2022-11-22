@@ -8,8 +8,6 @@
   "idlharness.https.any.js": {
     "fail": {
       "expected": [
-        "CryptoKey interface: existence and properties of interface object",
-        "CryptoKey interface: existence and properties of interface prototype object"
       ]
     }
   }
