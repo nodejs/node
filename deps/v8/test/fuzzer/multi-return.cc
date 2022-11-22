@@ -168,7 +168,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CallDescriptor* desc =
       CreateRandomCallDescriptor(&zone, return_count, param_count, &input);
 
-  if (FLAG_wasm_fuzzer_gen_test) {
+  if (v8_flags.wasm_fuzzer_gen_test) {
     // Print some debugging output which describes the produced signature.
     printf("[");
     for (size_t j = 0; j < param_count; ++j) {

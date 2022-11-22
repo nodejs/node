@@ -435,7 +435,6 @@ TEST(Liftoff_breakpoint_simple) {
 }
 
 TEST(Liftoff_debug_side_table_catch_all) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
   LiftoffCompileEnvironment env;
   TestSignatures sigs;
   int ex = env.builder()->AddException(sigs.v_v());
@@ -452,17 +451,16 @@ TEST(Liftoff_debug_side_table_catch_all) {
       {
           // function entry.
           {1, {Register(0, kWasmI32)}},
+          // throw.
+          {2, {Stack(0, kWasmI32), Constant(1, kWasmI32, 0)}},
           // breakpoint.
-          {3,
-           {Stack(0, kWasmI32), Register(1, exception_type),
-            Constant(2, kWasmI32, 1)}},
+          {3, {Register(1, exception_type), Constant(2, kWasmI32, 1)}},
           {1, {}},
       },
       debug_side_table.get());
 }
 
 TEST(Regress1199526) {
-  EXPERIMENTAL_FLAG_SCOPE(eh);
   LiftoffCompileEnvironment env;
   ValueType exception_type = ValueType::Ref(HeapType::kAny);
   auto debug_side_table = env.GenerateDebugSideTable(

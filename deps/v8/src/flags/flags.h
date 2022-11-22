@@ -70,10 +70,6 @@ struct alignas(kMinimumOSPageSize) FlagValues {
 
 V8_EXPORT_PRIVATE extern FlagValues v8_flags;
 
-// TODO(clemensb): Remove this after v10.7.
-#define FLAG_MODE_DEFINE_GLOBAL_ALIASES
-#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
-
 // The global list of all flags.
 class V8_EXPORT_PRIVATE FlagList {
  public:

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stdio.h>
+
 #include <fstream>
 #include <memory>
 
@@ -247,14 +249,8 @@ RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
 
 namespace {
 
-template <CodeKind code_kind>
-bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
-                         IsCompiledScope* is_compiled_scope);
-
-template <>
-bool CanOptimizeFunction<CodeKind::TURBOFAN>(
-    Handle<JSFunction> function, Isolate* isolate,
-    IsCompiledScope* is_compiled_scope) {
+bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
+                         Isolate* isolate, IsCompiledScope* is_compiled_scope) {
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -282,40 +278,23 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
+                                                              *function);
   }
 
-  CodeKind kind = CodeKindForTopTier();
-  if (function->HasAvailableOptimizedCode() ||
-      function->HasAvailableCodeKind(kind)) {
+  if (function->HasAvailableCodeKind(target_kind) ||
+      function->HasAvailableHigherTierCodeThan(target_kind) ||
+      IsInProgress(function->tiering_state())) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
-    if (v8_flags.testing_d8_test_runner) {
-      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-    }
     return false;
   }
 
   return true;
 }
 
-#ifdef V8_ENABLE_MAGLEV
-template <>
-bool CanOptimizeFunction<CodeKind::MAGLEV>(Handle<JSFunction> function,
-                                           Isolate* isolate,
-                                           IsCompiledScope* is_compiled_scope) {
-  if (!v8_flags.maglev) return false;
-
-  CHECK(!IsAsmWasmFunction(isolate, *function));
-
-  // TODO(v8:7700): Disabled optimization due to deopts?
-  // TODO(v8:7700): Already cached?
-
-  return function->GetActiveTier() < CodeKind::MAGLEV;
-}
-#endif  // V8_ENABLE_MAGLEV
-
-Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
+Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
+                                  CodeKind target_kind) {
   if (args.length() != 1 && args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -324,11 +303,10 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
-  static constexpr CodeKind kCodeKind = CodeKind::TURBOFAN;
-
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
+  if (!CanOptimizeFunction(target_kind, function, isolate,
+                           &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -354,37 +332,31 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     function->set_code(codet);
   }
 
-  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
+  TraceManualRecompile(*function, target_kind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, CodeKind::TURBOFAN, concurrency_mode);
+  function->MarkForOptimization(isolate, target_kind, concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
+bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
+                                     Handle<JSFunction> function,
+                                     IsCompiledScope* is_compiled_scope) {
   // Check function allows lazy compilation.
   if (!function->shared().allows_lazy_compilation()) return false;
 
-  if (function->has_feedback_vector()) return true;
-
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(function->GetIsolate()));
-  // If the JSFunction isn't compiled but it has a initialized feedback cell
-  // then no need to compile. CompileLazy builtin would handle these cases by
-  // installing the code from SFI. Calling compile here may cause another
-  // optimization if v8_flags.always_turbofan is set.
-  bool needs_compilation =
-      !function->is_compiled() && !function->has_closure_feedback_cell_array();
-  if (needs_compilation &&
+  *is_compiled_scope =
+      function->shared().is_compiled_scope(function->GetIsolate());
+  if (!is_compiled_scope->is_compiled() &&
       !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
+                         is_compiled_scope)) {
     return false;
   }
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
   return true;
 }
 
@@ -506,27 +478,7 @@ RUNTIME_FUNCTION(Runtime_CurrentFrameIsTurbofan) {
 #ifdef V8_ENABLE_MAGLEV
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-
-  static constexpr CodeKind kCodeKind = CodeKind::MAGLEV;
-
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  DCHECK(is_compiled_scope.is_compiled());
-  DCHECK(function->is_compiled());
-
-  // TODO(v8:7700): Support concurrent compiles.
-  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
-
-  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, kCodeKind, concurrency_mode);
-
-  return ReadOnlyRoots(isolate).undefined_value();
+  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::MAGLEV);
 }
 #else
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
@@ -538,14 +490,19 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
 // TODO(jgruber): Rename to OptimizeTurbofanOnNextCall.
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  return OptimizeFunctionOnNextCall(args, isolate);
+  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::TURBOFAN);
 }
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  EnsureFeedbackVector(isolate, function);
+  if (function->has_feedback_vector()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  IsCompiledScope is_compiled_scope;
+  EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -556,23 +513,13 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   }
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
-  bool allow_heuristic_optimization = false;
-  if (args.length() == 2) {
-    Handle<Object> sync_object = args.at(1);
-    if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
-    Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(
-            base::StaticCharVector("allow heuristic optimization"))) {
-      allow_heuristic_optimization = true;
-    }
-  }
-
-  if (!EnsureFeedbackVector(isolate, function)) {
+  IsCompiledScope is_compiled_scope;
+  if (!EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  // If optimization is disabled for the function, return without making it
-  // pending optimize for test.
+  // If optimization is disabled for the function, return without marking it for
+  // manual optimization
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
@@ -584,8 +531,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::PreparedForOptimization(
-        isolate, function, allow_heuristic_optimization);
+    ManualOptimizationTable::MarkFunctionForManualOptimization(
+        isolate, function, &is_compiled_scope);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -673,17 +620,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (v8_flags.testing_d8_test_runner) {
-    PendingOptimizationTable::MarkedForOptimization(isolate, function);
+    ManualOptimizationTable::CheckMarkedForManualOptimization(isolate,
+                                                              *function);
   }
 
   if (function->HasAvailableOptimizedCode()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
-    // If function is already optimized, remove the bytecode array from the
-    // pending optimize for test table and return.
-    if (v8_flags.testing_d8_test_runner) {
-      PendingOptimizationTable::FunctionWasOptimized(isolate, function);
-    }
+    // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -847,6 +791,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function->ActiveTierIsIgnition()) {
     status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
+  if (!function->is_compiled()) {
+    status |= static_cast<int>(OptimizationStatus::kIsLazy);
+  }
 
   // Additionally, detect activations of this frame on the stack, and report the
   // status of the topmost frame.
@@ -904,6 +851,20 @@ RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   if (isolate->concurrent_recompilation_enabled()) {
     FinalizeOptimization(isolate);
   }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ForceFlush) {
+  HandleScope scope(isolate);
+  if (args.length() != 1) return CrashUnlessFuzzing(isolate);
+
+  Handle<Object> function_object = args.at(0);
+  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
+  SharedFunctionInfo::DiscardCompiled(
+      isolate, handle(function->shared(isolate), isolate));
+  function->ResetIfCodeFlushed();
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1100,8 +1061,7 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static void DebugPrintImpl(MaybeObject maybe_object) {
-  StdoutStream os;
+static void DebugPrintImpl(MaybeObject maybe_object, std::ostream& os) {
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
   } else {
@@ -1126,10 +1086,21 @@ static void DebugPrintImpl(MaybeObject maybe_object) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
+
+  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
+  std::unique_ptr<std::ostream> output_stream(new StdoutStream());
+  if (args.length() >= 2) {
+    // Args: object, stream.
+    if (args[1].IsSmi()) {
+      int output_int = Smi::cast(args[1]).value();
+      if (output_int == fileno(stderr)) {
+        output_stream.reset(new StderrStream());
+      }
+    }
+  }
 
   MaybeObject maybe_object(*args.address_of_arg_at(0));
-  DebugPrintImpl(maybe_object);
+  DebugPrintImpl(maybe_object, *output_stream.get());
   return args[0];
 }
 
@@ -1144,7 +1115,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
     size_t pointer;
     if (object.ToIntegerIndex(&pointer)) {
       MaybeObject from_pointer(static_cast<Address>(pointer));
-      DebugPrintImpl(from_pointer);
+      DebugPrintImpl(from_pointer, os);
     }
   }
   // We don't allow the converted pointer to leak out to JavaScript.
@@ -1201,13 +1172,28 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
 // very slowly for very deeply nested ConsStrings.  For debugging use only.
 RUNTIME_FUNCTION(Runtime_GlobalPrint) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
+
+  // This is exposed to tests / fuzzers; handle variable arguments gracefully.
+  FILE* output_stream = stdout;
+  if (args.length() >= 2) {
+    // Args: object, stream.
+    if (args[1].IsSmi()) {
+      int output_int = Smi::cast(args[1]).value();
+      if (output_int == fileno(stderr)) {
+        output_stream = stderr;
+      }
+    }
+  }
+
+  if (!args[0].IsString()) {
+    return args[0];
+  }
 
   auto string = String::cast(args[0]);
   StringCharacterStream stream(string);
   while (stream.HasMore()) {
     uint16_t character = stream.GetNext();
-    PrintF("%c", character);
+    PrintF(output_stream, "%c", character);
   }
   return string;
 }

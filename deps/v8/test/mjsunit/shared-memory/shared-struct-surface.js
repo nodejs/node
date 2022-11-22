@@ -49,11 +49,13 @@ let S = new SharedStructType(['field']);
 })();
 
 (function TestTooManyFields() {
-  let field_names = [];
+  let fieldNames = [];
   for (let i = 0; i < 1000; i++) {
-    field_names.push('field' + i);
+    fieldNames.push('field' + i);
   }
-  assertThrows(() => { new SharedStructType(field_names); });
+  assertThrows(() => {
+    new SharedStructType(fieldNames);
+  });
 })();
 
 (function TestOwnPropertyEnumeration() {
@@ -75,4 +77,20 @@ let S = new SharedStructType(['field']);
   let entries = Object.entries(s);
   assertEquals(1, entries.length);
   assertArrayEquals(['field', 42], entries[0]);
+})();
+
+(function TestForIn() {
+  let fieldNames = [];
+  for (let i = 0; i < 512; i++) {
+    fieldNames.push('field' + i);
+  }
+  let S2 = new SharedStructType(fieldNames);
+  let s = new S2();
+  let propNames = [];
+  for (let prop in s) propNames.push(prop);
+  assertArrayEquals(propNames, fieldNames);
+})();
+
+(function TestDuplicateFieldNames() {
+  assertThrows(() => new SharedStructType(['same', 'same']));
 })();

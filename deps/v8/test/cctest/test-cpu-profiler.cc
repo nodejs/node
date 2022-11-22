@@ -33,6 +33,7 @@
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-function.h"
+#include "include/v8-json.h"
 #include "include/v8-locker.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -53,6 +54,7 @@
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/jsonstream-helper.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/common/flag-utils.h"
 
@@ -4703,6 +4705,64 @@ TEST(SkipEstimatedSizeWhenActiveProfiling) {
 
   CHECK_GT(profiler.GetAllProfilersMemorySize(isolate), 0);
   CHECK_GT(profiler.GetEstimatedMemoryUsage(), 0);
+}
+
+TEST(CpuProfileJSONSerialization) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
+
+  v8::Local<v8::String> name = v8_str("1");
+  cpu_profiler->StartProfiling(name);
+  v8::CpuProfile* profile = cpu_profiler->StopProfiling(name);
+  CHECK(profile);
+
+  TestJSONStream stream;
+  profile->Serialize(&stream, v8::CpuProfile::kJSON);
+  profile->Delete();
+  cpu_profiler->Dispose();
+  CHECK_GT(stream.size(), 0);
+  CHECK_EQ(1, stream.eos_signaled());
+  base::ScopedVector<char> json(stream.size());
+  stream.WriteTo(json);
+
+  // Verify that snapshot string is valid JSON.
+  OneByteResource* json_res = new OneByteResource(json);
+  v8::Local<v8::String> json_string =
+      v8::String::NewExternalOneByte(env->GetIsolate(), json_res)
+          .ToLocalChecked();
+  v8::Local<v8::Context> context = v8::Context::New(env->GetIsolate());
+  v8::Local<v8::Value> profile_parse_result =
+      v8::JSON::Parse(context, json_string).ToLocalChecked();
+
+  CHECK(!profile_parse_result.IsEmpty());
+  CHECK(profile_parse_result->IsObject());
+
+  v8::Local<v8::Object> profile_obj = profile_parse_result.As<v8::Object>();
+  CHECK(profile_obj->Get(env.local(), v8_str("nodes"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(profile_obj->Get(env.local(), v8_str("startTime"))
+            .ToLocalChecked()
+            ->IsNumber());
+  CHECK(profile_obj->Get(env.local(), v8_str("endTime"))
+            .ToLocalChecked()
+            ->IsNumber());
+  CHECK(profile_obj->Get(env.local(), v8_str("samples"))
+            .ToLocalChecked()
+            ->IsArray());
+  CHECK(profile_obj->Get(env.local(), v8_str("timeDeltas"))
+            .ToLocalChecked()
+            ->IsArray());
+
+  CHECK(profile_obj->Get(env.local(), v8_str("startTime"))
+            .ToLocalChecked()
+            .As<v8::Number>()
+            ->Value() > 0);
+  CHECK(profile_obj->Get(env.local(), v8_str("endTime"))
+            .ToLocalChecked()
+            .As<v8::Number>()
+            ->Value() > 0);
 }
 
 }  // namespace test_cpu_profiler

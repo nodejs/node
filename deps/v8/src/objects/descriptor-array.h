@@ -65,10 +65,10 @@ class DescriptorArray
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(DescriptorArray array);
-  static void InitializeOrChangeEnumCache(Handle<DescriptorArray> descriptors,
-                                          Isolate* isolate,
-                                          Handle<FixedArray> keys,
-                                          Handle<FixedArray> indices);
+  static void InitializeOrChangeEnumCache(
+      Handle<DescriptorArray> descriptors, Isolate* isolate,
+      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      AllocationType allocation_if_initialize);
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(InternalIndex descriptor_number) const;

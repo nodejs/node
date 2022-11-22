@@ -340,10 +340,12 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakException,
-                                             type == BreakOnAnyException);
-  i_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
-                                             type != NoBreakOnException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakCaughtException,
+      type == BreakOnCaughtException || type == BreakOnAnyException);
+  i_isolate->debug()->ChangeBreakOnException(
+      i::BreakUncaughtException,
+      type == BreakOnUncaughtException || type == BreakOnAnyException);
 }
 
 void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
@@ -1387,10 +1389,6 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
 }
 
-bool isExperimentalAsyncStackTaggingApiEnabled() {
-  return i::v8_flags.experimental_async_stack_tagging_api;
-}
-
 bool isExperimentalRemoveInternalScopesPropertyEnabled() {
   return i::v8_flags.experimental_remove_internal_scopes_property;
 }
@@ -1400,10 +1398,15 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);
 }
 
+void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->debug()->NotifyDebuggerPausedEventSent();
+}
+
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
-      reinterpret_cast<i::Isolate*>(object->GetIsolate());
+      reinterpret_cast<i::Isolate*>(context->GetIsolate());
   if (isolate->is_execution_terminating()) {
     return nullptr;
   }

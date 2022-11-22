@@ -1635,13 +1635,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   DCHECK_EQ(actual_parameter_count, r0);
   DCHECK_EQ(expected_parameter_count, r2);
 
-  // If the expected parameter count is equal to the adaptor sentinel, no need
-  // to push undefined value as arguments.
-  if (kDontAdaptArgumentsSentinel != 0) {
-    cmp(expected_parameter_count, Operand(kDontAdaptArgumentsSentinel));
-    b(eq, &regular_invoke);
-  }
-
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
   sub(expected_parameter_count, expected_parameter_count,

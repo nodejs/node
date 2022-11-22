@@ -100,32 +100,8 @@
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
-#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti, zhin */                                           \
-  /* Staged in v8.7 * */                                                       \
-  /* Shipped in v9.1 * */                                                      \
-  V(simd, "SIMD opcodes", true)                                                \
-                                                                               \
-  /* Threads proposal. */                                                      \
-  /* https://github.com/webassembly/threads */                                 \
-  /* NOTE: This is enabled via chromium flag on desktop systems since v7.4, */ \
-  /* and on android from 9.1. Threads are only available when */               \
-  /* SharedArrayBuffers are enabled as well, and are gated by COOP/COEP */     \
-  /* headers, more fine grained control is in the chromium codebase */         \
-  /* ITS: https://groups.google.com/a/chromium.org/d/msg/blink-dev/ */         \
-  /* tD6np-OG2PU/rcNGROOMFQAJ */                                               \
-  /* V8 side owner: gdeepti */                                                 \
-  V(threads, "thread opcodes", true)                                           \
-                                                                               \
-  /* Exception handling proposal. */                                           \
-  /* https://github.com/WebAssembly/exception-handling */                      \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.9 */                                                         \
-  /* Shipped in v9.5 */                                                        \
-  V(eh, "exception handling opcodes", true)                                    \
-                                                                               \
+#define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */
+
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
   FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) \

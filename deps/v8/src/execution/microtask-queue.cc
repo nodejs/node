@@ -163,7 +163,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   {
     SetIsRunningMicrotasks scope(&is_running_microtasks_);
     v8::Isolate::SuppressMicrotaskExecutionScope suppress(
-        reinterpret_cast<v8::Isolate*>(isolate));
+        reinterpret_cast<v8::Isolate*>(isolate), this);
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
     TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");

@@ -77,9 +77,6 @@ struct WrapperDescriptor final {
 };
 
 struct V8_EXPORT CppHeapCreateParams {
-  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
-  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
-
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
   WrapperDescriptor wrapper_descriptor;
   /**
@@ -98,6 +95,10 @@ struct V8_EXPORT CppHeapCreateParams {
 
 /**
  * A heap for allocating managed C++ objects.
+ *
+ * Similar to v8::Isolate, the heap may only be accessed from one thread at a
+ * time. The heap may be used from different threads using the
+ * v8::Locker/v8::Unlocker APIs which is different from generic Oilpan.
  */
 class V8_EXPORT CppHeap {
  public:

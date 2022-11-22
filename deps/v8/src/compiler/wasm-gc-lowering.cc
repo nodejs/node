@@ -13,16 +13,20 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph)
+WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
+                               const wasm::WasmModule* module)
     : AdvancedReducer(editor),
       gasm_(mcgraph, mcgraph->zone()),
+      module_(module),
       dead_(mcgraph->Dead()),
       instance_node_(nullptr) {
   // Find and store the instance node.
@@ -64,6 +68,7 @@ Reduction WasmGCLowering::Reduce(Node* node) {
 }
 
 Node* WasmGCLowering::RootNode(RootIndex index) {
+  // TODO(13449): Use root register instead of isolate.
   Node* isolate_root = gasm_.LoadImmutable(
       MachineType::Pointer(), instance_node_,
       WasmInstanceObject::kIsolateRootOffset - kHeapObjectTag);
@@ -72,6 +77,13 @@ Node* WasmGCLowering::RootNode(RootIndex index) {
 }
 
 Node* WasmGCLowering::Null() { return RootNode(RootIndex::kNullValue); }
+
+Node* WasmGCLowering::IsNull(Node* object) {
+  Tagged_t static_null = wasm::GetWasmEngine()->compressed_null_value_or_zero();
+  Node* null_value =
+      static_null != 0 ? gasm_.UintPtrConstant(static_null) : Null();
+  return gasm_.TaggedEqual(object, null_value);
+}
 
 // TODO(manoskouk): Use the Callbacks infrastructure from wasm-compiler.h to
 // unify all check/cast implementations.
@@ -84,22 +96,28 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
-  int rtt_depth = config.rtt_depth;
-  bool object_can_be_null = config.object_can_be_null;
+  int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+  bool object_can_be_null = config.from.is_nullable();
+  bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
+  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  if (object_can_be_null) {
-    const int kResult = config.null_succeeds ? 1 : 0;
-    gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
-                 BranchHint::kFalse, gasm_.Int32Constant(kResult));
+  // Skip the null check if casting from any and if null results in check
+  // failure. In that case the instance type check will identify null as not
+  // being a wasm object and return 0 (failure).
+  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+    const int kResult = config.to.is_nullable() ? 1 : 0;
+    gasm_.GotoIf(IsNull(object), &end_label, BranchHint::kFalse,
+                 gasm_.Int32Constant(kResult));
   }
 
-  // TODO(7748): In some cases the Smi check is redundant. If we had information
-  // about the source type, we could skip it in those cases.
-  gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+  if (object_can_be_i31) {
+    gasm_.GotoIf(gasm_.IsI31(object), &end_label, gasm_.Int32Constant(0));
+  }
 
   Node* map = gasm_.LoadMap(object);
 
@@ -107,6 +125,13 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   // speedups.
   gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
                gasm_.Int32Constant(1));
+
+  // Check if map instance type identifies a wasm object.
+  if (is_cast_from_any) {
+    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+    gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                    gasm_.Int32Constant(0));
+  }
 
   Node* type_info = gasm_.LoadWasmTypeInfo(map);
   DCHECK_GE(rtt_depth, 0);
@@ -146,16 +171,30 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* effect_input = NodeProperties::GetEffectInput(node);
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
-  int rtt_depth = config.rtt_depth;
-  bool object_can_be_null = config.object_can_be_null;
+  int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
+  bool object_can_be_null = config.from.is_nullable();
+  bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel();
+  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  if (object_can_be_null) {
-    gasm_.GotoIf(gasm_.TaggedEqual(object, Null()), &end_label,
-                 BranchHint::kFalse);
+  // Skip the null check if casting from any and if null results in check
+  // failure. In that case the instance type check will identify null as not
+  // being a wasm object and trap.
+  if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
+    Node* is_null = IsNull(object);
+    if (config.to.is_nullable()) {
+      gasm_.GotoIf(is_null, &end_label, BranchHint::kFalse);
+    } else if (!v8_flags.experimental_wasm_skip_null_checks) {
+      gasm_.TrapIf(is_null, TrapId::kTrapIllegalCast);
+    }
+  }
+
+  if (object_can_be_i31) {
+    gasm_.TrapIf(gasm_.IsI31(object), TrapId::kTrapIllegalCast);
   }
 
   Node* map = gasm_.LoadMap(object);
@@ -163,6 +202,12 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   // First, check if types happen to be equal. This has been shown to give large
   // speedups.
   gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
+
+  // Check if map instance type identifies a wasm object.
+  if (is_cast_from_any) {
+    Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+    gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+  }
 
   Node* type_info = gasm_.LoadWasmTypeInfo(map);
   DCHECK_GE(rtt_depth, 0);
@@ -202,7 +247,9 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
   gasm_.InitializeEffectControl(effect, control);
-  gasm_.TrapIf(gasm_.TaggedEqual(object, Null()), TrapId::kTrapNullDereference);
+  if (!v8_flags.experimental_wasm_skip_null_checks) {
+    gasm_.TrapIf(IsNull(object), TrapId::kTrapNullDereference);
+  }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
   node->Kill();
@@ -217,14 +264,13 @@ Reduction WasmGCLowering::ReduceNull(Node* node) {
 Reduction WasmGCLowering::ReduceIsNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(gasm_.TaggedEqual(object, Null()));
+  return Replace(IsNull(object));
 }
 
 Reduction WasmGCLowering::ReduceIsNotNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNotNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  return Replace(gasm_.Word32Equal(gasm_.TaggedEqual(object, Null()),
-                                   gasm_.Int32Constant(0)));
+  return Replace(gasm_.Word32Equal(IsNull(object), gasm_.Int32Constant(0)));
 }
 
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
@@ -248,66 +294,20 @@ Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
 
 Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  gasm_.InitializeEffectControl(effect, control);
-  auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
-
-  if (!v8_flags.wasm_gc_js_interop) {
-    Node* context = gasm_.LoadImmutable(
-        MachineType::TaggedPointer(), instance_node_,
-        WasmInstanceObject::kNativeContextOffset - kHeapObjectTag);
-    Node* obj = gasm_.CallBuiltin(
-        Builtin::kWasmGetOwnProperty, Operator::kEliminatable, object,
-        RootNode(RootIndex::kwasm_wrapped_object_symbol), context);
-    // Invalid object wrappers (i.e. any other JS object that doesn't have the
-    // magic hidden property) will return {undefined}. Map that to {object}.
-    Node* is_undefined =
-        gasm_.TaggedEqual(obj, RootNode(RootIndex::kUndefinedValue));
-    gasm_.GotoIf(is_undefined, &end, object);
-    gasm_.Goto(&end, obj);
-  } else {
-    gasm_.Goto(&end, object);
-  }
-  gasm_.Bind(&end);
-  Node* replacement = end.PhiAt(0);
-  ReplaceWithValue(node, replacement, gasm_.effect(), gasm_.control());
+  // TODO(7748): Canonicalize HeapNumbers.
+  ReplaceWithValue(node, object);
   node->Kill();
-  return Replace(replacement);
+  return Replace(object);
 }
 
+// TODO(7748): WasmExternExternalize is a no-op. Consider removing it.
 Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternExternalize);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
-  gasm_.InitializeEffectControl(effect, control);
-
-  auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
-  if (!v8_flags.wasm_gc_js_interop) {
-    auto wrap = gasm_.MakeLabel();
-    gasm_.GotoIf(gasm_.IsI31(object), &end, object);
-    gasm_.GotoIf(gasm_.IsDataRefMap(gasm_.LoadMap(object)), &wrap);
-    // This includes the case where {node == null}.
-    gasm_.Goto(&end, object);
-
-    gasm_.Bind(&wrap);
-    Node* context = gasm_.LoadImmutable(
-        MachineType::TaggedPointer(), instance_node_,
-        WasmInstanceObject::kNativeContextOffset - kHeapObjectTag);
-    Node* wrapped = gasm_.CallBuiltin(Builtin::kWasmAllocateObjectWrapper,
-                                      Operator::kEliminatable, object, context);
-    gasm_.Goto(&end, wrapped);
-  } else {
-    gasm_.Goto(&end, object);
-  }
-
-  gasm_.Bind(&end);
-  Node* replacement = end.PhiAt(0);
-  ReplaceWithValue(node, replacement, gasm_.effect(), gasm_.control());
+  ReplaceWithValue(node, object);
   node->Kill();
-  return Replace(replacement);
+  return Replace(object);
 }
 
 }  // namespace compiler

@@ -9,7 +9,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 
 var sig_index = builder.addType(
-    {params: [wasmRefType(kWasmDataRef)], results: []});
+    {params: [wasmRefType(kWasmStructRef)], results: []});
 
 builder.addFunction('main', sig_index).addBody([]).exportFunc();
 

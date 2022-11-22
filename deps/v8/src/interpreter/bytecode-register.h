@@ -135,7 +135,7 @@ class RegisterList {
     DCHECK_LT(new_count, register_count_);
     return RegisterList(first_reg_index_, new_count);
   }
-  const RegisterList PopLeft() {
+  const RegisterList PopLeft() const {
     DCHECK_GE(register_count_, 0);
     return RegisterList(first_reg_index_ + 1, register_count_ - 1);
   }
@@ -161,6 +161,7 @@ class RegisterList {
   friend class InterpreterTester;
   friend class BytecodeUtils;
   friend class BytecodeArrayIterator;
+  friend class CallArguments;
 
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}

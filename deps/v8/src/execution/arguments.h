@@ -65,6 +65,8 @@ class Arguments {
 
   V8_INLINE double number_value_at(int index) const;
 
+  V8_INLINE Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
+
   V8_INLINE Address* address_of_arg_at(int index) const {
     DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;

@@ -178,7 +178,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
                                                AllocationOrigin origin) {
   DCHECK(!space_->is_compaction_space());
   DCHECK(space_->identity() == OLD_SPACE || space_->identity() == CODE_SPACE ||
-         space_->identity() == MAP_SPACE || space_->identity() == SHARED_SPACE);
+         space_->identity() == SHARED_SPACE);
   DCHECK(origin == AllocationOrigin::kRuntime ||
          origin == AllocationOrigin::kGC);
   DCHECK_IMPLIES(!local_heap_, origin == AllocationOrigin::kGC);

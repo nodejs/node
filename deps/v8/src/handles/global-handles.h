@@ -13,7 +13,6 @@
 #include "include/v8-callbacks.h"
 #include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
-#include "include/v8-traced-handle.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
@@ -30,9 +29,6 @@ class RootVisitor;
 // callbacks and finalizers attached to them.
 class V8_EXPORT_PRIVATE GlobalHandles final {
  public:
-  static void EnableMarkingBarrier(Isolate*);
-  static void DisableMarkingBarrier(Isolate*);
-
   GlobalHandles(const GlobalHandles&) = delete;
   GlobalHandles& operator=(const GlobalHandles&) = delete;
 
@@ -71,19 +67,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Tells whether global handle is weak.
   static bool IsWeak(Address* location);
 
-  //
-  // API for traced handles.
-  //
-
-  static void MoveTracedReference(Address** from, Address** to);
-  static void CopyTracedReference(const Address* const* from, Address** to);
-  static void DestroyTracedReference(Address* location);
-  static void MarkTraced(Address* location);
-  static Object MarkTracedConservatively(Address* inner_location,
-                                         Address* traced_node_block_base);
-
-  V8_INLINE static Object Acquire(Address* location);
-
   explicit GlobalHandles(Isolate* isolate);
   ~GlobalHandles();
 
@@ -93,11 +76,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   template <typename T>
   inline Handle<T> Create(T value);
-
-  Handle<Object> CreateTraced(Object value, Address* slot,
-                              GlobalHandleStoreMode store_mode);
-  Handle<Object> CreateTraced(Address value, Address* slot,
-                              GlobalHandleStoreMode store_mode);
 
   void RecordStats(HeapStats* stats);
 
@@ -112,14 +90,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateWeakRoots(RootVisitor* v);
   void IterateAllRoots(RootVisitor* v);
   void IterateAllYoungRoots(RootVisitor* v);
-
-  START_ALLOW_USE_DEPRECATED()
-
-  // Iterates over all traces handles represented by `v8::TracedReferenceBase`.
-  void IterateTracedNodes(
-      v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
-
-  END_ALLOW_USE_DEPRECATED()
 
   // Marks handles that are phantom or have callbacks based on the predicate
   // |should_reset_handle| as pending.
@@ -146,13 +116,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // empty.
   void ClearListOfYoungNodes();
 
-  // Computes whether young weak objects should be considered roots for young
-  // generation garbage collections  or just be treated weakly. Per default
-  // objects are considered as roots. Objects are treated not as root when both
-  // - `is_unmodified()` returns true;
-  // - the `EmbedderRootsHandler` also does not consider them as roots;
-  void ComputeWeaknessForYoungObjects(WeakSlotCallback is_unmodified);
-
   Isolate* isolate() const { return isolate_; }
 
   size_t TotalSize() const;
@@ -160,17 +123,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Number of global handles.
   size_t handles_count() const;
 
-  using NodeBounds = std::vector<std::pair<const void*, const void*>>;
-  NodeBounds GetTracedNodeBounds() const;
-
   void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
-
-  void NotifyStartSweepingOnMutatorThread() {
-    is_sweeping_on_mutator_thread_ = true;
-  }
-  void NotifyEndSweepingOnMutatorThread() {
-    is_sweeping_on_mutator_thread_ = false;
-  }
 
 #ifdef DEBUG
   void PrintStats();
@@ -185,9 +138,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   template <class NodeType>
   class NodeSpace;
   class PendingPhantomCallback;
-  class TracedNode;
-
-  static GlobalHandles* From(const TracedNode*);
 
   template <typename T>
   size_t InvokeFirstPassWeakCallbacks(
@@ -204,17 +154,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
                            WeakSlotCallbackWithHeap should_reset_node);
 
   Isolate* const isolate_;
-  bool is_marking_ = false;
-  bool is_sweeping_on_mutator_thread_ = false;
 
   std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding young objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> young_nodes_;
-
-  std::unique_ptr<NodeSpace<TracedNode>> traced_nodes_;
-  std::vector<TracedNode*> traced_young_nodes_;
-
   std::vector<std::pair<Node*, PendingPhantomCallback>>
       regular_pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;

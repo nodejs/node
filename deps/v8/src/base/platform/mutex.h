@@ -278,7 +278,6 @@ class V8_BASE_EXPORT SharedMutex final {
   // pthread_rwlock_t is broken on MacOS when signals are being sent to the
   // process (see https://crbug.com/v8/11399).
   // We thus use std::shared_mutex on MacOS, which does not have this problem.
-  // TODO(13256): Use std::shared_mutex directly, on all platforms.
   using NativeHandle = std::shared_mutex;
 #elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;

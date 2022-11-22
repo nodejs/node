@@ -581,6 +581,8 @@ class Internals {
   static const int kNodeStateMask = 0x3;
   static const int kNodeStateIsWeakValue = 2;
 
+  static const int kTracedNodeClassIdOffset = kApiSystemPointerSize;
+
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0xcc;

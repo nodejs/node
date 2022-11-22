@@ -322,5 +322,27 @@ export function gradientStopsFromGroups(
   return stops;
 }
 
+export class Debouncer {
+  constructor(callback, timeout = 250) {
+    this._callback = callback;
+    this._timeout = timeout;
+    this._timeoutId = 0;
+  }
+
+  callNow(...args) {
+    this.clear();
+    return this._callback(...args);
+  }
+
+  call(...args) {
+    this.clear() this._timeoutId =
+        window.setTimeout(this._callback, this._timeout, ...args)
+  }
+
+  clear() {
+    clearTimeout(this._timeoutId);
+  }
+}
+
 export * from '../helper.mjs';
 export * from '../../js/web-api-helper.mjs'

@@ -198,7 +198,7 @@ DOM.defineCustomElement('view/script-panel',
         break;
     }
     toolTipContent.appendChild(sourceMapContent);
-    this.dispatchEvent(new ToolTipEvent(toolTipContent, e.target));
+    this.dispatchEvent(new ToolTipEvent(toolTipContent, e.target, e.ctrlKey));
   }
 
   handleShowToolTipEntries(event) {
@@ -233,8 +233,8 @@ class ToolTipTableBuilder {
     tr.appendChild(DOM.td(name));
     tr.appendChild(DOM.td(subtypeName));
     tr.appendChild(DOM.td(entries.length));
-    const button =
-        DOM.button('Show', this._scriptPanel.showToolTipEntriesHandler);
+    const button = DOM.button('🔎', this._scriptPanel.showToolTipEntriesHandler);
+    button.title = `Show all ${entries.length} ${name || subtypeName} entries.`
     button.data = entries;
     tr.appendChild(DOM.td(button));
     this.tableNode.appendChild(tr);

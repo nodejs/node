@@ -245,6 +245,11 @@ class V8_EXPORT Value : public Data {
   bool IsWeakSet() const;
 
   /**
+   * Returns true if this value is a WeakRef.
+   */
+  bool IsWeakRef() const;
+
+  /**
    * Returns true if this value is an ArrayBuffer.
    */
   bool IsArrayBuffer() const;

@@ -12,7 +12,7 @@ function f() {
   return s;
 }
 
-%PrepareFunctionForOptimization(f, "allow heuristic optimization");
+%EnsureFeedbackVectorForFunction(f);
 f();
 f();
 f();

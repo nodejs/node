@@ -901,28 +901,39 @@ BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
   return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
 }
 
-BUILTIN(StringPrototypeToLocaleLowerCase) {
-  HandleScope scope(isolate);
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleLowerCase);
-
-  TO_THIS_STRING(string, "String.prototype.toLocaleLowerCase");
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::StringLocaleConvertCase(isolate, string, false,
-                                             args.atOrUndefined(isolate, 1)));
+bool IsFastLocale(Object maybe_locale) {
+  DisallowGarbageCollection no_gc;
+  if (!maybe_locale.IsSeqOneByteString()) {
+    return false;
+  }
+  auto locale = SeqOneByteString::cast(maybe_locale);
+  uint8_t* chars = locale.GetChars(no_gc);
+  if (locale.length() < 2 || !std::isalpha(chars[0]) ||
+      !std::isalpha(chars[1])) {
+    return false;
+  }
+  if (locale.length() != 2 &&
+      (locale.length() != 5 || chars[2] != '-' || !std::isalpha(chars[3]) ||
+       !std::isalpha(chars[4]))) {
+    return false;
+  }
+  char first = chars[0] | 0x20;
+  char second = chars[1] | 0x20;
+  return (first != 'a' || second != 'z') && (first != 'e' || second != 'l') &&
+         (first != 'l' || second != 't') && (first != 't' || second != 'r');
 }
 
 BUILTIN(StringPrototypeToLocaleUpperCase) {
   HandleScope scope(isolate);
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleUpperCase);
-
+  Handle<Object> maybe_locale = args.atOrUndefined(isolate, 1);
   TO_THIS_STRING(string, "String.prototype.toLocaleUpperCase");
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::StringLocaleConvertCase(isolate, string, true,
-                                             args.atOrUndefined(isolate, 1)));
+  if (maybe_locale->IsUndefined() || IsFastLocale(*maybe_locale)) {
+    string = String::Flatten(isolate, string);
+    RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, string));
+  } else {
+    RETURN_RESULT_OR_FAILURE(isolate, Intl::StringLocaleConvertCase(
+                                          isolate, string, true, maybe_locale));
+  }
 }
 
 BUILTIN(PluralRulesConstructor) {

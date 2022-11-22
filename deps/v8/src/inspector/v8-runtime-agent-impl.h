@@ -160,6 +160,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
       m_compiledScripts;
   // Binding name -> executionContextIds mapping.
   std::unordered_map<String16, std::unordered_set<int>> m_activeBindings;
+  bool m_runIfWaitingForDebuggerCalled = false;
 };
 
 }  // namespace v8_inspector

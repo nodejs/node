@@ -15,7 +15,7 @@ f(0);
 %OptimizeFunctionOnNextCall(f);
 
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);
 
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);

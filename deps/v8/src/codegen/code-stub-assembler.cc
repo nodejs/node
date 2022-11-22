@@ -4,6 +4,8 @@
 
 #include "src/codegen/code-stub-assembler.h"
 
+#include <stdio.h>
+
 #include <functional>
 
 #include "include/v8-internal.h"
@@ -843,6 +845,20 @@ TNode<IntPtrT> CodeStubAssembler::TryIntPtrMul(TNode<IntPtrT> a,
   TNode<BoolT> overflow = Projection<1>(pair);
   GotoIf(overflow, if_overflow);
   return Projection<0>(pair);
+}
+
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrDiv(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_div_zero) {
+  GotoIf(IntPtrEqual(b, IntPtrConstant(0)), if_div_zero);
+  return IntPtrDiv(a, b);
+}
+
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrMod(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_div_zero) {
+  GotoIf(IntPtrEqual(b, IntPtrConstant(0)), if_div_zero);
+  return IntPtrMod(a, b);
 }
 
 TNode<Int32T> CodeStubAssembler::TryInt32Mul(TNode<Int32T> a, TNode<Int32T> b,
@@ -3025,7 +3041,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
     TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-        FromCodeT(code), Code::kDeoptimizationDataOrInterpreterDataOffset);
+        FromCodeTNonBuiltin(code),
+        Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
   }
   Goto(&check_for_interpreter_data);
@@ -3090,9 +3107,14 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
                                           object, offset, value);
 }
 
-void CodeStubAssembler::StoreJSSharedStructInObjectField(
-    TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<Object> value) {
-  CSA_DCHECK(this, IsJSSharedStruct(object));
+void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
+                                               TNode<IntPtrT> offset,
+                                               TNode<Object> value) {
+  CSA_DCHECK(
+      this,
+      WordNotEqual(WordAnd(LoadBasicMemoryChunkFlags(object),
+                           IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
+                   IntPtrConstant(0)));
   // JSSharedStructs are allocated in the shared old space, which is currently
   // collected by stopping the world, so the incremental write barrier is not
   // needed. They can only store Smis and other HeapObjects in the shared old
@@ -15292,26 +15314,46 @@ TorqueStructArguments CodeStubAssembler::GetFrameArguments(
 }
 
 void CodeStubAssembler::Print(const char* s) {
+  PrintToStream(s, fileno(stdout));
+}
+
+void CodeStubAssembler::PrintErr(const char* s) {
+  PrintToStream(s, fileno(stderr));
+}
+
+void CodeStubAssembler::PrintToStream(const char* s, int stream) {
   std::string formatted(s);
   formatted += "\n";
   CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-              StringConstant(formatted.c_str()));
+              StringConstant(formatted.c_str()), SmiConstant(stream));
 }
 
 void CodeStubAssembler::Print(const char* prefix,
                               TNode<MaybeObject> tagged_value) {
+  PrintToStream(prefix, tagged_value, fileno(stdout));
+}
+
+void CodeStubAssembler::PrintErr(const char* prefix,
+                                 TNode<MaybeObject> tagged_value) {
+  PrintToStream(prefix, tagged_value, fileno(stderr));
+}
+
+void CodeStubAssembler::PrintToStream(const char* prefix,
+                                      TNode<MaybeObject> tagged_value,
+                                      int stream) {
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
     Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
         formatted.c_str(), AllocationType::kOld);
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
-                HeapConstant(string));
+                HeapConstant(string), SmiConstant(stream));
   }
   // CallRuntime only accepts Objects, so do an UncheckedCast to object.
   // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
   TNode<Object> arg = UncheckedCast<Object>(tagged_value);
-  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg);
+  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg,
+              SmiConstant(stream));
 }
 
 IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralAdd(

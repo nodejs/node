@@ -468,8 +468,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       // Cast from struct_a to struct_b via common base type struct_super.
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefCast, struct_super,
-      kGCPrefix, kExprRefCast, struct_b, // annotated as 'ref null none'
+      // TODO(7748): Replace cast op with "ref.cast null".
+      kGCPrefix, kExprRefCastDeprecated, struct_super,
+      kGCPrefix, kExprRefCastDeprecated, struct_b, // annotated as 'ref null none'
       kExprRefIsNull,
     ]);
 
@@ -514,7 +515,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       // local.get 0 is known to be null until end of block.
       kExprLocalGet, 0,
       // This cast is a no-op and shold be optimized away.
-      kGCPrefix, kExprRefCast, struct_b,
+      // TODO(7748): Replace with "ref.cast null".
+      kGCPrefix, kExprRefCastDeprecated, struct_b,
       kExprEnd,
       kExprRefIsNull,
     ]);
@@ -527,4 +529,66 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate({});
   assertEquals(1, instance.exports.main());
+})();
+
+(function AssertNullAfterCastIncompatibleTypes() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_a = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+  let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
+
+  builder.addFunction("mkStruct", makeSig([], [kWasmExternRef]))
+    .addBody([kGCPrefix, kExprStructNewDefault, struct_a,
+              kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+  let callee = builder.addFunction("callee", callee_sig)
+    .addBody([
+       kExprLocalGet, 0, kGCPrefix, kExprRefCast, struct_b,
+       kExprRefAsNonNull,
+       kGCPrefix, kExprStructGet, struct_b, 0]);
+
+  builder.addFunction("main", makeSig([kWasmExternRef], [kWasmI32]))
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
+              kGCPrefix, kExprRefAsStruct,
+              kGCPrefix, kExprRefCast, struct_a,
+              kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTraps(kTrapIllegalCast,
+              () => instance.exports.main(instance.exports.mkStruct()));
+})();
+
+(function StructGetMultipleNullChecks() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true),
+                                  makeField(kWasmI32, true)]);
+
+  builder.addFunction("main",
+                      makeSig([kWasmI32, wasmRefNullType(struct)], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructGet, struct, 0,
+        kExprLocalGet, 1,
+        // The null check should be removed for this struct.
+        kGCPrefix, kExprStructGet, struct, 1,
+        kExprI32Add,
+      kExprElse,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStructGet, struct, 0,
+      kExprEnd,
+      kExprLocalGet, 1,
+      // The null check here could be removed if we compute type intersections.
+      kGCPrefix, kExprStructGet, struct, 1,
+      kExprI32Mul])
+    .exportFunc();
+
+  builder.instantiate({});
 })();

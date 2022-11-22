@@ -95,7 +95,7 @@ Debug::Debug(Isolate* isolate)
       is_suppressed_(false),
       break_disabled_(false),
       break_points_active_(true),
-      break_on_exception_(false),
+      break_on_caught_exception_(false),
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
       debug_info_list_(nullptr),
@@ -480,16 +480,19 @@ void Debug::Unload() {
   debug_delegate_ = nullptr;
 }
 
-void Debug::OnInstrumentationBreak() {
+debug::DebugDelegate::PauseAfterInstrumentation
+Debug::OnInstrumentationBreak() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  if (!debug_delegate_) return;
+  if (!debug_delegate_) {
+    return debug::DebugDelegate::kNoPauseAfterInstrumentationRequested;
+  }
   DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
-  debug_delegate_->BreakOnInstrumentation(v8::Utils::ToLocal(native_context),
-                                          kInstrumentationId);
+  return debug_delegate_->BreakOnInstrumentation(
+      v8::Utils::ToLocal(native_context), kInstrumentationId);
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
@@ -512,21 +515,28 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
   const bool hitInstrumentationBreak =
       IsBreakOnInstrumentation(debug_info, location);
+  bool shouldPauseAfterInstrumentation = false;
   if (hitInstrumentationBreak) {
-    OnInstrumentationBreak();
+    debug::DebugDelegate::PauseAfterInstrumentation pauseDuringInstrumentation =
+        OnInstrumentationBreak();
+    shouldPauseAfterInstrumentation =
+        pauseDuringInstrumentation ==
+        debug::DebugDelegate::kPauseAfterInstrumentationRequested;
   }
 
   // Find actual break points, if any, and trigger debug break event.
   bool has_break_points;
+  bool scheduled_break =
+      scheduled_break_on_function_call() || shouldPauseAfterInstrumentation;
   MaybeHandle<FixedArray> break_points_hit =
       CheckBreakPoints(debug_info, &location, &has_break_points);
   if (!break_points_hit.is_null() || break_on_next_function_call() ||
-      scheduled_break_on_function_call()) {
+      scheduled_break) {
     StepAction lastStepAction = last_step_action();
     DCHECK_IMPLIES(scheduled_break_on_function_call(),
                    lastStepAction == StepNone);
     debug::BreakReasons break_reasons;
-    if (scheduled_break_on_function_call()) {
+    if (scheduled_break) {
       break_reasons.Add(debug::BreakReason::kScheduled);
     }
     // Clear all current stepping setup.
@@ -1015,7 +1025,7 @@ void Debug::ChangeBreakOnException(ExceptionBreakType type, bool enable) {
   if (type == BreakUncaughtException) {
     break_on_uncaught_exception_ = enable;
   } else {
-    break_on_exception_ = enable;
+    break_on_caught_exception_ = enable;
   }
 }
 
@@ -1023,7 +1033,7 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   if (type == BreakUncaughtException) {
     return break_on_uncaught_exception_;
   } else {
-    return break_on_exception_;
+    return break_on_caught_exception_;
   }
 }
 
@@ -1584,6 +1594,17 @@ void Debug::PrepareFunctionForDebugExecution(
       kRelaxedStore);
 }
 
+namespace {
+
+bool IsJSFunctionAndNeedsTrampoline(Object maybe_function) {
+  if (!maybe_function.IsJSFunction()) return false;
+
+  SharedFunctionInfo shared = JSFunction::cast(maybe_function).shared();
+  return shared.HasDebugInfo() && shared.GetDebugInfo().CanBreakAtEntry();
+}
+
+}  // namespace
+
 void Debug::InstallDebugBreakTrampoline() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Check the list of debug infos whether the debug break trampoline needs to
@@ -1609,24 +1630,68 @@ void Debug::InstallDebugBreakTrampoline() {
 
   Handle<CodeT> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
+  using AccessorPairWithContext =
+      std::pair<Handle<AccessorPair>, Handle<NativeContext>>;
+  std::vector<AccessorPairWithContext> needs_instantiate;
   {
+    // Deduplicate {needs_instantiate} by recording all collected AccessorPairs.
+    std::set<AccessorPair> recorded;
     HeapObjectIterator iterator(isolate_->heap());
+    DisallowGarbageCollection no_gc;
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && obj.IsFeedbackVector()) {
         FeedbackVector::cast(obj).ClearSlots(isolate_);
         continue;
-      } else if (obj.IsJSFunction()) {
+      } else if (IsJSFunctionAndNeedsTrampoline(obj)) {
         JSFunction fun = JSFunction::cast(obj);
-        SharedFunctionInfo shared = fun.shared();
-        if (!shared.HasDebugInfo()) continue;
-        if (!shared.GetDebugInfo().CanBreakAtEntry()) continue;
         if (!fun.is_compiled()) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
           fun.set_code(*trampoline);
         }
+      } else if (obj.IsJSObject()) {
+        JSObject object = JSObject::cast(obj);
+        DescriptorArray descriptors =
+            object.map().instance_descriptors(kRelaxedLoad);
+
+        for (InternalIndex i : object.map().IterateOwnDescriptors()) {
+          if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {
+            Object value = descriptors.GetStrongValue(i);
+            if (!value.IsAccessorPair()) continue;
+
+            AccessorPair accessor_pair = AccessorPair::cast(value);
+            if (!accessor_pair.getter().IsFunctionTemplateInfo() &&
+                !accessor_pair.setter().IsFunctionTemplateInfo()) {
+              continue;
+            }
+            if (recorded.find(accessor_pair) != recorded.end()) continue;
+
+            needs_instantiate.emplace_back(
+                handle(accessor_pair, isolate_),
+                object.GetCreationContext().ToHandleChecked());
+            recorded.insert(accessor_pair);
+          }
+        }
       }
+    }
+  }
+
+  // Forcibly instantiate all lazy accessor pairs to make sure that they
+  // properly hit the debug break trampoline.
+  for (AccessorPairWithContext tuple : needs_instantiate) {
+    Handle<AccessorPair> accessor_pair = tuple.first;
+    Handle<NativeContext> native_context = tuple.second;
+    Handle<Object> getter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*getter)) {
+      Handle<JSFunction>::cast(getter)->set_code(*trampoline);
+    }
+
+    Handle<Object> setter = AccessorPair::GetComponent(
+        isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
+    if (IsJSFunctionAndNeedsTrampoline(*setter)) {
+      Handle<JSFunction>::cast(setter)->set_code(*trampoline);
     }
   }
 
@@ -2204,7 +2269,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
   if (!debug_delegate_) return;
 
   // Return if we are not interested in exception events.
-  if (!break_on_exception_ && !break_on_uncaught_exception_) return;
+  if (!break_on_caught_exception_ && !break_on_uncaught_exception_) return;
 
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
@@ -2229,11 +2294,14 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     }
   }
 
-  // Return if the exception is caught and we only care about uncaught
-  // exceptions.
-  if (!uncaught && !break_on_exception_) {
-    DCHECK(break_on_uncaught_exception_);
-    return;
+  if (!uncaught) {
+    if (!break_on_caught_exception_) {
+      return;
+    }
+  } else {
+    if (!break_on_uncaught_exception_) {
+      return;
+    }
   }
 
   {
@@ -2620,6 +2688,7 @@ DebugScope::DebugScope(Debug* debug)
       prev_(reinterpret_cast<DebugScope*>(
           base::Relaxed_Load(&debug->thread_local_.current_debug_scope_))),
       no_interrupts_(debug_->isolate_) {
+  timer_.Start();
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
@@ -2637,6 +2706,10 @@ DebugScope::DebugScope(Debug* debug)
 }
 
 void DebugScope::set_terminate_on_resume() { terminate_on_resume_ = true; }
+
+base::TimeDelta DebugScope::ElapsedTimeSinceCreation() {
+  return timer_.Elapsed();
+}
 
 DebugScope::~DebugScope() {
   // Terminate on resume must have been handled by retrieving it, if this is
@@ -2955,6 +3028,14 @@ void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
   // necessary bits out of PrepareSTep into a separate method or fold them
   // into Debug::PrepareRestartFrame.
   PrepareStep(StepInto);
+}
+
+void Debug::NotifyDebuggerPausedEventSent() {
+  DebugScope* scope = reinterpret_cast<DebugScope*>(
+      base::Relaxed_Load(&thread_local_.current_debug_scope_));
+  CHECK(scope);
+  isolate_->counters()->debug_pause_to_paused_event()->AddTimedSample(
+      scope->ElapsedTimeSinceCreation());
 }
 
 }  // namespace internal

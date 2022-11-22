@@ -54,6 +54,7 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
   sandboxed_pointer: bool: 1 bit;
+  machine: bool: 1 bit;
 }
 
 @export
@@ -249,9 +250,9 @@ builtin CheckTurbofanType(implicit context: Context)(
     return Undefined;
   }
 
-  Print('Type assertion failed! (value/expectedType/nodeId)');
-  Print(value);
-  Print(expectedType);
-  Print(nodeId);
+  PrintErr('Type assertion failed! (value/expectedType/nodeId)');
+  PrintErr(value);
+  PrintErr(expectedType);
+  PrintErr(nodeId);
   unreachable;
 }

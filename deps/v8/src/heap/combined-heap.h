@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE CombinedHeapObjectIterator final {
   HeapObject Next();
 
  private:
-  SafepointScope safepoint_scope_;
+  IsolateSafepointScope safepoint_scope_;
   HeapObjectIterator heap_iterator_;
   ReadOnlyHeapObjectIterator ro_heap_iterator_;
 };

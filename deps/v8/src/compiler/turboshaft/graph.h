@@ -21,8 +21,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+template <template <class> class... Reducers>
 class Assembler;
-class VarAssembler;
 
 // `OperationBuffer` is a growable, Zone-allocated buffer to store Turboshaft
 // operations. It is part of a `Graph`.
@@ -253,13 +253,14 @@ class RandomAccessStackDominatorNode
   friend class Block;
 #endif
 
-  int len_ = 0;
-  Derived* nxt_ = nullptr;
-  Derived* jmp_ = nullptr;
   // Myers' original datastructure requires to often check jmp_->len_, which is
   // not so great on modern computers (memory access, caches & co). To speed up
   // things a bit, we store here jmp_len_.
   int jmp_len_ = 0;
+
+  int len_ = 0;
+  Derived* nxt_ = nullptr;
+  Derived* jmp_ = nullptr;
 };
 
 // A basic block
@@ -383,7 +384,7 @@ class Graph {
     next_block_ = 0;
   }
 
-  const Operation& Get(OpIndex i) const {
+  V8_INLINE const Operation& Get(OpIndex i) const {
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
     const Operation* ptr =
@@ -392,7 +393,7 @@ class Graph {
     DCHECK_LT(OpcodeIndex(ptr->opcode), kNumberOfOpcodes);
     return *ptr;
   }
-  Operation& Get(OpIndex i) {
+  V8_INLINE Operation& Get(OpIndex i) {
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
     Operation* ptr =
@@ -412,10 +413,6 @@ class Graph {
     DCHECK_LT(i.id(), bound_blocks_.size());
     return *bound_blocks_[i.id()];
   }
-  Block* GetPtr(uint32_t index) {
-    DCHECK_LT(index, bound_blocks_.size());
-    return bound_blocks_[index];
-  }
 
   OpIndex Index(const Operation& op) const { return operations_.Index(op); }
 
@@ -429,8 +426,10 @@ class Graph {
   }
 
   template <class Op, class... Args>
-  V8_INLINE OpIndex Add(Args... args) {
+  V8_INLINE Op& Add(Args... args) {
+#ifdef DEBUG
     OpIndex result = next_operation_index();
+#endif  // DEBUG
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
     DCHECK_EQ(result, Index(op));
@@ -439,7 +438,7 @@ class Graph {
       DCHECK_LT(input, result);
     }
 #endif  // DEBUG
-    return result;
+    return op;
   }
 
   template <class Op, class... Args>
@@ -479,15 +478,17 @@ class Graph {
   V8_INLINE bool Add(Block* block) {
     DCHECK_EQ(block->graph_generation_, generation_);
     if (!bound_blocks_.empty() && !block->HasPredecessors()) return false;
-    bool deferred = true;
-    for (Block* pred = block->last_predecessor_; pred != nullptr;
-         pred = pred->neighboring_predecessor_) {
-      if (!pred->IsDeferred()) {
-        deferred = false;
-        break;
+    if (!block->IsDeferred()) {
+      bool deferred = true;
+      for (Block* pred = block->last_predecessor_; pred != nullptr;
+           pred = pred->neighboring_predecessor_) {
+        if (!pred->IsDeferred()) {
+          deferred = false;
+          break;
+        }
       }
+      block->SetDeferred(deferred);
     }
-    block->SetDeferred(deferred);
     DCHECK(!block->begin_.valid());
     block->begin_ = next_operation_index();
     DCHECK_EQ(block->index_, BlockIndex::Invalid());

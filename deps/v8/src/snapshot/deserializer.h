@@ -265,11 +265,6 @@ class Deserializer : public SerializerDeserializer {
 #endif  // DEBUG
 };
 
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Deserializer<Isolate>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Deserializer<LocalIsolate>;
-
 enum class DeserializingUserCodeOption {
   kNotDeserializingUserCode,
   kIsDeserializingUserCode

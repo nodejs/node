@@ -115,16 +115,6 @@ int64_t Heap::update_external_memory(int64_t delta) {
   return external_memory_.Update(delta);
 }
 
-PagedSpace* Heap::space_for_maps() {
-  return V8_LIKELY(map_space_) ? static_cast<PagedSpace*>(map_space_)
-                               : static_cast<PagedSpace*>(old_space_);
-}
-
-ConcurrentAllocator* Heap::concurrent_allocator_for_maps() {
-  return V8_LIKELY(shared_map_allocator_) ? shared_map_allocator_.get()
-                                          : shared_space_allocator_.get();
-}
-
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
 #define ROOT_ACCESSOR(Type, name, CamelName)                           \
@@ -164,14 +154,14 @@ void Heap::SetMessageListeners(TemplateList value) {
   roots_table()[RootIndex::kMessageListeners] = value.ptr();
 }
 
-void Heap::SetPendingOptimizeForTestBytecode(Object hash_table) {
+void Heap::SetFunctionsMarkedForManualOptimization(Object hash_table) {
   DCHECK(hash_table.IsObjectHashTable() || hash_table.IsUndefined(isolate()));
-  roots_table()[RootIndex::kPendingOptimizeForTestBytecode] = hash_table.ptr();
+  roots_table()[RootIndex::kFunctionsMarkedForManualOptimization] =
+      hash_table.ptr();
 }
 
 PagedSpace* Heap::paged_space(int idx) {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == MAP_SPACE ||
-         idx == SHARED_SPACE);
+  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 
@@ -377,8 +367,7 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
     }
 
     case OLD_SPACE:
-    case CODE_SPACE:
-    case MAP_SPACE: {
+    case CODE_SPACE: {
       PagedSpace* paged_space = static_cast<PagedSpace*>(base_space);
       base::SharedMutexGuard<base::kShared> guard(
           paged_space->linear_area_lock());

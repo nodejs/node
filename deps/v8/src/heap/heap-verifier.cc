@@ -29,6 +29,10 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+thread_local HeapObject pending_layout_change_object = HeapObject();
+}  // namespace
+
 // Verify that all objects are Smis.
 class VerifySmisVisitor final : public RootVisitor {
  public:
@@ -54,7 +58,6 @@ class HeapVerification final {
   ReadOnlySpace* read_only_space() const { return heap_->read_only_space(); }
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
-  MapSpace* map_space() const { return heap_->map_space(); }
   CodeSpace* code_space() const { return heap_->code_space(); }
   LargeObjectSpace* lo_space() const { return heap_->lo_space(); }
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
@@ -70,7 +73,7 @@ void HeapVerification::Verify() {
   CHECK(heap()->HasBeenSetUp());
   AllowGarbageCollection allow_gc;
   IgnoreLocalGCRequests ignore_gc_requests(heap());
-  SafepointScope safepoint_scope(heap());
+  IsolateSafepointScope safepoint_scope(heap());
   HandleScope scope(isolate());
 
   heap()->MakeHeapIterable();
@@ -78,7 +81,8 @@ void HeapVerification::Verify() {
   heap()->array_buffer_sweeper()->EnsureFinished();
 
   VerifyPointersVisitor visitor(heap());
-  heap()->IterateRoots(&visitor, {});
+  heap()->IterateRoots(&visitor,
+                       base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
 
   if (!isolate()->context().is_null() &&
       !isolate()->raw_native_context().is_null()) {
@@ -103,9 +107,6 @@ void HeapVerification::Verify() {
   if (new_space()) new_space()->Verify(isolate());
 
   old_space()->Verify(isolate(), &visitor);
-  if (map_space()) {
-    map_space()->Verify(isolate(), &visitor);
-  }
 
   VerifyPointersVisitor no_dirty_regions_visitor(heap());
   code_space()->Verify(isolate(), &no_dirty_regions_visitor);
@@ -412,6 +413,32 @@ void HeapVerifier::VerifyRememberedSetFor(Heap* heap, HeapObject object) {
 }
 
 // static
+void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(Heap* heap,
+                                                     HeapObject object) {
+  if (object.InSharedWritableHeap()) {
+    // Out of objects in the shared heap, only strings can change layout.
+    DCHECK(object.IsString());
+    // Shared strings only change layout under GC, never concurrently.
+    if (object.IsShared()) {
+      Isolate* isolate = heap->isolate();
+      Isolate* shared_heap_isolate = isolate->is_shared_heap_isolate()
+                                         ? isolate
+                                         : isolate->shared_heap_isolate();
+      shared_heap_isolate->global_safepoint()->AssertActive();
+    }
+    // Non-shared strings in the shared heap are allowed to change layout
+    // outside of GC like strings in non-shared heaps.
+  }
+}
+
+// static
+void HeapVerifier::SetPendingLayoutChangeObject(Heap* heap, HeapObject object) {
+  VerifyObjectLayoutChangeIsAllowed(heap, object);
+  DCHECK(pending_layout_change_object.is_null());
+  pending_layout_change_object = object;
+}
+
+// static
 void HeapVerifier::VerifyObjectLayoutChange(Heap* heap, HeapObject object,
                                             Map new_map) {
   // Object layout changes are currently not supported on background threads.
@@ -419,17 +446,19 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap, HeapObject object,
 
   if (!v8_flags.verify_heap) return;
 
+  VerifyObjectLayoutChangeIsAllowed(heap, object);
+
   PtrComprCageBase cage_base(heap->isolate());
 
   // Check that Heap::NotifyObjectLayoutChange was called for object transitions
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
-  if (heap->pending_layout_change_object_.is_null()) {
+  if (pending_layout_change_object.is_null()) {
     VerifySafeMapTransition(heap, object, new_map);
   } else {
-    DCHECK_EQ(heap->pending_layout_change_object_, object);
-    heap->pending_layout_change_object_ = HeapObject();
+    DCHECK_EQ(pending_layout_change_object, object);
+    pending_layout_change_object = HeapObject();
   }
 }
 

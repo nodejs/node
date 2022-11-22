@@ -1683,6 +1683,29 @@ int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
   return 0;
 }
 
+int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
+                                                 Address x_addr,
+                                                 Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  Isolate* isolate;
+  if (!GetIsolateFromHeapObject(x, &isolate)) {
+    // We should always get the isolate from the BigInt.
+    UNREACHABLE();
+  }
+
+  bigint::Status status = isolate->bigint_processor()->Modulo(
+      GetRWDigits(result), GetDigits(x), GetDigits(y));
+  if (status == bigint::Status::kInterrupted) {
+    return 1;
+  }
+
+  MutableBigInt::Canonicalize(result);
+  return 0;
+}
+
 void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr) {

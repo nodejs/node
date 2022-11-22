@@ -760,8 +760,6 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       return SnapshotSpace::kCode;
     } else if (ReadOnlyHeap::Contains(object)) {
       return SnapshotSpace::kReadOnlyHeap;
-    } else if (object.IsMap()) {
-      return SnapshotSpace::kMap;
     } else {
       return SnapshotSpace::kOld;
     }
@@ -783,13 +781,13 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
       // detail and isn't relevant to the snapshot.
       case NEW_LO_SPACE:
       case LO_SPACE:
+      // Shared objects are currently encoded as 'old' snapshot objects. This
+      // basically duplicates shared heap objects for each isolate again.
+      case SHARED_SPACE:
+      case SHARED_LO_SPACE:
         return SnapshotSpace::kOld;
       case CODE_SPACE:
         return SnapshotSpace::kCode;
-      case MAP_SPACE:
-        return SnapshotSpace::kMap;
-      case SHARED_SPACE:
-      case SHARED_LO_SPACE:
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
@@ -1228,16 +1226,13 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sizeof(field_value), field_value);
     } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                object_->IsCodeDataContainer(cage_base)) {
-      // code_cage_base and code_entry_point fields contain raw values that
-      // will be recomputed after deserialization, so write zeros to keep the
-      // snapshot deterministic.
-      CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
-               CodeDataContainer::kCodeEntryPointOffset);
-      static byte field_value[kTaggedSize + kSystemPointerSize] = {0};
-      OutputRawWithCustomField(
-          sink_, object_start, base, bytes_to_output,
-          CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
-          sizeof(field_value), field_value);
+      // code_entry_point field contains a raw value that will be recomputed
+      // after deserialization, so write zeros to keep the snapshot
+      // deterministic.
+      static byte field_value[kSystemPointerSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               CodeDataContainer::kCodeEntryPointOffset,
+                               sizeof(field_value), field_value);
     } else if (object_->IsSeqString()) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

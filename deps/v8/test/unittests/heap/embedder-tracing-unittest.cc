@@ -466,7 +466,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
 
   i::IncrementalMarking* marking = heap->incremental_marking();
   {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
@@ -545,9 +545,9 @@ TEST_F(EmbedderTracingTest, TracedReferenceReset) {
 TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
   ManualGCScope manual_gc(i_isolate());
   v8::HandleScope outer_scope(v8_isolate());
-  i::GlobalHandles* global_handles = i_isolate()->global_handles();
+  auto* traced_handles = i_isolate()->traced_handles();
 
-  const size_t initial_count = global_handles->handles_count();
+  const size_t initial_count = traced_handles->used_node_count();
   auto handle1 = std::make_unique<v8::TracedReference<v8::Value>>();
   {
     v8::HandleScope scope(v8_isolate());
@@ -556,7 +556,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
   auto handle2 = std::make_unique<v8::TracedReference<v8::Value>>(*handle1);
   auto handle3 = std::make_unique<v8::TracedReference<v8::Value>>();
   *handle3 = *handle2;
-  EXPECT_EQ(initial_count + 3, global_handles->handles_count());
+  EXPECT_EQ(initial_count + 3, traced_handles->used_node_count());
   EXPECT_FALSE(handle1->IsEmpty());
   EXPECT_EQ(*handle1, *handle2);
   EXPECT_EQ(*handle2, *handle3);
@@ -574,7 +574,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
             EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     FullGC();
   }
-  EXPECT_EQ(initial_count, global_handles->handles_count());
+  EXPECT_EQ(initial_count, traced_handles->used_node_count());
 }
 
 TEST_F(EmbedderTracingTest, TracedReferenceToUnmodifiedJSObjectDiesOnFullGC) {
@@ -681,12 +681,12 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
   auto dead = std::make_unique<v8::TracedReference<v8::Value>>();
   live->Reset(v8_isolate(), v8::Undefined(v8_isolate()));
   dead->Reset(v8_isolate(), v8::Undefined(v8_isolate()));
-  i::GlobalHandles* global_handles = i_isolate()->global_handles();
+  auto* traced_handles = i_isolate()->traced_handles();
   {
     TestEmbedderHeapTracer tracer;
     heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
     tracer.AddReferenceForTracing(live.get());
-    const size_t initial_count = global_handles->handles_count();
+    const size_t initial_count = traced_handles->used_node_count();
     {
       // Conservative scanning may find stale pointers to on-stack handles.
       // Disable scanning, assuming the slots are overwritten.
@@ -698,7 +698,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
               EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
       FullGC();
     }
-    const size_t final_count = global_handles->handles_count();
+    const size_t final_count = traced_handles->used_node_count();
     // Handles are not black allocated, so `dead` is immediately reclaimed.
     EXPECT_EQ(initial_count, final_count + 1);
   }
@@ -712,12 +712,12 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesDoNotLeak) {
   v8::HandleScope scope(v8_isolate());
   auto ref = std::make_unique<v8::TracedReference<v8::Value>>();
   ref->Reset(v8_isolate(), v8::Undefined(v8_isolate()));
-  i::GlobalHandles* global_handles = i_isolate()->global_handles();
-  const size_t initial_count = global_handles->handles_count();
+  auto* traced_handles = i_isolate()->traced_handles();
+  const size_t initial_count = traced_handles->used_node_count();
   // We need two GCs because handles are black allocated.
   FullGC();
   FullGC();
-  const size_t final_count = global_handles->handles_count();
+  const size_t final_count = traced_handles->used_node_count();
   EXPECT_EQ(initial_count, final_count + 1);
 }
 
@@ -792,9 +792,9 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
   tracer.SetStackStart(
       static_cast<void*>(base::Stack::GetCurrentFrameAddress()));
-  i::GlobalHandles* global_handles = i_isolate()->global_handles();
+  auto* traced_handles = i_isolate()->traced_handles();
 
-  const size_t initial_count = global_handles->handles_count();
+  const size_t initial_count = traced_handles->used_node_count();
   char* memory = new char[sizeof(v8::TracedReference<v8::Value>)];
   auto* traced = new (memory) v8::TracedReference<v8::Value>();
   {
@@ -804,10 +804,10 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
     EXPECT_TRUE(traced->IsEmpty());
     *traced = v8::TracedReference<v8::Value>(v8_isolate(), object);
     EXPECT_FALSE(traced->IsEmpty());
-    EXPECT_EQ(initial_count + 1, global_handles->handles_count());
+    EXPECT_EQ(initial_count + 1, traced_handles->used_node_count());
   }
   traced->~TracedReference<v8::Value>();
-  EXPECT_EQ(initial_count + 1, global_handles->handles_count());
+  EXPECT_EQ(initial_count + 1, traced_handles->used_node_count());
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
@@ -819,7 +819,7 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
             EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     FullGC();
   }
-  EXPECT_EQ(initial_count, global_handles->handles_count());
+  EXPECT_EQ(initial_count, traced_handles->used_node_count());
   delete[] memory;
 }
 
@@ -902,22 +902,22 @@ TEST_F(EmbedderTracingTest, TracedReferenceNoDestructorReclaimedOnScavenge) {
   constexpr uint16_t kClassIdToOptimize = 23;
   EmbedderHeapTracerNoDestructorNonTracingClearing tracer(kClassIdToOptimize);
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  i::GlobalHandles* global_handles = i_isolate()->global_handles();
+  auto* traced_handles = i_isolate()->traced_handles();
 
-  const size_t initial_count = global_handles->handles_count();
+  const size_t initial_count = traced_handles->used_node_count();
   auto* optimized_handle = new v8::TracedReference<v8::Value>();
   auto* non_optimized_handle = new v8::TracedReference<v8::Value>();
   SetupOptimizedAndNonOptimizedHandle(v8_isolate(), kClassIdToOptimize,
                                       optimized_handle, non_optimized_handle);
-  EXPECT_EQ(initial_count + 2, global_handles->handles_count());
+  EXPECT_EQ(initial_count + 2, traced_handles->used_node_count());
   YoungGC();
-  EXPECT_EQ(initial_count + 1, global_handles->handles_count());
+  EXPECT_EQ(initial_count + 1, traced_handles->used_node_count());
   EXPECT_TRUE(optimized_handle->IsEmpty());
   delete optimized_handle;
   EXPECT_FALSE(non_optimized_handle->IsEmpty());
   non_optimized_handle->Reset();
   delete non_optimized_handle;
-  EXPECT_EQ(initial_count, global_handles->handles_count());
+  EXPECT_EQ(initial_count, traced_handles->used_node_count());
 }
 
 namespace {

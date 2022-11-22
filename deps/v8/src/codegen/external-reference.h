@@ -184,6 +184,8 @@ class StatsCounter;
     "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
   V(mutable_big_int_absolute_div_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteDivAndCanonicalize")                                \
+  V(mutable_big_int_absolute_mod_and_canonicalize_function,                    \
+    "MutableBigInt_AbsoluteModAndCanonicalize")                                \
   V(mutable_big_int_bitwise_and_pp_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosPosAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_nn_and_canonicalize_function,                  \
@@ -272,7 +274,8 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
-  IF_WASM(V, wasm_array_fill_with_zeroes, "wasm::array_fill_with_zeroes")      \
+  IF_WASM(V, wasm_array_fill_with_number_or_null,                              \
+          "wasm::array_fill_with_number_or_null")                              \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
@@ -337,6 +340,10 @@ class StatsCounter;
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
+    "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
+  V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
+    "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #ifdef V8_INTL_SUPPORT

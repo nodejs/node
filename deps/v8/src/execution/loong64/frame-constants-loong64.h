@@ -20,7 +20,7 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 6;
@@ -29,9 +29,9 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 
   // On loong64, spilled registers are implicitly sorted backwards by number.
   // We spill:
-  //   a0: param0 = instance
   //   a2, a3, a4, a5, a6, a7: param1, param2, ..., param6
-  // in the following FP-relative order: [a7, a6, a5, a4, a3, a2, a0].
+  // in the following FP-relative order: [a7, a6, a5, a4, a3, a2].
+  // The instance slot is in position '6', the first spill slot is at '0'.
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
 
@@ -42,7 +42,7 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
   static constexpr int kNativeModuleOffset = 0;
 };
 

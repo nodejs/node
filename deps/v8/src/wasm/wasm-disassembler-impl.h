@@ -21,7 +21,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-template <Decoder::ValidateFlag validate>
+template <typename ValidationTag>
 class ImmediatesPrinter;
 
 using IndexAsComment = NamesProvider::IndexAsComment;
@@ -74,9 +74,9 @@ class OffsetsProvider;
 // FunctionBodyDisassembler.
 
 class V8_EXPORT_PRIVATE FunctionBodyDisassembler
-    : public WasmDecoder<Decoder::kFullValidation> {
+    : public WasmDecoder<Decoder::FullValidationTag> {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  using ValidationTag = Decoder::FullValidationTag;
   enum FunctionHeader : bool { kSkipHeader = false, kPrintHeader = true };
 
   FunctionBodyDisassembler(Zone* zone, const WasmModule* module,
@@ -84,8 +84,8 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
                            const FunctionSig* sig, const byte* start,
                            const byte* end, uint32_t offset,
                            NamesProvider* names)
-      : WasmDecoder<validate>(zone, module, WasmFeatures::All(), detected, sig,
-                              start, end, offset),
+      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
+                                   sig, start, end, offset),
         func_index_(func_index),
         names_(names) {}
 
@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
     return label_stack_[label_stack_.size() - 1 - depth];
   }
 
-  friend class ImmediatesPrinter<validate>;
+  friend class ImmediatesPrinter<ValidationTag>;
   uint32_t func_index_;
   WasmOpcode current_opcode_ = kExprUnreachable;
   NamesProvider* names_;
@@ -141,7 +141,7 @@ class ModuleDisassembler {
   V8_EXPORT_PRIVATE void PrintTypeDefinition(uint32_t type_index,
                                              Indentation indendation,
                                              IndexAsComment index_as_comment);
-  V8_EXPORT_PRIVATE void PrintModule(Indentation indentation);
+  V8_EXPORT_PRIVATE void PrintModule(Indentation indentation, size_t max_mb);
 
  private:
   void PrintImportName(const WasmImport& import);

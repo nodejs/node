@@ -276,7 +276,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // TODO(v8:5405): Replace this check with a DCHECK when resolution of
         // of synthetic variables does not go through this code path.
         if (ScopeInfo::VariableIsSynthetic(*name)) {
-          DCHECK(context->IsWithContext());
           maybe = Just(ABSENT);
         } else {
           LookupIterator it(isolate, object, name, object);

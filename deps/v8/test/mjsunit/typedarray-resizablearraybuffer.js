@@ -172,6 +172,24 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([3, 4, 5, 6],
                  ToNumbers(new targetCtor(lengthTrackingWithOffset)));
   });
+
+  AllBigIntUnmatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const rab = CreateResizableArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(rab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(rab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { new targetCtor(fixedLength); }, TypeError);
+    assertThrows(() => { new targetCtor(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { new targetCtor(lengthTracking); }, TypeError);
+    assertThrows(() => { new targetCtor(lengthTrackingWithOffset); },
+                 TypeError);
+  });
 })();
 
 (function TypedArrayLengthWhenResizedOutOfBounds1() {
@@ -7645,4 +7663,103 @@ SortCallbackGrows(ArraySortHelper);
     assertEquals([0, 0, 0, 0],
                  ToNumbers(func.apply(null, lengthTrackingWithOffset)));
   }
+})();
+
+(function TypedArrayFrom() {
+  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const rab = CreateResizableArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(rab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(rab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taFull = new sourceCtor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, ...] << lengthTracking
+    //                    [3, 4, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(fixedLength)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(lengthTracking)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(lengthTrackingWithOffset)));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * sourceCtor.BYTES_PER_ELEMENT);
+
+    // Orig. array: [1, 2, 3]
+    //              [1, 2, 3, ...] << lengthTracking
+    //                    [3, ...] << lengthTrackingWithOffset
+
+    assertThrows(() => { targetCtor.from(fixedLength); }, TypeError);
+    assertThrows(() => { targetCtor.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([1, 2, 3], ToNumbers(targetCtor.from(lengthTracking)));
+    assertEquals([3], ToNumbers(targetCtor.from(lengthTrackingWithOffset)));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * sourceCtor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { targetCtor.from(fixedLength); }, TypeError);
+    assertThrows(() => { targetCtor.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([1], ToNumbers(targetCtor.from(lengthTracking)));
+    assertThrows(() => { targetCtor.from(lengthTrackingWithOffset); },
+                 TypeError);
+
+    // Shrink to zero.
+    rab.resize(0);
+
+    assertThrows(() => { targetCtor.from(fixedLength); }, TypeError);
+    assertThrows(() => { targetCtor.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([], ToNumbers(targetCtor.from(lengthTracking)));
+    assertThrows(() => { targetCtor.from(lengthTrackingWithOffset); },
+                 TypeError);
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * sourceCtor.BYTES_PER_ELEMENT);
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4, 5, 6]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, 5, 6, ...] << lengthTracking
+    //                    [3, 4, 5, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(targetCtor.from(fixedLength)));
+    assertEquals([3, 4], ToNumbers(targetCtor.from(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4, 5, 6],
+                 ToNumbers(targetCtor.from(lengthTracking)));
+    assertEquals([3, 4, 5, 6],
+                 ToNumbers(targetCtor.from(lengthTrackingWithOffset)));
+  });
+
+  AllBigIntUnmatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const rab = CreateResizableArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(rab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(rab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        rab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { targetCtor.from(fixedLength); }, TypeError);
+    assertThrows(() => { targetCtor.from(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { targetCtor.from(lengthTracking); }, TypeError);
+    assertThrows(() => { targetCtor.from(lengthTrackingWithOffset); },
+                 TypeError);
+  });
 })();

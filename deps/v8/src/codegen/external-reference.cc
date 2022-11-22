@@ -25,6 +25,7 @@
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
@@ -454,8 +455,8 @@ IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
         wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_zeroes,
-        wasm::array_fill_with_zeroes_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_number_or_null,
+        wasm::array_fill_with_number_or_null_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -587,7 +588,7 @@ ExternalReference ExternalReference::address_of_log_or_trace_osr() {
 
 ExternalReference
 ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
-  return ExternalReference(&FLAG_harmony_symbol_as_weakmap_key);
+  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
@@ -950,6 +951,20 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const base::uc16, const base::uc16>();
 }
 
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_shifts() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindShifts());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
+ExternalReference
+ExternalReference::typed_array_and_rab_gsab_typed_array_elements_kind_sizes() {
+  uint8_t* ptr =
+      const_cast<uint8_t*>(TypedArrayAndRabGsabTypedArrayElementsKindSizes());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+
 namespace {
 
 void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
@@ -1102,6 +1117,9 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
 
 FUNCTION_REFERENCE(mutable_big_int_absolute_div_and_canonicalize_function,
                    MutableBigInt_AbsoluteDivAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_absolute_mod_and_canonicalize_function,
+                   MutableBigInt_AbsoluteModAndCanonicalize)
 
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pp_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosPosAndCanonicalize)

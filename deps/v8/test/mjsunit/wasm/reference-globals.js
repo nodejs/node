@@ -162,7 +162,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kGCPrefix, kExprStructGet, composite_struct_index, 0])
     .exportFunc();
 
-  builder.addFunction("field_2_default", makeSig([], [kWasmDataRef]))
+  builder.addFunction("field_2_default", makeSig([], [kWasmStructRef]))
     .addBody([
       kExprGlobalGet, global_default.index,
       kGCPrefix, kExprStructGet, composite_struct_index, 1])
@@ -245,7 +245,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kGCPrefix, kExprStructGet, struct_index, 0])
     .exportFunc();
 
-  builder.addFunction("element1", makeSig([], [kWasmDataRef]))
+  builder.addFunction("element1", makeSig([], [kWasmStructRef]))
     .addBody([
       kExprGlobalGet, global.index,
       kExprI32Const, 1,

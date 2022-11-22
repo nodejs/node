@@ -7,7 +7,7 @@
 
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
-#include "src/heap/marking-worklist.h"
+#include "src/heap/marking-worklist-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/progress-bar.h"
@@ -213,7 +213,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
     // Safe to do a relaxed load here since the CodeT was acquire-loaded.
-    Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+    Code baseline_code =
+        FromCodeT(baseline_codet, ObjectVisitorWithCageBases::code_cage_base(),
+                  kRelaxedLoad);
     // Visit the bytecode hanging off baseline code.
     VisitPointer(baseline_code,
                  baseline_code.RawField(

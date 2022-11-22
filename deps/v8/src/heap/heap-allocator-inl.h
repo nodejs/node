@@ -38,8 +38,6 @@ OldLargeObjectSpace* HeapAllocator::shared_lo_space() const {
   return shared_lo_space_;
 }
 
-PagedSpace* HeapAllocator::space_for_maps() const { return space_for_maps_; }
-
 NewSpace* HeapAllocator::new_space() const {
   return static_cast<NewSpace*>(spaces_[NEW_SPACE]);
 }
@@ -106,6 +104,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation =
               new_space()->AllocateRaw(size_in_bytes, alignment, origin);
           break;
+        case AllocationType::kMap:
         case AllocationType::kOld:
           allocation =
               old_space()->AllocateRaw(size_in_bytes, alignment, origin);
@@ -116,20 +115,12 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation = code_space()->AllocateRaw(
               size_in_bytes, AllocationAlignment::kTaggedAligned);
           break;
-        case AllocationType::kMap:
-          DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-          allocation = space_for_maps()->AllocateRaw(
-              size_in_bytes, AllocationAlignment::kTaggedAligned);
-          break;
         case AllocationType::kReadOnly:
           DCHECK(read_only_space()->writable());
           DCHECK_EQ(AllocationOrigin::kRuntime, origin);
           allocation = read_only_space()->AllocateRaw(size_in_bytes, alignment);
           break;
         case AllocationType::kSharedMap:
-          allocation = shared_map_allocator_->AllocateRaw(size_in_bytes,
-                                                          alignment, origin);
-          break;
         case AllocationType::kSharedOld:
           allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
                                                           alignment, origin);

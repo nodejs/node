@@ -11,7 +11,7 @@ let Class = class extends Base {
       super();
   }
 };
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 10; i++) {
     Class = class extends Class {
       constructor() {
         try {

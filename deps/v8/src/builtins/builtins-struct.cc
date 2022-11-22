@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <unordered_set>
+
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/property-details.h"
@@ -14,6 +16,25 @@ constexpr int kMaxJSStructFields = 999;
 // specific demand for that. Ideally we'd have the same limit, but JS structs
 // rely on DescriptorArrays and are hence limited to 1020 fields at most.
 static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
+
+namespace {
+
+struct NameHandleHasher {
+  size_t operator()(Handle<Name> name) const { return name->hash(); }
+};
+
+struct UniqueNameHandleEqual {
+  bool operator()(Handle<Name> x, Handle<Name> y) const {
+    DCHECK(x->IsUniqueName());
+    DCHECK(y->IsUniqueName());
+    return *x == *y;
+  }
+};
+
+using UniqueNameHandleSet =
+    std::unordered_set<Handle<Name>, NameHandleHasher, UniqueNameHandleEqual>;
+
+}  // namespace
 
 BUILTIN(SharedStructTypeConstructor) {
   DCHECK(v8_flags.shared_string_table);
@@ -43,6 +64,7 @@ BUILTIN(SharedStructTypeConstructor) {
       num_properties, 0, AllocationType::kSharedOld);
 
   // Build up the descriptor array.
+  UniqueNameHandleSet all_field_names;
   for (int i = 0; i < num_properties; ++i) {
     Handle<Object> raw_field_name;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -52,6 +74,14 @@ BUILTIN(SharedStructTypeConstructor) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                        Object::ToName(isolate, raw_field_name));
     field_name = factory->InternalizeName(field_name);
+
+    // Check that there are no duplicates.
+    const bool is_duplicate = !all_field_names.insert(field_name).second;
+    if (is_duplicate) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
+                                field_name));
+    }
 
     // Shared structs' fields need to be aligned, so make it all tagged.
     PropertyDetails details(
@@ -85,7 +115,12 @@ BUILTIN(SharedStructTypeConstructor) {
 
   instance_map->InitializeDescriptors(isolate, *descriptors);
   // Structs have fixed layout ahead of time, so there's no slack.
-  instance_map->SetInObjectUnusedPropertyFields(0);
+  int out_of_object_properties = num_properties - in_object_properties;
+  if (out_of_object_properties == 0) {
+    instance_map->SetInObjectUnusedPropertyFields(0);
+  } else {
+    instance_map->SetOutOfObjectUnusedPropertyFields(0);
+  }
   instance_map->set_is_extensible(false);
   JSFunction::SetInitialMap(isolate, constructor, instance_map,
                             factory->null_value());
@@ -93,6 +128,16 @@ BUILTIN(SharedStructTypeConstructor) {
   // The constructor is not a shared object, so the shared map should not point
   // to it.
   instance_map->set_constructor_or_back_pointer(*factory->null_value());
+
+  // Pre-create the enum cache in the shared space, as otherwise for-in
+  // enumeration will incorrectly create an enum cache in the per-thread heap.
+  if (num_properties == 0) {
+    instance_map->SetEnumLength(0);
+  } else {
+    FastKeyAccumulator::InitializeFastPropertyEnumCache(
+        isolate, instance_map, num_properties, AllocationType::kSharedOld);
+    DCHECK_EQ(num_properties, instance_map->EnumLength());
+  }
 
   return *constructor;
 }

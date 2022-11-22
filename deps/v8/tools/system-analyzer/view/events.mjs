@@ -76,13 +76,14 @@ export class ToolTipEvent extends AppEvent {
     return 'showtooltip';
   }
 
-  constructor(content, positionOrTargetNode) {
+  constructor(content, positionOrTargetNode, immediate) {
     super(ToolTipEvent.name);
     if (!positionOrTargetNode) {
       throw Error('Either provide a valid position or targetNode');
     }
     this._content = content;
     this._positionOrTargetNode = positionOrTargetNode;
+    this._immediate = immediate;
   }
 
   get content() {
@@ -91,5 +92,9 @@ export class ToolTipEvent extends AppEvent {
 
   get positionOrTargetNode() {
     return this._positionOrTargetNode;
+  }
+
+  get immediate() {
+    return this._immediate;
   }
 }

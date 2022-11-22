@@ -606,15 +606,15 @@ TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
   v8::HandleScope scope(isolate);
 
   v8::TracedReference<v8::Object>* handle = new TracedReference<v8::Object>();
-  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->used_size_bytes(), 0);
   ConstructJSObject(isolate, handle);
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_GT(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->used_size_bytes(), 0);
   delete handle;
   CollectAllGarbage();
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
+  CHECK_EQ(i_isolate()->traced_handles()->used_size_bytes(), 0);
 }
 
 }  // namespace internal

@@ -13,6 +13,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/operator-properties.h"
 #include "src/objects/feedback-cell.h"
 #include "src/runtime/runtime.h"
 
@@ -995,8 +996,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
       CallFeedbackRelation feedback_relation = CallFeedbackRelation::kTarget);
   const Operator* CallRuntime(Runtime::FunctionId id);
-  const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
-  const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
+  const Operator* CallRuntime(
+      Runtime::FunctionId id, size_t arity,
+      Operator::Properties properties = Operator::kNoProperties);
+  const Operator* CallRuntime(
+      const Runtime::Function* function, size_t arity,
+      Operator::Properties properties = Operator::kNoProperties);
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,

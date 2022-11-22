@@ -52,6 +52,6 @@ assertUnoptimized(f1);
 // Sync with background thread to conclude optimization, which bails out
 // due to map dependency.
 %FinalizeOptimization();
-assertUnoptimized(f1, "sync");
+assertUnoptimized(f1);
 // Clear type info for stress runs.
 %ClearFunctionFeedback(f1);

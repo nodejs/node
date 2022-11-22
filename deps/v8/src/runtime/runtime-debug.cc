@@ -18,6 +18,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -300,6 +301,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
         handle(js_value->value(), isolate));
+  } else if (object->IsJSWeakRef()) {
+    Handle<JSWeakRef> js_weak_ref = Handle<JSWeakRef>::cast(object);
+
+    result = ArrayList::Add(
+        isolate, result,
+        isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
+        handle(js_weak_ref->target(), isolate));
   } else if (object->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
     if (js_array_buffer->was_detached()) {

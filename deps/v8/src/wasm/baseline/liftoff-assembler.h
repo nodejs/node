@@ -752,6 +752,7 @@ class LiftoffAssembler : public TurboAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
+  inline void CallFrameSetupStub(int declared_function_index);
   inline void PrepareTailCall(int num_callee_stack_params,
                               int stack_param_delta);
   inline void AlignFrameSize();

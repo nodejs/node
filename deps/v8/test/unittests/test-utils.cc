@@ -89,8 +89,10 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   // running by the time a ManualGCScope is created. Finalizing existing marking
   // prevents any undefined/unexpected behavior.
   if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    isolate->heap()->CollectGarbage(i::OLD_SPACE,
-                                    i::GarbageCollectionReason::kTesting);
+    ScanStackModeScopeForTesting no_stack_scanning(isolate->heap(),
+                                                   Heap::ScanStackMode::kNone);
+    isolate->heap()->CollectGarbage(OLD_SPACE,
+                                    GarbageCollectionReason::kTesting);
     // Make sure there is no concurrent sweeping running in the background.
     isolate->heap()->CompleteSweepingFull();
   }
@@ -98,7 +100,6 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   i::v8_flags.concurrent_marking = false;
   i::v8_flags.concurrent_sweeping = false;
   i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.concurrent_minor_mc_sweeping = false;
   i::v8_flags.stress_incremental_marking = false;
   i::v8_flags.stress_concurrent_allocation = false;
   // Parallel marking has a dependency on concurrent marking.

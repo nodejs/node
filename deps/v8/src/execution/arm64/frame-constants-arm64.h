@@ -72,7 +72,7 @@ class EntryFrameConstants : public AllStatic {
       kCalleeSavedRegisterBytesPushedBeforeFpLrPair;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 6;
@@ -80,22 +80,20 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 
   // On arm, spilled registers are implicitly sorted backwards by number.
   // We spill:
-  //   x7: param0 = instance
   //   x0, x2, x3, x4, x5, x6: param1, param2, ..., param6
-  //   x1: for alignment
-  // in the following FP-relative order: [x7, x6, x5, x4, x3, x2, x1, x0].
-  // For frame alignment, the first spill slot is at position '1', not at '0'.
+  // in the following FP-relative order: [x6, x5, x4, x3, x2, x0].
+  // The instance slot is in position '0', the first spill slot is at '1'.
   static constexpr int kInstanceSpillOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
 
   static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(8), TYPED_FRAME_PUSHED_VALUE_OFFSET(6),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(5), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(2)};
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(6), TYPED_FRAME_PUSHED_VALUE_OFFSET(5),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2), TYPED_FRAME_PUSHED_VALUE_OFFSET(1)};
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
   static constexpr int kNativeModuleOffset = 0;
 };
 

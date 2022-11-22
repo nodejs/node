@@ -625,9 +625,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmTableGetFuncRef, WasmCode::kWasmTableSetFuncRef,
             WasmCode::kWasmTableGrow,
             // Atomics.
-            WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait32,
-            WasmCode::kWasmI32AtomicWait64, WasmCode::kWasmI64AtomicWait32,
-            WasmCode::kWasmI64AtomicWait64,
+            WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait,
+            WasmCode::kWasmI64AtomicWait,
             // Exceptions.
             WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
             WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,

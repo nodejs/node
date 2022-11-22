@@ -53,7 +53,7 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   // Ensure that all fields are initialized because BackingStore::Allocate is
   // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer
   // after BackingStore::Allocate because of the spec.
-  array_buffer->Setup(shared, resizable, nullptr);
+  array_buffer->Setup(shared, resizable, nullptr, isolate);
 
   size_t byte_length;
   size_t max_byte_length = 0;
@@ -558,7 +558,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
     // Nothing to do for steps 6-12.
 
     // 13. Perform ? DetachArrayBuffer(O).
-    array_buffer->Detach();
+    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+                 ReadOnlyRoots(isolate).exception());
 
     // 14. Return new.
     return *isolate->factory()
@@ -581,7 +582,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
     }
 
     // 13. Perform ? DetachArrayBuffer(O).
-    array_buffer->Detach();
+    MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+                 ReadOnlyRoots(isolate).exception());
 
     // 14. Return new.
     return *isolate->factory()->NewJSArrayBuffer(std::move(from_backing_store));
@@ -623,7 +625,8 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
   }
 
   // 13. Perform ? DetachArrayBuffer(O).
-  array_buffer->Detach();
+  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer),
+               ReadOnlyRoots(isolate).exception());
 
   // 14. Return new.
   return *new_;

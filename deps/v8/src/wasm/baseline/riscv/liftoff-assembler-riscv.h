@@ -91,6 +91,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size -= kSystemPointerSize;
+  }
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
@@ -2225,6 +2229,22 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
   }
   not_(scratch, scratch);
   StoreWord(scratch, MemOperand(dst));
+}
+
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+
+  // On MIPS64, we must push at least {ra} before calling the stub, otherwise
+  // it would get clobbered with no possibility to recover it. So just set
+  // up the frame here.
+  EnterFrame(StackFrame::WASM);
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
 }
 
 }  // namespace wasm

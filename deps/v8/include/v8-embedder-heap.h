@@ -72,7 +72,7 @@ class V8_EXPORT EmbedderRootsHandler {
 class V8_EXPORT
 // GCC doesn't like combining __attribute__(()) with [[deprecated]].
 #ifdef __clang__
-V8_DEPRECATE_SOON("Use CppHeap when working with v8::TracedReference.")
+V8_DEPRECATED("Use CppHeap when working with v8::TracedReference.")
 #endif  // __clang__
     EmbedderHeapTracer {
  public:

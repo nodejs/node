@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-sharedarraybuffer
-// Flags: --experimental-wasm-threads
 
 'use strict';
 

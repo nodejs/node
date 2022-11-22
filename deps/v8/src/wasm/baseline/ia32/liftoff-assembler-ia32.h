@@ -205,6 +205,18 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+}
+
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   // Push the return address and frame pointer to complete the stack frame.
@@ -234,6 +246,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size -= kSystemPointerSize;
+  }
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
 
   // We can't run out of space when patching, just pass anything big enough to

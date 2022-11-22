@@ -87,6 +87,8 @@ void ScopeIterator::Restart() {
   current_scope_ = start_scope_;
   DCHECK_NOT_NULL(current_scope_);
   UnwrapEvaluationContext();
+  seen_script_scope_ = false;
+  calculate_blocklists_ = false;
 }
 
 namespace {
@@ -105,6 +107,7 @@ class ScopeChainRetriever {
       : scope_(scope),
         break_scope_start_(function->shared().StartPosition()),
         break_scope_end_(function->shared().EndPosition()),
+        break_scope_type_(function->shared().scope_info().scope_type()),
         position_(position) {
     DCHECK_NOT_NULL(scope);
     RetrieveScopes();
@@ -117,6 +120,7 @@ class ScopeChainRetriever {
   DeclarationScope* scope_;
   const int break_scope_start_;
   const int break_scope_end_;
+  const ScopeType break_scope_type_;
   const int position_;
 
   DeclarationScope* closure_scope_ = nullptr;
@@ -137,11 +141,11 @@ class ScopeChainRetriever {
 
   bool RetrieveClosureScope(Scope* scope) {
     // The closure scope is the scope that matches exactly the function we
-    // paused in. There is one quirk though, member initializder functions have
-    // the same source position as their class scope, so when looking for the
-    // declaration scope of the member initializer, we need to skip the
-    // corresponding class scope and keep looking.
-    if (!scope->is_class_scope() &&
+    // paused in.
+    // Note that comparing the position alone is not enough and we also need to
+    // match the scope type. E.g. class member initializer have the exact same
+    // scope positions as their class scope.
+    if (break_scope_type_ == scope->scope_type() &&
         break_scope_start_ == scope->start_position() &&
         break_scope_end_ == scope->end_position()) {
       closure_scope_ = scope->AsDeclarationScope();
@@ -847,7 +851,13 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   }
 
   for (Variable* var : *current_scope_->locals()) {
-    if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
+    if (ScopeInfo::VariableIsSynthetic(*var->name())) {
+      // We want to materialize "new.target" for debug-evaluate.
+      if (mode != Mode::STACK ||
+          !var->name()->Equals(*isolate_->factory()->dot_new_target_string())) {
+        continue;
+      }
+    }
 
     int index = var->index();
     Handle<Object> value;
@@ -868,6 +878,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
               generator_->parameters_and_registers();
           DCHECK_LT(index, parameters_and_registers.length());
           value = handle(parameters_and_registers.get(index), isolate_);
+        } else if (var->IsReceiver()) {
+          value = frame_inspector_->GetReceiver();
         } else {
           value = frame_inspector_->GetParameter(index);
         }
@@ -1221,12 +1233,12 @@ Handle<ScopeInfo> LocalBlocklistsCollector::FindScopeInfoForScope(
   SharedFunctionInfo::ScriptIterator iterator(isolate_, *script_);
   for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
        info = iterator.Next()) {
-    if (scope->start_position() == info.StartPosition() &&
-        scope->end_position() == info.EndPosition()) {
-      if (info.is_compiled() && !info.scope_info().is_null()) {
-        return handle(info.scope_info(), isolate_);
-      }
-      return Handle<ScopeInfo>();
+    ScopeInfo scope_info = info.scope_info();
+    if (info.is_compiled() && !scope_info.is_null() &&
+        scope->start_position() == info.StartPosition() &&
+        scope->end_position() == info.EndPosition() &&
+        scope->scope_type() == scope_info.scope_type()) {
+      return handle(scope_info, isolate_);
     }
   }
   return Handle<ScopeInfo>();
@@ -1291,7 +1303,10 @@ void LocalBlocklistsCollector::CollectAndStore() {
 }  // namespace
 
 void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
-  if (!calculate_blocklists_ || current_scope_ != closure_scope_) return;
+  if (!calculate_blocklists_ || current_scope_ != closure_scope_ ||
+      Type() == ScopeTypeScript) {
+    return;
+  }
 
   CHECK(v8_flags.experimental_reuse_locals_blocklists);
   DCHECK(isolate_

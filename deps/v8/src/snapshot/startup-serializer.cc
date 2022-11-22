@@ -241,6 +241,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
 
 bool SerializedHandleChecker::CheckGlobalAndEternalHandles() {
   isolate_->global_handles()->IterateAllRoots(this);
+  isolate_->traced_handles()->Iterate(this);
   isolate_->eternal_handles()->IterateAllRoots(this);
   return ok_;
 }

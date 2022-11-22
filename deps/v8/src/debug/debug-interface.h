@@ -99,8 +99,9 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
-  BreakOnUncaughtException = 1,
-  BreakOnAnyException = 2
+  BreakOnCaughtException = 1,
+  BreakOnUncaughtException = 2,
+  BreakOnAnyException = 3,
 };
 
 /**
@@ -286,9 +287,15 @@ class DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
       base::EnumSet<BreakReason> break_reasons = {}) {}
-  virtual void BreakOnInstrumentation(
+  enum PauseAfterInstrumentation {
+    kPauseAfterInstrumentationRequested,
+    kNoPauseAfterInstrumentationRequested
+  };
+  virtual PauseAfterInstrumentation BreakOnInstrumentation(
       v8::Local<v8::Context> paused_context,
-      const debug::BreakpointId instrumentationId) {}
+      const debug::BreakpointId instrumentationId) {
+    return kNoPauseAfterInstrumentationRequested;
+  }
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,
@@ -545,8 +552,9 @@ V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
-bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
-                           v8::Local<v8::String> condition, BreakpointId* id);
+V8_EXPORT_PRIVATE bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                                             v8::Local<v8::String> condition,
+                                             BreakpointId* id);
 
 v8::Platform* GetCurrentPlatform();
 
@@ -670,10 +678,11 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 
-bool isExperimentalAsyncStackTaggingApiEnabled();
 bool isExperimentalRemoveInternalScopesPropertyEnabled();
 
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
+
+void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
 
 }  // namespace debug
 }  // namespace v8

@@ -23,6 +23,7 @@
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array.h"
 #include "src/objects/objects.h"
 #include "src/sandbox/testing.h"
 #ifdef ENABLE_VTUNE_TRACEMARK
@@ -5584,7 +5585,7 @@ void Genesis::InitializeGlobal_experimental_web_snapshots() {
 
 #ifdef V8_INTL_SUPPORT
 void Genesis::InitializeGlobal_harmony_intl_duration_format() {
-  if (!FLAG_harmony_intl_duration_format) return;
+  if (!v8_flags.harmony_intl_duration_format) return;
   Handle<JSObject> intl = Handle<JSObject>::cast(
       JSReceiver::GetProperty(
           isolate(),
@@ -5868,9 +5869,10 @@ bool Genesis::InstallABunchOfRandomThings() {
     Handle<Map> template_map(array_function->initial_map(), isolate_);
     template_map = Map::CopyAsElementsKind(isolate_, template_map,
                                            PACKED_ELEMENTS, OMIT_TRANSITION);
-    template_map->set_instance_size(template_map->instance_size() +
-                                    kTaggedSize);
-    // Temporarily instantiate full template_literal_object to get the final
+    DCHECK_GE(TemplateLiteralObject::kHeaderSize,
+              template_map->instance_size());
+    template_map->set_instance_size(TemplateLiteralObject::kHeaderSize);
+    // Temporarily instantiate a full template_literal_object to get the final
     // map.
     auto template_object =
         Handle<JSArray>::cast(factory()->NewJSObjectFromMap(template_map));
@@ -5893,20 +5895,56 @@ bool Genesis::InstallABunchOfRandomThings() {
                                factory()->raw_string(), &raw_desc,
                                Just(kThrowOnError))
         .ToChecked();
+    // Install private symbol fields for function_literal_id and slot_id.
+    raw_desc.set_value(handle(Smi::zero(), isolate()));
+    JSArray::DefineOwnProperty(
+        isolate(), template_object,
+        factory()->template_literal_function_literal_id_symbol(), &raw_desc,
+        Just(kThrowOnError))
+        .ToChecked();
+    JSArray::DefineOwnProperty(isolate(), template_object,
+                               factory()->template_literal_slot_id_symbol(),
+                               &raw_desc, Just(kThrowOnError))
+        .ToChecked();
 
     // Freeze the {template_object} as well.
     JSObject::SetIntegrityLevel(template_object, FROZEN, kThrowOnError)
         .ToChecked();
     {
       DisallowGarbageCollection no_gc;
-      // Verify TemplateLiteralObject::kRawFieldOffset
       DescriptorArray desc = template_object->map().instance_descriptors();
-      InternalIndex descriptor_index =
-          desc.Search(*factory()->raw_string(), desc.number_of_descriptors());
-      FieldIndex index =
-          FieldIndex::ForDescriptor(template_object->map(), descriptor_index);
-      CHECK(index.is_inobject());
-      CHECK_EQ(index.offset(), TemplateLiteralObject::kRawFieldOffset);
+      {
+        // Verify TemplateLiteralObject::kRawOffset
+        InternalIndex descriptor_index =
+            desc.Search(*factory()->raw_string(), desc.number_of_descriptors());
+        FieldIndex index =
+            FieldIndex::ForDescriptor(template_object->map(), descriptor_index);
+        CHECK(index.is_inobject());
+        CHECK_EQ(index.offset(), TemplateLiteralObject::kRawOffset);
+      }
+
+      {
+        // Verify TemplateLiteralObject::kFunctionLiteralIdOffset
+        InternalIndex descriptor_index = desc.Search(
+            *factory()->template_literal_function_literal_id_symbol(),
+            desc.number_of_descriptors());
+        FieldIndex index =
+            FieldIndex::ForDescriptor(template_object->map(), descriptor_index);
+        CHECK(index.is_inobject());
+        CHECK_EQ(index.offset(),
+                 TemplateLiteralObject::kFunctionLiteralIdOffset);
+      }
+
+      {
+        // Verify TemplateLiteralObject::kSlotIdOffset
+        InternalIndex descriptor_index =
+            desc.Search(*factory()->template_literal_slot_id_symbol(),
+                        desc.number_of_descriptors());
+        FieldIndex index =
+            FieldIndex::ForDescriptor(template_object->map(), descriptor_index);
+        CHECK(index.is_inobject());
+        CHECK_EQ(index.offset(), TemplateLiteralObject::kSlotIdOffset);
+      }
     }
 
     native_context()->set_js_array_template_literal_object_map(

@@ -585,7 +585,9 @@ Type OperationTyper::SpeculativeBigIntAsUintN(Type) {
 
 Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }
 
-Type OperationTyper::CheckBigInt64(Type type) { return Type::SignedBigInt64(); }
+Type OperationTyper::CheckedBigIntToBigInt64(Type type) {
+  return Type::SignedBigInt64();
+}
 
 Type OperationTyper::NumberAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::Number()));
@@ -1130,6 +1132,11 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
+#define MACHINE_BINOP(Name) \
+  Type OperationTyper::Name(Type, Type) { return Type::Machine(); }
+TYPER_SUPPORTED_MACHINE_BINOP_LIST(MACHINE_BINOP)
+#undef MACHINE_BINOP
+
 Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::BigInt()));
   DCHECK(rhs.Is(Type::BigInt()));
@@ -1155,6 +1162,14 @@ Type OperationTyper::BigIntMultiply(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::BigIntDivide(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::BigIntModulus(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::BigInt()));
   DCHECK(rhs.Is(Type::BigInt()));
 
@@ -1193,6 +1208,11 @@ Type OperationTyper::SpeculativeBigIntMultiply(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::SpeculativeBigIntDivide(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntModulus(Type lhs, Type rhs) {
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }

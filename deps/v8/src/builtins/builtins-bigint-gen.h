@@ -93,6 +93,21 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
     return return_code;
   }
 
+  TNode<Int32T> CppAbsoluteModAndCanonicalize(TNode<BigInt> result,
+                                              TNode<BigInt> x,
+                                              TNode<BigInt> y) {
+    TNode<ExternalReference> mutable_big_int_absolute_mod_and_canonicalize =
+        ExternalConstant(
+            ExternalReference::
+                mutable_big_int_absolute_mod_and_canonicalize_function());
+    TNode<Int32T> return_code = UncheckedCast<Int32T>(CallCFunction(
+        mutable_big_int_absolute_mod_and_canonicalize, MachineType::Int32(),
+        std::make_pair(MachineType::AnyTagged(), result),
+        std::make_pair(MachineType::AnyTagged(), x),
+        std::make_pair(MachineType::AnyTagged(), y)));
+    return return_code;
+  }
+
   void CppBitwiseAndPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
                                           TNode<BigInt> y) {
     TNode<ExternalReference>

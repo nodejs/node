@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/base/optional.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -189,7 +190,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
                                         Node* value, Node* effect,
-                                        Node* control,
+                                        Node* control, Node* context,
                                         ElementAccessInfo const& access_info,
                                         KeyedAccessMode const& keyed_mode);
 
@@ -248,6 +249,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
       Node* receiver, Effect effect, HeapObjectRef const& prototype);
 
   Node* BuildLoadPrototypeFromObject(Node* object, Node* effect, Node* control);
+
+  std::pair<Node*, Node*> ReleaseEffectAndControlFromAssembler(
+      JSGraphAssembler* assembler);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

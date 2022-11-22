@@ -59,19 +59,23 @@ class ControlTransferMatcher
 
 class ControlTransferTest : public TestWithZone {
  public:
-  template <int code_len>
+  static constexpr pc_t kPcShiftForLocalsCount = 1;
+
+  template <int kCodeLen>
   void CheckTransfers(
-      const byte (&code)[code_len],
+      const byte (&code)[kCodeLen],
       std::initializer_list<ExpectedControlTransfer> expected_transfers) {
-    byte code_with_end[code_len + 1];  // NOLINT: code_len is a constant here
-    memcpy(code_with_end, code, code_len);
-    code_with_end[code_len] = kExprEnd;
+    // Add a leading '0' for number of locals and append the 'end' opcode.
+    byte function_body[kCodeLen + 2];
+    function_body[0] = 0;
+    memcpy(function_body + 1, code, kCodeLen);
+    function_body[kCodeLen + 1] = kExprEnd;
 
     ControlTransferMap map = WasmInterpreter::ComputeControlTransfersForTesting(
-        zone(), nullptr, code_with_end, code_with_end + code_len + 1);
+        zone(), std::begin(function_body), std::end(function_body));
     // Check all control targets in the map.
     for (auto& expected_transfer : expected_transfers) {
-      pc_t pc = expected_transfer.pc;
+      pc_t pc = expected_transfer.pc + kPcShiftForLocalsCount;
       EXPECT_TRUE(map.map.count(pc) > 0) << "expected control target @" << pc;
       if (!map.map.count(pc)) continue;
       auto& entry = map.map[pc];
@@ -80,7 +84,7 @@ class ControlTransferTest : public TestWithZone {
     }
 
     // Check there are no other control targets.
-    CheckNoOtherTargets(code_with_end, code_with_end + code_len + 1, map,
+    CheckNoOtherTargets(std::begin(function_body), std::end(function_body), map,
                         expected_transfers);
   }
 
@@ -91,7 +95,7 @@ class ControlTransferTest : public TestWithZone {
     for (pc_t pc = 0; start + pc < end; pc++) {
       bool found = false;
       for (auto& target : targets) {
-        if (target.pc == pc) {
+        if (target.pc + kPcShiftForLocalsCount == pc) {
           found = true;
           break;
         }

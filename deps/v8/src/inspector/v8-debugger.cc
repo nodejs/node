@@ -202,6 +202,10 @@ bool V8Debugger::canBreakProgram() {
   return v8::debug::CanBreakProgram(m_isolate);
 }
 
+bool V8Debugger::isInInstrumentationPause() const {
+  return m_instrumentationPause;
+}
+
 void V8Debugger::breakProgram(int targetContextGroupId) {
   DCHECK(canBreakProgram());
   // Don't allow nested breaks.
@@ -223,6 +227,10 @@ void V8Debugger::interruptAndBreak(int targetContextGroupId) {
             v8::debug::BreakReasons({v8::debug::BreakReason::kScheduled}));
       },
       nullptr);
+}
+
+void V8Debugger::requestPauseAfterInstrumentation() {
+  m_requestedPauseAfterInstrumentation = true;
 }
 
 void V8Debugger::continueProgram(int targetContextGroupId,
@@ -510,11 +518,11 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
       });
 }
 
-void V8Debugger::BreakOnInstrumentation(
+V8Debugger::PauseAfterInstrumentation V8Debugger::BreakOnInstrumentation(
     v8::Local<v8::Context> pausedContext,
     v8::debug::BreakpointId instrumentationId) {
   // Don't allow nested breaks.
-  if (isPaused()) return;
+  if (isPaused()) return kNoPauseAfterInstrumentationRequested;
 
   int contextGroupId = m_inspector->contextGroupId(pausedContext);
   bool hasAgents = false;
@@ -523,9 +531,10 @@ void V8Debugger::BreakOnInstrumentation(
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
           hasAgents = true;
       });
-  if (!hasAgents) return;
+  if (!hasAgents) return kNoPauseAfterInstrumentationRequested;
 
   m_pausedContextGroupId = contextGroupId;
+  m_instrumentationPause = true;
   m_inspector->forEachSession(
       contextGroupId, [instrumentationId](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */)) {
@@ -536,14 +545,22 @@ void V8Debugger::BreakOnInstrumentation(
   {
     v8::Context::Scope scope(pausedContext);
     m_inspector->client()->runMessageLoopOnInstrumentationPause(contextGroupId);
-    m_pausedContextGroupId = 0;
   }
+  bool requestedPauseAfterInstrumentation =
+      m_requestedPauseAfterInstrumentation;
+
+  m_requestedPauseAfterInstrumentation = false;
+  m_pausedContextGroupId = 0;
+  m_instrumentationPause = false;
 
   m_inspector->forEachSession(contextGroupId,
                               [](V8InspectorSessionImpl* session) {
                                 if (session->debuggerAgent()->enabled())
                                   session->debuggerAgent()->didContinue();
                               });
+  return requestedPauseAfterInstrumentation
+             ? kPauseAfterInstrumentationRequested
+             : kNoPauseAfterInstrumentationRequested;
 }
 
 void V8Debugger::BreakProgramRequested(
@@ -818,7 +835,7 @@ v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
   v8::debug::QueryObjects(context, &predicate, &v8_objects);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> resultArray = v8::Array::New(
       m_inspector->isolate(), static_cast<int>(v8_objects.size()));

@@ -21,7 +21,7 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs =
@@ -39,7 +39,7 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
   static constexpr int kNativeModuleOffset = 0;
 };
 

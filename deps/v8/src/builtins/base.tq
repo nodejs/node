@@ -603,8 +603,11 @@ extern macro SelectBooleanConstant(bool): Boolean;
 
 extern macro Print(constexpr string): void;
 extern macro Print(constexpr string, Object): void;
-extern macro Comment(constexpr string): void;
 extern macro Print(Object): void;
+extern macro PrintErr(constexpr string): void;
+extern macro PrintErr(constexpr string, Object): void;
+extern macro PrintErr(Object): void;
+extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )

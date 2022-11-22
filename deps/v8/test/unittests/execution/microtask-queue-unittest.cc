@@ -146,9 +146,10 @@ TEST_P(MicrotaskQueueTest, EnqueueAndRun) {
   bool ran = false;
   EXPECT_EQ(0, microtask_queue()->capacity());
   EXPECT_EQ(0, microtask_queue()->size());
-  microtask_queue()->EnqueueMicrotask(*NewMicrotask([&ran] {
+  microtask_queue()->EnqueueMicrotask(*NewMicrotask([this, &ran] {
     EXPECT_FALSE(ran);
     ran = true;
+    EXPECT_TRUE(microtask_queue()->HasMicrotasksSuppressions());
   }));
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(1, microtask_queue()->size());

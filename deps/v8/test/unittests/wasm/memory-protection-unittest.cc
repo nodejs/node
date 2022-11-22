@@ -130,10 +130,11 @@ class MemoryProtectionTest : public TestWithNativeContext {
 
     ErrorThrower thrower(isolate(), "");
     constexpr int kNoCompilationId = 0;
+    constexpr ProfileInformation* kNoProfileInformation = nullptr;
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
         isolate(), WasmFeatures::All(), &thrower, std::move(result).value(),
         ModuleWireBytes{base::ArrayVector(module_bytes)}, kNoCompilationId,
-        v8::metrics::Recorder::ContextId::Empty());
+        v8::metrics::Recorder::ContextId::Empty(), kNoProfileInformation);
     CHECK(!thrower.error());
     CHECK_NOT_NULL(native_module);
 

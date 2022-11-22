@@ -785,7 +785,6 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
-  allocated_code_space_.Merge(code_space);
   generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
 
   TRACE_HEAP("Code alloc for %p: 0x%" PRIxPTR ",+%zu\n", this,
@@ -1887,8 +1886,8 @@ NativeModule::~NativeModule() {
   import_wrapper_cache_.reset();
 
   // If experimental PGO support is enabled, serialize the PGO data now.
-  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_to_file)) {
-    DumpProfileToFile(module_.get(), wire_bytes());
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
+    DumpProfileToFile(module_.get(), wire_bytes(), tiering_budgets_.get());
   }
 }
 

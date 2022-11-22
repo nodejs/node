@@ -30,10 +30,10 @@ namespace wasm {
 // if {!has_error()}, or with {error()} otherwise.
 class V8_EXPORT_PRIVATE ConstantExpressionInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
+  using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
 
-  struct Value : public ValueBase<validate> {
+  struct Value : public ValueBase<ValidationTag> {
     WasmValue runtime_value;
 
     template <typename... Args>
@@ -41,9 +41,10 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
         : ValueBase(std::forward<Args>(args)...) {}
   };
 
-  using Control = ControlBase<Value, validate>;
+  using Control = ControlBase<Value, ValidationTag>;
   using FullDecoder =
-      WasmFullDecoder<validate, ConstantExpressionInterface, decoding_mode>;
+      WasmFullDecoder<ValidationTag, ConstantExpressionInterface,
+                      decoding_mode>;
 
   ConstantExpressionInterface(const WasmModule* module, Isolate* isolate,
                               Handle<WasmInstanceObject> instance)

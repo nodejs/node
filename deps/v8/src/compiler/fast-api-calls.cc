@@ -4,6 +4,7 @@
 
 #include "src/compiler/fast-api-calls.h"
 
+#include "src/codegen/cpu-features.h"
 #include "src/compiler/globals.h"
 
 namespace v8 {
@@ -84,6 +85,13 @@ OverloadsResolutionResult ResolveOverloads(
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   USE(c_signature);
 
+#if defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+  // On MacArm64 hardware we don't support passing of arguments on the stack.
+  if (c_signature->ArgumentCount() > 8) {
+    return false;
+  }
+#endif  // defined(V8_OS_MACOS) && defined(V8_TARGET_ARCH_ARM64)
+
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
@@ -100,6 +108,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
     USE(i);
+
+#ifdef V8_TARGET_ARCH_X64
+    // Clamp lowering in EffectControlLinearizer uses rounding.
+    uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
+    if (flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
+      return CpuFeatures::IsSupported(SSE4_2);
+    }
+#endif  // V8_TARGET_ARCH_X64
 
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||

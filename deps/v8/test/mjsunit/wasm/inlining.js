@@ -443,3 +443,29 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // {factorial} should not be fully inlined in the trace.
   assertEquals(120, instance.exports.main(5));
 })();
+
+// When inlining a function with a tail call into a regular call, the tail call
+// has to be transformed into a call. That new call node (or its projections)
+// has to be typed.
+(function CallFromTailCallMustBeTyped() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let tail_call = builder
+    .addFunction("tail_call", makeSig([], [kWasmFuncRef]))
+    .addBody([kExprReturnCall, 0]);
+
+  let tail_call_multi = builder
+    .addFunction("tail_call", makeSig([], [kWasmFuncRef, kWasmFuncRef]))
+    .addBody([kExprReturnCall, 1]);
+
+  builder
+    .addFunction("main", makeSig([], [wasmRefType(kWasmFuncRef), kWasmFuncRef,
+                                      wasmRefType(kWasmFuncRef)]))
+    .addBody([
+      kExprCallFunction, tail_call.index, kExprRefAsNonNull,
+      kExprCallFunction, tail_call_multi.index, kExprRefAsNonNull])
+
+  builder.instantiate({});
+})();

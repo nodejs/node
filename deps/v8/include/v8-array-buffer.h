@@ -251,7 +251,25 @@ class V8_EXPORT ArrayBuffer : public Object {
    * preventing JavaScript from ever accessing underlying backing store.
    * ArrayBuffer should have been externalized and must be detachable.
    */
+  V8_DEPRECATE_SOON(
+      "Use the version which takes a key parameter (passing a null handle is "
+      "ok).")
   void Detach();
+
+  /**
+   * Detaches this ArrayBuffer and all its views (typed arrays).
+   * Detaching sets the byte length of the buffer and all typed arrays to zero,
+   * preventing JavaScript from ever accessing underlying backing store.
+   * ArrayBuffer should have been externalized and must be detachable. Returns
+   * Nothing if the key didn't pass the [[ArrayBufferDetachKey]] check,
+   * Just(true) otherwise.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> Detach(v8::Local<v8::Value> key);
+
+  /**
+   * Sets the ArrayBufferDetachKey.
+   */
+  void SetDetachKey(v8::Local<v8::Value> key);
 
   /**
    * Get a shared pointer to the backing store of this array buffer. This

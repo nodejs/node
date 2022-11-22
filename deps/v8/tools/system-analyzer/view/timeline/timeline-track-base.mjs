@@ -30,7 +30,7 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineChunks = this.$('#timelineChunks');
     this.timelineSamples = this.$('#timelineSamples');
     this.timelineNode = this.$('#timeline');
-    this.toolTipTargetNode = this.$('#toolTipTarget');
+    this._toolTipTargetNode = undefined;
     this.hitPanelNode = this.$('#hitPanel');
     this.timelineAnnotationsNode = this.$('#timelineAnnotations');
     this.timelineMarkersNode = this.$('#timelineMarkers');
@@ -356,8 +356,8 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _updateToolTip(event) {
     if (!this._focusedEntry) return false;
-    this.dispatchEvent(
-        new ToolTipEvent(this._focusedEntry, this.toolTipTargetNode));
+    this.dispatchEvent(new ToolTipEvent(
+        this._focusedEntry, this._toolTipTargetNode, event.ctrlKey));
     event.stopImmediatePropagation();
   }
 
@@ -419,12 +419,26 @@ export class TimelineTrackBase extends V8CustomElement {
         (kTimelineHeight - event.layerY) / chunk.height * (chunk.size() - 1));
     if (relativeIndex > chunk.size()) return false;
     const logEntry = chunk.at(relativeIndex);
-    const style = this.toolTipTargetNode.style;
+    const node = this.getToolTipTargetNode(logEntry);
+    if (!node) return logEntry;
+    const style = node.style;
     style.left = `${chunk.index * kChunkWidth}px`;
     style.top = `${kTimelineHeight - chunk.height}px`;
     style.height = `${chunk.height}px`;
     style.width = `${kChunkVisualWidth}px`;
     return logEntry;
+  }
+
+  getToolTipTargetNode(logEntry) {
+    let node = this._toolTipTargetNode;
+    if (node) {
+      if (node.logEntry === logEntry) return undefined;
+      node.parentNode.removeChild(node);
+    }
+    node = this._toolTipTargetNode = DOM.div('toolTipTarget');
+    node.logEntry = logEntry;
+    this.$('#cropper').appendChild(node);
+    return node;
   }
 };
 

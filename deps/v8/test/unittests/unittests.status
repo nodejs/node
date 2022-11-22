@@ -92,6 +92,14 @@
 }],  # system == aix
 
 ##############################################################################
+['system == aix and component_build', {
+  # FreezeFlags relies on mprotect() method, which does not work by default on
+  # shared memory
+  # https://www.ibm.com/docs/en/aix/7.2?topic=m-mprotect-subroutine
+  'FlagDefinitionsTest.FreezeFlags': [SKIP],
+}],  # system == aix and component_build
+
+##############################################################################
 ['arch == ppc64', {
   # PPC Page size is too large for these tests.
   'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
@@ -323,5 +331,10 @@
 ['no_i18n == True', {
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True
+
+##############################################################################
+['no_simd_hardware == True', {
+  'WasmDisassemblerTest.Simd': [SKIP],
+}],  # no_simd_hardware == True
 
 ]

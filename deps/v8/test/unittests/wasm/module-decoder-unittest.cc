@@ -78,12 +78,6 @@ namespace module_decoder_unittest {
                     'i', 'n', 't'),                                        \
           __VA_ARGS__)
 
-#define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
-  do {                                                                   \
-    ModuleResult result = DecodeModule((data), (data) + sizeof((data))); \
-    EXPECT_FALSE(result.ok());                                           \
-  } while (false)
-
 #define X1(...) __VA_ARGS__
 #define X2(...) __VA_ARGS__, __VA_ARGS__
 #define X3(...) __VA_ARGS__, __VA_ARGS__, __VA_ARGS__
@@ -193,7 +187,7 @@ struct ValueTypePair {
     {kAnyRefCode, kWasmAnyRef},                    // --
     {kEqRefCode, kWasmEqRef},                      // --
     {kI31RefCode, kWasmI31Ref},                    // --
-    {kDataRefCode, kWasmDataRef},                  // --
+    {kStructRefCode, kWasmStructRef},              // --
     {kArrayRefCode, kWasmArrayRef},                // --
     {kNoneCode, kWasmNullRef},                     // --
     {kStringRefCode, kWasmStringRef},              // --
@@ -1082,9 +1076,6 @@ TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Tag, ENTRY_COUNT(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   EXPECT_EQ(0u, result.value()->tags.size());
@@ -1095,9 +1086,6 @@ TEST_F(WasmModuleVerifyTest, OneI32Exception) {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),  // sig#0 (i32)
       SECTION(Tag, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[0] (sig#0)
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   EXPECT_EQ(1u, result.value()->tags.size());
@@ -1115,9 +1103,6 @@ TEST_F(WasmModuleVerifyTest, TwoExceptions) {
       SECTION(Tag, ENTRY_COUNT(2),
               EXCEPTION_ENTRY(SIG_INDEX(1)),    // except[0] (sig#1)
               EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[1] (sig#0)
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   EXPECT_EQ(2u, result.value()->tags.size());
@@ -1135,10 +1120,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
       SECTION(Tag, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(
                   SIG_INDEX(23)))};  // except[0] (sig#23 [out-of-bounds])
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
   // Should fail decoding exception section.
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "signature index 23 out of bounds");
 }
@@ -1149,10 +1131,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
       SECTION(Tag, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(
                   SIG_INDEX(0)))};  // except[0] (sig#0 [invalid-return-type])
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
   // Should fail decoding exception section.
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "tag signature 0 has non-void return");
 }
@@ -1162,10 +1141,7 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_attribute) {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_i_i),
       SECTION(Tag, ENTRY_COUNT(1), 23,
               SIG_INDEX(0))};  // except[0] (sig#0) [invalid-attribute]
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
   // Should fail decoding exception section.
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "exception attribute 23 not supported");
 }
@@ -1174,9 +1150,6 @@ TEST_F(WasmModuleVerifyTest, TagSectionCorrectPlacement) {
   static const byte data[] = {SECTION(Memory, ENTRY_COUNT(0)),
                               SECTION(Tag, ENTRY_COUNT(0)),
                               SECTION(Global, ENTRY_COUNT(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
 }
@@ -1184,9 +1157,6 @@ TEST_F(WasmModuleVerifyTest, TagSectionCorrectPlacement) {
 TEST_F(WasmModuleVerifyTest, TagSectionAfterGlobal) {
   static const byte data[] = {SECTION(Global, ENTRY_COUNT(0)),
                               SECTION(Tag, ENTRY_COUNT(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
                 "The Tag section must appear before the Global section");
@@ -1195,9 +1165,6 @@ TEST_F(WasmModuleVerifyTest, TagSectionAfterGlobal) {
 TEST_F(WasmModuleVerifyTest, TagSectionBeforeMemory) {
   static const byte data[] = {SECTION(Tag, ENTRY_COUNT(0)),
                               SECTION(Memory, ENTRY_COUNT(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "unexpected section <Memory>");
 }
@@ -1207,9 +1174,6 @@ TEST_F(WasmModuleVerifyTest, TagSectionAfterTableBeforeMemory) {
   static const byte data[] = {SECTION(Table, ENTRY_COUNT(0)),
                               SECTION(Tag, ENTRY_COUNT(0)),
                               SECTION(Memory, ENTRY_COUNT(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "unexpected section <Memory>");
 }
@@ -1223,9 +1187,6 @@ TEST_F(WasmModuleVerifyTest, TagImport) {
               ADD_COUNT('e', 'x'),              // tag name
               kExternalTag,                     // import kind
               EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[0] (sig#0)
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   EXPECT_EQ(1u, result.value()->tags.size());
@@ -1241,9 +1202,6 @@ TEST_F(WasmModuleVerifyTest, ExceptionExport) {
               NO_NAME,                         // --
               kExternalTag,                    // --
               EXCEPTION_INDEX(0))};
-  FAIL_IF_NO_EXPERIMENTAL_EH(data);
-
-  WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   EXPECT_EQ(1u, result.value()->tags.size());
@@ -3459,7 +3417,6 @@ TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
 #undef EMPTY_NAMES_SECTION
 #undef SECTION_SRC_MAP
 #undef SECTION_COMPILATION_HINTS
-#undef FAIL_IF_NO_EXPERIMENTAL_EH
 #undef X1
 #undef X2
 #undef X3

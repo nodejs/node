@@ -28,7 +28,7 @@ namespace wasm {
   failed_ = true;                                                        \
   failure_message_ = msg;                                                \
   failure_location_ = static_cast<int>(scanner_.Position());             \
-  if (FLAG_trace_asm_parser) {                                           \
+  if (v8_flags.trace_asm_parser) {                                       \
     PrintF("[asm.js failure: %s, token: '%s', see: %s:%d]\n", msg,       \
            scanner_.Name(scanner_.Token()).c_str(), __FILE__, __LINE__); \
   }                                                                      \

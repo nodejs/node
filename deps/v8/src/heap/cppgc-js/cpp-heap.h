@@ -147,7 +147,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
 
-  void RunMinorGCIfNeeded(StackState);
+  void RunMinorGCIfNeeded();
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
@@ -161,6 +161,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   }
 
   Isolate* isolate() const { return isolate_; }
+
+  ::heap::base::Stack* stack() final;
 
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();

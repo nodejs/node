@@ -1,0 +1,16 @@
+Regression test for crbug/1209117
+
+Running test: testGlobalScope
+a: shadowed
+x: not shadowed
+y: not shadowed
+
+Running test: testScriptScope
+b: shadowed
+x: not shadowed
+y: not shadowed
+
+Running test: testFunctionScope
+c: shadowed
+x: not shadowed
+y: not shadowed

@@ -199,8 +199,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
 
     // During incremental marking we want to push every object in order to
     // record slots for map words. Necessary for map space compaction.
-    if (object_fields == ObjectFields::kMaybePointers ||
-        is_compacting_including_map_space_) {
+    if (object_fields == ObjectFields::kMaybePointers || is_compacting_) {
       promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
@@ -466,6 +465,32 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   // times in the remembered set. We remove the redundant slot now.
   return REMOVE_SLOT;
 }
+
+class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
+ public:
+  explicit ScavengeVisitor(Scavenger* scavenger);
+
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final;
+
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final;
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final;
+
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+
+ private:
+  template <typename TSlot>
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
+  Scavenger* const scavenger_;
+};
 
 void ScavengeVisitor::VisitPointers(HeapObject host, ObjectSlot start,
                                     ObjectSlot end) {

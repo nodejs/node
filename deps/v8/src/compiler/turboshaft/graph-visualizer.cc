@@ -4,6 +4,7 @@
 
 #include "src/compiler/graph-visualizer.h"
 
+#include "src/base/small-vector.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 
@@ -37,7 +38,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       os_ << "{\"id\":" << index.id() << ",";
       os_ << "\"title\":\"" << OpcodeName(op.opcode) << "\",";
       os_ << "\"block_id\":" << block.index().id() << ",";
-      os_ << "\"op_properties_type\":\"" << op.properties() << "\"";
+      os_ << "\"op_properties_type\":\"" << op.Properties() << "\"";
       if (origins_) {
         NodeOrigin origin = origins_->GetNodeOrigin(index.id());
         if (origin.IsKnown()) {
@@ -58,7 +59,16 @@ void JSONTurboshaftGraphWriter::PrintEdges() {
   for (const Block& block : turboshaft_graph_.blocks()) {
     for (const Operation& op : turboshaft_graph_.operations(block)) {
       int target_id = turboshaft_graph_.Index(op).id();
-      for (OpIndex input : op.inputs()) {
+      base::SmallVector<OpIndex, 32> inputs{op.inputs()};
+      // Reorder the inputs to correspond to the order used in constructor and
+      // assembler functions.
+      if (auto* store = op.TryCast<StoreOp>()) {
+        if (store->index().valid()) {
+          DCHECK_EQ(store->input_count, 3);
+          inputs = {store->base(), store->index(), store->value()};
+        }
+      }
+      for (OpIndex input : inputs) {
         if (!first) os_ << ",\n";
         first = false;
         os_ << "{\"source\":" << input.id() << ",";

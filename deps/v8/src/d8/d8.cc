@@ -113,8 +113,6 @@ namespace v8 {
 
 namespace {
 
-const int kMB = 1024 * 1024;
-
 #ifdef V8_FUZZILLI
 // REPRL = read-eval-print-reset-loop
 // These file descriptors are being opened when Fuzzilli uses fork & execve to
@@ -127,9 +125,6 @@ bool fuzzilli_reprl = true;
 #else
 bool fuzzilli_reprl = false;
 #endif  // V8_FUZZILLI
-
-const int kMaxSerializerMemoryUsage =
-    1 * kMB;  // Arbitrary maximum for testing.
 
 // Base class for shell ArrayBuffer allocators. It forwards all opertions to
 // the default v8 allocator.
@@ -210,7 +205,7 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
  private:
   size_t Adjust(size_t length) {
-    const size_t kAllocationLimit = 10 * kMB;
+    const size_t kAllocationLimit = 10 * i::MB;
     return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
 };
@@ -381,7 +376,7 @@ base::Thread::Options GetThreadOptions(const char* name) {
   // which is not enough to parse the big literal expressions used in tests.
   // The stack size should be at least StackGuard::kLimitSize + some
   // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
-  return base::Thread::Options(name, 2 * kMB);
+  return base::Thread::Options(name, 2 * i::MB);
 }
 
 }  // namespace
@@ -1759,7 +1754,7 @@ double Shell::GetTimestamp() {
     return delta.InMillisecondsF();
   }
 }
-int64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
+uint64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
     double performance_timestamp) {
   // Don't use this in --verify-predictable mode, predictable timestamps don't
   // work well with tracing.
@@ -1767,7 +1762,9 @@ int64_t Shell::GetTracingTimestampFromPerformanceTimestamp(
   base::TimeDelta delta =
       base::TimeDelta::FromMillisecondsD(performance_timestamp);
   // See TracingController::CurrentTimestampMicroseconds().
-  return (delta + kInitialTicks).ToInternalValue();
+  int64_t internal_value = (delta + kInitialTicks).ToInternalValue();
+  DCHECK(internal_value >= 0);
+  return internal_value;
 }
 
 // performance.now() returns GetTimestamp().
@@ -3954,7 +3951,7 @@ V8_NOINLINE void FuzzerMonitor::ObservableDifference() {
 V8_NOINLINE void FuzzerMonitor::UndefinedBehavior() {
   // Caught by UBSAN.
   int32_t val = -1;
-  USE(val << 8);
+  USE(val << val);
 }
 
 V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
@@ -4958,6 +4955,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--repeat-compile=", 17) == 0) {
       options.repeat_compile = atoi(argv[i] + 17);
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--max-serializer-memory=", 24) == 0) {
+      // Value is expressed in MB.
+      options.max_serializer_memory = atoi(argv[i] + 24) * i::MB;
+      argv[i] = nullptr;
 #ifdef V8_FUZZILLI
     } else if (strcmp(argv[i], "--no-fuzzilli-enable-builtins-coverage") == 0) {
       options.fuzzilli_enable_builtins_coverage = false;
@@ -5370,7 +5371,9 @@ class Serializer : public ValueSerializer::Delegate {
     // Not accurate, because we don't take into account reallocated buffers,
     // but this is fine for testing.
     current_memory_usage_ += size;
-    if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
+    if (current_memory_usage_ > Shell::options.max_serializer_memory) {
+      return nullptr;
+    }
 
     void* result = base::Realloc(old_buffer, size);
     *actual_size = result ? size : 0;
@@ -5436,7 +5439,9 @@ class Serializer : public ValueSerializer::Delegate {
 
       auto backing_store = array_buffer->GetBackingStore();
       data_->backing_stores_.push_back(std::move(backing_store));
-      array_buffer->Detach();
+      if (array_buffer->Detach(v8::Local<v8::Value>()).IsNothing()) {
+        return Nothing<bool>();
+      }
     }
 
     return Just(true);

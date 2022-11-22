@@ -274,7 +274,11 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     scope_info->SetIsDebugEvaluateScope();
 
     if (v8_flags.experimental_reuse_locals_blocklists) {
-      if (rit == context_chain_.rbegin()) {
+      // In the case where the "paused function scope" is the script scope
+      // itself, we don't need (and don't have) a blocklist.
+      const bool paused_scope_is_script_scope =
+          scope_iterator_.Done() || scope_iterator_.InInnerScope();
+      if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
         // The DebugEvaluateContext we create for the closure scope is the only
         // DebugEvaluateContext with a block list. This means we'll retrieve
         // the existing block list from the paused function scope

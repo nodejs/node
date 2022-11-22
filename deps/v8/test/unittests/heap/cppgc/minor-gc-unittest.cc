@@ -151,12 +151,27 @@ class MinorGCTest : public testing::TestWithHeap {
     Heap::From(GetHeap())->CollectGarbage(GCConfig::MinorPreciseAtomicConfig());
   }
 
+  void CollectMinorWithStack() {
+    Heap::From(GetHeap())->CollectGarbage(
+        GCConfig::MinorConservativeAtomicConfig());
+  }
+
   void CollectMajor() {
     Heap::From(GetHeap())->CollectGarbage(GCConfig::PreciseAtomicConfig());
   }
 
+  void CollectMajorWithStack() {
+    Heap::From(GetHeap())->CollectGarbage(GCConfig::ConservativeAtomicConfig());
+  }
+
   const auto& RememberedSourceObjects() const {
     return Heap::From(GetHeap())->remembered_set().remembered_source_objects_;
+  }
+
+  const auto& RememberedInConstructionObjects() const {
+    return Heap::From(GetHeap())
+        ->remembered_set()
+        .remembered_in_construction_objects_.previous;
   }
 };
 
@@ -170,10 +185,33 @@ using ObjectTypes = ::testing::Types<Small, Large>;
 TYPED_TEST_SUITE(MinorGCTestForType, ObjectTypes);
 
 namespace {
-template <typename... Args>
-void RunMinorGCAndExpectObjectsPromoted(MinorGCTest& test, Args*... args) {
+
+enum class GCType {
+  kMinor,
+  kMajor,
+};
+
+enum class StackType {
+  kWithout,
+  kWith,
+};
+
+template <GCType gc_type, StackType stack_type, typename... Args>
+void RunGCAndExpectObjectsPromoted(MinorGCTest& test, Args*... args) {
   EXPECT_TRUE((IsHeapObjectYoung(args) && ...));
-  test.CollectMinor();
+  if constexpr (gc_type == GCType::kMajor) {
+    if constexpr (stack_type == StackType::kWithout) {
+      test.CollectMajor();
+    } else {
+      test.CollectMajorWithStack();
+    }
+  } else {
+    if constexpr (stack_type == StackType::kWithout) {
+      test.CollectMinor();
+    } else {
+      test.CollectMinorWithStack();
+    }
+  }
   EXPECT_TRUE((IsHeapObjectOld(args) && ...));
 }
 
@@ -595,7 +633,7 @@ TYPED_TEST(MinorGCTestForType, GenerationalBarrierDeferredTracing) {
                       &HeapObjectHeader::FromObject(array->objects)));
   }
 
-  RunMinorGCAndExpectObjectsPromoted(
+  RunGCAndExpectObjectsPromoted<GCType::kMinor, StackType::kWithout>(
       *this, array->objects[2].ref.Get(), array->objects[2].inner.ref.Get(),
       array->objects[3].ref.Get(), array->objects[3].inner.ref.Get());
 
@@ -690,6 +728,152 @@ TEST_F(MinorGCTest, AgeTableIsReset) {
   ExpectPageOld(*page1);
   ExpectPageOld(*page2);
   ExpectPageOld(*BasePage::FromPayload(p3.Get()));
+}
+
+namespace {
+
+template <GCType type>
+struct GCOnConstruction {
+  explicit GCOnConstruction(MinorGCTest& test, size_t depth) {
+    if constexpr (type == GCType::kMajor) {
+      test.CollectMajorWithStack();
+    } else {
+      test.CollectMinorWithStack();
+    }
+    EXPECT_EQ(depth, test.RememberedInConstructionObjects().size());
+  }
+};
+
+template <GCType type>
+struct InConstructionWithYoungRef
+    : GarbageCollected<InConstructionWithYoungRef<type>> {
+  using ValueType = SimpleGCed<64>;
+
+  explicit InConstructionWithYoungRef(MinorGCTest& test)
+      : call_gc(test, 1u),
+        m(MakeGarbageCollected<ValueType>(test.GetAllocationHandle())) {}
+
+  void Trace(Visitor* v) const { v->Trace(m); }
+
+  GCOnConstruction<type> call_gc;
+  Member<ValueType> m;
+};
+
+}  // namespace
+
+TEST_F(MinorGCTest, RevisitInConstructionObjectsMinorMinorWithStack) {
+  static constexpr auto kFirstGCType = GCType::kMinor;
+
+  auto* gced = MakeGarbageCollected<InConstructionWithYoungRef<kFirstGCType>>(
+      GetAllocationHandle(), *this);
+
+  RunGCAndExpectObjectsPromoted<GCType::kMinor, StackType::kWith>(
+      *this, gced->m.Get());
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
+}
+
+TEST_F(MinorGCTest, RevisitInConstructionObjectsMinorMinorWithoutStack) {
+  static constexpr auto kFirstGCType = GCType::kMinor;
+
+  Persistent<InConstructionWithYoungRef<kFirstGCType>> gced =
+      MakeGarbageCollected<InConstructionWithYoungRef<kFirstGCType>>(
+          GetAllocationHandle(), *this);
+
+  RunGCAndExpectObjectsPromoted<GCType::kMinor, StackType::kWithout>(
+      *this, gced->m.Get());
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
+}
+
+TEST_F(MinorGCTest, RevisitInConstructionObjectsMajorMinorWithStack) {
+  static constexpr auto kFirstGCType = GCType::kMajor;
+
+  auto* gced = MakeGarbageCollected<InConstructionWithYoungRef<kFirstGCType>>(
+      GetAllocationHandle(), *this);
+
+  RunGCAndExpectObjectsPromoted<GCType::kMinor, StackType::kWith>(
+      *this, gced->m.Get());
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
+}
+
+TEST_F(MinorGCTest, RevisitInConstructionObjectsMajorMinorWithoutStack) {
+  static constexpr auto kFirstGCType = GCType::kMajor;
+
+  Persistent<InConstructionWithYoungRef<kFirstGCType>> gced =
+      MakeGarbageCollected<InConstructionWithYoungRef<kFirstGCType>>(
+          GetAllocationHandle(), *this);
+
+  RunGCAndExpectObjectsPromoted<GCType::kMinor, StackType::kWithout>(
+      *this, gced->m.Get());
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
+}
+
+TEST_F(MinorGCTest, PreviousInConstructionObjectsAreDroppedAfterFullGC) {
+  MakeGarbageCollected<InConstructionWithYoungRef<GCType::kMinor>>(
+      GetAllocationHandle(), *this);
+
+  EXPECT_EQ(1u, RememberedInConstructionObjects().size());
+
+  CollectMajor();
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
+}
+
+namespace {
+
+template <GCType type>
+struct NestedInConstructionWithYoungRef
+    : GarbageCollected<NestedInConstructionWithYoungRef<type>> {
+  using ValueType = SimpleGCed<64>;
+
+  NestedInConstructionWithYoungRef(MinorGCTest& test, size_t depth)
+      : NestedInConstructionWithYoungRef(test, 1, depth) {}
+
+  NestedInConstructionWithYoungRef(MinorGCTest& test, size_t current_depth,
+                                   size_t max_depth)
+      : current_depth(current_depth),
+        max_depth(max_depth),
+        next(current_depth != max_depth
+                 ? MakeGarbageCollected<NestedInConstructionWithYoungRef<type>>(
+                       test.GetAllocationHandle(), test, current_depth + 1,
+                       max_depth)
+                 : nullptr),
+        call_gc(test, current_depth),
+        m(MakeGarbageCollected<ValueType>(test.GetAllocationHandle())) {}
+
+  void Trace(Visitor* v) const {
+    v->Trace(next);
+    v->Trace(m);
+  }
+
+  size_t current_depth = 0;
+  size_t max_depth = 0;
+
+  Member<NestedInConstructionWithYoungRef<type>> next;
+  GCOnConstruction<type> call_gc;
+  Member<ValueType> m;
+};
+
+}  // namespace
+
+TEST_F(MinorGCTest, RevisitNestedInConstructionObjects) {
+  static constexpr auto kFirstGCType = GCType::kMinor;
+
+  Persistent<NestedInConstructionWithYoungRef<kFirstGCType>> gced =
+      MakeGarbageCollected<NestedInConstructionWithYoungRef<kFirstGCType>>(
+          GetAllocationHandle(), *this, 10);
+
+  CollectMinor();
+
+  for (auto* p = gced.Get(); p; p = p->next.Get()) {
+    EXPECT_TRUE(IsHeapObjectOld(p));
+    EXPECT_TRUE(IsHeapObjectOld(p->m));
+  }
+
+  EXPECT_EQ(0u, RememberedInConstructionObjects().size());
 }
 
 }  // namespace internal

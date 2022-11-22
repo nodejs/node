@@ -147,8 +147,8 @@ DOM.defineCustomElement('./view/map-panel/map-transitions',
   }
 
   _handleMouseoverMap(event) {
-    this.dispatchEvent(
-        new ToolTipEvent(event.currentTarget.map, event.currentTarget));
+    this.dispatchEvent(new ToolTipEvent(
+        event.currentTarget.map, event.currentTarget, event.ctrlKey));
   }
 
   _handleToggleSubtree(event) {

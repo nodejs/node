@@ -123,7 +123,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprLocalGet, 0,  // offset in table
       kExprTableGet, table,
-      kGCPrefix, kExprRefAsData,
+      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array_type_index,
       kExprLocalGet, 1,  // index in the array
       kGCPrefix, kExprArrayGet, array_type_index,

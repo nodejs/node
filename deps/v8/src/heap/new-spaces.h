@@ -578,7 +578,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Return the maximum capacity of the space.
   size_t MaximumCapacity() const { return max_capacity_; }
 
-  size_t TotalCapacity() const { return current_capacity_; }
+  size_t TotalCapacity() const { return target_capacity_; }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.

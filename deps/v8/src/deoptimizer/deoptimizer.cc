@@ -432,7 +432,7 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
   Object element = native_context.OptimizedCodeListHead();
   Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
-    Code code = FromCodeT(CodeT::cast(element));
+    CodeT code = CodeT::cast(element);
     CHECK(CodeKindCanDeoptimize(code.kind()));
     code.set_marked_for_deoptimization(true);
     element = code.next_code_link();
@@ -635,7 +635,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     NativeContext native_context = NativeContext::cast(context);
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
-      Code code = FromCodeT(CodeT::cast(element));
+      CodeT code = CodeT::cast(element);
       DCHECK(CodeKindCanDeoptimize(code.kind()));
       if (!code.marked_for_deoptimization()) {
         length++;

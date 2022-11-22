@@ -421,15 +421,26 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
 
 }  // namespace
 
-// TODO(pthier, v8:11935): We use this method to implement
-// MaybeSimpleCaseFolding
-// TODO(v8:11935): Change to permalink once proposal is in stage 4.
-// https://arai-a.github.io/ecma262-compare/snapshot.html?pr=2418#sec-maybesimplecasefolding
-// which is slightly different. The main difference is that we retain original
-// characters and add case equivalents, whereas according to the spec original
-// characters should be replaced with their case equivalent.
-// This shouldn't make a difference for correctness, but we could potentially
-// create smaller character classes for unicode sets.
+#ifdef V8_INTL_SUPPORT
+// static
+void CharacterRange::UnicodeSimpleCloseOver(icu::UnicodeSet& set) {
+  // Remove characters for which closeOver() adds full-case-folding equivalents
+  // because we should work only with simple case folding mappings.
+  icu::UnicodeSet non_simple = icu::UnicodeSet(set);
+  non_simple.retainAll(RegExpCaseFolding::UnicodeNonSimpleCloseOverSet());
+  set.removeAll(non_simple);
+
+  set.closeOver(USET_CASE_INSENSITIVE);
+  // Full case folding maps single characters to multiple characters.
+  // Those are represented as strings in the set. Remove them so that
+  // we end up with only simple and common case mappings.
+  set.removeAllStrings();
+
+  // Add characters that have non-simple case foldings again (they match
+  // themselves).
+  set.addAll(non_simple);
+}
+#endif  // V8_INTL_SUPPORT
 
 // static
 void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
@@ -452,11 +463,8 @@ void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
   }
   // Clear the ranges list without freeing the backing store.
   ranges->Rewind(0);
-  set.closeOver(USET_CASE_INSENSITIVE);
-  // Full case mapping map single characters to multiple characters.
-  // Those are represented as strings in the set. Remove them so that
-  // we end up with only simple and common case mappings.
-  set.removeAllStrings();
+
+  UnicodeSimpleCloseOver(set);
   for (int i = 0; i < set.getRangeCount(); i++) {
     ranges->Add(Range(set.getRangeStart(i), set.getRangeEnd(i)), zone);
   }

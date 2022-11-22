@@ -30,6 +30,7 @@ class CodeDataContainer;
   V(kHandleScope, "(Handle scope)")                     \
   V(kBuiltins, "(Builtins)")                            \
   V(kGlobalHandles, "(Global handles)")                 \
+  V(kTracedHandles, "(Traced handles)")                 \
   V(kEternalHandles, "(Eternal handles)")               \
   V(kThreadManager, "(Thread manager)")                 \
   V(kStrongRoots, "(Strong roots)")                     \

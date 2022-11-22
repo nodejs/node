@@ -267,8 +267,6 @@ MaybeHandle<Object> WasmTableObject::JSToWasmElement(
     const char** error_message) {
   // Any `entry` has to be in its JS representation.
   DCHECK(!entry->IsWasmInternalFunction());
-  DCHECK_IMPLIES(!v8_flags.wasm_gc_js_interop,
-                 !entry->IsWasmArray() && !entry->IsWasmStruct());
   const WasmModule* module =
       !table->instance().IsUndefined()
           ? WasmInstanceObject::cast(table->instance()).module()
@@ -325,7 +323,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kStringViewWtf16:
     case wasm::HeapType::kStringViewIter:
     case wasm::HeapType::kEq:
-    case wasm::HeapType::kData:
+    case wasm::HeapType::kStruct:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
     case wasm::HeapType::kI31:
@@ -373,7 +371,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kString:
     case wasm::HeapType::kEq:
     case wasm::HeapType::kI31:
-    case wasm::HeapType::kData:
+    case wasm::HeapType::kStruct:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
       return entry;
@@ -917,7 +915,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // Check if the non-shared memory could grow in-place.
   if (result_inplace.has_value()) {
     // Detach old and create a new one with the grown backing store.
-    old_buffer->Detach(true);
+    JSArrayBuffer::Detach(old_buffer, true).Check();
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->update_instances(isolate, new_buffer);
@@ -957,7 +955,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   // Detach old and create a new one with the new backing store.
-  old_buffer->Detach(true);
+  JSArrayBuffer::Detach(old_buffer, true).Check();
   Handle<JSArrayBuffer> new_buffer =
       isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
   memory_object->update_instances(isolate, new_buffer);
@@ -1182,6 +1180,11 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+  // TODO(manoskouk): Initialize this array with zeroes, and check for zero in
+  // wasm-compiler.
+  Handle<FixedArray> functions = isolate->factory()->NewFixedArray(
+      static_cast<int>(module->functions.size()));
+  instance->set_wasm_internal_functions(*functions);
   instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
@@ -1325,15 +1328,10 @@ base::Optional<MessageTemplate> WasmInstanceObject::InitTableEntries(
 
 MaybeHandle<WasmInternalFunction> WasmInstanceObject::GetWasmInternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
-  MaybeHandle<WasmInternalFunction> result;
-  if (instance->has_wasm_internal_functions()) {
-    Object val = instance->wasm_internal_functions().get(index);
-    if (!val.IsUndefined(isolate)) {
-      result = Handle<WasmInternalFunction>(WasmInternalFunction::cast(val),
-                                            isolate);
-    }
-  }
-  return result;
+  Object val = instance->wasm_internal_functions().get(index);
+  return val.IsWasmInternalFunction()
+             ? handle(WasmInternalFunction::cast(val), isolate)
+             : MaybeHandle<WasmInternalFunction>();
 }
 
 Handle<WasmInternalFunction>
@@ -1342,10 +1340,8 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   MaybeHandle<WasmInternalFunction> maybe_result =
       WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index);
-
-  Handle<WasmInternalFunction> result;
-  if (maybe_result.ToHandle(&result)) {
-    return result;
+  if (!maybe_result.is_null()) {
+    return maybe_result.ToHandleChecked();
   }
 
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
@@ -1378,28 +1374,17 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper));
-  result =
+  Handle<WasmInternalFunction> result =
       WasmInternalFunction::FromExternal(external, isolate).ToHandleChecked();
 
-  WasmInstanceObject::SetWasmInternalFunction(isolate, instance, function_index,
-                                              result);
+  WasmInstanceObject::SetWasmInternalFunction(instance, function_index, result);
   return result;
 }
 
 void WasmInstanceObject::SetWasmInternalFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
+    Handle<WasmInstanceObject> instance, int index,
     Handle<WasmInternalFunction> val) {
-  Handle<FixedArray> functions;
-  if (!instance->has_wasm_internal_functions()) {
-    // Lazily allocate the wasm external functions array.
-    functions = isolate->factory()->NewFixedArray(
-        static_cast<int>(instance->module()->functions.size()));
-    instance->set_wasm_internal_functions(*functions);
-  } else {
-    functions =
-        Handle<FixedArray>(instance->wasm_internal_functions(), isolate);
-  }
-  functions->set(index, *val);
+  instance->wasm_internal_functions().set(index, *val);
 }
 
 // static
@@ -2214,24 +2199,6 @@ Handle<AsmWasmData> AsmWasmData::New(
   return result;
 }
 
-namespace {
-// If {in_out_value} is a wrapped wasm struct/array, it gets unwrapped in-place
-// and this returns {true}. Otherwise, the value remains unchanged and this
-// returns {false}.
-bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
-  if (in_out_value->IsUndefined(isolate) || in_out_value->IsNull(isolate) ||
-      !in_out_value->IsJSObject()) {
-    return false;
-  }
-  Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
-  LookupIterator it(isolate, in_out_value, key,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (it.state() != LookupIterator::DATA) return false;
-  in_out_value = it.GetDataValue();
-  return true;
-}
-}  // namespace
-
 namespace wasm {
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
@@ -2257,8 +2224,6 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
       }
       V8_FALLTHROUGH;
     case kRef: {
-      // TODO(7748): Follow any changes in proposed JS API. In particular,
-      //             finalize the v8_flags.wasm_gc_js_interop situation.
       // TODO(7748): Allow all in-range numbers for i31. Make sure to convert
       //             Smis to i31refs if needed.
       // TODO(7748): Streamline interaction of undefined and (ref any).
@@ -2284,28 +2249,21 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kAny: {
-          if (!v8_flags.wasm_gc_js_interop) {
-            TryUnpackObjectWrapper(isolate, value);
-          }
           if (!value->IsNull(isolate)) return value;
           *error_message = "null is not allowed for (ref any)";
           return {};
         }
-        case HeapType::kData: {
-          if (v8_flags.wasm_gc_js_interop
-                  ? value->IsWasmStruct() || value->IsWasmArray()
-                  : TryUnpackObjectWrapper(isolate, value)) {
+        case HeapType::kStruct: {
+          if (value->IsWasmStruct() ||
+              (value->IsWasmArray() && v8_flags.wasm_gc_structref_as_dataref)) {
             return value;
           }
           *error_message =
-              "dataref object must be null (if nullable) or a wasm "
-              "struct/array";
+              "structref object must be null (if nullable) or a wasm struct";
           return {};
         }
         case HeapType::kArray: {
-          if ((v8_flags.wasm_gc_js_interop ||
-               TryUnpackObjectWrapper(isolate, value)) &&
-              value->IsWasmArray()) {
+          if (value->IsWasmArray()) {
             return value;
           }
           *error_message =
@@ -2313,10 +2271,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
           return {};
         }
         case HeapType::kEq: {
-          if (value->IsSmi() ||
-              (v8_flags.wasm_gc_js_interop
-                   ? value->IsWasmStruct() || value->IsWasmArray()
-                   : TryUnpackObjectWrapper(isolate, value))) {
+          if (value->IsSmi() || value->IsWasmStruct() || value->IsWasmArray()) {
             return value;
           }
           *error_message =
@@ -2403,9 +2358,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
             // A struct or array type with index is expected.
             DCHECK(module->has_struct(expected.ref_index()) ||
                    module->has_array(expected.ref_index()));
-            if (v8_flags.wasm_gc_js_interop
-                    ? !value->IsWasmStruct() && !value->IsWasmArray()
-                    : !TryUnpackObjectWrapper(isolate, value)) {
+            if (!value->IsWasmStruct() && !value->IsWasmArray()) {
               *error_message = "object incompatible with wasm type";
               return {};
             }

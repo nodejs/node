@@ -103,10 +103,6 @@ OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
       state_(kOldSpaceState),
       old_iterator_(heap->old_space()->begin()),
       code_iterator_(heap->code_space()->begin()),
-      map_iterator_(heap->map_space() ? heap->map_space()->begin()
-                                      : PageRange::iterator(nullptr)),
-      map_iterator_end_(heap->map_space() ? heap->map_space()->end()
-                                          : PageRange::iterator(nullptr)),
       lo_iterator_(heap->lo_space()->begin()),
       code_lo_iterator_(heap->code_lo_space()->begin()) {}
 
@@ -114,11 +110,6 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
       if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
-      state_ = kMapState;
-      V8_FALLTHROUGH;
-    }
-    case kMapState: {
-      if (map_iterator_ != map_iterator_end_) return *(map_iterator_++);
       state_ = kCodeState;
       V8_FALLTHROUGH;
     }

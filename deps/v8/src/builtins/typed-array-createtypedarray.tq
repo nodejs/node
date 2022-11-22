@@ -329,11 +329,18 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
 
   // 2. Perform ? ValidateTypedArray(newTypedArray).
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
+  const newTypedArrayLength =
+      ValidateTypedArrayAndGetLength(context, newTypedArrayObj, methodName);
   const newTypedArray: JSTypedArray =
-      ValidateTypedArray(context, newTypedArrayObj, methodName);
-  // TODO(v8:11111): bit_field should be initialized to 0.
-  newTypedArray.bit_field.is_length_tracking = false;
-  newTypedArray.bit_field.is_backed_by_rab = false;
+      UnsafeCast<JSTypedArray>(newTypedArrayObj);
+
+  dcheck(
+      newTypedArray.bit_field.is_backed_by_rab ==
+      (IsResizableArrayBuffer(newTypedArray.buffer) &&
+       !IsSharedArrayBuffer(newTypedArray.buffer)));
+  dcheck(
+      !newTypedArray.bit_field.is_length_tracking ||
+      IsResizableArrayBuffer(newTypedArray.buffer));
 
   if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, methodName);
@@ -342,7 +349,7 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   // 3. If argumentList is a List of a single Number, then
   //   a. If newTypedArray.[[ArrayLength]] < argumentList[0], throw a
   //      TypeError exception.
-  if (newTypedArray.length < Convert<uintptr>(length)) deferred {
+  if (newTypedArrayLength < Convert<uintptr>(length)) deferred {
       ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
     }
 

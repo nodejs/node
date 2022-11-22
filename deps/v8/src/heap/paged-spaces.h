@@ -33,57 +33,6 @@ class ObjectVisitor;
 class PagedSpaceBase;
 class Sweeper;
 
-// -----------------------------------------------------------------------------
-// Heap object iterator in paged spaces.
-//
-// A PagedSpaceObjectIterator iterates objects from the bottom of the given
-// space to its top or from the bottom of the given page to its top.
-//
-// If objects are allocated in the page during iteration the iterator may
-// or may not iterate over those objects.  The caller must create a new
-// iterator in order to be sure to visit these new objects.
-class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
- public:
-  // Creates a new object iterator in a given space.
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpaceBase* space);
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpaceBase* space,
-                           const Page* page);
-  PagedSpaceObjectIterator(Heap* heap, const PagedSpace* space,
-                           const Page* page, Address start_address);
-
-  // Advance to the next object, skipping free spaces and other fillers and
-  // skipping the special garbage section of which there is one per space.
-  // Returns nullptr when the iteration has ended.
-  inline HeapObject Next() override;
-
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
-  PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
- private:
-  // Fast (inlined) path of next().
-  inline HeapObject FromCurrentPage();
-
-  // Slow path of next(), goes into the next page.  Returns false if the
-  // iteration has ended.
-  bool AdvanceToNextPage();
-
-  Address cur_addr_;  // Current iteration point.
-  Address cur_end_;   // End iteration point.
-  const PagedSpaceBase* const space_;
-  ConstPageRange page_range_;
-  ConstPageRange::iterator current_page_;
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
-};
-
 class V8_EXPORT_PRIVATE PagedSpaceBase
     : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  public:
@@ -475,8 +424,6 @@ class CompactionSpaceCollection : public Malloced {
                                      CompactionSpaceKind compaction_space_kind)
       : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE,
                    compaction_space_kind),
-        map_space_(heap, MAP_SPACE, Executability::NOT_EXECUTABLE,
-                   compaction_space_kind),
         code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
                     compaction_space_kind),
         shared_space_(heap, SHARED_SPACE, Executability::NOT_EXECUTABLE,
@@ -486,8 +433,6 @@ class CompactionSpaceCollection : public Malloced {
     switch (space) {
       case OLD_SPACE:
         return &old_space_;
-      case MAP_SPACE:
-        return &map_space_;
       case CODE_SPACE:
         return &code_space_;
       case SHARED_SPACE:
@@ -500,7 +445,6 @@ class CompactionSpaceCollection : public Malloced {
 
  private:
   CompactionSpace old_space_;
-  CompactionSpace map_space_;
   CompactionSpace code_space_;
   CompactionSpace shared_space_;
 };
@@ -544,36 +488,6 @@ class CodeSpace final : public PagedSpace {
 };
 
 // -----------------------------------------------------------------------------
-// Old space for all map objects
-
-class MapSpace final : public PagedSpace {
- public:
-  // Creates a map space object.
-  explicit MapSpace(Heap* heap)
-      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   paged_allocation_info_) {}
-
-  int RoundSizeDownToObjectAlignment(int size) const override {
-    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-      return RoundDown(size, kObjectAlignment8GbHeap);
-    } else if (base::bits::IsPowerOfTwo(Map::kSize)) {
-      return RoundDown(size, Map::kSize);
-    } else {
-      return (size / Map::kSize) * Map::kSize;
-    }
-  }
-
-  void SortFreeList();
-
-#ifdef VERIFY_HEAP
-  void VerifyObject(HeapObject obj) const override;
-#endif
-
- private:
-  LinearAllocationArea paged_allocation_info_;
-};
-
-// -----------------------------------------------------------------------------
 // Shared space regular object space.
 
 class SharedSpace final : public PagedSpace {
@@ -611,7 +525,6 @@ class OldGenerationMemoryChunkIterator {
  private:
   enum State {
     kOldSpaceState,
-    kMapState,
     kCodeState,
     kLargeObjectState,
     kCodeLargeObjectState,
@@ -621,8 +534,6 @@ class OldGenerationMemoryChunkIterator {
   State state_;
   PageIterator old_iterator_;
   PageIterator code_iterator_;
-  PageIterator map_iterator_;
-  const PageIterator map_iterator_end_;
   LargePageIterator lo_iterator_;
   LargePageIterator code_lo_iterator_;
 };

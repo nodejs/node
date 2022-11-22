@@ -44,6 +44,7 @@
 //     - JSReceiver  (suitable for property access)
 //       - JSObject
 //         - JSArray
+//           - TemplateLiteralObject
 //         - JSArrayBuffer
 //         - JSArrayBufferView
 //           - JSTypedArray
@@ -181,7 +182,6 @@
 //       - DebugInfo
 //       - BreakPoint
 //       - BreakPointInfo
-//       - CachedTemplateObject
 //       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject

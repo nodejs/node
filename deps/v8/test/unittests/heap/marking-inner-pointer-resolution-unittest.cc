@@ -680,7 +680,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     // Start incremental marking and mark the third object.
     i::IncrementalMarking* marking = heap()->incremental_marking();
     if (marking->IsStopped()) {
-      SafepointScope scope(heap());
+      IsolateSafepointScope scope(heap());
       heap()->tracer()->StartCycle(
           GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
           "unit test", GCTracer::MarkingType::kIncremental);

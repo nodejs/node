@@ -278,3 +278,96 @@ function allowOOM(fn) {
   assertTraps(kTrapMemOutOfBounds, () => fill(1n << 62n, 0, 1n));
   assertTraps(kTrapMemOutOfBounds, () => fill(1n << 63n, 0, 1n));
 })();
+
+(function TestMemory64SharedBasic() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 10, true, true);
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,       // local.get 0
+        kExprI32LoadMem, 0, 0,  // i32.load_mem align=1 offset=0
+      ])
+      .exportFunc();
+  let instance = builder.instantiate();
+
+  assertTrue(instance.exports.memory instanceof WebAssembly.Memory);
+  assertTrue(instance.exports.memory.buffer instanceof SharedArrayBuffer);
+  assertEquals(0, instance.exports.load(0n));
+})();
+
+(function TestMemory64SharedBetweenWorkers() {
+  print(arguments.callee.name);
+  // Generate a shared memory64 by instantiating an module that exports one.
+  // TODO(clemensb): Use the proper API once that's decided.
+  let shared_mem64 = (function() {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory64(1, 10, true, true);
+    return builder.instantiate().exports.memory;
+  })();
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory('imp', 'mem', 1, 10, true, true);
+
+  builder.addFunction('grow', makeSig([kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,    // local.get 0
+        kExprMemoryGrow, 0,  // memory.grow 0
+      ])
+      .exportFunc();
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,       // local.get 0
+        kExprI32LoadMem, 0, 0,  // i32.load_mem align=1 offset=0
+      ])
+      .exportFunc();
+  builder.addFunction('store', makeSig([kWasmI64, kWasmI32], []))
+      .addBody([
+        kExprLocalGet, 0,        // local.get 0
+        kExprLocalGet, 1,        // local.get 1
+        kExprI32StoreMem, 0, 0,  // i32.store_mem align=1 offset=0
+      ])
+      .exportFunc();
+
+  let module = builder.toModule();
+  let instance = new WebAssembly.Instance(module, {imp: {mem: shared_mem64}});
+
+  assertEquals(1n, instance.exports.grow(2n));
+  assertEquals(3n, instance.exports.grow(1n));
+  const kOffset1 = 47n;
+  const kOffset2 = 128n;
+  const kValue = 21;
+  assertEquals(0, instance.exports.load(kOffset1));
+  instance.exports.store(kOffset1, kValue);
+  assertEquals(kValue, instance.exports.load(kOffset1));
+  let worker = new Worker(function() {
+    onmessage = function([mem, module]) {
+      function workerAssert(condition, message) {
+        if (!condition) postMessage(`Check failed: ${message}`);
+      }
+
+      function workerAssertEquals(expected, actual, message) {
+        if (expected != actual)
+          postMessage(`Check failed (${message}): ${expected} != ${actual}`);
+      }
+
+      const kOffset1 = 47n;
+      const kOffset2 = 128n;
+      const kValue = 21;
+      workerAssert(mem instanceof WebAssembly.Memory, 'Wasm memory');
+      workerAssert(mem.buffer instanceof SharedArrayBuffer);
+      workerAssertEquals(4, mem.grow(1), 'grow');
+      let instance = new WebAssembly.Instance(module, {imp: {mem: mem}});
+      let exports = instance.exports;
+      workerAssertEquals(kValue, exports.load(kOffset1), 'load 1');
+      workerAssertEquals(0, exports.load(kOffset2), 'load 2');
+      exports.store(kOffset2, kValue);
+      workerAssertEquals(kValue, exports.load(kOffset2), 'load 3');
+      postMessage('OK');
+    }
+  }, {type: 'function'});
+  worker.postMessage([shared_mem64, module]);
+  assertEquals('OK', worker.getMessage());
+  assertEquals(kValue, instance.exports.load(kOffset2));
+  assertEquals(5n, instance.exports.grow(1n));
+})();

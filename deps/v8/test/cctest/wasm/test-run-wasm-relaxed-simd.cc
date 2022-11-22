@@ -226,6 +226,36 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
     }
   }
 }
+
+TEST(RunWasm_RegressFmaReg_liftoff) {
+  EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);
+  FLAG_SCOPE(liftoff_only);
+  TestExecutionTier execution_tier = TestExecutionTier::kLiftoff;
+  WasmRunner<int32_t, float, float, float> r(execution_tier);
+  byte local = r.AllocateLocal(kWasmS128);
+  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  byte value1 = 0, value2 = 1, value3 = 2;
+  BUILD(r,
+        // Get the first arg from a local so that the register is blocked even
+        // after the arguments have been popped off the stack. This ensures that
+        // the first source register is not also the destination.
+        WASM_LOCAL_SET(local, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1))),
+        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_QFMA(
+                               WASM_LOCAL_GET(local),
+                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2)),
+                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value3)))),
+        WASM_ONE);
+
+  for (FMOperation<float> x : qfma_vector<float>()) {
+    r.Call(x.a, x.b, x.c);
+    float expected =
+        ExpectFused(execution_tier) ? x.fused_result : x.unfused_result;
+    for (int i = 0; i < 4; i++) {
+      float actual = LANE(g, i);
+      CheckFloatResult(x.a, x.b, expected, actual, true /* exact */);
+    }
+  }
+}
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
         // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 

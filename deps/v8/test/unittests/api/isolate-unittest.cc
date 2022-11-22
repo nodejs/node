@@ -145,17 +145,14 @@ TEST_F(IsolateTest, SetAddCrashKeyCallback) {
   i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate());
   i::Heap* heap = i_isolate->heap();
 
-  size_t expected_keys_count = 4;
+  size_t expected_keys_count = 5;
   EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kIsolateAddress), 1u);
   EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kReadonlySpaceFirstPageAddress),
             1u);
+  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kOldSpaceFirstPageAddress), 1u);
   EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumCalculated), 1u);
   EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumExpected), 1u);
 
-  if (heap->map_space()) {
-    ++expected_keys_count;
-    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kMapSpaceFirstPageAddress), 1u);
-  }
   if (heap->code_range_base()) {
     ++expected_keys_count;
     EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kCodeRangeBaseAddress), 1u);

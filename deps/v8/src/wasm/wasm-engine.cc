@@ -511,9 +511,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
+  constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, compilation_id, context_id);
+      bytes, compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
@@ -550,15 +551,16 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // If experimental PGO via files is enabled, load profile information now.
-  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_from_file)) {
-    LoadProfileFromFile(module.get(), bytes.module_bytes());
+  std::unique_ptr<ProfileInformation> pgo_info;
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+    pgo_info = LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
-                            compilation_id, context_id);
+                            compilation_id, context_id, pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -1018,6 +1020,14 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
+#if defined(V8_COMPRESS_POINTERS)
+  // The null value is not accessible on mksnapshot runs.
+  if (isolate->snapshot_available()) {
+    null_tagged_compressed_ = V8HeapCompressionScheme::CompressTagged(
+        isolate->factory()->null_value()->ptr());
+  }
+#endif
+
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
@@ -1083,37 +1093,55 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
 void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   if (code_vec.empty()) return;
-  base::MutexGuard guard(&mutex_);
-  NativeModule* native_module = code_vec[0]->native_module();
-  DCHECK_EQ(1, native_modules_.count(native_module));
-  for (Isolate* isolate : native_modules_[native_module]->isolates) {
-    DCHECK_EQ(1, isolates_.count(isolate));
-    IsolateInfo* info = isolates_[isolate].get();
-    if (info->log_codes == false) continue;
-    if (info->log_codes_task == nullptr) {
-      auto new_task = std::make_unique<LogCodesTask>(
-          &mutex_, &info->log_codes_task, isolate, this);
-      info->log_codes_task = new_task.get();
-      info->foreground_task_runner->PostTask(std::move(new_task));
-    }
-    if (info->code_to_log.empty()) {
-      isolate->stack_guard()->RequestLogWasmCode();
-    }
-    for (WasmCode* code : code_vec) {
-      DCHECK_EQ(native_module, code->native_module());
-      code->IncRef();
-    }
+  using TaskToSchedule =
+      std::pair<std::shared_ptr<v8::TaskRunner>, std::unique_ptr<LogCodesTask>>;
+  std::vector<TaskToSchedule> to_schedule;
+  {
+    base::MutexGuard guard(&mutex_);
+    NativeModule* native_module = code_vec[0]->native_module();
+    DCHECK_EQ(1, native_modules_.count(native_module));
+    for (Isolate* isolate : native_modules_[native_module]->isolates) {
+      DCHECK_EQ(1, isolates_.count(isolate));
+      IsolateInfo* info = isolates_[isolate].get();
+      if (info->log_codes == false) continue;
+      if (info->log_codes_task == nullptr) {
+        auto new_task = std::make_unique<LogCodesTask>(
+            &mutex_, &info->log_codes_task, isolate, this);
+        info->log_codes_task = new_task.get();
+        // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
+        // Posting the task in the mutex can cause the following deadlock (only
+        // in d8): When d8 shuts down, it sets a terminate to the task runner.
+        // When the terminate flag in the taskrunner is set, all newly posted
+        // tasks get destroyed immediately. When the LogCodesTask gets
+        // destroyed, it takes the WasmEngine::mutex_ lock to deregister itself
+        // from the IsolateInfo. Therefore, as the LogCodesTask may get
+        // destroyed immediately when it gets posted, it cannot get posted when
+        // the WasmEngine::mutex_ lock is held.
+        to_schedule.emplace_back(info->foreground_task_runner,
+                                 std::move(new_task));
+      }
+      if (info->code_to_log.empty()) {
+        isolate->stack_guard()->RequestLogWasmCode();
+      }
+      for (WasmCode* code : code_vec) {
+        DCHECK_EQ(native_module, code->native_module());
+        code->IncRef();
+      }
 
-    auto script_it = info->scripts.find(native_module);
-    // If the script does not yet exist, logging will happen later. If the weak
-    // handle is cleared already, we also don't need to log any more.
-    if (script_it == info->scripts.end()) continue;
-    auto& log_entry = info->code_to_log[script_it->second.script_id()];
-    if (!log_entry.source_url) {
-      log_entry.source_url = script_it->second.source_url();
+      auto script_it = info->scripts.find(native_module);
+      // If the script does not yet exist, logging will happen later. If the
+      // weak handle is cleared already, we also don't need to log any more.
+      if (script_it == info->scripts.end()) continue;
+      auto& log_entry = info->code_to_log[script_it->second.script_id()];
+      if (!log_entry.source_url) {
+        log_entry.source_url = script_it->second.source_url();
+      }
+      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
+                            code_vec.end());
     }
-    log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                          code_vec.end());
+  }
+  for (auto& [runner, task] : to_schedule) {
+    runner->PostTask(std::move(task));
   }
 }
 

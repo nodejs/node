@@ -339,7 +339,6 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
     state->bits = bits;
 
     Assert((state->hold >> state->bits) == 0, "invalid input data state");
-    return;
 }
 
 /*

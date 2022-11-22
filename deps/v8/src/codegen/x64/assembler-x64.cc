@@ -1018,6 +1018,16 @@ void Assembler::near_jmp(intptr_t disp, RelocInfo::Mode rmode) {
   emitl(static_cast<int32_t>(disp));
 }
 
+void Assembler::near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  // 0000 1111 1000 tttn #32-bit disp.
+  emit(0x0F);
+  emit(0x80 | cc);
+  DCHECK(is_int32(disp));
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(disp));
+}
+
 void Assembler::call(Register adr) {
   EnsureSpace ensure_space(this);
   // Opcode: FF /2 r64.

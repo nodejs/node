@@ -30,9 +30,10 @@ own<Trap> Stage2(void* env, const Val args[], Val results[]) {
 own<Trap> Stage4_GC(void* env, const Val args[], Val results[]) {
   printf("Stage4...\n");
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env);
-  isolate->heap()->PreciseCollectAllGarbage(
-      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
-      v8::kNoGCCallbackFlags);
+  ScanStackModeScopeForTesting no_stack_scanning(isolate->heap(),
+                                                 Heap::ScanStackMode::kNone);
+  isolate->heap()->PreciseCollectAllGarbage(Heap::kForcedGC,
+                                            GarbageCollectionReason::kTesting);
   results[0] = Val::i32(args[0].i32() + 1);
   return nullptr;
 }
@@ -174,6 +175,36 @@ own<Trap> PlusOne(const Val args[], Val results[]) {
   return nullptr;
 }
 
+own<Trap> PlusOneWithManyArgs(const Val args[], Val results[]) {
+  int32_t a0 = args[0].i32();
+  results[0] = Val::i32(a0 + 1);
+  int64_t a1 = args[1].i64();
+  results[1] = Val::i64(a1 + 1);
+  float a2 = args[2].f32();
+  results[2] = Val::f32(a2 + 1);
+  double a3 = args[3].f64();
+  results[3] = Val::f64(a3 + 1);
+  results[4] = Val::ref(args[4].ref()->copy());  // No +1 for Refs.
+  int32_t a5 = args[5].i32();
+  results[5] = Val::i32(a5 + 1);
+  int64_t a6 = args[6].i64();
+  results[6] = Val::i64(a6 + 1);
+  float a7 = args[7].f32();
+  results[7] = Val::f32(a7 + 1);
+  double a8 = args[8].f64();
+  results[8] = Val::f64(a8 + 1);
+  int32_t a9 = args[9].i32();
+  results[9] = Val::i32(a9 + 1);
+  int64_t a10 = args[10].i64();
+  results[10] = Val::i64(a10 + 1);
+  float a11 = args[11].f32();
+  results[11] = Val::f32(a11 + 1);
+  double a12 = args[12].f64();
+  results[12] = Val::f64(a12 + 1);
+  int32_t a13 = args[13].i32();
+  results[13] = Val::i32(a13 + 1);
+  return nullptr;
+}
 }  // namespace
 
 TEST_F(WasmCapiTest, DirectCallCapiFunction) {
@@ -221,6 +252,84 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
   EXPECT_TRUE(func->same(results[4].ref()));
 }
 
+TEST_F(WasmCapiTest, DirectCallCapiFunctionWithManyArgs) {
+  // Test with many arguments to make sure that CWasmArgumentsPacker won't use
+  // its buffer-on-stack optimization.
+  own<FuncType> cpp_sig = FuncType::make(
+      ownvec<ValType>::make(
+          ValType::make(::wasm::I32), ValType::make(::wasm::I64),
+          ValType::make(::wasm::F32), ValType::make(::wasm::F64),
+          ValType::make(::wasm::ANYREF), ValType::make(::wasm::I32),
+          ValType::make(::wasm::I64), ValType::make(::wasm::F32),
+          ValType::make(::wasm::F64), ValType::make(::wasm::I32),
+          ValType::make(::wasm::I64), ValType::make(::wasm::F32),
+          ValType::make(::wasm::F64), ValType::make(::wasm::I32)),
+      ownvec<ValType>::make(
+          ValType::make(::wasm::I32), ValType::make(::wasm::I64),
+          ValType::make(::wasm::F32), ValType::make(::wasm::F64),
+          ValType::make(::wasm::ANYREF), ValType::make(::wasm::I32),
+          ValType::make(::wasm::I64), ValType::make(::wasm::F32),
+          ValType::make(::wasm::F64), ValType::make(::wasm::I32),
+          ValType::make(::wasm::I64), ValType::make(::wasm::F32),
+          ValType::make(::wasm::F64), ValType::make(::wasm::I32)));
+  own<Func> func = Func::make(store(), cpp_sig.get(), PlusOneWithManyArgs);
+  Extern* imports[] = {func.get()};
+  ValueType wasm_types[] = {
+      kWasmI32,       kWasmI64, kWasmF32, kWasmF64, kWasmExternRef, kWasmI32,
+      kWasmI64,       kWasmF32, kWasmF64, kWasmI32, kWasmI64,       kWasmF32,
+      kWasmF64,       kWasmI32, kWasmI32, kWasmI64, kWasmF32,       kWasmF64,
+      kWasmExternRef, kWasmI32, kWasmI64, kWasmF32, kWasmF64,       kWasmI32,
+      kWasmI64,       kWasmF32, kWasmF64, kWasmI32};
+  FunctionSig wasm_sig(14, 14, wasm_types);
+  int func_index = builder()->AddImport(base::CStrVector("func"), &wasm_sig);
+  builder()->ExportImportedFunction(base::CStrVector("func"), func_index);
+  Instantiate(imports);
+  int32_t a0 = 42;
+  int64_t a1 = 0x1234c0ffee;
+  float a2 = 1234.5;
+  double a3 = 123.45;
+  Val args[] = {
+      Val::i32(a0),           Val::i64(a1), Val::f32(a2), Val::f64(a3),
+      Val::ref(func->copy()), Val::i32(a0), Val::i64(a1), Val::f32(a2),
+      Val::f64(a3),           Val::i32(a0), Val::i64(a1), Val::f32(a2),
+      Val::f64(a3),           Val::i32(a0)};
+  Val results[14];
+  // Test that {func} can be called directly.
+  own<Trap> trap = func->call(args, results);
+  EXPECT_EQ(nullptr, trap);
+  EXPECT_EQ(a0 + 1, results[0].i32());
+  EXPECT_EQ(a1 + 1, results[1].i64());
+  EXPECT_EQ(a2 + 1, results[2].f32());
+  EXPECT_EQ(a3 + 1, results[3].f64());
+  EXPECT_TRUE(func->same(results[4].ref()));
+  EXPECT_EQ(a0 + 1, results[5].i32());
+  EXPECT_EQ(a1 + 1, results[6].i64());
+  EXPECT_EQ(a2 + 1, results[7].f32());
+  EXPECT_EQ(a3 + 1, results[8].f64());
+  EXPECT_EQ(a0 + 1, results[9].i32());
+  EXPECT_EQ(a1 + 1, results[10].i64());
+  EXPECT_EQ(a2 + 1, results[11].f32());
+  EXPECT_EQ(a3 + 1, results[12].f64());
+  EXPECT_EQ(a0 + 1, results[13].i32());
+
+  // Test that {func} can be called after import/export round-tripping.
+  trap = GetExportedFunction(0)->call(args, results);
+  EXPECT_EQ(nullptr, trap);
+  EXPECT_EQ(a0 + 1, results[0].i32());
+  EXPECT_EQ(a1 + 1, results[1].i64());
+  EXPECT_EQ(a2 + 1, results[2].f32());
+  EXPECT_EQ(a3 + 1, results[3].f64());
+  EXPECT_TRUE(func->same(results[4].ref()));
+  EXPECT_EQ(a0 + 1, results[5].i32());
+  EXPECT_EQ(a1 + 1, results[6].i64());
+  EXPECT_EQ(a2 + 1, results[7].f32());
+  EXPECT_EQ(a3 + 1, results[8].f64());
+  EXPECT_EQ(a0 + 1, results[9].i32());
+  EXPECT_EQ(a1 + 1, results[10].i64());
+  EXPECT_EQ(a2 + 1, results[11].f32());
+  EXPECT_EQ(a3 + 1, results[12].f64());
+  EXPECT_EQ(a0 + 1, results[13].i32());
+}
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

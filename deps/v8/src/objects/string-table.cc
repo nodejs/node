@@ -424,7 +424,7 @@ class InternalizedStringKey final : public StringTableKey {
       // is another thread migrated the string to internalized already.
       // Migrations to thin are impossible, as we only call this method on table
       // misses inside the critical section.
-      string_->set_map_no_write_barrier(*internalized_map);
+      string_->set_map_safe_transition_no_write_barrier(*internalized_map);
       DCHECK(string_->IsInternalizedString());
       return string_;
     }

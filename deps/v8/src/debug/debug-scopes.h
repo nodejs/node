@@ -18,7 +18,7 @@ class ParseInfo;
 // The iteration proceeds from the innermost visible nested scope outwards.
 // All scopes are backed by an actual context except the local scope,
 // which is inserted "artificially" in the context chain.
-class ScopeIterator {
+class V8_EXPORT_PRIVATE ScopeIterator {
  public:
   enum ScopeType {
     ScopeTypeGlobal = 0,

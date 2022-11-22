@@ -12,6 +12,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
 }
 
 extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
+  detach_key: Object;
   // A BoundedSize if the sandbox is enabled
   raw_byte_length: uintptr;
   // A BoundedSize if the sandbox is enabled

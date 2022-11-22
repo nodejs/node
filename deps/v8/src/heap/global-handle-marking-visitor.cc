@@ -15,8 +15,7 @@ GlobalHandleMarkingVisitor::GlobalHandleMarkingVisitor(
     : heap_(heap),
       marking_state_(*heap_.marking_state()),
       local_marking_worklist_(local_marking_worklist),
-      traced_node_bounds_(
-          heap.isolate()->global_handles()->GetTracedNodeBounds()) {}
+      traced_node_bounds_(heap.isolate()->traced_handles()->GetNodeBounds()) {}
 
 void GlobalHandleMarkingVisitor::VisitPointer(const void* address) {
   const auto upper_it = std::upper_bound(
@@ -27,7 +26,7 @@ void GlobalHandleMarkingVisitor::VisitPointer(const void* address) {
 
   const auto bounds = std::next(upper_it, -1);
   if (address < bounds->second) {
-    auto object = GlobalHandles::MarkTracedConservatively(
+    auto object = TracedHandles::MarkConservatively(
         const_cast<Address*>(reinterpret_cast<const Address*>(address)),
         const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)));
     if (!object.IsHeapObject()) {

@@ -144,6 +144,7 @@ v8_source_set("cctest_sources") {
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
     "heap/test-write-barrier.cc",
+    "jsonstream-helper.h",
     "manually-externalized-buffer.h",
     "print-extension.cc",
     "print-extension.h",

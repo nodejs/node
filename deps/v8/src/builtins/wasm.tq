@@ -484,30 +484,22 @@ builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
   return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmI32AtomicWait64(
-    offset: uintptr, expectedValue: int32, timeout: intptr): uint32 {
-  if constexpr (Is64()) {
-    const instance: WasmInstanceObject = LoadInstanceFromFrame();
-    const result: Smi = runtime::WasmI32AtomicWait(
-        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
-        WasmInt32ToNumber(expectedValue), I64ToBigInt(timeout));
-    return Unsigned(SmiToInt32(result));
-  } else {
-    unreachable;
-  }
+builtin WasmI32AtomicWait(
+    offset: uintptr, expectedValue: int32, timeout: BigInt): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmI32AtomicWait(
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+      WasmInt32ToNumber(expectedValue), timeout);
+  return Unsigned(SmiToInt32(result));
 }
 
-builtin WasmI64AtomicWait64(
-    offset: uintptr, expectedValue: intptr, timeout: intptr): uint32 {
-  if constexpr (Is64()) {
-    const instance: WasmInstanceObject = LoadInstanceFromFrame();
-    const result: Smi = runtime::WasmI64AtomicWait(
-        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
-        I64ToBigInt(expectedValue), I64ToBigInt(timeout));
-    return Unsigned(SmiToInt32(result));
-  } else {
-    unreachable;
-  }
+builtin WasmI64AtomicWait(
+    offset: uintptr, expectedValue: BigInt, timeout: BigInt): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmI64AtomicWait(
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+      expectedValue, timeout);
+  return Unsigned(SmiToInt32(result));
 }
 
 // Type feedback collection support for `call_ref`.

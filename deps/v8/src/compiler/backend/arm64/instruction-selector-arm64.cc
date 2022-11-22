@@ -286,13 +286,15 @@ bool TryEmitExtendingLoad(InstructionSelector* selector, Node* node) {
   return false;
 }
 
+template <typename Matcher>
 bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
                       Node* input_node, InstructionCode* opcode, bool try_ror) {
   Arm64OperandGenerator g(selector);
 
   if (!selector->CanCover(node, input_node)) return false;
   if (input_node->InputCount() != 2) return false;
-  if (!g.IsIntegerConstant(input_node->InputAt(1))) return false;
+  Matcher shift(input_node);
+  if (!shift.right().HasResolvedValue()) return false;
 
   switch (input_node->opcode()) {
     case IrOpcode::kWord32Shl:
@@ -488,16 +490,16 @@ void VisitBinop(InstructionSelector* selector, Node* node,
                                &inputs[0], &inputs[1], &opcode)) {
     if (must_commute_cond) cont->Commute();
     input_count += 2;
-  } else if (TryMatchAnyShift(selector, node, right_node, &opcode,
-                              !is_add_sub)) {
+  } else if (TryMatchAnyShift<Matcher>(selector, node, right_node, &opcode,
+                                       !is_add_sub)) {
     Matcher m_shift(right_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     // We only need at most the last 6 bits of the shift.
     inputs[input_count++] = g.UseImmediate(
         static_cast<int>(m_shift.right().ResolvedValue() & 0x3F));
-  } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
-                                             !is_add_sub)) {
+  } else if (can_commute && TryMatchAnyShift<Matcher>(selector, node, left_node,
+                                                      &opcode, !is_add_sub)) {
     if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);

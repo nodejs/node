@@ -162,7 +162,7 @@ TEST_F(HeapTest, HeapLayout) {
   base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
   base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);
 
-  SafepointScope scope(i_isolate()->heap());
+  IsolateSafepointScope scope(i_isolate()->heap());
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   for (;;) {
     MemoryChunk* chunk = iter.next();
@@ -208,7 +208,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   paged_new_space->FinishShrinking();
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
-  tracer->NotifySweepingCompleted();
+  tracer->NotifyFullSweepingCompleted();
 }
 }  // namespace
 
@@ -373,9 +373,10 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     CHECK(!new_space->IsAtMaximumCapacity());
     // Fill current pages to force MinorMC to promote them.
     SimulateFullSpace(new_space, &handles);
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
     new_space->Grow();
+    CHECK(new_space->EnsureCurrentCapacity());
   } else {
     CollectGarbage(i::NEW_SPACE);
   }
@@ -422,7 +423,7 @@ TEST_F(HeapTest, Regress978156) {
   // 5. Start incremental marking.
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
-    SafepointScope scope(heap);
+    IsolateSafepointScope scope(heap);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);

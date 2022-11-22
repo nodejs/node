@@ -59,13 +59,13 @@ class WireBytesRef {
 
 // Static representation of a wasm function.
 struct WasmFunction {
-  const FunctionSig* sig;  // signature of the function.
-  uint32_t func_index;     // index into the function table.
-  uint32_t sig_index;      // index into the signature table.
-  WireBytesRef code;       // code of this function.
-  bool imported;
-  bool exported;
-  bool declared;
+  const FunctionSig* sig = nullptr;  // signature of the function.
+  uint32_t func_index = 0;           // index into the function table.
+  uint32_t sig_index = 0;            // index into the signature table.
+  WireBytesRef code = {};            // code of this function.
+  bool imported = false;
+  bool exported = false;
+  bool declared = false;
 };
 
 // Static representation of a wasm global variable.
@@ -494,9 +494,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // mutable.
   uint32_t untagged_globals_buffer_size = 0;
   uint32_t tagged_globals_buffer_size = 0;
+  uint32_t num_imported_globals = 0;
   uint32_t num_imported_mutable_globals = 0;
   uint32_t num_imported_functions = 0;
   uint32_t num_imported_tables = 0;
+  uint32_t num_imported_tags = 0;
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
@@ -507,6 +509,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Position and size of the name section (payload only, i.e. without section
   // ID and length).
   WireBytesRef name_section = {0, 0};
+
+  AccountingAllocator* allocator() const { return signature_zone->allocator(); }
 
   void add_type(TypeDefinition type) {
     types.push_back(type);
@@ -568,6 +572,36 @@ struct V8_EXPORT_PRIVATE WasmModule {
                              isorecursive_canonical_type_ids.end());
   }
 
+  bool function_was_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    static_assert(sizeof(validated_functions[0]) == 1);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    uint8_t byte =
+        validated_functions[pos >> 3].load(std::memory_order_relaxed);
+    return byte & (1 << (pos & 7));
+  }
+
+  void set_function_validated(int func_index) const {
+    DCHECK_NOT_NULL(validated_functions);
+    DCHECK_LE(num_imported_functions, func_index);
+    int pos = func_index - num_imported_functions;
+    DCHECK_LE(pos, num_declared_functions);
+    std::atomic<uint8_t>* atomic_byte = &validated_functions[pos >> 3];
+    uint8_t old_byte = atomic_byte->load(std::memory_order_relaxed);
+    uint8_t new_bit = 1 << (pos & 7);
+    while ((old_byte & new_bit) == 0 &&
+           !atomic_byte->compare_exchange_weak(old_byte, old_byte | new_bit,
+                                               std::memory_order_relaxed)) {
+      // Retry with updated {old_byte}.
+    }
+  }
+
+  base::Vector<const WasmFunction> declared_functions() const {
+    return base::VectorOf(functions) + num_imported_functions;
+  }
+
   std::vector<TypeDefinition> types;  // by type index
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
@@ -594,6 +628,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Asm.js source position information. Only available for modules compiled
   // from asm.js.
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
+
+  // {validated_functions} is atomically updated when functions get validated
+  // (during compilation, streaming decoding, or via explicit validation).
+  static_assert(sizeof(std::atomic<uint8_t>) == 1);
+  static_assert(alignof(std::atomic<uint8_t>) == 1);
+  mutable std::unique_ptr<std::atomic<uint8_t>[]> validated_functions;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;

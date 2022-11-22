@@ -15,8 +15,11 @@
 #include "src/wasm/wasm-feature-flags.h"
 
 // Features that are always enabled and do not have a flag.
-#define FOREACH_WASM_NON_FLAG_FEATURE(V) \
-  V(reftypes, "reference type opcodes", true)
+#define FOREACH_WASM_NON_FLAG_FEATURE(V)      \
+  V(eh, "exception handling opcodes", true)   \
+  V(reftypes, "reference type opcodes", true) \
+  V(simd, "SIMD opcodes", true)               \
+  V(threads, "thread opcodes", true)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \

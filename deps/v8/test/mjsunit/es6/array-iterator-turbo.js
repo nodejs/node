@@ -107,13 +107,13 @@ let tests = {
       %OptimizeFunctionOnNextCall(fn);
       fn(array);
 
-      assertOptimized(fn, '', key);
+      assertOptimized(fn, key);
       assertEquals(expected, fn(array), key);
-      assertOptimized(fn, '', key);
+      assertOptimized(fn, key);
 
       // Check no deopt when another array with the same map is used
       assertTrue(%HaveSameMap(array, array2), key);
-      assertOptimized(fn, '', key);
+      assertOptimized(fn, key);
       assertEquals(expected2, fn(array2), key);
 
       // CheckMaps bailout
@@ -121,7 +121,7 @@ let tests = {
           [1, 2, 3], 2, { enumerable: false, configurable: false,
                           get() { return 7; } });
       fn(newArray);
-      assertUnoptimized(fn, '', key);
+      assertUnoptimized(fn, key);
     }
   },
 
@@ -210,12 +210,12 @@ let tests = {
       %OptimizeFunctionOnNextCall(sum);
       assertEquals(expected, sum(array), key);
 
-      assertOptimized(sum, '', key);
+      assertOptimized(sum, key);
 
       // Not deoptimized when called on typed array of same type / map
       assertTrue(%HaveSameMap(array, array2));
       assertEquals(expected2, sum(array2), key);
-      assertOptimized(sum, '', key);
+      assertOptimized(sum, key);
 
       // Throw when detached
       let clone = new array.constructor(array);

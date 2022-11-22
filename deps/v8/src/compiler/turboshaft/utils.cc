@@ -13,10 +13,10 @@ namespace v8::internal::compiler::turboshaft {
 bool ShouldSkipOptimizationStep() {
   static std::atomic<uint64_t> counter{0};
   uint64_t current = counter++;
-  if (current == FLAG_turboshaft_opt_bisect_break) {
+  if (current == v8_flags.turboshaft_opt_bisect_break) {
     base::OS::DebugBreak();
   }
-  if (current >= FLAG_turboshaft_opt_bisect_limit) {
+  if (current >= v8_flags.turboshaft_opt_bisect_limit) {
     return true;
   }
   return false;

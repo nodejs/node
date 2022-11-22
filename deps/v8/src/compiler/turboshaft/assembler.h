@@ -19,30 +19,110 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-// This class is used to extend an assembler with useful short-hands that still
-// forward to the regular operations of the deriving assembler.
-template <class Subclass, class Superclass>
-class AssemblerInterface : public Superclass {
- public:
-  using Superclass::Superclass;
-  using Base = Superclass;
+template <class Assembler, template <class> class... Reducers>
+class ReducerStack {};
 
-#define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)              \
-  OpIndex name(OpIndex left, OpIndex right, rep_type rep) {                \
-    return subclass().operation(left, right, operation##Op::Kind::k##kind, \
-                                rep);                                      \
+template <class Assembler, template <class> class FirstReducer,
+          template <class> class... Reducers>
+class ReducerStack<Assembler, FirstReducer, Reducers...>
+    : public FirstReducer<ReducerStack<Assembler, Reducers...>> {};
+
+template <class Assembler>
+class ReducerStack<Assembler> {
+ public:
+  Assembler& Asm() { return *static_cast<Assembler*>(this); }
+};
+
+// This empty base-class is used to provide default-implementations of plain
+// methods emitting operations.
+template <class Next>
+class ReducerBaseForwarder : public Next {
+ public:
+#define EMIT_OP(Name)                                    \
+  template <class... Args>                               \
+  OpIndex Reduce##Name(Args... args) {                   \
+    return this->Asm().template Emit<Name##Op>(args...); \
   }
-#define DECL_SINGLE_REP_BINOP(name, operation, kind, rep)                  \
-  OpIndex name(OpIndex left, OpIndex right) {                              \
-    return subclass().operation(left, right, operation##Op::Kind::k##kind, \
-                                rep);                                      \
+  TURBOSHAFT_OPERATION_LIST(EMIT_OP)
+#undef EMIT_OP
+};
+
+// ReducerBase provides default implementations of Branch-related Operations
+// (Goto, Branch, Switch, CatchException), and takes care of updating Block
+// predecessors (and calls the Assembler to maintain split-edge form).
+// ReducerBase is always added by Assembler at the bottom of the reducer stack.
+template <class Next>
+class ReducerBase : public ReducerBaseForwarder<Next> {
+ public:
+  using Next::Asm;
+  using Base = ReducerBaseForwarder<Next>;
+
+  void Bind(Block*, const Block*) {}
+
+  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
+                    RegisterRepresentation rep) {
+    DCHECK(Asm().current_block()->IsMerge() &&
+           inputs.size() == Asm().current_block()->Predecessors().size());
+    return Base::ReducePhi(inputs, rep);
+  }
+
+  template <class... Args>
+  OpIndex ReducePendingLoopPhi(Args... args) {
+    DCHECK(Asm().current_block()->IsLoop());
+    return Base::ReducePendingLoopPhi(args...);
+  }
+
+  OpIndex ReduceGoto(Block* destination) {
+    destination->AddPredecessor(Asm().current_block());
+    return Base::ReduceGoto(destination);
+  }
+
+  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false) {
+    if_true->AddPredecessor(Asm().current_block());
+    if_false->AddPredecessor(Asm().current_block());
+    return Base::ReduceBranch(condition, if_true, if_false);
+  }
+
+  OpIndex ReduceCatchException(OpIndex call, Block* if_success,
+                               Block* if_exception) {
+    if_success->AddPredecessor(Asm().current_block());
+    if_exception->AddPredecessor(Asm().current_block());
+    return Base::ReduceCatchException(call, if_success, if_exception);
+  }
+
+  OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+                       Block* default_case) {
+    for (SwitchOp::Case c : cases) {
+      c.destination->AddPredecessor(Asm().current_block());
+    }
+    default_case->AddPredecessor(Asm().current_block());
+    return Base::ReduceSwitch(input, cases, default_case);
+  }
+};
+
+template <class Assembler>
+class AssemblerOpInterface {
+ public:
+// Methods to be used by the reducers to reducer operations with the whole
+// reducer stack.
+#define DECL_MULTI_REP_BINOP(name, operation, rep_type, kind)            \
+  OpIndex name(OpIndex left, OpIndex right, rep_type rep) {              \
+    return stack().Reduce##operation(left, right,                        \
+                                     operation##Op::Kind::k##kind, rep); \
+  }
+#define DECL_SINGLE_REP_BINOP(name, operation, kind, rep)                \
+  OpIndex name(OpIndex left, OpIndex right) {                            \
+    return stack().Reduce##operation(left, right,                        \
+                                     operation##Op::Kind::k##kind, rep); \
   }
 #define DECL_SINGLE_REP_BINOP_NO_KIND(name, operation, rep) \
   OpIndex name(OpIndex left, OpIndex right) {               \
-    return subclass().operation(left, right, rep);          \
+    return stack().Reduce##operation(left, right, rep);     \
   }
   DECL_MULTI_REP_BINOP(WordAdd, WordBinop, WordRepresentation, Add)
   DECL_SINGLE_REP_BINOP(Word32Add, WordBinop, Add, WordRepresentation::Word32())
@@ -165,6 +245,11 @@ class AssemblerInterface : public Superclass {
   DECL_SINGLE_REP_BINOP(Float64Atan2, FloatBinop, Atan2,
                         FloatRepresentation::Float64())
 
+  OpIndex Shift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+                WordRepresentation rep) {
+    return stack().ReduceShift(left, right, kind, rep);
+  }
+
   DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
                        WordRepresentation, ShiftRightArithmeticShiftOutZeros)
   DECL_SINGLE_REP_BINOP(Word32ShiftRightArithmeticShiftOutZeros, Shift,
@@ -222,6 +307,9 @@ class AssemblerInterface : public Superclass {
                                 FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP_NO_KIND(Float64Equal, Equal,
                                 FloatRepresentation::Float64())
+  OpIndex Equal(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+    return stack().ReduceEqual(left, right, rep);
+  }
 
   DECL_MULTI_REP_BINOP(IntLessThan, Comparison, RegisterRepresentation,
                        SignedLessThan)
@@ -260,18 +348,24 @@ class AssemblerInterface : public Superclass {
                         SignedLessThanOrEqual, FloatRepresentation::Float32())
   DECL_SINGLE_REP_BINOP(Float64LessThanOrEqual, Comparison,
                         SignedLessThanOrEqual, FloatRepresentation::Float64())
+  OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
+                     RegisterRepresentation rep) {
+    return stack().ReduceComparison(left, right, kind, rep);
+  }
 
 #undef DECL_SINGLE_REP_BINOP
 #undef DECL_MULTI_REP_BINOP
 #undef DECL_SINGLE_REP_BINOP_NO_KIND
 
-#define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)              \
-  OpIndex name(OpIndex input, rep_type rep) {                              \
-    return subclass().operation(input, operation##Op::Kind::k##kind, rep); \
+#define DECL_MULTI_REP_UNARY(name, operation, rep_type, kind)             \
+  OpIndex name(OpIndex input, rep_type rep) {                             \
+    return stack().Reduce##operation(input, operation##Op::Kind::k##kind, \
+                                     rep);                                \
   }
-#define DECL_SINGLE_REP_UNARY(name, operation, kind, rep)                  \
-  OpIndex name(OpIndex input) {                                            \
-    return subclass().operation(input, operation##Op::Kind::k##kind, rep); \
+#define DECL_SINGLE_REP_UNARY(name, operation, kind, rep)                 \
+  OpIndex name(OpIndex input) {                                           \
+    return stack().Reduce##operation(input, operation##Op::Kind::k##kind, \
+                                     rep);                                \
   }
 
   DECL_MULTI_REP_UNARY(FloatAbs, FloatUnary, FloatRepresentation, Abs)
@@ -391,23 +485,32 @@ class AssemblerInterface : public Superclass {
 #undef DECL_SINGLE_REP_UNARY
 #undef DECL_MULTI_REP_UNARY
 
-  OpIndex Word32Select(OpIndex condition, OpIndex left, OpIndex right) {
-    return subclass().Select(condition, left, right,
-                             WordRepresentation::Word32());
+  OpIndex Float64InsertWord32(OpIndex float64, OpIndex word32,
+                              Float64InsertWord32Op::Kind kind) {
+    return stack().ReduceFloat64InsertWord32(float64, word32, kind);
   }
-  OpIndex Word64Select(OpIndex condition, OpIndex left, OpIndex right) {
-    return subclass().Select(condition, left, right,
-                             WordRepresentation::Word64());
+
+  OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
+                        RegisterRepresentation to) {
+    return stack().ReduceTaggedBitcast(input, from, to);
+  }
+  OpIndex BitcastTaggedToWord(OpIndex tagged) {
+    return TaggedBitcast(tagged, RegisterRepresentation::Tagged(),
+                         RegisterRepresentation::PointerSized());
+  }
+  OpIndex BitcastWordToTagged(OpIndex word) {
+    return TaggedBitcast(word, RegisterRepresentation::PointerSized(),
+                         RegisterRepresentation::Tagged());
   }
 
   OpIndex Word32Constant(uint32_t value) {
-    return subclass().Constant(ConstantOp::Kind::kWord32, uint64_t{value});
+    return stack().ReduceConstant(ConstantOp::Kind::kWord32, uint64_t{value});
   }
   OpIndex Word32Constant(int32_t value) {
     return Word32Constant(static_cast<uint32_t>(value));
   }
   OpIndex Word64Constant(uint64_t value) {
-    return subclass().Constant(ConstantOp::Kind::kWord64, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kWord64, value);
   }
   OpIndex Word64Constant(int64_t value) {
     return Word64Constant(static_cast<uint64_t>(value));
@@ -421,10 +524,10 @@ class AssemblerInterface : public Superclass {
     }
   }
   OpIndex Float32Constant(float value) {
-    return subclass().Constant(ConstantOp::Kind::kFloat32, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kFloat32, value);
   }
   OpIndex Float64Constant(double value) {
-    return subclass().Constant(ConstantOp::Kind::kFloat64, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kFloat64, value);
   }
   OpIndex FloatConstant(double value, FloatRepresentation rep) {
     switch (rep.value()) {
@@ -435,40 +538,41 @@ class AssemblerInterface : public Superclass {
     }
   }
   OpIndex NumberConstant(double value) {
-    return subclass().Constant(ConstantOp::Kind::kNumber, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kNumber, value);
   }
   OpIndex TaggedIndexConstant(int32_t value) {
-    return subclass().Constant(ConstantOp::Kind::kTaggedIndex,
-                               uint64_t{static_cast<uint32_t>(value)});
+    return stack().ReduceConstant(ConstantOp::Kind::kTaggedIndex,
+                                  uint64_t{static_cast<uint32_t>(value)});
   }
   OpIndex HeapConstant(Handle<HeapObject> value) {
-    return subclass().Constant(ConstantOp::Kind::kHeapObject, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kHeapObject, value);
   }
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
-    return subclass().Constant(ConstantOp::Kind::kHeapObject, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kHeapObject, value);
   }
   OpIndex ExternalConstant(ExternalReference value) {
-    return subclass().Constant(ConstantOp::Kind::kExternal, value);
+    return stack().ReduceConstant(ConstantOp::Kind::kExternal, value);
   }
   OpIndex RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
     DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
-    return subclass().Constant(mode == RelocInfo::WASM_CALL
-                                   ? ConstantOp::Kind::kRelocatableWasmCall
-                                   : ConstantOp::Kind::kRelocatableWasmStubCall,
-                               static_cast<uint64_t>(value));
+    return stack().ReduceConstant(
+        mode == RelocInfo::WASM_CALL
+            ? ConstantOp::Kind::kRelocatableWasmCall
+            : ConstantOp::Kind::kRelocatableWasmStubCall,
+        static_cast<uint64_t>(value));
   }
 
 #define DECL_CHANGE(name, kind, assumption, from, to)                  \
   OpIndex name(OpIndex input) {                                        \
-    return subclass().Change(                                          \
+    return stack().ReduceChange(                                       \
         input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
         RegisterRepresentation::from(), RegisterRepresentation::to()); \
   }
-#define DECL_TRY_CHANGE(name, kind, from, to)                   \
-  OpIndex name(OpIndex input) {                                 \
-    return subclass().TryChange(input, TryChangeOp::Kind::kind, \
-                                FloatRepresentation::from(),    \
-                                WordRepresentation::to());      \
+#define DECL_TRY_CHANGE(name, kind, from, to)                      \
+  OpIndex name(OpIndex input) {                                    \
+    return stack().ReduceTryChange(input, TryChangeOp::Kind::kind, \
+                                   FloatRepresentation::from(),    \
+                                   WordRepresentation::to());      \
   }
 
   DECL_CHANGE(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
@@ -554,120 +658,211 @@ class AssemblerInterface : public Superclass {
 #undef DECL_CHANGE
 #undef DECL_TRY_CHANGE
 
-  using Base::Tuple;
+  OpIndex Load(OpIndex base, LoadOp::Kind kind, MemoryRepresentation loaded_rep,
+               int32_t offset = 0) {
+    return Load(base, OpIndex::Invalid(), kind, loaded_rep, offset);
+  }
+  OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,
+               MemoryRepresentation loaded_rep, int32_t offset = 0,
+               uint8_t element_size_log2 = 0) {
+    return stack().ReduceLoad(base, index, kind, loaded_rep,
+                              loaded_rep.ToRegisterRepresentation(), offset,
+                              element_size_log2);
+  }
+  void Store(OpIndex base, OpIndex value, StoreOp::Kind kind,
+             MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+             int32_t offset = 0) {
+    Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
+          offset);
+  }
+  void Store(OpIndex base, OpIndex index, OpIndex value, StoreOp::Kind kind,
+             MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+             int32_t offset = 0, uint8_t element_size_log2 = 0) {
+    stack().ReduceStore(base, index, value, kind, stored_rep, write_barrier,
+                        offset, element_size_log2);
+  }
+
+  void Retain(OpIndex value) { stack().ReduceRetain(value); }
+
+  OpIndex StackPointerGreaterThan(OpIndex limit, StackCheckKind kind) {
+    return stack().ReduceStackPointerGreaterThan(limit, kind);
+  }
+
+  OpIndex StackCheckOffset() {
+    return stack().ReduceFrameConstant(
+        FrameConstantOp::Kind::kStackCheckOffset);
+  }
+  OpIndex FramePointer() {
+    return stack().ReduceFrameConstant(FrameConstantOp::Kind::kFramePointer);
+  }
+  OpIndex ParentFramePointer() {
+    return stack().ReduceFrameConstant(
+        FrameConstantOp::Kind::kParentFramePointer);
+  }
+
+  OpIndex StackSlot(int size, int alignment) {
+    return stack().ReduceStackSlot(size, alignment);
+  }
+
+  void Goto(Block* destination) { stack().ReduceGoto(destination); }
+  void Branch(OpIndex condition, Block* if_true, Block* if_false) {
+    stack().ReduceBranch(condition, if_true, if_false);
+  }
+  OpIndex Select(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+                 RegisterRepresentation rep, BranchHint hint,
+                 SelectOp::Implementation implem) {
+    return stack().ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
+  }
+  void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
+              Block* default_case) {
+    stack().ReduceSwitch(input, cases, default_case);
+  }
+  OpIndex CatchException(OpIndex call, Block* if_success, Block* if_exception) {
+    return stack().ReduceCatchException(call, if_success, if_exception);
+  }
+  void Unreachable() { stack().ReduceUnreachable(); }
+
+  OpIndex Parameter(int index, const char* debug_name = nullptr) {
+    return stack().ReduceParameter(index, debug_name);
+  }
+  OpIndex OsrValue(int index) { return stack().ReduceOsrValue(index); }
+  void Return(OpIndex pop_count, base::Vector<OpIndex> return_values) {
+    stack().ReduceReturn(pop_count, return_values);
+  }
+  void Return(OpIndex result) {
+    Return(Word32Constant(0), base::VectorOf({result}));
+  }
+
+  OpIndex Call(OpIndex callee, base::Vector<const OpIndex> arguments,
+               const CallDescriptor* descriptor) {
+    return stack().ReduceCall(callee, arguments, descriptor);
+  }
+  OpIndex CallMaybeDeopt(OpIndex callee, base::Vector<const OpIndex> arguments,
+                         const CallDescriptor* descriptor,
+                         OpIndex frame_state) {
+    OpIndex call = stack().ReduceCall(callee, arguments, descriptor);
+    stack().ReduceCheckLazyDeopt(call, frame_state);
+    return call;
+  }
+  void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
+                const CallDescriptor* descriptor) {
+    stack().ReduceTailCall(callee, arguments, descriptor);
+  }
+
+  OpIndex FrameState(base::Vector<const OpIndex> inputs, bool inlined,
+                     const FrameStateData* data) {
+    return stack().ReduceFrameState(inputs, inlined, data);
+  }
+  void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
+                    const DeoptimizeParameters* parameters) {
+    stack().ReduceDeoptimizeIf(condition, frame_state, false, parameters);
+  }
+  void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
+                       const DeoptimizeParameters* parameters) {
+    stack().ReduceDeoptimizeIf(condition, frame_state, true, parameters);
+  }
+  void Deoptimize(OpIndex frame_state, const DeoptimizeParameters* parameters) {
+    stack().ReduceDeoptimize(frame_state, parameters);
+  }
+
+  void TrapIf(OpIndex condition, TrapId trap_id) {
+    stack().ReduceTrapIf(condition, false, trap_id);
+  }
+  void TrapIfNot(OpIndex condition, TrapId trap_id) {
+    stack().ReduceTrapIf(condition, true, trap_id);
+  }
+
+  OpIndex Phi(base::Vector<const OpIndex> inputs, RegisterRepresentation rep) {
+    return stack().ReducePhi(inputs, rep);
+  }
+  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
+                         OpIndex old_backedge_index) {
+    return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
+  }
+  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
+                         Node* old_backedge_index) {
+    return stack().ReducePendingLoopPhi(first, rep, old_backedge_index);
+  }
+
   OpIndex Tuple(OpIndex a, OpIndex b) {
-    return subclass().Tuple(base::VectorOf({a, b}));
+    return stack().ReduceTuple(base::VectorOf({a, b}));
+  }
+  OpIndex Projection(OpIndex tuple, uint16_t index) {
+    return stack().ReduceProjection(tuple, index);
   }
 
  private:
-  Subclass& subclass() { return *static_cast<Subclass*>(this); }
+  Assembler& stack() { return *static_cast<Assembler*>(this); }
 };
 
-// This empty base-class is used to provide default-implementations of plain
-// methods emitting operations.
-template <class Assembler>
-class AssemblerBase {
- public:
-#define EMIT_OP(Name)                                                       \
-  template <class... Args>                                                  \
-  OpIndex Name(Args... args) {                                              \
-    return static_cast<Assembler*>(this)->template Emit<Name##Op>(args...); \
-  }
-  TURBOSHAFT_OPERATION_LIST(EMIT_OP)
-#undef EMIT_OP
-};
-
+template <template <class> class... Reducers>
 class Assembler
-    : public AssemblerInterface<Assembler, AssemblerBase<Assembler>>,
-      public OperationMatching<Assembler> {
+    : public GraphVisitor<Assembler<Reducers...>>,
+      public ReducerStack<Assembler<Reducers...>, Reducers..., ReducerBase>,
+      public OperationMatching<Assembler<Reducers...>>,
+      public AssemblerOpInterface<Assembler<Reducers...>> {
+  using Stack = ReducerStack<Assembler<Reducers...>, Reducers...,
+                             v8::internal::compiler::turboshaft::ReducerBase>;
+
  public:
-  Block* NewBlock(Block::Kind kind) { return graph_.NewBlock(kind); }
+  explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
+                     compiler::NodeOriginTable* origins = nullptr)
+      : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone,
+                                origins) {
+    SupportedOperations::Initialize();
+  }
 
-  void EnterBlock(const Block& block) { USE(block); }
-  void ExitBlock(const Block& block) { USE(block); }
+  Block* NewBlock(Block::Kind kind) {
+    return this->output_graph().NewBlock(kind);
+  }
 
-  V8_INLINE bool Bind(Block* block) {
-    if (!graph().Add(block)) return false;
+  using OperationMatching<Assembler<Reducers...>>::Get;
+
+  V8_INLINE V8_WARN_UNUSED_RESULT bool Bind(Block* block,
+                                            const Block* origin = nullptr) {
+    if (!this->output_graph().Add(block)) return false;
     DCHECK_NULL(current_block_);
     current_block_ = block;
+    Stack::Bind(block, origin);
     return true;
+  }
+
+  V8_INLINE void BindReachable(Block* block, const Block* origin = nullptr) {
+    bool bound = Bind(block, origin);
+    DCHECK(bound);
+    USE(bound);
   }
 
   void SetCurrentOrigin(OpIndex operation_origin) {
     current_operation_origin_ = operation_origin;
   }
 
-  OpIndex Phi(base::Vector<const OpIndex> inputs, RegisterRepresentation rep) {
-    DCHECK(current_block()->IsMerge() &&
-           inputs.size() == current_block()->Predecessors().size());
-    return Base::Phi(inputs, rep);
-  }
-
-  template <class... Args>
-  OpIndex PendingLoopPhi(Args... args) {
-    DCHECK(current_block()->IsLoop());
-    return Base::PendingLoopPhi(args...);
-  }
-
-  OpIndex Goto(Block* destination) {
-    destination->AddPredecessor(current_block());
-    return Base::Goto(destination);
-  }
-
-  OpIndex Branch(OpIndex condition, Block* if_true, Block* if_false) {
-    if_true->AddPredecessor(current_block());
-    if_false->AddPredecessor(current_block());
-    return Base::Branch(condition, if_true, if_false);
-  }
-
-  OpIndex CatchException(OpIndex call, Block* if_success, Block* if_exception) {
-    if_success->AddPredecessor(current_block());
-    if_exception->AddPredecessor(current_block());
-    return Base::CatchException(call, if_success, if_exception);
-  }
-
-  OpIndex Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
-                 Block* default_case) {
-    for (SwitchOp::Case c : cases) {
-      c.destination->AddPredecessor(current_block());
-    }
-    default_case->AddPredecessor(current_block());
-    return Base::Switch(input, cases, default_case);
-  }
-
-  explicit Assembler(Graph* graph, Zone* phase_zone)
-      : graph_(*graph), phase_zone_(phase_zone) {
-    graph_.Reset();
-    SupportedOperations::Initialize();
-  }
-
-  Block* current_block() { return current_block_; }
-  Zone* graph_zone() { return graph().graph_zone(); }
-  Graph& graph() { return graph_; }
-  Zone* phase_zone() { return phase_zone_; }
-
- private:
-  friend class AssemblerBase<Assembler>;
-  void FinalizeBlock() {
-    graph().Finalize(current_block_);
-    current_block_ = nullptr;
-  }
+  Block* current_block() const { return current_block_; }
+  OpIndex current_operation_origin() const { return current_operation_origin_; }
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
     static_assert((std::is_base_of<Operation, Op>::value));
     static_assert(!(std::is_same<Op, Operation>::value));
     DCHECK_NOT_NULL(current_block_);
-    OpIndex result = graph().Add<Op>(args...);
-    graph().operation_origins()[result] = current_operation_origin_;
-    if (Op::properties.is_block_terminator) FinalizeBlock();
+    OpIndex result = this->output_graph().next_operation_index();
+    Op& op = this->output_graph().template Add<Op>(args...);
+    this->output_graph().operation_origins()[result] =
+        current_operation_origin_;
+    if (op.Properties().is_block_terminator) FinalizeBlock();
     return result;
   }
 
+ private:
+  void FinalizeBlock() {
+    this->output_graph().Finalize(current_block_);
+    current_block_ = nullptr;
+  }
+
   Block* current_block_ = nullptr;
-  Graph& graph_;
+  // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
+  // additional parameters to ReduceXXX methods.
   OpIndex current_operation_origin_ = OpIndex::Invalid();
-  Zone* const phase_zone_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

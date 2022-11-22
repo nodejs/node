@@ -611,6 +611,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   INTPTR_BINOP(Int, MulHigh)
   INTPTR_BINOP(Int, MulWithOverflow)
   INTPTR_BINOP(Int, Div)
+  INTPTR_BINOP(Int, Mod)
   INTPTR_BINOP(Int, LessThan)
   INTPTR_BINOP(Int, LessThanOrEqual)
   INTPTR_BINOP(Word, Equal)

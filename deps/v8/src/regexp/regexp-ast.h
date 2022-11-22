@@ -10,6 +10,9 @@
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
+#ifdef V8_INTL_SUPPORT
+#include "unicode/uniset.h"
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -129,6 +132,12 @@ class CharacterRange {
   // See https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch Note 4.
   static void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                         Zone* zone);
+
+#ifdef V8_INTL_SUPPORT
+  // Creates the closeOver of the given UnicodeSet, removing all
+  // characters/strings that can't be derived via simple case folding.
+  static void UnicodeSimpleCloseOver(icu::UnicodeSet& set);
+#endif  // V8_INTL_SUPPORT
 
   bool Contains(base::uc32 i) const { return from_ <= i && i <= to_; }
   base::uc32 from() const { return from_; }

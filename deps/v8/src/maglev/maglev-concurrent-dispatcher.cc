@@ -94,6 +94,11 @@ MaglevCompilationJob::MaglevCompilationJob(
 MaglevCompilationJob::~MaglevCompilationJob() = default;
 
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
+  if (info()->collect_source_positions()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate,
+        info()->toplevel_compilation_unit()->shared_function_info().object());
+  }
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }

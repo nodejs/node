@@ -12,7 +12,6 @@ namespace test_run_wasm_atomics_64 {
 
 void RunU64BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint64BinOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -41,7 +40,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 
 void RunU32BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
@@ -70,7 +68,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 
 void RunU16BinOp(TestExecutionTier tier, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
@@ -99,7 +96,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 
 void RunU8BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
@@ -126,7 +122,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicCompareExchange) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -147,7 +142,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchange) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchange32U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
@@ -169,7 +163,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchange32U) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchange16U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
@@ -191,7 +184,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchange16U) {
 }
 
 WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
@@ -211,7 +203,6 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoad) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -227,7 +218,6 @@ WASM_EXEC_TEST(I64AtomicLoad) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoad32U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
@@ -243,7 +233,6 @@ WASM_EXEC_TEST(I64AtomicLoad32U) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoad16U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
@@ -259,7 +248,6 @@ WASM_EXEC_TEST(I64AtomicLoad16U) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoad8U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
@@ -274,7 +262,6 @@ WASM_EXEC_TEST(I64AtomicLoad8U) {
 }
 
 WASM_EXEC_TEST(I64AtomicStoreLoad) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -294,7 +281,6 @@ WASM_EXEC_TEST(I64AtomicStoreLoad) {
 }
 
 WASM_EXEC_TEST(I64AtomicStoreLoad32U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
@@ -315,7 +301,6 @@ WASM_EXEC_TEST(I64AtomicStoreLoad32U) {
 }
 
 WASM_EXEC_TEST(I64AtomicStoreLoad16U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
@@ -336,7 +321,6 @@ WASM_EXEC_TEST(I64AtomicStoreLoad16U) {
 }
 
 WASM_EXEC_TEST(I64AtomicStoreLoad8U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
@@ -358,7 +342,6 @@ WASM_EXEC_TEST(I64AtomicStoreLoad8U) {
 // entire 64-bit output is optimized out
 void RunDropTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint64BinOp op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -384,7 +367,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicSub16UDrop) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
@@ -403,7 +385,6 @@ WASM_EXEC_TEST(I64AtomicSub16UDrop) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchangeDrop) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -422,7 +403,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeDrop) {
 }
 
 WASM_EXEC_TEST(I64AtomicStoreLoadDrop) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -441,7 +421,6 @@ WASM_EXEC_TEST(I64AtomicStoreLoadDrop) {
 }
 
 WASM_EXEC_TEST(I64AtomicAddConvertDrop) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -460,7 +439,6 @@ WASM_EXEC_TEST(I64AtomicAddConvertDrop) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoadConvertDrop) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -478,7 +456,6 @@ WASM_EXEC_TEST(I64AtomicLoadConvertDrop) {
 // upper half of the 64-bit output is optimized out
 void RunConvertTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                     Uint64BinOp op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -503,7 +480,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicConvertCompareExchange) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -524,7 +500,6 @@ WASM_EXEC_TEST(I64AtomicConvertCompareExchange) {
 // is lowered correctly.
 void RunNonConstIndexTest(TestExecutionTier execution_tier, WasmOpcode wasm_op,
                           Uint64BinOp op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -558,7 +533,6 @@ WASM_ATOMIC_OPERATION_LIST(TEST_OPERATION)
 #undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -577,7 +551,6 @@ WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {
 }
 
 WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchange) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -596,7 +569,6 @@ WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchange) {
 }
 
 WASM_EXEC_TEST(I64AtomicNonConstIndexLoad8U) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -611,7 +583,6 @@ WASM_EXEC_TEST(I64AtomicNonConstIndexLoad8U) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchangeFail) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -629,7 +600,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeFail) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchange32UFail) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint64_t* memory =
@@ -647,7 +617,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchange32UFail) {
 }
 
 WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   // Use {Load} instead of {ProtectedLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
@@ -661,7 +630,6 @@ WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
 }
 
 void RunNoEffectTest(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   // Use {Load} instead of {ProtectedLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
@@ -683,7 +651,6 @@ WASM_EXEC_TEST(AtomicExchangeNoConsideredEffectful) {
 }
 
 WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   // Use {Load} instead of {ProtectedLoad}.
   FLAG_SCOPE(wasm_enforce_bounds_checks);
   WasmRunner<uint32_t> r(execution_tier);
@@ -698,7 +665,6 @@ WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoadUseOnlyLowWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -713,7 +679,6 @@ WASM_EXEC_TEST(I64AtomicLoadUseOnlyLowWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicLoadUseOnlyHighWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -729,7 +694,6 @@ WASM_EXEC_TEST(I64AtomicLoadUseOnlyHighWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicAddUseOnlyLowWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -744,7 +708,6 @@ WASM_EXEC_TEST(I64AtomicAddUseOnlyLowWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicAddUseOnlyHighWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -760,7 +723,6 @@ WASM_EXEC_TEST(I64AtomicAddUseOnlyHighWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyLowWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -775,7 +737,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyLowWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -792,7 +753,6 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicExchangeUseOnlyLowWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -807,7 +767,6 @@ WASM_EXEC_TEST(I64AtomicExchangeUseOnlyLowWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicExchangeUseOnlyHighWord) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
@@ -823,7 +782,6 @@ WASM_EXEC_TEST(I64AtomicExchangeUseOnlyHighWord) {
 }
 
 WASM_EXEC_TEST(I64AtomicCompareExchange32UZeroExtended) {
-  EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));

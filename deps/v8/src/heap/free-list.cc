@@ -112,7 +112,7 @@ void FreeListCategory::Relink(FreeList* owner) {
 FreeList* FreeList::CreateFreeList() { return new FreeListManyCachedOrigin(); }
 
 FreeList* FreeList::CreateFreeListForNewSpace() {
-  return new FreeListManyCachedOriginForNewSpace();
+  return new FreeListManyCachedFastPathForNewSpace();
 }
 
 FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
@@ -343,11 +343,11 @@ FreeSpace FreeListManyCached::Allocate(size_t size_in_bytes, size_t* node_size,
 }
 
 // ------------------------------------------------
-// FreeListManyCachedFastPath implementation
+// FreeListManyCachedFastPathBase implementation
 
-FreeSpace FreeListManyCachedFastPath::Allocate(size_t size_in_bytes,
-                                               size_t* node_size,
-                                               AllocationOrigin origin) {
+FreeSpace FreeListManyCachedFastPathBase::Allocate(size_t size_in_bytes,
+                                                   size_t* node_size,
+                                                   AllocationOrigin origin) {
   USE(origin);
   DCHECK_GE(kMaxBlockSize, size_in_bytes);
   FreeSpace node;
@@ -363,16 +363,18 @@ FreeSpace FreeListManyCachedFastPath::Allocate(size_t size_in_bytes,
   }
 
   // Fast path part 2: searching the medium categories for tiny objects
-  if (node.is_null()) {
-    if (size_in_bytes <= kTinyObjectMaxSize) {
-      DCHECK_EQ(kFastPathFirstCategory, first_category);
-      for (type = next_nonempty_category[kFastPathFallBackTiny];
-           type < kFastPathFirstCategory;
-           type = next_nonempty_category[type + 1]) {
-        node = TryFindNodeIn(type, size_in_bytes, node_size);
-        if (!node.is_null()) break;
+  if (small_blocks_mode_ == SmallBlocksMode::kAllow) {
+    if (node.is_null()) {
+      if (size_in_bytes <= kTinyObjectMaxSize) {
+        DCHECK_EQ(kFastPathFirstCategory, first_category);
+        for (type = next_nonempty_category[kFastPathFallBackTiny];
+             type < kFastPathFirstCategory;
+             type = next_nonempty_category[type + 1]) {
+          node = TryFindNodeIn(type, size_in_bytes, node_size);
+          if (!node.is_null()) break;
+        }
+        first_category = kFastPathFallBackTiny;
       }
-      first_category = kFastPathFallBackTiny;
     }
   }
 
@@ -407,32 +409,6 @@ FreeSpace FreeListManyCachedFastPath::Allocate(size_t size_in_bytes,
 }
 
 // ------------------------------------------------
-// FreeListManyCachedFastPathForNewSpace implementation
-
-FreeSpace FreeListManyCachedFastPathForNewSpace::Allocate(
-    size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) {
-  FreeSpace node =
-      FreeListManyCachedFastPath::Allocate(size_in_bytes, node_size, origin);
-  if (!node.is_null()) return node;
-
-  // Search through the precise category for a fit
-  FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  node = SearchForNodeInList(type, size_in_bytes, node_size);
-
-  if (!node.is_null()) {
-    if (categories_[type] == nullptr) UpdateCacheAfterRemoval(type);
-    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
-  }
-
-#ifdef DEBUG
-  CheckCacheIntegrity();
-#endif
-
-  DCHECK(IsVeryLong() || Available() == SumFreeLists());
-  return node;
-}
-
-// ------------------------------------------------
 // FreeListManyCachedOrigin implementation
 
 FreeSpace FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
@@ -443,19 +419,6 @@ FreeSpace FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
   } else {
     return FreeListManyCachedFastPath::Allocate(size_in_bytes, node_size,
                                                 origin);
-  }
-}
-
-// ------------------------------------------------
-// FreeListManyCachedOriginForNewSpace implementation
-
-FreeSpace FreeListManyCachedOriginForNewSpace::Allocate(
-    size_t size_in_bytes, size_t* node_size, AllocationOrigin origin) {
-  if (origin == AllocationOrigin::kGC) {
-    return FreeListManyCached::Allocate(size_in_bytes, node_size, origin);
-  } else {
-    return FreeListManyCachedFastPathForNewSpace::Allocate(size_in_bytes,
-                                                           node_size, origin);
   }
 }
 

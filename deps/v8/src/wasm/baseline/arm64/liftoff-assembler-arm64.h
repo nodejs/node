@@ -58,10 +58,9 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -1   | StackFrame::WASM   |
 //  -2   |     instance       |
 //  -3   |     feedback vector|
-//  -4   |     tiering budget |
 //  -----+--------------------+---------------------------
-//  -5   |     slot 0         |   ^
-//  -6   |     slot 1         |   |
+//  -4   |     slot 0         |   ^
+//  -5   |     slot 1         |   |
 //       |                    | Frame slots
 //       |                    |   |
 //       |                    |   v
@@ -214,10 +213,10 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src) {
   // AnyTrue does not depend on the number of lanes, so we can use V4S for all.
   UseScratchRegisterScope scope(assm);
-  VRegister temp = scope.AcquireV(kFormatS);
-  assm->Umaxv(temp, src.fp().V4S());
-  assm->Umov(dst.gp().W(), temp, 0);
-  assm->Cmp(dst.gp().W(), 0);
+  VRegister temp = scope.AcquireV(kFormat4S);
+  assm->Umaxp(temp, src.fp().V4S(), src.fp().V4S());
+  assm->Fmov(dst.gp().X(), temp.D());
+  assm->Cmp(dst.gp().X(), 0);
   assm->Cset(dst.gp().W(), ne);
 }
 
@@ -242,6 +241,22 @@ int LiftoffAssembler::PrepareStackFrame() {
   // appropriately.
   sub(sp, sp, 0);
   return offset;
+}
+
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+
+  // On ARM64, we must push at least {lr} before calling the stub, otherwise
+  // it would get clobbered with no possibility to recover it. So just set
+  // up the frame here.
+  EnterFrame(StackFrame::WASM);
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -283,27 +298,18 @@ void LiftoffAssembler::AlignFrameSize() {
   // The frame_size includes the frame marker. The frame marker has already been
   // pushed on the stack though, so we don't need to allocate memory for it
   // anymore.
-  int initial_frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
-  int frame_size = initial_frame_size;
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
 
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
+
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
-  frame_size = RoundUp(frame_size, kQuadWordSizeInBytes);
-  if (!IsImmAddSub(frame_size)) {
-    // Round the stack to a page to try to fit a add/sub immediate.
-    frame_size = RoundUp(frame_size, 0x1000);
-    if (!IsImmAddSub(frame_size)) {
-      // Stack greater than 4M! Because this is a quite improbable case, we
-      // just fallback to TurboFan.
-      bailout(kOtherReason, "Stack too big");
-      return;
-    }
-  }
-  if (frame_size > initial_frame_size) {
-    // Record the padding, as it is needed for GC offsets later.
-    max_used_spill_offset_ += (frame_size - initial_frame_size);
+  int misalignment = frame_size % kQuadWordSizeInBytes;
+  if (misalignment) {
+    int padding = kQuadWordSizeInBytes - misalignment;
+    frame_size += padding;
+    max_used_spill_offset_ += padding;
   }
 }
 
@@ -313,11 +319,15 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector, and an unused
+  // slot for alignment.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size = std::max(frame_size - 2 * kSystemPointerSize, 0);
+  }
 
   // The stack pointer is required to be quadword aligned.
   // Misalignment will cause a stack alignment fault.
   DCHECK_EQ(frame_size, RoundUp(frame_size, kQuadWordSizeInBytes));
-  DCHECK(IsImmAddSub(frame_size));
 
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset, 1);
@@ -325,6 +335,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   if (V8_LIKELY(frame_size < 4 * KB)) {
     // This is the standard case for small frames: just subtract from SP and be
     // done with it.
+    DCHECK(IsImmAddSub(frame_size));
     patching_assembler.PatchSubSp(frame_size);
     return;
   }
@@ -1580,7 +1591,12 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     case kRtt:
       DCHECK(rhs.is_valid());
       DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-      V8_FALLTHROUGH;
+#if defined(V8_COMPRESS_POINTERS)
+      Cmp(lhs.W(), rhs.W());
+#else
+      Cmp(lhs.X(), rhs.X());
+#endif
+      break;
     case kI64:
       if (rhs.is_valid()) {
         Cmp(lhs.X(), rhs.X());

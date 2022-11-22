@@ -29,7 +29,12 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 #define TRACE_GC_CATEGORIES \
   "devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.gc")
 
+// Sweeping for full GC may be interleaved with sweeping for minor
+// gc. The below scopes should use TRACE_GC_EPOCH to associate them
+// with the right cycle.
 #define TRACE_GC(tracer, scope_id)                                    \
+  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                     \
+  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);       \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                 \
       tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain); \
   TRACE_EVENT0(TRACE_GC_CATEGORIES,                                   \
@@ -263,9 +268,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StartInSafepoint();
   void StopInSafepoint();
 
-  void NotifySweepingCompleted();
-  void NotifyFullCppGCCompleted();
+  void NotifyFullSweepingCompleted();
+  void NotifyYoungSweepingCompleted();
 
+  void NotifyFullCppGCCompleted();
   void NotifyYoungCppGCRunning();
   void NotifyYoungCppGCCompleted();
 
@@ -555,8 +561,10 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
   // finished sweeping.
-  bool notified_sweeping_completed_ = false;
+  bool notified_full_sweeping_completed_ = false;
   bool notified_full_cppgc_completed_ = false;
+
+  bool notified_young_sweeping_completed_ = false;
   // Similar to full GCs, a young GC cycle stops only when both v8 and cppgc GCs
   // have finished sweeping.
   bool notified_young_cppgc_completed_ = false;

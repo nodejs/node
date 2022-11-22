@@ -35,7 +35,7 @@ DEF_GETTER(CallSiteInfo, code_object, HeapObject) {
   HeapObject value = TorqueGeneratedClass::code_object(cage_base);
   // The |code_object| field can contain many types of objects, but only CodeT
   // values have to be converted to Code.
-  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // In this mode the callers are fine with CodeT result.
     return value;
   }

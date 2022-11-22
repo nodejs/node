@@ -2909,6 +2909,113 @@ void Builtins::Generate_MaglevOutOfLinePrologue(MacroAssembler* masm) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+
+// Returns the offset beyond the last saved FP register.
+int SaveWasmParams(MacroAssembler* masm) {
+  // Save all parameter registers (see wasm-linkage.h). They might be
+  // overwritten in the subsequent runtime call. We don't have any callee-saved
+  // registers in wasm, so no need to store anything else.
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
+                    arraysize(wasm::kGpParamRegisters),
+                "frame size mismatch");
+  for (Register reg : wasm::kGpParamRegisters) {
+    __ Push(reg);
+  }
+  static_assert(WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs ==
+                    arraysize(wasm::kFpParamRegisters),
+                "frame size mismatch");
+  __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
+  int offset = 0;
+  for (DoubleRegister reg : wasm::kFpParamRegisters) {
+    __ movdqu(Operand(rsp, offset), reg);
+    offset += kSimd128Size;
+  }
+  return offset;
+}
+
+// Consumes the offset beyond the last saved FP register (as returned by
+// {SaveWasmParams}).
+void RestoreWasmParams(MacroAssembler* masm, int offset) {
+  for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
+    offset -= kSimd128Size;
+    __ movdqu(reg, Operand(rsp, offset));
+  }
+  DCHECK_EQ(0, offset);
+  __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
+  for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
+    __ Pop(reg);
+  }
+}
+
+// When this builtin is called, the topmost stack entry is the calling pc.
+// This is replaced with the following:
+//
+// [    calling pc     ]  <-- rsp; popped by {ret}.
+// [  feedback vector  ]
+// [   Wasm instance   ]
+// [ WASM frame marker ]
+// [    saved rbp      ]  <-- rbp; this is where "calling pc" used to be.
+void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
+  Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
+  Register vector = r15;
+  Register calling_pc = rdi;
+
+  __ Pop(calling_pc);
+  __ Push(rbp);
+  __ Move(rbp, rsp);
+  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  __ LoadTaggedPointerField(
+      vector, FieldOperand(kWasmInstanceRegister,
+                           WasmInstanceObject::kFeedbackVectorsOffset));
+  __ LoadTaggedPointerField(vector,
+                            FieldOperand(vector, func_index, times_tagged_size,
+                                         FixedArray::kHeaderSize));
+  Label allocate_vector, done;
+  __ JumpIfSmi(vector, &allocate_vector);
+  __ bind(&done);
+  __ Push(kWasmInstanceRegister);
+  __ Push(vector);
+  __ Push(calling_pc);
+  __ ret(0);
+
+  __ bind(&allocate_vector);
+  // Feedback vector doesn't exist yet. Call the runtime to allocate it.
+  // We temporarily change the frame type for this, because we need special
+  // handling by the stack walker in case of GC.
+  // For the runtime call, we create the following stack layout:
+  //
+  // [ reserved slot for NativeModule ]  <-- arg[2]
+  // [  ("declared") function index   ]  <-- arg[1] for runtime func.
+  // [         Wasm instance          ]  <-- arg[0]
+  // [ ...spilled Wasm parameters...  ]
+  // [           calling pc           ]
+  // [   WASM_LIFTOFF_SETUP marker    ]
+  // [           saved rbp            ]
+  __ movq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP)));
+  __ set_has_frame(true);
+  __ Push(calling_pc);
+  int offset = SaveWasmParams(masm);
+
+  // Arguments to the runtime function: instance, func_index.
+  __ Push(kWasmInstanceRegister);
+  __ SmiTag(func_index);
+  __ Push(func_index);
+  // Allocate a stack slot where the runtime function can spill a pointer
+  // to the NativeModule.
+  __ Push(rsp);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
+  __ movq(vector, kReturnRegister0);
+
+  RestoreWasmParams(masm, offset);
+  __ Pop(calling_pc);
+  // Restore correct frame type.
+  __ movq(Operand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  __ jmp(&done);
+}
+
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was pushed to the stack by the caller as int32.
   __ Pop(r15);
@@ -2917,55 +3024,23 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
-    FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    static_assert(
-        WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
-            arraysize(wasm::kGpParamRegisters),
-        "frame size mismatch");
-    for (Register reg : wasm::kGpParamRegisters) {
-      __ Push(reg);
-    }
-    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs ==
-                      arraysize(wasm::kFpParamRegisters),
-                  "frame size mismatch");
-    __ AllocateStackSpace(kSimd128Size * arraysize(wasm::kFpParamRegisters));
-    int offset = 0;
-    for (DoubleRegister reg : wasm::kFpParamRegisters) {
-      __ movdqu(Operand(rsp, offset), reg);
-      offset += kSimd128Size;
-    }
+    int offset = SaveWasmParams(masm);
 
-    // Push the Wasm instance as an explicit argument to the runtime function.
+    // Push arguments for the runtime function.
     __ Push(kWasmInstanceRegister);
-    // Push the function index as second argument.
     __ Push(r15);
-
-    // Allocate a stack slot, where the runtime function can spill a pointer to
-    // the the NativeModule.
-    __ Push(rsp);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in r15.
     __ SmiUntagUnsigned(kReturnRegister0);
     __ movq(r15, kReturnRegister0);
 
-    // Restore registers.
-    for (DoubleRegister reg : base::Reversed(wasm::kFpParamRegisters)) {
-      offset -= kSimd128Size;
-      __ movdqu(reg, Operand(rsp, offset));
-    }
-    DCHECK_EQ(0, offset);
-    __ addq(rsp, Immediate(kSimd128Size * arraysize(wasm::kFpParamRegisters)));
-    for (Register reg : base::Reversed(wasm::kGpParamRegisters)) {
-      __ Pop(reg);
-    }
+    RestoreWasmParams(masm, offset);
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r15.
     __ addq(r15, MemOperand(kWasmInstanceRegister,
@@ -3076,7 +3151,7 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
 void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
                       wasm::JumpBuffer::StackState old_state,
                       wasm::JumpBuffer::StackState new_state) {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
     Label ok;
     __ j(equal, &ok, Label::kNear);

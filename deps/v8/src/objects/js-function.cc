@@ -6,6 +6,7 @@
 
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
 #include "src/execution/tiering-manager.h"

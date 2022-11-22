@@ -191,6 +191,18 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+}
+
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   // Push the return address and frame pointer to complete the stack frame.
@@ -219,6 +231,10 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size -= kSystemPointerSize;
+  }
   DCHECK_EQ(0, frame_size % kSystemPointerSize);
 
   // We can't run out of space when patching, just pass anything big enough to
@@ -2165,7 +2181,15 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRefNull:
       case kRtt:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-        V8_FALLTHROUGH;
+#if defined(V8_COMPRESS_POINTERS)
+        // It's enough to do a 32-bit comparison. This is also necessary for
+        // null checks which only compare against a 32 bit value, not a full
+        // pointer.
+        cmpl(lhs, rhs);
+#else
+        cmpq(lhs, rhs);
+#endif
+        break;
       case kI64:
         cmpq(lhs, rhs);
         break;

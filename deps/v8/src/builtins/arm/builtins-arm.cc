@@ -25,6 +25,7 @@
 #include "src/runtime/runtime.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2532,63 +2533,123 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+
+struct SaveWasmParamsScope {
+  explicit SaveWasmParamsScope(MacroAssembler* masm)
+      : lowest_fp_reg(std::begin(wasm::kFpParamRegisters)[0]),
+        highest_fp_reg(std::end(wasm::kFpParamRegisters)[-1]),
+        masm(masm) {
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      gp_regs.set(gp_param_reg);
+    }
+    gp_regs.set(lr);
+    for (DwVfpRegister fp_param_reg : wasm::kFpParamRegisters) {
+      CHECK(fp_param_reg.code() >= lowest_fp_reg.code() &&
+            fp_param_reg.code() <= highest_fp_reg.code());
+    }
+
+    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters) + 1);
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(gp_regs.Count(),
+             WasmLiftoffSetupFrameConstants::kNumberOfSavedGpParamRegs +
+                 1 /* instance */ + 1 /* lr */);
+    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
+             WasmLiftoffSetupFrameConstants::kNumberOfSavedFpParamRegs);
+
+    __ stm(db_w, sp, gp_regs);
+    __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
+  }
+  ~SaveWasmParamsScope() {
+    __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
+    __ ldm(ia_w, sp, gp_regs);
+  }
+
+  RegList gp_regs;
+  DwVfpRegister lowest_fp_reg;
+  DwVfpRegister highest_fp_reg;
+  MacroAssembler* masm;
+};
+
+// This builtin creates the following stack frame:
+//
+// [  feedback vector  ]  <-- sp  // Added by this builtin.
+// [   Wasm instance   ]          // Added by this builtin.
+// [ WASM frame marker ]          // Already there on entry.
+// [     saved fp      ]  <-- fp  // Already there on entry.
+void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
+  Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
+  Register vector = r5;
+  Register scratch = r7;
+  Label allocate_vector, done;
+
+  __ ldr(vector, FieldMemOperand(kWasmInstanceRegister,
+                                 WasmInstanceObject::kFeedbackVectorsOffset));
+  __ add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
+  __ ldr(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ JumpIfSmi(vector, &allocate_vector);
+  __ bind(&done);
+  __ push(kWasmInstanceRegister);
+  __ push(vector);
+  __ Ret();
+
+  __ bind(&allocate_vector);
+
+  // Feedback vector doesn't exist yet. Call the runtime to allocate it.
+  // We temporarily change the frame type for this, because we need special
+  // handling by the stack walker in case of GC.
+  __ mov(scratch,
+         Operand(StackFrame::TypeToMarker(StackFrame::WASM_LIFTOFF_SETUP)));
+  __ str(scratch, MemOperand(sp));
+  {
+    SaveWasmParamsScope save_params(masm);
+    // Arguments to the runtime function: instance, func_index.
+    __ push(kWasmInstanceRegister);
+    __ SmiTag(func_index);
+    __ push(func_index);
+    // Allocate a stack slot where the runtime function can spill a pointer
+    // to the {NativeModule}.
+    __ push(r8);
+    __ Move(cp, Smi::zero());
+    __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
+    __ mov(vector, kReturnRegister0);
+    // Saved parameters are restored at the end of this block.
+  }
+  __ mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
+  __ str(scratch, MemOperand(sp));
+  __ b(&done);
+}
+
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in a register by the jump table trampoline.
   // Convert to Smi for the runtime call.
   __ SmiTag(kWasmCompileLazyFuncIndexRegister);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
-    FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
-    // Save all parameter registers (see wasm-linkage.h). They might be
-    // overwritten in the runtime call below. We don't have any callee-saved
-    // registers in wasm, so no need to store anything else.
-    RegList gp_regs;
-    for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs.set(gp_param_reg);
+    {
+      SaveWasmParamsScope save_params(masm);
+
+      // Push the Wasm instance as an explicit argument to the runtime function.
+      __ push(kWasmInstanceRegister);
+      // Push the function index as second argument.
+      __ push(kWasmCompileLazyFuncIndexRegister);
+      // Initialize the JavaScript context with 0. CEntry will use it to
+      // set the current context on the isolate.
+      __ Move(cp, Smi::zero());
+      __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+      // The runtime function returns the jump table slot offset as a Smi. Use
+      // that to compute the jump target in r8.
+      __ mov(r8, Operand::SmiUntag(kReturnRegister0));
+
+      // Saved parameters are restored at the end of this block.
     }
-    DwVfpRegister lowest_fp_reg = std::begin(wasm::kFpParamRegisters)[0];
-    DwVfpRegister highest_fp_reg = std::end(wasm::kFpParamRegisters)[-1];
-    for (DwVfpRegister fp_param_reg : wasm::kFpParamRegisters) {
-      CHECK(fp_param_reg.code() >= lowest_fp_reg.code() &&
-            fp_param_reg.code() <= highest_fp_reg.code());
-    }
-
-    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
-    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
-             arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(gp_regs.Count(),
-             WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1);
-    CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
-             WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs);
-
-    __ stm(db_w, sp, gp_regs);
-    __ vstm(db_w, sp, lowest_fp_reg, highest_fp_reg);
-
-    // Push the Wasm instance as an explicit argument to the runtime function.
-    __ push(kWasmInstanceRegister);
-    // Push the function index as second argument.
-    __ push(kWasmCompileLazyFuncIndexRegister);
-    // Allocate a stack slot for the NativeModule, the pushed value does not
-    // matter.
-    __ push(r8);
-    // Initialize the JavaScript context with 0. CEntry will use it to
-    // set the current context on the isolate.
-    __ Move(cp, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
-    // The runtime function returns the jump table slot offset as a Smi. Use
-    // that to compute the jump target in r8.
-    __ mov(r8, Operand::SmiUntag(kReturnRegister0));
-
-    // Restore registers.
-    __ vldm(ia_w, sp, lowest_fp_reg, highest_fp_reg);
-    __ ldm(ia_w, sp, gp_regs);
 
     // After the instance register has been restored, we can add the jump table
     // start to the jump table offset already stored in r8.
-    __ ldr(r9, MemOperand(
-                   kWasmInstanceRegister,
-                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+    __ ldr(r9, FieldMemOperand(kWasmInstanceRegister,
+                               WasmInstanceObject::kJumpTableStartOffset));
     __ add(r8, r8, r9);
   }
 

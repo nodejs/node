@@ -70,6 +70,11 @@ class StringBuilder {
   explicit StringBuilder(OnGrowth on_growth) : on_growth_(on_growth) {}
   void start_here() { start_ = cursor_; }
 
+  size_t approximate_size_mb() {
+    static_assert(kChunkSize == size_t{MB});
+    return chunks_.size();
+  }
+
  private:
   void Grow(size_t requested) {
     size_t used = length();

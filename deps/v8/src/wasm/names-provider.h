@@ -56,9 +56,11 @@ class V8_EXPORT_PRIVATE NamesProvider {
                        IndexAsComment index_as_comment = kDontPrintIndex);
   void PrintGlobalName(StringBuilder& out, uint32_t global_index,
                        IndexAsComment index_as_comment = kDontPrintIndex);
-  void PrintElementSegmentName(StringBuilder& out,
-                               uint32_t element_segment_index);
-  void PrintDataSegmentName(StringBuilder& out, uint32_t data_segment_index);
+  void PrintElementSegmentName(
+      StringBuilder& out, uint32_t element_segment_index,
+      IndexAsComment index_as_comment = kDontPrintIndex);
+  void PrintDataSegmentName(StringBuilder& out, uint32_t data_segment_index,
+                            IndexAsComment index_as_comment = kDontPrintIndex);
   void PrintFieldName(StringBuilder& out, uint32_t struct_index,
                       uint32_t field_index,
                       IndexAsComment index_as_comment = kDontPrintIndex);

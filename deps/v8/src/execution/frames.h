@@ -45,7 +45,7 @@
 //       - WasmExitFrame
 //       - WasmToJsFrame
 //     - WasmDebugBreakFrame
-//     - WasmCompileLazyFrame
+//     - WasmLiftoffSetupFrame
 //
 
 namespace v8 {
@@ -111,7 +111,7 @@ class StackHandler {
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
-  IF_WASM(V, WASM_COMPILE_LAZY, WasmCompileLazyFrame)                     \
+  IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
   V(MAGLEV, MaglevFrame)                                                  \
@@ -235,7 +235,7 @@ class StackFrame {
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const { return this->type() == WASM; }
   bool is_c_wasm_entry() const { return type() == C_WASM_ENTRY; }
-  bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
+  bool is_wasm_liftoff_setup() const { return type() == WASM_LIFTOFF_SETUP; }
   bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
   bool is_wasm_to_js() const {
     return type() == WASM_TO_JS || type() == WASM_TO_JS_FUNCTION;
@@ -1157,26 +1157,26 @@ class CWasmEntryFrame : public StubFrame {
   Type GetCallerState(State* state) const override;
 };
 
-class WasmCompileLazyFrame : public TypedFrame {
+class WasmLiftoffSetupFrame : public TypedFrame {
  public:
-  Type type() const override { return WASM_COMPILE_LAZY; }
+  Type type() const override { return WASM_LIFTOFF_SETUP; }
 
   FullObjectSlot wasm_instance_slot() const;
 
-  int GetFunctionIndex() const;
+  int GetDeclaredFunctionIndex() const;
 
   wasm::NativeModule* GetNativeModule() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
 
-  static WasmCompileLazyFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm_compile_lazy());
-    return static_cast<WasmCompileLazyFrame*>(frame);
+  static WasmLiftoffSetupFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_liftoff_setup());
+    return static_cast<WasmLiftoffSetupFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmCompileLazyFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmLiftoffSetupFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

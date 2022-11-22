@@ -111,16 +111,20 @@ DOM.defineCustomElement('view/property-link-table',
     if (this._object === undefined) return;
     if (!this._instanceLinkButtons) return;
     const footer = DOM.div('footer');
-    let showButton = footer.appendChild(DOM.button('Show', this._showHandler));
+    let showButton =
+        footer.appendChild(DOM.button('🔍 Details', this._showHandler));
     showButton.data = this._object;
+    showButton.title = `Show details for ${this._object}`
     if (this._object.sourcePosition) {
       let showSourcePositionButton = footer.appendChild(
-          DOM.button('Source Position', this._showSourcePositionHandler));
+          DOM.button('📍 Source Position', this._showSourcePositionHandler));
       showSourcePositionButton.data = this._object;
+      showSourcePositionButton.title = 'Open the source position';
     }
     let showRelatedButton = footer.appendChild(
-        DOM.button('Show Related', this._showRelatedHandler));
+        DOM.button('🕸 Related', this._showRelatedHandler));
     showRelatedButton.data = this._object;
+    showRelatedButton.title = 'Show all related events in all panels';
     this._fragment.appendChild(footer);
   }
 

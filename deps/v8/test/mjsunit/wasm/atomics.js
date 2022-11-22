@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kMemtypeSize32 = 4;
@@ -469,4 +467,17 @@ function CmpExchgLoop(opcode, alignment) {
   CmpExchgLoop(kExprI64AtomicCompareExchange32U, 2);
   CmpExchgLoop(kExprI64AtomicCompareExchange16U, 1);
   CmpExchgLoop(kExprI64AtomicCompareExchange8U, 0);
+})();
+
+(function TestIllegalAtomicOp() {
+  // Regression test for https://crbug.com/1381330.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_v_v).addBody([
+    kAtomicPrefix, 0x90, 0x0f
+  ]);
+  assertEquals(false, WebAssembly.validate(builder.toBuffer()));
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      /invalid atomic opcode: 0xfe790/);
 })();

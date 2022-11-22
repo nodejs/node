@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-threads
+// Flags: --experimental-wasm-gc
 
 // During Turbofan optimizations, when a TrapIf/Unless node is found to always
 // trap, its uses need to be marked as dead. However, in the case that one of

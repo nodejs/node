@@ -270,7 +270,10 @@ namespace internal {
   HT(wasm_sum_lazy_compilation_time_60sec,                                     \
      V8.WasmSumLazyCompilationTime60SecMilliSeconds, 20000, MILLISECOND)       \
   HT(wasm_sum_lazy_compilation_time_120sec,                                    \
-     V8.WasmSumLazyCompilationTime120SecMilliSeconds, 20000, MILLISECOND)
+     V8.WasmSumLazyCompilationTime120SecMilliSeconds, 20000, MILLISECOND)      \
+  /* Debugger timers */                                                        \
+  HT(debug_pause_to_paused_event, V8.DebugPauseToPausedEventMilliSeconds,      \
+     1000000, MILLISECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Int64OperatorFor(IrOpcode::Value opcode);
+  const Operator* Int64OverflowOperatorFor(IrOpcode::Value opcode);
+  const Operator* BigIntOperatorFor(IrOpcode::Value opcode);
   const Operator* TaggedSignedOperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);

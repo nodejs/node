@@ -12,6 +12,7 @@
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-properties.h"
@@ -1288,6 +1289,10 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
+      // TODO(nicohartmann@): Once all branches have explicitly specified
+      // semantics, we should allow only BranchSemantics::kMachine here.
+      DCHECK_NE(BranchSemantics::kJS,
+                BranchParametersOf(input->op()).semantics());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
       if (tbranch == fbranch) {

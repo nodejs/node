@@ -38,6 +38,7 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/output-stream-writer.h"
 
 namespace v8 {
 namespace internal {
@@ -1480,7 +1481,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   CodeT code = shared.GetCode();
   // Don't try to get the Code object from Code-less embedded builtin.
   HeapObject maybe_code_obj =
-      V8_REMOVE_BUILTINS_CODE_OBJECTS && code.is_off_heap_trampoline()
+      V8_EXTERNAL_CODE_SPACE_BOOL && code.is_off_heap_trampoline()
           ? HeapObject::cast(code)
           : FromCodeT(code);
   if (name[0] != '\0') {
@@ -1557,7 +1558,7 @@ void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
   }
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || !code.is_off_heap_trampoline()) {
+  if (!V8_EXTERNAL_CODE_SPACE_BOOL || !code.is_off_heap_trampoline()) {
     TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
   }
 }
@@ -2450,6 +2451,7 @@ void V8HeapExplorer::CollectGlobalObjectsTags() {
   Isolate* isolate = Isolate::FromHeap(heap_);
   GlobalObjectsEnumerator enumerator(isolate);
   isolate->global_handles()->IterateAllRoots(&enumerator);
+  isolate->traced_handles()->Iterate(&enumerator);
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     Handle<JSGlobalObject> obj = enumerator.at(i);
     const char* tag = global_object_name_resolver_->GetName(
@@ -2461,7 +2463,7 @@ void V8HeapExplorer::CollectGlobalObjectsTags() {
 }
 
 void V8HeapExplorer::MakeGlobalObjectTagMap(
-    const SafepointScope& safepoint_scope) {
+    const IsolateSafepointScope& safepoint_scope) {
   for (const auto& pair : global_object_tag_pairs_) {
     global_object_tag_map_.emplace(*pair.first, pair.second);
   }
@@ -2721,7 +2723,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(isolate);
-  SafepointScope scope(heap_);
+  IsolateSafepointScope scope(heap_);
   v8_heap_explorer_.MakeGlobalObjectTagMap(scope);
   handle_scope.reset();
 
@@ -2787,111 +2789,6 @@ bool HeapSnapshotGenerator::FillReferences() {
          dom_explorer_.IterateAndExtractReferences(this);
 }
 
-template<int bytes> struct MaxDecimalDigitsIn;
-template <>
-struct MaxDecimalDigitsIn<1> {
-  static const int kSigned = 3;
-  static const int kUnsigned = 3;
-};
-template<> struct MaxDecimalDigitsIn<4> {
-  static const int kSigned = 11;
-  static const int kUnsigned = 10;
-};
-template<> struct MaxDecimalDigitsIn<8> {
-  static const int kSigned = 20;
-  static const int kUnsigned = 20;
-};
-
-class OutputStreamWriter {
- public:
-  explicit OutputStreamWriter(v8::OutputStream* stream)
-      : stream_(stream),
-        chunk_size_(stream->GetChunkSize()),
-        chunk_(chunk_size_),
-        chunk_pos_(0),
-        aborted_(false) {
-    DCHECK_GT(chunk_size_, 0);
-  }
-  bool aborted() { return aborted_; }
-  void AddCharacter(char c) {
-    DCHECK_NE(c, '\0');
-    DCHECK(chunk_pos_ < chunk_size_);
-    chunk_[chunk_pos_++] = c;
-    MaybeWriteChunk();
-  }
-  void AddString(const char* s) {
-    size_t len = strlen(s);
-    DCHECK_GE(kMaxInt, len);
-    AddSubstring(s, static_cast<int>(len));
-  }
-  void AddSubstring(const char* s, int n) {
-    if (n <= 0) return;
-    DCHECK_LE(n, strlen(s));
-    const char* s_end = s + n;
-    while (s < s_end) {
-      int s_chunk_size =
-          std::min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
-      DCHECK_GT(s_chunk_size, 0);
-      MemCopy(chunk_.begin() + chunk_pos_, s, s_chunk_size);
-      s += s_chunk_size;
-      chunk_pos_ += s_chunk_size;
-      MaybeWriteChunk();
-    }
-  }
-  void AddNumber(unsigned n) { AddNumberImpl<unsigned>(n, "%u"); }
-  void Finalize() {
-    if (aborted_) return;
-    DCHECK(chunk_pos_ < chunk_size_);
-    if (chunk_pos_ != 0) {
-      WriteChunk();
-    }
-    stream_->EndOfStream();
-  }
-
- private:
-  template<typename T>
-  void AddNumberImpl(T n, const char* format) {
-    // Buffer for the longest value plus trailing \0
-    static const int kMaxNumberSize =
-        MaxDecimalDigitsIn<sizeof(T)>::kUnsigned + 1;
-    if (chunk_size_ - chunk_pos_ >= kMaxNumberSize) {
-      int result = SNPrintF(
-          chunk_.SubVector(chunk_pos_, chunk_size_), format, n);
-      DCHECK_NE(result, -1);
-      chunk_pos_ += result;
-      MaybeWriteChunk();
-    } else {
-      base::EmbeddedVector<char, kMaxNumberSize> buffer;
-      int result = SNPrintF(buffer, format, n);
-      USE(result);
-      DCHECK_NE(result, -1);
-      AddString(buffer.begin());
-    }
-  }
-  void MaybeWriteChunk() {
-    DCHECK(chunk_pos_ <= chunk_size_);
-    if (chunk_pos_ == chunk_size_) {
-      WriteChunk();
-    }
-  }
-  void WriteChunk() {
-    if (aborted_) return;
-    if (stream_->WriteAsciiChunk(chunk_.begin(), chunk_pos_) ==
-        v8::OutputStream::kAbort)
-      aborted_ = true;
-    chunk_pos_ = 0;
-  }
-
-  v8::OutputStream* stream_;
-  int chunk_size_;
-  base::ScopedVector<char> chunk_;
-  int chunk_pos_;
-  bool aborted_;
-};
-
-
-// type, name|index, to_node.
-const int HeapSnapshotJSONSerializer::kEdgeFieldsCount = 3;
 // type, name, id, self_size, edge_count, trace_node_id, detachedness.
 const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 7;
 

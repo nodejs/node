@@ -41,11 +41,12 @@ ObjectAccess ObjectAccessForGCStores(wasm::ValueType type);
 class WasmGraphAssembler : public GraphAssembler {
  public:
   WasmGraphAssembler(MachineGraph* mcgraph, Zone* zone)
-      : GraphAssembler(mcgraph, zone), simplified_(zone) {}
+      : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
+        simplified_(zone) {}
 
   template <typename... Args>
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
-                        Operator::Properties properties, Args*... args) {
+                        Operator::Properties properties, Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
         WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
         StubCallMode::kCallWasmRuntimeStub, false, properties);
@@ -63,7 +64,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   template <typename... Args>
   Node* CallBuiltin(Builtin name, Operator::Properties properties,
-                    Args*... args) {
+                    Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
         name, temp_zone(), StubCallMode::kCallBuiltinPointer, false,
         properties);
@@ -268,7 +269,7 @@ class WasmGraphAssembler : public GraphAssembler {
                              effect(), control()));
   }
 
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 
  private:
   SimplifiedOperatorBuilder simplified_;

@@ -180,21 +180,19 @@ class UseMarkingProcessor {
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(
-        deopt_info,
-        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
+    detail::DeepForEachInput(deopt_info,
+                             [&](ValueNode* node, InputLocation* input) {
+                               MarkUse(node, use_id, input, loop_used_nodes);
+                             });
   }
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInput(
-        deopt_info,
-        [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
+    detail::DeepForEachInput(deopt_info,
+                             [&](ValueNode* node, InputLocation* input) {
+                               MarkUse(node, use_id, input, loop_used_nodes);
+                             });
   }
 
   MaglevCompilationInfo* compilation_info_;
@@ -202,303 +200,10 @@ class UseMarkingProcessor {
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
-class TranslationArrayProcessor {
- public:
-  explicit TranslationArrayProcessor(LocalIsolate* local_isolate,
-                                     MaglevCompilationInfo* compilation_info)
-      : local_isolate_(local_isolate), compilation_info_(compilation_info) {}
-
-  void PreProcessGraph(Graph* graph) {
-    translation_array_builder_.reset(
-        new TranslationArrayBuilder(compilation_info_->zone()));
-    deopt_literals_.reset(new IdentityMap<int, base::DefaultAllocationPolicy>(
-        local_isolate_->heap()->heap()));
-
-    tagged_slots_ = graph->tagged_stack_slots();
-  }
-
-  void PostProcessGraph(Graph* graph) {
-    compilation_info_->set_translation_array_builder(
-        std::move(translation_array_builder_), std::move(deopt_literals_));
-  }
-  void PreProcessBasicBlock(BasicBlock* block) {}
-
-  void Process(NodeBase* node, const ProcessingState& state) {
-    if (node->properties().can_eager_deopt()) {
-      EmitEagerDeopt(node->eager_deopt_info());
-    }
-    if (node->properties().can_lazy_deopt()) {
-      EmitLazyDeopt(node->lazy_deopt_info());
-    }
-  }
-
- private:
-  void EmitDeoptFrame(const MaglevCompilationUnit& unit,
-                      const CheckpointedInterpreterState& state,
-                      const InputLocation* input_locations) {
-    if (state.parent) {
-      // Deopt input locations are in the order of deopt frame emission, so
-      // update the pointer after emitting the parent frame.
-      EmitDeoptFrame(*unit.caller(), *state.parent, input_locations);
-    }
-
-    // Returns are used for updating an accumulator or register after a lazy
-    // deopt.
-    const int return_offset = 0;
-    const int return_count = 0;
-    translation_array_builder().BeginInterpretedFrame(
-        state.bytecode_position,
-        GetDeoptLiteral(*unit.shared_function_info().object()),
-        unit.register_count(), return_offset, return_count);
-
-    EmitDeoptFrameValues(unit, state.register_frame, input_locations,
-                         interpreter::Register::invalid_value(), return_count);
-  }
-
-  void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
-    int frame_count = 1 + deopt_info->unit.inlining_depth();
-    int jsframe_count = frame_count;
-    int update_feedback_count = 0;
-    deopt_info->translation_index =
-        translation_array_builder().BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count);
-
-    EmitDeoptFrame(deopt_info->unit, deopt_info->state,
-                   deopt_info->input_locations);
-  }
-
-  void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
-    int frame_count = 1 + deopt_info->unit.inlining_depth();
-    int jsframe_count = frame_count;
-    int update_feedback_count = 0;
-    deopt_info->translation_index =
-        translation_array_builder().BeginTranslation(frame_count, jsframe_count,
-                                                     update_feedback_count);
-
-    const MaglevCompilationUnit& unit = deopt_info->unit;
-    const InputLocation* input_locations = deopt_info->input_locations;
-
-    if (deopt_info->state.parent) {
-      // Deopt input locations are in the order of deopt frame emission, so
-      // update the pointer after emitting the parent frame.
-      EmitDeoptFrame(*unit.caller(), *deopt_info->state.parent,
-                     input_locations);
-    }
-
-    // Return offsets are counted from the end of the translation frame, which
-    // is the array [parameters..., locals..., accumulator]. Since it's the end,
-    // we don't need to worry about earlier frames.
-    int return_offset;
-    if (deopt_info->result_location ==
-        interpreter::Register::virtual_accumulator()) {
-      return_offset = 0;
-    } else if (deopt_info->result_location.is_parameter()) {
-      // This is slightly tricky to reason about because of zero indexing and
-      // fence post errors. As an example, consider a frame with 2 locals and
-      // 2 parameters, where we want argument index 1 -- looking at the array
-      // in reverse order we have:
-      //   [acc, r1, r0, a1, a0]
-      //                  ^
-      // and this calculation gives, correctly:
-      //   2 + 2 - 1 = 3
-      return_offset = unit.register_count() + unit.parameter_count() -
-                      deopt_info->result_location.ToParameterIndex();
-    } else {
-      return_offset =
-          unit.register_count() - deopt_info->result_location.index();
-    }
-    translation_array_builder().BeginInterpretedFrame(
-        deopt_info->state.bytecode_position,
-        GetDeoptLiteral(*unit.shared_function_info().object()),
-        unit.register_count(), return_offset, deopt_info->result_size);
-
-    EmitDeoptFrameValues(unit, deopt_info->state.register_frame,
-                         input_locations, deopt_info->result_location,
-                         deopt_info->result_size);
-  }
-
-  void EmitDeoptStoreRegister(const compiler::AllocatedOperand& operand,
-                              ValueRepresentation repr) {
-    switch (repr) {
-      case ValueRepresentation::kTagged:
-        translation_array_builder().StoreRegister(operand.GetRegister());
-        break;
-      case ValueRepresentation::kInt32:
-        translation_array_builder().StoreInt32Register(operand.GetRegister());
-        break;
-      case ValueRepresentation::kFloat64:
-        translation_array_builder().StoreDoubleRegister(
-            operand.GetDoubleRegister());
-        break;
-    }
-  }
-
-  void EmitDeoptStoreStackSlot(const compiler::AllocatedOperand& operand,
-                               ValueRepresentation repr) {
-    int stack_slot = DeoptStackSlotFromStackSlot(operand);
-    switch (repr) {
-      case ValueRepresentation::kTagged:
-        translation_array_builder().StoreStackSlot(stack_slot);
-        break;
-      case ValueRepresentation::kInt32:
-        translation_array_builder().StoreInt32StackSlot(stack_slot);
-        break;
-      case ValueRepresentation::kFloat64:
-        translation_array_builder().StoreDoubleStackSlot(stack_slot);
-        break;
-    }
-  }
-
-  void EmitDeoptFrameSingleValue(ValueNode* value,
-                                 const InputLocation& input_location) {
-    if (input_location.operand().IsConstant()) {
-      translation_array_builder().StoreLiteral(
-          GetDeoptLiteral(*value->Reify(local_isolate_)));
-    } else {
-      const compiler::AllocatedOperand& operand =
-          compiler::AllocatedOperand::cast(input_location.operand());
-      ValueRepresentation repr = value->properties().value_representation();
-      if (operand.IsAnyRegister()) {
-        EmitDeoptStoreRegister(operand, repr);
-      } else {
-        EmitDeoptStoreStackSlot(operand, repr);
-      }
-    }
-  }
-
-  constexpr int DeoptStackSlotIndexFromFPOffset(int offset) {
-    return 1 - offset / kSystemPointerSize;
-  }
-
-  inline int GetFramePointerOffsetForStackSlot(
-      const compiler::AllocatedOperand& operand) {
-    int index = operand.index();
-    if (operand.representation() != MachineRepresentation::kTagged) {
-      index += tagged_slots_;
-    }
-    return GetFramePointerOffsetForStackSlot(index);
-  }
-
-  inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
-    return StandardFrameConstants::kExpressionsOffset -
-           index * kSystemPointerSize;
-  }
-
-  int DeoptStackSlotFromStackSlot(const compiler::AllocatedOperand& operand) {
-    return DeoptStackSlotIndexFromFPOffset(
-        GetFramePointerOffsetForStackSlot(operand));
-  }
-
-  bool InReturnValues(interpreter::Register reg,
-                      interpreter::Register result_location, int result_size) {
-    if (result_size == 0 || !result_location.is_valid()) {
-      return false;
-    }
-    return base::IsInRange(reg.index(), result_location.index(),
-                           result_location.index() + result_size - 1);
-  }
-
-  void EmitDeoptFrameValues(
-      const MaglevCompilationUnit& compilation_unit,
-      const CompactInterpreterFrameState* checkpoint_state,
-      const InputLocation*& input_location,
-      interpreter::Register result_location, int result_size) {
-    // Closure
-    if (compilation_unit.inlining_depth() == 0) {
-      int closure_index = DeoptStackSlotIndexFromFPOffset(
-          StandardFrameConstants::kFunctionOffset);
-      translation_array_builder().StoreStackSlot(closure_index);
-    } else {
-      translation_array_builder().StoreLiteral(
-          GetDeoptLiteral(*compilation_unit.function().object()));
-    }
-
-    // TODO(leszeks): The input locations array happens to be in the same order
-    // as parameters+context+locals+accumulator are accessed here. We should
-    // make this clearer and guard against this invariant failing.
-
-    // Parameters
-    {
-      int i = 0;
-      checkpoint_state->ForEachParameter(
-          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-            DCHECK_EQ(reg.ToParameterIndex(), i);
-            if (InReturnValues(reg, result_location, result_size)) {
-              translation_array_builder().StoreOptimizedOut();
-            } else {
-              EmitDeoptFrameSingleValue(value, *input_location);
-              input_location++;
-            }
-            i++;
-          });
-    }
-
-    // Context
-    ValueNode* value = checkpoint_state->context(compilation_unit);
-    EmitDeoptFrameSingleValue(value, *input_location);
-    input_location++;
-
-    // Locals
-    {
-      int i = 0;
-      checkpoint_state->ForEachLocal(
-          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-            DCHECK_LE(i, reg.index());
-            if (InReturnValues(reg, result_location, result_size)) return;
-            while (i < reg.index()) {
-              translation_array_builder().StoreOptimizedOut();
-              i++;
-            }
-            DCHECK_EQ(i, reg.index());
-            EmitDeoptFrameSingleValue(value, *input_location);
-            input_location++;
-            i++;
-          });
-      while (i < compilation_unit.register_count()) {
-        translation_array_builder().StoreOptimizedOut();
-        i++;
-      }
-    }
-
-    // Accumulator
-    {
-      if (checkpoint_state->liveness()->AccumulatorIsLive() &&
-          !InReturnValues(interpreter::Register::virtual_accumulator(),
-                          result_location, result_size)) {
-        ValueNode* value = checkpoint_state->accumulator(compilation_unit);
-        EmitDeoptFrameSingleValue(value, *input_location);
-        input_location++;
-      } else {
-        translation_array_builder().StoreOptimizedOut();
-      }
-    }
-  }
-
-  int GetDeoptLiteral(Object obj) {
-    IdentityMapFindResult<int> res = deopt_literals_->FindOrInsert(obj);
-    if (!res.already_exists) {
-      DCHECK_EQ(0, *res.entry);
-      *res.entry = deopt_literals_->size() - 1;
-    }
-    return *res.entry;
-  }
-
-  TranslationArrayBuilder& translation_array_builder() {
-    return *translation_array_builder_;
-  }
-
-  LocalIsolate* local_isolate_;
-  MaglevCompilationInfo* compilation_info_;
-  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
-  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
-      deopt_literals_;
-  int tagged_slots_;
-};
-
 // static
 void MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
-  compiler::UnparkedScopeIfNeeded unparked_scope(compilation_info->broker());
+  Graph* graph = Graph::New(compilation_info->zone());
 
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
@@ -507,78 +212,80 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
-  if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-      v8_flags.trace_maglev_graph_building || v8_flags.trace_maglev_regalloc) {
-    MaglevCompilationUnit* top_level_unit =
-        compilation_info->toplevel_compilation_unit();
-    std::cout << "Compiling " << Brief(*top_level_unit->function().object())
-              << " with Maglev\n";
-    BytecodeArray::Disassemble(top_level_unit->bytecode().object(), std::cout);
-    top_level_unit->feedback().object()->Print(std::cout);
-  }
+  {
+    UnparkedScope unparked_scope(local_isolate->heap());
 
-  Graph* graph = Graph::New(compilation_info->zone());
+    if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
+        v8_flags.trace_maglev_graph_building ||
+        v8_flags.trace_maglev_regalloc) {
+      MaglevCompilationUnit* top_level_unit =
+          compilation_info->toplevel_compilation_unit();
+      std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+                << " with Maglev\n";
+      BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
+                                 std::cout);
+      top_level_unit->feedback().object()->Print(std::cout);
+    }
 
-  MaglevGraphBuilder graph_builder(
-      local_isolate, compilation_info->toplevel_compilation_unit(), graph);
+    MaglevGraphBuilder graph_builder(
+        local_isolate, compilation_info->toplevel_compilation_unit(), graph);
 
-  graph_builder.Build();
+    graph_builder.Build();
 
-  if (v8_flags.print_maglev_graph) {
-    std::cout << "\nAfter graph buiding" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    if (v8_flags.print_maglev_graph) {
+      std::cout << "\nAfter graph buiding" << std::endl;
+      PrintGraph(std::cout, compilation_info, graph);
+    }
   }
 
 #ifdef DEBUG
   {
     GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
-    verifier.ProcessGraph(graph_builder.graph());
+    verifier.ProcessGraph(graph);
   }
 #endif
 
   {
     GraphMultiProcessor<UseMarkingProcessor, MaglevVregAllocator> processor(
         UseMarkingProcessor{compilation_info});
-    processor.ProcessGraph(graph_builder.graph());
+    processor.ProcessGraph(graph);
   }
 
   if (v8_flags.print_maglev_graph) {
+    UnparkedScope unparked_scope(local_isolate->heap());
     std::cout << "After node processor" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    PrintGraph(std::cout, compilation_info, graph);
   }
 
-  StraightForwardRegisterAllocator allocator(compilation_info,
-                                             graph_builder.graph());
+  StraightForwardRegisterAllocator allocator(compilation_info, graph);
 
   if (v8_flags.print_maglev_graph) {
+    UnparkedScope unparked_scope(local_isolate->heap());
     std::cout << "After register allocation" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph_builder.graph());
+    PrintGraph(std::cout, compilation_info, graph);
   }
 
-  GraphProcessor<TranslationArrayProcessor> build_translation_array(
-      local_isolate, compilation_info);
-  build_translation_array.ProcessGraph(graph_builder.graph());
+  {
+    UnparkedScope unparked_scope(local_isolate->heap());
+    std::unique_ptr<MaglevCodeGenerator> code_generator =
+        std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
+                                              graph);
+    code_generator->Assemble();
 
-  // Stash the compiled graph on the compilation info.
-  compilation_info->set_graph(graph_builder.graph());
+    // Stash the compiled code_generator on the compilation info.
+    compilation_info->set_code_generator(std::move(code_generator));
+  }
 }
 
 // static
 MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     Isolate* isolate, MaglevCompilationInfo* compilation_info) {
-  Graph* const graph = compilation_info->graph();
-  if (graph == nullptr) {
-    // Compilation failed.
-    compilation_info->toplevel_compilation_unit()
-        ->shared_function_info()
-        .object()
-        ->set_maglev_compilation_failed(true);
-    return {};
-  }
+  MaglevCodeGenerator* const code_generator =
+      compilation_info->code_generator();
+  DCHECK_NOT_NULL(code_generator);
 
   Handle<Code> code;
-  if (!MaglevCodeGenerator::Generate(isolate, compilation_info, graph)
-           .ToHandle(&code)) {
+  if (!code_generator->Generate(isolate).ToHandle(&code)) {
     compilation_info->toplevel_compilation_unit()
         ->shared_function_info()
         .object()

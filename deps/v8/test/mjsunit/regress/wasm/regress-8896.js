@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-eh --allow-natives-syntax
+// Flags: --allow-natives-syntax
 // Force TurboFan code for serialization.
 // Flags: --no-liftoff --no-wasm-lazy-compilation
 

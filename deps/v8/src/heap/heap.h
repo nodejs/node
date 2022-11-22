@@ -28,7 +28,6 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/base/stack.h"
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
@@ -173,7 +172,9 @@ enum class SkipRoot {
   kStack,
   kMainThreadHandles,
   kUnserializable,
-  kWeak
+  kWeak,
+  kTopOfStack,
+  kConservativeStack,
 };
 
 enum UnprotectMemoryOrigin {
@@ -212,6 +213,12 @@ struct CommentStatistic {
 using EphemeronRememberedSet =
     std::unordered_map<EphemeronHashTable, std::unordered_set<int>,
                        Object::Hasher>;
+
+// An alias for std::unordered_map<HeapObject, T> which also sets proper
+// Hash and KeyEqual functions.
+template <typename T>
+using UnorderedHeapObjectMap =
+    std::unordered_map<HeapObject, T, Object::Hasher, Object::KeyEqualSafe>;
 
 class Heap {
  public:
@@ -702,9 +709,6 @@ class Heap {
       Handle<NativeContext> context, Handle<JSPromise> promise,
       v8::MeasureMemoryMode mode);
 
-  // Check new space expansion criteria and expand semispaces if it was hit.
-  void CheckNewSpaceExpansionCriteria();
-
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
@@ -837,8 +841,6 @@ class Heap {
   OldSpace* old_space() const { return old_space_; }
   CodeSpace* code_space() const { return code_space_; }
   SharedSpace* shared_space() const { return shared_space_; }
-  MapSpace* map_space() const { return map_space_; }
-  inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() const { return lo_space_; }
   CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
   SharedLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
@@ -865,8 +867,6 @@ class Heap {
   const MemoryAllocator* memory_allocator() const {
     return memory_allocator_.get();
   }
-
-  inline ConcurrentAllocator* concurrent_allocator_for_maps();
 
   inline Isolate* isolate() const;
 
@@ -921,7 +921,7 @@ class Heap {
   V8_INLINE void SetRootScriptList(Object value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
-  V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
+  V8_INLINE void SetFunctionsMarkedForManualOptimization(Object bytecode);
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
                                         FullObjectSlot end);
@@ -1029,11 +1029,16 @@ class Heap {
   // garbage collection and is usually only performed as part of
   // (de)serialization or heap verification.
 
+  // The order of this enumeration's elements is important: they should go from
+  // more precise to more conservative modes for stack scanning, so that we can
+  // use std::min to override for testing purposes.
+  enum class ScanStackMode { kNone, kFromMarker, kComplete };
+
   // Iterates over the strong roots and the weak roots.
   void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateRootsIncludingClients(RootVisitor* v,
                                     base::EnumSet<SkipRoot> options);
-  void IterateRootsFromStackIncludingClient(RootVisitor* v);
+  void IterateRootsFromStackIncludingClient(RootVisitor* v, ScanStackMode mode);
 
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
@@ -1042,7 +1047,7 @@ class Heap {
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   void IterateWeakGlobalHandles(RootVisitor* v);
   void IterateBuiltins(RootVisitor* v);
-  void IterateStackRoots(RootVisitor* v);
+  void IterateStackRoots(RootVisitor* v, ScanStackMode mode);
 
   // ===========================================================================
   // Remembered set API. =======================================================
@@ -1594,6 +1599,7 @@ class Heap {
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
       SweepingForcedFinalizationMode mode);
+  void PauseSweepingAndEnsureYoungSweepingCompleted();
 
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
@@ -1609,7 +1615,7 @@ class Heap {
 
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
-  void VerifyCountersBeforeConcurrentSweeping();
+  void VerifyCountersBeforeConcurrentSweeping(GarbageCollector collector);
   void VerifyCommittedPhysicalMemory();
 
   void Print();
@@ -1648,7 +1654,7 @@ class Heap {
 
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
-  void MakeHeapIterable();
+  V8_EXPORT_PRIVATE void MakeHeapIterable();
 
   V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
@@ -1781,6 +1787,9 @@ class Heap {
   // Free all shared LABs.
   void FreeSharedLinearAllocationAreas();
 
+  // Makes all shared LABs iterable.
+  void MakeSharedLinearAllocationAreasIterable();
+
   // Free all shared LABs of main thread.
   void FreeMainThreadSharedLinearAllocationAreas();
 
@@ -1790,10 +1799,9 @@ class Heap {
 
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.
-  size_t PerformGarbageCollection(
-      GarbageCollector collector, GarbageCollectionReason gc_reason,
-      const char* collector_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
+  size_t PerformGarbageCollection(GarbageCollector collector,
+                                  GarbageCollectionReason gc_reason,
+                                  const char* collector_reason);
 
   // Performs garbage collection in the shared heap.
   void PerformSharedGarbageCollection(Isolate* initiator,
@@ -1855,7 +1863,9 @@ class Heap {
   bool HasLowOldGenerationAllocationRate();
   bool HasLowEmbedderAllocationRate();
 
-  bool ShouldReduceNewSpaceSize() const;
+  enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
+  ResizeNewSpaceMode ShouldResizeNewSpace();
+  void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 
   GCIdleTimeHeapState ComputeHeapState();
@@ -2166,7 +2176,6 @@ class Heap {
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;
   CodeSpace* code_space_ = nullptr;
-  MapSpace* map_space_ = nullptr;
   SharedSpace* shared_space_ = nullptr;
   OldLargeObjectSpace* lo_space_ = nullptr;
   CodeLargeObjectSpace* code_lo_space_ = nullptr;
@@ -2178,11 +2187,9 @@ class Heap {
   // in another isolate.
   PagedSpace* shared_allocation_space_ = nullptr;
   OldLargeObjectSpace* shared_lo_allocation_space_ = nullptr;
-  PagedSpace* shared_map_allocation_space_ = nullptr;
 
   // Allocators for the shared spaces.
   std::unique_ptr<ConcurrentAllocator> shared_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> shared_map_allocator_;
 
   // Map from the space id to the space.
   std::unique_ptr<Space> space_[LAST_SPACE + 1];
@@ -2303,7 +2310,6 @@ class Heap {
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
-  std::unique_ptr<::heap::base::Stack> stack_;
 
   // This object controls virtual space reserved for code on the V8 heap. This
   // is only valid for 64-bit architectures where kRequiresCodeRange.
@@ -2385,15 +2391,13 @@ class Heap {
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
+  ScanStackMode scan_stack_mode_for_testing_ = ScanStackMode::kComplete;
 
-  HeapObject pending_layout_change_object_;
-
-  std::unordered_map<HeapObject, HeapObject, Object::Hasher> retainer_;
-  std::unordered_map<HeapObject, Root, Object::Hasher> retaining_root_;
+  UnorderedHeapObjectMap<HeapObject> retainer_;
+  UnorderedHeapObjectMap<Root> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  std::unordered_map<HeapObject, HeapObject, Object::Hasher>
-      ephemeron_retainer_;
+  UnorderedHeapObjectMap<HeapObject> ephemeron_retainer_;
   // For each index in the retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;
@@ -2449,6 +2453,7 @@ class Heap {
   friend class PagedSpaceBase;
   friend class PretenturingHandler;
   friend class ReadOnlyRoots;
+  friend class ScanStackModeScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class StressConcurrentAllocationObserver;
@@ -2666,6 +2671,23 @@ class V8_NODISCARD IgnoreLocalGCRequests {
 
  private:
   Heap* heap_;
+};
+
+class V8_NODISCARD ScanStackModeScopeForTesting {
+ public:
+  explicit inline ScanStackModeScopeForTesting(Heap* heap,
+                                               Heap::ScanStackMode mode)
+      : heap_(heap), old_value_(heap_->scan_stack_mode_for_testing_) {
+    heap_->scan_stack_mode_for_testing_ = mode;
+  }
+
+  inline ~ScanStackModeScopeForTesting() {
+    heap_->scan_stack_mode_for_testing_ = old_value_;
+  }
+
+ protected:
+  Heap* heap_;
+  Heap::ScanStackMode old_value_;
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain

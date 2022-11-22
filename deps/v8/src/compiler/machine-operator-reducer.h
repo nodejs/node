@@ -134,6 +134,8 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceWordNOr(Node* node);
   template <typename WordNAdapter>
   Reduction ReduceWordNXor(Node* node);
+  template <typename WordNAdapter>
+  Reduction ReduceUintNLessThanOrEqual(Node* node);
 
   // Tries to simplify "if(x == 0)" by removing the "== 0" and inverting
   // branches.

@@ -145,6 +145,8 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
   InitializeIfNeeded();
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      i_isolate()->heap(), i::Heap::ScanStackMode::kNone);
   i_isolate()->heap()->CollectGarbage(i::NEW_SPACE,
                                       i::GarbageCollectionReason::kTesting);
   HandleScope scope(isolate_);

@@ -100,7 +100,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
       return {};
     }
     if (f.value() == RegExpFlag::kUnicodeSets &&
-        !FLAG_harmony_regexp_unicode_sets) {
+        !v8_flags.harmony_regexp_unicode_sets) {
       return {};
     }
     return f;

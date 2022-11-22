@@ -94,6 +94,10 @@ using MallocFn = void* (*)(size_t);
 // Call free to release memory allocated with this function.
 void* AllocWithRetry(size_t size, MallocFn = base::Malloc);
 
+// Performs a malloc, with retry logic on failure. Returns nullptr on failure.
+// Call free to release memory allocated with this function.
+base::AllocationResult<void*> AllocAtLeastWithRetry(size_t size);
+
 V8_EXPORT_PRIVATE void* AlignedAllocWithRetry(size_t size, size_t alignment);
 V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 

@@ -274,6 +274,7 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
 }
+
 void LargeObjectSpace::RemovePage(LargePage* page) {
   size_ -= static_cast<int>(page->size());
   AccountUncommitted(page->size());
@@ -373,7 +374,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     Map map = object.map(cage_base);
     CHECK(map.IsMap(cage_base));
     CHECK(ReadOnlyHeap::Contains(map) ||
-          isolate->heap()->space_for_maps()->Contains(map));
+          isolate->heap()->old_space()->Contains(map));
 
     // We have only the following types in the large object space:
     const bool is_valid_lo_space_object =                         //

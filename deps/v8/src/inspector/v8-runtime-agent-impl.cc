@@ -152,7 +152,7 @@ void innerCallFunctionOn(
   if (inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeFunctionValue = functionScript->Run(scope.context());
   }
@@ -181,7 +181,7 @@ void innerCallFunctionOn(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
         scope.context(), functionValue.As<v8::Function>(), recv, argc,
@@ -299,7 +299,7 @@ void V8RuntimeAgentImpl::evaluate(
         return;
       }
     }
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     v8::debug::EvaluateGlobalMode mode =
         v8::debug::EvaluateGlobalMode::kDefault;
@@ -447,7 +447,7 @@ Response V8RuntimeAgentImpl::getProperties(
   if (!response.IsSuccess()) return response;
 
   scope.ignoreExceptionsAndMuteConsole();
-  v8::MicrotasksScope microtasks_scope(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks_scope(scope.context(),
                                        v8::MicrotasksScope::kRunMicrotasks);
   if (!scope.object()->IsObject())
     return Response::ServerError("Value with given id is not an object");
@@ -491,6 +491,11 @@ Response V8RuntimeAgentImpl::releaseObjectGroup(const String16& objectGroup) {
 }
 
 Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
+  if (m_runIfWaitingForDebuggerCalled) return Response::Success();
+  m_runIfWaitingForDebuggerCalled = true;
+  // The client implementation is resposible for checking if the session is
+  // actually waiting for debugger. m_runIfWaitingForDebuggerCalled only makes
+  // sure that the client implementation is invoked once per agent instance.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
@@ -615,7 +620,7 @@ void V8RuntimeAgentImpl::runScript(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+    v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = script->Run(scope.context());
   }
@@ -794,7 +799,7 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
   v8::Local<v8::Object> global = localContext->Global();
   v8::Local<v8::String> v8Name = toV8String(m_inspector->isolate(), name);
   v8::Local<v8::Value> functionValue;
-  v8::MicrotasksScope microtasks(m_inspector->isolate(),
+  v8::MicrotasksScope microtasks(localContext,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   if (v8::Function::New(localContext, bindingCallback, v8Name)
           .ToLocal(&functionValue)) {

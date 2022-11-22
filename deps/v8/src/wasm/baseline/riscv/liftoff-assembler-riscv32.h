@@ -33,10 +33,9 @@ namespace liftoff {
 //  -1   | StackFrame::WASM   |
 //  -2   |     instance       |
 //  -3   |     feedback vector|
-//  -4   |     tiering budget |
 //  -----+--------------------+---------------------------
-//  -5   |     slot 0         |   ^
-//  -6   |     slot 1         |   |
+//  -4   |     slot 0         |   ^
+//  -5   |     slot 1         |   |
 //       |                    | Frame slots
 //       |                    |   |
 //       |                    |   v

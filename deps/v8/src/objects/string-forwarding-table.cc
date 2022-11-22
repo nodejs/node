@@ -190,7 +190,7 @@ int StringForwardingTable::AddExternalResourceAndHash(String string,
   constexpr bool is_one_byte =
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
-  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+  DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
                  string.InSharedHeap());
   int index = next_free_index_++;
   uint32_t index_in_block;

@@ -471,6 +471,19 @@ class FastCApiObject {
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AddAll32BitIntFastCallback_8ArgsPatch(
+      AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
+      AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
+      AnyCType arg5_u32, AnyCType arg6_u32, AnyCType arg7_u32,
+      AnyCType arg8_u32, AnyCType options) {
+    AnyCType ret;
+    ret.int32_value = AddAll32BitIntFastCallback_8Args(
+        receiver.object_value, should_fallback.bool_value, arg1_i32.int32_value,
+        arg2_i32.int32_value, arg3_i32.int32_value, arg4_u32.uint32_value,
+        arg5_u32.uint32_value, arg6_u32.uint32_value, arg7_u32.uint32_value,
+        arg8_u32.uint32_value, *options.options_value);
+    return ret;
+  }
   static AnyCType AddAll32BitIntFastCallback_6ArgsPatch(
       AnyCType receiver, AnyCType should_fallback, AnyCType arg1_i32,
       AnyCType arg2_i32, AnyCType arg3_i32, AnyCType arg4_u32,
@@ -494,6 +507,26 @@ class FastCApiObject {
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
+  static int AddAll32BitIntFastCallback_8Args(
+      Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
+      int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
+      uint32_t arg6_u32, uint32_t arg7_u32, uint32_t arg8_u32,
+      FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(0);
+    self->fast_call_count_++;
+
+    if (should_fallback) {
+      options.fallback = true;
+      return 0;
+    }
+
+    int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
+                     arg4_u32 + arg5_u32 + arg6_u32 + arg7_u32 + arg8_u32;
+    if (result > INT_MAX) return INT_MAX;
+    if (result < INT_MIN) return INT_MIN;
+    return static_cast<int>(result);
+  }
   static int AddAll32BitIntFastCallback_6Args(
       Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
       int32_t arg2_i32, int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
@@ -531,24 +564,29 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
+    Local<Context> context = isolate->GetCurrentContext();
     double sum = 0;
     if (args.Length() > 1 && args[1]->IsNumber()) {
-      sum += args[1]->Int32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[1]->Int32Value(context).FromJust();
     }
     if (args.Length() > 2 && args[2]->IsNumber()) {
-      sum += args[2]->Int32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[2]->Int32Value(context).FromJust();
     }
     if (args.Length() > 3 && args[3]->IsNumber()) {
-      sum += args[3]->Int32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[3]->Int32Value(context).FromJust();
     }
     if (args.Length() > 4 && args[4]->IsNumber()) {
-      sum += args[4]->Uint32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[4]->Uint32Value(context).FromJust();
     }
     if (args.Length() > 5 && args[5]->IsNumber()) {
-      sum += args[5]->Uint32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[5]->Uint32Value(context).FromJust();
     }
     if (args.Length() > 6 && args[6]->IsNumber()) {
-      sum += args[6]->Uint32Value(isolate->GetCurrentContext()).FromJust();
+      sum += args[6]->Uint32Value(context).FromJust();
+    }
+    if (args.Length() > 7 && args[7]->IsNumber() && args[8]->IsNumber()) {
+      sum += args[7]->Uint32Value(context).FromJust();
+      sum += args[8]->Uint32Value(context).FromJust();
     }
 
     args.GetReturnValue().Set(Number::New(isolate, sum));
@@ -758,6 +796,9 @@ class FastCApiObject {
   template <typename IntegerT>
   static double ClampCompareCompute(bool in_range, double real_arg,
                                     IntegerT checked_arg) {
+    if (i::v8_flags.fuzzing) {
+      return static_cast<double>(checked_arg);
+    }
     if (!in_range) {
       IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
       IntegerT upper_bound = std::numeric_limits<IntegerT>::max();
@@ -847,8 +888,17 @@ class FastCApiObject {
       if (std::isnan(checked_arg_dbl)) {
         clamped = 0;
       } else {
-        clamped = std::clamp(checked_arg, std::numeric_limits<IntegerT>::min(),
-                             std::numeric_limits<IntegerT>::max());
+        IntegerT lower_bound = std::numeric_limits<IntegerT>::min();
+        IntegerT upper_bound = std::numeric_limits<IntegerT>::max();
+        if (lower_bound < internal::kMinSafeInteger) {
+          lower_bound = static_cast<IntegerT>(internal::kMinSafeInteger);
+        }
+        if (upper_bound > internal::kMaxSafeInteger) {
+          upper_bound = static_cast<IntegerT>(internal::kMaxSafeInteger);
+        }
+
+        clamped = std::clamp(real_arg, static_cast<double>(lower_bound),
+                             static_cast<double>(upper_bound));
       }
       args.GetReturnValue().Set(Number::New(isolate, clamped));
     }
@@ -1160,6 +1210,9 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {add_all_invalid_overloads, 2}));
 
+    CFunction add_all_32bit_int_8args_c_func = CFunction::Make(
+        FastCApiObject::AddAll32BitIntFastCallback_8Args V8_IF_USE_SIMULATOR(
+            FastCApiObject::AddAll32BitIntFastCallback_8ArgsPatch));
     CFunction add_all_32bit_int_6args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_6Args V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAll32BitIntFastCallback_6ArgsPatch));
@@ -1175,6 +1228,13 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
+
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "overloaded_add_all_8args",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &add_all_32bit_int_8args_c_func));
 
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "overloaded_add_all_32bit_int_no_sig",

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --wasm-gc-js-interop --allow-natives-syntax
+// Flags: --experimental-wasm-gc --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
@@ -41,9 +41,7 @@ for (const wasm_obj of [struct, array]) {
   repeated(() => assertEquals(true, Object.isFrozen(wasm_obj)));
   repeated(() => assertEquals(false, Object.isExtensible(wasm_obj)));
   repeated(() => assertEquals('object', typeof wasm_obj));
-  repeated(
-      () => assertEquals(
-          '[object Object]', Object.prototype.toString.call(wasm_obj)));
+  testThrowsRepeated(() => Object.prototype.toString.call(wasm_obj), TypeError);
 
   repeated(() => {
     let tgt = {};

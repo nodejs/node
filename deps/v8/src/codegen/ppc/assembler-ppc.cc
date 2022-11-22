@@ -690,11 +690,11 @@ int Assembler::link(Label* L) {
 // Branch instructions.
 
 void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
-  emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
+  emit(EXT1 | static_cast<uint32_t>(bo) | condition_bit * B16 | BCLRX | lk);
 }
 
 void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
-  emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
+  emit(EXT1 | static_cast<uint32_t>(bo) | condition_bit * B16 | BCCTRX | lk);
 }
 
 // Pseudo op - branch to link register
@@ -708,7 +708,8 @@ void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
   int imm16 = branch_offset;
   CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
-  emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
+  emit(BCX | static_cast<uint32_t>(bo) | condition_bit * B16 |
+       (imm16 & kImm16Mask) | lk);
 }
 
 void Assembler::b(int branch_offset, LKBit lk) {

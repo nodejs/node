@@ -36,7 +36,7 @@ void ConstantExpressionInterface::F64Const(FullDecoder* decoder, Value* result,
 }
 
 void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
-                                            Simd128Immediate<validate>& imm,
+                                            Simd128Immediate& imm,
                                             Value* result) {
   if (!generate_value()) return;
   result->runtime_value = WasmValue(imm.value, kWasmS128);
@@ -97,9 +97,8 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   result->runtime_value = WasmValue(internal, type);
 }
 
-void ConstantExpressionInterface::GlobalGet(
-    FullDecoder* decoder, Value* result,
-    const GlobalIndexImmediate<validate>& imm) {
+void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
+                                            const GlobalIndexImmediate& imm) {
   if (!generate_value()) return;
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
@@ -116,9 +115,10 @@ void ConstantExpressionInterface::GlobalGet(
                 global.type);
 }
 
-void ConstantExpressionInterface::StructNew(
-    FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
-    const Value& rtt, const Value args[], Value* result) {
+void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
+                                            const StructIndexImmediate& imm,
+                                            const Value& rtt,
+                                            const Value args[], Value* result) {
   if (!generate_value()) return;
   std::vector<WasmValue> field_values(imm.struct_type->field_count());
   for (size_t i = 0; i < field_values.size(); i++) {
@@ -131,9 +131,9 @@ void ConstantExpressionInterface::StructNew(
                 ValueType::Ref(HeapType(imm.index)));
 }
 
-void ConstantExpressionInterface::StringConst(
-    FullDecoder* decoder, const StringConstImmediate<validate>& imm,
-    Value* result) {
+void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
+                                              const StringConstImmediate& imm,
+                                              Value* result) {
   if (!generate_value()) return;
   static_assert(base::IsInRange(kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
 
@@ -180,8 +180,8 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
 }  // namespace
 
 void ConstantExpressionInterface::StructNewDefault(
-    FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
-    const Value& rtt, Value* result) {
+    FullDecoder* decoder, const StructIndexImmediate& imm, const Value& rtt,
+    Value* result) {
   if (!generate_value()) return;
   std::vector<WasmValue> field_values(imm.struct_type->field_count());
   for (uint32_t i = 0; i < field_values.size(); i++) {
@@ -194,10 +194,11 @@ void ConstantExpressionInterface::StructNewDefault(
                 ValueType::Ref(imm.index));
 }
 
-void ConstantExpressionInterface::ArrayNew(
-    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-    const Value& length, const Value& initial_value, const Value& rtt,
-    Value* result) {
+void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
+                                           const ArrayIndexImmediate& imm,
+                                           const Value& length,
+                                           const Value& initial_value,
+                                           const Value& rtt, Value* result) {
   if (!generate_value()) return;
   if (length.runtime_value.to_u32() >
       static_cast<uint32_t>(WasmArray::MaxLength(imm.array_type))) {
@@ -213,8 +214,8 @@ void ConstantExpressionInterface::ArrayNew(
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
-    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-    const Value& length, const Value& rtt, Value* result) {
+    FullDecoder* decoder, const ArrayIndexImmediate& imm, const Value& length,
+    const Value& rtt, Value* result) {
   if (!generate_value()) return;
   Value initial_value(decoder->pc(), imm.array_type->element_type());
   initial_value.runtime_value =
@@ -223,7 +224,7 @@ void ConstantExpressionInterface::ArrayNewDefault(
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(
-    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+    FullDecoder* decoder, const ArrayIndexImmediate& imm,
     const base::Vector<Value>& elements, const Value& rtt, Value* result) {
   if (!generate_value()) return;
   std::vector<WasmValue> element_values;
@@ -236,8 +237,8 @@ void ConstantExpressionInterface::ArrayNewFixed(
 }
 
 void ConstantExpressionInterface::ArrayNewSegment(
-    FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
-    const IndexImmediate<validate>& segment_imm, const Value& offset_value,
+    FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+    const IndexImmediate& segment_imm, const Value& offset_value,
     const Value& length_value, const Value& rtt, Value* result) {
   if (!generate_value()) return;
 

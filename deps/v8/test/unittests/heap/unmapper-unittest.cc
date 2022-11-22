@@ -314,8 +314,6 @@ class SequentialUnmapperTest : public                                     //
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_sweeping_flag_ = i::v8_flags.concurrent_sweeping;
     i::v8_flags.concurrent_sweeping = false;
-    old_minor_sweeping_flag_ = i::v8_flags.concurrent_minor_mc_sweeping;
-    i::v8_flags.concurrent_minor_mc_sweeping = false;
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Reinitialize the process-wide pointer cage so it can pick up the
     // TrackingPageAllocator.
@@ -342,7 +340,6 @@ class SequentialUnmapperTest : public                                     //
     GetProcessWideSandbox()->TearDown();
 #endif
     i::v8_flags.concurrent_sweeping = old_sweeping_flag_;
-    i::v8_flags.concurrent_minor_mc_sweeping = old_minor_sweeping_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
 
     // Restore the original v8::PageAllocator and delete the tracking one.
@@ -364,14 +361,12 @@ class SequentialUnmapperTest : public                                     //
   static TrackingPageAllocator* tracking_page_allocator_;
   static v8::PageAllocator* old_page_allocator_;
   static bool old_sweeping_flag_;
-  static bool old_minor_sweeping_flag_;
 };
 
 TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
     nullptr;
 v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
 bool SequentialUnmapperTest::old_sweeping_flag_;
-bool SequentialUnmapperTest::old_minor_sweeping_flag_;
 
 template <typename TMixin>
 SequentialUnmapperTestMixin<TMixin>::SequentialUnmapperTestMixin() {

@@ -57,5 +57,17 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, s));
 }
 
+RUNTIME_FUNCTION(Runtime_StringToLocaleLowerCase) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  Handle<String> s = args.at<String>(0);
+  Handle<Object> locale = args.at<Object>(1);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleLowerCase);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::StringLocaleConvertCase(isolate, s, false, locale));
+}
+
 }  // namespace internal
 }  // namespace v8

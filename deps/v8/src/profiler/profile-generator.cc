@@ -5,12 +5,14 @@
 #include "src/profiler/profile-generator.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/base/lazy-instance.h"
 #include "src/codegen/source-position.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/profiler/output-stream-writer.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/profiler-stats.h"
 #include "src/tracing/trace-event.h"
@@ -760,6 +762,160 @@ void CpuProfile::FinishProfile() {
   value->SetDouble("endTime", end_time_.since_origin().InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
                               "ProfileChunk", id_, "data", std::move(value));
+}
+
+namespace {
+
+void FlattenNodesTree(const v8::CpuProfileNode* node,
+                      std::vector<const v8::CpuProfileNode*>* nodes) {
+  nodes->emplace_back(node);
+  const int childrenCount = node->GetChildrenCount();
+  for (int i = 0; i < childrenCount; i++)
+    FlattenNodesTree(node->GetChild(i), nodes);
+}
+
+}  // namespace
+
+void CpuProfileJSONSerializer::Serialize(v8::OutputStream* stream) {
+  DCHECK_NULL(writer_);
+  writer_ = new OutputStreamWriter(stream);
+  SerializeImpl();
+  delete writer_;
+  writer_ = nullptr;
+}
+
+void CpuProfileJSONSerializer::SerializePositionTicks(
+    const v8::CpuProfileNode* node, int lineCount) {
+  std::vector<v8::CpuProfileNode::LineTick> entries(lineCount);
+  if (node->GetLineTicks(&entries[0], lineCount)) {
+    for (int i = 0; i < lineCount; i++) {
+      writer_->AddCharacter('{');
+      writer_->AddString("\"line\":");
+      writer_->AddNumber(entries[i].line);
+      writer_->AddString(",\"ticks\":");
+      writer_->AddNumber(entries[i].hit_count);
+      writer_->AddCharacter('}');
+      if (i != (lineCount - 1)) writer_->AddCharacter(',');
+    }
+  }
+}
+
+void CpuProfileJSONSerializer::SerializeCallFrame(
+    const v8::CpuProfileNode* node) {
+  writer_->AddString("\"functionName\":\"");
+  writer_->AddString(node->GetFunctionNameStr());
+  writer_->AddString("\",\"lineNumber\":");
+  writer_->AddNumber(node->GetLineNumber() - 1);
+  writer_->AddString(",\"columnNumber\":");
+  writer_->AddNumber(node->GetColumnNumber() - 1);
+  writer_->AddString(",\"scriptId\":");
+  writer_->AddNumber(node->GetScriptId());
+  writer_->AddString(",\"url\":\"");
+  writer_->AddString(node->GetScriptResourceNameStr());
+  writer_->AddCharacter('"');
+}
+
+void CpuProfileJSONSerializer::SerializeChildren(const v8::CpuProfileNode* node,
+                                                 int childrenCount) {
+  for (int i = 0; i < childrenCount; i++) {
+    writer_->AddNumber(node->GetChild(i)->GetNodeId());
+    if (i != (childrenCount - 1)) writer_->AddCharacter(',');
+  }
+}
+
+void CpuProfileJSONSerializer::SerializeNode(const v8::CpuProfileNode* node) {
+  writer_->AddCharacter('{');
+  writer_->AddString("\"id\":");
+  writer_->AddNumber(node->GetNodeId());
+
+  writer_->AddString(",\"hitCount\":");
+  writer_->AddNumber(node->GetHitCount());
+
+  writer_->AddString(",\"callFrame\":{");
+  SerializeCallFrame(node);
+  writer_->AddCharacter('}');
+
+  const int childrenCount = node->GetChildrenCount();
+  if (childrenCount) {
+    writer_->AddString(",\"children\":[");
+    SerializeChildren(node, childrenCount);
+    writer_->AddCharacter(']');
+  }
+
+  const char* deoptReason = node->GetBailoutReason();
+  if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason")) {
+    writer_->AddString(",\"deoptReason\":\"");
+    writer_->AddString(deoptReason);
+    writer_->AddCharacter('"');
+  }
+
+  unsigned lineCount = node->GetHitLineCount();
+  if (lineCount) {
+    writer_->AddString(",\"positionTicks\":[");
+    SerializePositionTicks(node, lineCount);
+    writer_->AddCharacter(']');
+  }
+  writer_->AddCharacter('}');
+}
+
+void CpuProfileJSONSerializer::SerializeNodes() {
+  std::vector<const v8::CpuProfileNode*> nodes;
+  FlattenNodesTree(
+      reinterpret_cast<const v8::CpuProfileNode*>(profile_->top_down()->root()),
+      &nodes);
+
+  for (size_t i = 0; i < nodes.size(); i++) {
+    SerializeNode(nodes.at(i));
+    if (writer_->aborted()) return;
+    if (i != (nodes.size() - 1)) writer_->AddCharacter(',');
+  }
+}
+
+void CpuProfileJSONSerializer::SerializeTimeDeltas() {
+  int count = profile_->samples_count();
+  uint64_t lastTime = profile_->start_time().since_origin().InMicroseconds();
+  for (int i = 0; i < count; i++) {
+    uint64_t ts = profile_->sample(i).timestamp.since_origin().InMicroseconds();
+    writer_->AddNumber(static_cast<int>(ts - lastTime));
+    if (i != (count - 1)) writer_->AddString(",");
+    lastTime = ts;
+  }
+}
+
+void CpuProfileJSONSerializer::SerializeSamples() {
+  int count = profile_->samples_count();
+  for (int i = 0; i < count; i++) {
+    writer_->AddNumber(profile_->sample(i).node->id());
+    if (i != (count - 1)) writer_->AddString(",");
+  }
+}
+
+void CpuProfileJSONSerializer::SerializeImpl() {
+  writer_->AddCharacter('{');
+  writer_->AddString("\"nodes\":[");
+  SerializeNodes();
+  writer_->AddString("]");
+
+  writer_->AddString(",\"startTime\":");
+  writer_->AddNumber(static_cast<unsigned>(
+      profile_->start_time().since_origin().InMicroseconds()));
+
+  writer_->AddString(",\"endTime\":");
+  writer_->AddNumber(static_cast<unsigned>(
+      profile_->end_time().since_origin().InMicroseconds()));
+
+  writer_->AddString(",\"samples\":[");
+  SerializeSamples();
+  if (writer_->aborted()) return;
+  writer_->AddCharacter(']');
+
+  writer_->AddString(",\"timeDeltas\":[");
+  SerializeTimeDeltas();
+  if (writer_->aborted()) return;
+  writer_->AddString("]");
+
+  writer_->AddCharacter('}');
+  writer_->Finalize();
 }
 
 void CpuProfile::Print() const {

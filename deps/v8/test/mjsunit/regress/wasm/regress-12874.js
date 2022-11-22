@@ -9,12 +9,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 
-var sig_index = builder.addType({params: [kWasmDataRef], results: [kWasmI32]});
+var sig_index = builder.addType({params: [kWasmStructRef], results: [kWasmI32]});
 
 var sub1 = builder.addStruct([makeField(kWasmI32, true)]);
 var sub2 = builder.addStruct([makeField(kWasmI32, false)]);
 
-builder.addFunction('producer', makeSig([], [kWasmDataRef]))
+builder.addFunction('producer', makeSig([], [kWasmStructRef]))
   .addBody([
     kExprI32Const, 10,
     kGCPrefix, kExprStructNew, sub1])

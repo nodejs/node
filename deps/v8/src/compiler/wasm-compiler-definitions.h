@@ -13,31 +13,33 @@
 #include <ostream>
 
 #include "src/base/functional.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// If {to} is nullable, it means that null passes the check.
+// {from} may change in compiler optimization passes as the object's type gets
+// narrowed.
+// TODO(12166): Add modules if we have cross-module inlining.
 struct WasmTypeCheckConfig {
-  bool object_can_be_null;
-  bool null_succeeds;
-  uint8_t rtt_depth;
+  wasm::ValueType from;
+  const wasm::ValueType to;
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,
                                    WasmTypeCheckConfig const& p) {
-  return os << (p.object_can_be_null ? "nullable" : "non-nullable")
-            << ", depth=" << static_cast<int>(p.rtt_depth);
+  return os << p.from.name() << " -> " << p.to.name();
 }
 
 V8_INLINE size_t hash_value(WasmTypeCheckConfig const& p) {
-  return base::hash_combine(p.object_can_be_null, p.rtt_depth);
+  return base::hash_combine(p.from.raw_bit_field(), p.to.raw_bit_field());
 }
 
 V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
                           const WasmTypeCheckConfig& p2) {
-  return p1.object_can_be_null == p2.object_can_be_null &&
-         p1.rtt_depth == p2.rtt_depth;
+  return p1.from == p2.from && p1.to == p2.to;
 }
 
 }  // namespace compiler

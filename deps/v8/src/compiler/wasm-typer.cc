@@ -9,6 +9,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/utils/utils.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
@@ -86,13 +87,10 @@ Reduction WasmTyper::Reduce(Node* node) {
       TypeInModule object_type =
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
               .AsWasm();
-      TypeInModule rtt_type =
-          NodeProperties::GetType(NodeProperties::GetValueInput(node, 1))
-              .AsWasm();
-      wasm::ValueType to_type =
-          wasm::ValueType::RefNull(rtt_type.type.ref_index());
-      computed_type = wasm::Intersection(object_type.type, to_type,
-                                         object_type.module, rtt_type.module);
+      wasm::ValueType to_type = OpParameter<WasmTypeCheckConfig>(node->op()).to;
+      // TODO(12166): Change module parameters if we have cross-module inlining.
+      computed_type = wasm::Intersection(
+          object_type.type, to_type, object_type.module, object_type.module);
       break;
     }
     case IrOpcode::kAssertNotNull: {
@@ -126,6 +124,9 @@ Reduction WasmTyper::Reduce(Node* node) {
           object = initial_object;
           control = previous_control;
           effect = previous_effect;
+          // We untype the node, because its new input might have a type not
+          // compatible with its current type.
+          NodeProperties::RemoveType(node);
         }
       }
 
@@ -190,7 +191,7 @@ Reduction WasmTyper::Reduce(Node* node) {
       if (!NodeProperties::IsTyped(object)) return NoChange();
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
       // This can happen in unreachable branches.
-      if (object_type.type.is_bottom()) {
+      if (object_type.type.is_bottom() || object_type.type.is_uninhabited()) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }

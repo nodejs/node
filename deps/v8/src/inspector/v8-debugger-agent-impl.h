@@ -232,9 +232,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebuggerBreakpointIdToBreakpointIdMap m_debuggerBreakpointIdToBreakpointId;
-  std::unordered_map<v8::debug::BreakpointId,
-                     std::unique_ptr<protocol::DictionaryValue>>
-      m_breakpointsOnScriptRun;
   std::map<String16, std::unique_ptr<DisassemblyCollectorImpl>>
       m_wasmDisassemblies;
   size_t m_nextWasmDisassemblyStreamId = 0;

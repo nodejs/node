@@ -4,6 +4,8 @@
 
 #include "src/compiler/heap-refs.h"
 
+#include "src/objects/elements-kind.h"
+
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
 #endif
@@ -1077,6 +1079,11 @@ bool MapRef::CanInlineElementAccess() const {
   if (IsSharedArrayElementsKind(kind)) return true;
   if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
       kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
+  if (v8_flags.turbo_rab_gsab && IsRabGsabTypedArrayElementsKind(kind) &&
+      kind != RAB_GSAB_BIGUINT64_ELEMENTS &&
+      kind != RAB_GSAB_BIGINT64_ELEMENTS) {
     return true;
   }
   return false;

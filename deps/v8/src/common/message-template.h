@@ -31,6 +31,8 @@ namespace internal {
   T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
     "'arguments' is not allowed in class field initializer or static "         \
     "initialization block")                                                    \
+  T(ArrayBufferDetachKeyDoesntMatch,                                           \
+    "Provided key doesn't match [[ArrayBufferDetachKey]]")                     \
   T(ArrayBufferTooShort,                                                       \
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \

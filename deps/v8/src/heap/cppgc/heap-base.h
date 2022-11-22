@@ -108,8 +108,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     return stats_collector_.get();
   }
 
-  heap::base::Stack* stack() { return stack_.get(); }
-
   PreFinalizerHandler* prefinalizer_handler() {
     return prefinalizer_handler_.get();
   }
@@ -160,6 +158,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t ObjectPayloadSize() const;
+
+  virtual heap::base::Stack* stack() { return stack_.get(); }
 
   StackSupport stack_support() const { return stack_support_; }
   const EmbedderStackState* override_stack_state() const {

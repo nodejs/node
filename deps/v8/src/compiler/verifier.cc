@@ -312,8 +312,16 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       }
       CHECK_EQ(1, count_true);
       CHECK_EQ(1, count_false);
-      // The condition must be a Boolean.
-      CheckValueInputIs(node, 0, Type::Boolean());
+      switch (BranchParametersOf(node->op()).semantics()) {
+        case BranchSemantics::kJS:
+        case BranchSemantics::kUnspecified:
+          // The condition must be a Boolean.
+          CheckValueInputIs(node, 0, Type::Boolean());
+          break;
+        case BranchSemantics::kMachine:
+          CheckValueInputIs(node, 0, Type::Machine());
+          break;
+      }
       CheckNotTyped(node);
       break;
     }
@@ -415,8 +423,16 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       break;
     }
-    case IrOpcode::kInt32Constant:  // TODO(turbofan): rename Word32Constant?
-    case IrOpcode::kInt64Constant:  // TODO(turbofan): rename Word64Constant?
+    case IrOpcode::kInt32Constant:    // TODO(turbofan): rename Word32Constant?
+    case IrOpcode::kInt64Constant: {  // TODO(turbofan): rename Word64Constant?
+      // Constants have no inputs.
+      CHECK_EQ(0, input_count);
+      // Wasm numeric constants have types. However, since wasm only gets
+      // verified in untyped mode, we do not need to check that the types match.
+      // TODO(manoskouk): Verify the type if wasm runs in typed mode.
+      if (code_type != kWasm) CheckTypeIs(node, Type::Machine());
+      break;
+    }
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant: {
       // Constants have no inputs.
@@ -605,6 +621,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kTailCall:
       // TODO(bmeurer): what are the constraints on these?
+      break;
+    case IrOpcode::kEnterMachineGraph:
+      CheckTypeIs(node, Type::Machine());
+      break;
+    case IrOpcode::kExitMachineGraph:
+      CheckValueInputIs(node, 0, Type::Machine());
       break;
 
     // JavaScript operators
@@ -972,6 +994,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeBigIntSubtract:
     case IrOpcode::kSpeculativeBigIntMultiply:
     case IrOpcode::kSpeculativeBigIntDivide:
+    case IrOpcode::kSpeculativeBigIntModulus:
     case IrOpcode::kSpeculativeBigIntBitwiseAnd:
       CheckTypeIs(node, Type::BigInt());
       break;
@@ -987,6 +1010,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBigIntSubtract:
     case IrOpcode::kBigIntMultiply:
     case IrOpcode::kBigIntDivide:
+    case IrOpcode::kBigIntModulus:
     case IrOpcode::kBigIntBitwiseAnd:
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
@@ -1528,11 +1552,19 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
-    case IrOpcode::kCheckedBigInt64Add:
+    case IrOpcode::kCheckedInt64Add:
+    case IrOpcode::kCheckedInt64Sub:
+    case IrOpcode::kCheckedInt64Mul:
+    case IrOpcode::kCheckedInt64Div:
+    case IrOpcode::kCheckedInt64Mod:
     case IrOpcode::kAssertType:
     case IrOpcode::kVerifyType:
       break;
-
+    case IrOpcode::kDoubleArrayMin:
+    case IrOpcode::kDoubleArrayMax:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Number());
+      break;
     case IrOpcode::kCheckFloat64Hole:
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
@@ -1647,8 +1679,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
       break;
-    case IrOpcode::kCheckBigInt64:
-      CheckValueInputIs(node, 0, Type::Any());
+    case IrOpcode::kCheckedBigIntToBigInt64:
+      CheckValueInputIs(node, 0, Type::BigInt());
       CheckTypeIs(node, Type::SignedBigInt64());
       break;
     case IrOpcode::kFastApiCall:

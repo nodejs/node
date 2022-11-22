@@ -486,6 +486,8 @@ class ShellOptions {
       "throw-on-failed-access-check", false};
   DisallowReassignment<bool> noop_on_failed_access_check = {
       "noop-on-failed-access-check", false};
+  DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
+                                                        1 * i::MB};
 };
 
 class Shell : public i::AllStatic {
@@ -541,7 +543,7 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static double GetTimestamp();
-  static int64_t GetTracingTimestampFromPerformanceTimestamp(
+  static uint64_t GetTracingTimestampFromPerformanceTimestamp(
       double performance_timestamp);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -118,8 +118,10 @@ void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
                         uint32_t dst_index, Address raw_src_array,
                         uint32_t src_index, uint32_t length);
 
-void array_fill_with_zeroes_wrapper(Address raw_array, uint32_t length,
-                                    uint32_t element_size_bytes);
+// The initial value is passed as an int64_t on the stack.
+void array_fill_with_number_or_null_wrapper(Address raw_array, uint32_t length,
+                                            uint32_t raw_type,
+                                            Address initial_value_addr);
 
 using WasmTrapCallbackForTesting = void (*)();
 

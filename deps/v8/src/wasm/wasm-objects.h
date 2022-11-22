@@ -342,7 +342,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_targets, FixedAddressArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(wasm_internal_functions, FixedArray)
+  DECL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_ACCESSORS(feedback_vectors, FixedArray)
   DECL_SANDBOXED_POINTER_ACCESSORS(memory_start, byte*)
@@ -510,8 +510,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       Isolate* isolate, Handle<WasmInstanceObject> instance,
       int function_index);
 
-  static void SetWasmInternalFunction(Isolate* isolate,
-                                      Handle<WasmInstanceObject> instance,
+  static void SetWasmInternalFunction(Handle<WasmInstanceObject> instance,
                                       int index,
                                       Handle<WasmInternalFunction> val);
 

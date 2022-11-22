@@ -68,42 +68,6 @@ TYPED_TEST(SwissTableGroupTest, MatchEmpty) {
   }
 }
 
-TYPED_TEST(SwissTableGroupTest, MatchEmptyOrDeleted) {
-  if (TypeParam::kWidth == 16) {
-    ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
-                      7,      5, 3,        1, 1,      1, 1,         1};
-    EXPECT_THAT(TypeParam{group}.MatchEmptyOrDeleted(), ElementsAre(0, 2, 4));
-  } else if (TypeParam::kWidth == 8) {
-    ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
-    EXPECT_THAT(TypeParam{group}.MatchEmptyOrDeleted(), ElementsAre(0, 3));
-  } else {
-    FAIL() << "No test coverage for kWidth==" << TypeParam::kWidth;
-  }
-}
-
-TYPED_TEST(SwissTableGroupTest, CountLeadingEmptyOrDeleted) {
-  const std::vector<ctrl_t> empty_examples = {kEmpty, kDeleted};
-  const std::vector<ctrl_t> full_examples = {0, 1, 2, 3, 5, 9, 127, kSentinel};
-
-  for (ctrl_t empty : empty_examples) {
-    std::vector<ctrl_t> e(TypeParam::kWidth, empty);
-    EXPECT_EQ(TypeParam::kWidth,
-              TypeParam{e.data()}.CountLeadingEmptyOrDeleted());
-    for (ctrl_t full : full_examples) {
-      for (size_t i = 0; i != TypeParam::kWidth; ++i) {
-        std::vector<ctrl_t> f(TypeParam::kWidth, empty);
-        f[i] = full;
-        EXPECT_EQ(i, TypeParam{f.data()}.CountLeadingEmptyOrDeleted());
-      }
-      std::vector<ctrl_t> f(TypeParam::kWidth, empty);
-      f[TypeParam::kWidth * 2 / 3] = full;
-      f[TypeParam::kWidth / 2] = full;
-      EXPECT_EQ(TypeParam::kWidth / 2,
-                TypeParam{f.data()}.CountLeadingEmptyOrDeleted());
-    }
-  }
-}
-
 }  // namespace swiss_table
 }  // namespace internal
 }  // namespace v8

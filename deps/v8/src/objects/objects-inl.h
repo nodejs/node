@@ -43,6 +43,7 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
@@ -263,26 +264,22 @@ DEF_GETTER(HeapObject, IsSeqString, bool) {
 
 DEF_GETTER(HeapObject, IsSeqOneByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsSequential() &&
-         String::cast(*this).IsOneByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsSequentialOneByte();
 }
 
 DEF_GETTER(HeapObject, IsSeqTwoByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsSequential() &&
-         String::cast(*this).IsTwoByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsSequentialTwoByte();
 }
 
 DEF_GETTER(HeapObject, IsExternalOneByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsExternal() &&
-         String::cast(*this).IsOneByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsExternalOneByte();
 }
 
 DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsExternal() &&
-         String::cast(*this).IsTwoByteRepresentation(cage_base);
+  return StringShape(String::cast(*this).map(cage_base)).IsExternalTwoByte();
 }
 
 bool Object::IsNumber() const {
@@ -306,6 +303,10 @@ bool Object::IsNumeric() const {
 
 bool Object::IsNumeric(PtrComprCageBase cage_base) const {
   return IsNumber(cage_base) || IsBigInt(cage_base);
+}
+
+DEF_GETTER(HeapObject, IsTemplateLiteralObject, bool) {
+  return IsJSArray(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
@@ -821,6 +822,18 @@ void HeapObject::set_map_safe_transition(Map value, ReleaseStoreTag tag) {
                                   VerificationMode::kSafeMapTransition);
 }
 
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          RelaxedStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+                                 VerificationMode::kSafeMapTransition);
+}
+
+void HeapObject::set_map_safe_transition_no_write_barrier(Map value,
+                                                          ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+                                 VerificationMode::kSafeMapTransition);
+}
+
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map value, RelaxedStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
@@ -1152,6 +1165,9 @@ Object Object::GetSimpleHash(Object object) {
   } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
     uint32_t hash = ScopeInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
+  } else if (InstanceTypeChecker::IsScript(instance_type)) {
+    int id = Script::cast(object).id();
+    return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
   DCHECK(object.IsJSReceiver());
   return object;

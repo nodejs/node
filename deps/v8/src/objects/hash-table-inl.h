@@ -168,6 +168,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(PtrComprCageBase cage_base,
   uint32_t count = 1;
   Object undefined = roots.undefined_value();
   Object the_hole = roots.the_hole_value();
+  DCHECK_EQ(Shape::Hash(roots, key), static_cast<uint32_t>(hash));
   // EnsureCapacity will guarantee the hash table is never full.
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {

@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
@@ -183,7 +184,7 @@ MemoryOptimizer::MemoryOptimizer(
     JSGraph* jsgraph, Zone* zone,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
-    : graph_assembler_(jsgraph, zone),
+    : graph_assembler_(jsgraph, zone, BranchSemantics::kMachine),
       memory_lowering_(jsgraph, zone, &graph_assembler_, allocation_folding,
                        WriteBarrierAssertFailed, function_debug_name),
       jsgraph_(jsgraph),

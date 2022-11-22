@@ -39,6 +39,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_trace_baseline_exec
 # v8_enable_trace_feedback_updates
 # v8_enable_atomic_object_field_writes
+# v8_enable_conservative_stack_scanning
 # v8_enable_concurrent_marking
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_profiling
@@ -1381,6 +1382,8 @@ filegroup(
         "src/handles/global-handles-inl.h",
         "src/handles/global-handles.cc",
         "src/handles/global-handles.h",
+        "src/handles/traced-handles.cc",
+        "src/handles/traced-handles.h",
         "src/handles/handles-inl.h",
         "src/handles/handles.cc",
         "src/handles/handles.h",
@@ -1963,6 +1966,7 @@ filegroup(
         "src/profiler/heap-snapshot-generator-inl.h",
         "src/profiler/heap-snapshot-generator.cc",
         "src/profiler/heap-snapshot-generator.h",
+        "src/profiler/output-stream-writer.h",
         "src/profiler/profile-generator-inl.h",
         "src/profiler/profile-generator.cc",
         "src/profiler/profile-generator.h",
@@ -2664,6 +2668,8 @@ filegroup(
         "src/compiler/all-nodes.h",
         "src/compiler/allocation-builder.h",
         "src/compiler/allocation-builder-inl.h",
+        "src/compiler/backend/bitcast-elider.cc",
+        "src/compiler/backend/bitcast-elider.h",
         "src/compiler/backend/code-generator.cc",
         "src/compiler/backend/code-generator.h",
         "src/compiler/backend/code-generator-impl.h",
@@ -2887,7 +2893,7 @@ filegroup(
         "src/compiler/turboshaft/graph.h",
         "src/compiler/turboshaft/graph-visualizer.cc",
         "src/compiler/turboshaft/graph-visualizer.h",
-        "src/compiler/turboshaft/machine-optimization-assembler.h",
+        "src/compiler/turboshaft/machine-optimization-reducer.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
         "src/compiler/turboshaft/operation-matching.h",
@@ -2897,12 +2903,14 @@ filegroup(
         "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/turboshaft/representations.cc",
         "src/compiler/turboshaft/representations.h",
+        "src/compiler/turboshaft/select-lowering-reducer.h",
         "src/compiler/turboshaft/sidetable.h",
         "src/compiler/turboshaft/simplify-tf-loops.cc",
         "src/compiler/turboshaft/simplify-tf-loops.h",
+        "src/compiler/turboshaft/snapshot-table.h",
         "src/compiler/turboshaft/utils.cc",
         "src/compiler/turboshaft/utils.h",
-        "src/compiler/turboshaft/value-numbering-assembler.h",
+        "src/compiler/turboshaft/value-numbering-reducer.h",
         "src/compiler/type-cache.cc",
         "src/compiler/type-cache.h",
         "src/compiler/type-narrowing-reducer.cc",
@@ -3152,16 +3160,16 @@ filegroup(
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are
         # linked directly into mksnapshot, they must use the actual target cpu.
-        "@v8//bazel/config:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_s390x": ["src/heap/base/asm/s390/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_riscv64": ["src/heap/base/asm/riscv64/push_registers_asm.cc"],
-        "@v8//bazel/config:is_inline_asm_ppc64le": ["src/heap/base/asm/ppc/push_registers_asm.cc"],
-        "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.asm"],
-        "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.asm"],
-        "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
+        "@v8//bazel/config:is_inline_asm_ia32": ["src/heap/base/asm/ia32/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_x64": ["src/heap/base/asm/x64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm": ["src/heap/base/asm/arm/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_s390x": ["src/heap/base/asm/s390/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_riscv64": ["src/heap/base/asm/riscv64/save_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_ppc64le": ["src/heap/base/asm/ppc/save_registers_asm.cc"],
+        "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/save_registers_masm.asm"],
+        "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/save_registers_masm.asm"],
+        "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/save_registers_masm.S"],
     }),
 )
 

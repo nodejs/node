@@ -155,9 +155,11 @@ bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
-int InterruptBudgetFor(base::Optional<CodeKind> code_kind) {
-  return TiersUpToMaglev(code_kind) ? v8_flags.interrupt_budget_for_maglev
-                                    : v8_flags.interrupt_budget;
+int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
+                       TieringState tiering_state) {
+  return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
+             ? v8_flags.interrupt_budget_for_maglev
+             : v8_flags.interrupt_budget;
 }
 
 }  // namespace
@@ -165,7 +167,15 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind) {
 // static
 int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
   if (function.has_feedback_vector()) {
-    return ::i::InterruptBudgetFor(function.GetActiveTier());
+    if (function.shared().GetBytecodeArray(isolate).length() >
+        v8_flags.max_optimized_bytecode_size) {
+      // Decrease times of interrupt budget underflow, the reason of not setting
+      // to INT_MAX is the interrupt budget may overflow when doing add
+      // operation for forward jump.
+      return INT_MAX / 2;
+    }
+    return ::i::InterruptBudgetFor(function.GetActiveTier(),
+                                   function.tiering_state());
   }
 
   DCHECK(!function.has_feedback_vector());
@@ -203,7 +213,7 @@ bool SmallEnoughForOSR(Isolate* isolate, JSFunction function,
   static const int kOSRBytecodeSizeAllowanceBase = 119;
   static const int kOSRBytecodeSizeAllowancePerTick = 44;
   const double scale_factor_for_active_tier =
-      InterruptBudgetFor(code_kind) /
+      InterruptBudgetFor(code_kind, TieringState::kNone) /
       static_cast<double>(v8_flags.interrupt_budget);
 
   const double raw_limit = kOSRBytecodeSizeAllowanceBase +
@@ -276,8 +286,8 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
   }
 
   if (V8_UNLIKELY(v8_flags.testing_d8_test_runner) &&
-      !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
-                                                                function)) {
+      ManualOptimizationTable::IsMarkedForManualOptimization(isolate_,
+                                                             function)) {
     TraceHeuristicOptimizationDisallowed(function);
     return;
   }
@@ -344,6 +354,9 @@ OptimizationDecision TieringManager::ShouldOptimize(
   }
 
   BytecodeArray bytecode = function.shared().GetBytecodeArray(isolate_);
+  if (bytecode.length() > v8_flags.max_optimized_bytecode_size) {
+    return OptimizationDecision::DoNotOptimize();
+  }
   const int ticks = function.feedback_vector().profiler_ticks();
   const int ticks_for_optimization =
       v8_flags.ticks_before_optimization +
@@ -392,11 +405,8 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   // Sparkplug only when reaching this point *with* a feedback vector.
   const bool had_feedback_vector = function->has_feedback_vector();
 
-  // Ensure that the feedback vector has been allocated, and reset the
-  // interrupt budget in preparation for the next tick.
-  if (had_feedback_vector) {
-    function->SetInterruptBudget(isolate_);
-  } else {
+  // Ensure that the feedback vector has been allocated.
+  if (!had_feedback_vector) {
     JSFunction::CreateAndAttachFeedbackVector(isolate_, function,
                                               &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
@@ -432,11 +442,18 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   }
 
   // We only tier up beyond sparkplug if we already had a feedback vector.
-  if (!had_feedback_vector) return;
+  if (!had_feedback_vector) {
+    // The interrupt budget has already been set by
+    // JSFunction::CreateAndAttachFeedbackVector.
+    return;
+  }
 
   // Don't tier up if Turbofan is disabled.
   // TODO(jgruber): Update this for a multi-tier world.
-  if (V8_UNLIKELY(!isolate_->use_optimizer())) return;
+  if (V8_UNLIKELY(!isolate_->use_optimizer())) {
+    function->SetInterruptBudget(isolate_);
+    return;
+  }
 
   // --- We've decided to proceed for now. ---
 
@@ -447,6 +464,11 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
   MaybeOptimizeFrame(function_obj, code_kind);
+
+  // Make sure to set the interrupt budget after maybe starting an optimization,
+  // so that the interrupt budget size takes into account tiering state.
+  DCHECK(had_feedback_vector);
+  function->SetInterruptBudget(isolate_);
 }
 
 }  // namespace internal

@@ -127,7 +127,7 @@ DOM.defineCustomElement('view/list-panel',
 
   _logEntryMouseOverHandler(e) {
     const group = e.currentTarget.group;
-    this.dispatchEvent(new ToolTipEvent(group.key, e.currentTarget));
+    this.dispatchEvent(new ToolTipEvent(group.key, e.currentTarget, e.ctrlKey));
   }
 
   _handleDetailsClick(event) {

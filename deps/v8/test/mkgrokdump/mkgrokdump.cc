@@ -127,7 +127,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::SafepointScope safepoint_scope(heap);
+    i::IsolateSafepointScope safepoint_scope(heap);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);
@@ -149,12 +149,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
                      object);
       }
 
-      i::PagedSpace* space_for_maps = heap->space_for_maps();
-      i::PagedSpaceObjectIterator iterator(heap, space_for_maps);
+      i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, space_for_maps->name(), object);
+        DumpKnownMap(out, heap, heap->old_space()->name(), object);
       }
       i::PrintF(out, "}\n");
     }
@@ -176,8 +175,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
         i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
-        if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
-          continue;
+        if (s->identity() == i::CODE_SPACE) continue;
         const char* sname = s->name();
         for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);

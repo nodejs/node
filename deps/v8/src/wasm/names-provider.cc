@@ -319,26 +319,30 @@ void NamesProvider::PrintGlobalName(StringBuilder& out, uint32_t global_index,
 }
 
 void NamesProvider::PrintElementSegmentName(StringBuilder& out,
-                                            uint32_t element_segment_index) {
+                                            uint32_t element_segment_index,
+                                            IndexAsComment index_as_comment) {
   DecodeNamesIfNotYetDone();
   WireBytesRef ref =
       Get(name_section_names_->element_segment_names_, element_segment_index);
   if (ref.is_set()) {
     out << '$';
     WriteRef(out, ref);
+    MaybeAddComment(out, element_segment_index, index_as_comment);
   } else {
     out << "$elem" << element_segment_index;
   }
 }
 
 void NamesProvider::PrintDataSegmentName(StringBuilder& out,
-                                         uint32_t data_segment_index) {
+                                         uint32_t data_segment_index,
+                                         IndexAsComment index_as_comment) {
   DecodeNamesIfNotYetDone();
   WireBytesRef ref =
       Get(name_section_names_->data_segment_names_, data_segment_index);
   if (ref.is_set()) {
     out << '$';
     WriteRef(out, ref);
+    MaybeAddComment(out, data_segment_index, index_as_comment);
   } else {
     out << "$data" << data_segment_index;
   }

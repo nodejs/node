@@ -5,9 +5,6 @@
 [
 [ALWAYS, {
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
-  # TODO(v8:10994): Failing spec test after update.
-  'proposals/js-types/data': [FAIL],
-
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
   'proposals/memory64/linking': [FAIL],
@@ -15,9 +12,7 @@
   'proposals/memory64/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
-  'proposals/js-types/elem': [FAIL],
   'proposals/js-types/globals': [FAIL],
-  'proposals/js-types/imports': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.

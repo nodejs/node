@@ -26,6 +26,8 @@ This allows Oilpan to run garbage collection in parallel with mutators running i
 References to objects belonging to another thread's heap are modeled using cross-thread roots.
 This is even true for on-heap to on-heap references.
 
+Oilpan heaps may generally not be accessed from different threads unless otherwise noted.
+
 ## Heap partitioning
 
 Oilpan's heaps are partitioned into spaces.

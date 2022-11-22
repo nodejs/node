@@ -301,7 +301,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
   // PendingOptimizeTable also contains BytecodeArray, we need to clear the
   // recompilable code same as above.
   ReadOnlyRoots roots(isolate);
-  isolate->heap()->SetPendingOptimizeForTestBytecode(roots.undefined_value());
+  isolate->heap()->SetFunctionsMarkedForManualOptimization(
+      roots.undefined_value());
 }
 
 // static
@@ -315,7 +316,10 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
-    GlobalSafepointScope global_safepoint(isolate);
+    SafepointKind safepoint_kind = isolate->has_shared_heap()
+                                       ? SafepointKind::kGlobal
+                                       : SafepointKind::kIsolate;
+    SafepointScope safepoint_scope(isolate, safepoint_kind);
     DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
@@ -325,7 +329,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     serialized_data = Snapshot::Create(isolate, *default_context,
-                                       global_safepoint, no_gc, flags);
+                                       safepoint_scope, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
 
@@ -369,14 +373,14 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
-    const GlobalSafepointScope& global_safepoint,
+    const SafepointScope& safepoint_scope,
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
   TRACE_EVENT0("v8", "V8.SnapshotCreate");
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  // The GlobalSafepointScope ensures we are in a safepoint scope so that the
+  // The HeapSafepointScope ensures we are in a safepoint scope so that the
   // string table is safe to iterate. Unlike mksnapshot, embedders may have
   // background threads running.
 
@@ -453,13 +457,13 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const GlobalSafepointScope& global_safepoint,
+                                 const SafepointScope& safepoint_scope,
                                  const DisallowGarbageCollection& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};
-  return Snapshot::Create(isolate, &contexts, callbacks, global_safepoint,
-                          no_gc, flags);
+  return Snapshot::Create(isolate, &contexts, callbacks, safepoint_scope, no_gc,
+                          flags);
 }
 
 v8::StartupData SnapshotImpl::CreateSnapshotBlob(

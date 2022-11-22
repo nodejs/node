@@ -43,6 +43,8 @@ class V8_EXPORT_PRIVATE BranchElimination final
     : public NON_EXPORTED_BASE(AdvancedReducerWithControlPathState)<
           BranchCondition, kUniqueInstance> {
  public:
+  // TODO(nicohartmann@): Remove {Phase} once all Branch operators have
+  // specified semantics.
   enum Phase {
     kEARLY,
     kLATE,

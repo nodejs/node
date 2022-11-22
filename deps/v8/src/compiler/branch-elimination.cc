@@ -5,8 +5,10 @@
 #include "src/compiler/branch-elimination.h"
 
 #include "src/base/small-vector.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -81,11 +83,24 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
   //                                   second_true  second_false
   //
 
+  auto SemanticsOf = [phase = this->phase_](Node* branch) {
+    BranchSemantics semantics = BranchSemantics::kUnspecified;
+    if (branch->opcode() == IrOpcode::kBranch) {
+      semantics = BranchParametersOf(branch->op()).semantics();
+    }
+    if (semantics == BranchSemantics::kUnspecified) {
+      semantics =
+          (phase == kEARLY ? BranchSemantics::kJS : BranchSemantics::kMachine);
+    }
+    return semantics;
+  };
+
   DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
   Node* merge = NodeProperties::GetControlInput(branch);
   if (merge->opcode() != IrOpcode::kMerge) return;
 
   Node* condition = branch->InputAt(0);
+  BranchSemantics semantics = SemanticsOf(branch);
   Graph* graph = jsgraph()->graph();
   base::SmallVector<Node*, 2> phi_inputs;
 
@@ -97,12 +112,14 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
 
     BranchCondition branch_condition = from_input.LookupState(condition);
     if (!branch_condition.IsSet()) return;
+    if (SemanticsOf(branch_condition.branch) != semantics) return;
     bool condition_value = branch_condition.is_true;
 
-    if (phase_ == kEARLY) {
+    if (semantics == BranchSemantics::kJS) {
       phi_inputs.emplace_back(condition_value ? jsgraph()->TrueConstant()
                                               : jsgraph()->FalseConstant());
     } else {
+      DCHECK_EQ(semantics, BranchSemantics::kMachine);
       phi_inputs.emplace_back(
           condition_value
               ? graph->NewNode(jsgraph()->common()->Int32Constant(1))
@@ -110,11 +127,12 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
     }
   }
   phi_inputs.emplace_back(merge);
-  Node* new_phi = graph->NewNode(
-      common()->Phi(phase_ == kEARLY ? MachineRepresentation::kTagged
-                                     : MachineRepresentation::kWord32,
-                    input_count),
-      input_count + 1, &phi_inputs.at(0));
+  Node* new_phi =
+      graph->NewNode(common()->Phi(semantics == BranchSemantics::kJS
+                                       ? MachineRepresentation::kTagged
+                                       : MachineRepresentation::kWord32,
+                                   input_count),
+                     input_count + 1, &phi_inputs.at(0));
 
   // Replace the branch condition with the new phi.
   NodeProperties::ReplaceValueInput(branch, new_phi, 0);

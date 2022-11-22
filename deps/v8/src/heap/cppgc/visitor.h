@@ -57,6 +57,7 @@ class V8_EXPORT_PRIVATE ConservativeTracingVisitor {
 
   virtual void TraceConservativelyIfNeeded(const void*);
   void TraceConservativelyIfNeeded(HeapObjectHeader&);
+  void TraceConservatively(const HeapObjectHeader&);
 
  protected:
   using TraceConservativelyCallback = void(ConservativeTracingVisitor*,

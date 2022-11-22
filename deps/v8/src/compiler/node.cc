@@ -406,7 +406,6 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
   DCHECK_LE(inline_capacity, kMaxInlineCapacity);
 }
 
-
 void Node::AppendUse(Use* use) {
   DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
   DCHECK_EQ(this, *use->input_ptr());

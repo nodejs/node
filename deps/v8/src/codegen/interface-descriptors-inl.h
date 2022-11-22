@@ -189,6 +189,14 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetRegisterParameter(int i) {
 
 // static
 template <typename DerivedDescriptor>
+constexpr int
+StaticCallInterfaceDescriptor<DerivedDescriptor>::GetStackParameterIndex(
+    int i) {
+  return i - DerivedDescriptor::GetRegisterParameterCount();
+}
+
+// static
+template <typename DerivedDescriptor>
 constexpr DoubleRegister
 StaticCallInterfaceDescriptor<DerivedDescriptor>::GetDoubleRegisterParameter(
     int i) {
