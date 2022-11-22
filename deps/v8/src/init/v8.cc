@@ -73,8 +73,9 @@ void AdvanceStartupState(V8StartupState expected_next_state) {
     // isolate->Dispose();
     // v8::V8::Dispose();
     // v8::V8::DisposePlatform();
-    FATAL("Wrong initialization order: got %d expected %d!",
-          static_cast<int>(current_state), static_cast<int>(next_state));
+    FATAL("Wrong initialization order: from %d to %d, expected to %d!",
+          static_cast<int>(current_state), static_cast<int>(next_state),
+          static_cast<int>(expected_next_state));
   }
   if (!v8_startup_state_.compare_exchange_strong(current_state, next_state)) {
     FATAL(
@@ -280,7 +281,6 @@ void V8::Dispose() {
   CallDescriptors::TearDown();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
-  Isolate::DisposeOncePerProcess();
   FlagList::ReleaseDynamicAllocations();
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }

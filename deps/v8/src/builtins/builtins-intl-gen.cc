@@ -37,11 +37,80 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
         BitcastTaggedToWord(seq_string),
         IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   }
+
+  TNode<Uint8T> GetChar(TNode<SeqOneByteString> seq_string, int index) {
+    int effective_offset =
+        SeqOneByteString::kHeaderSize - kHeapObjectTag + index;
+    return Load<Uint8T>(seq_string, IntPtrConstant(effective_offset));
+  }
+
+  // Jumps to {target} if the first two characters of {seq_string} equal
+  // {pattern} ignoring case.
+  void JumpIfStartsWithIgnoreCase(TNode<SeqOneByteString> seq_string,
+                                  const char* pattern, Label* target) {
+    int effective_offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+    TNode<Uint16T> raw =
+        Load<Uint16T>(seq_string, IntPtrConstant(effective_offset));
+    DCHECK_EQ(strlen(pattern), 2);
+#if V8_TARGET_BIG_ENDIAN
+    int raw_pattern = (pattern[0] << 8) + pattern[1];
+#else
+    int raw_pattern = pattern[0] + (pattern[1] << 8);
+#endif
+    GotoIf(Word32Equal(Word32Or(raw, Int32Constant(0x2020)),
+                       Int32Constant(raw_pattern)),
+           target);
+  }
+
+  TNode<BoolT> IsNonAlpha(TNode<Uint8T> character) {
+    return Uint32GreaterThan(
+        Int32Sub(Word32Or(character, Int32Constant(0x20)), Int32Constant('a')),
+        Int32Constant('z' - 'a'));
+  }
+
+  enum class ToLowerCaseKind {
+    kToLowerCase,
+    kToLocaleLowerCase,
+  };
+  void ToLowerCaseImpl(TNode<String> string, TNode<Object> maybe_locales,
+                       TNode<Context> context, ToLowerCaseKind kind,
+                       std::function<void(TNode<Object>)> ReturnFct);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   const auto string = Parameter<String>(Descriptor::kString);
+  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, TNode<Context>(),
+                  ToLowerCaseKind::kToLowerCase,
+                  [this](TNode<Object> ret) { Return(ret); });
+}
 
+TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
+  auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  TNode<String> string =
+      ToThisString(context, maybe_string, "String.prototype.toLowerCase");
+
+  Return(CallBuiltin(Builtin::kStringToLowerCaseIntl, context, string));
+}
+
+TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
+  TNode<Int32T> argc =
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  CodeStubArguments args(this, argc);
+  TNode<Object> maybe_string = args.GetReceiver();
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  TNode<Object> maybe_locales = args.GetOptionalArgumentValue(0);
+  TNode<String> string =
+      ToThisString(context, maybe_string, "String.prototype.toLocaleLowerCase");
+  ToLowerCaseImpl(string, maybe_locales, context,
+                  ToLowerCaseKind::kToLocaleLowerCase,
+                  [&args](TNode<Object> ret) { args.PopAndReturn(ret); });
+}
+
+void IntlBuiltinsAssembler::ToLowerCaseImpl(
+    TNode<String> string, TNode<Object> maybe_locales, TNode<Context> context,
+    ToLowerCaseKind kind, std::function<void(TNode<Object>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Early exit on empty strings.
@@ -54,9 +123,40 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
       state(), string, ToDirectStringAssembler::kDontUnpackSlicedStrings);
   to_direct.TryToDirect(&runtime);
 
+  if (kind == ToLowerCaseKind::kToLocaleLowerCase) {
+    Label fast(this), check_locale(this);
+    // Check for fast locales.
+    GotoIf(IsUndefined(maybe_locales), &fast);
+    // Passing a smi here is equivalent to passing an empty list of locales.
+    GotoIf(TaggedIsSmi(maybe_locales), &fast);
+    GotoIfNot(IsString(CAST(maybe_locales)), &runtime);
+    GotoIfNot(IsSeqOneByteString(CAST(maybe_locales)), &runtime);
+    TNode<SeqOneByteString> locale = CAST(maybe_locales);
+    TNode<Uint32T> locale_length = LoadStringLengthAsWord32(locale);
+    GotoIf(Int32LessThan(locale_length, Int32Constant(2)), &runtime);
+    GotoIf(IsNonAlpha(GetChar(locale, 0)), &runtime);
+    GotoIf(IsNonAlpha(GetChar(locale, 1)), &runtime);
+    GotoIf(Word32Equal(locale_length, Int32Constant(2)), &check_locale);
+    GotoIf(Word32NotEqual(locale_length, Int32Constant(5)), &runtime);
+    GotoIf(Word32NotEqual(GetChar(locale, 2), Int32Constant('-')), &runtime);
+    GotoIf(IsNonAlpha(GetChar(locale, 3)), &runtime);
+    GotoIf(IsNonAlpha(GetChar(locale, 4)), &runtime);
+    Goto(&check_locale);
+
+    Bind(&check_locale);
+    JumpIfStartsWithIgnoreCase(locale, "az", &runtime);
+    JumpIfStartsWithIgnoreCase(locale, "el", &runtime);
+    JumpIfStartsWithIgnoreCase(locale, "lt", &runtime);
+    JumpIfStartsWithIgnoreCase(locale, "tr", &runtime);
+    Goto(&fast);
+
+    Bind(&fast);
+  }
+
   const TNode<Int32T> instance_type = to_direct.instance_type();
   CSA_DCHECK(this,
              Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
+
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
 
   // For short strings, do the conversion in CSA through the lookup table.
@@ -103,7 +203,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     // hash) on the source string.
     GotoIfNot(var_did_change.value(), &return_string);
 
-    Return(dst);
+    ReturnFct(dst);
   }
 
   // Call into C for case conversion. The signature is:
@@ -121,28 +221,21 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
         function_addr, type_tagged, std::make_pair(type_tagged, src),
         std::make_pair(type_tagged, dst)));
 
-    Return(result);
+    ReturnFct(result);
   }
 
   BIND(&return_string);
-  Return(string);
+  ReturnFct(string);
 
   BIND(&runtime);
-  {
-    const TNode<Object> result = CallRuntime(Runtime::kStringToLowerCaseIntl,
-                                             NoContextConstant(), string);
-    Return(result);
+  if (kind == ToLowerCaseKind::kToLocaleLowerCase) {
+    ReturnFct(CallRuntime(Runtime::kStringToLocaleLowerCase, context, string,
+                          maybe_locales));
+  } else {
+    DCHECK_EQ(kind, ToLowerCaseKind::kToLowerCase);
+    ReturnFct(CallRuntime(Runtime::kStringToLowerCaseIntl, NoContextConstant(),
+                          string));
   }
-}
-
-TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
-  auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
-  auto context = Parameter<Context>(Descriptor::kContext);
-
-  TNode<String> string =
-      ToThisString(context, maybe_string, "String.prototype.toLowerCase");
-
-  Return(CallBuiltin(Builtin::kStringToLowerCaseIntl, context, string));
 }
 
 void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,

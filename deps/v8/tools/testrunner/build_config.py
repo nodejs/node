@@ -23,6 +23,9 @@ class BuildConfig(object):
 
     self.asan = build_config['is_asan']
     self.cfi_vptr = build_config['is_cfi']
+    self.component_build = build_config['is_component_build']
+    self.conservative_stack_scanning = build_config[
+        'v8_enable_conservative_stack_scanning']
     self.control_flow_integrity = build_config['v8_control_flow_integrity']
     self.concurrent_marking = build_config['v8_enable_concurrent_marking']
     self.single_generation = build_config['v8_enable_single_generation']

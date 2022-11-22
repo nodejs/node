@@ -693,7 +693,8 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // registers and other constants.
 
 // Break 0xfffff, reserved for redirected real time call.
-const Instr rtCallRedirInstr = BREAK | call_rt_redirected;
+const Instr rtCallRedirInstr =
+    static_cast<uint32_t>(BREAK) | call_rt_redirected;
 // A nop instruction. (Encoding of addi_w 0 0 0).
 const Instr nopInstr = ADDI_W;
 

@@ -41,8 +41,9 @@ void EvacuationVerifier::VisitMapPointer(HeapObject object) {
   VerifyMap(object.map(cage_base()));
 }
 void EvacuationVerifier::VerifyRoots() {
-  heap_->IterateRootsIncludingClients(this,
-                                      base::EnumSet<SkipRoot>{SkipRoot::kWeak});
+  heap_->IterateRootsIncludingClients(
+      this,
+      base::EnumSet<SkipRoot>{SkipRoot::kWeak, SkipRoot::kConservativeStack});
 }
 
 void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
@@ -94,7 +95,6 @@ void FullEvacuationVerifier::Run() {
   VerifyEvacuation(heap_->old_space());
   VerifyEvacuation(heap_->code_space());
   if (heap_->shared_space()) VerifyEvacuation(heap_->shared_space());
-  if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
 }
 
 void FullEvacuationVerifier::VerifyMap(Map map) { VerifyHeapObjectImpl(map); }
@@ -136,7 +136,6 @@ void YoungGenerationEvacuationVerifier::YoungGenerationEvacuationVerifier::
   VerifyEvacuation(heap_->new_space());
   VerifyEvacuation(heap_->old_space());
   VerifyEvacuation(heap_->code_space());
-  if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
 }
 
 void YoungGenerationEvacuationVerifier::VerifyMap(Map map) {

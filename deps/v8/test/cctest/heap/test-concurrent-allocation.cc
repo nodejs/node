@@ -144,6 +144,8 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadIsParked) {
   const int kThreads = 4;
 
   {
+    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
+                                                   Heap::ScanStackMode::kNone);
     ParkedScope scope(i_isolate->main_thread_local_isolate());
 
     for (int i = 0; i < kThreads; i++) {
@@ -174,22 +176,27 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadParksAndUnparks) {
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
   const int kThreads = 4;
 
-  for (int i = 0; i < kThreads; i++) {
-    auto thread =
-        std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
-
-  for (int i = 0; i < 300'000; i++) {
-    ParkedScope scope(i_isolate->main_thread_local_isolate());
-  }
-
   {
-    ParkedScope scope(i_isolate->main_thread_local_isolate());
+    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
+                                                   Heap::ScanStackMode::kNone);
 
-    for (auto& thread : threads) {
-      thread->Join();
+    for (int i = 0; i < kThreads; i++) {
+      auto thread =
+          std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+      CHECK(thread->Start());
+      threads.push_back(std::move(thread));
+    }
+
+    for (int i = 0; i < 300'000; i++) {
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
+    }
+
+    {
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+      for (auto& thread : threads) {
+        thread->Join();
+      }
     }
   }
 
@@ -209,23 +216,29 @@ UNINITIALIZED_TEST(ConcurrentAllocationWhileMainThreadRunsWithSafepoints) {
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
   const int kThreads = 4;
 
-  for (int i = 0; i < kThreads; i++) {
-    auto thread =
-        std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
-
-  // Some of the following Safepoint() invocations are supposed to perform a GC.
-  for (int i = 0; i < 1'000'000; i++) {
-    i_isolate->main_thread_local_heap()->Safepoint();
-  }
-
   {
-    ParkedScope scope(i_isolate->main_thread_local_isolate());
+    ScanStackModeScopeForTesting no_stack_scanning(i_isolate->heap(),
+                                                   Heap::ScanStackMode::kNone);
 
-    for (auto& thread : threads) {
-      thread->Join();
+    for (int i = 0; i < kThreads; i++) {
+      auto thread =
+          std::make_unique<ConcurrentAllocationThread>(i_isolate->heap());
+      CHECK(thread->Start());
+      threads.push_back(std::move(thread));
+    }
+
+    // Some of the following Safepoint() invocations are supposed to perform a
+    // GC.
+    for (int i = 0; i < 1'000'000; i++) {
+      i_isolate->main_thread_local_heap()->Safepoint();
+    }
+
+    {
+      ParkedScope scope(i_isolate->main_thread_local_isolate());
+
+      for (auto& thread : threads) {
+        thread->Join();
+      }
     }
   }
 

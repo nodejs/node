@@ -458,13 +458,14 @@ domain Debugger
       # New value for breakpoints active state.
       boolean active
 
-  # Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions or
-  # no exceptions. Initial pause on exceptions state is `none`.
+  # Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions,
+  # or caught exceptions, no exceptions. Initial pause on exceptions state is `none`.
   command setPauseOnExceptions
     parameters
       # Pause on exceptions mode.
       enum state
         none
+        caught
         uncaught
         all
 

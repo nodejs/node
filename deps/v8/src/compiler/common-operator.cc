@@ -29,6 +29,18 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
 
 namespace compiler {
 
+std::ostream& operator<<(std::ostream& os, BranchSemantics semantics) {
+  switch (semantics) {
+    case BranchSemantics::kJS:
+      return os << "JS";
+    case BranchSemantics::kMachine:
+      return os << "Machine";
+    case BranchSemantics::kUnspecified:
+      return os << "Unspecified";
+  }
+  UNREACHABLE();
+}
+
 std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
   switch (trap_id) {
 #define TRAP_CASE(Name) \
@@ -48,13 +60,33 @@ TrapId TrapIdOf(const Operator* const op) {
   return OpParameter<TrapId>(op);
 }
 
+bool operator==(const BranchParameters& lhs, const BranchParameters& rhs) {
+  return lhs.semantics() == rhs.semantics() && lhs.hint() == rhs.hint();
+}
+
+size_t hash_value(const BranchParameters& p) {
+  return base::hash_combine(p.semantics(), p.hint());
+}
+
+std::ostream& operator<<(std::ostream& os, const BranchParameters& p) {
+  return os << p.semantics() << ", " << p.hint();
+}
+
+const BranchParameters& BranchParametersOf(const Operator* const op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kBranch);
+  return OpParameter<BranchParameters>(op);
+}
+
 BranchHint BranchHintOf(const Operator* const op) {
   switch (op->opcode()) {
     case IrOpcode::kIfValue:
       return IfValueParametersOf(op).hint();
     case IrOpcode::kIfDefault:
-    case IrOpcode::kBranch:
       return OpParameter<BranchHint>(op);
+    // TODO(nicohartmann@): Should remove all uses of BranchHintOf for branches
+    // and replace with BranchParametersOf.
+    case IrOpcode::kBranch:
+      return BranchParametersOf(op).hint();
     default:
       UNREACHABLE();
   }
@@ -434,6 +466,27 @@ const SLVerifierHintParameters& SLVerifierHintParametersOf(const Operator* op) {
   return OpParameter<SLVerifierHintParameters>(op);
 }
 
+V8_EXPORT_PRIVATE bool operator==(const ExitMachineGraphParameters& lhs,
+                                  const ExitMachineGraphParameters& rhs) {
+  return lhs.output_representation() == rhs.output_representation() &&
+         lhs.output_type().Equals(rhs.output_type());
+}
+
+size_t hash_value(const ExitMachineGraphParameters& p) {
+  return base::hash_combine(p.output_representation(), p.output_type());
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const ExitMachineGraphParameters& p) {
+  return os << p.output_representation() << ", " << p.output_type();
+}
+
+const ExitMachineGraphParameters& ExitMachineGraphParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kExitMachineGraph);
+  return OpParameter<ExitMachineGraphParameters>(op);
+}
+
 #define COMMON_CACHED_OP_LIST(V)                          \
   V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \
@@ -453,9 +506,15 @@ const SLVerifierHintParameters& SLVerifierHintParametersOf(const Operator* op) {
 #define CACHED_LOOP_EXIT_VALUE_LIST(V) V(kTagged)
 
 #define CACHED_BRANCH_LIST(V) \
-  V(None)                     \
-  V(True)                     \
-  V(False)
+  V(JS, None)                 \
+  V(JS, True)                 \
+  V(JS, False)                \
+  V(Machine, None)            \
+  V(Machine, True)            \
+  V(Machine, False)           \
+  V(Unspecified, None)        \
+  V(Unspecified, True)        \
+  V(Unspecified, False)
 
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
@@ -626,17 +685,18 @@ struct CommonOperatorGlobalCache final {
   CACHED_RETURN_LIST(CACHED_RETURN)
 #undef CACHED_RETURN
 
-  template <BranchHint hint>
-  struct BranchOperator final : public Operator1<BranchHint> {
+  template <BranchSemantics semantics, BranchHint hint>
+  struct BranchOperator final : public Operator1<BranchParameters> {
     BranchOperator()
-        : Operator1<BranchHint>(                      // --
+        : Operator1<BranchParameters>(                // --
               IrOpcode::kBranch, Operator::kKontrol,  // opcode
               "Branch",                               // name
               1, 0, 1, 0, 0, 2,                       // counts
-              hint) {}                                // parameter
+              {semantics, hint}) {}                   // parameter
   };
-#define CACHED_BRANCH(Hint) \
-  BranchOperator<BranchHint::k##Hint> kBranch##Hint##Operator;
+#define CACHED_BRANCH(Semantics, Hint)                               \
+  BranchOperator<BranchSemantics::k##Semantics, BranchHint::k##Hint> \
+      kBranch##Semantics##Hint##Operator;
   CACHED_BRANCH_LIST(CACHED_BRANCH)
 #undef CACHED_BRANCH
 
@@ -924,10 +984,12 @@ const Operator* CommonOperatorBuilder::SLVerifierHint(
       0, 0, 1, 0, 0, SLVerifierHintParameters(semantics, override_output_type));
 }
 
-const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
-#define CACHED_BRANCH(Hint)                 \
-  if (hint == BranchHint::k##Hint) {        \
-    return &cache_.kBranch##Hint##Operator; \
+const Operator* CommonOperatorBuilder::Branch(BranchHint hint,
+                                              BranchSemantics semantics) {
+#define CACHED_BRANCH(Semantics, Hint)                 \
+  if (semantics == BranchSemantics::k##Semantics &&    \
+      hint == BranchHint::k##Hint) {                   \
+    return &cache_.kBranch##Semantics##Hint##Operator; \
   }
   CACHED_BRANCH_LIST(CACHED_BRANCH)
 #undef CACHED_BRANCH
@@ -1307,6 +1369,19 @@ const Operator* CommonOperatorBuilder::FoldConstant() {
       IrOpcode::kFoldConstant, Operator::kPure,  // opcode
       "FoldConstant",                            // name
       2, 0, 0, 1, 0, 0);                         // counts
+}
+
+const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {
+  return zone()->New<Operator1<UseInfo>>(IrOpcode::kEnterMachineGraph,
+                                         Operator::kPure, "EnterMachineGraph",
+                                         1, 0, 0, 1, 0, 0, use_info);
+}
+
+const Operator* CommonOperatorBuilder::ExitMachineGraph(
+    MachineRepresentation output_representation, Type output_type) {
+  return zone()->New<Operator1<ExitMachineGraphParameters>>(
+      IrOpcode::kExitMachineGraph, Operator::kPure, "ExitMachineGraph", 1, 0, 0,
+      1, 0, 0, ExitMachineGraphParameters{output_representation, output_type});
 }
 
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {

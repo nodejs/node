@@ -177,9 +177,8 @@ void ModuleDecoder::DecodeSection(SectionCode section_code,
 }
 
 void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,
-                                       uint32_t offset,
-                                       bool validate_functions) {
-  impl_->DecodeFunctionBody(index, length, offset, validate_functions);
+                                       uint32_t offset) {
+  impl_->DecodeFunctionBody(index, length, offset);
 }
 
 void ModuleDecoder::StartCodeSection(WireBytesRef section_bytes) {

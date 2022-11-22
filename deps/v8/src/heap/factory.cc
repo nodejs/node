@@ -415,9 +415,13 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
-                                        Handle<FixedArray> indices) {
-  auto result =
-      NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, AllocationType::kOld);
+                                        Handle<FixedArray> indices,
+                                        AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kOld ||
+         allocation == AllocationType::kSharedOld);
+  DCHECK_EQ(allocation == AllocationType::kSharedOld,
+            keys->InSharedHeap() && indices->InSharedHeap());
+  auto result = NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, allocation);
   DisallowGarbageCollection no_gc;
   result.set_keys(*keys);
   result.set_indices(*indices);
@@ -2490,7 +2494,7 @@ Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     const int no_flags = 0;
     Handle<CodeDataContainer> code_data_container =
         NewCodeDataContainer(no_flags, AllocationType::kOld);
@@ -2838,19 +2842,26 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
 }
 
 Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
-    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings) {
+    Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+    int function_literal_id, int slot_id) {
   Handle<JSArray> raw_object =
       NewJSArrayWithElements(raw_strings, PACKED_ELEMENTS,
                              raw_strings->length(), AllocationType::kOld);
   JSObject::SetIntegrityLevel(raw_object, FROZEN, kThrowOnError).ToChecked();
 
   Handle<NativeContext> native_context = isolate()->native_context();
-  Handle<JSArray> template_object = NewJSArrayWithUnverifiedElements(
-      handle(native_context->js_array_template_literal_object_map(), isolate()),
-      cooked_strings, cooked_strings->length(), AllocationType::kOld);
-  TemplateLiteralObject::SetRaw(template_object, raw_object);
-  DCHECK_EQ(template_object->map(),
+  Handle<TemplateLiteralObject> template_object =
+      Handle<TemplateLiteralObject>::cast(NewJSArrayWithUnverifiedElements(
+          handle(native_context->js_array_template_literal_object_map(),
+                 isolate()),
+          cooked_strings, cooked_strings->length(), AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+  TemplateLiteralObject raw_template_object = *template_object;
+  DCHECK_EQ(raw_template_object.map(),
             native_context->js_array_template_literal_object_map());
+  raw_template_object.set_raw(*raw_object);
+  raw_template_object.set_function_literal_id(function_literal_id);
+  raw_template_object.set_slot_id(slot_id);
   return template_object;
 }
 
@@ -3029,7 +3040,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   result->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                std::move(backing_store));
+                std::move(backing_store), isolate());
   return result;
 }
 
@@ -3048,7 +3059,7 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
-                      std::move(backing_store));
+                      std::move(backing_store), isolate());
   return array_buffer;
 }
 
@@ -3064,7 +3075,8 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
   ResizableFlag resizable = backing_store->is_resizable_by_js()
                                 ? ResizableFlag::kResizable
                                 : ResizableFlag::kNotResizable;
-  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store));
+  result->Setup(SharedFlag::kShared, resizable, std::move(backing_store),
+                isolate());
   return result;
 }
 

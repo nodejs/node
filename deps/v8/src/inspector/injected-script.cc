@@ -713,7 +713,7 @@ void InjectedScript::addPromiseCallback(
     return;
   }
 
-  v8::MicrotasksScope microtasksScope(m_context->isolate(),
+  v8::MicrotasksScope microtasksScope(m_context->context(),
                                       v8::MicrotasksScope::kRunMicrotasks);
   ProtocolPromiseHandler::add(session, m_context->context(),
                               value.ToLocalChecked(), m_context->contextId(),

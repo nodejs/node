@@ -63,6 +63,7 @@
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/handles/shared-object-conveyor-handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -616,7 +617,10 @@ StartupData SnapshotCreator::CreateBlob(
   i::Snapshot::ClearReconstructableDataForSerialization(
       i_isolate, function_code_handling == FunctionCodeHandling::kClear);
 
-  i::GlobalSafepointScope global_safepoint(i_isolate);
+  i::SafepointKind safepoint_kind = i_isolate->has_shared_heap()
+                                        ? i::SafepointKind::kGlobal
+                                        : i::SafepointKind::kIsolate;
+  i::SafepointScope safepoint_scope(i_isolate, safepoint_kind);
   i::DisallowGarbageCollection no_gc_from_here_on;
 
   // Create a vector with all contexts and clear associated Persistent fields.
@@ -654,7 +658,7 @@ StartupData SnapshotCreator::CreateBlob(
 
   data->created_ = true;
   return i::Snapshot::Create(i_isolate, &contexts, embedder_fields_serializers,
-                             global_safepoint, no_gc_from_here_on);
+                             safepoint_scope, no_gc_from_here_on);
 }
 
 bool StartupData::CanBeRehashed() const {
@@ -792,8 +796,7 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  i::Handle<i::Object> result =
-      i_isolate->global_handles()->CreateTraced(*obj, slot, store_mode);
+  auto result = i_isolate->traced_handles()->Create(*obj, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
     i::Object(*obj).ObjectVerify(i_isolate);
@@ -803,16 +806,16 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address* obj,
 }
 
 void MoveTracedReference(internal::Address** from, internal::Address** to) {
-  GlobalHandles::MoveTracedReference(from, to);
+  TracedHandles::Move(from, to);
 }
 
 void CopyTracedReference(const internal::Address* const* from,
                          internal::Address** to) {
-  GlobalHandles::CopyTracedReference(from, to);
+  TracedHandles::Copy(from, to);
 }
 
 void DisposeTracedReference(internal::Address* location) {
-  GlobalHandles::DestroyTracedReference(location);
+  TracedHandles::Destroy(location);
 }
 
 }  // namespace internal
@@ -3732,6 +3735,7 @@ bool Value::IsWasmModuleObject() const { return false; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
+VALUE_IS_SPECIFIC_TYPE(WeakRef, JSWeakRef)
 
 #undef VALUE_IS_SPECIFIC_TYPE
 
@@ -6611,8 +6615,29 @@ v8::Isolate* Context::GetIsolate() {
 v8::MicrotaskQueue* Context::GetMicrotaskQueue() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   Utils::ApiCheck(env->IsNativeContext(), "v8::Context::GetMicrotaskQueue",
-                  "Must be calld on a native context");
+                  "Must be called on a native context");
   return i::Handle<i::NativeContext>::cast(env)->microtask_queue();
+}
+
+void Context::SetMicrotaskQueue(v8::MicrotaskQueue* queue) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = context->GetIsolate();
+  Utils::ApiCheck(context->IsNativeContext(), "v8::Context::SetMicrotaskQueue",
+                  "Must be called on a native context");
+  i::Handle<i::NativeContext> native_context =
+      i::Handle<i::NativeContext>::cast(context);
+  i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
+  Utils::ApiCheck(!native_context->microtask_queue()->IsRunningMicrotasks(),
+                  "v8::Context::SetMicrotaskQueue",
+                  "Must not be running microtasks");
+  Utils::ApiCheck(
+      native_context->microtask_queue()->GetMicrotasksScopeDepth() == 0,
+      "v8::Context::SetMicrotaskQueue", "Must not have microtask scope pushed");
+  Utils::ApiCheck(impl->EnteredContextCount() == 0,
+                  "v8::Context::SetMicrotaskQueue()",
+                  "Cannot set Microtask Queue with an entered context");
+  native_context->set_microtask_queue(
+      i_isolate, static_cast<const i::MicrotaskQueue*>(queue));
 }
 
 v8::Local<v8::Object> Context::Global() {
@@ -8086,14 +8111,32 @@ std::shared_ptr<i::BackingStore> ToInternal(
 }
 }  // namespace
 
-void v8::ArrayBuffer::Detach() {
+Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   i::Isolate* i_isolate = obj->GetIsolate();
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
-  API_RCS_SCOPE(i_isolate, ArrayBuffer, Detach);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  obj->Detach();
+  ENTER_V8_NO_SCRIPT(
+      i_isolate, reinterpret_cast<v8::Isolate*>(i_isolate)->GetCurrentContext(),
+      ArrayBuffer, Detach, Nothing<bool>(), i::HandleScope);
+  if (!key.IsEmpty()) {
+    i::Handle<i::Object> i_key = Utils::OpenHandle(*key);
+    constexpr bool kForceForWasmMemory = false;
+    has_pending_exception =
+        i::JSArrayBuffer::Detach(obj, kForceForWasmMemory, i_key).IsNothing();
+  } else {
+    has_pending_exception = i::JSArrayBuffer::Detach(obj).IsNothing();
+  }
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
+void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
+
+void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> i_key = Utils::OpenHandle(*key);
+  obj->set_detach_key(*i_key);
 }
 
 size_t v8::ArrayBuffer::ByteLength() const {
@@ -9557,15 +9600,18 @@ CALLBACK_SETTER(WasmAsyncResolvePromiseCallback,
 CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
                 wasm_load_source_map_callback)
 
-CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
-                wasm_simd_enabled_callback)
-
-CALLBACK_SETTER(WasmExceptionsEnabledCallback, WasmExceptionsEnabledCallback,
-                wasm_exceptions_enabled_callback)
-
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
+
+void Isolate::SetWasmExceptionsEnabledCallback(
+    WasmExceptionsEnabledCallback callback) {
+  // Exceptions are always enabled
+}
+
+void Isolate::SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback) {
+  // SIMD is always enabled
+}
 
 void Isolate::InstallConditionalFeatures(Local<Context> context) {
   v8::HandleScope handle_scope(this);
@@ -9724,6 +9770,11 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
 MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
                                  MicrotasksScope::Type type)
     : MicrotasksScope(v8_isolate, nullptr, type) {}
+
+MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
+                                 MicrotasksScope::Type type)
+    : MicrotasksScope(v8_context->GetIsolate(), v8_context->GetMicrotaskQueue(),
+                      type) {}
 
 MicrotasksScope::MicrotasksScope(Isolate* v8_isolate,
                                  MicrotaskQueue* microtask_queue,
@@ -10044,6 +10095,21 @@ int64_t CpuProfile::GetStartTime() const {
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->end_time().since_origin().InMicroseconds();
+}
+
+static i::CpuProfile* ToInternal(const CpuProfile* profile) {
+  return const_cast<i::CpuProfile*>(
+      reinterpret_cast<const i::CpuProfile*>(profile));
+}
+
+void CpuProfile::Serialize(OutputStream* stream,
+                           CpuProfile::SerializationFormat format) const {
+  Utils::ApiCheck(format == kJSON, "v8::CpuProfile::Serialize",
+                  "Unknown serialization format");
+  Utils::ApiCheck(stream->GetChunkSize() > 0, "v8::CpuProfile::Serialize",
+                  "Invalid stream chunk size");
+  i::CpuProfileJSONSerializer serializer(ToInternal(this));
+  serializer.Serialize(stream);
 }
 
 int CpuProfile::GetSamplesCount() const {
@@ -10508,7 +10574,7 @@ void EmbedderHeapTracer::IterateTracedGlobalHandles(
     TracedGlobalHandleVisitor* visitor) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate_);
   i::DisallowGarbageCollection no_gc;
-  i_isolate->global_handles()->IterateTracedNodes(visitor);
+  i_isolate->traced_handles()->Iterate(visitor);
 }
 
 bool EmbedderHeapTracer::IsRootForNonTracingGC(

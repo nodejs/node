@@ -68,7 +68,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
   }
   BIND(&fast_loop);
   {
-    Label if_exception_during_fast_iteration(this);
+    Label if_exception_during_fast_iteration(this, Label::kDeferred);
     TNode<JSArray> initial_entries_jsarray =
         UncheckedCast<JSArray>(initial_entries);
 #if DEBUG

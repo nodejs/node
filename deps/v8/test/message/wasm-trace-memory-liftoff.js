@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --trace-wasm-memory --liftoff
-// Flags: --no-wasm-tier-up --experimental-wasm-simd
+// Flags: --trace-wasm-memory --liftoff --no-wasm-tier-up
 
 // Force enable sse3 and sse4-1, since that will determine which execution tier
 // we use, and thus the expected output message will differ.

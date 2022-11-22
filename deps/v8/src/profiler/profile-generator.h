@@ -19,6 +19,7 @@
 #include "src/builtins/builtins.h"
 #include "src/execution/vm-state.h"
 #include "src/logging/code-events.h"
+#include "src/profiler/output-stream-writer.h"
 #include "src/profiler/strings-storage.h"
 #include "src/utils/allocation.h"
 
@@ -594,6 +595,31 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   base::RecursiveMutex current_profiles_mutex_;
   static std::atomic<ProfilerId> last_id_;
   Isolate* isolate_;
+};
+
+class CpuProfileJSONSerializer {
+ public:
+  explicit CpuProfileJSONSerializer(CpuProfile* profile)
+      : profile_(profile), writer_(nullptr) {}
+  CpuProfileJSONSerializer(const CpuProfileJSONSerializer&) = delete;
+  CpuProfileJSONSerializer& operator=(const CpuProfileJSONSerializer&) = delete;
+  void Serialize(v8::OutputStream* stream);
+
+ private:
+  void SerializePositionTicks(const v8::CpuProfileNode* node, int lineCount);
+  void SerializeCallFrame(const v8::CpuProfileNode* node);
+  void SerializeChildren(const v8::CpuProfileNode* node, int childrenCount);
+  void SerializeNode(const v8::CpuProfileNode* node);
+  void SerializeNodes();
+  void SerializeSamples();
+  void SerializeTimeDeltas();
+  void SerializeImpl();
+
+  static const int kEdgeFieldsCount;
+  static const int kNodeFieldsCount;
+
+  CpuProfile* profile_;
+  OutputStreamWriter* writer_;
 };
 
 }  // namespace internal

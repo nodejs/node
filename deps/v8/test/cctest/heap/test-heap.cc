@@ -1136,6 +1136,72 @@ TEST(TestBytecodeFlushing) {
   }
 }
 
+TEST(TestMultiReferencedBytecodeFlushing) {
+#ifndef V8_LITE_MODE
+  v8_flags.turbofan = false;
+  v8_flags.always_turbofan = false;
+  i::v8_flags.optimize_for_size = false;
+#endif  // V8_LITE_MODE
+#if ENABLE_SPARKPLUG
+  v8_flags.always_sparkplug = false;
+#endif  // ENABLE_SPARKPLUG
+  i::v8_flags.flush_bytecode = true;
+  i::v8_flags.allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Factory* factory = i_isolate->factory();
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+    // This compile will add the code to the compilation cache.
+    {
+      v8::HandleScope new_scope(isolate);
+      CompileRun(source);
+    }
+
+    // Check function is compiled.
+    Handle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<SharedFunctionInfo> shared = handle(function->shared(), i_isolate);
+    CHECK(shared->is_compiled());
+
+    // Make a copy of the SharedFunctionInfo which points to the same bytecode.
+    Handle<SharedFunctionInfo> copy =
+        i_isolate->factory()->CloneSharedFunctionInfo(shared);
+
+    // Simulate several GCs that use full marking.
+    const int kAgingThreshold = 7;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      CcTest::CollectAllGarbage();
+    }
+
+    // foo should no longer be in the compilation cache
+    CHECK(!shared->is_compiled());
+    CHECK(!copy->is_compiled());
+    CHECK(!function->is_compiled());
+
+    // The feedback metadata for both SharedFunctionInfo instances should have
+    // been reset.
+    CHECK(!shared->HasFeedbackMetadata());
+    CHECK(!copy->HasFeedbackMetadata());
+  }
+}
+
 HEAP_TEST(Regress10560) {
   i::v8_flags.flush_bytecode = true;
   i::v8_flags.allow_natives_syntax = true;
@@ -5794,7 +5860,7 @@ TEST(Regress598319) {
     }
   }
 
-  SafepointScope safepoint_scope(heap);
+  IsolateSafepointScope safepoint_scope(heap);
   MarkingBarrier::PublishAll(heap);
 
   // Finish marking with bigger steps to speed up test.
@@ -6500,7 +6566,7 @@ HEAP_TEST(Regress670675) {
   heap->tracer()->StopFullCycleIfNeeded();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    SafepointScope safepoint_scope(heap);
+    IsolateSafepointScope safepoint_scope(heap);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);

@@ -18,33 +18,33 @@ f(1);
 // stress_deopt_count == 6
 
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);
 
 // stress_deopt_count == 4
 
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);
 
 // stress_deopt_count == 2
 
 f(1);
 // deopt & counter reset
-assertUnoptimized(f, undefined, undefined, false);
+assertUnoptimized(f, undefined, false);
 
 // stress_deopt_count == 6
 
 %PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);
 
 // stress_deopt_count == 4
 
 f(1);
-assertOptimized(f, undefined, undefined, false);
+assertOptimized(f, undefined, false);
 
 // stress_deopt_count == 2
 
 f(1);
 // deopt & counter reset
-assertUnoptimized(f, undefined, undefined, false);
+assertUnoptimized(f, undefined, false);

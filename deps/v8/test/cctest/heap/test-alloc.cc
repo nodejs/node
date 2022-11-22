@@ -78,7 +78,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   heap->CreateFillerObjectAt(obj.address(), size);
 
   // Map space.
-  heap::SimulateFullSpace(heap->space_for_maps());
+  heap::SimulateFullSpace(heap->old_space());
   obj = heap->AllocateRaw(Map::kSize, AllocationType::kMap).ToObjectChecked();
   heap->CreateFillerObjectAt(obj.address(), Map::kSize);
 

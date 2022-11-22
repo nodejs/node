@@ -15,12 +15,13 @@
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
-#include "src/handles/global-handles.h"
 #include "src/handles/handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/cppgc-js/cpp-snapshot.h"
@@ -151,7 +152,7 @@ void TraceV8ToCppGCReferences(
   DCHECK(isolate);
   V8ToCppGCReferencesVisitor forwarding_visitor(marking_state, isolate,
                                                 wrapper_descriptor);
-  isolate->global_handles()->IterateTracedNodes(&forwarding_visitor);
+  isolate->traced_handles()->Iterate(&forwarding_visitor);
 }
 
 }  // namespace
@@ -557,23 +558,35 @@ void CppHeap::Terminate() {
 
 namespace {
 
+class SweepingOnMutatorThreadForGlobalHandlesScope final {
+ public:
+  explicit SweepingOnMutatorThreadForGlobalHandlesScope(
+      TracedHandles& traced_handles)
+      : traced_handles_(traced_handles) {
+    traced_handles_.SetIsSweepingOnMutatorThread(true);
+  }
+  ~SweepingOnMutatorThreadForGlobalHandlesScope() {
+    traced_handles_.SetIsSweepingOnMutatorThread(false);
+  }
+
+  TracedHandles& traced_handles_;
+};
+
 class SweepingOnMutatorThreadForGlobalHandlesObserver final
     : public cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver {
  public:
   SweepingOnMutatorThreadForGlobalHandlesObserver(CppHeap& cpp_heap,
-                                                  GlobalHandles& global_handles)
+                                                  TracedHandles& traced_handles)
       : cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver(
             cpp_heap.sweeper()),
-        global_handles_(global_handles) {}
+        traced_handles_(traced_handles) {}
 
-  void Start() override {
-    global_handles_.NotifyStartSweepingOnMutatorThread();
-  }
+  void Start() override { traced_handles_.SetIsSweepingOnMutatorThread(true); }
 
-  void End() override { global_handles_.NotifyEndSweepingOnMutatorThread(); }
+  void End() override { traced_handles_.SetIsSweepingOnMutatorThread(false); }
 
  private:
-  GlobalHandles& global_handles_;
+  TracedHandles& traced_handles_;
 };
 
 }  // namespace
@@ -593,7 +606,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   ReduceGCCapabilititesFromFlags();
   sweeping_on_mutator_thread_observer_ =
       std::make_unique<SweepingOnMutatorThreadForGlobalHandlesObserver>(
-          *this, *isolate_->global_handles());
+          *this, *isolate_->traced_handles());
   no_gc_scope_--;
 }
 
@@ -623,6 +636,10 @@ void CppHeap::DetachIsolate() {
   oom_handler().SetCustomHandler(nullptr);
   // Enter no GC scope.
   no_gc_scope_++;
+}
+
+::heap::base::Stack* CppHeap::stack() {
+  return isolate_ ? &isolate_->heap()->stack() : HeapBase::stack();
 }
 
 namespace {
@@ -768,7 +785,8 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   in_atomic_pause_ = true;
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
-  if (isolate_) {
+  // TODO(1029379): Support global handle marking visitors with minor GC.
+  if (isolate_ && !generational_gc_supported()) {
     auto& heap = *isolate()->heap();
     marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
         std::make_unique<GlobalHandleMarkingVisitor>(
@@ -830,7 +848,15 @@ void CppHeap::TraceEpilogue() {
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
     cppgc::internal::SweepingConfig::CompactableSpaceHandling
-        compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+        compactable_space_handling;
+    {
+      base::Optional<SweepingOnMutatorThreadForGlobalHandlesScope>
+          global_handles_scope;
+      if (isolate_) {
+        global_handles_scope.emplace(*isolate_->traced_handles());
+      }
+      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+    }
     const cppgc::internal::SweepingConfig sweeping_config{
         SelectSweepingType(), compactable_space_handling,
         ShouldReduceMemory(current_gc_flags_)
@@ -848,13 +874,11 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
-void CppHeap::RunMinorGCIfNeeded(StackState stack_state) {
+void CppHeap::RunMinorGCIfNeeded() {
   if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;
-  // Minor GCs with the stack are currently not supported.
-  if (stack_state == StackState::kMayContainHeapPointers) return;
   // Run only when the limit is reached.
   if (!minor_gc_heap_growing_->LimitReached()) return;
 
@@ -1055,7 +1079,12 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
       stats_collector_->GetMetricRecorder());
 }
 
-void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
+void CppHeap::FinishSweepingIfRunning() {
+  sweeper_.FinishIfRunning();
+  if (isolate_) {
+    isolate_->traced_handles()->DeleteEmptyBlocks();
+  }
+}
 
 void CppHeap::FinishSweepingIfOutOfWork() { sweeper_.FinishIfOutOfWork(); }
 

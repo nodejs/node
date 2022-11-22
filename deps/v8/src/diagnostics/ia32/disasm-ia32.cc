@@ -752,16 +752,16 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         // have the same opcodes but differ by rex_w.
         if (vex_w()) {
           switch (opcode) {
-            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }
           }
         } else {
           switch (opcode) {
-            FMA_SD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
-            FMA_PD_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_SS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
+            FMA_PS_INSTRUCTION_LIST(DECLARE_FMA_DISASM)
             default: {
               UnimplementedInstruction();
             }

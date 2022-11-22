@@ -63,9 +63,6 @@ namespace {
 
 void CheckConfig(GCConfig config, HeapBase::MarkingType marking_support,
                  HeapBase::SweepingType sweeping_support) {
-  CHECK_WITH_MSG((config.collection_type != CollectionType::kMinor) ||
-                     (config.stack_state == StackState::kNoHeapPointers),
-                 "Minor GCs with stack is currently not supported");
   CHECK_LE(static_cast<int>(config.marking_type),
            static_cast<int>(marking_support));
   CHECK_LE(static_cast<int>(config.sweeping_type),

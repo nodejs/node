@@ -61,7 +61,9 @@ export class TimelineTrackStackedBase extends TimelineTrackBase {
     const item = this._getDrawableItemForEvent(event);
     const logEntry = this._drawableItemToLogEntry(item);
     if (item === undefined) return undefined;
-    const style = this.toolTipTargetNode.style;
+    const node = this.getToolTipTargetNode(logEntry);
+    if (!node) return logEntry;
+    const style = node.style;
     style.left = `${event.layerX}px`;
     style.top = `${(item.depth + 1) * kItemHeight}px`;
     style.height = `${kItemHeight}px`

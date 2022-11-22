@@ -285,6 +285,8 @@ class CollectorBase {
   std::vector<LargePage*> promoted_large_pages_;
 
  protected:
+  using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
+
   inline Heap* heap() const { return heap_; }
   inline Isolate* isolate();
 
@@ -307,7 +309,7 @@ class CollectorBase {
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
 
-  bool is_new_space_shrinking_ = false;
+  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
   explicit CollectorBase(Heap* heap, GarbageCollector collector);
   virtual ~CollectorBase() = default;
@@ -448,7 +450,7 @@ class MarkCompactCollector final : public CollectorBase {
   V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
   // Finds an object header based on a `maybe_inner_ptr`. It returns
@@ -699,7 +701,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void CleanupPromotedPages();
 
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
-      MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
+      MemoryChunk* chunk);
 
   void Finish() final;
 

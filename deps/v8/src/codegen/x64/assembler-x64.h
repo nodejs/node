@@ -821,6 +821,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kNearJmpInstrSize = 5;
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
+  void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
   void call(Handle<CodeT> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);

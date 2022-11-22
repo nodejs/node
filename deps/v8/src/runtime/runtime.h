@@ -202,6 +202,7 @@ namespace internal {
   F(FormatList, 2, 1)                 \
   F(FormatListToParts, 2, 1)          \
   F(StringToLowerCaseIntl, 1, 1)      \
+  F(StringToLocaleLowerCase, 2, 1)    \
   F(StringToUpperCaseIntl, 1, 1)  // End of macro.
 #else
 #define FOR_EACH_INTRINSIC_INTL(F, I)
@@ -496,7 +497,7 @@ namespace internal {
   F(ConstructSlicedString, 2, 1)              \
   F(ConstructThinString, 1, 1)                \
   F(CurrentFrameIsTurbofan, 0, 1)             \
-  F(DebugPrint, 1, 1)                         \
+  F(DebugPrint, -1, 1)                        \
   F(DebugPrintPtr, 1, 1)                      \
   F(DebugTrace, 0, 1)                         \
   F(DebugTrackRetainingPath, -1, 1)           \
@@ -507,12 +508,13 @@ namespace internal {
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(FinalizeOptimization, 0, 1)               \
+  F(ForceFlush, 1, 1)                         \
   F(GetCallable, 0, 1)                        \
   F(GetInitializerFunction, 1, 1)             \
   F(GetOptimizationStatus, 1, 1)              \
   F(GetUndetectable, 0, 1)                    \
   F(GetWeakCollectionSize, 1, 1)              \
-  F(GlobalPrint, 1, 1)                        \
+  F(GlobalPrint, -1, 1)                       \
   F(HasDictionaryElements, 1, 1)              \
   F(HasDoubleElements, 1, 1)                  \
   F(HasElementsInALargeObjectSpace, 1, 1)     \
@@ -590,7 +592,8 @@ namespace internal {
   I(DeoptimizeNow, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
-  F(ArrayBufferDetach, 1, 1)                   \
+  F(ArrayBufferDetach, -1, 1)                  \
+  F(ArrayBufferSetDetachKey, 2, 1)             \
   F(GrowableSharedArrayBufferByteLength, 1, 1) \
   F(TypedArrayCopyElements, 3, 1)              \
   F(TypedArrayGetBuffer, 1, 1)                 \
@@ -617,7 +620,8 @@ namespace internal {
   F(WasmTableGrow, 3, 1)              \
   F(WasmTableFill, 5, 1)              \
   F(WasmJSToWasmObject, 3, 1)         \
-  F(WasmCompileLazy, 3, 1)            \
+  F(WasmCompileLazy, 2, 1)            \
+  F(WasmAllocateFeedbackVector, 3, 1) \
   F(WasmCompileWrapper, 2, 1)         \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
@@ -939,6 +943,7 @@ enum class OptimizationStatus {
   kBaseline = 1 << 15,
   kTopmostFrameIsInterpreted = 1 << 16,
   kTopmostFrameIsBaseline = 1 << 17,
+  kIsLazy = 1 << 18,
 };
 
 }  // namespace internal

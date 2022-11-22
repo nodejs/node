@@ -20,6 +20,26 @@ class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 
+// Represents the state of the register frame during register allocation,
+// including current register values, and the state of each register.
+//
+// Register state encodes two orthogonal concepts:
+//
+//   1. Used/free registers: Which registers currently hold a valid value,
+//   2. Blocked/unblocked registers: Which registers can be modified during the
+//      current allocation.
+//
+// The combination of these encodes values in different states:
+//
+//  Free + unblocked: Completely unused registers which can be used for
+//                    anything.
+//  Used + unblocked: Live values that can be spilled if there is register
+//                    pressure.
+//  Used + blocked:   Values that are in a register and are used as an input in
+//                    the current allocation.
+//  Free + blocked:   Unused registers that are reserved as temporaries, or
+//                    inputs that will get clobbered during the execution of the
+//                    node being allocated.
 template <typename RegisterT>
 class RegisterFrameState {
  public:
@@ -85,6 +105,19 @@ class RegisterFrameState {
     DCHECK_NOT_NULL(node);
     return node;
   }
+#ifdef DEBUG
+  // Like GetValue, but allow reading freed registers as long as they were also
+  // blocked. This allows us to DCHECK expected register state against node
+  // state, even if that node is dead or clobbered by the end of the current
+  // allocation.
+  ValueNode* GetValueMaybeFreeButBlocked(RegisterT reg) const {
+    DCHECK(!free_.has(reg) || blocked_.has(reg));
+    ValueNode* node = values_[reg.code()];
+    DCHECK_NOT_NULL(node);
+    return node;
+  }
+#endif
+
   RegTList blocked() const { return blocked_; }
   void block(RegisterT reg) { blocked_.set(reg); }
   void unblock(RegisterT reg) { blocked_.clear(reg); }
@@ -134,6 +167,9 @@ class StraightForwardRegisterAllocator {
   void UpdateUse(ValueNode* node, InputLocation* input_location);
   void UpdateUse(const EagerDeoptInfo& deopt_info);
   void UpdateUse(const LazyDeoptInfo& deopt_info);
+
+  void MarkAsClobbered(ValueNode* node,
+                       const compiler::AllocatedOperand& location);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

@@ -161,7 +161,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'gcmole'},
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
@@ -180,6 +179,7 @@
         ],
         'shards': 4,
       },
+      {'name': 'gcmole'},
     ],
   },
   'v8_linux_optional_rel': {
@@ -847,7 +847,7 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -989,7 +989,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'gcmole'},
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
@@ -1051,6 +1050,7 @@
         'test_args': ['--extra-flags', '--noenable-avx'],
         'shards': 2
       },
+      {'name': 'gcmole'},
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
@@ -1807,8 +1807,8 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing'},
-      {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
   'V8 Win64 - debug': {
@@ -1829,7 +1829,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Win64 ASAN': {

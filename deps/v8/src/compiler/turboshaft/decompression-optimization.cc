@@ -77,15 +77,7 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     case Opcode::kStore: {
       auto& store = op.Cast<StoreOp>();
       MarkAsNeedsDecompression(store.base());
-      if (!store.stored_rep.IsTagged()) {
-        MarkAsNeedsDecompression(store.value());
-      }
-      break;
-    }
-    case Opcode::kIndexedStore: {
-      auto& store = op.Cast<IndexedStoreOp>();
-      MarkAsNeedsDecompression(store.base());
-      MarkAsNeedsDecompression(store.index());
+      if (store.index().valid()) MarkAsNeedsDecompression(store.index());
       if (!store.stored_rep.IsTagged()) {
         MarkAsNeedsDecompression(store.value());
       }
@@ -151,7 +143,6 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
       }
       break;
     }
-    case Opcode::kIndexedLoad:
     case Opcode::kLoad:
     case Opcode::kConstant:
       if (!NeedsDecompression(op)) {
@@ -194,16 +185,6 @@ void RunDecompressionOptimization(Graph& graph, Zone* phase_zone) {
       }
       case Opcode::kLoad: {
         auto& load = op.Cast<LoadOp>();
-        if (load.loaded_rep.IsTagged()) {
-          DCHECK_EQ(load.result_rep,
-                    any_of(RegisterRepresentation::Tagged(),
-                           RegisterRepresentation::Compressed()));
-          load.result_rep = RegisterRepresentation::Compressed();
-        }
-        break;
-      }
-      case Opcode::kIndexedLoad: {
-        auto& load = op.Cast<IndexedLoadOp>();
         if (load.loaded_rep.IsTagged()) {
           DCHECK_EQ(load.result_rep,
                     any_of(RegisterRepresentation::Tagged(),

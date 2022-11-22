@@ -14,21 +14,21 @@ class OperationMatching {
  public:
   template <class Op>
   bool Is(OpIndex op_idx) {
-    return assembler().graph().Get(op_idx).template Is<Op>();
+    return assembler().output_graph().Get(op_idx).template Is<Op>();
   }
 
   template <class Op>
   const Op* TryCast(OpIndex op_idx) {
-    return assembler().graph().Get(op_idx).template TryCast<Op>();
+    return assembler().output_graph().Get(op_idx).template TryCast<Op>();
   }
 
   template <class Op>
   const Op& Cast(OpIndex op_idx) {
-    return assembler().graph().Get(op_idx).template Cast<Op>();
+    return assembler().output_graph().Get(op_idx).template Cast<Op>();
   }
 
   const Operation& Get(OpIndex op_idx) {
-    return assembler().graph().Get(op_idx);
+    return assembler().output_graph().Get(op_idx);
   }
 
   bool MatchZero(OpIndex matched) {

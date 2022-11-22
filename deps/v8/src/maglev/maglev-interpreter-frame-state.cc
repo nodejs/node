@@ -33,21 +33,7 @@ MergePointInterpreterFrameState::NewForCatchBlock(
   }
   frame_state.ForEachParameter(
       unit, [&](ValueNode*& entry, interpreter::Register reg) {
-        if (!is_inline && reg.is_receiver()) {
-          // The receiver is a special case for a fairly silly reason:
-          // OptimizedFrame::Summarize requires the receiver (and the function)
-          // to be in a stack slot, since it's value must be available even
-          // though we're not deoptimizing (and thus register states are not
-          // available). Exception phis could be allocated in a register.
-          // Since the receiver is immutable, simply reuse its InitialValue
-          // node.
-          // For inlined functions / nested graph generation, this a) doesn't
-          // work (there's no receiver stack slot); and b) isn't necessary
-          // (Summarize only looks at noninlined functions).
-          entry = graph->parameters()[0];
-        } else {
-          entry = state->NewExceptionPhi(zone, reg, handler_offset);
-        }
+        entry = state->NewExceptionPhi(zone, reg, handler_offset);
       });
   frame_state.context(unit) =
       state->NewExceptionPhi(zone, context_register, handler_offset);

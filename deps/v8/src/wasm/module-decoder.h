@@ -155,8 +155,7 @@ class ModuleDecoder {
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
-  void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
-                          bool verify_functions = true);
+  void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset);
 
   ModuleResult FinishDecoding();
 

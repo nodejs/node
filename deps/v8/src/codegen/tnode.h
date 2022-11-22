@@ -359,10 +359,10 @@ class TNode {
  public:
   template <class U,
             typename std::enable_if<is_subtype<U, T>::value, int>::type = 0>
-  TNode(const TNode<U>& other) : node_(other) {
+  TNode(const TNode<U>& other) V8_NOEXCEPT : node_(other) {
     LazyTemplateChecks();
   }
-  TNode(const TNode& other) : node_(other) { LazyTemplateChecks(); }
+  TNode(const TNode& other) V8_NOEXCEPT : node_(other) { LazyTemplateChecks(); }
   TNode() : TNode(nullptr) {}
 
   TNode operator=(TNode other) {
@@ -375,7 +375,7 @@ class TNode {
 
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
- private:
+ protected:
   explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
   // These checks shouldn't be checked before TNode is actually used.
   void LazyTemplateChecks() {
@@ -383,6 +383,21 @@ class TNode {
   }
 
   compiler::Node* node_;
+};
+
+// SloppyTNode<T> is a variant of TNode<T> and allows implicit casts from
+// Node*. It is intended for function arguments as long as some call sites
+// still use untyped Node* arguments.
+// TODO(turbofan): Delete this class once transition is finished.
+template <class T>
+class SloppyTNode : public TNode<T> {
+ public:
+  SloppyTNode(compiler::Node* node)  // NOLINT(runtime/explicit)
+      : TNode<T>(node) {}
+  template <class U, typename std::enable_if<is_subtype<U, T>::value,
+                                             int>::type = 0>
+  SloppyTNode(const TNode<U>& other) V8_NOEXCEPT  // NOLINT(runtime/explicit)
+      : TNode<T>(other) {}
 };
 
 }  // namespace internal

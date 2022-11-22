@@ -253,8 +253,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   bool IsReplModeScope() const;
 
 #ifdef DEBUG
-  bool Equals(ScopeInfo other,
-              bool ignore_position_and_module_info = false) const;
+  // For LiveEdit we ignore:
+  //   - position info: "unchanged" functions are allowed to move in a script
+  //   - module info: SourceTextModuleInfo::Equals compares exact FixedArray
+  //     addresses which will never match for separate instances.
+  //   - outer scope info: LiveEdit already analyses outer scopes of unchanged
+  //     functions. Also checking it here will break in really subtle cases
+  //     e.g. changing a let to a const in an outer function, which is fine.
+  bool Equals(ScopeInfo other, bool is_live_edit_compare = false) const;
 #endif
 
   template <typename IsolateT>

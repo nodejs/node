@@ -210,7 +210,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   CcTest::CollectAllAvailableGarbage(i_isolate);
 
-  SafepointScope safepoint(i_isolate->heap());
+  IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
 
   DisallowGarbageCollection no_gc;
@@ -403,7 +403,7 @@ static void SerializeContext(base::Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(heap);
+    IsolateSafepointScope safepoint(heap);
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -572,7 +572,7 @@ static void SerializeCustomContext(
 
     env.Reset();
 
-    SafepointScope safepoint(isolate->heap());
+    IsolateSafepointScope safepoint(isolate->heap());
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -5113,8 +5113,15 @@ UNINITIALIZED_TEST(SharedStrings) {
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   CHECK_EQ(i_isolate1->string_table(), i_isolate2->string_table());
-  CheckObjectsAreInSharedHeap(i_isolate1);
-  CheckObjectsAreInSharedHeap(i_isolate2);
+  {
+    ParkedScope parked(i_isolate2->main_thread_local_heap());
+    CheckObjectsAreInSharedHeap(i_isolate1);
+  }
+
+  {
+    ParkedScope parked(i_isolate1->main_thread_local_heap());
+    CheckObjectsAreInSharedHeap(i_isolate2);
+  }
 
   {
     // Because both isolate1 and isolate2 are considered running on the main
@@ -5130,6 +5137,111 @@ UNINITIALIZED_TEST(SharedStrings) {
   }
 
   blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
+}
+
+namespace {
+
+class DebugBreakCounter : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context>,
+                             const std::vector<v8::debug::BreakpointId>&,
+                             v8::debug::BreakReasons break_reasons) override {
+    break_point_hit_count_++;
+  }
+
+  int break_point_hit_count() const { return break_point_hit_count_; }
+
+ private:
+  int break_point_hit_count_ = 0;
+};
+
+}  // namespace
+
+UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
+  // Tests that a breakpoint set in one deserialized context also gets hit in
+  // another for lazy accessors.
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      // Add a context to the snapshot that adds an object with an accessor to
+      // the global template.
+      v8::HandleScope scope(isolate);
+
+      auto accessor_tmpl =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      accessor_tmpl->SetClassName(v8_str("get f"));
+      auto object_tmpl = v8::ObjectTemplate::New(isolate);
+      object_tmpl->SetAccessorProperty(v8_str("f"), accessor_tmpl);
+
+      auto global_tmpl = v8::ObjectTemplate::New(isolate);
+      global_tmpl->Set(v8_str("o"), object_tmpl);
+
+      creator.SetDefaultContext(v8::Context::New(isolate));
+
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, nullptr, global_tmpl);
+      creator.AddContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &blob;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  params.external_references = original_external_references;
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+
+    DebugBreakCounter delegate;
+    v8::debug::SetDebugDelegate(isolate, &delegate);
+
+    {
+      // Create a new context from the snapshot, put a breakpoint on the
+      // accessor and make sure we hit the breakpoint.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+
+      // 1. Set the breakpoint
+      v8::Local<v8::Function> function =
+          CompileRun(context, "Object.getOwnPropertyDescriptor(o, 'f').get")
+              .ToLocalChecked()
+              .As<v8::Function>();
+      debug::BreakpointId id;
+      debug::SetFunctionBreakpoint(function, v8::Local<v8::String>(), &id);
+
+      // 2. Run and check that we hit the breakpoint
+      CompileRun(context, "o.f");
+      CHECK_EQ(1, delegate.break_point_hit_count());
+    }
+
+    {
+      // Create a second context from the snapshot and make sure we still hit
+      // the breakpoint without setting it again.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(context, "o.f");
+      CHECK_EQ(2, delegate.break_point_hit_count());
+    }
+
+    v8::debug::SetDebugDelegate(isolate, nullptr);
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
 

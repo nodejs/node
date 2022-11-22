@@ -1460,6 +1460,10 @@ config("toolchain") {
       "/wd4715",  # 'function' : not all control paths return a value'
                   # MSVC does not analyze switch (enum) for completeness.
     ]
+
+    # TODO(https://crbug.com/1377771): Keep MSVC on C++17 until source code is
+    # made compatible with C++20.
+    cflags_cc = [ "/std:c++17" ]
   }
 
   if (!is_clang && !is_win) {
@@ -1476,6 +1480,11 @@ config("toolchain") {
       # Disable gcc warnings for using enum constant in boolean context.
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97266
       "-Wno-int-in-bool-context",
+
+      # Disable gcc deprecation warnings, which are firing on implicit capture
+      # of `this` in capture-by-value lambdas and preventing a build roll which
+      # enables C++20 (see https://crbug.com/1374227).
+      "-Wno-deprecated",
     ]
   }
 
@@ -2268,6 +2277,8 @@ action("v8_dump_build_config") {
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
+    "v8_enable_conservative_stack_scanning=" +
+        "$v8_enable_conservative_stack_scanning",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_single_generation=$v8_enable_single_generation",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
@@ -2803,6 +2814,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/all-nodes.h",
     "src/compiler/allocation-builder-inl.h",
     "src/compiler/allocation-builder.h",
+    "src/compiler/backend/bitcast-elider.h",
     "src/compiler/backend/code-generator-impl.h",
     "src/compiler/backend/code-generator.h",
     "src/compiler/backend/frame-elider.h",
@@ -2923,16 +2935,18 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
-    "src/compiler/turboshaft/machine-optimization-assembler.h",
+    "src/compiler/turboshaft/machine-optimization-reducer.h",
     "src/compiler/turboshaft/operation-matching.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/turboshaft/representations.h",
+    "src/compiler/turboshaft/select-lowering-reducer.h",
     "src/compiler/turboshaft/sidetable.h",
     "src/compiler/turboshaft/simplify-tf-loops.h",
+    "src/compiler/turboshaft/snapshot-table.h",
     "src/compiler/turboshaft/utils.h",
-    "src/compiler/turboshaft/value-numbering-assembler.h",
+    "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
@@ -3024,6 +3038,7 @@ v8_header_set("v8_internal_headers") {
     "src/handles/maybe-handles.h",
     "src/handles/persistent-handles.h",
     "src/handles/shared-object-conveyor-handles.h",
+    "src/handles/traced-handles.h",
     "src/heap/allocation-observer.h",
     "src/heap/allocation-result.h",
     "src/heap/allocation-stats.h",
@@ -3422,6 +3437,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/heap-profiler.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
+    "src/profiler/output-stream-writer.h",
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.h",
     "src/profiler/profiler-listener.h",
@@ -4041,6 +4057,7 @@ v8_compiler_sources = [
   "src/compiler/access-info.cc",
   "src/compiler/add-type-assertions-reducer.cc",
   "src/compiler/all-nodes.cc",
+  "src/compiler/backend/bitcast-elider.cc",
   "src/compiler/backend/code-generator.cc",
   "src/compiler/backend/frame-elider.cc",
   "src/compiler/backend/gap-resolver.cc",
@@ -4429,6 +4446,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/local-handles.cc",
     "src/handles/persistent-handles.cc",
     "src/handles/shared-object-conveyor-handles.cc",
+    "src/handles/traced-handles.cc",
     "src/heap/allocation-observer.cc",
     "src/heap/array-buffer-sweeper.cc",
     "src/heap/base-space.cc",
@@ -4737,6 +4755,7 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/maglev-assembler.cc",
       "src/maglev/maglev-code-generator.cc",
       "src/maglev/maglev-compilation-info.cc",
       "src/maglev/maglev-compilation-unit.cc",
@@ -5745,31 +5764,31 @@ v8_source_set("v8_heap_base") {
 
   if (is_clang || !is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_asm.cc" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_asm.cc" ]
     } else if (current_cpu == "arm") {
-      sources += [ "src/heap/base/asm/arm/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm/save_registers_asm.cc" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_asm.cc" ]
     } else if (current_cpu == "ppc64") {
-      sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/ppc/save_registers_asm.cc" ]
     } else if (current_cpu == "s390x") {
-      sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/s390/save_registers_asm.cc" ]
     } else if (current_cpu == "mips64el") {
-      sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/mips64/save_registers_asm.cc" ]
     } else if (current_cpu == "loong64") {
-      sources += [ "src/heap/base/asm/loong64/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/loong64/save_registers_asm.cc" ]
     } else if (current_cpu == "riscv64" || current_cpu == "riscv32") {
-      sources += [ "src/heap/base/asm/riscv/push_registers_asm.cc" ]
+      sources += [ "src/heap/base/asm/riscv/save_registers_asm.cc" ]
     }
   } else if (is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/x64/save_registers_masm.asm" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_masm.asm" ]
+      sources += [ "src/heap/base/asm/ia32/save_registers_masm.asm" ]
     } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/base/asm/arm64/push_registers_masm.S" ]
+      sources += [ "src/heap/base/asm/arm64/save_registers_masm.S" ]
     }
   }
 

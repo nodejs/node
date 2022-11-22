@@ -12,62 +12,65 @@
 namespace v8 {
 namespace internal {
 
-int ElementsKindToShiftSize(ElementsKind elements_kind) {
-  switch (elements_kind) {
-    case UINT8_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
-    case RAB_GSAB_UINT8_ELEMENTS:
-    case RAB_GSAB_INT8_ELEMENTS:
-    case RAB_GSAB_UINT8_CLAMPED_ELEMENTS:
+namespace {
+constexpr size_t size_to_shift(size_t size) {
+  switch (size) {
+    case 1:
       return 0;
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-    case RAB_GSAB_UINT16_ELEMENTS:
-    case RAB_GSAB_INT16_ELEMENTS:
+    case 2:
       return 1;
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-    case FLOAT32_ELEMENTS:
-    case RAB_GSAB_UINT32_ELEMENTS:
-    case RAB_GSAB_INT32_ELEMENTS:
-    case RAB_GSAB_FLOAT32_ELEMENTS:
+    case 4:
       return 2;
-    case PACKED_DOUBLE_ELEMENTS:
-    case HOLEY_DOUBLE_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-    case BIGINT64_ELEMENTS:
-    case BIGUINT64_ELEMENTS:
-    case RAB_GSAB_FLOAT64_ELEMENTS:
-    case RAB_GSAB_BIGINT64_ELEMENTS:
-    case RAB_GSAB_BIGUINT64_ELEMENTS:
+    case 8:
       return 3;
-    case PACKED_SMI_ELEMENTS:
-    case PACKED_ELEMENTS:
-    case PACKED_FROZEN_ELEMENTS:
-    case PACKED_SEALED_ELEMENTS:
-    case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_SMI_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case HOLEY_FROZEN_ELEMENTS:
-    case HOLEY_SEALED_ELEMENTS:
-    case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS:
-    case SLOW_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS:
-      return kTaggedSizeLog2;
-    case WASM_ARRAY_ELEMENTS:
-    case NO_ELEMENTS:
+    default:
       UNREACHABLE();
   }
-  UNREACHABLE();
+}
+}  // namespace
+
+constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindShifts[] = {
+#define SHIFT(Type, type, TYPE, ctype) size_to_shift(sizeof(ctype)),
+    TYPED_ARRAYS(SHIFT) RAB_GSAB_TYPED_ARRAYS(SHIFT)
+#undef SHIFT
+};
+
+constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindSizes[] = {
+#define SIZE(Type, type, TYPE, ctype) sizeof(ctype),
+    TYPED_ARRAYS(SIZE) RAB_GSAB_TYPED_ARRAYS(SIZE)
+#undef SIZE
+};
+
+#define VERIFY_SHIFT(Type, type, TYPE, ctype)                          \
+  static_assert(                                                       \
+      kTypedArrayAndRabGsabTypedArrayElementsKindShifts                \
+              [ElementsKind::TYPE##_ELEMENTS -                         \
+               ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND] == \
+          ElementsKindToShiftSize(ElementsKind::TYPE##_ELEMENTS),      \
+      "Shift of ElementsKind::" #TYPE                                  \
+      "_ELEMENTS does not match in static table");
+TYPED_ARRAYS(VERIFY_SHIFT)
+RAB_GSAB_TYPED_ARRAYS(VERIFY_SHIFT)
+#undef VERIFY_SHIFT
+
+#define VERIFY_SIZE(Type, type, TYPE, ctype)                           \
+  static_assert(                                                       \
+      kTypedArrayAndRabGsabTypedArrayElementsKindSizes                 \
+              [ElementsKind::TYPE##_ELEMENTS -                         \
+               ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND] == \
+          ElementsKindToByteSize(ElementsKind::TYPE##_ELEMENTS),       \
+      "Size of ElementsKind::" #TYPE                                   \
+      "_ELEMENTS does not match in static table");
+TYPED_ARRAYS(VERIFY_SIZE)
+RAB_GSAB_TYPED_ARRAYS(VERIFY_SIZE)
+#undef VERIFY_SIZE
+
+const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindShifts() {
+  return &kTypedArrayAndRabGsabTypedArrayElementsKindShifts[0];
 }
 
-int ElementsKindToByteSize(ElementsKind elements_kind) {
-  return 1 << ElementsKindToShiftSize(elements_kind);
+const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindSizes() {
+  return &kTypedArrayAndRabGsabTypedArrayElementsKindSizes[0];
 }
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {

@@ -55,7 +55,7 @@ class EntryFrameConstants : public AllStatic {
       (kNumCalleeSaved - 1) * kSystemPointerSize;
 };
 
-class WasmCompileLazyFrameConstants : public TypedFrameConstants {
+class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
   // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 3;
@@ -65,17 +65,18 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   // We spill:
   //   r3: param0 = instance
   //   r0, r2, r6: param1, param2, param3
-  // in the following FP-relative order: [r6, r3, r2, r0].
+  //   lr (== r14): internal usage of the caller
+  // in the following FP-relative order: [lr, r6, r3, r2, r0].
   static constexpr int kInstanceSpillOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
 
   static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(0)};
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1)};
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
+  static constexpr int kDeclaredFunctionIndexOffset = 1 * kSystemPointerSize;
   static constexpr int kNativeModuleOffset = 0;
 };
 

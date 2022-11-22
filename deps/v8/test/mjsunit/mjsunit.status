@@ -364,6 +364,9 @@
 
   # Flaky tests due to GC interferring with optimization.
   'compiler/regress-crbug-1323114': [SKIP],
+
+  # https://crbug.com/v8/13461
+  'maglev/inner-function': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -899,6 +902,14 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['system == macos and arch == arm64', {
+  # BUG(v8:13171): The following tests a function that shouldn't be optimized
+  # on M1 hardware, unless a proper fix for the stack corruption is
+  # implemented (see linked issue).
+  'compiler/fast-api-calls-8args': [FAIL],
+}],  # 'system == macos  and arch == arm64'
+
+##############################################################################
 ['system == windows', {
   # Too slow with turbo fan.
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
@@ -1082,6 +1093,9 @@
 
   # BUG(v8:13331) Skipped until issue is fixed to reduce noise on alerts.
   'harmony/regress/regress-crbug-1367133': [SKIP],
+
+  # BUG(v8:13379) maglev-inlining flag isn't stable enough for fuzzing.
+  'maglev/eager-deopt-in-inline': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
@@ -1569,6 +1583,14 @@
 
   'shared-memory/*': [SKIP],
 }], # single_generation
+
+################################################################################
+['conservative_stack_scanning', {
+  # TODO(v8:13257): Conservative stack scanning is not currently compatible
+  # with stack switching.
+  'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
+}], # conservative_stack_scanning
 
 ################################################################################
 ['third_party_heap', {

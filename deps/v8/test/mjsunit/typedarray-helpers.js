@@ -91,6 +91,18 @@ function AllBigIntMatchedCtorCombinations(test) {
   }
 }
 
+function AllBigIntUnmatchedCtorCombinations(test) {
+  for (let targetCtor of ctors) {
+    for (let sourceCtor of ctors) {
+      if (IsBigIntTypedArray(new targetCtor()) ==
+          IsBigIntTypedArray(new sourceCtor())) {
+        continue;
+      }
+      test(targetCtor, sourceCtor);
+    }
+  }
+}
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);

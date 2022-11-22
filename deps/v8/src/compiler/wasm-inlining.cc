@@ -179,9 +179,27 @@ void WasmInliner::Finalize() {
     size_t subgraph_min_node_id = graph()->NodeCount();
     Node* inlinee_start;
     Node* inlinee_end;
-    const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
+    const wasm::FunctionBody inlinee_body{inlinee->sig, inlinee->code.offset(),
                                           function_bytes.begin(),
-                                          function_bytes.end());
+                                          function_bytes.end()};
+
+    // If the inlinee was not validated before, do that now.
+    if (!module()->function_was_validated(candidate.inlinee_index)) {
+      wasm::WasmFeatures unused_detected_features;
+      if (ValidateFunctionBody(zone()->allocator(), env_->enabled_features,
+                               module(), &unused_detected_features,
+                               inlinee_body)
+              .failed()) {
+        Trace(candidate, "function is invalid");
+        // At this point we cannot easily raise a compilation error any more.
+        // Since this situation is highly unlikely though, we just ignore this
+        // inlinee and move on. The same validation error will be triggered
+        // again when actually compiling the invalid function.
+        continue;
+      }
+      module()->set_function_validated(candidate.inlinee_index);
+    }
+
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
                              source_positions_);
     {
@@ -193,15 +211,10 @@ void WasmInliner::Finalize() {
           NodeProperties::IsExceptionalCall(call)
               ? wasm::kInlinedHandledCall
               : wasm::kInlinedNonHandledCall);
-      if (result.ok()) {
-        builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
-        inlinee_start = graph()->start();
-        inlinee_end = graph()->end();
-      } else {
-        // Otherwise report failure.
-        Trace(candidate, "failed to compile");
-        return;
-      }
+      CHECK(result.ok());
+      builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
+      inlinee_start = graph()->start();
+      inlinee_end = graph()->end();
     }
 
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
@@ -364,11 +377,21 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         // The first input of a return node is always the 0 constant.
         return_inputs.push_back(graph()->NewNode(common()->Int32Constant(0)));
         if (return_arity == 1) {
+          // Tail calls are untyped; we have to type the node here.
+          NodeProperties::SetType(
+              input, Type::Wasm({inlinee_sig->GetReturn(0), module()},
+                                graph()->zone()));
           return_inputs.push_back(input);
         } else if (return_arity > 1) {
           for (int i = 0; i < return_arity; i++) {
-            return_inputs.push_back(
-                graph()->NewNode(common()->Projection(i), input, input));
+            Node* ith_projection =
+                graph()->NewNode(common()->Projection(i), input, input);
+            // Similarly here we have to type the call's projections.
+            NodeProperties::SetType(
+                ith_projection,
+                Type::Wasm({inlinee_sig->GetReturn(i), module()},
+                           graph()->zone()));
+            return_inputs.push_back(ith_projection);
           }
         }
 

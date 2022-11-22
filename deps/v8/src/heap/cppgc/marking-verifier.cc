@@ -63,7 +63,8 @@ void MarkingVerifierBase::Run(
 #if !defined(THREAD_SANITIZER) && !defined(CPPGC_POINTER_COMPRESSION)
   if (stack_state == StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
-    heap_.stack()->IteratePointersUnsafe(this, stack_end);
+    heap_.stack()->IteratePointersUnsafe(
+        this, reinterpret_cast<const void*>(stack_end));
     // The objects found through the unsafe iteration are only a subset of the
     // regular iteration as they miss objects held alive only from callee-saved
     // registers that are never pushed on the stack and SafeStack.

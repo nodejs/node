@@ -146,8 +146,7 @@ void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE || identity() == NEW_SPACE ||
-         identity() == SHARED_SPACE);
+         identity() == NEW_SPACE || identity() == SHARED_SPACE);
 
   Sweeper* sweeper = heap()->sweeper();
   size_t added = 0;
@@ -338,7 +337,8 @@ void PagedSpaceBase::RemovePage(Page* page) {
   // Pages are only removed from new space when they are promoted to old space
   // during a GC. This happens after sweeping as started and the allocation
   // counters have been reset.
-  DCHECK_IMPLIES(identity() == NEW_SPACE, Size() == 0);
+  DCHECK_IMPLIES(identity() == NEW_SPACE,
+                 heap()->gc_state() != Heap::NOT_IN_GC);
   if (identity() != NEW_SPACE) {
     DecreaseAllocatedBytes(page->allocated_bytes(), page);
   }
@@ -665,7 +665,7 @@ PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == MAP_SPACE || identity() == SHARED_SPACE);
+         identity() == SHARED_SPACE);
 
   size_t new_node_size = 0;
   FreeSpace new_node =
@@ -742,7 +742,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
       Map map = object.map(cage_base);
       CHECK(map.IsMap(cage_base));
       CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->space_for_maps()->Contains(map));
+            isolate->heap()->old_space()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);
@@ -910,19 +910,12 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 
   if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
-  if (identity() == NEW_SPACE) {
-    // New space should not allocate new pages when running out of space and it
-    // is not currently swept.
-    return false;
-  }
-
   const bool is_main_thread =
       heap()->IsMainThread() || heap()->IsSharedMainThread();
-  const auto sweeping_scope_id = is_main_thread
-                                     ? GCTracer::Scope::MC_SWEEP
-                                     : GCTracer::Scope::MC_BACKGROUND_SWEEPING;
   const auto sweeping_scope_kind =
       is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground;
+  const auto sweeping_scope_id =
+      heap()->sweeper()->GetTracingScope(identity(), is_main_thread);
   // Sweeping is still in progress.
   if (heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
@@ -959,7 +952,8 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     }
   }
 
-  if (heap()->ShouldExpandOldGenerationOnSlowAllocation(
+  if (identity() != NEW_SPACE &&
+      heap()->ShouldExpandOldGenerationOnSlowAllocation(
           heap()->main_thread_local_heap()) &&
       heap()->CanExpandOldGeneration(AreaSize())) {
     if (TryExpand(size_in_bytes, origin)) {
@@ -973,7 +967,8 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) return true;
   }
 
-  if (heap()->gc_state() != Heap::NOT_IN_GC && !heap()->force_oom()) {
+  if (identity() != NEW_SPACE && heap()->gc_state() != Heap::NOT_IN_GC &&
+      !heap()->force_oom()) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
     // GC and give it a chance to increase the heap limit.
     return TryExpand(size_in_bytes, origin);
@@ -984,10 +979,6 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
 bool PagedSpaceBase::ContributeToSweepingMain(int required_freed_bytes,
                                               int max_pages, int size_in_bytes,
                                               AllocationOrigin origin) {
-  // TODO(v8:12612): New space is not currently swept so new space allocation
-  // shoudl not contribute to sweeping, Revisit this once sweeping for young gen
-  // is implemented.
-  DCHECK_NE(NEW_SPACE, identity());
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =
@@ -1045,45 +1036,6 @@ size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
                      page->AvailableInFreeListFromAllocatedBytes());
   return added;
 }
-
-// -----------------------------------------------------------------------------
-// MapSpace implementation
-
-// TODO(dmercadier): use a heap instead of sorting like that.
-// Using a heap will have multiple benefits:
-//   - for now, SortFreeList is only called after sweeping, which is somewhat
-//   late. Using a heap, sorting could be done online: FreeListCategories would
-//   be inserted in a heap (ie, in a sorted manner).
-//   - SortFreeList is a bit fragile: any change to FreeListMap (or to
-//   MapSpace::free_list_) could break it.
-void MapSpace::SortFreeList() {
-  using LiveBytesPagePair = std::pair<size_t, Page*>;
-  std::vector<LiveBytesPagePair> pages;
-  pages.reserve(CountTotalPages());
-
-  for (Page* p : *this) {
-    free_list()->RemoveCategory(p->free_list_category(kFirstCategory));
-    pages.push_back(std::make_pair(p->allocated_bytes(), p));
-  }
-
-  // Sorting by least-allocated-bytes first.
-  std::sort(pages.begin(), pages.end(),
-            [](const LiveBytesPagePair& a, const LiveBytesPagePair& b) {
-              return a.first < b.first;
-            });
-
-  for (LiveBytesPagePair const& p : pages) {
-    // Since AddCategory inserts in head position, it reverts the order produced
-    // by the sort above: least-allocated-bytes will be Added first, and will
-    // therefore be the last element (and the first one will be
-    // most-allocated-bytes).
-    free_list()->AddCategory(p.second->free_list_category(kFirstCategory));
-  }
-}
-
-#ifdef VERIFY_HEAP
-void MapSpace::VerifyObject(HeapObject object) const { CHECK(object.IsMap()); }
-#endif
 
 }  // namespace internal
 }  // namespace v8

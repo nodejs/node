@@ -60,9 +60,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(CallIndirect, 0x11, _, "call_indirect")                                  \
   V(ReturnCall, 0x12, _, "return_call")                                      \
   V(ReturnCallIndirect, 0x13, _, "return_call_indirect")                     \
-  V(CallRefDeprecated, 0x14, _, "call_ref")    /* typed_funcref prototype */ \
+  V(CallRef, 0x14, _, "call_ref")              /* typed_funcref prototype */ \
   V(ReturnCallRef, 0x15, _, "return_call_ref") /* typed_funcref prototype */ \
-  V(CallRef, 0x17, _, "call_ref")              /* temporary, for compat.*/   \
+  V(CallRefDeprecated, 0x17, _, "call_ref")    /* temporary, for compat.*/   \
   V(Drop, 0x1a, _, "drop")                                                   \
   V(Select, 0x1b, _, "select")                                               \
   V(SelectWithType, 0x1c, _, "select")                                       \
@@ -710,20 +710,22 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefTest, 0xfb40, _, "ref.test")                                            \
   V(RefTestNull, 0xfb48, _, "ref.test null")                                   \
   V(RefTestDeprecated, 0xfb44, _, "ref.test")                                  \
-  V(RefCast, 0xfb45, _, "ref.cast")                                            \
+  V(RefCast, 0xfb41, _, "ref.cast")                                            \
+  V(RefCastNull, 0xfb49, _, "ref.cast null")                                   \
+  V(RefCastDeprecated, 0xfb45, _, "ref.cast")                                  \
   V(BrOnCast, 0xfb46, _, "br_on_cast")                                         \
   V(BrOnCastFail, 0xfb47, _, "br_on_cast_fail")                                \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
-  V(RefIsData, 0xfb51, _, "ref.is_data")                                       \
+  V(RefIsStruct, 0xfb51, _, "ref.is_struct")                                   \
   V(RefIsI31, 0xfb52, _, "ref.is_i31")                                         \
   V(RefIsArray, 0xfb53, _, "ref.is_array")                                     \
-  V(RefAsData, 0xfb59, _, "ref.as_data")                                       \
+  V(RefAsStruct, 0xfb59, _, "ref.as_struct")                                   \
   V(RefAsI31, 0xfb5a, _, "ref.as_i31")                                         \
   V(RefAsArray, 0xfb5b, _, "ref.as_array")                                     \
-  V(BrOnData, 0xfb61, _, "br_on_data")                                         \
+  V(BrOnStruct, 0xfb61, _, "br_on_struct")                                     \
   V(BrOnI31, 0xfb62, _, "br_on_i31")                                           \
   V(BrOnArray, 0xfb66, _, "br_on_array")                                       \
-  V(BrOnNonData, 0xfb64, _, "br_on_non_data")                                  \
+  V(BrOnNonStruct, 0xfb64, _, "br_on_non_struct")                              \
   V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
   V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
   V(ExternInternalize, 0xfb70, _, "extern.internalize")                        \

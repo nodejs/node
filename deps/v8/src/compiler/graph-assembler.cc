@@ -4,12 +4,21 @@
 
 #include "src/compiler/graph-assembler.h"
 
+#include "src/base/container-utils.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/tnode.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/type-cache.h"
 // For TNode types.
+#include "src/objects/elements-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string.h"
 
@@ -33,18 +42,21 @@ class V8_NODISCARD GraphAssembler::BlockInlineReduction {
 };
 
 GraphAssembler::GraphAssembler(
-    MachineGraph* mcgraph, Zone* zone,
+    MachineGraph* mcgraph, Zone* zone, BranchSemantics default_branch_semantics,
     base::Optional<NodeChangedCallback> node_changed_callback,
     bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
+      default_branch_semantics_(default_branch_semantics),
       effect_(nullptr),
       control_(nullptr),
       node_changed_callback_(node_changed_callback),
       inline_reducers_(zone),
       inline_reductions_blocked_(false),
       loop_headers_(zone),
-      mark_loop_exits_(mark_loop_exits) {}
+      mark_loop_exits_(mark_loop_exits) {
+  DCHECK_NE(default_branch_semantics_, BranchSemantics::kUnspecified);
+}
 
 GraphAssembler::~GraphAssembler() { DCHECK_EQ(loop_nesting_level_, 0); }
 
@@ -52,16 +64,16 @@ Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return AddClonedNode(mcgraph()->IntPtrConstant(value));
 }
 
-Node* GraphAssembler::UintPtrConstant(uintptr_t value) {
-  return AddClonedNode(mcgraph()->UintPtrConstant(value));
+TNode<UintPtrT> GraphAssembler::UintPtrConstant(uintptr_t value) {
+  return TNode<UintPtrT>::UncheckedCast(mcgraph()->UintPtrConstant(value));
 }
 
 Node* GraphAssembler::Int32Constant(int32_t value) {
   return AddClonedNode(mcgraph()->Int32Constant(value));
 }
 
-Node* GraphAssembler::Uint32Constant(uint32_t value) {
-  return AddClonedNode(mcgraph()->Uint32Constant(value));
+TNode<Uint32T> GraphAssembler::Uint32Constant(uint32_t value) {
+  return TNode<Uint32T>::UncheckedCast(mcgraph()->Uint32Constant(value));
 }
 
 Node* GraphAssembler::Int64Constant(int64_t value) {
@@ -150,8 +162,43 @@ PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DEF)
   Node* GraphAssembler::Name(Node* left, Node* right) {               \
     return AddNode(graph()->NewNode(machine()->Name(), left, right)); \
   }
-PURE_ASSEMBLER_MACH_BINOP_LIST(PURE_BINOP_DEF)
+#define PURE_BINOP_DEF_TNODE(Name, Result, Left, Right)                       \
+  TNode<Result> GraphAssembler::Name(SloppyTNode<Left> left,                  \
+                                     SloppyTNode<Right> right) {              \
+    return AddNode<Result>(graph()->NewNode(machine()->Name(), left, right)); \
+  }
+PURE_ASSEMBLER_MACH_BINOP_LIST(PURE_BINOP_DEF, PURE_BINOP_DEF_TNODE)
 #undef PURE_BINOP_DEF
+#undef PURE_BINOP_DEF_TNODE
+
+TNode<BoolT> GraphAssembler::UintPtrLessThanOrEqual(TNode<UintPtrT> left,
+                                                    TNode<UintPtrT> right) {
+  return kSystemPointerSize == 8
+             ? Uint64LessThanOrEqual(TNode<Uint64T>::UncheckedCast(left),
+                                     TNode<Uint64T>::UncheckedCast(right))
+             : Uint32LessThanOrEqual(TNode<Uint32T>::UncheckedCast(left),
+                                     TNode<Uint32T>::UncheckedCast(right));
+}
+
+TNode<UintPtrT> GraphAssembler::UintPtrAdd(TNode<UintPtrT> left,
+                                           TNode<UintPtrT> right) {
+  return kSystemPointerSize == 8
+             ? TNode<UintPtrT>::UncheckedCast(Int64Add(left, right))
+             : TNode<UintPtrT>::UncheckedCast(Int32Add(left, right));
+}
+TNode<UintPtrT> GraphAssembler::UintPtrSub(TNode<UintPtrT> left,
+                                           TNode<UintPtrT> right) {
+  return kSystemPointerSize == 8
+             ? TNode<UintPtrT>::UncheckedCast(Int64Sub(left, right))
+             : TNode<UintPtrT>::UncheckedCast(Int32Sub(left, right));
+}
+
+TNode<UintPtrT> GraphAssembler::UintPtrDiv(TNode<UintPtrT> left,
+                                           TNode<UintPtrT> right) {
+  return kSystemPointerSize == 8
+             ? TNode<UintPtrT>::UncheckedCast(Uint64Div(left, right))
+             : TNode<UintPtrT>::UncheckedCast(Uint32Div(left, right));
+}
 
 #define CHECKED_BINOP_DEF(Name)                                       \
   Node* GraphAssembler::Name(Node* left, Node* right) {               \
@@ -224,6 +271,15 @@ Node* JSGraphAssembler::LoadField(FieldAccess const& access, Node* object) {
   Node* value = AddNode(graph()->NewNode(simplified()->LoadField(access),
                                          object, effect(), control()));
   return value;
+}
+
+TNode<Uint32T> JSGraphAssembler::LoadElementsKind(TNode<Map> map) {
+  TNode<Uint8T> bit_field2 = EnterMachineGraph<Uint8T>(
+      LoadField<Uint8T>(AccessBuilder::ForMapBitField2(), map),
+      UseInfo::TruncatingWord32());
+  return TNode<Uint32T>::UncheckedCast(
+      Word32Shr(TNode<Word32T>::UncheckedCast(bit_field2),
+                Uint32Constant(Map::Bits2::ElementsKindBits::kShift)));
 }
 
 Node* JSGraphAssembler::LoadElement(ElementAccess const& access, Node* object,
@@ -330,6 +386,24 @@ TNode<Boolean> JSGraphAssembler::NumberLessThanOrEqual(TNode<Number> lhs,
       graph()->NewNode(simplified()->NumberLessThanOrEqual(), lhs, rhs));
 }
 
+TNode<Number> JSGraphAssembler::NumberShiftRightLogical(TNode<Number> lhs,
+                                                        TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberShiftRightLogical(), lhs, rhs));
+}
+
+TNode<Number> JSGraphAssembler::NumberBitwiseAnd(TNode<Number> lhs,
+                                                 TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), lhs, rhs));
+}
+
+TNode<Number> JSGraphAssembler::NumberBitwiseOr(TNode<Number> lhs,
+                                                TNode<Number> rhs) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->NumberBitwiseOr(), lhs, rhs));
+}
+
 TNode<String> JSGraphAssembler::StringSubstring(TNode<String> string,
                                                 TNode<Number> from,
                                                 TNode<Number> to) {
@@ -340,6 +414,10 @@ TNode<String> JSGraphAssembler::StringSubstring(TNode<String> string,
 TNode<Boolean> JSGraphAssembler::ObjectIsCallable(TNode<Object> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->ObjectIsCallable(), value));
+}
+
+TNode<Boolean> JSGraphAssembler::ObjectIsSmi(TNode<Object> value) {
+  return AddNode<Boolean>(graph()->NewNode(simplified()->ObjectIsSmi(), value));
 }
 
 TNode<Boolean> JSGraphAssembler::ObjectIsUndetectable(TNode<Object> value) {
@@ -379,10 +457,388 @@ TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
       index_needed, old_length, effect(), control()));
 }
 
+TNode<Object> JSGraphAssembler::DoubleArrayMax(TNode<JSArray> array) {
+  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMax(), array,
+                                          effect(), control()));
+}
+
+TNode<Object> JSGraphAssembler::DoubleArrayMin(TNode<JSArray> array) {
+  return AddNode<Object>(graph()->NewNode(simplified()->DoubleArrayMin(), array,
+                                          effect(), control()));
+}
+
 Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,
                                          TNode<Number> position) {
   return AddNode(graph()->NewNode(simplified()->StringCharCodeAt(), string,
                                   position, effect(), control()));
+}
+
+class ArrayBufferViewAccessBuilder {
+ public:
+  explicit ArrayBufferViewAccessBuilder(JSGraphAssembler* assembler,
+                                        InstanceType instance_type,
+                                        std::set<ElementsKind> candidates)
+      : assembler_(assembler),
+        instance_type_(instance_type),
+        candidates_(std::move(candidates)) {
+    DCHECK_NOT_NULL(assembler_);
+    DCHECK(instance_type_ == JS_DATA_VIEW_TYPE ||
+           instance_type_ == JS_TYPED_ARRAY_TYPE);
+  }
+
+  bool maybe_rab_gsab() const {
+    if (candidates_.empty()) return true;
+    return !base::all_of(candidates_, [](auto e) {
+      return !IsRabGsabTypedArrayElementsKind(e);
+    });
+  }
+
+  base::Optional<int> TryComputeStaticElementShift() {
+    if (instance_type_ == JS_DATA_VIEW_TYPE) return 0;
+    if (candidates_.empty()) return base::nullopt;
+    int shift = ElementsKindToShiftSize(*candidates_.begin());
+    if (!base::all_of(candidates_, [shift](auto e) {
+          return ElementsKindToShiftSize(e) == shift;
+        })) {
+      return base::nullopt;
+    }
+    return shift;
+  }
+
+  base::Optional<int> TryComputeStaticElementSize() {
+    if (instance_type_ == JS_DATA_VIEW_TYPE) return 1;
+    if (candidates_.empty()) return base::nullopt;
+    int size = ElementsKindToByteSize(*candidates_.begin());
+    if (!base::all_of(candidates_, [size](auto e) {
+          return ElementsKindToByteSize(e) == size;
+        })) {
+      return base::nullopt;
+    }
+    return size;
+  }
+
+  TNode<UintPtrT> BuildLength(TNode<JSArrayBufferView> view,
+                              TNode<Context> context) {
+    auto& a = *assembler_;
+
+    // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
+    // (can't go oob once constructed)
+    auto GsabFixedOrNormal = [&]() {
+      return MachineLoadField<UintPtrT>(AccessBuilder::ForJSTypedArrayLength(),
+                                        view, UseInfo::Word());
+    };
+
+    // If we statically know we cannot have rab/gsab backed, we can simply
+    // load from the view.
+    if (!maybe_rab_gsab()) {
+      return GsabFixedOrNormal();
+    }
+
+    // Otherwise, we need to generate the checks for the view's bitfield.
+    TNode<Word32T> bitfield = a.EnterMachineGraph<Word32T>(
+        a.LoadField<Word32T>(AccessBuilder::ForJSArrayBufferViewBitField(),
+                             view),
+        UseInfo::TruncatingWord32());
+    TNode<Word32T> length_tracking_bit = a.Word32And(
+        bitfield, a.Uint32Constant(JSArrayBufferView::kIsLengthTracking));
+    TNode<Word32T> backed_by_rab_bit = a.Word32And(
+        bitfield, a.Uint32Constant(JSArrayBufferView::kIsBackedByRab));
+
+    // Load the underlying buffer.
+    TNode<HeapObject> buffer = a.LoadField<HeapObject>(
+        AccessBuilder::ForJSArrayBufferViewBuffer(), view);
+
+    // Compute the element size.
+    TNode<Uint32T> element_size;
+    if (auto size_opt = TryComputeStaticElementSize()) {
+      element_size = a.Uint32Constant(*size_opt);
+    } else {
+      DCHECK_EQ(instance_type_, JS_TYPED_ARRAY_TYPE);
+      TNode<Map> typed_array_map = a.LoadField<Map>(
+          AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+      TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+      element_size = a.LookupByteSizeForElementsKind(elements_kind);
+    }
+
+    // 2) Fixed length backed by RAB (can go oob once constructed)
+    auto RabFixed = [&]() {
+      TNode<UintPtrT> unchecked_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+      TNode<UintPtrT> underlying_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      TNode<UintPtrT> byte_length =
+          a
+              .MachineSelectIf<UintPtrT>(a.UintPtrLessThanOrEqual(
+                  a.UintPtrAdd(byte_offset, unchecked_byte_length),
+                  underlying_byte_length))
+              .Then([&]() { return unchecked_byte_length; })
+              .Else([&]() { return a.UintPtrConstant(0); })
+              .Value();
+      return a.UintPtrDiv(byte_length,
+                          TNode<UintPtrT>::UncheckedCast(element_size));
+    };
+
+    // 3) Length-tracking backed by RAB (JSArrayBuffer stores the length)
+    auto RabTracking = [&]() {
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      return a
+          .MachineSelectIf<UintPtrT>(
+              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+          .Then([&]() {
+            // length = floor((byte_length - byte_offset) / element_size)
+            return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
+                                TNode<UintPtrT>::UncheckedCast(element_size));
+          })
+          .Else([&]() { return a.UintPtrConstant(0); })
+          .ExpectTrue()
+          .Value();
+    };
+
+    // 4) Length-tracking backed by GSAB (BackingStore stores the length)
+    auto GsabTracking = [&]() {
+      TNode<Number> temp = TNode<Number>::UncheckedCast(a.TypeGuard(
+          TypeCache::Get()->kJSArrayBufferViewByteLengthType,
+          a.JSCallRuntime1(Runtime::kGrowableSharedArrayBufferByteLength,
+                           buffer, context, base::nullopt,
+                           Operator::kNoWrite)));
+      TNode<UintPtrT> byte_length =
+          a.EnterMachineGraph<UintPtrT>(temp, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      return a.UintPtrDiv(a.UintPtrSub(byte_length, byte_offset),
+                          TNode<UintPtrT>::UncheckedCast(element_size));
+    };
+
+    return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
+        .Then([&]() {
+          return a.MachineSelectIf<UintPtrT>(backed_by_rab_bit)
+              .Then(RabTracking)
+              .Else(GsabTracking)
+              .Value();
+        })
+        .Else([&]() {
+          return a.MachineSelectIf<UintPtrT>(backed_by_rab_bit)
+              .Then(RabFixed)
+              .Else(GsabFixedOrNormal)
+              .Value();
+        })
+        .Value();
+  }
+
+  TNode<UintPtrT> BuildByteLength(TNode<JSArrayBufferView> view,
+                                  TNode<Context> context) {
+    auto& a = *assembler_;
+
+    // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
+    // (can't go oob once constructed)
+    auto GsabFixedOrNormal = [&]() {
+      return MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+    };
+
+    // If we statically know we cannot have rab/gsab backed, we can simply
+    // use load from the view.
+    if (!maybe_rab_gsab()) {
+      return GsabFixedOrNormal();
+    }
+
+    // Otherwise, we need to generate the checks for the view's bitfield.
+    TNode<Word32T> bitfield = a.EnterMachineGraph<Word32T>(
+        a.LoadField<Word32T>(AccessBuilder::ForJSArrayBufferViewBitField(),
+                             view),
+        UseInfo::TruncatingWord32());
+    TNode<Word32T> length_tracking_bit = a.Word32And(
+        bitfield, a.Uint32Constant(JSArrayBufferView::kIsLengthTracking));
+    TNode<Word32T> backed_by_rab_bit = a.Word32And(
+        bitfield, a.Uint32Constant(JSArrayBufferView::kIsBackedByRab));
+
+    // Load the underlying buffer.
+    TNode<HeapObject> buffer = a.LoadField<HeapObject>(
+        AccessBuilder::ForJSArrayBufferViewBuffer(), view);
+
+    // Case 2: Fixed length backed by RAB (can go oob once constructed)
+    auto RabFixed = [&]() {
+      TNode<UintPtrT> unchecked_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+      TNode<UintPtrT> underlying_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      return a
+          .MachineSelectIf<UintPtrT>(a.UintPtrLessThanOrEqual(
+              a.UintPtrAdd(byte_offset, unchecked_byte_length),
+              underlying_byte_length))
+          .Then([&]() { return unchecked_byte_length; })
+          .Else([&]() { return a.UintPtrConstant(0); })
+          .Value();
+    };
+
+    auto RoundDownToElementSize = [&](TNode<UintPtrT> byte_size) {
+      if (auto shift_opt = TryComputeStaticElementShift()) {
+        constexpr uintptr_t all_bits = static_cast<uintptr_t>(-1);
+        if (*shift_opt == 0) return byte_size;
+        return TNode<UintPtrT>::UncheckedCast(
+            a.WordAnd(byte_size, a.UintPtrConstant(all_bits << (*shift_opt))));
+      }
+      DCHECK_EQ(instance_type_, JS_TYPED_ARRAY_TYPE);
+      TNode<Map> typed_array_map = a.LoadField<Map>(
+          AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+      TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+      TNode<Uint32T> element_shift =
+          a.LookupByteShiftForElementsKind(elements_kind);
+      return TNode<UintPtrT>::UncheckedCast(
+          a.WordShl(a.WordShr(byte_size, element_shift), element_shift));
+    };
+
+    // Case 3: Length-tracking backed by RAB (JSArrayBuffer stores the length)
+    auto RabTracking = [&]() {
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      return a
+          .MachineSelectIf<UintPtrT>(
+              a.UintPtrLessThanOrEqual(byte_offset, byte_length))
+          .Then([&]() {
+            return RoundDownToElementSize(
+                a.UintPtrSub(byte_length, byte_offset));
+          })
+          .Else([&]() { return a.UintPtrConstant(0); })
+          .ExpectTrue()
+          .Value();
+    };
+
+    // Case 4: Length-tracking backed by GSAB (BackingStore stores the length)
+    auto GsabTracking = [&]() {
+      TNode<Number> temp = TNode<Number>::UncheckedCast(a.TypeGuard(
+          TypeCache::Get()->kJSArrayBufferViewByteLengthType,
+          a.JSCallRuntime1(Runtime::kGrowableSharedArrayBufferByteLength,
+                           buffer, context, base::nullopt,
+                           Operator::kNoWrite)));
+      TNode<UintPtrT> byte_length =
+          a.EnterMachineGraph<UintPtrT>(temp, UseInfo::Word());
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+      return RoundDownToElementSize(a.UintPtrSub(byte_length, byte_offset));
+    };
+
+    return a.MachineSelectIf<UintPtrT>(length_tracking_bit)
+        .Then([&]() {
+          return a.MachineSelectIf<UintPtrT>(backed_by_rab_bit)
+              .Then(RabTracking)
+              .Else(GsabTracking)
+              .Value();
+        })
+        .Else([&]() {
+          return a.MachineSelectIf<UintPtrT>(backed_by_rab_bit)
+              .Then(RabFixed)
+              .Else(GsabFixedOrNormal)
+              .Value();
+        })
+        .Value();
+  }
+
+ private:
+  template <typename T>
+  TNode<T> MachineLoadField(FieldAccess const& access, TNode<HeapObject> object,
+                            const UseInfo& use_info) {
+    return assembler_->EnterMachineGraph<T>(
+        assembler_->LoadField<T>(access, object), use_info);
+  }
+
+  JSGraphAssembler* assembler_;
+  InstanceType instance_type_;
+  std::set<ElementsKind> candidates_;
+};
+
+TNode<Number> JSGraphAssembler::ArrayBufferViewByteLength(
+    TNode<JSArrayBufferView> array_buffer_view, InstanceType instance_type,
+    std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
+  ArrayBufferViewAccessBuilder builder(this, instance_type,
+                                       std::move(elements_kinds_candidates));
+  return ExitMachineGraph<Number>(
+      builder.BuildByteLength(array_buffer_view, context),
+      MachineType::PointerRepresentation(),
+      TypeCache::Get()->kJSArrayBufferByteLengthType);
+}
+
+TNode<Number> JSGraphAssembler::TypedArrayLength(
+    TNode<JSTypedArray> typed_array,
+    std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
+  ArrayBufferViewAccessBuilder builder(this, JS_TYPED_ARRAY_TYPE,
+                                       elements_kinds_candidates);
+  return ExitMachineGraph<Number>(builder.BuildLength(typed_array, context),
+                                  MachineType::PointerRepresentation(),
+                                  TypeCache::Get()->kJSTypedArrayLengthType);
+}
+
+TNode<Uint32T> JSGraphAssembler::LookupByteShiftForElementsKind(
+    TNode<Uint32T> elements_kind) {
+  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+      elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
+  TNode<RawPtrT> shift_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
+      ExternalReference::
+          typed_array_and_rab_gsab_typed_array_elements_kind_shifts()));
+  return TNode<Uint8T>::UncheckedCast(
+      Load(MachineType::Uint8(), shift_table, index));
+}
+
+TNode<Uint32T> JSGraphAssembler::LookupByteSizeForElementsKind(
+    TNode<Uint32T> elements_kind) {
+  TNode<Uint32T> index = TNode<Uint32T>::UncheckedCast(Int32Sub(
+      elements_kind, Uint32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)));
+  TNode<RawPtrT> size_table = TNode<RawPtrT>::UncheckedCast(ExternalConstant(
+      ExternalReference::
+          typed_array_and_rab_gsab_typed_array_elements_kind_sizes()));
+  return TNode<Uint8T>::UncheckedCast(
+      Load(MachineType::Uint8(), size_table, index));
+}
+
+TNode<Object> JSGraphAssembler::JSCallRuntime1(
+    Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Context> context,
+    base::Optional<FrameState> frame_state, Operator::Properties properties) {
+  return MayThrow([&]() {
+    if (frame_state.has_value()) {
+      return AddNode<Object>(graph()->NewNode(
+          javascript()->CallRuntime(function_id, 1, properties), arg0, context,
+          static_cast<Node*>(*frame_state), effect(), control()));
+    } else {
+      return AddNode<Object>(graph()->NewNode(
+          javascript()->CallRuntime(function_id, 1, properties), arg0, context,
+          effect(), control()));
+    }
+  });
+}
+
+TNode<Object> JSGraphAssembler::JSCallRuntime2(Runtime::FunctionId function_id,
+                                               TNode<Object> arg0,
+                                               TNode<Object> arg1,
+                                               TNode<Context> context,
+                                               FrameState frame_state) {
+  return MayThrow([&]() {
+    return AddNode<Object>(
+        graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
+                         context, frame_state, effect(), control()));
+  });
 }
 
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
@@ -564,7 +1020,7 @@ void GraphAssembler::BranchWithCriticalSafetyCheck(
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
 
-  BranchImpl(condition, if_true, if_false, hint);
+  BranchImpl(default_branch_semantics_, condition, if_true, if_false, hint);
 }
 
 void GraphAssembler::ConnectUnreachableToEnd() {

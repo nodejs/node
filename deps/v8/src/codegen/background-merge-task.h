@@ -73,13 +73,13 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
   std::vector<Handle<SharedFunctionInfo>> used_new_sfis_;
 
   // SharedFunctionInfos from the cached script which were not compiled, with
-  // function_data and feedback_metadata from the corresponding new
-  // SharedFunctionInfo. If the SharedFunctionInfo from the cached script is
-  // still uncompiled when finishing, the main thread must set the two fields.
+  // the corresponding new SharedFunctionInfo. If the SharedFunctionInfo from
+  // the cached script is still uncompiled when finishing, the main thread must
+  // copy all fields from the new SharedFunctionInfo to the SharedFunctionInfo
+  // from the cached script.
   struct NewCompiledDataForCachedSfi {
     Handle<SharedFunctionInfo> cached_sfi;
-    Handle<Object> function_data;
-    Handle<FeedbackMetadata> feedback_metadata;
+    Handle<SharedFunctionInfo> new_sfi;
   };
   std::vector<NewCompiledDataForCachedSfi> new_compiled_data_for_cached_sfis_;
 

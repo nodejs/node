@@ -1750,7 +1750,7 @@ TEST(TryLookupElement) {
     {
       std::shared_ptr<v8::BackingStore> backing_store =
           buffer->GetBackingStore();
-      buffer->Detach();
+      buffer->Detach(v8::Local<v8::Value>()).Check();
     }
     CHECK_ABSENT(object, 0);
     CHECK_ABSENT(object, 1);

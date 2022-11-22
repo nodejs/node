@@ -23,9 +23,6 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     case OLD_SPACE:
       return compaction_spaces_.Get(OLD_SPACE)->AllocateRaw(object_size,
                                                             alignment, origin);
-    case MAP_SPACE:
-      return compaction_spaces_.Get(MAP_SPACE)->AllocateRaw(object_size,
-                                                            alignment, origin);
     case CODE_SPACE:
       return compaction_spaces_.Get(CODE_SPACE)
           ->AllocateRaw(object_size, alignment, origin);
@@ -46,9 +43,6 @@ void EvacuationAllocator::FreeLast(AllocationSpace space, HeapObject object,
       return;
     case OLD_SPACE:
       FreeLastInCompactionSpace(OLD_SPACE, object, object_size);
-      return;
-    case MAP_SPACE:
-      FreeLastInCompactionSpace(MAP_SPACE, object, object_size);
       return;
     case SHARED_SPACE:
       FreeLastInCompactionSpace(SHARED_SPACE, object, object_size);
