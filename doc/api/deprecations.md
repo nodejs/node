@@ -3301,7 +3301,7 @@ issued for `url.parse()` vulnerabilities.
 changes:
   - version:
     - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/45526
+    pr-url: https://github.com/nodejs/node/pull/45576
     description: Documentation-only deprecation.
 -->
 
