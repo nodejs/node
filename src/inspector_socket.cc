@@ -6,6 +6,7 @@
 
 #include "openssl/sha.h"  // Sha-1 hash
 
+#include <algorithm>
 #include <cstring>
 #include <map>
 
