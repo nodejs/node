@@ -12,7 +12,9 @@
 #include "node_v8_platform-inl.h"
 #include "node_wasm_web_api.h"
 #include "uv.h"
-
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#endif
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
@@ -226,6 +228,10 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
   params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
   params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
+
+#ifdef NODE_ENABLE_VTUNE_PROFILING
+  params->code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
 }
 
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {

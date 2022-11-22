@@ -122,3 +122,4 @@ bazel-v8
 /third_party/zlib/contrib/bench
 /third_party/zlib/contrib/tests
 /third_party/zlib/google/test
+!/third_party/ittapi
