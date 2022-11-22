@@ -16,7 +16,7 @@ const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
 // Helpers
 //------------------------------------------------------------------------------
 
-const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect"];
+const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect", "Intl"];
 
 /**
  * Returns the name of the node to report

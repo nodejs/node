@@ -65,6 +65,10 @@ module.exports = {
                 ignoreDefaultValues: {
                     type: "boolean",
                     default: false
+                },
+                ignoreClassFieldInitialValues: {
+                    type: "boolean",
+                    default: false
                 }
             },
             additionalProperties: false
@@ -82,7 +86,8 @@ module.exports = {
             enforceConst = !!config.enforceConst,
             ignore = new Set((config.ignore || []).map(normalizeIgnoreValue)),
             ignoreArrayIndexes = !!config.ignoreArrayIndexes,
-            ignoreDefaultValues = !!config.ignoreDefaultValues;
+            ignoreDefaultValues = !!config.ignoreDefaultValues,
+            ignoreClassFieldInitialValues = !!config.ignoreClassFieldInitialValues;
 
         const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
@@ -104,6 +109,17 @@ module.exports = {
             const parent = fullNumberNode.parent;
 
             return parent.type === "AssignmentPattern" && parent.right === fullNumberNode;
+        }
+
+        /**
+         * Returns whether the number is the initial value of a class field.
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @returns {boolean} true if the number is the initial value of a class field.
+         */
+        function isClassFieldInitialValue(fullNumberNode) {
+            const parent = fullNumberNode.parent;
+
+            return parent.type === "PropertyDefinition" && parent.value === fullNumberNode;
         }
 
         /**
@@ -194,6 +210,7 @@ module.exports = {
                 if (
                     isIgnoredValue(value) ||
                     (ignoreDefaultValues && isDefaultValue(fullNumberNode)) ||
+                    (ignoreClassFieldInitialValues && isClassFieldInitialValue(fullNumberNode)) ||
                     isParseIntRadix(fullNumberNode) ||
                     isJSXNumber(fullNumberNode) ||
                     (ignoreArrayIndexes && isArrayIndex(fullNumberNode, value))
