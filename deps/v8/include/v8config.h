@@ -288,6 +288,9 @@ path. Add it with -I<path> to the command line
 //
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
+//  V8_HAS_ATTRIBUTE_CONSTINIT          - __attribute__((require_constant_
+//                                                       initialization))
+//                                        supported
 //  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
@@ -334,6 +337,8 @@ path. Add it with -I<path> to the command line
 #endif
 
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
+# define V8_HAS_ATTRIBUTE_CONSTINIT \
+    (__has_attribute(require_constant_initialization))
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
@@ -447,6 +452,16 @@ path. Add it with -I<path> to the command line
   __builtin_assume_aligned((ptr), (alignment))
 #else
 # define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
+#endif
+
+
+// A macro to mark a declaration as requiring constant initialization.
+// Use like:
+//   int* foo V8_CONSTINIT;
+#if V8_HAS_ATTRIBUTE_CONSTINIT
+# define V8_CONSTINIT __attribute__((require_constant_initialization))
+#else
+# define V8_CONSTINIT
 #endif
 
 

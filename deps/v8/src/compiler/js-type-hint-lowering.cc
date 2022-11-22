@@ -165,6 +165,8 @@ class JSSpeculativeBinopBuilder final {
         return simplified()->SpeculativeBigIntMultiply(hint);
       case IrOpcode::kJSDivide:
         return simplified()->SpeculativeBigIntDivide(hint);
+      case IrOpcode::kJSModulus:
+        return simplified()->SpeculativeBigIntModulus(hint);
       case IrOpcode::kJSBitwiseAnd:
         return simplified()->SpeculativeBigIntBitwiseAnd(hint);
       default:
@@ -416,6 +418,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
           op->opcode() == IrOpcode::kJSSubtract ||
           op->opcode() == IrOpcode::kJSMultiply ||
           op->opcode() == IrOpcode::kJSDivide ||
+          op->opcode() == IrOpcode::kJSModulus ||
           op->opcode() == IrOpcode::kJSBitwiseAnd) {
         if (Node* node = b.TryBuildBigIntBinop()) {
           return LoweringResult::SideEffectFree(node, node, control);

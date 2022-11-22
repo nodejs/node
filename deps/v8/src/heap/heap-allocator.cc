@@ -23,14 +23,7 @@ void HeapAllocator::Setup() {
     spaces_[i] = heap_->space(i);
   }
 
-  space_for_maps_ = spaces_[MAP_SPACE]
-                        ? static_cast<PagedSpace*>(spaces_[MAP_SPACE])
-                        : static_cast<PagedSpace*>(spaces_[OLD_SPACE]);
-
   shared_old_allocator_ = heap_->shared_space_allocator_.get();
-  shared_map_allocator_ = heap_->shared_map_allocator_
-                              ? heap_->shared_map_allocator_.get()
-                              : shared_old_allocator_;
   shared_lo_space_ = heap_->shared_lo_allocation_space();
 }
 

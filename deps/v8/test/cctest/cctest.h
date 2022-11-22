@@ -170,12 +170,22 @@ class CcTest {
 
   static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                 v8::FunctionCallback callback);
-  static void CollectGarbage(i::AllocationSpace space,
-                             i::Isolate* isolate = nullptr);
-  static void CollectAllGarbage(i::Isolate* isolate = nullptr);
-  static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
-  static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
-  static void CollectSharedGarbage(i::Isolate* isolate = nullptr);
+  // By default, the GC methods do not scan the stack conservatively.
+  static void CollectGarbage(
+      i::AllocationSpace space, i::Isolate* isolate = nullptr,
+      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
+  static void CollectAllGarbage(
+      i::Isolate* isolate = nullptr,
+      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
+  static void CollectAllAvailableGarbage(
+      i::Isolate* isolate = nullptr,
+      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
+  static void PreciseCollectAllGarbage(
+      i::Isolate* isolate = nullptr,
+      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
+  static void CollectSharedGarbage(
+      i::Isolate* isolate = nullptr,
+      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
 
   static i::Handle<i::String> MakeString(const char* str);
   static i::Handle<i::String> MakeName(const char* str, int suffix);
@@ -706,7 +716,6 @@ class V8_NODISCARD ManualGCScope {
   const bool flag_concurrent_marking_;
   const bool flag_concurrent_sweeping_;
   const bool flag_concurrent_minor_mc_marking_;
-  const bool flag_concurrent_minor_mc_sweeping_;
   const bool flag_stress_concurrent_allocation_;
   const bool flag_stress_incremental_marking_;
   const bool flag_parallel_marking_;

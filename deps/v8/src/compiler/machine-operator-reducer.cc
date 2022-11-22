@@ -34,6 +34,7 @@ class Word32Adapter {
   using IntNBinopMatcher = Int32BinopMatcher;
   using UintNBinopMatcher = Uint32BinopMatcher;
   using intN_t = int32_t;
+  using uintN_t = uint32_t;
   // WORD_SIZE refers to the N for which this adapter specializes.
   static constexpr std::size_t WORD_SIZE = 32;
 
@@ -75,6 +76,9 @@ class Word32Adapter {
   const Operator* IntNAdd(MachineOperatorBuilder* machine) {
     return machine->Int32Add();
   }
+  static const Operator* WordNEqual(MachineOperatorBuilder* machine) {
+    return machine->Word32Equal();
+  }
 
   Reduction ReplaceIntN(int32_t value) { return r_->ReplaceInt32(value); }
   Reduction ReduceWordNAnd(Node* node) { return r_->ReduceWord32And(node); }
@@ -84,6 +88,10 @@ class Word32Adapter {
   Node* IntNConstant(int32_t value) { return r_->Int32Constant(value); }
   Node* UintNConstant(uint32_t value) { return r_->Uint32Constant(value); }
   Node* WordNAnd(Node* lhs, Node* rhs) { return r_->Word32And(lhs, rhs); }
+
+  Reduction ReduceWordNComparisons(Node* node) {
+    return r_->ReduceWord32Comparisons(node);
+  }
 
  private:
   MachineOperatorReducer* r_;
@@ -98,6 +106,7 @@ class Word64Adapter {
   using IntNBinopMatcher = Int64BinopMatcher;
   using UintNBinopMatcher = Uint64BinopMatcher;
   using intN_t = int64_t;
+  using uintN_t = uint64_t;
   // WORD_SIZE refers to the N for which this adapter specializes.
   static constexpr std::size_t WORD_SIZE = 64;
 
@@ -139,6 +148,9 @@ class Word64Adapter {
   static const Operator* IntNAdd(MachineOperatorBuilder* machine) {
     return machine->Int64Add();
   }
+  static const Operator* WordNEqual(MachineOperatorBuilder* machine) {
+    return machine->Word64Equal();
+  }
 
   Reduction ReplaceIntN(int64_t value) { return r_->ReplaceInt64(value); }
   Reduction ReduceWordNAnd(Node* node) { return r_->ReduceWord64And(node); }
@@ -151,6 +163,10 @@ class Word64Adapter {
   Node* IntNConstant(int64_t value) { return r_->Int64Constant(value); }
   Node* UintNConstant(uint64_t value) { return r_->Uint64Constant(value); }
   Node* WordNAnd(Node* lhs, Node* rhs) { return r_->Word64And(lhs, rhs); }
+
+  Reduction ReduceWordNComparisons(Node* node) {
+    return r_->ReduceWord64Comparisons(node);
+  }
 
  private:
   MachineOperatorReducer* r_;
@@ -457,15 +473,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceWord32Comparisons(node);
     }
     case IrOpcode::kUint32LessThanOrEqual: {
-      Uint32BinopMatcher m(node);
-      if (m.left().Is(0)) return ReplaceBool(true);            // 0 <= x => true
-      if (m.right().Is(kMaxUInt32)) return ReplaceBool(true);  // x <= M => true
-      if (m.IsFoldable()) {  // K <= K => K  (K stands for arbitrary constants)
-        return ReplaceBool(m.left().ResolvedValue() <=
-                           m.right().ResolvedValue());
-      }
-      if (m.LeftEqualsRight()) return ReplaceBool(true);  // x <= x => true
-      return ReduceWord32Comparisons(node);
+      return ReduceUintNLessThanOrEqual<Word32Adapter>(node);
     }
     case IrOpcode::kFloat32Sub: {
       Float32BinopMatcher m(node);
@@ -915,12 +923,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceWord64Comparisons(node);
     }
     case IrOpcode::kUint64LessThanOrEqual: {
-      Uint64BinopMatcher m(node);
-      if (m.IsFoldable()) {  // K <= K => K  (K stands for arbitrary constants)
-        return ReplaceBool(m.left().ResolvedValue() <=
-                           m.right().ResolvedValue());
-      }
-      return ReduceWord64Comparisons(node);
+      return ReduceUintNLessThanOrEqual<Word64Adapter>(node);
     }
     case IrOpcode::kFloat32Select:
     case IrOpcode::kFloat64Select:
@@ -1856,6 +1859,27 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
     }
   }
   return NoChange();
+}
+
+template <typename WordNAdapter>
+Reduction MachineOperatorReducer::ReduceUintNLessThanOrEqual(Node* node) {
+  using A = WordNAdapter;
+  A a(this);
+
+  typename A::UintNBinopMatcher m(node);
+  typename A::uintN_t kMaxUIntN =
+      std::numeric_limits<typename A::uintN_t>::max();
+  if (m.left().Is(0)) return ReplaceBool(true);           // 0 <= x  =>  true
+  if (m.right().Is(kMaxUIntN)) return ReplaceBool(true);  // x <= M  =>  true
+  if (m.IsFoldable()) {  // K <= K  =>  K  (K stands for arbitrary constants)
+    return ReplaceBool(m.left().ResolvedValue() <= m.right().ResolvedValue());
+  }
+  if (m.LeftEqualsRight()) return ReplaceBool(true);  // x <= x  =>  true
+  if (m.right().Is(0)) {                              // x <= 0  =>  x == 0
+    NodeProperties::ChangeOp(node, a.WordNEqual(machine()));
+    return Changed(node);
+  }
+  return a.ReduceWordNComparisons(node);
 }
 
 namespace {

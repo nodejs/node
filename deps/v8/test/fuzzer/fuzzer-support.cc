@@ -19,13 +19,13 @@ namespace v8_fuzzer {
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   // Disable hard abort, which generates a trap instead of a proper abortion.
   // Traps by default do not cause libfuzzer to generate a crash file.
-  i::FLAG_hard_abort = false;
+  i::v8_flags.hard_abort = false;
 
-  i::FLAG_expose_gc = true;
+  i::v8_flags.expose_gc = true;
 
   // Allow changing flags in fuzzers.
   // TODO(12887): Refactor fuzzers to not change flags after initialization.
-  i::FLAG_freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init = false;
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED) {

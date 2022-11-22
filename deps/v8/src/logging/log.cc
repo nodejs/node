@@ -1372,7 +1372,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 #ifdef ENABLE_DISASSEMBLER
       Code::cast(*code).Disassemble(nullptr, stream, isolate_);
 #endif
-    } else if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
+    } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                code->IsCodeDataContainer(cage_base)) {
 #ifdef ENABLE_DISASSEMBLER
       CodeT::cast(*code).Disassemble(nullptr, stream, isolate_);
@@ -1952,6 +1952,7 @@ EnumerateCompiledFunctions(Heap* heap) {
       // only on a type feedback vector. We should make this mroe precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
+        // TODO(v8:13261): use ToAbstractCode() here.
         record(function.shared(),
                AbstractCode::cast(FromCodeT(function.code())));
       }
@@ -2330,7 +2331,7 @@ void ExistingCodeLogger::LogCodeObjects() {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     InstanceType instance_type = obj.map(cage_base).instance_type();
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       // In this case AbstactCode is Code|CodeDataContainer|BytecodeArray but
       // we want to log code objects only once, thus we ignore Code objects
       // which will be logged via corresponding CodeDataContainer.
@@ -2369,6 +2370,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
     Handle<SharedFunctionInfo> shared = pair.first;
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
     if (shared->HasInterpreterData()) {
+      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
@@ -2376,6 +2378,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
               isolate_));
     }
     if (shared->HasBaselineCode()) {
+      // TODO(v8:13261): use ToAbstractCode() here.
       LogExistingFunction(shared, Handle<AbstractCode>(
                                       AbstractCode::cast(FromCodeT(
                                           shared->baseline_code(kAcquireLoad))),

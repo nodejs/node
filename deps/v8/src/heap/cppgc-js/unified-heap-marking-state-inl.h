@@ -9,8 +9,7 @@
 
 #include "include/v8-traced-handle.h"
 #include "src/base/logging.h"
-#include "src/handles/global-handles-inl.h"
-#include "src/handles/global-handles.h"
+#include "src/handles/traced-handles.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
@@ -23,17 +22,17 @@ namespace internal {
 class BasicTracedReferenceExtractor {
  public:
   static Object GetObjectForMarking(const TracedReferenceBase& ref) {
-    Address* global_handle_location = const_cast<Address*>(
+    Address* traced_handle_location = const_cast<Address*>(
         reinterpret_cast<const Address*>(ref.GetSlotThreadSafe()));
     // We cannot assume that the reference is non-null as we may get here by
     // tracing an ephemeron which doesn't have early bailouts, see
     // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
-    if (!global_handle_location) return Object();
+    if (!traced_handle_location) return Object();
 
     // The load synchronizes internal bitfields that are also read atomically
     // from the concurrent marker.
-    Object object = GlobalHandles::Acquire(global_handle_location);
-    GlobalHandles::MarkTraced(global_handle_location);
+    Object object = TracedHandles::Acquire(traced_handle_location);
+    TracedHandles::Mark(traced_handle_location);
     return object;
   }
 };

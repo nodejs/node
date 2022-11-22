@@ -100,6 +100,22 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+  // TODO(jkummerow): Enable this check when we have C++20.
+  // static_assert(std::find(std::begin(wasm::kGpParamRegisters),
+  //                         std::end(wasm::kGpParamRegisters),
+  //                         kLiftoffFrameSetupFunctionReg) ==
+  //                         std::end(wasm::kGpParamRegisters));
+  // On ARM, we must push at least {lr} before calling the stub, otherwise
+  // it would get clobbered with no possibility to recover it.
+  Register scratch = ip;
+  mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
+  PushCommonFrame(scratch);
+  LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
+               WasmValue(declared_function_index));
+  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+}
+
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   Register scratch = r1;
@@ -128,6 +144,10 @@ void LiftoffAssembler::AlignFrameSize() {}
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder) {
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  // The frame setup builtin also pushes the feedback vector.
+  if (v8_flags.wasm_speculative_inlining) {
+    frame_size -= kSystemPointerSize;
+  }
 
   constexpr int LayInstrSize = 6;
 
@@ -2169,7 +2189,20 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRefNull:
       case kRtt:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-        V8_FALLTHROUGH;
+#if defined(V8_COMPRESS_POINTERS)
+        if (use_signed) {
+          CmpS32(lhs, rhs);
+        } else {
+          CmpU32(lhs, rhs);
+        }
+#else
+        if (use_signed) {
+          CmpS64(lhs, rhs);
+        } else {
+          CmpU64(lhs, rhs);
+        }
+#endif
+        break;
       case kI64:
         if (use_signed) {
           CmpS64(lhs, rhs);

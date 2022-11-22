@@ -65,7 +65,8 @@ ArrayTimSortIntoCopy(context: Context, sortState: SortState): JSArray {
       if (sortState.numberOfUndefined != 0) goto FastObject;
 
       const workArray = sortState.workArray;
-      for (let i: Smi = 0; i < workArray.length; ++i) {
+      dcheck(numberOfNonUndefined <= workArray.length);
+      for (let i: Smi = 0; i < numberOfNonUndefined; ++i) {
         const e = UnsafeCast<JSAny>(workArray.objects[i]);
         // TODO(v8:12764): ArrayTimSortImpl already boxed doubles. Support
         // PACKED_DOUBLE_ELEMENTS.

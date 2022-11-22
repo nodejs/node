@@ -824,7 +824,7 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<v8::External> data = v8::External::New(isolate, this);
 
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   createBoundFunctionProperty(context, console, data, "createTask",
@@ -834,7 +834,7 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
     v8::Local<v8::Context> context, int sessionId) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> commandLineAPI = v8::Object::New(isolate);
@@ -933,7 +933,7 @@ void V8Console::CommandLineAPIScope::accessorGetterCallback(
   if (isCommandLineAPIGetter(
           toProtocolStringWithTypeCheck(info.GetIsolate(), name))) {
     DCHECK(value->IsFunction());
-    v8::MicrotasksScope microtasks(info.GetIsolate(),
+    v8::MicrotasksScope microtasks(context,
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     if (value.As<v8::Function>()
             ->Call(context, commandLineAPI, 0, nullptr)
@@ -964,7 +964,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
       m_commandLineAPI(commandLineAPI),
       m_global(global),
       m_installedMethods(v8::Set::New(context->GetIsolate())) {
-  v8::MicrotasksScope microtasksScope(context->GetIsolate(),
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Array> names;
   if (!m_commandLineAPI->GetOwnPropertyNames(context).ToLocal(&names)) return;
@@ -996,7 +996,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
 V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
   auto isolate = m_context->GetIsolate();
   if (isolate->IsExecutionTerminating()) return;
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::MicrotasksScope microtasksScope(m_context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   *static_cast<CommandLineAPIScope**>(
       m_thisReference->GetBackingStore()->Data()) = nullptr;

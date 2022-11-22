@@ -38,6 +38,8 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
+#if V8_TRAP_HANDLER_SUPPORTED
+
 // The below struct needed to access the offset in the Thread Environment Block
 // to see if the thread local storage for the thread has been allocated yet.
 //
@@ -128,6 +130,8 @@ LONG HandleWasmTrap(EXCEPTION_POINTERS* exception) {
   }
   return EXCEPTION_CONTINUE_SEARCH;
 }
+
+#endif
 
 }  // namespace trap_handler
 }  // namespace internal

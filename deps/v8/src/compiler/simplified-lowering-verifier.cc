@@ -4,6 +4,8 @@
 
 #include "src/compiler/simplified-lowering-verifier.h"
 
+#include "src/compiler/backend/instruction-codes.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/type-cache.h"
 
@@ -22,7 +24,8 @@ Truncation LeastGeneralTruncation(const Truncation& t1, const Truncation& t2,
   return LeastGeneralTruncation(LeastGeneralTruncation(t1, t2), t3);
 }
 
-bool IsNonTruncatingMachineTypeFor(const MachineType& mt, const Type& type) {
+bool IsNonTruncatingMachineTypeFor(const MachineType& mt, const Type& type,
+                                   Zone* graph_zone) {
   if (type.IsNone()) return true;
   // TODO(nicohartmann@): Add more cases here.
   if (type.Is(Type::BigInt())) {
@@ -37,7 +40,7 @@ bool IsNonTruncatingMachineTypeFor(const MachineType& mt, const Type& type) {
     case MachineRepresentation::kBit:
       CHECK(mt.semantic() == MachineSemantic::kBool ||
             mt.semantic() == MachineSemantic::kAny);
-      return type.Is(Type::Boolean());
+      return type.Is(Type::Boolean()) || type.Is(Type::Range(0, 1, graph_zone));
     default:
       return true;
   }
@@ -73,6 +76,22 @@ void SimplifiedLoweringVerifier::CheckAndSet(Node* node, const Type& type,
     SetType(node, type);
   }
   SetTruncation(node, GeneralizeTruncation(trunc, type));
+}
+
+void SimplifiedLoweringVerifier::ReportInvalidTypeCombination(
+    Node* node, const std::vector<Type>& types) {
+  std::ostringstream types_str;
+  for (size_t i = 0; i < types.size(); ++i) {
+    if (i != 0) types_str << ", ";
+    types[i].PrintTo(types_str);
+  }
+  std::ostringstream graph_str;
+  node->Print(graph_str, 2);
+  FATAL(
+      "SimplifiedLoweringVerifierError: invalid combination of input types %s "
+      " for node #%d:%s.\n\nGraph is: %s",
+      types_str.str().c_str(), node->id(), node->op()->mnemonic(),
+      graph_str.str().c_str());
 }
 
 bool IsModuloTruncation(const Truncation& truncation) {
@@ -134,7 +153,21 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
     case IrOpcode::kFrameState:
     case IrOpcode::kJSStackCheck:
       break;
-    case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt32Constant: {
+      // NOTE: Constants require special handling as they are shared between
+      // machine graphs and non-machine graphs lowered during SL. The former
+      // might have assigned Type::Machine() to the constant, but to be able
+      // to provide a different type for uses of constants that don't come
+      // from machine graphs, the machine-uses of Int32Constants have been
+      // put behind additional SLVerifierHints to provide the required
+      // Type::Machine() to them, such that we can treat constants here as
+      // having JS types to satisfy their non-machine uses.
+      int32_t value = OpParameter<int32_t>(node->op());
+      Type type = Type::Constant(value, graph_zone());
+      SetType(node, type);
+      SetTruncation(node, GeneralizeTruncation(Truncation::Word32(), type));
+      break;
+    }
     case IrOpcode::kInt64Constant:
     case IrOpcode::kFloat64Constant: {
       // Constants might be untyped, because they are cached in the graph and
@@ -183,8 +216,22 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       break;
     }
     case IrOpcode::kInt32Add: {
-      Type output_type =
-          op_typer.NumberAdd(InputType(node, 0), InputType(node, 1));
+      Type left_type = InputType(node, 0);
+      Type right_type = InputType(node, 1);
+      Type output_type;
+      if (left_type.IsNone() && right_type.IsNone()) {
+        output_type = Type::None();
+      } else if (left_type.Is(Type::Machine()) &&
+                 right_type.Is(Type::Machine())) {
+        output_type = Type::Machine();
+      } else if (left_type.Is(Type::NumberOrOddball()) &&
+                 right_type.Is(Type::NumberOrOddball())) {
+        left_type = op_typer.ToNumber(left_type);
+        right_type = op_typer.ToNumber(right_type);
+        output_type = op_typer.NumberAdd(left_type, right_type);
+      } else {
+        ReportInvalidTypeCombination(node, {left_type, right_type});
+      }
       Truncation output_trunc = LeastGeneralTruncation(InputTruncation(node, 0),
                                                        InputTruncation(node, 1),
                                                        Truncation::Word32());
@@ -193,8 +240,22 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       break;
     }
     case IrOpcode::kInt32Sub: {
-      Type output_type =
-          op_typer.NumberSubtract(InputType(node, 0), InputType(node, 1));
+      Type left_type = InputType(node, 0);
+      Type right_type = InputType(node, 1);
+      Type output_type;
+      if (left_type.IsNone() && right_type.IsNone()) {
+        output_type = Type::None();
+      } else if (left_type.Is(Type::Machine()) &&
+                 right_type.Is(Type::Machine())) {
+        output_type = Type::Machine();
+      } else if (left_type.Is(Type::NumberOrOddball()) &&
+                 right_type.Is(Type::NumberOrOddball())) {
+        left_type = op_typer.ToNumber(left_type);
+        right_type = op_typer.ToNumber(right_type);
+        output_type = op_typer.NumberSubtract(left_type, right_type);
+      } else {
+        ReportInvalidTypeCombination(node, {left_type, right_type});
+      }
       Truncation output_trunc = LeastGeneralTruncation(InputTruncation(node, 0),
                                                        InputTruncation(node, 1),
                                                        Truncation::Word32());
@@ -222,28 +283,60 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
     case IrOpcode::kInt64Add: {
       Type left_type = InputType(node, 0);
       Type right_type = InputType(node, 1);
-
       Type output_type;
-      if (left_type.Is(Type::BigInt()) && right_type.Is(Type::BigInt())) {
+      if (left_type.IsNone() && right_type.IsNone()) {
+        // None x None -> None
+        output_type = Type::None();
+      } else if (left_type.Is(Type::Machine()) &&
+                 right_type.Is(Type::Machine())) {
+        // Machine x Machine -> Machine
+        output_type = Type::Machine();
+      } else if (left_type.Is(Type::BigInt()) &&
+                 right_type.Is(Type::BigInt())) {
         // BigInt x BigInt -> BigInt
         output_type = op_typer.BigIntAdd(left_type, right_type);
-      } else if (left_type.Is(Type::Number()) &&
-                 right_type.Is(Type::Number())) {
+      } else if (left_type.Is(Type::NumberOrOddball()) &&
+                 right_type.Is(Type::NumberOrOddball())) {
         // Number x Number -> Number
+        left_type = op_typer.ToNumber(left_type);
+        right_type = op_typer.ToNumber(right_type);
         output_type = op_typer.NumberAdd(left_type, right_type);
       } else {
         // Invalid type combination.
-        std::ostringstream left_str, right_str;
-        left_type.PrintTo(left_str);
-        right_type.PrintTo(right_str);
-        FATAL(
-            "SimplifiedLoweringVerifierError: invalid combination of input "
-            "types "
-            "%s and %s for node #%d:%s",
-            left_str.str().c_str(), right_str.str().c_str(), node->id(),
-            node->op()->mnemonic());
+        ReportInvalidTypeCombination(node, {left_type, right_type});
       }
-
+      Truncation output_trunc = LeastGeneralTruncation(InputTruncation(node, 0),
+                                                       InputTruncation(node, 1),
+                                                       Truncation::Word64());
+      CHECK(IsModuloTruncation(output_trunc));
+      CheckAndSet(node, output_type, output_trunc);
+      break;
+    }
+    case IrOpcode::kInt64Sub: {
+      Type left_type = InputType(node, 0);
+      Type right_type = InputType(node, 1);
+      Type output_type;
+      if (left_type.IsNone() && right_type.IsNone()) {
+        // None x None -> None
+        output_type = Type::None();
+      } else if (left_type.Is(Type::Machine()) &&
+                 right_type.Is(Type::Machine())) {
+        // Machine x Machine -> Machine
+        output_type = Type::Machine();
+      } else if (left_type.Is(Type::BigInt()) &&
+                 right_type.Is(Type::BigInt())) {
+        // BigInt x BigInt -> BigInt
+        output_type = op_typer.BigIntSubtract(left_type, right_type);
+      } else if (left_type.Is(Type::NumberOrOddball()) &&
+                 right_type.Is(Type::NumberOrOddball())) {
+        // Number x Number -> Number
+        left_type = op_typer.ToNumber(left_type);
+        right_type = op_typer.ToNumber(right_type);
+        output_type = op_typer.NumberSubtract(left_type, right_type);
+      } else {
+        // Invalid type combination.
+        ReportInvalidTypeCombination(node, {left_type, right_type});
+      }
       Truncation output_trunc = LeastGeneralTruncation(InputTruncation(node, 0),
                                                        InputTruncation(node, 1),
                                                        Truncation::Word64());
@@ -283,8 +376,9 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, input_type, InputTruncation(node, 0));
       break;
     }
-    case IrOpcode::kCheckBigInt64: {
+    case IrOpcode::kCheckedBigIntToBigInt64: {
       Type input_type = InputType(node, 0);
+      CHECK(input_type.Is(Type::BigInt()));
       input_type =
           Type::Intersect(input_type, Type::SignedBigInt64(), graph_zone());
       CheckAndSet(node, input_type, InputTruncation(node, 0));
@@ -326,8 +420,10 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       break;
     }
     case IrOpcode::kBranch: {
-      CHECK(InputType(node, 0).Is(Type::Boolean()));
-      CHECK_EQ(InputTruncation(node, 0), Truncation::Any());
+      CHECK_EQ(BranchParametersOf(node->op()).semantics(),
+               BranchSemantics::kMachine);
+      Type input_type = InputType(node, 0);
+      CHECK(input_type.Is(Type::Boolean()) || input_type.Is(Type::Machine()));
       break;
     }
     case IrOpcode::kTypedStateValues: {
@@ -336,7 +432,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         // Inputs must not be truncated.
         CHECK_EQ(InputTruncation(node, i), Truncation::Any());
         CHECK(IsNonTruncatingMachineTypeFor(machine_types->at(i),
-                                            InputType(node, i)));
+                                            InputType(node, i), graph_zone()));
       }
       break;
     }
@@ -344,6 +440,11 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CHECK(NodeProperties::IsTyped(node));
       SetTruncation(node, Truncation::Any());
       break;
+    }
+    case IrOpcode::kEnterMachineGraph:
+    case IrOpcode::kExitMachineGraph: {
+      // Eliminated during lowering.
+      UNREACHABLE();
     }
 
 #define CASE(code, ...) case IrOpcode::k##code:
@@ -423,7 +524,11 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint32Div)
       CASE(CheckedUint32Mod)
       CASE(CheckedInt32Mul)
-      CASE(CheckedBigInt64Add)
+      CASE(CheckedInt64Add)
+      CASE(CheckedInt64Sub)
+      CASE(CheckedInt64Mul)
+      CASE(CheckedInt64Div)
+      CASE(CheckedInt64Mod)
       CASE(CheckedInt32ToTaggedSigned)
       CASE(CheckedInt64ToInt32)
       CASE(CheckedInt64ToTaggedSigned)
@@ -485,7 +590,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Word64RolLowerable)
       CASE(Word64RorLowerable)
       CASE(Int64AddWithOverflow)
-      CASE(Int64Sub)
       CASE(Int64SubWithOverflow)
       CASE(Int64Mul)
       CASE(Int64MulHigh)

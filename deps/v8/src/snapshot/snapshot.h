@@ -15,10 +15,10 @@ namespace v8 {
 namespace internal {
 
 class Context;
-class GlobalSafepointScope;
 class Isolate;
-class SnapshotData;
 class JSGlobalProxy;
+class SafepointScope;
+class SnapshotData;
 
 class Snapshot : public AllStatic {
  public:
@@ -69,14 +69,14 @@ class Snapshot : public AllStatic {
       Isolate* isolate, std::vector<Context>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
-      const GlobalSafepointScope& global_safepoint,
+      const SafepointScope& safepoint_scope,
       const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // Convenience helper for the above when only serializing a single context.
   static v8::StartupData Create(
       Isolate* isolate, Context default_context,
-      const GlobalSafepointScope& global_safepoint,
+      const SafepointScope& safepoint_scope,
       const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 

@@ -438,7 +438,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Code code = FromCodeT(CodeT::cast(slot->GetHeapObject()));
+  CodeT code = CodeT::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
     ClearOptimizedCode();

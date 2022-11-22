@@ -144,9 +144,97 @@ void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
   typed_slots->Insert(info.slot_type, info.offset);
 }
 
+namespace {
+void ActivateSpace(PagedSpace* space) {
+  for (Page* p : *space) {
+    p->SetOldGenerationPageFlags(true);
+  }
+}
+
+void ActivateSpace(NewSpace* space) {
+  for (Page* p : *space) {
+    p->SetYoungGenerationPageFlags(true);
+  }
+}
+
+void ActivateSpaces(Heap* heap) {
+  ActivateSpace(heap->old_space());
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Modification of Code page header flags requires write access");
+    ActivateSpace(heap->code_space());
+  }
+  ActivateSpace(heap->new_space());
+  if (heap->shared_space()) {
+    ActivateSpace(heap->shared_space());
+  }
+
+  for (LargePage* p : *heap->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(true);
+    DCHECK(p->IsLargePage());
+  }
+
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(true);
+  }
+
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Modification of Code page header flags requires write access");
+    for (LargePage* p : *heap->code_lo_space()) {
+      p->SetOldGenerationPageFlags(true);
+    }
+  }
+
+  if (heap->shared_lo_space()) {
+    for (LargePage* p : *heap->shared_lo_space()) {
+      p->SetOldGenerationPageFlags(true);
+    }
+  }
+}
+
+void DeactivateSpace(PagedSpace* space) {
+  for (Page* p : *space) {
+    p->SetOldGenerationPageFlags(false);
+  }
+}
+
+void DeactivateSpace(NewSpace* space) {
+  for (Page* p : *space) {
+    p->SetYoungGenerationPageFlags(false);
+  }
+}
+
+void DeactivateSpaces(Heap* heap) {
+  DeactivateSpace(heap->old_space());
+  DeactivateSpace(heap->code_space());
+  DeactivateSpace(heap->new_space());
+  if (heap->shared_space()) {
+    DeactivateSpace(heap->shared_space());
+  }
+  for (LargePage* p : *heap->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(false);
+    DCHECK(p->IsLargePage());
+  }
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
+  for (LargePage* p : *heap->code_lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
+  if (heap->shared_lo_space()) {
+    for (LargePage* p : *heap->shared_lo_space()) {
+      p->SetOldGenerationPageFlags(false);
+    }
+  }
+}
+}  // namespace
+
 // static
 void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
                                  MarkingBarrierType marking_barrier_type) {
+  ActivateSpaces(heap);
+
   heap->safepoint()->IterateLocalHeaps(
       [is_compacting, marking_barrier_type](LocalHeap* local_heap) {
         local_heap->marking_barrier()->Activate(is_compacting,
@@ -154,11 +242,31 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
       });
 }
 
+void MarkingBarrier::Activate(bool is_compacting,
+                              MarkingBarrierType marking_barrier_type) {
+  DCHECK(!is_activated_);
+  DCHECK(major_worklist_.IsLocalEmpty());
+  DCHECK(minor_worklist_.IsLocalEmpty());
+  is_compacting_ = is_compacting;
+  marking_barrier_type_ = marking_barrier_type;
+  current_worklist_ = is_minor() ? &minor_worklist_ : &major_worklist_;
+  is_activated_ = true;
+}
+
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
+  DeactivateSpaces(heap);
+
   heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->marking_barrier()->Deactivate();
   });
+}
+
+void MarkingBarrier::Deactivate() {
+  is_activated_ = false;
+  is_compacting_ = false;
+  DCHECK(typed_slots_map_.empty());
+  DCHECK(current_worklist_->IsLocalEmpty());
 }
 
 // static
@@ -188,112 +296,6 @@ void MarkingBarrier::Publish() {
                                             std::move(typed_slots));
     }
     typed_slots_map_.clear();
-  }
-}
-
-void MarkingBarrier::DeactivateSpace(PagedSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(false);
-  }
-}
-
-void MarkingBarrier::DeactivateSpace(NewSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(false);
-  }
-}
-
-void MarkingBarrier::Deactivate() {
-  is_activated_ = false;
-  is_compacting_ = false;
-  if (is_main_thread_barrier_) {
-    DeactivateSpace(heap_->old_space());
-    if (heap_->map_space()) DeactivateSpace(heap_->map_space());
-    DeactivateSpace(heap_->code_space());
-    DeactivateSpace(heap_->new_space());
-    if (heap_->shared_space()) {
-      DeactivateSpace(heap_->shared_space());
-    }
-    for (LargePage* p : *heap_->new_lo_space()) {
-      p->SetYoungGenerationPageFlags(false);
-      DCHECK(p->IsLargePage());
-    }
-    for (LargePage* p : *heap_->lo_space()) {
-      p->SetOldGenerationPageFlags(false);
-    }
-    for (LargePage* p : *heap_->code_lo_space()) {
-      p->SetOldGenerationPageFlags(false);
-    }
-    if (heap_->shared_lo_space()) {
-      for (LargePage* p : *heap_->shared_lo_space()) {
-        p->SetOldGenerationPageFlags(false);
-      }
-    }
-  }
-  DCHECK(typed_slots_map_.empty());
-  DCHECK(current_worklist_->IsLocalEmpty());
-}
-
-void MarkingBarrier::ActivateSpace(PagedSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(true);
-  }
-}
-
-void MarkingBarrier::ActivateSpace(NewSpace* space) {
-  DCHECK(is_main_thread_barrier_);
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(true);
-  }
-}
-
-void MarkingBarrier::Activate(bool is_compacting,
-                              MarkingBarrierType marking_barrier_type) {
-  DCHECK(!is_activated_);
-  DCHECK(major_worklist_.IsLocalEmpty());
-  DCHECK(minor_worklist_.IsLocalEmpty());
-  is_compacting_ = is_compacting;
-  marking_barrier_type_ = marking_barrier_type;
-  current_worklist_ = is_minor() ? &minor_worklist_ : &major_worklist_;
-  is_activated_ = true;
-  if (is_main_thread_barrier_) {
-    ActivateSpace(heap_->old_space());
-    if (heap_->map_space()) ActivateSpace(heap_->map_space());
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Modification of Code page header flags requires write access");
-      ActivateSpace(heap_->code_space());
-    }
-    ActivateSpace(heap_->new_space());
-    if (heap_->shared_space()) {
-      ActivateSpace(heap_->shared_space());
-    }
-
-    for (LargePage* p : *heap_->new_lo_space()) {
-      p->SetYoungGenerationPageFlags(true);
-      DCHECK(p->IsLargePage());
-    }
-
-    for (LargePage* p : *heap_->lo_space()) {
-      p->SetOldGenerationPageFlags(true);
-    }
-
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Modification of Code page header flags requires write access");
-      for (LargePage* p : *heap_->code_lo_space()) {
-        p->SetOldGenerationPageFlags(true);
-      }
-    }
-
-    if (heap_->shared_lo_space()) {
-      for (LargePage* p : *heap_->shared_lo_space()) {
-        p->SetOldGenerationPageFlags(true);
-      }
-    }
   }
 }
 

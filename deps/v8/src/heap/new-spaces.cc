@@ -492,7 +492,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
       Map map = object.map(cage_base);
       CHECK(map.IsMap(cage_base));
       CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->space_for_maps()->Contains(map));
+            isolate->heap()->old_space()->Contains(map));
 
       // The object should not be code or a map.
       CHECK(!object.IsMap(cage_base));
@@ -958,7 +958,6 @@ void PagedSpaceForNewSpace::Grow() {
                RoundUp(static_cast<size_t>(v8_flags.semi_space_growth_factor) *
                            TotalCapacity(),
                        Page::kPageSize));
-  CHECK(EnsureCurrentCapacity());
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {

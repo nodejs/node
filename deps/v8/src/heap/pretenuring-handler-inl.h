@@ -11,6 +11,7 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/allocation-site.h"
 
 namespace v8 {
 namespace internal {
@@ -52,6 +53,13 @@ AllocationMemento PretenturingHandler::FindAllocationMemento(
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return AllocationMemento();
   }
+
+  Page* object_page = Page::FromAddress(object_address);
+  // If the page is being swept, treat it as if the memento was already swept
+  // and bail out.
+  if (mode != FindMementoMode::kForGC && !object_page->SweepingDone())
+    return AllocationMemento();
+
   HeapObject candidate = HeapObject::FromAddress(memento_address);
   ObjectSlot candidate_map_slot = candidate.map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
@@ -65,7 +73,6 @@ AllocationMemento PretenturingHandler::FindAllocationMemento(
 
   // Bail out if the memento is below the age mark, which can happen when
   // mementos survived because a page got moved within new space.
-  Page* object_page = Page::FromAddress(object_address);
   if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
     Address age_mark =
         reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();

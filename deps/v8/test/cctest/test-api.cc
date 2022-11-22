@@ -752,6 +752,8 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::CollectAllGarbage();
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
   CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -13012,9 +13014,6 @@ void ApiTestFuzzer::Run() {
   {
     // ... get the V8 lock
     v8::Locker locker(CcTest::isolate());
-    // ... set the isolate stack to this thread
-    CcTest::i_isolate()->heap()->SetStackStart(
-        v8::base::Stack::GetStackStart());
     // ... and start running the test.
     CallTest();
   }
@@ -13082,9 +13081,6 @@ void ApiTestFuzzer::ContextSwitch() {
     v8::Unlocker unlocker(CcTest::isolate());
     // Wait till someone starts us again.
     gate_.Wait();
-    // Set the isolate stack to this thread.
-    CcTest::i_isolate()->heap()->SetStackStart(
-        v8::base::Stack::GetStackStart());
     // And we're off.
   }
 }
@@ -19790,7 +19786,7 @@ TEST(CallCompletedCallbackTwoExceptions) {
 static void MicrotaskOne(const v8::FunctionCallbackInfo<Value>& info) {
   CHECK(v8::MicrotasksScope::IsRunningMicrotasks(info.GetIsolate()));
   v8::HandleScope scope(info.GetIsolate());
-  v8::MicrotasksScope microtasks(info.GetIsolate(),
+  v8::MicrotasksScope microtasks(info.GetIsolate()->GetCurrentContext(),
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   CompileRun("ext1Calls++;");
 }
@@ -19799,7 +19795,7 @@ static void MicrotaskOne(const v8::FunctionCallbackInfo<Value>& info) {
 static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
   CHECK(v8::MicrotasksScope::IsRunningMicrotasks(info.GetIsolate()));
   v8::HandleScope scope(info.GetIsolate());
-  v8::MicrotasksScope microtasks(info.GetIsolate(),
+  v8::MicrotasksScope microtasks(info.GetIsolate()->GetCurrentContext(),
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   CompileRun("ext2Calls++;");
 }
@@ -20101,31 +20097,31 @@ TEST(ScopedMicrotasks) {
   v8::HandleScope handles(env->GetIsolate());
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
     CompileRun("var ext1Calls = 0;");
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     ExpectInt32("ext1Calls", 1);
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
     CompileRun("throw new Error()");
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     ExpectInt32("ext1Calls", 2);
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
@@ -20133,18 +20129,18 @@ TEST(ScopedMicrotasks) {
     CompileRun("throw new Error()");
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     ExpectInt32("ext1Calls", 3);
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
     env->GetIsolate()->TerminateExecution();
     {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
+      v8::MicrotasksScope scope2(env.local(),
                                  v8::MicrotasksScope::kRunMicrotasks);
       env->GetIsolate()->EnqueueMicrotask(
           Function::New(env.local(), MicrotaskOne).ToLocalChecked());
@@ -20152,21 +20148,21 @@ TEST(ScopedMicrotasks) {
   }
   env->GetIsolate()->CancelTerminateExecution();
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     ExpectInt32("ext1Calls", 3);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
   }
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
 
     ExpectInt32("ext1Calls", 4);
   }
 
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kDoNotRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
@@ -20177,13 +20173,13 @@ TEST(ScopedMicrotasks) {
     CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
     {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
+      v8::MicrotasksScope scope2(env.local(),
                                  v8::MicrotasksScope::kRunMicrotasks);
       CompileRun("1+1;");
       CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
       CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
       {
-        v8::MicrotasksScope scope3(env->GetIsolate(),
+        v8::MicrotasksScope scope3(env.local(),
                                    v8::MicrotasksScope::kRunMicrotasks);
         CompileRun("1+1;");
         CHECK_EQ(0,
@@ -20201,20 +20197,20 @@ TEST(ScopedMicrotasks) {
   }
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   }
 
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     CompileRun("1+1;");
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
     {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
+      v8::MicrotasksScope scope2(env.local(),
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
     }
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
@@ -20222,7 +20218,7 @@ TEST(ScopedMicrotasks) {
   }
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20233,17 +20229,17 @@ TEST(ScopedMicrotasks) {
   {
     v8::Isolate::SuppressMicrotaskExecutionScope scope1(env->GetIsolate());
     {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
+      v8::MicrotasksScope scope2(env.local(),
                                  v8::MicrotasksScope::kRunMicrotasks);
     }
-    v8::MicrotasksScope scope3(env->GetIsolate(),
+    v8::MicrotasksScope scope3(env.local(),
                                v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   }
 
   {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
+    v8::MicrotasksScope scope1(env.local(),
                                v8::MicrotasksScope::kRunMicrotasks);
     v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
@@ -20251,7 +20247,7 @@ TEST(ScopedMicrotasks) {
   }
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20260,7 +20256,7 @@ TEST(ScopedMicrotasks) {
   v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20271,7 +20267,7 @@ TEST(ScopedMicrotasks) {
   v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20282,7 +20278,7 @@ TEST(ScopedMicrotasks) {
   {
     v8::Isolate::SuppressMicrotaskExecutionScope scope1(env->GetIsolate());
     v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-    v8::MicrotasksScope scope2(env->GetIsolate(),
+    v8::MicrotasksScope scope2(env.local(),
                                v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -20291,7 +20287,7 @@ TEST(ScopedMicrotasks) {
   v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
 
   {
-    v8::MicrotasksScope scope(env->GetIsolate(),
+    v8::MicrotasksScope scope(env.local(),
                               v8::MicrotasksScope::kDoNotRunMicrotasks);
     CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
@@ -21032,6 +21028,8 @@ class RegExpInterruptTest {
 
   static void CollectAllGarbage(v8::Isolate* isolate, void* data) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::ScanStackModeScopeForTesting no_stack_scanning(
+        CcTest::heap(), i::Heap::ScanStackMode::kNone);
     i_isolate->heap()->PreciseCollectAllGarbage(
         i::Heap::kNoGCFlags, i::GarbageCollectionReason::kRuntime);
   }
@@ -25591,6 +25589,10 @@ TEST(MemoryPressure) {
   v8::Isolate* isolate = CcTest::isolate();
   WeakCallCounter counter(1234);
 
+  // Conservative stack scanning might break results.
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      CcTest::heap(), i::Heap::ScanStackMode::kNone);
+
   // Check that critical memory pressure notification sets GC interrupt.
   auto garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
   CHECK(!v8::Locker::IsLocked(isolate));
@@ -26748,8 +26750,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 TEST(WasmI32AtomicWaitCallback) {
-  FlagScope<bool> wasm_threads_flag(&i::v8_flags.experimental_wasm_threads,
-                                    true);
   WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
@@ -26785,8 +26785,6 @@ TEST(WasmI32AtomicWaitCallback) {
 }
 
 TEST(WasmI64AtomicWaitCallback) {
-  FlagScope<bool> wasm_threads_flag(&i::v8_flags.experimental_wasm_threads,
-                                    true);
   WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
@@ -27456,9 +27454,11 @@ static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_2, context_2);
   v8::Context::Scope context_scope(context);
-  reinterpret_cast<i::Isolate*>(isolate_2)->heap()->CollectAllGarbage(
-      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
-      v8::kNoGCCallbackFlags);
+  i::Heap* heap_2 = reinterpret_cast<i::Isolate*>(isolate_2)->heap();
+  i::ScanStackModeScopeForTesting no_stack_scanning(
+      heap_2, i::Heap::ScanStackMode::kNone);
+  heap_2->CollectAllGarbage(i::Heap::kForcedGC,
+                            i::GarbageCollectionReason::kTesting);
   CompileRun("f2() //# sourceURL=isolate2b");
 }
 
@@ -29314,6 +29314,20 @@ THREADED_TEST(MicrotaskQueueOfContext) {
       v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
       microtask_queue.get());
   CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+}
+
+THREADED_TEST(SetMicrotaskQueueOfContext) {
+  auto microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<Context> context = Context::New(
+      CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
+      v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
+      microtask_queue.get());
+  CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
+
+  auto new_microtask_queue = v8::MicrotaskQueue::New(CcTest::isolate());
+  context->SetMicrotaskQueue(new_microtask_queue.get());
+  CHECK_EQ(context->GetMicrotaskQueue(), new_microtask_queue.get());
 }
 
 namespace {

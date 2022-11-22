@@ -31,10 +31,8 @@ ConservativeTracingVisitor::ConservativeTracingVisitor(
     HeapBase& heap, PageBackend& page_backend, cppgc::Visitor& visitor)
     : heap_(heap), page_backend_(page_backend), visitor_(visitor) {}
 
-namespace {
-
-void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
-                         const HeapObjectHeader& header) {
+void ConservativeTracingVisitor::TraceConservatively(
+    const HeapObjectHeader& header) {
   const auto object_view = ObjectView<>(header);
   uintptr_t* word = reinterpret_cast<uintptr_t*>(object_view.Start());
   for (size_t i = 0; i < (object_view.Size() / sizeof(uintptr_t)); ++i) {
@@ -47,7 +45,7 @@ void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
 #endif
     // First, check the full pointer.
     if (maybe_full_ptr > SentinelPointer::kSentinelValue)
-      conservative_visitor->TraceConservativelyIfNeeded(
+      this->TraceConservativelyIfNeeded(
           reinterpret_cast<Address>(maybe_full_ptr));
 #if defined(CPPGC_POINTER_COMPRESSION)
     // Then, check for compressed pointers.
@@ -55,18 +53,16 @@ void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
         CompressedPointer::Decompress(static_cast<uint32_t>(maybe_full_ptr)));
     if (decompressed_low >
         reinterpret_cast<void*>(SentinelPointer::kSentinelValue))
-      conservative_visitor->TraceConservativelyIfNeeded(decompressed_low);
+      this->TraceConservativelyIfNeeded(decompressed_low);
     auto decompressed_high = reinterpret_cast<Address>(
         CompressedPointer::Decompress(static_cast<uint32_t>(
             maybe_full_ptr >> (sizeof(uint32_t) * CHAR_BIT))));
     if (decompressed_high >
         reinterpret_cast<void*>(SentinelPointer::kSentinelValue))
-      conservative_visitor->TraceConservativelyIfNeeded(decompressed_high);
+      this->TraceConservativelyIfNeeded(decompressed_high);
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
   }
 }
-
-}  // namespace
 
 void ConservativeTracingVisitor::TryTracePointerConservatively(
     Address pointer) {
@@ -130,7 +126,11 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
   if (!header.IsInConstruction<AccessMode::kNonAtomic>()) {
     VisitFullyConstructedConservatively(header);
   } else {
-    VisitInConstructionConservatively(header, TraceConservatively);
+    VisitInConstructionConservatively(
+        header,
+        [](ConservativeTracingVisitor* v, const HeapObjectHeader& header) {
+          v->TraceConservatively(header);
+        });
   }
 }
 

@@ -183,8 +183,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<PrototypeInfo> NewPrototypeInfo();
 
   // Create a new EnumCache struct.
-  Handle<EnumCache> NewEnumCache(Handle<FixedArray> keys,
-                                 Handle<FixedArray> indices);
+  Handle<EnumCache> NewEnumCache(
+      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
@@ -607,7 +608,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSArray> NewJSArrayForTemplateLiteralArray(
-      Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings);
+      Handle<FixedArray> cooked_strings, Handle<FixedArray> raw_strings,
+      int function_literal_id, int slot_id);
 
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,

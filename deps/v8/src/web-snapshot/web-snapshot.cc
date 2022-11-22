@@ -3565,7 +3565,7 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
     }
     Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(
         isolate_->factory()->NewJSObjectFromMap(map, AllocationType::kYoung));
-    array_buffer->Setup(shared, resizable, nullptr);
+    array_buffer->Setup(shared, resizable, nullptr, isolate_);
 
     std::unique_ptr<BackingStore> backing_store;
     if (was_detached) {

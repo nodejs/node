@@ -1231,8 +1231,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
       DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
   TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
 
-  StoreJSSharedStructInObjectField(property_storage, offset,
-                                   shared_value.value());
+  StoreSharedObjectField(property_storage, offset, shared_value.value());
 
   // Return the original value.
   Return(value);
@@ -1758,8 +1757,7 @@ void AccessorAssembler::StoreJSSharedStructField(
   BIND(&inobject);
   {
     TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
-    StoreJSSharedStructInObjectField(shared_struct, field_offset,
-                                     shared_value.value());
+    StoreSharedObjectField(shared_struct, field_offset, shared_value.value());
     Goto(&done);
   }
 
@@ -1768,7 +1766,10 @@ void AccessorAssembler::StoreJSSharedStructField(
     TNode<IntPtrT> backing_store_index =
         Signed(IntPtrSub(field_index, instance_size_in_words));
 
-    Label tagged_rep(this), double_rep(this);
+    CSA_DCHECK(
+        this,
+        Word32Equal(DecodeWord32<PropertyDetails::RepresentationField>(details),
+                    Int32Constant(Representation::kTagged)));
     TNode<PropertyArray> properties =
         CAST(LoadFastProperties(CAST(shared_struct)));
     StoreJSSharedStructPropertyArrayElement(properties, backing_store_index,

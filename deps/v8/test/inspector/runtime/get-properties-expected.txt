@@ -194,3 +194,8 @@ Internal properties
 Running test: testTypedArrayNonIndexedPropertiesOnly
 Internal properties
   [[Prototype]] object undefined
+
+Running test: testWeakRef
+Internal properties
+  [[Prototype]] object undefined
+  [[WeakRefTarget]] object undefined

@@ -2880,6 +2880,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
+    case kArm64V128AnyTrue: {
+      UseScratchRegisterScope scope(tasm());
+      // For AnyTrue, the format does not matter; also, we would like to avoid
+      // an expensive horizontal reduction.
+      VRegister temp = scope.AcquireV(kFormat4S);
+      __ Umaxp(temp, i.InputSimd128Register(0).V4S(),
+               i.InputSimd128Register(0).V4S());
+      __ Fmov(i.OutputRegister64(), temp.D());
+      __ Cmp(i.OutputRegister64(), 0);
+      __ Cset(i.OutputRegister32(), ne);
+      break;
+    }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
     UseScratchRegisterScope scope(tasm());                 \
@@ -2890,8 +2902,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Cset(i.OutputRegister32(), ne);                     \
     break;                                                 \
   }
-      // For AnyTrue, the format does not matter.
-      SIMD_REDUCE_OP_CASE(kArm64V128AnyTrue, Umaxv, kFormatS, 4S);
       SIMD_REDUCE_OP_CASE(kArm64I32x4AllTrue, Uminv, kFormatS, 4S);
       SIMD_REDUCE_OP_CASE(kArm64I16x8AllTrue, Uminv, kFormatH, 8H);
       SIMD_REDUCE_OP_CASE(kArm64I8x16AllTrue, Uminv, kFormatB, 16B);

@@ -1496,8 +1496,8 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
   // TODO(jgruber): Support other string kinds.
   Map string_map = string.map(isolate, kAcquireLoad);
   InstanceType type = string_map.instance_type();
-  if (!(InstanceTypeChecker::IsInternalizedString(type)) ||
-      InstanceTypeChecker::IsThinString(type)) {
+  if (!(InstanceTypeChecker::IsInternalizedString(type) ||
+        InstanceTypeChecker::IsThinString(type))) {
     return kGaveUp;
   }
 

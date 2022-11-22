@@ -8,7 +8,7 @@ function f(a, b, c) {
   // CheckBigInt64 is required if the type of input is UnsignedBigInt64
   // because its value can be out of the range of SignedBigInt64.
   let t = BigInt.asUintN(64, a + b);
-  // The addition is speculated as CheckedBigInt64Add and triggers the deopt
+  // The addition is speculated as CheckedInt64Add and triggers the deopt
   // for the large value coming in through <t>.
   return t + c;
 }

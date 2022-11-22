@@ -45,6 +45,13 @@ class HeapVerifier final {
                                                          HeapObject object,
                                                          Map new_map);
 
+  // Verifies that that the object is allowed to change layout. Checks that if
+  // the object is in shared space, it must be a string as no other objects in
+  // shared space change layouts.
+  static void VerifyObjectLayoutChangeIsAllowed(Heap* heap, HeapObject object);
+
+  static void SetPendingLayoutChangeObject(Heap* heap, HeapObject object);
+
 #else
   static void VerifyHeap(Heap* heap) {}
   static void VerifyReadOnlyHeap(Heap* heap) {}
@@ -54,6 +61,8 @@ class HeapVerifier final {
                                       Map new_map) {}
   static void VerifyObjectLayoutChange(Heap* heap, HeapObject object,
                                        Map new_map) {}
+  static void VerifyObjectLayoutChangeIsAllowed(Heap* heap, HeapObject object) {
+  }
 #endif
 
   V8_INLINE static void VerifyHeapIfEnabled(Heap* heap) {

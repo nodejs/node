@@ -15,43 +15,64 @@ namespace maglev {
 namespace detail {
 
 template <typename Function>
-void DeepForEachInputImpl(const MaglevCompilationUnit& unit,
-                          const CheckpointedInterpreterState* state,
+void DeepForEachInputImpl(const DeoptFrame& frame,
                           InputLocation* input_locations, int& index,
                           Function&& f) {
-  if (state->parent) {
-    DeepForEachInputImpl(*unit.caller(), state->parent, input_locations, index,
-                         f);
+  if (frame.parent()) {
+    DeepForEachInputImpl(*frame.parent(), input_locations, index, f);
   }
-  state->register_frame->ForEachValue(
-      unit, [&](ValueNode* node, interpreter::Register reg) {
-        f(node, reg, &input_locations[index++]);
-      });
+  switch (frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      frame.as_interpreted().frame_state()->ForEachValue(
+          frame.as_interpreted().unit(),
+          [&](ValueNode* node, interpreter::Register reg) {
+            f(node, &input_locations[index++]);
+          });
+      break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
+        f(node, &input_locations[index++]);
+      }
+      f(frame.as_builtin_continuation().context(), &input_locations[index++]);
+      UNREACHABLE();
+  }
 }
 
 template <typename Function>
 void DeepForEachInput(const EagerDeoptInfo* deopt_info, Function&& f) {
   int index = 0;
-  DeepForEachInputImpl(deopt_info->unit, &deopt_info->state,
-                       deopt_info->input_locations, index, f);
+  DeepForEachInputImpl(deopt_info->top_frame(), deopt_info->input_locations(),
+                       index, f);
 }
 
 template <typename Function>
 void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
   int index = 0;
-  if (deopt_info->state.parent) {
-    DeepForEachInputImpl(*deopt_info->unit.caller(), deopt_info->state.parent,
-                         deopt_info->input_locations, index, f);
+  InputLocation* input_locations = deopt_info->input_locations();
+  const DeoptFrame& top_frame = deopt_info->top_frame();
+  if (top_frame.parent()) {
+    DeepForEachInputImpl(*top_frame.parent(), input_locations, index, f);
   }
   // Handle the top-of-frame info separately, since we have to skip the result
   // location.
-  deopt_info->state.register_frame->ForEachValue(
-      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
-        // Skip over the result location since it is irrelevant for lazy deopts
-        // (unoptimized code will recreate the result).
-        if (deopt_info->IsResultRegister(reg)) return;
-        f(node, reg, &deopt_info->input_locations[index++]);
-      });
+  switch (top_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      top_frame.as_interpreted().frame_state()->ForEachValue(
+          top_frame.as_interpreted().unit(),
+          [&](ValueNode* node, interpreter::Register reg) {
+            // Skip over the result location since it is irrelevant for lazy
+            // deopts (unoptimized code will recreate the result).
+            if (deopt_info->IsResultRegister(reg)) return;
+            f(node, &input_locations[index++]);
+          });
+      break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      for (ValueNode* node : top_frame.as_builtin_continuation().parameters()) {
+        f(node, &input_locations[index++]);
+      };
+      f(top_frame.as_builtin_continuation().context(),
+        &input_locations[index++]);
+  }
 }
 
 }  // namespace detail

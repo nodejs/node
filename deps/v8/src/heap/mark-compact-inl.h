@@ -58,11 +58,13 @@ void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   }
 }
 
+// static
 void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
                                       HeapObject target) {
   RecordSlot(object, HeapObjectSlot(slot), target);
 }
 
+// static
 void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
                                       HeapObject target) {
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
@@ -71,6 +73,7 @@ void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
   }
 }
 
+// static
 void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
                                       HeapObjectSlot slot, HeapObject target) {
   BasicMemoryChunk* target_page = BasicMemoryChunk::FromHeapObject(target);

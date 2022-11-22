@@ -6,7 +6,7 @@
 from . import base
 from testrunner.local import utils
 from testrunner.testproc.indicators import JsonTestProgressIndicator, PROGRESS_INDICATORS
-from testrunner.testproc.resultdb import ResultDBIndicator
+from testrunner.testproc.resultdb import rdb_sink, ResultDBIndicator
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -67,7 +67,9 @@ class ProgressProc(base.TestProcObserver):
           0,
           JsonTestProgressIndicator(context, options, test_count,
                                     framework_name))
-    self.procs.append(ResultDBIndicator(context, options, test_count))
+    sink = rdb_sink()
+    if sink:
+      self.procs.append(ResultDBIndicator(context, options, test_count, sink))
     self._requirement = max(proc._requirement for proc in self.procs)
 
   def _on_result_for(self, test, result):

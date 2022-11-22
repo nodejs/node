@@ -32,9 +32,7 @@ class WasmImportWrapperCache {
              uint32_t canonical_type_index, int expected_arity, Suspend suspend)
         : kind(kind),
           canonical_type_index(canonical_type_index),
-          expected_arity(expected_arity == kDontAdaptArgumentsSentinel
-                             ? 0
-                             : expected_arity),
+          expected_arity(expected_arity),
           suspend(suspend) {}
 
     bool operator==(const CacheKey& rhs) const {

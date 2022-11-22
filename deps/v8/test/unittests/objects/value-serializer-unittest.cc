@@ -2608,9 +2608,6 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripWebAssemblyMemory) {
-  bool flag_was_enabled = i::v8_flags.experimental_wasm_threads;
-  i::v8_flags.experimental_wasm_threads = true;
-
   std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
   data.resize(65536);
   InitializeData(data, true);
@@ -2635,8 +2632,6 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
   ExpectScriptTrue("result.buffer.byteLength === 65536");
   ExpectScriptTrue(
       "new Uint8Array(result.buffer, 0, 4).toString() === '0,1,128,255'");
-
-  i::v8_flags.experimental_wasm_threads = flag_was_enabled;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -428,7 +428,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
        ++builtin) {
     CodeT codet = builtins()->code(builtin);
 
-    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
 #ifdef V8_EXTERNAL_CODE_SPACE
       DCHECK(Internals::HasHeapObjectTag(codet.ptr()));
       uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(codet.address());
@@ -437,8 +437,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
       // hash code cage base and code entry point. Other data fields must
       // remain the same.
       static_assert(CodeDataContainer::kCodePointerFieldsStrongEndOffset ==
-                    CodeDataContainer::kCodeCageBaseUpper32BitsOffset);
-      static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffsetEnd + 1 ==
                     CodeDataContainer::kCodeEntryPointOffset);
 
       static_assert(CodeDataContainer::kCodeEntryPointOffsetEnd + 1 ==
@@ -506,9 +504,9 @@ Isolate* Isolate::process_wide_shared_isolate_{nullptr};
 
 Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
 
-base::Thread::LocalStorageKey Isolate::isolate_key_;
-base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-std::atomic<bool> Isolate::isolate_key_created_{false};
+thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
+    V8_CONSTINIT = nullptr;
+thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
 
 namespace {
 // A global counter for all generated Isolates, might overflow.
@@ -563,23 +561,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
   return per_thread;
 }
 
-void Isolate::InitializeOncePerProcess() {
-  isolate_key_ = base::Thread::CreateThreadLocalKey();
-  bool expected = false;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, true, std::memory_order_relaxed));
-  per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-
-  Heap::InitializeOncePerProcess();
-}
-
-void Isolate::DisposeOncePerProcess() {
-  base::Thread::DeleteThreadLocalKey(isolate_key_);
-  bool expected = true;
-  CHECK(isolate_key_created_.compare_exchange_strong(
-      expected, false, std::memory_order_relaxed));
-  base::Thread::DeleteThreadLocalKey(per_isolate_thread_data_key_);
-}
+void Isolate::InitializeOncePerProcess() { Heap::InitializeOncePerProcess(); }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
   return isolate_addresses_[id];
@@ -2127,11 +2109,10 @@ Object Isolate::UnwindAndFindHandler() {
                             visited_frames);
       }
 
-      case StackFrame::WASM_COMPILE_LAZY: {
-        // Can only fail directly on invocation. This happens if an invalid
-        // function was validated lazily.
-        DCHECK(v8_flags.wasm_lazy_validation);
-        break;
+      case StackFrame::WASM_LIFTOFF_SETUP: {
+        // The WasmLiftoffFrameSetup builtin doesn't throw, and doesn't call
+        // out to user code that could throw.
+        UNREACHABLE();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2972,30 +2953,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
-bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_simd_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_simd_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_simd;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
-bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
-#if V8_ENABLE_WEBASSEMBLY
-  if (wasm_exceptions_enabled_callback()) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    return wasm_exceptions_enabled_callback()(api_context);
-  }
-  return v8_flags.experimental_wasm_eh;
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
@@ -3377,11 +3334,12 @@ void Isolate::Delete(Isolate* isolate) {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
-  DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
-  Isolate* saved_isolate = reinterpret_cast<Isolate*>(
-      base::Thread::GetThreadLocal(isolate->isolate_key_));
+  Isolate* saved_isolate = isolate->TryGetCurrent();
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
+  isolate->thread_local_top()->stack_ =
+      saved_isolate ? saved_isolate->thread_local_top()->stack_
+                    : ::heap::base::Stack(base::Stack::GetStackStart());
 
   bool owns_shared_isolate = isolate->owns_shared_isolate_;
   Isolate* maybe_shared_isolate = isolate->shared_isolate_;
@@ -3437,6 +3395,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
+      traced_handles_(this),
       builtins_(this),
 #if defined(DEBUG) || defined(VERIFY_HEAP)
       num_active_deserializers_(0),
@@ -3738,8 +3697,8 @@ void Isolate::Deinit() {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  base::Thread::SetThreadLocal(isolate_key_, isolate);
-  base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+  g_current_isolate_ = isolate;
+  g_current_per_isolate_thread_data_ = data;
 }
 
 Isolate::~Isolate() {
@@ -4062,12 +4021,10 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           ToHexString(ro_space_firstpage_address));
 
-  if (heap()->map_space()) {
-    const uintptr_t map_space_firstpage_address =
-        heap()->map_space()->FirstPageAddress();
-    add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
-                            ToHexString(map_space_firstpage_address));
-  }
+  const uintptr_t old_space_firstpage_address =
+      heap()->old_space()->FirstPageAddress();
+  add_crash_key_callback_(v8::CrashKeyId::kOldSpaceFirstPageAddress,
+                          ToHexString(old_space_firstpage_address));
 
   if (heap()->code_range_base()) {
     const uintptr_t code_range_base_address = heap()->code_range_base();
@@ -4075,7 +4032,7 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                             ToHexString(code_range_base_address));
   }
 
-  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || heap()->code_space()->first_page()) {
+  if (!V8_EXTERNAL_CODE_SPACE_BOOL || heap()->code_space()->first_page()) {
     const uintptr_t code_space_firstpage_address =
         heap()->code_space()->FirstPageAddress();
     add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
@@ -4711,7 +4668,8 @@ bool Isolate::NeedsSourcePositionsForProfiling() const {
       // Static conditions.
       v8_flags.trace_deopt || v8_flags.trace_turbo ||
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
-      v8_flags.perf_prof || v8_flags.log_maps || v8_flags.log_ic ||
+      v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
+      v8_flags.log_ic ||
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).
@@ -6092,9 +6050,9 @@ class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
 
   void Run() override {
     v8::HandleScope scope(isolate_);
-    MicrotasksScope microtasks_scope(isolate_,
-                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Context> context = context_.Get(isolate_);
+    MicrotasksScope microtasks_scope(context,
+                                     MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
     v8::Local<v8::Value> result = result_.Get(isolate_);
 

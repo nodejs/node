@@ -227,13 +227,10 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
 // This flag enables the mode when V8 does not create trampoline Code objects
 // for builtins. It should be enough to have only CodeDataContainer objects.
-// TODO(v8:11880): remove the flag one the Code-less builtins mode works.
-#define V8_REMOVE_BUILTINS_CODE_OBJECTS true
 class CodeDataContainer;
 using CodeT = CodeDataContainer;
 #else
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
-#define V8_REMOVE_BUILTINS_CODE_OBJECTS false
 class Code;
 using CodeT = Code;
 #endif
@@ -882,7 +879,6 @@ class JSObject;
 class LocalIsolate;
 class MacroAssembler;
 class Map;
-class MapSpace;
 class MarkCompactCollector;
 template <typename T>
 class MaybeHandle;
@@ -983,25 +979,24 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 // consecutive.
 enum AllocationSpace {
   RO_SPACE,         // Immortal, immovable and immutable objects,
-  OLD_SPACE,        // Old generation regular object space.
-  CODE_SPACE,       // Old generation code object space, marked executable.
-  MAP_SPACE,        // Old generation map object space, non-movable.
-  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
   NEW_SPACE,        // Young generation space for regular objects collected
                     // with Scavenger/MinorMC.
+  OLD_SPACE,        // Old generation regular object space.
+  CODE_SPACE,       // Old generation code object space, marked executable.
+  SHARED_SPACE,     // Space shared between multiple isolates. Optional.
+  NEW_LO_SPACE,     // Young generation large object space.
   LO_SPACE,         // Old generation large object space.
   CODE_LO_SPACE,    // Old generation large code object space.
-  NEW_LO_SPACE,     // Young generation large object space.
   SHARED_LO_SPACE,  // Space shared between multiple isolates. Optional.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = SHARED_LO_SPACE,
-  FIRST_MUTABLE_SPACE = OLD_SPACE,
+  FIRST_MUTABLE_SPACE = NEW_SPACE,
   LAST_MUTABLE_SPACE = SHARED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = SHARED_SPACE,
-  FIRST_SWEEPABLE_SPACE = OLD_SPACE,
-  LAST_SWEEPABLE_SPACE = NEW_SPACE
+  FIRST_SWEEPABLE_SPACE = NEW_SPACE,
+  LAST_SWEEPABLE_SPACE = SHARED_SPACE
 };
 constexpr int kSpaceTagSize = 4;
 static_assert(FIRST_SPACE == 0);
@@ -1010,10 +1005,10 @@ enum class AllocationType : uint8_t {
   kYoung,      // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
   kOld,        // Regular object allocated in OLD_SPACE or LO_SPACE
   kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,        // Map object allocated in MAP_SPACE
+  kMap,        // Map object allocated in OLD_SPACE
   kReadOnly,   // Object allocated in RO_SPACE
   kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
-  kSharedMap,  // Map object in MAP_SPACE in the shared heap
+  kSharedMap,  // Map object in OLD_SPACE in the shared heap
 };
 
 // These values are persisted to logs. Entries should not be renumbered and

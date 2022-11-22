@@ -74,15 +74,11 @@ class CodeDataContainer : public HeapObject {
   // When V8_EXTERNAL_CODE_SPACE is enabled, Code objects are allocated in
   // a separate pointer compression cage instead of the cage where all the
   // other objects are allocated.
-  // This field contains code cage base value which is used for decompressing
-  // the reference to respective Code. Basically, |code_cage_base| and |code|
-  // fields together form a full pointer. The reason why they are split is that
-  // the code field must also support atomic access and the word alignment of
-  // the full value is not guaranteed.
+  // This helper method returns code cage base value which is used for
+  // decompressing the reference to respective Code. It loads the Isolate from
+  // the page header (since the CodeDataContainer objects are always writable)
+  // and then the code cage base value from there.
   inline PtrComprCageBase code_cage_base() const;
-  inline void set_code_cage_base(Address code_cage_base);
-  inline PtrComprCageBase code_cage_base(RelaxedLoadTag) const;
-  inline void set_code_cage_base(Address code_cage_base, RelaxedStoreTag);
 
   // Cached value of code().InstructionStart().
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
@@ -252,8 +248,6 @@ class CodeDataContainer : public HeapObject {
   V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)     \
   V(kCodePointerFieldsStrongEndOffset, 0)                           \
   /* Raw data fields. */                                            \
-  V(kCodeCageBaseUpper32BitsOffset,                                 \
-    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                  \
   V(kCodeEntryPointOffset,                                          \
     V8_EXTERNAL_CODE_SPACE_BOOL ? kSystemPointerSize : 0)           \
   V(kFlagsOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kUInt16Size : 0)    \
@@ -1016,20 +1010,16 @@ class Code::OptimizedCodeIterator {
 inline CodeT ToCodeT(Code code);
 inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate);
 inline Code FromCodeT(CodeT code);
-inline Code FromCodeT(CodeT code, RelaxedLoadTag);
-inline Code FromCodeT(CodeT code, AcquireLoadTag);
-inline Code FromCodeT(CodeT code, PtrComprCageBase);
+inline Code FromCodeT(CodeT code, Isolate* isolate, RelaxedLoadTag);
 inline Code FromCodeT(CodeT code, PtrComprCageBase, RelaxedLoadTag);
-inline Code FromCodeT(CodeT code, PtrComprCageBase, AcquireLoadTag);
 inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate);
 inline AbstractCode ToAbstractCode(CodeT code);
 inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
                                            Isolate* isolate);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
-// AbsractCode is an helper wrapper around {Code | BytecodeArray} or
-// {Code | CodeDataContainer | BytecodeArray} depending on whether the
-// V8_REMOVE_BUILTINS_CODE_OBJECTS is disabled or not.
+// AbsractCode is a helper wrapper around {Code|CodeDataContainer|BytecodeArray}
+// when V8_EXTERNAL_CODE_SPACE is enabled or {Code|BytecodeArray} otherwise.
 // Note that when V8_EXTERNAL_CODE_SPACE is enabled then the same abstract code
 // can be represented either by Code object or by respective CodeDataContainer
 // object.

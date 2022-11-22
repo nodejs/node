@@ -203,12 +203,11 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 }
 
 bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
-  // Scripts should be referred only through shared function infos.  We can't
-  // allow them to be part of the context snapshot because they contain a
-  // unique ID, and deserializing several context snapshots containing script
-  // would cause dupes.
-  DCHECK(!o.IsScript());
-  return o.IsName() || o.IsSharedFunctionInfo() || o.IsHeapNumber() ||
+  // We can't allow scripts to be part of the context snapshot because they
+  // contain a unique ID, and deserializing several context snapshots containing
+  // script would cause dupes.
+  return o.IsName() || o.IsScript() || o.IsSharedFunctionInfo() ||
+         o.IsHeapNumber() ||
          (V8_EXTERNAL_CODE_SPACE_BOOL && o.IsCodeDataContainer()) ||
          o.IsCode() || o.IsScopeInfo() || o.IsAccessorInfo() ||
          o.IsTemplateInfo() || o.IsClassPositions() ||

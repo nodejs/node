@@ -17,6 +17,8 @@ extern macro BigIntBuiltinsAssembler::CppAbsoluteMulAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): int32;
 extern macro BigIntBuiltinsAssembler::CppAbsoluteDivAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): int32;
+extern macro BigIntBuiltinsAssembler::CppAbsoluteModAndCanonicalize(
+    MutableBigInt, BigIntBase, BigIntBase): int32;
 extern macro BigIntBuiltinsAssembler::CppBitwiseAndPosPosAndCanonicalize(
     MutableBigInt, BigIntBase, BigIntBase): void;
 extern macro BigIntBuiltinsAssembler::CppBitwiseAndNegNegAndCanonicalize(
@@ -332,6 +334,70 @@ builtin BigIntDivide(implicit context: Context)(
     const y = Cast<BigInt>(yNum) otherwise MixedTypes;
 
     return BigIntDivideImpl(x, y) otherwise BigIntDivZero, TerminationRequested;
+  } label MixedTypes {
+    ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+  } label BigIntDivZero {
+    ThrowRangeError(MessageTemplate::kBigIntDivZero);
+  } label TerminationRequested {
+    TerminateExecution();
+  }
+}
+
+macro BigIntModulusImpl(implicit context: Context)(x: BigInt, y: BigInt):
+    BigInt labels BigIntDivZero, TerminationRequested {
+  const ylength = ReadBigIntLength(y);
+
+  // case: x % 0n
+  if (ylength == 0) {
+    goto BigIntDivZero;
+  }
+
+  // case: x % y, where x < y
+  if (MutableBigIntAbsoluteCompare(x, y) < 0) {
+    return x;
+  }
+
+  // case: x % 1n or x % -1n
+  if (ylength == 1 && LoadBigIntDigit(y, 0) == 1) {
+    const zero = AllocateEmptyBigInt(kPositiveSign, 0);
+    return Convert<BigInt>(zero);
+  }
+
+  // case: x % y
+  const resultSign = ReadBigIntSign(x);
+  const resultLength = ylength;
+  const result = AllocateEmptyBigIntNoThrow(resultSign, resultLength)
+      otherwise unreachable;
+
+  if (CppAbsoluteModAndCanonicalize(result, x, y) == 1) {
+    goto TerminationRequested;
+  }
+
+  return Convert<BigInt>(result);
+}
+
+builtin BigIntModulusNoThrow(implicit context: Context)(
+    x: BigInt, y: BigInt): Numeric {
+  try {
+    return BigIntModulusImpl(x, y) otherwise BigIntDivZero,
+           TerminationRequested;
+  } label BigIntDivZero {
+    // Smi sentinel 0 is used to signal BigIntDivZero exception.
+    return Convert<Smi>(0);
+  } label TerminationRequested {
+    // Smi sentinel 1 is used to signal TerminateExecution exception.
+    return Convert<Smi>(1);
+  }
+}
+
+builtin BigIntModulus(implicit context: Context)(
+    xNum: Numeric, yNum: Numeric): BigInt {
+  try {
+    const x = Cast<BigInt>(xNum) otherwise MixedTypes;
+    const y = Cast<BigInt>(yNum) otherwise MixedTypes;
+
+    return BigIntModulusImpl(x, y) otherwise BigIntDivZero,
+           TerminationRequested;
   } label MixedTypes {
     ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
   } label BigIntDivZero {

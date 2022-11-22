@@ -16,8 +16,25 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  // This runtime function is exposed in ClusterFuzz and as such has to
+  // support arbitrary arguments.
+  if (args.length() < 1 || !args.at(0)->IsJSArrayBuffer()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+  }
+  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(args.at(0));
+  constexpr bool kForceForWasmMemory = false;
+  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer, kForceForWasmMemory,
+                                     args.atOrUndefined(isolate, 1)),
+               ReadOnlyRoots(isolate).exception());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
   Handle<Object> argument = args.at(0);
+  Handle<Object> key = args.at(1);
   // This runtime function is exposed in ClusterFuzz and as such has to
   // support arbitrary arguments.
   if (!argument->IsJSArrayBuffer()) {
@@ -25,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
-  array_buffer->Detach();
+  array_buffer->set_detach_key(*key);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

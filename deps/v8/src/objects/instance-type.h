@@ -315,8 +315,6 @@ IS_TYPE_FUNCTION_DECL(CodeT)
   V(_, BreakPointMap, break_point_map, BreakPoint)                             \
   V(_, BreakPointInfoMap, break_point_info_map, BreakPointInfo)                \
   V(_, BytecodeArrayMap, bytecode_array_map, BytecodeArray)                    \
-  V(_, CachedTemplateObjectMap, cached_template_object_map,                    \
-    CachedTemplateObject)                                                      \
   V(_, CellMap, cell_map, Cell)                                                \
   V(_, WeakCellMap, weak_cell_map, WeakCell)                                   \
   V(_, CodeMap, code_map, Code)                                                \

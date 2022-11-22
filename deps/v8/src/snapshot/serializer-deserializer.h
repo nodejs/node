@@ -65,7 +65,7 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  static_assert(4 == kNumberOfSnapshotSpaces);
+  static_assert(3 == kNumberOfSnapshotSpaces);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
@@ -86,7 +86,7 @@ class SerializerDeserializer : public RootVisitor {
     // 0x00..0x03  Allocate new object, in specified space.
     kNewObject = 0x00,
     // Reference to previously allocated object.
-    kBackref = 0x04,
+    kBackref = 0x03,
     // Reference to an object in the read only heap.
     kReadOnlyHeapRef,
     // Object in the startup object cache.

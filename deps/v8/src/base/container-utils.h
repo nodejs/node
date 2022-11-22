@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <vector>
 
 namespace v8::base {
 
@@ -77,6 +78,18 @@ inline size_t count_if(const C& container, const P& predicate) {
   return std::count_if(begin(container), end(container), predicate);
 }
 
+// Helper for std::all_of.
+template <typename C, typename P>
+inline bool all_of(const C& container, const P& predicate) {
+  return std::all_of(begin(container), end(container), predicate);
+}
+
+// Helper for std::none_of.
+template <typename C, typename P>
+inline bool none_of(const C& container, const P& predicate) {
+  return std::none_of(begin(container), end(container), predicate);
+}
+
 // Returns true iff all elements of {container} compare equal using operator==.
 template <typename C>
 inline bool all_equal(const C& container) {
@@ -85,6 +98,21 @@ inline bool all_equal(const C& container) {
   const auto& value = *b;
   return std::all_of(++b, end(container),
                      [&](const auto& v) { return v == value; });
+}
+
+// Returns true iff all elements of {container} compare equal to {value} using
+// operator==.
+template <typename C, typename T>
+inline bool all_equal(const C& container, const T& value) {
+  return std::all_of(begin(container), end(container),
+                     [&](const auto& v) { return v == value; });
+}
+
+// Appends to vector {v} all the elements in the range {begin(container)} and
+// {end(container)}.
+template <typename T, typename A, typename C>
+inline void vector_append(std::vector<T, A>& v, const C& container) {
+  v.insert(end(v), begin(container), end(container));
 }
 
 }  // namespace v8::base

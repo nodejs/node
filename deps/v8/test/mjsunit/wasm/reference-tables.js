@@ -186,7 +186,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("struct_getter", kSig_i_v)
     .addBody([
       kExprI32Const, 2, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsData, kGCPrefix, kExprRefCast, struct_type,
+      kGCPrefix, kExprRefAsStruct, kGCPrefix, kExprRefCast, struct_type,
       kGCPrefix, kExprStructGet, struct_type, 0])
     .exportFunc();
 
@@ -250,7 +250,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("struct_getter", kSig_i_i)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsData, kGCPrefix, kExprRefCast, struct_type,
+      kGCPrefix, kExprRefAsStruct, kGCPrefix, kExprRefCast, struct_type,
       kGCPrefix, kExprStructGet, struct_type, 0])
     .exportFunc();
 

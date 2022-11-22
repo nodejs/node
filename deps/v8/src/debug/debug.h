@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/enum-set.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
@@ -41,7 +42,10 @@ enum StepAction : int8_t {
 };
 
 // Type of exception break. NOTE: These values are in macros.py as well.
-enum ExceptionBreakType { BreakException = 0, BreakUncaughtException = 1 };
+enum ExceptionBreakType {
+  BreakCaughtException = 0,
+  BreakUncaughtException = 1,
+};
 
 // Type of debug break. NOTE: The order matters for the predicates
 // below inside BreakLocation, so be careful when adding / removing.
@@ -218,7 +222,7 @@ class V8_EXPORT_PRIVATE Debug {
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
-  void OnInstrumentationBreak();
+  debug::DebugDelegate::PauseAfterInstrumentation OnInstrumentationBreak();
 
   base::Optional<Object> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
@@ -426,6 +430,9 @@ class V8_EXPORT_PRIVATE Debug {
 
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
 
+  // Stops the timer for the top-most `DebugScope` and records a UMA event.
+  void NotifyDebuggerPausedEventSent();
+
   static char* Iterate(RootVisitor* v, char* thread_storage);
 
  private:
@@ -528,8 +535,8 @@ class V8_EXPORT_PRIVATE Debug {
   bool break_disabled_;
   // Do not break on break points.
   bool break_points_active_;
-  // Trigger debug break events for all exceptions.
-  bool break_on_exception_;
+  // Trigger debug break events for caught exceptions.
+  bool break_on_caught_exception_;
   // Trigger debug break events for uncaught exceptions.
   bool break_on_uncaught_exception_;
   // Termination exception because side effect check has failed.
@@ -641,6 +648,8 @@ class V8_NODISCARD DebugScope {
 
   void set_terminate_on_resume();
 
+  base::TimeDelta ElapsedTimeSinceCreation();
+
  private:
   Isolate* isolate() { return debug_->isolate_; }
 
@@ -650,6 +659,10 @@ class V8_NODISCARD DebugScope {
   PostponeInterruptsScope no_interrupts_;
   // This is used as a boolean.
   bool terminate_on_resume_ = false;
+
+  // Measures (for UMA) the duration beginning when we enter this `DebugScope`
+  // until we potentially send a "Debugger.paused" response in the inspector.
+  base::ElapsedTimer timer_;
 };
 
 // This scope is used to handle return values in nested debug break points.

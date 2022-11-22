@@ -55,12 +55,6 @@ class MarkingBarrier {
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
 
-  void ActivateSpace(PagedSpace*);
-  void ActivateSpace(NewSpace*);
-
-  void DeactivateSpace(PagedSpace*);
-  void DeactivateSpace(NewSpace*);
-
   bool IsCurrentMarkingBarrier();
 
   template <typename TSlot>

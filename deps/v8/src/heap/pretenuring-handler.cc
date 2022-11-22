@@ -42,12 +42,6 @@ void PretenturingHandler::MergeAllocationSitePretenuringFeedback(
   }
 }
 
-bool PretenturingHandler::DeoptMaybeTenuredAllocationSites() const {
-  NewSpace* new_space = heap_->new_space();
-  return new_space && new_space->IsAtMaximumCapacity() &&
-         !heap_->MaximumSizeMinorGC();
-}
-
 namespace {
 
 inline bool MakePretenureDecision(
@@ -193,20 +187,17 @@ void PretenturingHandler::ProcessPretenuringFeedback() {
       allocation_sites_to_pretenure_.reset();
     }
 
-    // Step 3: Deopt maybe tenured allocation sites if necessary.
-    bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
-    if (deopt_maybe_tenured) {
-      heap_->ForeachAllocationSite(
-          heap_->allocation_sites_list(),
-          [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
-            DCHECK(site.IsAllocationSite());
-            allocation_sites++;
-            if (site.IsMaybeTenure()) {
-              site.set_deopt_dependent_code(true);
-              trigger_deoptimization = true;
-            }
-          });
-    }
+    // Step 3: Deopt maybe tenured allocation sites.
+    heap_->ForeachAllocationSite(
+        heap_->allocation_sites_list(),
+        [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
+          DCHECK(site.IsAllocationSite());
+          allocation_sites++;
+          if (site.IsMaybeTenure()) {
+            site.set_deopt_dependent_code(true);
+            trigger_deoptimization = true;
+          }
+        });
 
     if (trigger_deoptimization) {
       heap_->isolate()->stack_guard()->RequestDeoptMarkedAllocationSites();
@@ -216,12 +207,12 @@ void PretenturingHandler::ProcessPretenuringFeedback() {
         (allocation_mementos_found > 0 || tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {
       PrintIsolate(heap_->isolate(),
-                   "pretenuring: deopt_maybe_tenured=%d visited_sites=%d "
+                   "pretenuring: visited_sites=%d "
                    "active_sites=%d "
                    "mementos=%d tenured=%d not_tenured=%d\n",
-                   deopt_maybe_tenured ? 1 : 0, allocation_sites,
-                   active_allocation_sites, allocation_mementos_found,
-                   tenure_decisions, dont_tenure_decisions);
+                   allocation_sites, active_allocation_sites,
+                   allocation_mementos_found, tenure_decisions,
+                   dont_tenure_decisions);
     }
 
     global_pretenuring_feedback_.clear();

@@ -3224,6 +3224,14 @@ void BytecodeGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   Node* node = NewNode(javascript()->FindNonDefaultConstructorOrConstruct(),
                        this_function, new_target);
 
+  // The outputs of the JSFindNonDefaultConstructor node are [boolean_thing,
+  // object_thing]. In some cases we reduce it to JSCreate, which has only one
+  // output, [object_thing], and we also fix the poke location in that case.
+  // Here we hard-wire the FrameState for [boolean_thing] to be `true`, which is
+  // the correct value in the case where JSFindNonDefaultConstructor is reduced
+  // to JSCreate.
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2),
+                              jsgraph()->TrueConstant());
   environment()->BindRegistersToProjections(
       bytecode_iterator().GetRegisterOperand(2), node,
       Environment::kAttachFrameState);
