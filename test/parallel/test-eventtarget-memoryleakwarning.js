@@ -3,7 +3,7 @@
 const common = require('../common');
 const {
   setMaxListeners,
-  EventEmitter
+  EventEmitter,
 } = require('events');
 const assert = require('assert');
 

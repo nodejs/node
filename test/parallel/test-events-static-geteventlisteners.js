@@ -5,7 +5,7 @@ const { kWeakHandler } = require('internal/event_target');
 
 const {
   deepStrictEqual,
-  throws
+  throws,
 } = require('assert');
 
 const { getEventListeners, EventEmitter } = require('events');
