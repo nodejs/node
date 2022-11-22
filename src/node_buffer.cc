@@ -523,10 +523,8 @@ namespace {
 // TODO(kiliczsh): Buffer.from(buf, fromEnc).toString(buf, toEnc)
 void BufferToString(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 3);
-
-  // TODO(kiliczsh): resolve IsSharedArrayBuffer failure
   CHECK(args[0]->IsString() || args[0]->IsArrayBuffer() ||
-        args[0]->IsArrayBufferView());
+        args[0]->IsSharedArrayBuffer() || args[0]->IsArrayBufferView());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsString());
 
