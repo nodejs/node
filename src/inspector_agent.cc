@@ -52,7 +52,9 @@ using v8_inspector::StringView;
 using v8_inspector::V8Inspector;
 using v8_inspector::V8InspectorClient;
 
+#ifdef __POSIX__
 static uv_sem_t start_io_thread_semaphore;
+#endif  // __POSIX__
 static uv_async_t start_io_thread_async;
 // This is just an additional check to make sure start_io_thread_async
 // is not accidentally re-used or used when uninitialized.
