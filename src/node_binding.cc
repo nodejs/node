@@ -222,7 +222,7 @@ static bool libc_may_be_musl() {
   has_cached_retval = true;
   return retval;
 }
-#else  // __linux__
+#elif defined(__POSIX__)
 static bool libc_may_be_musl() { return false; }
 #endif  // __linux__
 
