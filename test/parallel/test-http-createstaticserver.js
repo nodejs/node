@@ -27,14 +27,18 @@ const createStaticServer = require('node:http/static');
       fetch(`http://localhost:${port}/`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
+        assert.strictEqual(response.headers.get('Content-Type'), null);
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
       fetch(`http://localhost:${port}/bar.js`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
+        assert.strictEqual(response.headers.get('Content-Type'), null);
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
     ]).then(mustCall()).finally(() => server.close());
   }));
@@ -89,32 +93,32 @@ const createStaticServer = require('node:http/static');
       fetch(`http://localhost:${port}/.bar`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
-        assert.strictEqual(await response.text(), 'Not Authorized');
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
       fetch(`http://localhost:${port}/.foo`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
       }),
       fetch(`http://localhost:${port}/.foo/`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
       }),
       fetch(`http://localhost:${port}/.foo/bar.js`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
-        assert.strictEqual(await response.text(), 'Not Authorized');
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
     ]).then(mustCall()).finally(() => server.close());
   }));
@@ -219,10 +223,10 @@ const createStaticServer = require('node:http/static');
       fetch(`http://localhost:${port}/test.html`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
-        assert.strictEqual(await response.text(), 'Not Authorized');
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
       fetch(`http://localhost:${port}/.bar`).then(async (response) => {
         assert(response.ok);
@@ -235,24 +239,24 @@ const createStaticServer = require('node:http/static');
       fetch(`http://localhost:${port}/.foo`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
       }),
       fetch(`http://localhost:${port}/.foo/`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
       }),
       fetch(`http://localhost:${port}/.foo/bar.js`).then(async (response) => {
         assert(!response.ok);
         assert(!response.redirected);
-        assert.strictEqual(response.status, 401);
-        assert.strictEqual(response.statusText, 'Unauthorized');
+        assert.strictEqual(response.status, 403);
+        assert.strictEqual(response.statusText, 'Forbidden');
         assert.strictEqual(response.headers.get('Content-Type'), null);
-        assert.strictEqual(await response.text(), 'Not Authorized');
+        assert.strictEqual(await response.text(), 'Forbidden');
       }),
     ]).then(mustCall()).finally(() => server.close());
   }));
