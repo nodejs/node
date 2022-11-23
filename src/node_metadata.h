@@ -38,6 +38,7 @@ namespace node {
   V(nghttp2)                                                                   \
   V(napi)                                                                      \
   V(llhttp)                                                                    \
+  V(undici)                                                                    \
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)
@@ -79,7 +80,7 @@ class Metadata {
 
   struct Versions {
     Versions();
-
+    std::string GetDependencyVersionFromPackageJson(std::string packageName);
 #ifdef NODE_HAVE_I18N_SUPPORT
     // Must be called on the main thread after
     // i18n::InitializeICUDirectory()

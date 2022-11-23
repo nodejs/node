@@ -8,6 +8,9 @@
 #include "uv.h"
 #include "v8.h"
 #include "zlib.h"
+#include "fstream"
+#include "sstream"
+#include "filesystem"
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -27,6 +30,7 @@
 #include <unicode/uvernum.h>
 #include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
+#include <iostream>
 
 namespace node {
 
@@ -68,6 +72,7 @@ void Metadata::Versions::InitializeIntlVersions() {
 #endif  // NODE_HAVE_I18N_SUPPORT
 
 Metadata::Versions::Versions() {
+  undici = Metadata::Versions::GetDependencyVersionFromPackageJson("undici");
   node = NODE_VERSION_STRING;
   v8 = v8::V8::GetVersion();
   uv = uv_version_string();
@@ -103,6 +108,48 @@ Metadata::Versions::Versions() {
   ngtcp2 = NGTCP2_VERSION;
   nghttp3 = NGHTTP3_VERSION;
 #endif
+}
+
+bool hasEnding(std::string const& fullString, std::string const& ending) {
+  if (fullString.length() >= ending.length()) {
+    return (0 == fullString.compare(fullString.length() - ending.length(),
+                                    ending.length(),
+                                    ending));
+  } else {
+    return false;
+  }
+}
+
+std::string Metadata::Versions::GetDependencyVersionFromPackageJson(
+    std::string packageName) {
+
+  // get current path and find parent which has ending 'node'
+  std::filesystem::path cwd = std::filesystem::current_path();
+  while (!hasEnding(cwd.parent_path().string(), "node")) {
+    cwd = cwd.parent_path();
+  }
+  std::ifstream myFile(cwd.parent_path().string()+"\\deps\\" + packageName + "\\src\\package.json");
+  std::ostringstream tmp;
+  tmp << myFile.rdbuf();
+  std::string fileString = tmp.str();
+
+  // 9 is character count of \"version\" and plus 1"
+  int ix10 = fileString.find("\"version\"") + 9;
+  std::string version = "";
+  bool startAdding = false;
+  for (int i = ix10; i < fileString.length(); i++) {
+
+    if (fileString[i] == '\"' && !startAdding) {
+      startAdding = true;
+    }else if (fileString[i] == '\"' && startAdding) {
+      break;
+    }
+    if (fileString[i] != '\"' && startAdding) {
+      version = version + fileString[i];
+    }
+  }
+
+  return version;
 }
 
 Metadata::Release::Release() : name(NODE_RELEASE) {
