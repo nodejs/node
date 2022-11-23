@@ -602,7 +602,6 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   assert.strictEqual(buf.indexOf(0x697374657374), 0);
   assert.strictEqual(buf.indexOf(0x69737374), 0);
   assert.strictEqual(buf.indexOf(0x69737465), 11);
-  assert.strictEqual(buf.indexOf(0x69737465), 11);
   assert.strictEqual(buf.indexOf(-140), 0);
   assert.strictEqual(buf.indexOf(-152), 1);
   assert.strictEqual(buf.indexOf(0xff), -1);
