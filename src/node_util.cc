@@ -365,7 +365,7 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   {
-    Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
+    Local<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
 #define V(PropertyName, _)                                                     \
   tmpl->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #PropertyName),              \
             env->PropertyName());
@@ -381,7 +381,7 @@ void Initialize(Local<Object> target,
   }
 
   {
-    Local<Object> constants = Object::New(env->isolate());
+    Local<Object> constants = Object::New(isolate);
 #define V(name)                                                                \
   constants                                                                    \
       ->Set(context,                                                           \
