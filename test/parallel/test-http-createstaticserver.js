@@ -20,6 +20,28 @@ const createStaticServer = require('node:http/static');
 
 {
   const server = createStaticServer({
+    directory: fixtures.path('static-server', '.foo'),
+  }).once('listening', mustCall(() => {
+    const { port } = server.address();
+    Promise.all([
+      fetch(`http://localhost:${port}/`).then(async (response) => {
+        assert(!response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 401);
+        assert.strictEqual(response.statusText, 'Unauthorized');
+      }),
+      fetch(`http://localhost:${port}/bar.js`).then(async (response) => {
+        assert(!response.ok);
+        assert(!response.redirected);
+        assert.strictEqual(response.status, 401);
+        assert.strictEqual(response.statusText, 'Unauthorized');
+      }),
+    ]).then(mustCall()).finally(() => server.close());
+  }));
+}
+
+{
+  const server = createStaticServer({
     directory: fixtures.path('static-server'),
   }).once('listening', mustCall(() => {
     const { port } = server.address();
