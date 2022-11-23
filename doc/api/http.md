@@ -3583,7 +3583,7 @@ added: REPLACEME
   * `mimeOverrides` {Object} Dictionary linking file extension to a MIME string,
     to override or extend the built-in ones.
   * `filter` {Function|null} should be a function that accepts two arguments and
-    returns a value that is coercible to a `Boolean` value. When `null`, no
+    returns a value that is coercible to a {boolean} value. When `null`, no
     files are filtered. **Default:** filters all dot files.
 
 * Returns: {http.Server}
