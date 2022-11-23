@@ -14,6 +14,10 @@
 #include "util-inl.h"
 
 #include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace node {
 
@@ -644,7 +648,7 @@ void Http2Stream::EmitStatistics() {
           duration,
           statistics_);
 
-  env()->SetImmediate([entry = move(entry)](Environment* env) {
+  env()->SetImmediate([entry = std::move(entry)](Environment* env) {
     if (HasHttp2Observer(env))
       entry->Notify(env);
   });
