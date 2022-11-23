@@ -114,7 +114,6 @@ InvokeParams InvokeParams::SetUpForCall(Isolate* isolate,
   params.receiver = NormalizeReceiver(isolate, receiver);
   // Check for host-defined options argument for scripts.
   DCHECK_IMPLIES(params.IsScript(), argc == 1);
-  DCHECK_IMPLIES(params.IsScript(), argv[0]->IsFixedArray());
   params.argc = argc;
   params.argv = argv;
   params.new_target = isolate->factory()->undefined_value();
@@ -137,7 +136,6 @@ InvokeParams InvokeParams::SetUpForTryCall(
   params.receiver = NormalizeReceiver(isolate, receiver);
   // Check for host-defined options argument for scripts.
   DCHECK_IMPLIES(params.IsScript(), argc == 1);
-  DCHECK_IMPLIES(params.IsScript(), argv[0]->IsFixedArray());
   params.argc = argc;
   params.argv = argv;
   params.new_target = isolate->factory()->undefined_value();
@@ -338,7 +336,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       DCHECK(params.IsScript());
       DCHECK(params.receiver->IsJSGlobalProxy());
       DCHECK_EQ(params.argc, 1);
-      DCHECK(params.argv[0]->IsFixedArray());
     } else {
       DCHECK(!params.IsScript());
     }

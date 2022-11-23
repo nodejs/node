@@ -3735,8 +3735,8 @@ ParserBase<Impl>::ParseImportExpressions() {
   AcceptINScope scope(this, true);
   ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
 
+  impl()->scope()->RecordInnerScopeCallsDynamicImport();
   if (v8_flags.harmony_import_assertions && Check(Token::COMMA)) {
-    impl()->scope()->RecordInnerScopeCallsDynamicImport();
     if (Check(Token::RPAREN)) {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, pos);
