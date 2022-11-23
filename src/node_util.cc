@@ -381,10 +381,13 @@ void Initialize(Local<Object> target,
   }
 
   {
-    Local<ObjectTemplate> tmpl = ObjectTemplate::New(isolate);
+    Local<Object> constants = Object::New(env->isolate());
 #define V(name)                                                                \
-  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
-            Integer::New(isolate, Promise::PromiseState::name));
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Promise::PromiseState::name))                \
+      .Check();
 
     V(kPending);
     V(kFulfilled);
@@ -392,8 +395,11 @@ void Initialize(Local<Object> target,
 #undef V
 
 #define V(name)                                                                \
-  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
-            Integer::New(isolate, Environment::ExitInfoField::name));
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, Environment::ExitInfoField::name))           \
+      .Check();
 
     V(kExiting);
     V(kExitCode);
@@ -401,8 +407,11 @@ void Initialize(Local<Object> target,
 #undef V
 
 #define V(name)                                                                \
-  tmpl->Set(FIXED_ONE_BYTE_STRING(isolate, #name),                             \
-            Integer::New(isolate, PropertyFilter::name));
+  constants                                                                    \
+      ->Set(context,                                                           \
+            FIXED_ONE_BYTE_STRING(isolate, #name),                             \
+            Integer::New(isolate, PropertyFilter::name))                       \
+      .Check();
 
     V(ALL_PROPERTIES);
     V(ONLY_WRITABLE);
@@ -412,11 +421,7 @@ void Initialize(Local<Object> target,
     V(SKIP_SYMBOLS);
 #undef V
 
-    target
-        ->Set(context,
-              env->constants_string(),
-              tmpl->NewInstance(context).ToLocalChecked())
-        .Check();
+    target->Set(context, env->constants_string(), constants).Check();
   }
 
   SetMethodNoSideEffect(
