@@ -14,6 +14,7 @@ const server = http.createServer(common.mustNotCall((req, res) => {
 server.listen(0, common.mustCall(() => {
   http.get({ port: server.address().port, headers: [] }, (res) => {
     assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(res.headers.connection, 'close');
     res.resume().on('end', common.mustCall(() => {
       server.close();
     }));
