@@ -59,7 +59,7 @@ server.listen(0, function() {
   const maxAndExpected = [ // for client
     [20, 20],
     [1200, 104],
-    [0, N + 4], // Connection, Date and Transfer-Encoding
+    [0, N + 4], // Host and Connection
   ];
   doRequest();
 
