@@ -12,7 +12,7 @@ Your YouTube Account must be a manager of the
 
 To request access open an issue in the Node.js
 [admin](https://github.com/nodejs/admin) repository with the title being
-`Zoom and Youtube access for X` where X is the GitHub id and 
+`Zoom and Youtube access for X` where X is the GitHub id and
 the YouTube ID of the person for which access is being requested.
 Include a short reason why access is needed(for example streaming
 a team meeting etc.).
