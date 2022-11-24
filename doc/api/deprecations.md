@@ -3295,6 +3295,22 @@ Type: Documentation-only
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
+### DEP0170: Invalid port when using `url.parse()`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/45576
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`url.parse()`][] accepts URLs with ports that are not numbers. This behavior
+might result in host name spoofing with unexpected input. These URLs will throw
+an error in future versions of Node.js, as the [WHATWG URL API][] does already.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
