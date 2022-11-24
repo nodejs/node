@@ -91,7 +91,8 @@ class DateParser : public AllStatic {
     // Return word length.
     int ReadWord(uint32_t* prefix, int prefix_size) {
       int len;
-      for (len = 0; IsAsciiAlphaOrAbove(); Next(), len++) {
+      for (len = 0; IsAsciiAlphaOrAbove() && !IsWhiteSpaceChar();
+           Next(), len++) {
         if (len < prefix_size) prefix[len] = AsciiAlphaToLower(ch_);
       }
       for (int i = len; i < prefix_size; i++) prefix[i] = 0;
@@ -115,6 +116,7 @@ class DateParser : public AllStatic {
     bool IsEnd() const { return ch_ == 0; }
     bool IsAsciiDigit() const { return IsDecimalDigit(ch_); }
     bool IsAsciiAlphaOrAbove() const { return ch_ >= 'A'; }
+    bool IsWhiteSpaceChar() const { return IsWhiteSpace(ch_); }
     bool IsAsciiSign() const { return ch_ == '+' || ch_ == '-'; }
 
     // Return 1 for '+' and -1 for '-'.
