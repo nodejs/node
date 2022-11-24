@@ -1209,7 +1209,7 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v19.2.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
@@ -1581,7 +1581,7 @@ amount of CPUs, but it may diverge in environments such as VMs or containers.
 <!-- YAML
 added: v18.11.0
 changes:
-  - version: REPLACEME
+  - version: v19.2.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
 -->
