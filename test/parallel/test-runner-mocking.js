@@ -318,6 +318,68 @@ test('spy functions can be bound', (t) => {
   assert.strictEqual(sum.mock.restore(), undefined);
   assert.strictEqual(sum.bind(0)(2, 11), 13);
 });
+test('spies on async class functions', async (t) => {
+  class Runner {
+    async someTask(msg) {
+      return Promise.resolve(msg);
+    }
+
+    async method(msg) {
+      await this.someTask(msg);
+      return msg;
+    }
+  }
+  const msg = 'ok';
+  const obj = new Runner();
+  assert.strictEqual(await obj.method(msg), msg);
+
+  t.mock.method(obj, obj.someTask.name);
+  assert.strictEqual(obj.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(await obj.method(msg), msg);
+
+  const call = obj.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(await call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, obj);
+
+  assert.strictEqual(obj.someTask.mock.restore(), undefined);
+  assert.strictEqual(await obj.method(msg), msg);
+  assert.strictEqual(obj.someTask.mock, undefined);
+});
+
+test('spies on async class static functions', async (t) => {
+  class Runner {
+    static async someTask(msg) {
+      return Promise.resolve(msg);
+    }
+
+    static async method(msg) {
+      await this.someTask(msg);
+      return msg;
+    }
+  }
+  const msg = 'ok';
+  assert.strictEqual(await Runner.method(msg), msg);
+
+  t.mock.method(Runner, Runner.someTask.name);
+  assert.strictEqual(Runner.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(await Runner.method(msg), msg);
+
+  const call = Runner.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(await call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, Runner);
+
+  assert.strictEqual(Runner.someTask.mock.restore(), undefined);
+  assert.strictEqual(await Runner.method(msg), msg);
+  assert.strictEqual(Runner.someTask.mock, undefined);
+});
 
 test('mocked functions report thrown errors', (t) => {
   const testError = new Error('test error');
