@@ -534,30 +534,26 @@ void BufferToString(const FunctionCallbackInfo<Value>& args) {
   enum encoding from_encoding = ParseEncoding(isolate, args[1], UTF8);
   enum encoding to_encoding = ParseEncoding(isolate, args[2], UTF8);
 
+  Local<Value> error;
   Local<Value> ret;
+  MaybeLocal<Value> maybe_ret;
 
   if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
       args[0]->IsArrayBufferView()) {
-
-    Local<Value> error;
-    MaybeLocal<Value> maybe_ret;
     ArrayBufferViewContents<char> buffer(args[0]);
-    if (buffer.length() == 0) {
-      return args.GetReturnValue().SetEmptyString();
-    }
-    maybe_ret = StringBytes::Encode(
-        isolate, buffer.data(), buffer.length(), from_encoding, &error);
-    if (!maybe_ret.ToLocal(&ret)) {
-      CHECK(!error.IsEmpty());
-      isolate->ThrowException(error);
-      return;
-    }
-    return args.GetReturnValue().Set(ret);
+    if (buffer.length() == 0) { return args.GetReturnValue().SetEmptyString(); }
+    maybe_ret = StringBytes::Encode(isolate, buffer.data(), buffer.length(), from_encoding, &error);
   } else if (args[0]->IsString()) {
-    if (New(isolate, args[0].As<String>(), to_encoding).ToLocal(&ret)) {
-      return args.GetReturnValue().Set(ret);
-    }
+    String::Utf8Value value(isolate, args[0].As<String>());
+    char* str(*value);
+    maybe_ret = StringBytes::Encode(isolate, str, to_encoding, &error);
   }
+  if (!maybe_ret.ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    isolate->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(ret);
 }
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
