@@ -5016,7 +5016,7 @@ See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 ## Class: `File`
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -5028,7 +5028,7 @@ A [`File`][] provides information about files.
 ### `new buffer.File(sources, fileName[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 -->
 
 * `sources` {string\[]|ArrayBuffer\[]|TypedArray\[]|DataView\[]|Blob\[]|File\[]}
@@ -5046,7 +5046,7 @@ added: REPLACEME
 ### `file.name`
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 -->
 
 * Type: {string}
@@ -5056,7 +5056,7 @@ The name of the `File`.
 ### `file.lastModified`
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 -->
 
 * Type: {number}

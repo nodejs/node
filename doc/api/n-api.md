@@ -901,7 +901,7 @@ handle and/or callback scope inside the function body is not necessary.
 #### `napi_cleanup_hook`
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 napiVersion: 3
 -->
 

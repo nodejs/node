@@ -294,7 +294,7 @@ test('a test that creates asynchronous activity', (t) => {
 ## Watch mode
 
 <!-- YAML
-added: REPLACEME
+added: v19.2.0
 -->
 
 > Stability: 1 - Experimental
