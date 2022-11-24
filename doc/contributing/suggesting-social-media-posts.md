@@ -1,4 +1,4 @@
-# Interacting with social
+# Suggesting Social Media Posts
 
 Node.js social media is managed by OpenJS Foundation staff. The processes are
 documented in
