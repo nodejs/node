@@ -4,6 +4,7 @@ const assert = require('assert');
 
 // import of pure js deps for comparison
 const undici = require('../../deps/undici/src/package.json');
+const acorn = require('../../deps/acorn/acorn/package.json');
 
 const expected_keys = [
   'ares',
@@ -18,6 +19,7 @@ const expected_keys = [
   'llhttp',
   'uvwasi',
   'undici',
+  'acorn',
 ];
 
 if (common.hasCrypto) {
@@ -80,3 +82,6 @@ assert.strictEqual(
 
 const expectedUndiciVersion = undici.version;
 assert.strictEqual(process.versions.undici, expectedUndiciVersion);
+
+const expectedAcornVersion = acorn.version;
+assert.strictEqual(process.versions.acorn, expectedAcornVersion);
