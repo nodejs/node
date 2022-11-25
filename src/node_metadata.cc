@@ -29,6 +29,9 @@
 #include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
 
+// version definitions of pure js deps
+#define UNDICI_VERSION "5.12.0"
+
 namespace node {
 
 namespace per_process {
@@ -90,6 +93,7 @@ Metadata::Versions::Versions() {
     std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
     "." +
     std::to_string(BrotliEncoderVersion() & 0xFFF);
+  undici = UNDICI_VERSION;
 
   uvwasi = UVWASI_VERSION_STRING;
 
