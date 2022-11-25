@@ -32,9 +32,6 @@ rm -f deps/undici/undici.js
     git show HEAD:src/node_metadata.cc | \
       sed "s/UNDICI_VERSION \"[0-9.]*\"/UNDICI_VERSION \"$UNDICI_VERSION\"/" \
       > "$ROOT/src/node_metadata.cc"
-    # commit these changes
-    git add "$ROOT/src/node_metadata.cc"
-    git commit -m "src: update undici version to $UNDICI_VERSION"
 )
 
 mv undici-tmp/node_modules/undici deps/undici/src
