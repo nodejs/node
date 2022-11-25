@@ -196,7 +196,8 @@ int32_t nghttp2_submit_headers(nghttp2_session *session, uint8_t flags,
 
   flags &= NGHTTP2_FLAG_END_STREAM;
 
-  if (pri_spec && !nghttp2_priority_spec_check_default(pri_spec)) {
+  if (pri_spec && !nghttp2_priority_spec_check_default(pri_spec) &&
+      session->remote_settings.no_rfc7540_priorities != 1) {
     rv = detect_self_dependency(session, stream_id, pri_spec);
     if (rv != 0) {
       return rv;
@@ -228,6 +229,10 @@ int nghttp2_submit_priority(nghttp2_session *session, uint8_t flags,
   (void)flags;
 
   mem = &session->mem;
+
+  if (session->remote_settings.no_rfc7540_priorities == 1) {
+    return 0;
+  }
 
   if (stream_id == 0 || pri_spec == NULL) {
     return NGHTTP2_ERR_INVALID_ARGUMENT;
@@ -662,6 +667,78 @@ fail_item_malloc:
   return rv;
 }
 
+int nghttp2_submit_priority_update(nghttp2_session *session, uint8_t flags,
+                                   int32_t stream_id,
+                                   const uint8_t *field_value,
+                                   size_t field_value_len) {
+  nghttp2_mem *mem;
+  uint8_t *buf, *p;
+  nghttp2_outbound_item *item;
+  nghttp2_frame *frame;
+  nghttp2_ext_priority_update *priority_update;
+  int rv;
+  (void)flags;
+
+  mem = &session->mem;
+
+  if (session->server) {
+    return NGHTTP2_ERR_INVALID_STATE;
+  }
+
+  if (session->remote_settings.no_rfc7540_priorities == 0) {
+    return 0;
+  }
+
+  if (stream_id == 0 || 4 + field_value_len > NGHTTP2_MAX_PAYLOADLEN) {
+    return NGHTTP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (field_value_len) {
+    buf = nghttp2_mem_malloc(mem, field_value_len + 1);
+    if (buf == NULL) {
+      return NGHTTP2_ERR_NOMEM;
+    }
+
+    p = nghttp2_cpymem(buf, field_value, field_value_len);
+    *p = '\0';
+  } else {
+    buf = NULL;
+  }
+
+  item = nghttp2_mem_malloc(mem, sizeof(nghttp2_outbound_item));
+  if (item == NULL) {
+    rv = NGHTTP2_ERR_NOMEM;
+    goto fail_item_malloc;
+  }
+
+  nghttp2_outbound_item_init(item);
+
+  item->aux_data.ext.builtin = 1;
+
+  priority_update = &item->ext_frame_payload.priority_update;
+
+  frame = &item->frame;
+  frame->ext.payload = priority_update;
+
+  nghttp2_frame_priority_update_init(&frame->ext, stream_id, buf,
+                                     field_value_len);
+
+  rv = nghttp2_session_add_item(session, item);
+  if (rv != 0) {
+    nghttp2_frame_priority_update_free(&frame->ext, mem);
+    nghttp2_mem_free(mem, item);
+
+    return rv;
+  }
+
+  return 0;
+
+fail_item_malloc:
+  free(buf);
+
+  return rv;
+}
+
 static uint8_t set_request_flags(const nghttp2_priority_spec *pri_spec,
                                  const nghttp2_data_provider *data_prd) {
   uint8_t flags = NGHTTP2_FLAG_NONE;
@@ -688,7 +765,8 @@ int32_t nghttp2_submit_request(nghttp2_session *session,
     return NGHTTP2_ERR_PROTO;
   }
 
-  if (pri_spec && !nghttp2_priority_spec_check_default(pri_spec)) {
+  if (pri_spec && !nghttp2_priority_spec_check_default(pri_spec) &&
+      session->remote_settings.no_rfc7540_priorities != 1) {
     rv = detect_self_dependency(session, -1, pri_spec);
     if (rv != 0) {
       return rv;

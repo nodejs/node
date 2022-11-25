@@ -38,6 +38,7 @@
         'lib/nghttp2_buf.c',
         'lib/nghttp2_callbacks.c',
         'lib/nghttp2_debug.c',
+        'lib/nghttp2_extpri.c',
         'lib/nghttp2_frame.c',
         'lib/nghttp2_hd.c',
         'lib/nghttp2_hd_huffman.c',
