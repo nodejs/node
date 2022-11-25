@@ -1,7 +1,8 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2012, 2013 Tatsuhiro Tsujikawa
+ * Copyright (c) 2022 nghttp3 contributors
+ * Copyright (c) 2022 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,21 +23,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP2VER_H
-#define NGHTTP2VER_H
+#include "nghttp2_extpri.h"
 
-/**
- * @macro
- * Version number of the nghttp2 library release
- */
-#define NGHTTP2_VERSION "1.51.0"
+uint8_t nghttp2_extpri_to_uint8(const nghttp2_extpri *extpri) {
+  return (uint8_t)((uint32_t)extpri->inc << 7 | extpri->urgency);
+}
 
-/**
- * @macro
- * Numerical representation of the version number of the nghttp2 library
- * release. This is a 24 bit number with 8 bits for major number, 8 bits
- * for minor and 8 bits for patch. Version 1.2.3 becomes 0x010203.
- */
-#define NGHTTP2_VERSION_NUM 0x013300
-
-#endif /* NGHTTP2VER_H */
+void nghttp2_extpri_from_uint8(nghttp2_extpri *extpri, uint8_t u8extpri) {
+  extpri->urgency = nghttp2_extpri_uint8_urgency(u8extpri);
+  extpri->inc = nghttp2_extpri_uint8_inc(u8extpri);
+}

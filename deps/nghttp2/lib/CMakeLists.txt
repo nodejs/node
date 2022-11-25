@@ -23,6 +23,7 @@ set(NGHTTP2_SOURCES
   nghttp2_mem.c
   nghttp2_http.c
   nghttp2_rcbuf.c
+  nghttp2_extpri.c
   nghttp2_debug.c
 )
 
