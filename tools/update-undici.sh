@@ -28,10 +28,8 @@ rm -f deps/undici/undici.js
     "$NODE" "$NPM" run build:node
     # get the new version of undici
     UNDICI_VERSION=$("$NODE" -p "require('./package.json').version")
-    # update this version information in src/node_metadata.cc
-    git show HEAD:src/node_metadata.cc | \
-      sed "s/UNDICI_VERSION \"[0-9.]*\"/UNDICI_VERSION \"$UNDICI_VERSION\"/" \
-      > "$ROOT/src/node_metadata.cc"
+    # update this version information in src/undici_version.h
+    echo "#define UNDICI_VERSION \"$UNDICI_VERSION\"" > "$ROOT/src/undici_version.h"
 )
 
 mv undici-tmp/node_modules/undici deps/undici/src

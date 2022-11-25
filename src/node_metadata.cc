@@ -9,6 +9,7 @@
 #include "uvwasi.h"
 #include "v8.h"
 #include "zlib.h"
+#include "undici_version.h"
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -29,8 +30,6 @@
 #include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-// version definitions of pure js deps
-#define UNDICI_VERSION "5.12.0"
 
 namespace node {
 
