@@ -1,1 +1,1 @@
-#define UNDICI_VERSION "1.0.0"
+#define UNDICI_VERSION "5.12.0"
