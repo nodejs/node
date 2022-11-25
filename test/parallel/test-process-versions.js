@@ -2,6 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 
+// import of pure js deps for comparison
+const undici = require('../../deps/undici/src/package.json');
+
 const expected_keys = [
   'ares',
   'brotli',
@@ -14,6 +17,7 @@ const expected_keys = [
   'napi',
   'llhttp',
   'uvwasi',
+  'undici',
 ];
 
 if (common.hasCrypto) {
@@ -45,6 +49,7 @@ assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.zlib, commonTemplate);
+assert.match(process.versions.undici, commonTemplate);
 
 assert.match(
   process.versions.v8,
@@ -53,12 +58,12 @@ assert.match(
 assert.match(process.versions.modules, /^\d+$/);
 
 if (common.hasCrypto) {
-  const versionRegex = common.hasOpenSSL3 ?
-    // The following also matches a development version of OpenSSL 3.x which
-    // can be in the format '3.0.0-alpha4-dev'. This can be handy when building
-    // and linking against the main development branch of OpenSSL.
-    /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
-    /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
+  const versionRegex = common.hasOpenSSL3
+    ? // The following also matches a development version of OpenSSL 3.x which
+      // can be in the format '3.0.0-alpha4-dev'. This can be handy when building
+      // and linking against the main development branch of OpenSSL.
+      /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/
+    : /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
   assert.match(process.versions.openssl, versionRegex);
 }
 
@@ -68,5 +73,10 @@ for (let i = 0; i < expected_keys.length; i++) {
   assert.strictEqual(descriptor.writable, false);
 }
 
-assert.strictEqual(process.config.variables.napi_build_version,
-                   process.versions.napi);
+assert.strictEqual(
+  process.config.variables.napi_build_version,
+  process.versions.napi
+);
+
+const expectedUndiciVersion = undici.version;
+assert.strictEqual(process.versions.undici, expectedUndiciVersion);
