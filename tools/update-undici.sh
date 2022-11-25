@@ -29,7 +29,9 @@ rm -f deps/undici/undici.js
     # get the new version of undici
     UNDICI_VERSION=$("$NODE" -p "require('./package.json').version")
     # update this version information in src/node_metadata.cc
-    sed -i '' "s/UNDICI_VERSION \"[0-9.]*\"/UNDICI_VERSION \"$UNDICI_VERSION\"/" "$ROOT/src/node_metadata.cc"
+    git show HEAD:src/node_metadata.cc | \
+      sed "s/UNDICI_VERSION \"[0-9.]*\"/UNDICI_VERSION \"$UNDICI_VERSION\"/" \
+      > "$ROOT/src/node_metadata.cc"
     # commit these changes
     git add "$ROOT/src/node_metadata.cc"
     git commit -m "src: update undici version to $UNDICI_VERSION"
