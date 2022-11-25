@@ -10,6 +10,7 @@
 #include "v8.h"
 #include "zlib.h"
 #include "undici_version.h"
+#include "acorn_version.h"
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -93,6 +94,7 @@ Metadata::Versions::Versions() {
     "." +
     std::to_string(BrotliEncoderVersion() & 0xFFF);
   undici = UNDICI_VERSION;
+  acorn = ACORN_VERSION;
 
   uvwasi = UVWASI_VERSION_STRING;
 

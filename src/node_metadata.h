@@ -39,6 +39,7 @@ namespace node {
   V(napi)                                                                      \
   V(llhttp)                                                                    \
   V(uvwasi)                                                                    \
+  V(acorn)                                                                     \
   V(undici)
 
 #if HAVE_OPENSSL
