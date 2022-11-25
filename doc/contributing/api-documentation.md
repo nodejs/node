@@ -11,13 +11,21 @@ generate the following:
 1. Human-readable HTML in `out/doc/api/*.html`
 2. A JSON representation in `out/doc/api/*.json`
 
-These are published to nodejs.org for multiple versions of Node.js. As an
-example the latest version of the human-readable HTML is published to
-[nodejs.org/en/doc](https://nodejs.org/en/docs/), and the latest version
-of the json documentation is published to
+These artifacts are published to nodejs.org for multiple versions of
+Node.js. As an example the latest version of the human-readable HTML
+is published to [nodejs.org/en/doc](https://nodejs.org/en/docs/),
+and the latest version of the json documentation is published to
 [nodejs.org/api/all.json](https://nodejs.org/api/all.json)
 
-<!-- TODO: Add docs about how the publishing process happens -->
+The artifacts are built as part of release builds by running the [doc-upload](https://github.com/nodejs/node/blob/1a83ad6a693f851199608ae957ac5d4f76871485/Makefile#L1218-L1224)
+Makefile target as part of the release-sources part of the
+iojs+release job.
+This target runs the `doc` target to build the docs and then uses
+`scp` to copy them onto the staging/www server into a directory of the form
+`/home/staging/nodejs/<type>/<full_version>/docs` where <type> is e.g.
+release, nightly, etc. The promotion step (either automatic for
+nightlies or manual for releases) then moves the docs to
+`/home/dist/nodejs/docs/\<full\_version>` where they are served by node.org.
 
 **The key things to know about the tooling include:**
 
