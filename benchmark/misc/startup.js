@@ -64,7 +64,7 @@ function main({ dur, script, mode }) {
     throughput: 0
   };
 
-  setTimeout(() => {
+  require('timers').setTimeout(() => {
     state.go = false;
   }, dur * 1000);
 
