@@ -1,16 +1,16 @@
 #include "node_metadata.h"
+#include "acorn_version.h"
 #include "ares.h"
 #include "brotli/encode.h"
 #include "llhttp.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
+#include "undici_version.h"
 #include "util.h"
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
 #include "zlib.h"
-#include "undici_version.h"
-#include "acorn_version.h"
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
