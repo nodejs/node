@@ -30,3 +30,19 @@ assert.doesNotMatch(
   stdout,
   /Uncaught Error: Cannot find module 'wasi'[\w\W]+- <repl>\n/);
 assert.match(stdout, /{ WASI: \[class WASI\] }/);
+
+{
+  const res = cp.execFileSync(process.execPath, ['-i'], {
+    input: "'wasi' in global",
+    encoding: 'utf8',
+  });
+  // `wasi` shouldn't be defined on global when the flag is not set
+  assert.match(res, /false\n/);
+}
+{
+  const res = cp.execFileSync(process.execPath, ['-i', '--experimental-wasi-unstable-preview1'], {
+    input: "'wasi' in global",
+    encoding: 'utf8',
+  });
+  assert.match(res, /true\n/);
+}
