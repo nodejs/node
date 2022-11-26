@@ -29,7 +29,10 @@ rm -f deps/undici/undici.js
     # get the new version of undici
     UNDICI_VERSION=$("$NODE" -p "require('./package.json').version")
     # update this version information in src/undici_version.h
-    echo "#define UNDICI_VERSION \"$UNDICI_VERSION\"" > "$ROOT/src/undici_version.h"
+    echo "#ifndef SRC_ACORN_VERSION_H_" > "$ROOT/src/undici_version.h"
+    echo "#define SRC_ACORN_VERSION_H_" >> "$ROOT/src/undici_version.h"
+    echo "#define UNDICI_VERSION \"$UNDICI_VERSION\"" >> "$ROOT/src/undici_version.h"
+    echo "#endif  // SRC_ACORN_VERSION_H_" >> "$ROOT/src/undici_version.h"
 )
 
 mv undici-tmp/node_modules/undici deps/undici/src

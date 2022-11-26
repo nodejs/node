@@ -27,7 +27,10 @@ rm -rf deps/acorn/acorn
     # get acorn version
     ACORN_VERSION=$("$NODE" -p "require('./package.json').version")
     # update this version information in src/acorn_version.h
-    echo "#define ACORN_VERSION \"$ACORN_VERSION\"" > "$ROOT/src/acorn_version.h"
+    echo "#ifndef SRC_ACORN_VERSION_H_" > "$ROOT/src/acorn_version.h"
+    echo "#define SRC_ACORN_VERSION_H_" >> "$ROOT/src/acorn_version.h"
+    echo "#define ACORN_VERSION \"$ACORN_VERSION\"" >> "$ROOT/src/acorn_version.h"
+    echo "#endif  // SRC_ACORN_VERSION_H_" >> "$ROOT/src/acorn_version.h"
 )
 
 mv acorn-tmp/node_modules/acorn deps/acorn
