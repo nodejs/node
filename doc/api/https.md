@@ -24,7 +24,7 @@ let https;
 try {
   https = require('node:https');
 } catch (err) {
-  console.log('https support is disabled!');
+  console.error('https support is disabled!');
 }
 ```
 
@@ -42,7 +42,7 @@ let https;
 try {
   https = await import('node:https');
 } catch (err) {
-  console.log('https support is disabled!');
+  console.error('https support is disabled!');
 }
 ```
 
