@@ -19,15 +19,11 @@ const fixtures = require('../common/fixtures');
   const lines = splitByLine(output);
 
   const scavengeRegex = /\bScavenge\b/;
-  const expectedOutput = [
-    scavengeRegex,
-    scavengeRegex,
-    scavengeRegex,
-    scavengeRegex,
-    /\bMark-Compact\b/,
-  ];
+  const eofRegex = /\bMark-Compact\b/;
+
   lines.forEach((line, index) => {
-    assert.match(line, expectedOutput[index]);
+    const expected = index !== lines.length - 1 ? scavengeRegex : eofRegex;
+    assert.match(line, expected);
   });
 }
 
