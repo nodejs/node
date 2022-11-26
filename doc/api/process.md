@@ -3190,7 +3190,7 @@ if (process.getegid && process.setegid) {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3204,7 +3204,7 @@ if (process.getegid && process.setegid) {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3235,7 +3235,7 @@ if (process.geteuid && process.seteuid) {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3249,7 +3249,7 @@ if (process.geteuid && process.seteuid) {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3280,7 +3280,7 @@ if (process.getgid && process.setgid) {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3294,7 +3294,7 @@ if (process.getgid && process.setgid) {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
   } catch (err) {
-    console.log(`Failed to set gid: ${err}`);
+    console.error(`Failed to set gid: ${err}`);
   }
 }
 ```
@@ -3325,7 +3325,7 @@ if (process.getgroups && process.setgroups) {
     process.setgroups([501]);
     console.log(process.getgroups()); // new groups
   } catch (err) {
-    console.log(`Failed to set groups: ${err}`);
+    console.error(`Failed to set groups: ${err}`);
   }
 }
 ```
@@ -3338,7 +3338,7 @@ if (process.getgroups && process.setgroups) {
     process.setgroups([501]);
     console.log(process.getgroups()); // new groups
   } catch (err) {
-    console.log(`Failed to set groups: ${err}`);
+    console.error(`Failed to set groups: ${err}`);
   }
 }
 ```
@@ -3369,7 +3369,7 @@ if (process.getuid && process.setuid) {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
@@ -3383,7 +3383,7 @@ if (process.getuid && process.setuid) {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
   } catch (err) {
-    console.log(`Failed to set uid: ${err}`);
+    console.error(`Failed to set uid: ${err}`);
   }
 }
 ```
