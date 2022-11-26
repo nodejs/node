@@ -31,7 +31,6 @@
 #include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-
 namespace node {
 
 namespace per_process {
