@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// import of pure js deps for comparison
+// Import of pure js deps for comparison
 const undici = require('../../deps/undici/src/package.json');
 const acorn = require('../../deps/acorn/acorn/package.json');
 
