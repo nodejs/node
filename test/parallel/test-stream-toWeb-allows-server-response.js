@@ -6,14 +6,24 @@ const assert = require('assert');
 const http = require('http');
 
 // Check if Writable.toWeb works on the response object after creating a server.
-const server = http.createServer((req, res) => {
-  const webStreamResponse = Writable.toWeb(res);
-  assert.strictEqual(webStreamResponse instanceof Writable, true);
-});
+const server = http.createServer(
+  common.mustCall((req, res) => {
+    const webStreamResponse = Writable.toWeb(res);
+    assert.strictEqual(webStreamResponse instanceof WritableStream, true);
+    res.end();
+  })
+);
 
 server.listen(
   0,
   common.mustCall(() => {
-    server.close();
+    http.get(
+      {
+        port: server.address().port,
+      },
+      common.mustCall(() => {
+        server.close();
+      })
+    );
   })
 );
