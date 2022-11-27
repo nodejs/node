@@ -1120,7 +1120,7 @@ async function foo(emitter, event, signal) {
     console.log('event emitted!');
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.log('Waiting for the event was canceled!');
+      console.error('Waiting for the event was canceled!');
     } else {
       console.error('There was an error', error.message);
     }
