@@ -138,6 +138,15 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
+  if (args[0]->IsArrayBuffer()) {
+    auto buffer = args[0].As<v8::ArrayBuffer>();
+    args.GetReturnValue().Set(buffer->WasDetached());
+    return;
+  }
+  args.GetReturnValue().Set(false);
+}
+
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
@@ -343,6 +352,7 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
+  registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
@@ -427,6 +437,8 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
+  SetMethodNoSideEffect(
+      context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
       context, target, "getOwnNonIndexProperties", GetOwnNonIndexProperties);
