@@ -42,7 +42,7 @@ bool InitializeICUDirectory(const std::string& path);
 
 void SetDefaultTimeZone(const char* tzid);
 
-enum idna_mode {
+enum class idna_mode {
   // Default mode for maximum compatibility.
   IDNA_DEFAULT,
   // Ignore all errors in IDNA conversion, if possible.
@@ -58,7 +58,7 @@ enum idna_mode {
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
                 size_t length,
-                enum idna_mode mode = IDNA_DEFAULT);
+                idna_mode mode = idna_mode::IDNA_DEFAULT);
 
 // Implements the WHATWG URL Standard "domain to Unicode" algorithm.
 // https://url.spec.whatwg.org/#concept-domain-to-unicode
