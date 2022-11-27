@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.2](https://github.com/nodejs/corepack/compare/v0.15.1...v0.15.2) (2022-11-25)
+
+
+### Features
+
+* update package manager versions ([#211](https://github.com/nodejs/corepack/issues/211)) ([c536c0c](https://github.com/nodejs/corepack/commit/c536c0c27c137c87a14487a2c2a63a1fe6bf88ec))
+
 ## [0.15.1](https://github.com/nodejs/corepack/compare/v0.15.0...v0.15.1) (2022-11-04)
 
 
