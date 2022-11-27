@@ -1624,10 +1624,6 @@ This flag cannot be combined with
 $ node --watch-path=./src --watch-path=./tests index.js
 ```
 
-This option is only supported on macOS and Windows.
-An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
-when the option is used on a platform that does not support it.
-
 ### `--zero-fill-buffers`
 
 <!-- YAML

@@ -14,8 +14,6 @@ import { createInterface } from 'node:readline/promises';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-const supportsRecursive = common.isOSX || common.isWindows;
-
 function restart(file) {
   // To avoid flakiness, we save the file repeatedly until test is done
   writeFileSync(file, readFileSync(file));
@@ -125,9 +123,7 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
     });
   });
 
-  it('should watch when running an non-existing file - when specified under --watch-path', {
-    skip: !supportsRecursive
-  }, async () => {
+  it('should watch when running an non-existing file - when specified under --watch-path', async () => {
     const file = fixtures.path('watch-mode/subdir/non-existing.js');
     const watchedFile = fixtures.path('watch-mode/subdir/file.js');
     const { stderr, stdout } = await spawnWithRestarts({
@@ -234,38 +230,29 @@ describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
     });
   });
 
-  // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
-  it('should not watch when running an missing file', {
-    skip: !supportsRecursive
-  }, async () => {
+  it('should not watch when running an missing file', async () => {
     const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.js`);
     await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
   });
 
-  it('should not watch when running an missing mjs file', {
-    skip: !supportsRecursive
-  }, async () => {
-    const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
-    await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
-  });
+  // it('should not watch when running an missing mjs file', async () => {
+  //   const nonExistingfile = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+  //   await failWriteSucceed({ file: nonExistingfile, watchedFile: nonExistingfile });
+  // });
 
-  it('should watch changes to previously missing dependency', {
-    skip: !supportsRecursive
-  }, async () => {
-    const dependency = path.join(tmpdir.path, `${tmpFiles++}.js`);
-    const relativeDependencyPath = `./${path.basename(dependency)}`;
-    const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
+  // it('should watch changes to previously missing dependency', async () => {
+  //   const dependency = path.join(tmpdir.path, `${tmpFiles++}.js`);
+  //   const relativeDependencyPath = `./${path.basename(dependency)}`;
+  //   const dependant = createTmpFile(`console.log(require('${relativeDependencyPath}'))`);
 
-    await failWriteSucceed({ file: dependant, watchedFile: dependency });
-  });
+  //   await failWriteSucceed({ file: dependant, watchedFile: dependency });
+  // });
 
-  it('should watch changes to previously missing ESM dependency', {
-    skip: !supportsRecursive
-  }, async () => {
-    const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
-    const relativeDependencyPath = `./${path.basename(dependency)}`;
-    const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
+  // it('should watch changes to previously missing ESM dependency', async () => {
+  //   const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
+  //   const relativeDependencyPath = `./${path.basename(dependency)}`;
+  //   const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
 
-    await failWriteSucceed({ file: dependant, watchedFile: dependency });
-  });
+  //   await failWriteSucceed({ file: dependant, watchedFile: dependency });
+  // });
 });

@@ -15,8 +15,6 @@ import watcher from 'internal/watch_mode/files_watcher';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-const supportsRecursiveWatching = common.isOSX || common.isWindows;
-
 const { FilesWatcher } = watcher;
 tmpdir.refresh();
 
@@ -70,14 +68,13 @@ describe('watch mode file watcher', () => {
     assert.ok(changesCount < 5);
   });
 
-  it('should ignore files in watched directory if they are not filtered',
-     { skip: !supportsRecursiveWatching }, async () => {
-       watcher.on('changed', common.mustNotCall());
-       watcher.watchPath(tmpdir.path);
-       writeFileSync(path.join(tmpdir.path, 'file3'), '1');
-       // Wait for this long to make sure changes are not triggered
-       await setTimeout(1000);
-     });
+  it('should ignore files in watched directory if they are not filtered', async () => {
+    watcher.on('changed', common.mustNotCall());
+    watcher.watchPath(tmpdir.path);
+    writeFileSync(path.join(tmpdir.path, 'file3'), '1');
+    // Wait for this long to make sure changes are not triggered
+    await setTimeout(1000);
+  });
 
   it('should allow clearing filters', async () => {
     const file = path.join(tmpdir.path, 'file4');
@@ -95,57 +92,52 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
-  it('should watch all files in watched path when in "all" mode',
-     { skip: !supportsRecursiveWatching }, async () => {
-       watcher = new FilesWatcher({ throttle: 100, mode: 'all' });
-       watcher.on('changed', () => changesCount++);
+  it('should watch all files in watched path when in "all" mode', async () => {
+    watcher = new FilesWatcher({ throttle: 100, mode: 'all' });
+    watcher.on('changed', () => changesCount++);
 
-       const file = path.join(tmpdir.path, 'file5');
-       watcher.watchPath(tmpdir.path);
+    const file = path.join(tmpdir.path, 'file5');
+    watcher.watchPath(tmpdir.path);
 
-       const changed = once(watcher, 'changed');
-       writeFileSync(file, 'changed');
-       await changed;
-       assert.strictEqual(changesCount, 1);
-     });
+    const changed = once(watcher, 'changed');
+    writeFileSync(file, 'changed');
+    await changed;
+    assert.strictEqual(changesCount, 1);
+  });
 
-  it('should ruse existing watcher if it exists',
-     { skip: !supportsRecursiveWatching }, () => {
-       assert.deepStrictEqual(watcher.watchedPaths, []);
-       watcher.watchPath(tmpdir.path);
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-       watcher.watchPath(tmpdir.path);
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-     });
+  it('should ruse existing watcher if it exists', () => {
+    assert.deepStrictEqual(watcher.watchedPaths, []);
+    watcher.watchPath(tmpdir.path);
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+    watcher.watchPath(tmpdir.path);
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+  });
 
-  it('should ruse existing watcher of a parent directory',
-     { skip: !supportsRecursiveWatching }, () => {
-       assert.deepStrictEqual(watcher.watchedPaths, []);
-       watcher.watchPath(tmpdir.path);
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-       watcher.watchPath(path.join(tmpdir.path, 'subdirectory'));
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-     });
+  it('should ruse existing watcher of a parent directory', () => {
+    assert.deepStrictEqual(watcher.watchedPaths, []);
+    watcher.watchPath(tmpdir.path);
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+    watcher.watchPath(path.join(tmpdir.path, 'subdirectory'));
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+  });
 
-  it('should remove existing watcher if adding a parent directory watcher',
-     { skip: !supportsRecursiveWatching }, () => {
-       assert.deepStrictEqual(watcher.watchedPaths, []);
-       const subdirectory = path.join(tmpdir.path, 'subdirectory');
-       mkdirSync(subdirectory);
-       watcher.watchPath(subdirectory);
-       assert.deepStrictEqual(watcher.watchedPaths, [subdirectory]);
-       watcher.watchPath(tmpdir.path);
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-     });
+  it('should remove existing watcher if adding a parent directory watcher', () => {
+    assert.deepStrictEqual(watcher.watchedPaths, []);
+    const subdirectory = path.join(tmpdir.path, 'subdirectory');
+    mkdirSync(subdirectory);
+    watcher.watchPath(subdirectory);
+    assert.deepStrictEqual(watcher.watchedPaths, [subdirectory]);
+    watcher.watchPath(tmpdir.path);
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+  });
 
-  it('should clear all watchers when calling clear',
-     { skip: !supportsRecursiveWatching }, () => {
-       assert.deepStrictEqual(watcher.watchedPaths, []);
-       watcher.watchPath(tmpdir.path);
-       assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
-       watcher.clear();
-       assert.deepStrictEqual(watcher.watchedPaths, []);
-     });
+  it('should clear all watchers when calling clear', () => {
+    assert.deepStrictEqual(watcher.watchedPaths, []);
+    watcher.watchPath(tmpdir.path);
+    assert.deepStrictEqual(watcher.watchedPaths, [tmpdir.path]);
+    watcher.clear();
+    assert.deepStrictEqual(watcher.watchedPaths, []);
+  });
 
   it('should watch files from subprocess IPC events', async () => {
     const file = fixtures.path('watch-mode/ipc.js');
@@ -153,9 +145,7 @@ describe('watch mode file watcher', () => {
     watcher.watchChildProcessModules(child);
     await once(child, 'exit');
     let expected = [file, path.join(tmpdir.path, 'file')];
-    if (supportsRecursiveWatching) {
-      expected = expected.map((file) => path.dirname(file));
-    }
+    expected = expected.map((file) => path.dirname(file));
     assert.deepStrictEqual(watcher.watchedPaths, expected);
   });
 });
