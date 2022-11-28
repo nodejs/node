@@ -107,7 +107,7 @@ function globalSetting() {
 }
 
 // We need to be able to configure this for streams, as we would
-// like to call destro(err) there.
+// like to call destroy(err) there.
 function configurable() {
   const ee = new EventEmitter({ captureRejections: true });
   const _err = new Error('kaboom');
