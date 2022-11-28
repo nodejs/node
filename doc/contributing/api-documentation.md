@@ -17,9 +17,9 @@ example the latest version of the human-readable HTML is published to
 of the json documentation is published to
 [nodejs.org/api/all.json](https://nodejs.org/api/all.json)
 
-The artifacts are built as part of release builds by running the doc-upload
+The artifacts are built as part of release builds by running the [doc-upload](https://github.com/nodejs/node/blob/1a83ad6a693f851199608ae957ac5d4f76871485/Makefile#L1218-L1224)
 Makefile target as part of the release-sources part of the
-[iojs+release job](https://github.com/nodejs/node/blob/1a83ad6a693f851199608ae957ac5d4f76871485/Makefile#L1218-L1224).
+iojs+release job.
 This target runs the doc target to build the docs and then uses
 scp to copy them onto the staging/www server into a directory of the form
 `/home/staging/nodejs/<type>/<full_version>/docs` where <type> is e.g.
