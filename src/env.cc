@@ -1585,7 +1585,7 @@ void Environment::PrintInfoForSnapshotIfDebug() {
     for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
-    fprintf(stderr, "\nBuiltins modules with cache:\n");
+    fprintf(stderr, "\nBuiltins with cache:\n");
     for (const auto& s : builtins_with_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
