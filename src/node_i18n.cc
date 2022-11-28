@@ -648,7 +648,7 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
     UIDNA_CHECK_BIDI |                // CheckBidi = true
     UIDNA_CHECK_CONTEXTJ |            // CheckJoiners = true
     UIDNA_NONTRANSITIONAL_TO_ASCII;   // Nontransitional_Processing
-  if (mode == idna_mode::kSTRICT) {
+  if (mode == idna_mode::kStrict) {
     options |= UIDNA_USE_STD3_RULES;  // UseSTD3ASCIIRules = beStrict
                                       // VerifyDnsLength = beStrict;
                                       //   handled later
@@ -696,14 +696,14 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
   info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
   info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
 
-  if (mode != idna_mode::kSTRICT) {
+  if (mode != idna_mode::kStrict) {
     // VerifyDnsLength = beStrict
     info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
     info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
     info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
   }
 
-  if (U_FAILURE(status) || (mode != idna_mode::kLENIENT && info.errors != 0)) {
+  if (U_FAILURE(status) || (mode != idna_mode::kLenient && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -741,7 +741,7 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   Utf8Value val(env->isolate(), args[0]);
   // optional arg
   bool lenient = args[1]->BooleanValue(env->isolate());
-  idna_mode mode = lenient ? idna_mode::kLENIENT : idna_mode::kDEFAULT;
+  idna_mode mode = lenient ? idna_mode::kLenient : idna_mode::kDefault;
 
   MaybeStackBuffer<char> buf;
   int32_t len = ToASCII(&buf, *val, val.length(), mode);
