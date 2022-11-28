@@ -21,7 +21,7 @@ The artifacts are built as part of release builds by running the [doc-upload](ht
 Makefile target as part of the release-sources part of the
 iojs+release job.
 This target runs the doc target to build the docs and then uses
-scp to copy them onto the staging/www server into a directory of the form
+`scp` to copy them onto the staging/www server into a directory of the form
 `/home/staging/nodejs/<type>/<full_version>/docs` where <type> is e.g.
 release, nightly, etc. The promotion step (either automatic for
 nightlies or manual for releases) then moves the docs to
