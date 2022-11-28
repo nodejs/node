@@ -25,7 +25,7 @@ scp to copy them onto the staging/www server into a directory of the form
 `/home/staging/nodejs/<type>/<full_version>/docs` where <type> is e.g.
 release, nightly, etc. The promotion step (either automatic for
 nightlies or manual for releases) then moves the docs to
-/home/dist/nodejs/docs/\<full\_version> where they are served by node.org.
+`/home/dist/nodejs/docs/\<full\_version>` where they are served by node.org.
 
 **The key things to know about the tooling include:**
 
