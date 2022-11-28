@@ -44,13 +44,13 @@ void SetDefaultTimeZone(const char* tzid);
 
 enum class idna_mode {
   // Default mode for maximum compatibility.
-  IDNA_DEFAULT,
+  DEFAULT,
   // Ignore all errors in IDNA conversion, if possible.
-  IDNA_LENIENT,
+  LENIENT,
   // Enforce STD3 rules (UseSTD3ASCIIRules) and DNS length restrictions
   // (VerifyDnsLength). Corresponds to `beStrict` flag in the "domain to ASCII"
   // algorithm.
-  IDNA_STRICT
+  STRICT
 };
 
 // Implements the WHATWG URL Standard "domain to ASCII" algorithm.
@@ -58,7 +58,7 @@ enum class idna_mode {
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
                 size_t length,
-                idna_mode mode = idna_mode::IDNA_DEFAULT);
+                idna_mode mode = idna_mode::DEFAULT);
 
 // Implements the WHATWG URL Standard "domain to Unicode" algorithm.
 // https://url.spec.whatwg.org/#concept-domain-to-unicode
