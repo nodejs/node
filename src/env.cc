@@ -1581,11 +1581,11 @@ void Environment::PrintInfoForSnapshotIfDebug() {
   if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
     fprintf(stderr, "At the exit of the Environment:\n");
     principal_realm()->PrintInfoForSnapshot();
-    fprintf(stderr, "\nNative modules without cache:\n");
+    fprintf(stderr, "\nBuiltins without cache:\n");
     for (const auto& s : builtins_without_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
-    fprintf(stderr, "\nNative modules with cache:\n");
+    fprintf(stderr, "\nBuiltins with cache:\n");
     for (const auto& s : builtins_with_cache) {
       fprintf(stderr, "%s\n", s.c_str());
     }
