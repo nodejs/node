@@ -11,7 +11,7 @@ generate the following:
 1. Human-readable HTML in `out/doc/api/*.html`
 2. A JSON representation in `out/doc/api/*.json`
 
-These artifacts published to nodejs.org for multiple versions of Node.js. As an
+These artifacts are published to nodejs.org for multiple versions of Node.js. As an
 example the latest version of the human-readable HTML is published to
 [nodejs.org/en/doc](https://nodejs.org/en/docs/), and the latest version
 of the json documentation is published to
