@@ -212,6 +212,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) final;
 
   inline void GenPCRelativeJump(Register rd, int32_t imm32) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = ((imm32 + 0x800) >> 12);
     int32_t Lo12 = imm32 << 20 >> 20;
@@ -220,6 +221,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   inline void GenPCRelativeJumpAndLink(Register rd, int32_t imm32) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = ((imm32 + 0x800) >> 12);
     int32_t Lo12 = imm32 << 20 >> 20;
