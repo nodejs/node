@@ -138,6 +138,8 @@ class AsyncWrap : public BaseObject {
   static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+  inline static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);

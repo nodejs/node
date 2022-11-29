@@ -34,6 +34,7 @@ using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::ResourceConstraints;
 using v8::SealHandleScope;
 using v8::String;
@@ -876,19 +877,17 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void InitWorker(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
+void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
+                                      Local<FunctionTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
   {
     Local<FunctionTemplate> w = NewFunctionTemplate(isolate, Worker::New);
 
     w->InstanceTemplate()->SetInternalFieldCount(
         Worker::kInternalFieldCount);
-    w->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    w->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
 
     SetProtoMethod(isolate, w, "startThread", Worker::StartThread);
     SetProtoMethod(isolate, w, "stopThread", Worker::StopThread);
@@ -900,7 +899,7 @@ void InitWorker(Local<Object> target,
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
 
-    SetConstructorFunction(context, target, "Worker", w);
+    SetConstructorFunction(isolate, proto, "Worker", w);
   }
 
   {
@@ -908,15 +907,24 @@ void InitWorker(Local<Object> target,
 
     wst->InstanceTemplate()->SetInternalFieldCount(
         WorkerHeapSnapshotTaker::kInternalFieldCount);
-    wst->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
 
     Local<String> wst_string =
         FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapSnapshotTaker");
     wst->SetClassName(wst_string);
-    env->set_worker_heap_snapshot_taker_template(wst->InstanceTemplate());
+    isolate_data->set_worker_heap_snapshot_taker_template(
+        wst->InstanceTemplate());
   }
 
-  SetMethod(context, target, "getEnvMessagePort", GetEnvMessagePort);
+  SetMethod(isolate, proto, "getEnvMessagePort", GetEnvMessagePort);
+}
+
+void CreateWorkerPerContextProperties(Local<Object> target,
+                                      Local<Value> unused,
+                                      Local<Context> context,
+                                      void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
   target
       ->Set(env->context(),
@@ -969,6 +977,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace worker
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(worker, node::worker::InitWorker)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    worker, node::worker::CreateWorkerPerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(worker,
+                              node::worker::CreateWorkerPerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(worker,
                                 node::worker::RegisterExternalReferences)
