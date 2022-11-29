@@ -24,7 +24,9 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
               static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
-#define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V) V(builtins)
+#define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
+  V(builtins)                                                                  \
+  V(worker)
 
 #define NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
   static node::node_module _module = {                                         \
