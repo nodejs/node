@@ -2027,7 +2027,7 @@ added: v14.5.0
 The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
 that emulates a subset of the `EventEmitter` API.
 
-#### `nodeEventTarget.addListener(type, listener[, options])`
+#### `nodeEventTarget.addListener(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2036,9 +2036,6 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
-  * `once` {boolean}
 
 * Returns: {EventTarget} this
 
@@ -2071,7 +2068,29 @@ added: v14.5.0
 Node.js-specific extension to the `EventTarget` class that returns the number
 of event listeners registered for the `type`.
 
-#### `nodeEventTarget.off(type, listener)`
+#### `nodeEventTarget.setMaxListeners(n)`
+
+<!-- YAML
+added: v14.5.0
+-->
+
+* `n` {number}
+
+Node.js-specific extension to the `EventTarget` class that sets the number
+of max event listeners as `n`.
+
+#### `nodeEventTarget.getMaxListeners()`
+
+<!-- YAML
+added: v14.5.0
+-->
+
+* Returns: {number}
+
+Node.js-specific extension to the `EventTarget` class that returns the number
+of max event listeners.
+
+#### `nodeEventTarget.off(type, listener[, options])`
 
 <!-- YAML
 added: v14.5.0
@@ -2080,12 +2099,15 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
+
+* `options` {Object}
+  * `capture` {boolean}
 
 * Returns: {EventTarget} this
 
 Node.js-specific alias for `eventTarget.removeListener()`.
 
-#### `nodeEventTarget.on(type, listener[, options])`
+#### `nodeEventTarget.on(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2094,15 +2116,12 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
-  * `once` {boolean}
 
 * Returns: {EventTarget} this
 
 Node.js-specific alias for `eventTarget.addListener()`.
 
-#### `nodeEventTarget.once(type, listener[, options])`
+#### `nodeEventTarget.once(type, listener)`
 
 <!-- YAML
 added: v14.5.0
@@ -2111,8 +2130,6 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
-
-* `options` {Object}
 
 * Returns: {EventTarget} this
 
@@ -2134,7 +2151,7 @@ Node.js-specific extension to the `EventTarget` class. If `type` is specified,
 removes all registered listeners for `type`, otherwise removes all registered
 listeners.
 
-#### `nodeEventTarget.removeListener(type, listener)`
+#### `nodeEventTarget.removeListener(type, listener[, options])`
 
 <!-- YAML
 added: v14.5.0
@@ -2143,6 +2160,9 @@ added: v14.5.0
 * `type` {string}
 
 * `listener` {Function|EventListener}
+
+* `options` {Object}
+  * `capture` {boolean}
 
 * Returns: {EventTarget} this
 
