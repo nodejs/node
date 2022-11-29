@@ -172,7 +172,7 @@ server.listen(1337);
 // $ curl localhost:1337 -d "\"foo\""
 // string
 // $ curl localhost:1337 -d "not json"
-// error: Unexpected token o in JSON at position 1
+// error: Unexpected token 'o', "not json" is not valid JSON
 ```
 
 [`Writable`][] streams (such as `res` in the example) expose methods such as
