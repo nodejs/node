@@ -56,9 +56,13 @@ static std::atomic_int seq = {0};  // Sequence number for diagnostic filenames.
 namespace node {
 
 using v8::ArrayBufferView;
+using v8::Context;
+using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
+using v8::Object;
 using v8::String;
+using v8::Template;
 using v8::Value;
 
 template <typename T>
@@ -482,14 +486,33 @@ void SetConstructorFunction(Local<v8::Context> context,
       context, that, OneByteString(isolate, name), tmpl, flag);
 }
 
-void SetConstructorFunction(Local<v8::Context> context,
-                            Local<v8::Object> that,
-                            Local<v8::String> name,
-                            Local<v8::FunctionTemplate> tmpl,
+void SetConstructorFunction(Local<Context> context,
+                            Local<Object> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
   if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
     tmpl->SetClassName(name);
   that->Set(context, name, tmpl->GetFunction(context).ToLocalChecked()).Check();
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            const char* name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(
+      isolate, that, OneByteString(isolate, name), tmpl, flag);
+}
+
+void SetConstructorFunction(Isolate* isolate,
+                            Local<Template> that,
+                            Local<String> name,
+                            Local<FunctionTemplate> tmpl,
+                            SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
+  that->Set(name, tmpl);
 }
 
 }  // namespace node
