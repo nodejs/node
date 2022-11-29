@@ -1974,7 +1974,7 @@ Dispatches the `event` to the list of handlers for `event.type`.
 The registered event listeners is synchronously invoked in the order they
 were registered.
 
-#### `eventTarget.removeEventListener(type, listener)`
+#### `eventTarget.removeEventListener(type, listener[, options])`
 
 <!-- YAML
 added: v14.5.0
