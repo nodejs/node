@@ -258,17 +258,20 @@ class VFileMessage extends Error {
     }
     this.name = stringifyPosition(place) || '1:1';
     this.message = typeof reason === 'object' ? reason.message : reason;
-    this.stack = typeof reason === 'object' ? reason.stack : '';
+    this.stack = '';
+    if (typeof reason === 'object' && reason.stack) {
+      this.stack = reason.stack;
+    }
     this.reason = this.message;
     this.fatal;
     this.line = position.start.line;
     this.column = position.start.column;
+    this.position = position;
     this.source = parts[0];
     this.ruleId = parts[1];
-    this.position = position;
+    this.file;
     this.actual;
     this.expected;
-    this.file;
     this.url;
     this.note;
   }
@@ -7770,17 +7773,18 @@ function remarkParse(options) {
   Object.assign(this, {Parser: parser});
 }
 
-var own$4 = {}.hasOwnProperty;
+const own$4 = {}.hasOwnProperty;
 function zwitch(key, options) {
-  var settings = options || {};
-  function one(value) {
-    var fn = one.invalid;
-    var handlers = one.handlers;
+  const settings = options || {};
+  function one(value, ...parameters) {
+    let fn = one.invalid;
+    const handlers = one.handlers;
     if (value && own$4.call(value, key)) {
-      fn = own$4.call(handlers, value[key]) ? handlers[value[key]] : one.unknown;
+      const id = String(value[key]);
+      fn = own$4.call(handlers, id) ? handlers[id] : one.unknown;
     }
     if (fn) {
-      return fn.apply(this, arguments)
+      return fn.call(this, value, ...parameters)
     }
   }
   one.handlers = settings.handlers || {};
@@ -7948,14 +7952,14 @@ function hardBreak(_, _1, context, safe) {
   return '\\\n'
 }
 
-function longestStreak(value, character) {
+function longestStreak(value, substring) {
   const source = String(value);
-  let index = source.indexOf(character);
+  let index = source.indexOf(substring);
   let expected = index;
   let count = 0;
   let max = 0;
-  if (typeof character !== 'string' || character.length !== 1) {
-    throw new Error('Expected character')
+  if (typeof substring !== 'string') {
+    throw new TypeError('Expected substring')
   }
   while (index !== -1) {
     if (index === expected) {
@@ -7965,8 +7969,8 @@ function longestStreak(value, character) {
     } else {
       count = 1;
     }
-    expected = index + 1;
-    index = source.indexOf(character, expected);
+    expected = index + substring.length;
+    index = source.indexOf(substring, expected);
   }
   return max
 }
