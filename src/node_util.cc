@@ -265,6 +265,13 @@ void WeakReference::Get(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
 }
 
+void WeakReference::GetRef(const FunctionCallbackInfo<Value>& args) {
+  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
+  Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(
+      v8::Number::New(isolate, weak_ref->reference_count_));
+}
+
 void WeakReference::IncRef(const FunctionCallbackInfo<Value>& args) {
   WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
   weak_ref->reference_count_++;
@@ -361,6 +368,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(WeakReference::New);
   registry->Register(WeakReference::Get);
+  registry->Register(WeakReference::GetRef);
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
@@ -464,6 +472,7 @@ void Initialize(Local<Object> target,
       WeakReference::kInternalFieldCount);
   weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   SetProtoMethod(isolate, weak_ref, "get", WeakReference::Get);
+  SetProtoMethod(isolate, weak_ref, "getRef", WeakReference::GetRef);
   SetProtoMethod(isolate, weak_ref, "incRef", WeakReference::IncRef);
   SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);
   SetConstructorFunction(context, target, "WeakReference", weak_ref);
