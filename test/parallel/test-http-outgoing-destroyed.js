@@ -48,9 +48,7 @@ const assert = require('assert');
         port: server.address().port,
         method: 'PUT'
       })
-      .on('response', (res) => {
-        res.destroy();
-      })
+      .on('error', common.mustCall())
       .write('asd');
   });
 
