@@ -464,6 +464,7 @@
         'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'sources': [
