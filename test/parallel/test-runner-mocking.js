@@ -318,7 +318,7 @@ test('spy functions can be bound', (t) => {
   assert.strictEqual(sum.mock.restore(), undefined);
   assert.strictEqual(sum.bind(0)(2, 11), 13);
 });
-test('spies on async class functions', async (t) => {
+test('mocks prototype methods on an instance', async (t) => {
   class Runner {
     async someTask(msg) {
       return Promise.resolve(msg);
@@ -350,7 +350,7 @@ test('spies on async class functions', async (t) => {
   assert.strictEqual(obj.someTask.mock, undefined);
 });
 
-test('spies on async class static functions', async (t) => {
+test('spies on async static class methods', async (t) => {
   class Runner {
     static async someTask(msg) {
       return Promise.resolve(msg);
