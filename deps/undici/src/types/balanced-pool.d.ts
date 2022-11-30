@@ -1,9 +1,8 @@
-import Client = require('./client')
-import Pool = require('./pool')
-import Dispatcher = require('./dispatcher')
+import Pool from './pool'
+import Dispatcher from './dispatcher'
 import { URL } from 'url'
 
-export = BalancedPool
+export default BalancedPool
 
 declare class BalancedPool extends Dispatcher {
   constructor(url: string | URL | string[], options?: Pool.Options);

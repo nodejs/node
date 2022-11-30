@@ -2,7 +2,7 @@
 
 const Busboy = require('busboy')
 const util = require('../core/util')
-const { ReadableStreamFrom, toUSVString, isBlobLike, isReadableStreamLike, readableStreamClose } = require('./util')
+const { ReadableStreamFrom, isBlobLike, isReadableStreamLike, readableStreamClose } = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
@@ -66,9 +66,13 @@ function extractBody (object, keepalive = false) {
   let type = null
 
   // 10. Switch on object:
-  if (object == null) {
-    // Note: The IDL processor cannot handle this situation. See
-    // https://crbug.com/335871.
+  if (typeof object === 'string') {
+    // Set source to the UTF-8 encoding of object.
+    // Note: setting source to a Uint8Array here breaks some mocking assumptions.
+    source = object
+
+    // Set type to `text/plain;charset=UTF-8`.
+    type = 'text/plain;charset=UTF-8'
   } else if (object instanceof URLSearchParams) {
     // URLSearchParams
 
@@ -126,7 +130,8 @@ function extractBody (object, keepalive = false) {
 
           yield * value.stream()
 
-          yield enc.encode('\r\n')
+          // '\r\n' encoded
+          yield new Uint8Array([13, 10])
         }
       }
 
@@ -157,6 +162,11 @@ function extractBody (object, keepalive = false) {
     if (object.type) {
       type = object.type
     }
+  } else if (object instanceof Uint8Array) {
+    // byte sequence
+
+    // Set source to object.
+    source = object
   } else if (typeof object[Symbol.asyncIterator] === 'function') {
     // If keepalive is true, then throw a TypeError.
     if (keepalive) {
@@ -172,17 +182,10 @@ function extractBody (object, keepalive = false) {
 
     stream =
       object instanceof ReadableStream ? object : ReadableStreamFrom(object)
-  } else {
-    // TODO: byte sequence?
-    // TODO: scalar value string?
-    // TODO: else?
-    source = toUSVString(object)
-    type = 'text/plain;charset=UTF-8'
   }
 
   // 11. If source is a byte sequence, then set action to a
   // step that returns source and length to source’s length.
-  // TODO: What is a "byte sequence?"
   if (typeof source === 'string' || util.isBuffer(source)) {
     length = Buffer.byteLength(source)
   }
@@ -329,9 +332,7 @@ function bodyMixinMethods (instance) {
     },
 
     async formData () {
-      if (!(this instanceof instance)) {
-        throw new TypeError('Illegal invocation')
-      }
+      webidl.brandCheck(this, instance)
 
       throwIfAborted(this[kState])
 
@@ -433,7 +434,7 @@ function bodyMixinMethods (instance) {
         throwIfAborted(this[kState])
 
         // Otherwise, throw a TypeError.
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: `${instance.name}.formData`,
           message: 'Could not parse content as FormData.'
         })
@@ -450,11 +451,8 @@ function mixinBody (prototype) {
 
 // https://fetch.spec.whatwg.org/#concept-body-consume-body
 async function specConsumeBody (object, type, instance) {
-  if (!(object instanceof instance)) {
-    throw new TypeError('Illegal invocation')
-  }
+  webidl.brandCheck(object, instance)
 
-  // TODO: why is this needed?
   throwIfAborted(object[kState])
 
   // 1. If object is unusable, then return a promise rejected

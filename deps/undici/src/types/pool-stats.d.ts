@@ -1,6 +1,6 @@
-import Pool = require("./pool")
+import Pool from "./pool"
 
-export = PoolStats
+export default PoolStats
 
 declare class PoolStats {
   constructor(pool: Pool);

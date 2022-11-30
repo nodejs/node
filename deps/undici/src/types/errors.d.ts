@@ -1,7 +1,7 @@
 import {IncomingHttpHeaders} from "http";
+import Client from './client'
 
-export = Errors
-import { SocketInfo } from './client'
+export default Errors
 
 declare namespace Errors {
   export class UndiciError extends Error { }
@@ -79,7 +79,7 @@ declare namespace Errors {
   export class SocketError extends UndiciError {
     name: 'SocketError';
     code: 'UND_ERR_SOCKET';
-    socket: SocketInfo | null
+    socket: Client.SocketInfo | null
   }
 
   /** Encountered unsupported functionality. */

@@ -13,9 +13,7 @@ class File extends Blob {
     // The File constructor is invoked with two or three parameters, depending
     // on whether the optional dictionary parameter is used. When the File()
     // constructor is invoked, user agents must run the following steps:
-    if (arguments.length < 2) {
-      throw new TypeError('2 arguments required')
-    }
+    webidl.argumentLengthCheck(arguments, 2, { header: 'File constructor' })
 
     fileBits = webidl.converters['sequence<BlobPart>'](fileBits)
     fileName = webidl.converters.USVString(fileName)
@@ -76,31 +74,21 @@ class File extends Blob {
   }
 
   get name () {
-    if (!(this instanceof File)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, File)
 
     return this[kState].name
   }
 
   get lastModified () {
-    if (!(this instanceof File)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, File)
 
     return this[kState].lastModified
   }
 
   get type () {
-    if (!(this instanceof File)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, File)
 
     return this[kState].type
-  }
-
-  get [Symbol.toStringTag] () {
-    return this.constructor.name
   }
 }
 
@@ -153,65 +141,49 @@ class FileLike {
   }
 
   stream (...args) {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.stream(...args)
   }
 
   arrayBuffer (...args) {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.arrayBuffer(...args)
   }
 
   slice (...args) {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.slice(...args)
   }
 
   text (...args) {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.text(...args)
   }
 
   get size () {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.size
   }
 
   get type () {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].blobLike.type
   }
 
   get name () {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].name
   }
 
   get lastModified () {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileLike)
 
     return this[kState].lastModified
   }
@@ -222,6 +194,10 @@ class FileLike {
 }
 
 Object.defineProperties(File.prototype, {
+  [Symbol.toStringTag]: {
+    value: 'File',
+    configurable: true
+  },
   name: kEnumerableProperty,
   lastModified: kEnumerableProperty
 })
