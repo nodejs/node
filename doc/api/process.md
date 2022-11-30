@@ -1719,10 +1719,10 @@ changes:
   integer strings (e.g.,'1') are allowed. **Default:** `0`.
 
 The `process.exit()` method instructs Node.js to terminate the process
-synchronously with an exit status of `code`. If `code` is omitted, exit uses
-either the 'success' code `0` or the value of `process.exitCode` if it has been
-set. Node.js will not terminate until all the [`'exit'`][] event listeners are
-called.
+synchronously with an exit status of `code`. If `code` is `null`, `undefined`,
+or omitted, exit uses either the 'success' code `0` or the value of
+`process.exitCode` if it has been set. Node.js will not terminate until all the
+[`'exit'`][] event listeners are called.
 
 To exit with a 'failure' code:
 
@@ -1830,8 +1830,9 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
-previous setting of `process.exitCode`.
+Specifying a code (except `null` or `undefined`) to
+[`process.exit(code)`][`process.exit()`] will override any previous setting of
+`process.exitCode`.
 
 ## `process.getActiveResourcesInfo()`
 
