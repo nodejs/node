@@ -318,6 +318,7 @@ test('spy functions can be bound', (t) => {
   assert.strictEqual(sum.mock.restore(), undefined);
   assert.strictEqual(sum.bind(0)(2, 11), 13);
 });
+
 test('mocks prototype methods on an instance', async (t) => {
   class Runner {
     async someTask(msg) {
@@ -344,6 +345,13 @@ test('mocks prototype methods on an instance', async (t) => {
   assert.strictEqual(await call.result, msg);
   assert.strictEqual(call.target, undefined);
   assert.strictEqual(call.this, obj);
+
+  const obj2 = new Runner();
+  // Ensure that a brand new instance is not mocked
+  assert.strictEqual(
+    obj2.someTask.mock,
+    undefined
+  );
 
   assert.strictEqual(obj.someTask.mock.restore(), undefined);
   assert.strictEqual(await obj.method(msg), msg);
@@ -379,6 +387,42 @@ test('spies on async static class methods', async (t) => {
   assert.strictEqual(Runner.someTask.mock.restore(), undefined);
   assert.strictEqual(await Runner.method(msg), msg);
   assert.strictEqual(Runner.someTask.mock, undefined);
+});
+
+test('given null to a mock.method it throws a invalid argument error', (t) => {
+  assert.throws(() => t.mock.method(null, {}), /ERR_INVALID_ARG_TYPE/);
+});
+
+test('spy functions can be used on classes inheritance', (t) => {
+  class A {
+    static someTask(msg) {
+      return msg;
+    }
+    static method(msg) {
+      return this.someTask(msg);
+    }
+  }
+  class B extends A {}
+  class C extends B {}
+
+  const msg = 'ok';
+  assert.strictEqual(C.method(msg), msg);
+
+  t.mock.method(C, C.someTask.name);
+  assert.strictEqual(C.someTask.mock.calls.length, 0);
+
+  assert.strictEqual(C.method(msg), msg);
+
+  const call = C.someTask.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [msg]);
+  assert.strictEqual(call.result, msg);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, C);
+
+  assert.strictEqual(C.someTask.mock.restore(), undefined);
+  assert.strictEqual(C.method(msg), msg);
+  assert.strictEqual(C.someTask.mock, undefined);
 });
 
 test('mocked functions report thrown errors', (t) => {
