@@ -469,8 +469,7 @@ changes:
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
@@ -486,8 +485,7 @@ changes:
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {FormData}.
 
@@ -518,8 +516,7 @@ changes:
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Headers}.
 
@@ -755,8 +752,7 @@ changes:
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Response}.
 
@@ -772,8 +768,7 @@ changes:
     description: No longer behind `--experimental-global-fetch` CLI flag.
 -->
 
-> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
-> CLI flag.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Request}.
 
@@ -971,7 +966,6 @@ added: v18.0.0
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
 [Web Crypto API]: webcrypto.md
-[`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
