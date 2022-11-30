@@ -18,6 +18,7 @@ $ node inspect myscript.js
 < Debugger listening on ws://127.0.0.1:9229/621111f9-ffcb-4e82-b718-48a145fa5db8
 < For help, see: https://nodejs.org/en/docs/inspector
 <
+connecting to 127.0.0.1:9229 ... ok
 < Debugger attached.
 <
  ok
@@ -132,9 +133,9 @@ $ node inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/48a5b28a-550c-471b-b5e1-d13dd7165df9
 < For help, see: https://nodejs.org/en/docs/inspector
 <
+connecting to 127.0.0.1:9229 ... ok
 < Debugger attached.
 <
- ok
 Break on start in main.js:1
 > 1 const mod = require('./mod.js');
   2 mod.hello();
@@ -158,6 +159,8 @@ given expression evaluates to `true`:
 $ node inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/ce24daa8-3816-44d4-b8ab-8273c8a66d35
 < For help, see: https://nodejs.org/en/docs/inspector
+<
+connecting to 127.0.0.1:9229 ... ok
 < Debugger attached.
 Break on start in main.js:7
   5 }
