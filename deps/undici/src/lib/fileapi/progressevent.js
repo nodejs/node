@@ -22,25 +22,19 @@ class ProgressEvent extends Event {
   }
 
   get lengthComputable () {
-    if (!(this instanceof ProgressEvent)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, ProgressEvent)
 
     return this[kState].lengthComputable
   }
 
   get loaded () {
-    if (!(this instanceof ProgressEvent)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, ProgressEvent)
 
     return this[kState].loaded
   }
 
   get total () {
-    if (!(this instanceof ProgressEvent)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, ProgressEvent)
 
     return this[kState].total
   }

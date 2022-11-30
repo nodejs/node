@@ -1,13 +1,7 @@
 "use strict";
-var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __publicField = (obj, key, value) => {
-  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  return value;
 };
 
 // lib/core/symbols.js
@@ -590,103 +584,6 @@ var require_constants = __commonJS({
     var corsSafeListedMethods = ["GET", "HEAD", "POST"];
     var nullBodyStatus = [101, 204, 205, 304];
     var redirectStatus = [301, 302, 303, 307, 308];
-    var referrerPolicy = [
-      "",
-      "no-referrer",
-      "no-referrer-when-downgrade",
-      "same-origin",
-      "origin",
-      "strict-origin",
-      "origin-when-cross-origin",
-      "strict-origin-when-cross-origin",
-      "unsafe-url"
-    ];
-    var requestRedirect = ["follow", "manual", "error"];
-    var safeMethods = ["GET", "HEAD", "OPTIONS", "TRACE"];
-    var requestMode = ["navigate", "same-origin", "no-cors", "cors"];
-    var requestCredentials = ["omit", "same-origin", "include"];
-    var requestCache = [
-      "default",
-      "no-store",
-      "reload",
-      "no-cache",
-      "force-cache",
-      "only-if-cached"
-    ];
-    var requestBodyHeader = [
-      "content-encoding",
-      "content-language",
-      "content-location",
-      "content-type"
-    ];
-    var forbiddenMethods = ["CONNECT", "TRACE", "TRACK"];
-    var subresource = [
-      "audio",
-      "audioworklet",
-      "font",
-      "image",
-      "manifest",
-      "paintworklet",
-      "script",
-      "style",
-      "track",
-      "video",
-      "xslt",
-      ""
-    ];
-    var DOMException = globalThis.DOMException ?? (() => {
-      try {
-        atob("~");
-      } catch (err) {
-        return Object.getPrototypeOf(err).constructor;
-      }
-    })();
-    var channel;
-    var structuredClone = globalThis.structuredClone ?? function structuredClone2(value, options = void 0) {
-      if (arguments.length === 0) {
-        throw new TypeError("missing argument");
-      }
-      if (!channel) {
-        channel = new MessageChannel();
-      }
-      channel.port1.unref();
-      channel.port2.unref();
-      channel.port1.postMessage(value, options?.transfer);
-      return receiveMessageOnPort(channel.port2).message;
-    };
-    module2.exports = {
-      DOMException,
-      structuredClone,
-      subresource,
-      forbiddenMethods,
-      requestBodyHeader,
-      referrerPolicy,
-      requestRedirect,
-      requestMode,
-      requestCredentials,
-      requestCache,
-      redirectStatus,
-      corsSafeListedMethods,
-      nullBodyStatus,
-      safeMethods
-    };
-  }
-});
-
-// lib/fetch/util.js
-var require_util2 = __commonJS({
-  "lib/fetch/util.js"(exports2, module2) {
-    "use strict";
-    var { redirectStatus } = require_constants();
-    var { performance: performance2 } = require("perf_hooks");
-    var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
-    var assert = require("assert");
-    var { isUint8Array } = require("util/types");
-    var crypto;
-    try {
-      crypto = require("crypto");
-    } catch {
-    }
     var badPorts = [
       "1",
       "7",
@@ -769,6 +666,108 @@ var require_util2 = __commonJS({
       "6697",
       "10080"
     ];
+    var referrerPolicy = [
+      "",
+      "no-referrer",
+      "no-referrer-when-downgrade",
+      "same-origin",
+      "origin",
+      "strict-origin",
+      "origin-when-cross-origin",
+      "strict-origin-when-cross-origin",
+      "unsafe-url"
+    ];
+    var requestRedirect = ["follow", "manual", "error"];
+    var safeMethods = ["GET", "HEAD", "OPTIONS", "TRACE"];
+    var requestMode = ["navigate", "same-origin", "no-cors", "cors"];
+    var requestCredentials = ["omit", "same-origin", "include"];
+    var requestCache = [
+      "default",
+      "no-store",
+      "reload",
+      "no-cache",
+      "force-cache",
+      "only-if-cached"
+    ];
+    var requestBodyHeader = [
+      "content-encoding",
+      "content-language",
+      "content-location",
+      "content-type"
+    ];
+    var requestDuplex = [
+      "half"
+    ];
+    var forbiddenMethods = ["CONNECT", "TRACE", "TRACK"];
+    var subresource = [
+      "audio",
+      "audioworklet",
+      "font",
+      "image",
+      "manifest",
+      "paintworklet",
+      "script",
+      "style",
+      "track",
+      "video",
+      "xslt",
+      ""
+    ];
+    var DOMException = globalThis.DOMException ?? (() => {
+      try {
+        atob("~");
+      } catch (err) {
+        return Object.getPrototypeOf(err).constructor;
+      }
+    })();
+    var channel;
+    var structuredClone = globalThis.structuredClone ?? function structuredClone2(value, options = void 0) {
+      if (arguments.length === 0) {
+        throw new TypeError("missing argument");
+      }
+      if (!channel) {
+        channel = new MessageChannel();
+      }
+      channel.port1.unref();
+      channel.port2.unref();
+      channel.port1.postMessage(value, options?.transfer);
+      return receiveMessageOnPort(channel.port2).message;
+    };
+    module2.exports = {
+      DOMException,
+      structuredClone,
+      subresource,
+      forbiddenMethods,
+      requestBodyHeader,
+      referrerPolicy,
+      requestRedirect,
+      requestMode,
+      requestCredentials,
+      requestCache,
+      redirectStatus,
+      corsSafeListedMethods,
+      nullBodyStatus,
+      safeMethods,
+      badPorts,
+      requestDuplex
+    };
+  }
+});
+
+// lib/fetch/util.js
+var require_util2 = __commonJS({
+  "lib/fetch/util.js"(exports2, module2) {
+    "use strict";
+    var { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require_constants();
+    var { performance: performance2 } = require("perf_hooks");
+    var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
+    var assert = require("assert");
+    var { isUint8Array } = require("util/types");
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
     function responseURL(response) {
       const urlList = response.urlList;
       const length = urlList.length;
@@ -826,12 +825,7 @@ var require_util2 = __commonJS({
       if (potentialValue.length === 0) {
         return false;
       }
-      for (const char of potentialValue) {
-        if (!isValidHTTPToken(char)) {
-          return false;
-        }
-      }
-      return true;
+      return isValidHTTPToken(potentialValue);
     }
     function isValidHeaderValue(potentialValue) {
       if (potentialValue.startsWith("	") || potentialValue.startsWith(" ") || potentialValue.endsWith("	") || potentialValue.endsWith(" ")) {
@@ -843,7 +837,18 @@ var require_util2 = __commonJS({
       return true;
     }
     function setRequestReferrerPolicyOnRedirect(request, actualResponse) {
-      const policy = "";
+      const { headersList } = actualResponse;
+      const policyHeader = (headersList.get("referrer-policy") ?? "").split(",");
+      let policy = "";
+      if (policyHeader.length > 0) {
+        for (let i = policyHeader.length; i !== 0; i--) {
+          const token = policyHeader[i - 1].trim();
+          if (referrerPolicyTokens.includes(token)) {
+            policy = token;
+            break;
+          }
+        }
+      }
       if (policy !== "") {
         request.referrerPolicy = policy;
       }
@@ -1152,6 +1157,13 @@ var require_util2 = __commonJS({
       }
       return stream instanceof ReadableStream || stream[Symbol.toStringTag] === "ReadableStream" && typeof stream.tee === "function";
     }
+    function isomorphicDecode(input) {
+      let output = "";
+      for (let i = 0; i < input.length; i++) {
+        output += String.fromCharCode(input[i]);
+      }
+      return output;
+    }
     function readableStreamClose(controller) {
       try {
         controller.close();
@@ -1160,6 +1172,12 @@ var require_util2 = __commonJS({
           throw err;
         }
       }
+    }
+    function isomorphicEncode(input) {
+      for (let i = 0; i < input.length; i++) {
+        assert(input.charCodeAt(i) <= 255);
+      }
+      return input;
     }
     var hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key));
     module2.exports = {
@@ -1199,7 +1217,9 @@ var require_util2 = __commonJS({
       fullyReadBody,
       bytesMatch,
       isReadableStreamLike,
-      readableStreamClose
+      readableStreamClose,
+      isomorphicEncode,
+      isomorphicDecode
     };
   }
 });
@@ -1215,7 +1235,7 @@ var require_webidl = __commonJS({
     webidl.util = {};
     webidl.errors = {};
     webidl.errors.exception = function(message) {
-      throw new TypeError(`${message.header}: ${message.message}`);
+      return new TypeError(`${message.header}: ${message.message}`);
     };
     webidl.errors.conversionFailed = function(context) {
       const plural = context.types.length === 1 ? "" : " one of";
@@ -1230,6 +1250,19 @@ var require_webidl = __commonJS({
         header: context.prefix,
         message: `"${context.value}" is an invalid ${context.type}.`
       });
+    };
+    webidl.brandCheck = function(V, I) {
+      if (!(V instanceof I)) {
+        throw new TypeError("Illegal invocation");
+      }
+    };
+    webidl.argumentLengthCheck = function({ length }, min, ctx) {
+      if (length < min) {
+        throw webidl.errors.exception({
+          message: `${min} argument${min !== 1 ? "s" : ""} required, but${length ? " only" : ""} ${length} found.`,
+          ...ctx
+        });
+      }
     };
     webidl.util.Type = function(V) {
       switch (typeof V) {
@@ -1272,19 +1305,19 @@ var require_webidl = __commonJS({
         upperBound = Math.pow(2, bitLength - 1) - 1;
       }
       let x = Number(V);
-      if (Object.is(-0, x)) {
+      if (x === 0) {
         x = 0;
       }
       if (opts.enforceRange === true) {
         if (Number.isNaN(x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Integer conversion",
             message: `Could not convert ${V} to an integer.`
           });
         }
         x = webidl.util.IntegerPart(x);
         if (x < lowerBound || x > upperBound) {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Integer conversion",
             message: `Value must be between ${lowerBound}-${upperBound}, got ${x}.`
           });
@@ -1300,7 +1333,7 @@ var require_webidl = __commonJS({
         }
         return x;
       }
-      if (Number.isNaN(x) || Object.is(0, x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
+      if (Number.isNaN(x) || x === 0 && Object.is(0, x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
         return 0;
       }
       x = webidl.util.IntegerPart(x);
@@ -1320,7 +1353,7 @@ var require_webidl = __commonJS({
     webidl.sequenceConverter = function(converter) {
       return (V) => {
         if (webidl.util.Type(V) !== "Object") {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Sequence",
             message: `Value of type ${webidl.util.Type(V)} is not an Object.`
           });
@@ -1328,7 +1361,7 @@ var require_webidl = __commonJS({
         const method = V?.[Symbol.iterator]?.();
         const seq = [];
         if (method === void 0 || typeof method.next !== "function") {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Sequence",
             message: "Object is not an iterator."
           });
@@ -1346,7 +1379,7 @@ var require_webidl = __commonJS({
     webidl.recordConverter = function(keyConverter, valueConverter) {
       return (O) => {
         if (webidl.util.Type(O) !== "Object") {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Record",
             message: `Value of type ${webidl.util.Type(O)} is not an Object.`
           });
@@ -1376,7 +1409,7 @@ var require_webidl = __commonJS({
     webidl.interfaceConverter = function(i) {
       return (V, opts = {}) => {
         if (opts.strict !== false && !(V instanceof i)) {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: i.name,
             message: `Expected ${V} to be an instance of ${i.name}.`
           });
@@ -1391,7 +1424,7 @@ var require_webidl = __commonJS({
         if (type === "Null" || type === "Undefined") {
           return dict;
         } else if (type !== "Object") {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Dictionary",
             message: `Expected ${dictionary} to be one of: Null, Undefined, Object.`
           });
@@ -1400,7 +1433,7 @@ var require_webidl = __commonJS({
           const { key, defaultValue, required, converter } = options;
           if (required === true) {
             if (!hasOwn(dictionary, key)) {
-              webidl.errors.exception({
+              throw webidl.errors.exception({
                 header: "Dictionary",
                 message: `Missing required key "${key}".`
               });
@@ -1414,7 +1447,7 @@ var require_webidl = __commonJS({
           if (required || hasDefault || value !== void 0) {
             value = converter(value);
             if (options.allowedValues && !options.allowedValues.includes(value)) {
-              webidl.errors.exception({
+              throw webidl.errors.exception({
                 header: "Dictionary",
                 message: `${value} is not an accepted type. Expected one of ${options.allowedValues.join(", ")}.`
               });
@@ -1460,8 +1493,8 @@ var require_webidl = __commonJS({
     webidl.converters.any = function(V) {
       return V;
     };
-    webidl.converters["long long"] = function(V, opts) {
-      const x = webidl.util.ConvertToInt(V, 64, "signed", opts);
+    webidl.converters["long long"] = function(V) {
+      const x = webidl.util.ConvertToInt(V, 64, "signed");
       return x;
     };
     webidl.converters["unsigned long long"] = function(V) {
@@ -1474,14 +1507,14 @@ var require_webidl = __commonJS({
     };
     webidl.converters.ArrayBuffer = function(V, opts = {}) {
       if (webidl.util.Type(V) !== "Object" || !types.isAnyArrayBuffer(V)) {
-        webidl.errors.conversionFailed({
+        throw webidl.errors.conversionFailed({
           prefix: `${V}`,
           argument: `${V}`,
           types: ["ArrayBuffer"]
         });
       }
       if (opts.allowShared === false && types.isSharedArrayBuffer(V)) {
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: "ArrayBuffer",
           message: "SharedArrayBuffer is not allowed."
         });
@@ -1490,14 +1523,14 @@ var require_webidl = __commonJS({
     };
     webidl.converters.TypedArray = function(V, T, opts = {}) {
       if (webidl.util.Type(V) !== "Object" || !types.isTypedArray(V) || V.constructor.name !== T.name) {
-        webidl.errors.conversionFailed({
+        throw webidl.errors.conversionFailed({
           prefix: `${T.name}`,
           argument: `${V}`,
           types: [T.name]
         });
       }
       if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: "ArrayBuffer",
           message: "SharedArrayBuffer is not allowed."
         });
@@ -1506,13 +1539,13 @@ var require_webidl = __commonJS({
     };
     webidl.converters.DataView = function(V, opts = {}) {
       if (webidl.util.Type(V) !== "Object" || !types.isDataView(V)) {
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: "DataView",
           message: "Object is not a DataView."
         });
       }
       if (opts.allowShared === false && types.isSharedArrayBuffer(V.buffer)) {
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: "ArrayBuffer",
           message: "SharedArrayBuffer is not allowed."
         });
@@ -1562,7 +1595,7 @@ var require_headers = __commonJS({
       if (Array.isArray(object)) {
         for (const header of object) {
           if (header.length !== 2) {
-            webidl.errors.exception({
+            throw webidl.errors.exception({
               header: "Headers constructor",
               message: `expected name/value pair to be length 2, found ${header.length}.`
             });
@@ -1574,7 +1607,7 @@ var require_headers = __commonJS({
           headers.append(key, value);
         }
       } else {
-        webidl.errors.conversionFailed({
+        throw webidl.errors.conversionFailed({
           prefix: "Headers constructor",
           argument: "Argument 1",
           types: ["sequence<sequence<ByteString>>", "record<ByteString, ByteString>"]
@@ -1620,15 +1653,10 @@ var require_headers = __commonJS({
         return this[kHeadersMap].delete(name);
       }
       get(name) {
-        name = name.toLowerCase();
         if (!this.contains(name)) {
           return null;
         }
-        return this[kHeadersMap].get(name) ?? null;
-      }
-      has(name) {
-        name = name.toLowerCase();
-        return this[kHeadersMap].has(name);
+        return this[kHeadersMap].get(name.toLowerCase()) ?? null;
       }
       *[Symbol.iterator]() {
         for (const pair of this[kHeadersMap]) {
@@ -1645,27 +1673,20 @@ var require_headers = __commonJS({
           fill(this, init);
         }
       }
-      get [Symbol.toStringTag]() {
-        return this.constructor.name;
-      }
       append(name, value) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 2, { header: "Headers.append" });
         name = webidl.converters.ByteString(name);
         value = webidl.converters.ByteString(value);
         value = headerValueNormalize(value);
         if (!isValidHeaderName(name)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.append",
             value: name,
             type: "header name"
           });
         } else if (!isValidHeaderValue(value)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.append",
             value,
             type: "header value"
@@ -1678,15 +1699,11 @@ var require_headers = __commonJS({
         return this[kHeadersList].append(name, value);
       }
       delete(name) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.delete" });
         name = webidl.converters.ByteString(name);
         if (!isValidHeaderName(name)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.delete",
             value: name,
             type: "header name"
@@ -1702,15 +1719,11 @@ var require_headers = __commonJS({
         return this[kHeadersList].delete(name);
       }
       get(name) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.get" });
         name = webidl.converters.ByteString(name);
         if (!isValidHeaderName(name)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.get",
             value: name,
             type: "header name"
@@ -1719,15 +1732,11 @@ var require_headers = __commonJS({
         return this[kHeadersList].get(name);
       }
       has(name) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.has" });
         name = webidl.converters.ByteString(name);
         if (!isValidHeaderName(name)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.has",
             value: name,
             type: "header name"
@@ -1736,23 +1745,19 @@ var require_headers = __commonJS({
         return this[kHeadersList].contains(name);
       }
       set(name, value) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 2, { header: "Headers.set" });
         name = webidl.converters.ByteString(name);
         value = webidl.converters.ByteString(value);
         value = headerValueNormalize(value);
         if (!isValidHeaderName(name)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.set",
             value: name,
             type: "header name"
           });
         } else if (!isValidHeaderValue(value)) {
-          webidl.errors.invalidArgument({
+          throw webidl.errors.invalidArgument({
             prefix: "Headers.set",
             value,
             type: "header value"
@@ -1771,30 +1776,20 @@ var require_headers = __commonJS({
         return this[kHeadersList][kHeadersSortedMap];
       }
       keys() {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Headers);
         return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "key");
       }
       values() {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Headers);
         return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "value");
       }
       entries() {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Headers);
         return makeIterator(() => [...this[kHeadersSortedMap].entries()], "Headers", "key+value");
       }
       forEach(callbackFn, thisArg = globalThis) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.forEach" });
         if (typeof callbackFn !== "function") {
           throw new TypeError("Failed to execute 'forEach' on 'Headers': parameter 1 is not of type 'Function'.");
         }
@@ -1803,9 +1798,7 @@ var require_headers = __commonJS({
         }
       }
       [Symbol.for("nodejs.util.inspect.custom")]() {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Headers);
         return this[kHeadersList];
       }
     };
@@ -1820,7 +1813,11 @@ var require_headers = __commonJS({
       values: kEnumerableProperty,
       entries: kEnumerableProperty,
       forEach: kEnumerableProperty,
-      [Symbol.iterator]: { enumerable: false }
+      [Symbol.iterator]: { enumerable: false },
+      [Symbol.toStringTag]: {
+        value: "Headers",
+        configurable: true
+      }
     });
     webidl.converters.HeadersInit = function(V) {
       if (webidl.util.Type(V) === "Object") {
@@ -1829,7 +1826,7 @@ var require_headers = __commonJS({
         }
         return webidl.converters["record<ByteString, ByteString>"](V);
       }
-      webidl.errors.conversionFailed({
+      throw webidl.errors.conversionFailed({
         prefix: "Headers constructor",
         argument: "Argument 1",
         types: ["sequence<sequence<ByteString>>", "record<ByteString, ByteString>"]
@@ -5541,7 +5538,8 @@ var require_dataURL = __commonJS({
   "lib/fetch/dataURL.js"(exports2, module2) {
     var assert = require("assert");
     var { atob: atob2 } = require("buffer");
-    var { isValidHTTPToken } = require_util2();
+    var { format } = require("url");
+    var { isValidHTTPToken, isomorphicDecode } = require_util2();
     var encoder = new TextEncoder();
     function dataURLProcessor(dataURL) {
       assert(dataURL.protocol === "data:");
@@ -5558,7 +5556,7 @@ var require_dataURL = __commonJS({
       const encodedBody = input.slice(mimeTypeLength + 1);
       let body = stringPercentDecode(encodedBody);
       if (/;(\u0020){0,}base64$/i.test(mimeType)) {
-        const stringBody = decodeURIComponent(new TextDecoder("utf-8").decode(body));
+        const stringBody = isomorphicDecode(body);
         body = forgivingBase64(stringBody);
         if (body === "failure") {
           return "failure";
@@ -5577,32 +5575,7 @@ var require_dataURL = __commonJS({
       return { mimeType: mimeTypeRecord, body };
     }
     function URLSerializer(url, excludeFragment = false) {
-      let output = url.protocol;
-      if (url.host.length > 0) {
-        output += "//";
-        if (url.username.length > 0 || url.password.length > 0) {
-          output += url.username;
-          if (url.password.length > 0) {
-            output += ":" + url.password;
-          }
-          output += "@";
-        }
-        output += decodeURIComponent(url.hostname);
-        if (url.port.length > 0) {
-          output += ":" + url.port;
-        }
-      }
-      if (url.host.length === 0 && url.pathname.length > 1 && url.href.slice(url.protocol.length + 1)[0] === ".") {
-        output += "/.";
-      }
-      output += url.pathname;
-      if (url.search.length > 0) {
-        output += url.search;
-      }
-      if (excludeFragment === false && url.hash.length > 0) {
-        output += url.hash;
-      }
-      return output;
+      return format(url, { fragment: !excludeFragment });
     }
     function collectASequenceOfCodePoints(condition, input, position) {
       let result = "";
@@ -5777,9 +5750,7 @@ var require_file = __commonJS({
     var { kEnumerableProperty } = require_util();
     var File = class extends Blob {
       constructor(fileBits, fileName, options = {}) {
-        if (arguments.length < 2) {
-          throw new TypeError("2 arguments required");
-        }
+        webidl.argumentLengthCheck(arguments, 2, { header: "File constructor" });
         fileBits = webidl.converters["sequence<BlobPart>"](fileBits);
         fileName = webidl.converters.USVString(fileName);
         options = webidl.converters.FilePropertyBag(options);
@@ -5805,25 +5776,16 @@ var require_file = __commonJS({
         };
       }
       get name() {
-        if (!(this instanceof File)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, File);
         return this[kState].name;
       }
       get lastModified() {
-        if (!(this instanceof File)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, File);
         return this[kState].lastModified;
       }
       get type() {
-        if (!(this instanceof File)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, File);
         return this[kState].type;
-      }
-      get [Symbol.toStringTag]() {
-        return this.constructor.name;
       }
     };
     var FileLike = class {
@@ -5839,51 +5801,35 @@ var require_file = __commonJS({
         };
       }
       stream(...args) {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.stream(...args);
       }
       arrayBuffer(...args) {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.arrayBuffer(...args);
       }
       slice(...args) {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.slice(...args);
       }
       text(...args) {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.text(...args);
       }
       get size() {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.size;
       }
       get type() {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].blobLike.type;
       }
       get name() {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].name;
       }
       get lastModified() {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileLike);
         return this[kState].lastModified;
       }
       get [Symbol.toStringTag]() {
@@ -5891,6 +5837,10 @@ var require_file = __commonJS({
       }
     };
     Object.defineProperties(File.prototype, {
+      [Symbol.toStringTag]: {
+        value: "File",
+        configurable: true
+      },
       name: kEnumerableProperty,
       lastModified: kEnumerableProperty
     });
@@ -5977,10 +5927,10 @@ var require_formdata = __commonJS({
     var { File, FileLike, isFileLike } = require_file();
     var { webidl } = require_webidl();
     var { Blob } = require("buffer");
-    var _FormData = class {
+    var FormData = class {
       constructor(form) {
         if (form !== void 0) {
-          webidl.errors.conversionFailed({
+          throw webidl.errors.conversionFailed({
             prefix: "FormData constructor",
             argument: "Argument 1",
             types: ["undefined"]
@@ -5989,12 +5939,8 @@ var require_formdata = __commonJS({
         this[kState] = [];
       }
       append(name, value, filename = void 0) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'FormData': 2 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 2, { header: "FormData.append" });
         if (arguments.length === 3 && !isBlobLike(value)) {
           throw new TypeError("Failed to execute 'append' on 'FormData': parameter 2 is not of type 'Blob'");
         }
@@ -6005,12 +5951,8 @@ var require_formdata = __commonJS({
         this[kState].push(entry);
       }
       delete(name) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FormData.delete" });
         name = webidl.converters.USVString(name);
         const next = [];
         for (const entry of this[kState]) {
@@ -6021,12 +5963,8 @@ var require_formdata = __commonJS({
         this[kState] = next;
       }
       get(name) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FormData.get" });
         name = webidl.converters.USVString(name);
         const idx = this[kState].findIndex((entry) => entry.name === name);
         if (idx === -1) {
@@ -6035,32 +5973,20 @@ var require_formdata = __commonJS({
         return this[kState][idx].value;
       }
       getAll(name) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'getAll' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FormData.getAll" });
         name = webidl.converters.USVString(name);
         return this[kState].filter((entry) => entry.name === name).map((entry) => entry.value);
       }
       has(name) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'FormData': 1 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FormData.has" });
         name = webidl.converters.USVString(name);
         return this[kState].findIndex((entry) => entry.name === name) !== -1;
       }
       set(name, value, filename = void 0) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'FormData': 2 arguments required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 2, { header: "FormData.set" });
         if (arguments.length === 3 && !isBlobLike(value)) {
           throw new TypeError("Failed to execute 'set' on 'FormData': parameter 2 is not of type 'Blob'");
         }
@@ -6079,34 +6005,21 @@ var require_formdata = __commonJS({
           this[kState].push(entry);
         }
       }
-      get [Symbol.toStringTag]() {
-        return this.constructor.name;
-      }
       entries() {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FormData);
         return makeIterator(() => this[kState].map((pair) => [pair.name, pair.value]), "FormData", "key+value");
       }
       keys() {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FormData);
         return makeIterator(() => this[kState].map((pair) => [pair.name, pair.value]), "FormData", "key");
       }
       values() {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FormData);
         return makeIterator(() => this[kState].map((pair) => [pair.name, pair.value]), "FormData", "value");
       }
       forEach(callbackFn, thisArg = globalThis) {
-        if (!(this instanceof _FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'forEach' on 'FormData': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.brandCheck(this, FormData);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FormData.forEach" });
         if (typeof callbackFn !== "function") {
           throw new TypeError("Failed to execute 'forEach' on 'FormData': parameter 1 is not of type 'Function'.");
         }
@@ -6115,9 +6028,13 @@ var require_formdata = __commonJS({
         }
       }
     };
-    var FormData = _FormData;
-    __publicField(FormData, "name", "FormData");
     FormData.prototype[Symbol.iterator] = FormData.prototype.entries;
+    Object.defineProperties(FormData.prototype, {
+      [Symbol.toStringTag]: {
+        value: "FormData",
+        configurable: true
+      }
+    });
     function makeEntry(name, value, filename) {
       name = Buffer.from(name).toString("utf8");
       if (typeof value === "string") {
@@ -6146,7 +6063,7 @@ var require_body = __commonJS({
     "use strict";
     var Busboy = require_lib();
     var util = require_util();
-    var { ReadableStreamFrom, toUSVString, isBlobLike, isReadableStreamLike, readableStreamClose } = require_util2();
+    var { ReadableStreamFrom, isBlobLike, isReadableStreamLike, readableStreamClose } = require_util2();
     var { FormData } = require_formdata();
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
@@ -6185,7 +6102,9 @@ var require_body = __commonJS({
       let source = null;
       let length = null;
       let type = null;
-      if (object == null) {
+      if (typeof object === "string") {
+        source = object;
+        type = "text/plain;charset=UTF-8";
       } else if (object instanceof URLSearchParams) {
         source = object.toString();
         type = "application/x-www-form-urlencoded;charset=UTF-8";
@@ -6213,7 +6132,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
 \r
 `);
               yield* value.stream();
-              yield enc.encode("\r\n");
+              yield new Uint8Array([13, 10]);
             }
           }
           yield enc.encode(`--${boundary}--`);
@@ -6226,6 +6145,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         if (object.type) {
           type = object.type;
         }
+      } else if (object instanceof Uint8Array) {
+        source = object;
       } else if (typeof object[Symbol.asyncIterator] === "function") {
         if (keepalive) {
           throw new TypeError("keepalive");
@@ -6234,9 +6155,6 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           throw new TypeError("Response body object should not be disturbed or locked");
         }
         stream = object instanceof ReadableStream ? object : ReadableStreamFrom(object);
-      } else {
-        source = toUSVString(object);
-        type = "text/plain;charset=UTF-8";
       }
       if (typeof source === "string" || util.isBuffer(source)) {
         length = Buffer.byteLength(source);
@@ -6327,9 +6245,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           return specConsumeBody(this, "JSON", instance);
         },
         async formData() {
-          if (!(this instanceof instance)) {
-            throw new TypeError("Illegal invocation");
-          }
+          webidl.brandCheck(this, instance);
           throwIfAborted(this[kState]);
           const contentType = this.headers.get("Content-Type");
           if (/multipart\/form-data/.test(contentType)) {
@@ -6404,7 +6320,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           } else {
             await Promise.resolve();
             throwIfAborted(this[kState]);
-            webidl.errors.exception({
+            throw webidl.errors.exception({
               header: `${instance.name}.formData`,
               message: "Could not parse content as FormData."
             });
@@ -6417,9 +6333,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       Object.assign(prototype.prototype, bodyMixinMethods(prototype));
     }
     async function specConsumeBody(object, type, instance) {
-      if (!(object instanceof instance)) {
-        throw new TypeError("Illegal invocation");
-      }
+      webidl.brandCheck(object, instance);
       throwIfAborted(object[kState]);
       if (bodyUnusable(object[kState].body)) {
         throw new TypeError("Body is unusable");
@@ -6566,7 +6480,8 @@ var require_response = __commonJS({
       isAborted,
       isBlobLike,
       serializeJavascriptValueToJSONString,
-      isErrorLike
+      isErrorLike,
+      isomorphicEncode
     } = require_util2();
     var {
       redirectStatus,
@@ -6594,9 +6509,7 @@ var require_response = __commonJS({
         return responseObject;
       }
       static json(data = void 0, init = {}) {
-        if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'json' on 'Response': 1 argument required, but 0 present.");
-        }
+        webidl.argumentLengthCheck(arguments, 1, { header: "Response.json" });
         if (init !== null) {
           init = webidl.converters.ResponseInit(init);
         }
@@ -6612,9 +6525,7 @@ var require_response = __commonJS({
       }
       static redirect(url, status = 302) {
         const relevantRealm = { settingsObject: {} };
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to execute 'redirect' on 'Response': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.argumentLengthCheck(arguments, 1, { header: "Response.redirect" });
         url = webidl.converters.USVString(url);
         status = webidl.converters["unsigned short"](status);
         let parsedURL;
@@ -6626,14 +6537,14 @@ var require_response = __commonJS({
           });
         }
         if (!redirectStatus.includes(status)) {
-          throw new RangeError("Invalid status code");
+          throw new RangeError("Invalid status code " + status);
         }
         const responseObject = new Response();
         responseObject[kRealm] = relevantRealm;
         responseObject[kHeaders][kGuard] = "immutable";
         responseObject[kHeaders][kRealm] = relevantRealm;
         responseObject[kState].status = status;
-        const value = parsedURL.toString();
+        const value = isomorphicEncode(URLSerializer(parsedURL));
         responseObject[kState].headersList.append("location", value);
         return responseObject;
       }
@@ -6655,19 +6566,12 @@ var require_response = __commonJS({
         }
         initializeResponse(this, init, bodyWithType);
       }
-      get [Symbol.toStringTag]() {
-        return this.constructor.name;
-      }
       get type() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].type;
       }
       get url() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         const urlList = this[kState].urlList;
         const url = urlList[urlList.length - 1] ?? null;
         if (url === null) {
@@ -6676,53 +6580,37 @@ var require_response = __commonJS({
         return URLSerializer(url, true);
       }
       get redirected() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].urlList.length > 1;
       }
       get status() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].status;
       }
       get ok() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].status >= 200 && this[kState].status <= 299;
       }
       get statusText() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].statusText;
       }
       get headers() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kHeaders];
       }
       get body() {
-        if (!this || !this[kState]) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return this[kState].body ? this[kState].body.stream : null;
       }
       get bodyUsed() {
-        if (!this || !this[kState]) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         return !!this[kState].body && util.isDisturbed(this[kState].body.stream);
       }
       clone() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Response);
         if (this.bodyUsed || this.body && this.body.locked) {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Response.clone",
             message: "Body has already been consumed."
           });
@@ -6748,7 +6636,11 @@ var require_response = __commonJS({
       headers: kEnumerableProperty,
       clone: kEnumerableProperty,
       body: kEnumerableProperty,
-      bodyUsed: kEnumerableProperty
+      bodyUsed: kEnumerableProperty,
+      [Symbol.toStringTag]: {
+        value: "Response",
+        configurable: true
+      }
     });
     Object.defineProperties(Response, {
       json: kEnumerableProperty,
@@ -6863,13 +6755,13 @@ var require_response = __commonJS({
       }
       if (body) {
         if (nullBodyStatus.includes(response.status)) {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Response constructor",
-            message: "Invalid response status code."
+            message: "Invalid response status code " + response.status
           });
         }
         response[kState].body = body.body;
-        if (body.type != null && !response[kState].headersList.has("Content-Type")) {
+        if (body.type != null && !response[kState].headersList.contains("Content-Type")) {
           response[kState].headersList.append("content-type", body.type);
         }
       }
@@ -6984,7 +6876,8 @@ var require_request = __commonJS({
       requestRedirect,
       requestMode,
       requestCredentials,
-      requestCache
+      requestCache,
+      requestDuplex
     } = require_constants();
     var { kEnumerableProperty } = util;
     var { kHeaders, kSignal, kState, kGuard, kRealm } = require_symbols2();
@@ -7003,9 +6896,7 @@ var require_request = __commonJS({
         if (input === kInit) {
           return;
         }
-        if (arguments.length < 1) {
-          throw new TypeError(`Failed to construct 'Request': 1 argument required, but only ${arguments.length} present.`);
-        }
+        webidl.argumentLengthCheck(arguments, 1, { header: "Request constructor" });
         input = webidl.converters.RequestInfo(input);
         init = webidl.converters.RequestInit(init);
         this[kRealm] = {
@@ -7093,21 +6984,15 @@ var require_request = __commonJS({
         }
         if (init.referrerPolicy !== void 0) {
           request.referrerPolicy = init.referrerPolicy;
-          if (!referrerPolicy.includes(request.referrerPolicy)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.referrerPolicy}' is not a valid enum value of type ReferrerPolicy.`);
-          }
         }
         let mode;
         if (init.mode !== void 0) {
           mode = init.mode;
-          if (!requestMode.includes(mode)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.mode}' is not a valid enum value of type RequestMode.`);
-          }
         } else {
           mode = fallbackMode;
         }
         if (mode === "navigate") {
-          webidl.errors.exception({
+          throw webidl.errors.exception({
             header: "Request constructor",
             message: "invalid request mode navigate."
           });
@@ -7117,24 +7002,15 @@ var require_request = __commonJS({
         }
         if (init.credentials !== void 0) {
           request.credentials = init.credentials;
-          if (!requestCredentials.includes(request.credentials)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.credentials}' is not a valid enum value of type RequestCredentials.`);
-          }
         }
         if (init.cache !== void 0) {
           request.cache = init.cache;
-          if (!requestCache.includes(request.cache)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.cache}' is not a valid enum value of type RequestCache.`);
-          }
         }
         if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
           throw new TypeError("'only-if-cached' can be set only with 'same-origin' mode");
         }
         if (init.redirect !== void 0) {
           request.redirect = init.redirect;
-          if (!requestRedirect.includes(request.redirect)) {
-            throw new TypeError(`Failed to construct 'Request': The provided value '${request.redirect}' is not a valid enum value of type RequestRedirect.`);
-          }
         }
         if (init.integrity !== void 0 && init.integrity != null) {
           request.integrity = String(init.integrity);
@@ -7204,7 +7080,7 @@ var require_request = __commonJS({
         if (init.body !== void 0 && init.body != null) {
           const [extractedBody, contentType] = extractBody(init.body, request.keepalive);
           initBody = extractedBody;
-          if (contentType && !this[kHeaders].has("content-type")) {
+          if (contentType && !this[kHeaders][kHeadersList].contains("content-type")) {
             this[kHeaders].append("content-type", contentType);
           }
         }
@@ -7236,37 +7112,24 @@ var require_request = __commonJS({
         }
         this[kState].body = finalBody;
       }
-      get [Symbol.toStringTag]() {
-        return this.constructor.name;
-      }
       get method() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].method;
       }
       get url() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return URLSerializer(this[kState].url);
       }
       get headers() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kHeaders];
       }
       get destination() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].destination;
       }
       get referrer() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         if (this[kState].referrer === "no-referrer") {
           return "";
         }
@@ -7276,84 +7139,58 @@ var require_request = __commonJS({
         return this[kState].referrer.toString();
       }
       get referrerPolicy() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].referrerPolicy;
       }
       get mode() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].mode;
       }
       get credentials() {
         return this[kState].credentials;
       }
       get cache() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].cache;
       }
       get redirect() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].redirect;
       }
       get integrity() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].integrity;
       }
       get keepalive() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].keepalive;
       }
       get isReloadNavigation() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].reloadNavigation;
       }
       get isHistoryNavigation() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].historyNavigation;
       }
       get signal() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kSignal];
       }
       get body() {
-        if (!this || !this[kState]) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return this[kState].body ? this[kState].body.stream : null;
       }
       get bodyUsed() {
-        if (!this || !this[kState]) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return !!this[kState].body && util.isDisturbed(this[kState].body.stream);
       }
       get duplex() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         return "half";
       }
       clone() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, Request);
         if (this.bodyUsed || this.body?.locked) {
           throw new TypeError("unusable");
         }
@@ -7448,7 +7285,11 @@ var require_request = __commonJS({
       attribute: kEnumerableProperty,
       referrerPolicy: kEnumerableProperty,
       referrer: kEnumerableProperty,
-      mode: kEnumerableProperty
+      mode: kEnumerableProperty,
+      [Symbol.toStringTag]: {
+        value: "Request",
+        configurable: true
+      }
     });
     webidl.converters.Request = webidl.interfaceConverter(Request);
     webidl.converters.RequestInfo = function(V) {
@@ -7481,58 +7322,27 @@ var require_request = __commonJS({
       {
         key: "referrerPolicy",
         converter: webidl.converters.DOMString,
-        allowedValues: [
-          "",
-          "no-referrer",
-          "no-referrer-when-downgrade",
-          "same-origin",
-          "origin",
-          "strict-origin",
-          "origin-when-cross-origin",
-          "strict-origin-when-cross-origin",
-          "unsafe-url"
-        ]
+        allowedValues: referrerPolicy
       },
       {
         key: "mode",
         converter: webidl.converters.DOMString,
-        allowedValues: [
-          "same-origin",
-          "cors",
-          "no-cors",
-          "navigate",
-          "websocket"
-        ]
+        allowedValues: requestMode
       },
       {
         key: "credentials",
         converter: webidl.converters.DOMString,
-        allowedValues: [
-          "omit",
-          "same-origin",
-          "include"
-        ]
+        allowedValues: requestCredentials
       },
       {
         key: "cache",
         converter: webidl.converters.DOMString,
-        allowedValues: [
-          "default",
-          "no-store",
-          "reload",
-          "no-cache",
-          "force-cache",
-          "only-if-cached"
-        ]
+        allowedValues: requestCache
       },
       {
         key: "redirect",
         converter: webidl.converters.DOMString,
-        allowedValues: [
-          "follow",
-          "error",
-          "manual"
-        ]
+        allowedValues: requestRedirect
       },
       {
         key: "integrity",
@@ -7553,7 +7363,7 @@ var require_request = __commonJS({
       {
         key: "duplex",
         converter: webidl.converters.DOMString,
-        allowedValues: ["half"]
+        allowedValues: requestDuplex
       }
     ]);
     module2.exports = { Request, makeRequest };
@@ -11530,6 +11340,11 @@ var require_mock_utils = __commonJS({
     } = require_mock_symbols();
     var { buildURL, nop } = require_util();
     var { STATUS_CODES } = require("http");
+    var {
+      types: {
+        isPromise
+      }
+    } = require("util");
     function matchValue(match, value) {
       if (typeof match === "string") {
         return match === value;
@@ -11703,9 +11518,14 @@ var require_mock_utils = __commonJS({
       } else {
         handleReply(this[kDispatches]);
       }
-      function handleReply(mockDispatches) {
+      function handleReply(mockDispatches, _data = data) {
         const optsHeaders = Array.isArray(opts.headers) ? buildHeadersFromArray(opts.headers) : opts.headers;
-        const responseData = getResponseData(typeof data === "function" ? data({ ...opts, headers: optsHeaders }) : data);
+        const body = typeof _data === "function" ? _data({ ...opts, headers: optsHeaders }) : _data;
+        if (isPromise(body)) {
+          body.then((newData) => handleReply(mockDispatches, newData));
+          return;
+        }
+        const responseData = getResponseData(body);
         const responseHeaders = generateKeyValues(headers);
         const responseTrailers = generateKeyValues(trailers);
         handler.abort = nop;
@@ -12459,21 +12279,15 @@ var require_progressevent = __commonJS({
         };
       }
       get lengthComputable() {
-        if (!(this instanceof ProgressEvent)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, ProgressEvent);
         return this[kState].lengthComputable;
       }
       get loaded() {
-        if (!(this instanceof ProgressEvent)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, ProgressEvent);
         return this[kState].loaded;
       }
       get total() {
-        if (!(this instanceof ProgressEvent)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, ProgressEvent);
         return this[kState].total;
       }
     };
@@ -13025,32 +12839,20 @@ var require_filereader = __commonJS({
         };
       }
       readAsArrayBuffer(blob) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'readAsArrayBuffer' on 'FileReader': 1 argument required, but 0 present.");
-        }
+        webidl.brandCheck(this, FileReader);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FileReader.readAsArrayBuffer" });
         blob = webidl.converters.Blob(blob, { strict: false });
         readOperation(this, blob, "ArrayBuffer");
       }
       readAsBinaryString(blob) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'readAsBinaryString' on 'FileReader': 1 argument required, but 0 present.");
-        }
+        webidl.brandCheck(this, FileReader);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FileReader.readAsBinaryString" });
         blob = webidl.converters.Blob(blob, { strict: false });
         readOperation(this, blob, "BinaryString");
       }
       readAsText(blob, encoding = void 0) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'readAsText' on 'FileReader': 1 argument required, but 0 present.");
-        }
+        webidl.brandCheck(this, FileReader);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FileReader.readAsText" });
         blob = webidl.converters.Blob(blob, { strict: false });
         if (encoding !== void 0) {
           encoding = webidl.converters.DOMString(encoding);
@@ -13058,12 +12860,8 @@ var require_filereader = __commonJS({
         readOperation(this, blob, "Text", encoding);
       }
       readAsDataURL(blob) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
-        if (arguments.length === 0) {
-          throw new TypeError("Failed to execute 'readAsDataURL' on 'FileReader': 1 argument required, but 0 present.");
-        }
+        webidl.brandCheck(this, FileReader);
+        webidl.argumentLengthCheck(arguments, 1, { header: "FileReader.readAsDataURL" });
         blob = webidl.converters.Blob(blob, { strict: false });
         readOperation(this, blob, "DataURL");
       }
@@ -13083,9 +12881,7 @@ var require_filereader = __commonJS({
         }
       }
       get readyState() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         switch (this[kState]) {
           case "empty":
             return this.EMPTY;
@@ -13096,27 +12892,19 @@ var require_filereader = __commonJS({
         }
       }
       get result() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kResult];
       }
       get error() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kError];
       }
       get onloadend() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].loadend;
       }
       set onloadend(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].loadend = fn;
         } else {
@@ -13124,15 +12912,11 @@ var require_filereader = __commonJS({
         }
       }
       get onerror() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].error;
       }
       set onerror(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].error = fn;
         } else {
@@ -13140,15 +12924,11 @@ var require_filereader = __commonJS({
         }
       }
       get onloadstart() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].loadstart;
       }
       set onloadstart(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].loadstart = fn;
         } else {
@@ -13156,15 +12936,11 @@ var require_filereader = __commonJS({
         }
       }
       get onprogress() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].progress;
       }
       set onprogress(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].progress = fn;
         } else {
@@ -13172,15 +12948,11 @@ var require_filereader = __commonJS({
         }
       }
       get onload() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].load;
       }
       set onload(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].load = fn;
         } else {
@@ -13188,15 +12960,11 @@ var require_filereader = __commonJS({
         }
       }
       get onabort() {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         return this[kEvents].abort;
       }
       set onabort(fn) {
-        if (!(this instanceof FileReader)) {
-          throw new TypeError("Illegal invocation");
-        }
+        webidl.brandCheck(this, FileReader);
         if (typeof fn === "function") {
           this[kEvents].abort = fn;
         } else {
@@ -13395,7 +13163,8 @@ var require_fetch = __commonJS({
       isAborted,
       isErrorLike,
       fullyReadBody,
-      readableStreamClose
+      readableStreamClose,
+      isomorphicEncode
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var assert = require("assert");
@@ -13415,6 +13184,7 @@ var require_fetch = __commonJS({
     var { dataURLProcessor, serializeAMimeType } = require_dataURL();
     var { TransformStream } = require("stream/web");
     var { getGlobalDispatcher } = require_undici();
+    var { webidl } = require_webidl();
     var resolveObjectURL;
     var ReadableStream;
     var nodeVersion = process.versions.node.split(".");
@@ -13451,9 +13221,7 @@ var require_fetch = __commonJS({
       }
     };
     async function fetch2(input, init = {}) {
-      if (arguments.length < 1) {
-        throw new TypeError(`Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`);
-      }
+      webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
       try {
@@ -13614,11 +13382,11 @@ var require_fetch = __commonJS({
           request.policyContainer = makePolicyContainer();
         }
       }
-      if (!request.headersList.has("accept")) {
+      if (!request.headersList.contains("accept")) {
         const value = "*/*";
         request.headersList.append("accept", value);
       }
-      if (!request.headersList.has("accept-language")) {
+      if (!request.headersList.contains("accept-language")) {
         request.headersList.append("accept-language", "*");
       }
       if (request.priority === null) {
@@ -13693,7 +13461,7 @@ var require_fetch = __commonJS({
       if (!request.timingAllowFailed) {
         response.timingAllowPassed = true;
       }
-      if (response.type === "opaque" && internalResponse.status === 206 && internalResponse.rangeRequested && !request.headers.has("range")) {
+      if (response.type === "opaque" && internalResponse.status === 206 && internalResponse.rangeRequested && !request.headers.contains("range")) {
         response = internalResponse = makeNetworkError();
       }
       if (response.status !== 0 && (request.method === "HEAD" || request.method === "CONNECT" || nullBodyStatus.includes(internalResponse.status))) {
@@ -13743,7 +13511,7 @@ var require_fetch = __commonJS({
           }
           const bodyWithType = safelyExtractBody(blobURLEntryObject);
           const body = bodyWithType[0];
-          const length = `${body.length}`;
+          const length = isomorphicEncode(`${body.length}`);
           const type = bodyWithType[1] ?? "";
           const response = makeResponse({
             statusText: "OK",
@@ -13945,7 +13713,7 @@ var require_fetch = __commonJS({
         contentLengthHeaderValue = "0";
       }
       if (contentLength != null) {
-        contentLengthHeaderValue = String(contentLength);
+        contentLengthHeaderValue = isomorphicEncode(`${contentLength}`);
       }
       if (contentLengthHeaderValue != null) {
         httpRequest.headersList.append("content-length", contentLengthHeaderValue);
@@ -13953,31 +13721,31 @@ var require_fetch = __commonJS({
       if (contentLength != null && httpRequest.keepalive) {
       }
       if (httpRequest.referrer instanceof URL) {
-        httpRequest.headersList.append("referer", httpRequest.referrer.href);
+        httpRequest.headersList.append("referer", isomorphicEncode(httpRequest.referrer.href));
       }
       appendRequestOriginHeader(httpRequest);
       appendFetchMetadata(httpRequest);
-      if (!httpRequest.headersList.has("user-agent")) {
+      if (!httpRequest.headersList.contains("user-agent")) {
         httpRequest.headersList.append("user-agent", "undici");
       }
-      if (httpRequest.cache === "default" && (httpRequest.headersList.has("if-modified-since") || httpRequest.headersList.has("if-none-match") || httpRequest.headersList.has("if-unmodified-since") || httpRequest.headersList.has("if-match") || httpRequest.headersList.has("if-range"))) {
+      if (httpRequest.cache === "default" && (httpRequest.headersList.contains("if-modified-since") || httpRequest.headersList.contains("if-none-match") || httpRequest.headersList.contains("if-unmodified-since") || httpRequest.headersList.contains("if-match") || httpRequest.headersList.contains("if-range"))) {
         httpRequest.cache = "no-store";
       }
-      if (httpRequest.cache === "no-cache" && !httpRequest.preventNoCacheCacheControlHeaderModification && !httpRequest.headersList.has("cache-control")) {
+      if (httpRequest.cache === "no-cache" && !httpRequest.preventNoCacheCacheControlHeaderModification && !httpRequest.headersList.contains("cache-control")) {
         httpRequest.headersList.append("cache-control", "max-age=0");
       }
       if (httpRequest.cache === "no-store" || httpRequest.cache === "reload") {
-        if (!httpRequest.headersList.has("pragma")) {
+        if (!httpRequest.headersList.contains("pragma")) {
           httpRequest.headersList.append("pragma", "no-cache");
         }
-        if (!httpRequest.headersList.has("cache-control")) {
+        if (!httpRequest.headersList.contains("cache-control")) {
           httpRequest.headersList.append("cache-control", "no-cache");
         }
       }
-      if (httpRequest.headersList.has("range")) {
+      if (httpRequest.headersList.contains("range")) {
         httpRequest.headersList.append("accept-encoding", "identity");
       }
-      if (!httpRequest.headersList.has("accept-encoding")) {
+      if (!httpRequest.headersList.contains("accept-encoding")) {
         if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
           httpRequest.headersList.append("accept-encoding", "br, gzip, deflate");
         } else {
@@ -14005,7 +13773,7 @@ var require_fetch = __commonJS({
         }
       }
       response.urlList = [...httpRequest.urlList];
-      if (httpRequest.headersList.has("range")) {
+      if (httpRequest.headersList.contains("range")) {
         response.rangeRequested = true;
       }
       response.requestIncludesCredentials = includeCredentials;

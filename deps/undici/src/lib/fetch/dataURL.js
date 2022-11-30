@@ -1,6 +1,7 @@
 const assert = require('assert')
 const { atob } = require('buffer')
-const { isValidHTTPToken } = require('./util')
+const { format } = require('url')
+const { isValidHTTPToken, isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
 
@@ -54,7 +55,6 @@ function dataURLProcessor (dataURL) {
   const encodedBody = input.slice(mimeTypeLength + 1)
 
   // 10. Let body be the percent-decoding of encodedBody.
-  /** @type {Uint8Array|string} */
   let body = stringPercentDecode(encodedBody)
 
   // 11. If mimeType ends with U+003B (;), followed by
@@ -62,7 +62,8 @@ function dataURLProcessor (dataURL) {
   // case-insensitive match for "base64", then:
   if (/;(\u0020){0,}base64$/i.test(mimeType)) {
     // 1. Let stringBody be the isomorphic decode of body.
-    const stringBody = decodeURIComponent(new TextDecoder('utf-8').decode(body))
+    const stringBody = isomorphicDecode(body)
+
     // 2. Set body to the forgiving-base64 decode of
     // stringBody.
     body = forgivingBase64(stringBody)
@@ -111,73 +112,7 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  // 1. Let output be url’s scheme and U+003A (:) concatenated.
-  let output = url.protocol
-
-  // 2. If url’s host is non-null:
-  if (url.host.length > 0) {
-    // 1. Append "//" to output.
-    output += '//'
-
-    // 2. If url includes credentials, then:
-    if (url.username.length > 0 || url.password.length > 0) {
-      // 1. Append url’s username to output.
-      output += url.username
-
-      // 2. If url’s password is not the empty string, then append U+003A (:),
-      // followed by url’s password, to output.
-      if (url.password.length > 0) {
-        output += ':' + url.password
-      }
-
-      // 3. Append U+0040 (@) to output.
-      output += '@'
-    }
-
-    // 3. Append url’s host, serialized, to output.
-    output += decodeURIComponent(url.hostname)
-
-    // 4. If url’s port is non-null, append U+003A (:) followed by url’s port,
-    // serialized, to output.
-    if (url.port.length > 0) {
-      output += ':' + url.port
-    }
-  }
-
-  // 3. If url’s host is null, url does not have an opaque path,
-  // url’s path’s size is greater than 1, and url’s path[0]
-  // is the empty string, then append U+002F (/) followed by
-  // U+002E (.) to output.
-  // Note: This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
-  // when parsed and then serialized, from ending up as web+demo://not-a-host/
-  // (they end up as web+demo:/.//not-a-host/).
-  // Undici implementation note: url's path[0] can never be an
-  // empty string, so we have to slightly alter what the spec says.
-  if (
-    url.host.length === 0 &&
-    url.pathname.length > 1 &&
-    url.href.slice(url.protocol.length + 1)[0] === '.'
-  ) {
-    output += '/.'
-  }
-
-  // 4. Append the result of URL path serializing url to output.
-  output += url.pathname
-
-  // 5. If url’s query is non-null, append U+003F (?),
-  // followed by url’s query, to output.
-  if (url.search.length > 0) {
-    output += url.search
-  }
-
-  // 6. If exclude fragment is false and url’s fragment is non-null,
-  // then append U+0023 (#), followed by url’s fragment, to output.
-  if (excludeFragment === false && url.hash.length > 0) {
-    output += url.hash
-  }
-
-  // 7. Return output.
-  return output
+  return format(url, { fragment: !excludeFragment })
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points

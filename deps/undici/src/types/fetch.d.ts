@@ -7,7 +7,7 @@ import { URL, URLSearchParams } from 'url'
 import { ReadableStream } from 'stream/web'
 import { FormData } from './formdata'
 
-import Dispatcher = require('./dispatcher')
+import Dispatcher from './dispatcher'
 
 export type RequestInfo = string | URL | Request
 

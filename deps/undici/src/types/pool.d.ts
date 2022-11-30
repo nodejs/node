@@ -1,10 +1,9 @@
-import Client = require('./client')
-import Dispatcher = require('./dispatcher')
-import TPoolStats = require('./pool-stats')
+import Client from './client'
+import TPoolStats from './pool-stats'
 import { URL } from 'url'
-import {DispatchInterceptor} from "./dispatcher";
+import Dispatcher from "./dispatcher";
 
-export = Pool
+export default Pool
 
 declare class Pool extends Dispatcher {
   constructor(url: string | URL, options?: Pool.Options)
@@ -24,6 +23,6 @@ declare namespace Pool {
     /** The max number of clients to create. `null` if no limit. Default `null`. */
     connections?: number | null;
 
-    interceptors?: { Pool?: readonly DispatchInterceptor[] } & Client.Options["interceptors"]
+    interceptors?: { Pool?: readonly Dispatcher.DispatchInterceptor[] } & Client.Options["interceptors"]
   }
 }

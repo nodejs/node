@@ -1,6 +1,6 @@
 'use strict'
 
-const { redirectStatus } = require('./constants')
+const { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require('./constants')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
 const assert = require('assert')
@@ -15,16 +15,6 @@ try {
 } catch {
 
 }
-
-// https://fetch.spec.whatwg.org/#block-bad-port
-const badPorts = [
-  '1', '7', '9', '11', '13', '15', '17', '19', '20', '21', '22', '23', '25', '37', '42', '43', '53', '69', '77', '79',
-  '87', '95', '101', '102', '103', '104', '109', '110', '111', '113', '115', '117', '119', '123', '135', '137',
-  '139', '143', '161', '179', '389', '427', '465', '512', '513', '514', '515', '526', '530', '531', '532',
-  '540', '548', '554', '556', '563', '587', '601', '636', '989', '990', '993', '995', '1719', '1720', '1723',
-  '2049', '3659', '4045', '5060', '5061', '6000', '6566', '6665', '6666', '6667', '6668', '6669', '6697',
-  '10080'
-]
 
 function responseURL (response) {
   // https://fetch.spec.whatwg.org/#responses
@@ -156,13 +146,7 @@ function isValidHeaderName (potentialValue) {
     return false
   }
 
-  for (const char of potentialValue) {
-    if (!isValidHTTPToken(char)) {
-      return false
-    }
-  }
-
-  return true
+  return isValidHTTPToken(potentialValue)
 }
 
 /**
@@ -200,8 +184,31 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
 
   // 1. Let policy be the result of executing § 8.1 Parse a referrer policy
   // from a Referrer-Policy header on actualResponse.
-  // TODO:  https://w3c.github.io/webappsec-referrer-policy/#parse-referrer-policy-from-header
-  const policy = ''
+
+  // 8.1 Parse a referrer policy from a Referrer-Policy header
+  // 1. Let policy-tokens be the result of extracting header list values given `Referrer-Policy` and response’s header list.
+  const { headersList } = actualResponse
+  // 2. Let policy be the empty string.
+  // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
+  // 4. Return policy.
+  const policyHeader = (headersList.get('referrer-policy') ?? '').split(',')
+
+  // Note: As the referrer-policy can contain multiple policies
+  // separated by comma, we need to loop through all of them
+  // and pick the first valid one.
+  // Ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy#specify_a_fallback_policy
+  let policy = ''
+  if (policyHeader.length > 0) {
+    // The right-most policy takes precedence.
+    // The left-most policy is the fallback.
+    for (let i = policyHeader.length; i !== 0; i--) {
+      const token = policyHeader[i - 1].trim()
+      if (referrerPolicyTokens.includes(token)) {
+        policy = token
+        break
+      }
+    }
+  }
 
   // 2. If policy is not the empty string, then set request’s referrer policy to policy.
   if (policy !== '') {
@@ -857,6 +864,23 @@ function isReadableStreamLike (stream) {
 }
 
 /**
+ * @see https://infra.spec.whatwg.org/#isomorphic-decode
+ * @param {number[]|Uint8Array} input
+ */
+function isomorphicDecode (input) {
+  // 1. To isomorphic decode a byte sequence input, return a string whose code point
+  //    length is equal to input’s length and whose code points have the same values
+  //    as the values of input’s bytes, in the same order.
+  let output = ''
+
+  for (let i = 0; i < input.length; i++) {
+    output += String.fromCharCode(input[i])
+  }
+
+  return output
+}
+
+/**
  * @param {ReadableStreamController<Uint8Array>} controller
  */
 function readableStreamClose (controller) {
@@ -868,6 +892,22 @@ function readableStreamClose (controller) {
       throw err
     }
   }
+}
+
+/**
+ * @see https://infra.spec.whatwg.org/#isomorphic-encode
+ * @param {string} input
+ */
+function isomorphicEncode (input) {
+  // 1. Assert: input contains no code points greater than U+00FF.
+  for (let i = 0; i < input.length; i++) {
+    assert(input.charCodeAt(i) <= 0xFF)
+  }
+
+  // 2. Return a byte sequence whose length is equal to input’s code
+  //    point length and whose bytes have the same values as the
+  //    values of input’s code points, in the same order
+  return input
 }
 
 /**
@@ -912,5 +952,7 @@ module.exports = {
   fullyReadBody,
   bytesMatch,
   isReadableStreamLike,
-  readableStreamClose
+  readableStreamClose,
+  isomorphicEncode,
+  isomorphicDecode
 }

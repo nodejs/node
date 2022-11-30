@@ -1,10 +1,10 @@
 import { URL } from 'url'
 import { TlsOptions } from 'tls'
-import Dispatcher = require('./dispatcher')
-import {DispatchInterceptor} from './dispatcher'
-import buildConnector, {connector} from "./connector";
+import Dispatcher from './dispatcher'
+import DispatchInterceptor from './dispatcher'
+import buildConnector from "./connector";
 
-export = Client
+export default Client
 
 /** A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default. */
 declare class Client extends Dispatcher {
@@ -28,7 +28,7 @@ declare namespace Client {
     /** The amount of concurrent requests to be sent over the single TCP/TLS connection according to [RFC7230](https://tools.ietf.org/html/rfc7230#section-6.3.2). Default: `1`. */
     pipelining?: number | null;
     /** **/
-    connect?: buildConnector.BuildOptions | connector | null;
+    connect?: buildConnector.BuildOptions | buildConnector.connector | null;
     /** The maximum length of request headers in bytes. Default: `16384` (16KiB). */
     maxHeaderSize?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `30e3` milliseconds (30s). */

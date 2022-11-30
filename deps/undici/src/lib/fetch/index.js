@@ -36,7 +36,8 @@ const {
   isAborted,
   isErrorLike,
   fullyReadBody,
-  readableStreamClose
+  readableStreamClose,
+  isomorphicEncode
 } = require('./util')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
@@ -56,6 +57,7 @@ const { isErrored, isReadable } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType } = require('./dataURL')
 const { TransformStream } = require('stream/web')
 const { getGlobalDispatcher } = require('../../index')
+const { webidl } = require('./webidl')
 
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
@@ -121,11 +123,7 @@ class Fetch extends EE {
 
 // https://fetch.spec.whatwg.org/#fetch-method
 async function fetch (input, init = {}) {
-  if (arguments.length < 1) {
-    throw new TypeError(
-      `Failed to execute 'fetch' on 'Window': 1 argument required, but only ${arguments.length} present.`
-    )
-  }
+  webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
 
   // 1. Let p be a new promise.
   const p = createDeferredPromise()
@@ -477,7 +475,7 @@ function fetching ({
   }
 
   // 12. If request’s header list does not contain `Accept`, then:
-  if (!request.headersList.has('accept')) {
+  if (!request.headersList.contains('accept')) {
     // 1. Let value be `*/*`.
     const value = '*/*'
 
@@ -500,7 +498,7 @@ function fetching ({
   // 13. If request’s header list does not contain `Accept-Language`, then
   // user agents should append `Accept-Language`/an appropriate value to
   // request’s header list.
-  if (!request.headersList.has('accept-language')) {
+  if (!request.headersList.contains('accept-language')) {
     request.headersList.append('accept-language', '*')
   }
 
@@ -723,7 +721,7 @@ async function mainFetch (fetchParams, recursive = false) {
     response.type === 'opaque' &&
     internalResponse.status === 206 &&
     internalResponse.rangeRequested &&
-    !request.headers.has('range')
+    !request.headers.contains('range')
   ) {
     response = internalResponse = makeNetworkError()
   }
@@ -832,7 +830,7 @@ async function schemeFetch (fetchParams) {
       const body = bodyWithType[0]
 
       // 5. Let length be body’s length, serialized and isomorphic encoded.
-      const length = `${body.length}`
+      const length = isomorphicEncode(`${body.length}`)
 
       // 6. Let type be bodyWithType’s type if it is non-null; otherwise the empty byte sequence.
       const type = bodyWithType[1] ?? ''
@@ -1303,8 +1301,7 @@ async function httpNetworkOrCacheFetch (
   //    7. If contentLength is non-null, then set contentLengthHeaderValue to
   //    contentLength, serialized and isomorphic encoded.
   if (contentLength != null) {
-    // TODO: isomorphic encoded
-    contentLengthHeaderValue = String(contentLength)
+    contentLengthHeaderValue = isomorphicEncode(`${contentLength}`)
   }
 
   //    8. If contentLengthHeaderValue is non-null, then append
@@ -1327,8 +1324,7 @@ async function httpNetworkOrCacheFetch (
   //    `Referer`/httpRequest’s referrer, serialized and isomorphic encoded,
   //     to httpRequest’s header list.
   if (httpRequest.referrer instanceof URL) {
-    // TODO: isomorphic encoded
-    httpRequest.headersList.append('referer', httpRequest.referrer.href)
+    httpRequest.headersList.append('referer', isomorphicEncode(httpRequest.referrer.href))
   }
 
   //    12. Append a request `Origin` header for httpRequest.
@@ -1340,7 +1336,7 @@ async function httpNetworkOrCacheFetch (
   //    14. If httpRequest’s header list does not contain `User-Agent`, then
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
-  if (!httpRequest.headersList.has('user-agent')) {
+  if (!httpRequest.headersList.contains('user-agent')) {
     httpRequest.headersList.append('user-agent', 'undici')
   }
 
@@ -1350,11 +1346,11 @@ async function httpNetworkOrCacheFetch (
   //    httpRequest’s cache mode to "no-store".
   if (
     httpRequest.cache === 'default' &&
-    (httpRequest.headersList.has('if-modified-since') ||
-      httpRequest.headersList.has('if-none-match') ||
-      httpRequest.headersList.has('if-unmodified-since') ||
-      httpRequest.headersList.has('if-match') ||
-      httpRequest.headersList.has('if-range'))
+    (httpRequest.headersList.contains('if-modified-since') ||
+      httpRequest.headersList.contains('if-none-match') ||
+      httpRequest.headersList.contains('if-unmodified-since') ||
+      httpRequest.headersList.contains('if-match') ||
+      httpRequest.headersList.contains('if-range'))
   ) {
     httpRequest.cache = 'no-store'
   }
@@ -1366,7 +1362,7 @@ async function httpNetworkOrCacheFetch (
   if (
     httpRequest.cache === 'no-cache' &&
     !httpRequest.preventNoCacheCacheControlHeaderModification &&
-    !httpRequest.headersList.has('cache-control')
+    !httpRequest.headersList.contains('cache-control')
   ) {
     httpRequest.headersList.append('cache-control', 'max-age=0')
   }
@@ -1375,27 +1371,27 @@ async function httpNetworkOrCacheFetch (
   if (httpRequest.cache === 'no-store' || httpRequest.cache === 'reload') {
     // 1. If httpRequest’s header list does not contain `Pragma`, then append
     // `Pragma`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('pragma')) {
+    if (!httpRequest.headersList.contains('pragma')) {
       httpRequest.headersList.append('pragma', 'no-cache')
     }
 
     // 2. If httpRequest’s header list does not contain `Cache-Control`,
     // then append `Cache-Control`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.has('cache-control')) {
+    if (!httpRequest.headersList.contains('cache-control')) {
       httpRequest.headersList.append('cache-control', 'no-cache')
     }
   }
 
   //    18. If httpRequest’s header list contains `Range`, then append
   //    `Accept-Encoding`/`identity` to httpRequest’s header list.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     httpRequest.headersList.append('accept-encoding', 'identity')
   }
 
   //    19. Modify httpRequest’s header list per HTTP. Do not append a given
   //    header if httpRequest’s header list contains that header’s name.
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
-  if (!httpRequest.headersList.has('accept-encoding')) {
+  if (!httpRequest.headersList.contains('accept-encoding')) {
     if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
       httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate')
     } else {
@@ -1484,7 +1480,7 @@ async function httpNetworkOrCacheFetch (
 
   // 12. If httpRequest’s header list contains `Range`, then set response’s
   // range-requested flag.
-  if (httpRequest.headersList.has('range')) {
+  if (httpRequest.headersList.contains('range')) {
     response.rangeRequested = true
   }
 

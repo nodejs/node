@@ -1,7 +1,7 @@
-import {TLSSocket, ConnectionOptions} from 'tls'
-import {IpcNetConnectOpts, Socket, TcpNetConnectOpts} from 'net'
+import { TLSSocket, ConnectionOptions } from 'tls'
+import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from 'net'
 
-export = buildConnector
+export default buildConnector
 declare function buildConnector (options?: buildConnector.BuildOptions): buildConnector.connector
 
 declare namespace buildConnector {

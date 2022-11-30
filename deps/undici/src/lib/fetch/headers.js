@@ -38,7 +38,7 @@ function fill (headers, object) {
     for (const header of object) {
       // 1. If header does not contain exactly two items, then throw a TypeError.
       if (header.length !== 2) {
-        webidl.errors.exception({
+        throw webidl.errors.exception({
           header: 'Headers constructor',
           message: `expected name/value pair to be length 2, found ${header.length}.`
         })
@@ -56,7 +56,7 @@ function fill (headers, object) {
       headers.append(key, value)
     }
   } else {
-    webidl.errors.conversionFailed({
+    throw webidl.errors.conversionFailed({
       prefix: 'Headers constructor',
       argument: 'Argument 1',
       types: ['sequence<sequence<ByteString>>', 'record<ByteString, ByteString>']
@@ -129,8 +129,6 @@ class HeadersList {
 
   // https://fetch.spec.whatwg.org/#concept-header-list-get
   get (name) {
-    name = name.toLowerCase()
-
     // 1. If list does not contain name, then return null.
     if (!this.contains(name)) {
       return null
@@ -139,12 +137,7 @@ class HeadersList {
     // 2. Return the values of all headers in list whose name
     //    is a byte-case-insensitive match for name,
     //    separated from each other by 0x2C 0x20, in order.
-    return this[kHeadersMap].get(name) ?? null
-  }
-
-  has (name) {
-    name = name.toLowerCase()
-    return this[kHeadersMap].has(name)
+    return this[kHeadersMap].get(name.toLowerCase()) ?? null
   }
 
   * [Symbol.iterator] () {
@@ -171,21 +164,11 @@ class Headers {
     }
   }
 
-  get [Symbol.toStringTag] () {
-    return this.constructor.name
-  }
-
   // https://fetch.spec.whatwg.org/#dom-headers-append
   append (name, value) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 2) {
-      throw new TypeError(
-        `Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.append' })
 
     name = webidl.converters.ByteString(name)
     value = webidl.converters.ByteString(value)
@@ -196,13 +179,13 @@ class Headers {
     // 2. If name is not a header name or value is not a
     //    header value, then throw a TypeError.
     if (!isValidHeaderName(name)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.append',
         value: name,
         type: 'header name'
       })
     } else if (!isValidHeaderValue(value)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.append',
         value,
         type: 'header value'
@@ -231,21 +214,15 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#dom-headers-delete
   delete (name) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.delete' })
 
     name = webidl.converters.ByteString(name)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.delete',
         value: name,
         type: 'header name'
@@ -282,21 +259,15 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
   get (name) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.get' })
 
     name = webidl.converters.ByteString(name)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.get',
         value: name,
         type: 'header name'
@@ -310,21 +281,15 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#dom-headers-has
   has (name) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.has' })
 
     name = webidl.converters.ByteString(name)
 
     // 1. If name is not a header name, then throw a TypeError.
     if (!isValidHeaderName(name)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.has',
         value: name,
         type: 'header name'
@@ -338,15 +303,9 @@ class Headers {
 
   // https://fetch.spec.whatwg.org/#dom-headers-set
   set (name, value) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 2) {
-      throw new TypeError(
-        `Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 2, { header: 'Headers.set' })
 
     name = webidl.converters.ByteString(name)
     value = webidl.converters.ByteString(value)
@@ -357,13 +316,13 @@ class Headers {
     // 2. If name is not a header name or value is not a
     //    header value, then throw a TypeError.
     if (!isValidHeaderName(name)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.set',
         value: name,
         type: 'header name'
       })
     } else if (!isValidHeaderValue(value)) {
-      webidl.errors.invalidArgument({
+      throw webidl.errors.invalidArgument({
         prefix: 'Headers.set',
         value,
         type: 'header value'
@@ -399,9 +358,7 @@ class Headers {
   }
 
   keys () {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
     return makeIterator(
       () => [...this[kHeadersSortedMap].entries()],
@@ -411,9 +368,7 @@ class Headers {
   }
 
   values () {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
     return makeIterator(
       () => [...this[kHeadersSortedMap].entries()],
@@ -423,9 +378,7 @@ class Headers {
   }
 
   entries () {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
     return makeIterator(
       () => [...this[kHeadersSortedMap].entries()],
@@ -439,15 +392,9 @@ class Headers {
    * @param {unknown} thisArg
    */
   forEach (callbackFn, thisArg = globalThis) {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
-    if (arguments.length < 1) {
-      throw new TypeError(
-        `Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${arguments.length} present.`
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'Headers.forEach' })
 
     if (typeof callbackFn !== 'function') {
       throw new TypeError(
@@ -461,9 +408,7 @@ class Headers {
   }
 
   [Symbol.for('nodejs.util.inspect.custom')] () {
-    if (!(this instanceof Headers)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, Headers)
 
     return this[kHeadersList]
   }
@@ -481,7 +426,11 @@ Object.defineProperties(Headers.prototype, {
   values: kEnumerableProperty,
   entries: kEnumerableProperty,
   forEach: kEnumerableProperty,
-  [Symbol.iterator]: { enumerable: false }
+  [Symbol.iterator]: { enumerable: false },
+  [Symbol.toStringTag]: {
+    value: 'Headers',
+    configurable: true
+  }
 })
 
 webidl.converters.HeadersInit = function (V) {
@@ -493,7 +442,7 @@ webidl.converters.HeadersInit = function (V) {
     return webidl.converters['record<ByteString, ByteString>'](V)
   }
 
-  webidl.errors.conversionFailed({
+  throw webidl.errors.conversionFailed({
     prefix: 'Headers constructor',
     argument: 'Argument 1',
     types: ['sequence<sequence<ByteString>>', 'record<ByteString, ByteString>']
