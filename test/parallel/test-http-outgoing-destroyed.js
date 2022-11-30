@@ -30,7 +30,7 @@ const assert = require('assert');
 
 {
   const server = http.createServer(common.mustCall((req, res) => {
-    assert.strictEqual(res.closed, true);
+    assert.strictEqual(res.closed, false);
     req.pipe(res);
     res.on('error', common.mustNotCall());
     res.on('close', common.mustCall(() => {
