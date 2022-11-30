@@ -22,8 +22,9 @@ class Link extends ArboristWorkspaceCmd {
     'save',
     'save-exact',
     'global',
-    'global-style',
+    'install-strategy',
     'legacy-bundling',
+    'global-style',
     'strict-peer-deps',
     'package-lock',
     'omit',
@@ -51,6 +52,8 @@ class Link extends ArboristWorkspaceCmd {
         { code: 'ELINKGLOBAL' }
       )
     }
+    // install-links is implicitely false when running `npm link`
+    this.npm.config.set('install-links', false)
 
     // link with no args: symlink the folder to the global location
     // link with package arg: symlink the global to the local

@@ -146,27 +146,29 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm fund [&lt;package-spec&gt;]
+<pre><code class="language-bash">npm fund [&lt;package-spec&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command retrieves information on how to fund the dependencies of a
 given project. If no package name is provided, it will list all
 dependencies that are looking for funding in a tree structure, listing
 the type of funding and the url to visit. If a package name is provided
-then it tries to open its funding url using the <code>--browser</code> config
-param; if there are multiple funding sources for the package, the user
-will be instructed to pass the <code>--which</code> option to disambiguate.</p>
+then it tries to open its funding url using the
+<a href="../using-npm/config#browser.html"><code>--browser</code> config</a> param; if there are multiple
+funding sources for the package, the user will be instructed to pass the
+<code>--which</code> option to disambiguate.</p>
 <p>The list will avoid duplicated entries and will stack all packages that
 share the same url as a single entry. Thus, the list does not have the
 same shape of the output from <code>npm ls</code>.</p>
 <h4 id="example">Example</h4>
 <h3 id="workspaces-support">Workspaces support</h3>
 <p>It's possible to filter the results to only include a single workspace
-and its dependencies using the <code>workspace</code> config option.</p>
+and its dependencies using the
+<a href="../using-npm/config#workspace.html"><code>workspace</code> config</a> option.</p>
 <h4 id="example2">Example:</h4>
 <p>Here's an example running <code>npm fund</code> in a project with a configured
 workspace <code>a</code>:</p>
-<pre lang="bash"><code>$ npm fund
+<pre><code class="language-bash">$ npm fund
 test-workspaces-fund@1.0.0
 +-- https://example.com/a
 | | `-- a@1.0.0
@@ -179,7 +181,7 @@ test-workspaces-fund@1.0.0
 </code></pre>
 <p>And here is an example of the expected result when filtering only by a
 specific workspace <code>a</code> in the same project:</p>
-<pre lang="bash"><code>$ npm fund -w a
+<pre><code class="language-bash">$ npm fund -w a
 test-workspaces-fund@1.0.0
 `-- https://example.com/a
   | `-- a@1.0.0
@@ -248,8 +250,7 @@ brand new workspace within the project.</p>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-fund.md">

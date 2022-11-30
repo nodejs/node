@@ -4,6 +4,12 @@ const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
 const mockGlobals = require('../../fixtures/mock-globals.js')
 const { cleanCwd, cleanDate } = require('../../fixtures/clean-snapshot.js')
 
+t.formatSnapshot = (p) => {
+  if (Array.isArray(p.files) && !p.files.length) {
+    delete p.files
+  }
+  return p
+}
 t.cleanSnapshot = p => cleanDate(cleanCwd(p))
 
 mockGlobals(t, {
@@ -420,7 +426,7 @@ t.test('bad platform', async t => {
 })
 
 t.test('explain ERESOLVE errors', async t => {
-  const npm = await loadMockNpm(t)
+  const { npm, ...rest } = await loadMockNpm(t)
   const EXPLAIN_CALLED = []
 
   const er = Object.assign(new Error('could not resolve'), {
@@ -428,19 +434,16 @@ t.test('explain ERESOLVE errors', async t => {
   })
 
   t.matchSnapshot(errorMessage(er, {
-    ...npm,
+    npm,
+    ...rest,
     mocks: {
       '../../../lib/utils/explain-eresolve.js': {
         report: (...args) => {
           EXPLAIN_CALLED.push(args)
-          return 'explanation'
+          return { explanation: 'explanation', file: 'report' }
         },
       },
     },
   }))
-  t.match(EXPLAIN_CALLED, [[
-    er,
-    false,
-    path.resolve(npm.cache, 'eresolve-report.txt'),
-  ]])
+  t.match(EXPLAIN_CALLED, [[er, false]])
 })

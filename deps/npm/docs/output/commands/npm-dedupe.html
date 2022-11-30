@@ -142,11 +142,11 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm dedupe
+<pre><code class="language-bash">npm dedupe
 
 alias: ddp
 </code></pre>
@@ -162,7 +162,7 @@ be more effectively shared by multiple dependent packages.</p>
     `-- c@1.0.10
 </code></pre>
 <p>In this case, <code>npm dedupe</code> will transform the tree to:</p>
-<pre lang="bash"><code>a
+<pre><code class="language-bash">a
 +-- b
 +-- d
 `-- c@1.0.10
@@ -195,26 +195,37 @@ result in new modules being installed.</p>
 dependencies in your project <code>package.json</code>, if you want to update
 values in <code>package.json</code> you can run: <code>npm update --save</code> instead.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="global-style"><code>global-style</code></h4>
+<h4 id="install-strategy"><code>install-strategy</code></h4>
 <ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
+<li>Default: "hoisted"</li>
+<li>Type: "hoisted", "nested", or "shallow"</li>
 </ul>
-<p>Causes npm to install the package into your local <code>node_modules</code> folder with
-the same layout it uses with the global <code>node_modules</code> folder. Only your
-direct dependencies will show in <code>node_modules</code> and everything they depend
-on will be flattened in their <code>node_modules</code> folders. This obviously will
-eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
-will be preferred.</p>
+<p>Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as necessary
+within directory structure. nested: (formerly --legacy-bundling) install in
+place, no hoisting. shallow (formerly --global-style) only install direct
+deps at top-level. linked: (coming soon) install in node_modules/.store,
+link in place, unhoisted.</p>
 <h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=nested</code></li>
 </ul>
-<p>Causes npm to install the package such that versions of npm prior to 1.4,
-such as the one included with node 0.8, can install the package. This
-eliminates all automatic deduping. If used with <code>global-style</code> this option
-will be preferred.</p>
+<p>Instead of hoisting package installs in <code>node_modules</code>, install packages in
+the same manner that they are depended on. This may cause very deep
+directory structures and duplicate package installs as there is no
+de-duplicating. Sets <code>--install-strategy=nested</code>.</p>
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=shallow</code></li>
+</ul>
+<p>Only install direct dependencies in the top level <code>node_modules</code>, but hoist
+on deeper dependendencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -347,20 +358,19 @@ the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="install-links"><code>install-links</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>When set file: protocol dependencies that exist outside of the project root
-will be packed and installed as regular dependencies instead of creating a
-symlink. This option has no effect on workspaces.</p>
+<p>When set file: protocol dependencies will be packed and installed as regular
+dependencies instead of creating a symlink. This option has no effect on
+workspaces.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-find-dupes.html">npm find-dupes</a></li>
 <li><a href="../commands/npm-ls.html">npm ls</a></li>
 <li><a href="../commands/npm-update.html">npm update</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-dedupe.md">

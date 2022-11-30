@@ -277,7 +277,7 @@ t.test('workspaces', t => {
     await distTag.execWorkspaces([], [])
     t.equal(process.exitCode, 1, 'set the error status')
     process.exitCode = 0
-    t.match(log, 'dist-tag ls Couldn\'t get dist-tag data for workspace-d@latest', 'logs the error')
+    t.match(log, 'dist-tag ls Couldn\'t get dist-tag data for workspace-d@*', 'logs the error')
     t.matchSnapshot(result, 'printed the expected output')
   })
 

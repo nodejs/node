@@ -1,6 +1,6 @@
 const fs = require('fs')
 const { relative, resolve } = require('path')
-const mkdirp = require('mkdirp-infer-owner')
+const { mkdir } = require('fs/promises')
 const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
 const rpj = require('read-package-json-fast')
@@ -59,7 +59,7 @@ class Init extends BaseCommand {
     if (args.length) {
       for (const filterArg of filters) {
         const path = wPath(filterArg)
-        await mkdirp(path)
+        await mkdir(path, { recursive: true })
         workspacesPaths.push(path)
         await this.execCreate({ args, path })
         await this.setWorkspace({ pkg, workspacePath: path })
@@ -70,7 +70,7 @@ class Init extends BaseCommand {
     // no args, uses classic init-package-json boilerplate
     for (const filterArg of filters) {
       const path = wPath(filterArg)
-      await mkdirp(path)
+      await mkdir(path, { recursive: true })
       workspacesPaths.push(path)
       await this.template(path)
       await this.setWorkspace({ pkg, workspacePath: path })
@@ -98,15 +98,12 @@ class Init extends BaseCommand {
         packageName = initerName
           .replace(user + '/' + project, user + '/create-' + project)
       } else if (req.registry) {
-        packageName = req.name.replace(/^(@[^/]+\/)?/, '$1create-')
-        if (req.rawSpec) {
-          packageName += '@' + req.rawSpec
-        }
+        packageName = `${req.name.replace(/^(@[^/]+\/)?/, '$1create-')}@${req.rawSpec}`
       } else {
         throw Object.assign(new Error(
           'Unrecognized initializer: ' + initerName +
           '\nFor more package binary executing power check out `npx`:' +
-          '\nhttps://www.npmjs.com/package/npx'
+          '\nhttps://docs.npmjs.com/cli/commands/npx'
         ), { code: 'EUNSUPPORTED' })
       }
     }

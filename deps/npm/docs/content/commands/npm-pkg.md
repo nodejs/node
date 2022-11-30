@@ -144,7 +144,8 @@ Returned values are always in **json** format.
 ### Workspaces support
 
 You can set/get/delete items across your configured workspaces by using the
-`workspace` or `workspaces` config options.
+[`workspace`](/using-npm/config#workspace) or
+[`workspaces`](/using-npm/config#workspaces) config options.
 
 For example, setting a `funding` value across all configured workspaces
 of a project:

@@ -18,9 +18,11 @@ settings described in [`config`](/using-npm/config).
 If you plan to publish your package, the *most* important things in your
 package.json are the name and version fields as they will be required. The
 name and version together form an identifier that is assumed to be
-completely unique. If you don't plan to publish your package, the name and
+completely unique.  Changes to the package should come along with changes
+to the version. If you don't plan to publish your package, the name and
 version fields are optional.
-The name field contains your package name.
+
+The name is what your thing is called.
 
 Some rules:
 
@@ -50,9 +52,12 @@ A name can be optionally prefixed by a scope, e.g. `@myorg/mypackage`. See
 
 ### version
 
-Changes to the package should come along with changes to the version.
-You can show developers how much they need to adjust on a new update by
-using [semantic versioning](../../about-semantic-versioning)
+If you plan to publish your package, the *most* important things in your
+package.json are the name and version fields as they will be required. The
+name and version together form an identifier that is assumed to be
+completely unique.  Changes to the package should come along with changes
+to the version. If you don't plan to publish your package, the name and
+version fields are optional.
 
 Version must be parseable by
 [node-semver](https://github.com/npm/node-semver), which is bundled with
@@ -334,12 +339,14 @@ install into the PATH. npm makes this pretty easy (in fact, it uses this
 feature to install the "npm" executable.)
 
 To use this, supply a `bin` field in your package.json which is a map of
-command name to local file name. When this package is installed
-globally, that file will be linked where global bins go so it is
-available to run by name.  When this package is installed as a
-dependency in another package, the file will be linked where it will be
-available to that package either directly by `npm exec` or by name in other
-scripts when invoking them via `npm run-script`.
+command name to local file name. When this package is installed globally,
+that file will be either linked inside the global bins directory or
+a cmd (Windows Command File) will be created which executes the specified
+file in the `bin` field, so it is available to run by `name` or `name.cmd` (on
+Windows PowerShell). When this package is installed as a dependency in another
+package, the file will be linked where it will be available to that package
+either directly by `npm exec` or by name in other scripts when invoking them
+via `npm run-script`.
 
 
 For example, myapp could have this:
@@ -352,8 +359,10 @@ For example, myapp could have this:
 }
 ```
 
-So, when you install myapp, it'll create a symlink from the `cli.js` script
-to `/usr/local/bin/myapp`.
+So, when you install myapp, in case of unix-like OS it'll create a symlink
+from the `cli.js` script to `/usr/local/bin/myapp` and in case of windows it
+will create a cmd file usually at `C:\Users\{Username}\AppData\Roaming\npm\myapp.cmd`
+which runs the `cli.js` script.
 
 If you have a single executable, and its name should be the name of the
 package, then you can just supply it as a string.  For example:
@@ -1023,9 +1032,10 @@ capable of properly installing your program.  For example:
 }
 ```
 
-Unless the user has set the `engine-strict` config flag, this field is
-advisory only and will only produce warnings when your package is installed
-as a dependency.
+Unless the user has set the
+[`engine-strict` config](/using-npm/config#engine-strict) flag, this field is
+advisory only and will only produce warnings when your package is installed as a
+dependency.
 
 ### os
 

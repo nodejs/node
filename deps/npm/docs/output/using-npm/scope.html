@@ -150,7 +150,7 @@ npm command-line interface
 follows the usual rules for package names (URL-safe characters, no leading dots
 or underscores). When used in package names, scopes are preceded by an <code>@</code> symbol
 and followed by a slash, e.g.</p>
-<pre lang="bash"><code>@somescope/somepackagename
+<pre><code class="language-bash">@somescope/somepackagename
 </code></pre>
 <p>Scopes are a way of grouping related packages together, and also affect a few
 things about the way npm treats the package.</p>
@@ -170,10 +170,10 @@ folder (<code>@myorg</code>) is simply the name of the scope preceded by an <cod
 contain any number of scoped packages.</p>
 <p>A scoped package is installed by referencing it by name, preceded by an
 <code>@</code> symbol, in <code>npm install</code>:</p>
-<pre lang="bash"><code>npm install @myorg/mypackage
+<pre><code class="language-bash">npm install @myorg/mypackage
 </code></pre>
 <p>Or in <code>package.json</code>:</p>
-<pre lang="json"><code>"dependencies": {
+<pre><code class="language-json">"dependencies": {
   "@myorg/mypackage": "^1.3.0"
 }
 </code></pre>
@@ -182,7 +182,7 @@ install from GitHub; see <a href="../commands/npm-install.html"><code>npm instal
 <h3 id="requiring-scoped-packages">Requiring scoped packages</h3>
 <p>Because scoped packages are installed into a scope folder, you have to
 include the name of the scope when requiring them in your code, e.g.</p>
-<pre lang="javascript"><code>require('@myorg/mypackage')
+<pre><code class="language-javascript">require('@myorg/mypackage')
 </code></pre>
 <p>There is nothing special about the way Node treats scope folders. This
 simply requires the <code>mypackage</code> module in the folder named <code>@myorg</code>.</p>
@@ -202,7 +202,7 @@ registry.</p>
 <p>If publishing a public module to an organization scope, you must
 first either create an organization with the name of the scope
 that you'd like to publish to or be added to an existing organization
-with the appropriate permisssions. For example, if you'd like to
+with the appropriate permissions. For example, if you'd like to
 publish to <code>@org</code>, you would  need to create the <code>org</code> organization
 on npmjs.com prior to trying to publish.</p>
 <p>Scoped packages are not public by default.  You will need to specify
@@ -223,12 +223,12 @@ seamlessly use a mix of packages from the primary npm registry and one or more
 private registries, such as <a href="https://github.com/features/packages">GitHub Packages</a> or the open source <a href="https://verdaccio.org">Verdaccio</a>
 project.</p>
 <p>You can associate a scope with a registry at login, e.g.</p>
-<pre lang="bash"><code>npm login --registry=http://reg.example.com --scope=@myco
+<pre><code class="language-bash">npm login --registry=http://reg.example.com --scope=@myco
 </code></pre>
 <p>Scopes have a many-to-one relationship with registries: one registry can
 host multiple scopes, but a scope only ever points to one registry.</p>
 <p>You can also associate a scope with a registry using <code>npm config</code>:</p>
-<pre lang="bash"><code>npm config set @myco:registry http://reg.example.com
+<pre><code class="language-bash">npm config set @myco:registry http://reg.example.com
 </code></pre>
 <p>Once a scope is associated with a registry, any <code>npm install</code> for a package
 with that scope will request packages from that registry instead. Any
@@ -240,8 +240,7 @@ that registry instead.</p>
 <li><a href="../commands/npm-publish.html">npm publish</a></li>
 <li><a href="../commands/npm-access.html">npm access</a></li>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/scope.md">

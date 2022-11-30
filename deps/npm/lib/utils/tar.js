@@ -120,7 +120,9 @@ const getContents = async (manifest, tarball) => {
     unpackedSize: totalEntrySize,
     shasum,
     integrity: ssri.parse(integrity.sha512[0]),
-    filename: `${manifest.name}-${manifest.version}.tgz`,
+    // @scope/packagename.tgz => scope-packagename.tgz
+    // we can safely use these global replace rules due to npm package naming rules
+    filename: `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`,
     files: uppers.concat(others),
     entryCount: totalEntries,
     bundled: Array.from(bundled),

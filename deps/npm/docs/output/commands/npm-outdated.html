@@ -146,7 +146,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm outdated [&lt;package-spec&gt; ...]
+<pre><code class="language-bash">npm outdated [&lt;package-spec&gt; ...]
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command will check the registry to see if any (or, specific) installed
@@ -181,7 +181,7 @@ requirements (usually new major, or new 0.x minor) so proceed with
 caution.</li>
 </ul>
 <h3 id="an-example">An example</h3>
-<pre lang="bash"><code>$ npm outdated
+<pre><code class="language-bash">$ npm outdated
 Package      Current   Wanted   Latest  Location                  Depended by
 glob          5.0.15   5.0.15    6.0.1  node_modules/glob         dependent-package-name
 nothingness    0.0.3      git      git  node_modules/nothingness  dependent-package-name
@@ -190,7 +190,7 @@ local-dev      0.0.3   linked   linked  local-dev                 dependent-pack
 once           1.3.2    1.3.3    1.3.3  node_modules/once         dependent-package-name
 </code></pre>
 <p>With these <code>dependencies</code>:</p>
-<pre lang="json"><code>{
+<pre><code class="language-json">{
   "glob": "^5.0.15",
   "nothingness": "github:othiym23/nothingness#master",
   "npm": "^3.5.1",
@@ -288,8 +288,7 @@ brand new workspace within the project.</p>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../configuring-npm/folders.html">npm folders</a></li>
 <li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-outdated.md">

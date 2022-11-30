@@ -146,58 +146,61 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm view [&lt;package-spec&gt;] [&lt;field&gt;[.subfield]...]
+<pre><code class="language-bash">npm view [&lt;package-spec&gt;] [&lt;field&gt;[.subfield]...]
 
 aliases: info, show, v
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command shows data about a package and prints it to stdout.</p>
 <p>As an example, to view information about the <code>connect</code> package from the registry, you would run:</p>
-<pre lang="bash"><code>npm view connect
+<pre><code class="language-bash">npm view connect
 </code></pre>
 <p>The default version is <code>"latest"</code> if unspecified.</p>
 <p>Field names can be specified after the package descriptor.
 For example, to show the dependencies of the <code>ronn</code> package at version
 <code>0.3.5</code>, you could do the following:</p>
-<pre lang="bash"><code>npm view ronn@0.3.5 dependencies
+<pre><code class="language-bash">npm view ronn@0.3.5 dependencies
 </code></pre>
 <p>You can view child fields by separating them with a period.
 To view the git repository URL for the latest version of <code>npm</code>, you would run the following command:</p>
-<pre lang="bash"><code>npm view npm repository.url
+<pre><code class="language-bash">npm view npm repository.url
 </code></pre>
 <p>This makes it easy to view information about a dependency with a bit of
 shell scripting. For example, to view all the data about the version of
 <code>opts</code> that <code>ronn</code> depends on, you could write the following:</p>
-<pre lang="bash"><code>npm view opts@$(npm view ronn dependencies.opts)
+<pre><code class="language-bash">npm view opts@$(npm view ronn dependencies.opts)
 </code></pre>
 <p>For fields that are arrays, requesting a non-numeric field will return
 all of the values from the objects in the list. For example, to get all
 the contributor email addresses for the <code>express</code> package, you would run:</p>
-<pre lang="bash"><code>npm view express contributors.email
+<pre><code class="language-bash">npm view express contributors.email
 </code></pre>
 <p>You may also use numeric indices in square braces to specifically select
 an item in an array field. To just get the email address of the first
 contributor in the list, you can run:</p>
-<pre lang="bash"><code>npm view express contributors[0].email
+<pre><code class="language-bash">npm view express contributors[0].email
+</code></pre>
+<p>If the field value you are querying for is a property of an object, you should run:</p>
+<pre><code class="language-bash">npm view express time'[4.8.0]'
 </code></pre>
 <p>Multiple fields may be specified, and will be printed one after another.
 For example, to get all the contributor names and email addresses, you
 can do this:</p>
-<pre lang="bash"><code>npm view express contributors.name contributors.email
+<pre><code class="language-bash">npm view express contributors.name contributors.email
 </code></pre>
 <p>"Person" fields are shown as a string if they would be shown as an
 object.  So, for example, this will show the list of <code>npm</code> contributors in
 the shortened string format.  (See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more on this.)</p>
-<pre lang="bash"><code>npm view npm contributors
+<pre><code class="language-bash">npm view npm contributors
 </code></pre>
 <p>If a version range is provided, then data will be printed for every
 matching version of the package.  This will show which version of <code>jsdom</code>
 was required by each matching version of <code>yui3</code>:</p>
-<pre lang="bash"><code>npm view yui3@'&gt;0.5.4' dependencies.jsdom
+<pre><code class="language-bash">npm view yui3@'&gt;0.5.4' dependencies.jsdom
 </code></pre>
 <p>To show the <code>connect</code> package version history, you can do
 this:</p>
-<pre lang="bash"><code>npm view connect versions
+<pre><code class="language-bash">npm view connect versions
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <h4 id="json"><code>json</code></h4>
@@ -273,8 +276,7 @@ the field name.</p>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../commands/npm-docs.html">npm docs</a></li>
-</ul>
-</div>
+</ul></div>
 
 <footer id="edit">
 <a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-view.md">

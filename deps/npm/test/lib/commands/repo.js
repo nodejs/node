@@ -221,7 +221,7 @@ t.test('open repo urls', async t => {
     unhostedgitsshobj: 'https://gothib.com/foo/unhostedgitsshobj',
     unhostedgithttpobj: 'http://gothib.com/foo/unhostedgithttpobj',
     unhostedgithttpsobj: 'https://gothib.com/foo/unhostedgithttpsobj',
-    directory: 'https://github.com/foo/test-repo-with-directory/tree/master/some/directory',
+    directory: 'https://github.com/foo/test-repo-with-directory/tree/HEAD/some/directory',
     '.': 'https://example.com/thispkg',
   }
   const keys = Object.keys(expect)

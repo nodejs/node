@@ -67,6 +67,9 @@ const getExplore = (windows) => {
     output: out => {
       output.push(out)
     },
+    config: {
+      validate: () => {},
+    },
   }
   return new Explore(npm)
 }
