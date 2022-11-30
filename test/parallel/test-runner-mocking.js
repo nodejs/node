@@ -356,6 +356,7 @@ test('mocks prototype methods on an instance', async (t) => {
   assert.strictEqual(obj.someTask.mock.restore(), undefined);
   assert.strictEqual(await obj.method(msg), msg);
   assert.strictEqual(obj.someTask.mock, undefined);
+  assert.strictEqual(Runner.prototype.someTask.mock, undefined);
 });
 
 test('spies on async static class methods', async (t) => {
@@ -387,6 +388,8 @@ test('spies on async static class methods', async (t) => {
   assert.strictEqual(Runner.someTask.mock.restore(), undefined);
   assert.strictEqual(await Runner.method(msg), msg);
   assert.strictEqual(Runner.someTask.mock, undefined);
+  assert.strictEqual(Runner.prototype.someTask, undefined);
+
 });
 
 test('given null to a mock.method it throws a invalid argument error', (t) => {
