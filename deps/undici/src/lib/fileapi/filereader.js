@@ -37,15 +37,9 @@ class FileReader extends EventTarget {
    * @param {import('buffer').Blob} blob
    */
   readAsArrayBuffer (blob) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
-    if (arguments.length === 0) {
-      throw new TypeError(
-        'Failed to execute \'readAsArrayBuffer\' on \'FileReader\': 1 argument required, but 0 present.'
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsArrayBuffer' })
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -59,15 +53,9 @@ class FileReader extends EventTarget {
    * @param {import('buffer').Blob} blob
    */
   readAsBinaryString (blob) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
-    if (arguments.length === 0) {
-      throw new TypeError(
-        'Failed to execute \'readAsBinaryString\' on \'FileReader\': 1 argument required, but 0 present.'
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsBinaryString' })
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -82,15 +70,9 @@ class FileReader extends EventTarget {
    * @param {string?} encoding
    */
   readAsText (blob, encoding = undefined) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
-    if (arguments.length === 0) {
-      throw new TypeError(
-        'Failed to execute \'readAsText\' on \'FileReader\': 1 argument required, but 0 present.'
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsText' })
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -108,15 +90,9 @@ class FileReader extends EventTarget {
    * @param {import('buffer').Blob} blob
    */
   readAsDataURL (blob) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
-    if (arguments.length === 0) {
-      throw new TypeError(
-        'Failed to execute \'readAsDataURL\' on \'FileReader\': 1 argument required, but 0 present.'
-      )
-    }
+    webidl.argumentLengthCheck(arguments, 1, { header: 'FileReader.readAsDataURL' })
 
     blob = webidl.converters.Blob(blob, { strict: false })
 
@@ -166,9 +142,7 @@ class FileReader extends EventTarget {
    * @see https://w3c.github.io/FileAPI/#dom-filereader-readystate
    */
   get readyState () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     switch (this[kState]) {
       case 'empty': return this.EMPTY
@@ -181,9 +155,7 @@ class FileReader extends EventTarget {
    * @see https://w3c.github.io/FileAPI/#dom-filereader-result
    */
   get result () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     // The result attribute’s getter, when invoked, must return
     // this's result.
@@ -194,9 +166,7 @@ class FileReader extends EventTarget {
    * @see https://w3c.github.io/FileAPI/#dom-filereader-error
    */
   get error () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     // The error attribute’s getter, when invoked, must return
     // this's error.
@@ -204,17 +174,13 @@ class FileReader extends EventTarget {
   }
 
   get onloadend () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].loadend
   }
 
   set onloadend (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].loadend = fn
@@ -224,17 +190,13 @@ class FileReader extends EventTarget {
   }
 
   get onerror () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].error
   }
 
   set onerror (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].error = fn
@@ -244,17 +206,13 @@ class FileReader extends EventTarget {
   }
 
   get onloadstart () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].loadstart
   }
 
   set onloadstart (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].loadstart = fn
@@ -264,17 +222,13 @@ class FileReader extends EventTarget {
   }
 
   get onprogress () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].progress
   }
 
   set onprogress (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].progress = fn
@@ -284,17 +238,13 @@ class FileReader extends EventTarget {
   }
 
   get onload () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].load
   }
 
   set onload (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].load = fn
@@ -304,17 +254,13 @@ class FileReader extends EventTarget {
   }
 
   get onabort () {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     return this[kEvents].abort
   }
 
   set onabort (fn) {
-    if (!(this instanceof FileReader)) {
-      throw new TypeError('Illegal invocation')
-    }
+    webidl.brandCheck(this, FileReader)
 
     if (typeof fn === 'function') {
       this[kEvents].abort = fn
