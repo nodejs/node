@@ -12,26 +12,34 @@ if (common.isIBMi)
 
 common.skipIfInspectorDisabled();
 
+let gettingDebuggedPid = false;
+
+async function getDebuggedPid(instance, waitForLog = true) {
+  gettingDebuggedPid = true;
+  const session = await instance.connectInspectorSession();
+  await session.send({ method: 'Runtime.enable' });
+  if (waitForLog) {
+    await session.waitForConsoleOutput('log', 'safe to debug now');
+  }
+  const { value: innerPid } = (await session.send({
+    'method': 'Runtime.evaluate', 'params': { 'expression': 'process.pid' }
+  })).result;
+  session.disconnect();
+  gettingDebuggedPid = false;
+  return innerPid;
+}
+
 function restart(file) {
   writeFileSync(file, readFileSync(file));
-  const interval = setInterval(() => writeFileSync(file, readFileSync(file)), 500);
+  const interval = setInterval(() => {
+    if (!gettingDebuggedPid) {
+      writeFileSync(file, readFileSync(file));
+    }
+  }, common.platformTimeout(500));
   return () => clearInterval(interval);
 }
 
 describe('watch mode - inspect', () => {
-  async function getDebuggedPid(instance, waitForLog = true) {
-    const session = await instance.connectInspectorSession();
-    await session.send({ method: 'Runtime.enable' });
-    if (waitForLog) {
-      await session.waitForConsoleOutput('log', 'safe to debug now');
-    }
-    const { value: innerPid } = (await session.send({
-      'method': 'Runtime.evaluate', 'params': { 'expression': 'process.pid' }
-    })).result;
-    session.disconnect();
-    return innerPid;
-  }
-
   it('should start debugger on inner process', async () => {
     const file = fixtures.path('watch-mode/inspect.js');
     const instance = new NodeInstance(['--inspect=0', '--watch'], undefined, file);
