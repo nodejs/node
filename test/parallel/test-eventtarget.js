@@ -691,31 +691,26 @@ let asyncTest = Promise.resolve();
 
   throws(() => et.addEventListener(), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError',
-    message: 'The "type" and "listener" arguments must be specified'
+    name: 'TypeError'
   });
 
   throws(() => et.addEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError',
-    message: 'The "type" and "listener" arguments must be specified'
+    name: 'TypeError'
   });
 
   throws(() => et.removeEventListener(), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError',
-    message: 'The "type" and "listener" arguments must be specified'
+    name: 'TypeError'
   });
 
   throws(() => et.removeEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError',
-    message: 'The "type" and "listener" arguments must be specified'
+    name: 'TypeError'
   });
 
   throws(() => et.dispatchEvent(), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError',
-    message: 'The "event" argument must be specified'
+    name: 'TypeError'
   });
 }
