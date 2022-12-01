@@ -11,10 +11,10 @@ generate the following:
 1. Human-readable HTML in `out/doc/api/*.html`
 2. A JSON representation in `out/doc/api/*.json`
 
-These artifacts are published to nodejs.org for multiple versions of Node.js. As an
-example the latest version of the human-readable HTML is published to
-[nodejs.org/en/doc](https://nodejs.org/en/docs/), and the latest version
-of the json documentation is published to
+These artifacts are published to nodejs.org for multiple versions of
+Node.js. As an example the latest version of the human-readable HTML
+is published to [nodejs.org/en/doc](https://nodejs.org/en/docs/),
+and the latest version of the json documentation is published to
 [nodejs.org/api/all.json](https://nodejs.org/api/all.json)
 
 The artifacts are built as part of release builds by running the [doc-upload](https://github.com/nodejs/node/blob/1a83ad6a693f851199608ae957ac5d4f76871485/Makefile#L1218-L1224)
