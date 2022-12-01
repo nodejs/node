@@ -391,7 +391,7 @@ Use the specified file as a security policy.
 added: v18.0.0
 -->
 
-Disable the [Fetch API][] global.
+Disable exposition of [Fetch API][] on the global scope.
 
 ### `--no-experimental-global-webcrypto`
 
