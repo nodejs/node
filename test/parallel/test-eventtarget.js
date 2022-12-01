@@ -696,21 +696,21 @@ let asyncTest = Promise.resolve();
 
   throws(() => et.addEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
   throws(() => et.removeEventListener(), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
   throws(() => et.removeEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 
   throws(() => et.dispatchEvent(), {
     code: 'ERR_MISSING_ARGS',
-    name: 'TypeError'
+    name: 'TypeError',
   });
 }
