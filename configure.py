@@ -805,6 +805,12 @@ parser.add_argument('--v8-enable-short-builtin-calls',
     help='Enable V8 short builtin calls support. This feature is enabled '+
          'on x86_64 platform by default.')
 
+parser.add_argument('--v8-enable-snapshot-compression',
+    action='store_true',
+    dest='v8_enable_snapshot_compression',
+    default=None,
+    help='Enable the built-in snapshot compression in V8.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1482,6 +1488,8 @@ def configure_v8(o):
   o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
   if options.v8_enable_short_builtin_calls or o['variables']['target_arch'] == 'x64':
     o['variables']['v8_enable_short_builtin_calls'] = 1
+  if options.v8_enable_snapshot_compression:
+    o['variables']['v8_enable_snapshot_compression'] = 1
   if options.v8_enable_object_print and options.v8_disable_object_print:
     raise Exception(
         'Only one of the --v8-enable-object-print or --v8-disable-object-print options '
