@@ -168,3 +168,29 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /# pass 2/);
   assert.match(stdout, /# fail 1/);
 }
+
+{
+  // Test user logging in tests.
+  const args = [
+    '--test',
+    'test/fixtures/test-runner/user-logs.js',
+  ];
+  const child = spawnSync(process.execPath, args);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /# Subtest: .+user-logs\.js/);
+  assert.match(stdout, / {4}# stderr 1/);
+  assert.match(stdout, / {4}# stderr 2/);
+  assert.match(stdout, / {4}# stdout 3/);
+  assert.match(stdout, / {4}# stderr 6/);
+  assert.match(stdout, / {4}# not ok 1 - fake test/);
+  assert.match(stdout, / {4}# stderr 5/);
+  assert.match(stdout, / {4}# stdout 4/);
+  assert.match(stdout, / {4}# Subtest: a test/);
+  assert.match(stdout, / {4}ok 1 - a test/);
+  assert.match(stdout, /# tests 1/);
+  assert.match(stdout, /# pass 1/);
+}
