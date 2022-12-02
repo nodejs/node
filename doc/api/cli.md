@@ -1940,8 +1940,8 @@ Node.js options that are allowed are:
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--watch-path`
-* `--watch`
 * `--watch-preserve-output`
+* `--watch`
 * `--zero-fill-buffers`
 
 <!-- node-options-node end -->
