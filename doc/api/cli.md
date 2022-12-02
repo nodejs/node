@@ -1628,6 +1628,14 @@ This option is only supported on macOS and Windows.
 An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
 when the option is used on a platform that does not support it.
 
+### --watch-preserve-output
+
+Option to ensure output of stdout is preserved during --watch on restart
+
+```console
+$ node --watch --watch-preserve-output test.js
+```
+
 ### `--zero-fill-buffers`
 
 <!-- YAML
@@ -1933,6 +1941,7 @@ Node.js options that are allowed are:
 * `--v8-pool-size`
 * `--watch-path`
 * `--watch`
+* `--watch-preserve-output`
 * `--zero-fill-buffers`
 
 <!-- node-options-node end -->
