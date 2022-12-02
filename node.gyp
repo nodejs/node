@@ -498,6 +498,7 @@
         'src/node_contextify.cc',
         'src/node_credentials.cc',
         'src/node_dir.cc',
+        'src/node_encoding.cc',
         'src/node_env_var.cc',
         'src/node_errors.cc',
         'src/node_external_reference.cc',

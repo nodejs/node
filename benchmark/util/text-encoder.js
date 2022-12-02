@@ -2,17 +2,27 @@
 
 const common = require('../common.js');
 
-const BASE = 'string\ud801';
-
 const bench = common.createBenchmark(main, {
-  len: [256, 1024, 1024 * 32],
+  len: [0, 256, 1024, 1024 * 32],
   n: [1e4],
+  type: ['v8-one-byte-string', 'v8-two-byte-string'],
   op: ['encode', 'encodeInto']
 });
 
-function main({ n, op, len }) {
+function main({ n, op, len, type }) {
   const encoder = new TextEncoder();
-  const input = BASE.repeat(len);
+  let base = '';
+
+  switch (type) {
+    case 'v8-one-byte-string':
+      base = 'a';
+      break;
+    case 'v8-two-byte-string':
+      base = 'ğ';
+      break;
+  }
+
+  const input = base.repeat(len);
   const subarray = new Uint8Array(len);
 
   bench.start();

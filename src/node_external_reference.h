@@ -10,7 +10,13 @@
 
 namespace node {
 
+// TODO(anonrig): Find a good way of reusing existing types for fast api usages.
 using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
+using CFunctionCallbackWithInput =
+    void (*)(v8::Local<v8::Value> receiver,
+             const v8::FastOneByteString& source,
+             const v8::FastApiTypedArray<uint8_t>& destination,
+             const v8::FastApiTypedArray<uint32_t>& result);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
@@ -20,6 +26,7 @@ class ExternalReferenceRegistry {
 
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionCallback)                                                         \
+  V(CFunctionCallbackWithInput)                                                \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorGetterCallback)                                                \
@@ -67,6 +74,7 @@ class ExternalReferenceRegistry {
   V(credentials)                                                               \
   V(env_var)                                                                   \
   V(errors)                                                                    \
+  V(encoding_methods)                                                          \
   V(fs)                                                                        \
   V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \

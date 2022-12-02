@@ -18,6 +18,7 @@ const expectedModules = new Set([
   'Internal Binding contextify',
   'Internal Binding credentials',
   'Internal Binding errors',
+  'Internal Binding encoding_methods',
   'Internal Binding fs_dir',
   'Internal Binding fs_event_wrap',
   'Internal Binding fs',

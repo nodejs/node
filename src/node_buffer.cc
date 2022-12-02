@@ -1146,73 +1146,6 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0]);
 }
 
-
-// Encode a single string to a UTF-8 Uint8Array (not Buffer).
-// Used in TextEncoder.prototype.encode.
-static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());
-
-  Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length(isolate);
-
-  Local<ArrayBuffer> ab;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    std::unique_ptr<BackingStore> bs =
-        ArrayBuffer::NewBackingStore(isolate, length);
-
-    CHECK(bs);
-
-    str->WriteUtf8(isolate,
-                   static_cast<char*>(bs->Data()),
-                   -1,  // We are certain that `data` is sufficiently large
-                   nullptr,
-                   String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-
-    ab = ArrayBuffer::New(isolate, std::move(bs));
-  }
-
-  auto array = Uint8Array::New(ab, 0, length);
-  args.GetReturnValue().Set(array);
-}
-
-
-static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK_GE(args.Length(), 3);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsUint8Array());
-  CHECK(args[2]->IsUint32Array());
-
-  Local<String> source = args[0].As<String>();
-
-  Local<Uint8Array> dest = args[1].As<Uint8Array>();
-  Local<ArrayBuffer> buf = dest->Buffer();
-  char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
-  size_t dest_length = dest->ByteLength();
-
-  // results = [ read, written ]
-  Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
-  uint32_t* results = reinterpret_cast<uint32_t*>(
-      static_cast<char*>(result_arr->Buffer()->Data()) +
-      result_arr->ByteOffset());
-
-  int nchars;
-  int written = source->WriteUtf8(
-      isolate,
-      write_result,
-      dest_length,
-      &nchars,
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
-  results[0] = nchars;
-  results[1] = written;
-}
-
-
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1344,9 +1277,6 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "swap32", Swap32);
   SetMethod(context, target, "swap64", Swap64);
 
-  SetMethod(context, target, "encodeInto", EncodeInto);
-  SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
-
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kMaxLength"),
@@ -1398,9 +1328,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Swap16);
   registry->Register(Swap32);
   registry->Register(Swap64);
-
-  registry->Register(EncodeInto);
-  registry->Register(EncodeUtf8String);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
