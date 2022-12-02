@@ -7,7 +7,10 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
+#include <atomic>
 #include <unordered_set>
+#include "base_object.h"
+#include "callback_queue.h"
 #include "inspector_agent.h"
 
 namespace node {
@@ -140,6 +143,63 @@ class V8HeapProfilerConnection : public V8ProfilerConnection {
  private:
   std::unique_ptr<inspector::InspectorSession> session_;
   bool ending_ = false;
+};
+
+class ProfileWatchdog : public BaseObject {
+ public:
+  enum class ProfileWatchdogState { kInitialized, kRunning, kClosing, kClosed };
+  ProfileWatchdog(Environment* env, v8::Local<v8::Object> object);
+  ~ProfileWatchdog() override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  template <typename Fn>
+  void AddTask(Fn&& cb,
+               CallbackFlags::Flags flags = CallbackFlags::Flags::kRefed);
+  void HandleTasks();
+  void Start(Environment* env);
+  void Stop();
+  void SetTimeout();
+  virtual bool TimeoutHandler() = 0;
+  void set_state(ProfileWatchdogState value) {
+    state_.store(value, std::memory_order_relaxed);
+  }
+  ProfileWatchdogState state() {
+    return state_.load(std::memory_order_relaxed);
+  }
+
+ protected:
+  uint64_t interval_;
+
+ private:
+  static void Run(void* arg);
+  static void Timer(uv_timer_t* timer);
+  uv_thread_t thread_;
+  uv_loop_t loop_;
+  uv_async_t async_;
+  uv_timer_t timer_;
+  CallbackQueue<void> tasks_;
+  Mutex task_mutex_;
+  std::atomic<ProfileWatchdogState> state_{ProfileWatchdogState::kInitialized};
+};
+
+class MemoryProfileWatchdog : public ProfileWatchdog {
+ public:
+  MemoryProfileWatchdog(Environment* env,
+                        v8::Local<v8::Object> object,
+                        v8::Local<v8::Object> options);
+  void MemoryInfo(MemoryTracker* tracker) const override {}
+  SET_SELF_SIZE(MemoryProfileWatchdog)
+  SET_MEMORY_INFO_NAME(MemoryProfileWatchdog)
+  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool TimeoutHandler() override;
+
+ private:
+  size_t max_rss_ = 0;
+  size_t max_used_heap_size_ = 0;
+  std::string filename_;
 };
 
 }  // namespace profiler

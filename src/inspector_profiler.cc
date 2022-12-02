@@ -20,11 +20,15 @@ using errors::TryCatchScope;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
+using v8::HeapStatistics;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -503,6 +507,246 @@ static void StopCoverage(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void ProfileWatchdog::Start(Environment* env) {
+  if (state() == ProfileWatchdogState::kInitialized) {
+    int rc;
+    rc = uv_loop_init(&loop_);
+    if (rc != 0) {
+      env->ThrowUVException(rc, "uv_loop_init", "Failed to call uv_loop_init");
+      delete this;
+      return;
+    }
+    rc = uv_async_init(&loop_, &async_, [](uv_async_t* task_async) {
+      ProfileWatchdog* w = ContainerOf(&ProfileWatchdog::async_, task_async);
+      w->HandleTasks();
+    });
+    if (rc != 0) {
+      env->ThrowUVException(
+          rc, "uv_async_init", "Failed to call uv_async_init");
+      delete this;
+      return;
+    }
+    rc = uv_timer_init(&loop_, &timer_);
+    if (rc != 0) {
+      uv_close(reinterpret_cast<uv_handle_t*>(&async_), nullptr);
+      env->ThrowUVException(
+          rc, "uv_timer_init", "Failed to call uv_timer_init");
+      delete this;
+      return;
+    }
+    rc = uv_timer_start(&timer_, &ProfileWatchdog::Timer, interval_, 0);
+    if (rc != 0) {
+      uv_close(reinterpret_cast<uv_handle_t*>(&async_), nullptr);
+      env->ThrowUVException(
+          rc, "uv_timer_start", "Failed to call uv_timer_start");
+      delete this;
+      return;
+    }
+
+    rc = uv_thread_create(&thread_, &ProfileWatchdog::Run, this);
+    if (rc == 0) {
+      set_state(ProfileWatchdogState::kRunning);
+    } else {
+      uv_close(reinterpret_cast<uv_handle_t*>(&timer_), nullptr);
+      uv_close(reinterpret_cast<uv_handle_t*>(&async_), nullptr);
+      env->ThrowUVException(
+          rc, "uv_thread_create", "Failed to call uv_thread_create");
+      delete this;
+      return;
+    }
+  }
+}
+
+void ProfileWatchdog::Stop() {
+  if (state() != ProfileWatchdogState::kClosing &&
+      state() != ProfileWatchdogState::kClosed) {
+    set_state(ProfileWatchdogState::kClosing);
+  }
+}
+
+void ProfileWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  ProfileWatchdog* watchdog = Unwrap<ProfileWatchdog>(args.Holder());
+  if (watchdog) {
+    watchdog->Start(env);
+  }
+}
+
+void ProfileWatchdog::Stop(const FunctionCallbackInfo<Value>& args) {
+  ProfileWatchdog* watchdog = Unwrap<ProfileWatchdog>(args.Holder());
+  if (watchdog) {
+    watchdog->Stop();
+  }
+}
+
+void ProfileWatchdog::Run(void* arg) {
+  ProfileWatchdog* wd = static_cast<ProfileWatchdog*>(arg);
+  uv_run(&wd->loop_, UV_RUN_DEFAULT);
+  CheckedUvLoopClose(&wd->loop_);
+}
+
+void ProfileWatchdog::Timer(uv_timer_t* timer) {
+  ProfileWatchdog* w = ContainerOf(&ProfileWatchdog::timer_, timer);
+  Environment* env = w->env();
+  if (!env || env->is_stopping()) {
+    return;
+  }
+  if (w->state() == ProfileWatchdogState::kClosed) {
+    return;
+  }
+  env->RequestInterrupt([watchdog = std::move(w)](Environment* env) {
+    if (env->is_stopping() ||
+        watchdog->state() == ProfileWatchdogState::kClosed) {
+      return;
+    }
+    if (watchdog->state() == ProfileWatchdogState::kClosing) {
+      delete watchdog;
+      return;
+    }
+    if (watchdog->TimeoutHandler()) {
+      watchdog->AddTask(
+          [watchdog = std::move(watchdog)]() { watchdog->SetTimeout(); });
+    }
+  });
+}
+
+template <typename Fn>
+void ProfileWatchdog::AddTask(Fn&& cb, CallbackFlags::Flags flags) {
+  auto callback = tasks_.CreateCallback(std::move(cb), flags);
+  {
+    Mutex::ScopedLock lock(task_mutex_);
+    tasks_.Push(std::move(callback));
+  }
+  uv_async_send(&async_);
+}
+
+void ProfileWatchdog::HandleTasks() {
+  while (tasks_.size() > 0) {
+    CallbackQueue<void> queue;
+    {
+      Mutex::ScopedLock lock(task_mutex_);
+      queue.ConcatMove(std::move(tasks_));
+    }
+    while (auto head = queue.Shift()) head->Call();
+  }
+}
+
+void ProfileWatchdog::SetTimeout() {
+  uv_timer_start(&timer_, &ProfileWatchdog::Timer, interval_, 0);
+}
+
+Local<FunctionTemplate> ProfileWatchdog::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->profile_watchdog_ctor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "ProfileWatchdog"));
+    SetProtoMethod(isolate, tmpl, "start", ProfileWatchdog::Start);
+    SetProtoMethod(isolate, tmpl, "stop", ProfileWatchdog::Stop);
+    env->set_profile_watchdog_ctor_template(tmpl);
+  }
+  return tmpl;
+}
+
+ProfileWatchdog::ProfileWatchdog(Environment* env, Local<Object> object)
+    : BaseObject(env, object) {}
+
+ProfileWatchdog::~ProfileWatchdog() {
+  ProfileWatchdogState old_state = state();
+  set_state(ProfileWatchdogState::kClosed);
+  if (old_state != ProfileWatchdogState::kInitialized) {
+    AddTask([self = std::move(this)]() {
+      uv_close(reinterpret_cast<uv_handle_t*>(&self->timer_), nullptr);
+      uv_close(reinterpret_cast<uv_handle_t*>(&self->async_), nullptr);
+      uv_stop(&self->loop_);
+    });
+    CHECK_EQ(uv_thread_join(&thread_), 0);
+  }
+}
+
+MemoryProfileWatchdog::MemoryProfileWatchdog(Environment* env,
+                                             v8::Local<v8::Object> object,
+                                             v8::Local<v8::Object> options)
+    : ProfileWatchdog(env, object) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<String> interval_key = FIXED_ONE_BYTE_STRING(isolate, "interval");
+  Local<String> max_rss_key = FIXED_ONE_BYTE_STRING(isolate, "maxRss");
+  Local<String> max_used_heap_size_key =
+      FIXED_ONE_BYTE_STRING(isolate, "maxUsedHeapSize");
+  Local<String> filename_key = FIXED_ONE_BYTE_STRING(isolate, "filename");
+
+  Local<Value> interval = options->Get(context, interval_key).ToLocalChecked();
+  interval_ = static_cast<uint64_t>(interval.As<Number>()->Value());
+
+  if (options->Has(context, max_rss_key).FromMaybe(false)) {
+    Local<Value> max_rss = options->Get(context, max_rss_key).ToLocalChecked();
+    max_rss_ = static_cast<size_t>(max_rss.As<Number>()->Value());
+  }
+
+  if (options->Has(context, max_used_heap_size_key).FromMaybe(false)) {
+    Local<Value> max_used_heap_size =
+        options->Get(context, max_used_heap_size_key).ToLocalChecked();
+    max_used_heap_size_ =
+        static_cast<size_t>(max_used_heap_size.As<Number>()->Value());
+  }
+
+  Local<Value> filename = options->Get(context, filename_key).ToLocalChecked();
+  node::Utf8Value filename_tmp(isolate, filename);
+  filename_ = std::string(*filename_tmp);
+}
+
+bool MemoryProfileWatchdog::TimeoutHandler() {
+  bool reached = false;
+  if (max_rss_) {
+    size_t rss = 0;
+    uv_resident_set_memory(&rss);
+    if (rss >= max_rss_) {
+      reached = true;
+    }
+  }
+
+  if (!reached && max_used_heap_size_) {
+    Isolate* isolate = env()->isolate();
+    HeapStatistics heap_statistics;
+    isolate->GetHeapStatistics(&heap_statistics);
+    if (heap_statistics.used_heap_size() >= max_used_heap_size_) {
+      reached = true;
+    }
+  }
+
+  if (reached) {
+    HeapProfiler::HeapSnapshotOptions options;
+    options.numerics_mode = HeapProfiler::NumericsMode::kExposeNumericValues;
+    options.snapshot_mode = HeapProfiler::HeapSnapshotMode::kExposeInternals;
+    heap::WriteSnapshot(env(), filename_.c_str(), options);
+    delete this;
+    return false;
+  }
+  return true;
+}
+
+void MemoryProfileWatchdog::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsObject());
+  Environment* env = Environment::GetCurrent(args);
+  new MemoryProfileWatchdog(env, args.This(), args[0].As<Object>());
+}
+
+void MemoryProfileWatchdog::Init(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> constructor =
+      NewFunctionTemplate(isolate, MemoryProfileWatchdog::New);
+  constructor->InstanceTemplate()->SetInternalFieldCount(
+      BaseObject::kInternalFieldCount);
+  constructor->Inherit(ProfileWatchdog::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      env->context(), target, "MemoryProfileWatchdog", constructor);
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -512,6 +756,8 @@ static void Initialize(Local<Object> target,
       context, target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
   SetMethod(context, target, "takeCoverage", TakeCoverage);
   SetMethod(context, target, "stopCoverage", StopCoverage);
+  Environment* env = Environment::GetCurrent(context);
+  MemoryProfileWatchdog::Init(env, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -519,6 +765,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetSourceMapCacheGetter);
   registry->Register(TakeCoverage);
   registry->Register(StopCoverage);
+  registry->Register(MemoryProfileWatchdog::New);
+  registry->Register(MemoryProfileWatchdog::Start);
+  registry->Register(MemoryProfileWatchdog::Stop);
 }
 
 }  // namespace profiler
