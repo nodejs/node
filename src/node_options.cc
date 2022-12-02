@@ -613,7 +613,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
             kAllowedInEnvvar);
-  AddOption("--preserve-output", 
+  AddOption("--preserve-output",
             "preserve outputs on watch mode restart",
             &EnvironmentOptions::preserve_output,
             kAllowedInEnvvar);
