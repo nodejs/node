@@ -283,7 +283,6 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
 
   it('should preserve output when --watch-preserve-output flag is passed', async () => {
     const file = createTmpFile();
-    console.log(file);
     const { stderr, stdout } = await spawnWithRestarts({
       file,
       args: ['--watch-preserve-output', file],
