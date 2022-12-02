@@ -25,7 +25,6 @@ TAP version 13
         *
         *
         *
-        *
       ...
     # Subtest: sync fail todo with message
     not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -35,7 +34,6 @@ TAP version 13
       error: 'thrown from sync fail todo with message'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
         *
         *
@@ -74,7 +72,6 @@ TAP version 13
         *
         *
         *
-        *
       ...
     # Subtest: async skip pass
     ok 9 - async skip pass # SKIP
@@ -101,7 +98,6 @@ TAP version 13
         *
         *
         *
-        *
       ...
     # Subtest: async skip fail
     not ok 12 - async skip fail # SKIP
@@ -111,7 +107,6 @@ TAP version 13
       error: 'thrown from async throw fail'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
         *
         *
@@ -142,7 +137,6 @@ TAP version 13
         *
         *
         *
-        *
       ...
     # Subtest: resolve pass
     ok 14 - resolve pass
@@ -157,7 +151,6 @@ TAP version 13
       error: 'rejected from reject fail'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
         *
         *
