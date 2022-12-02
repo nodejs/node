@@ -216,7 +216,7 @@
     'v8_enable_regexp_interpreter_threaded_dispatch%': 1,
 
     # Disable all snapshot compression.
-    'v8_enable_snapshot_compression%': 1,
+    'v8_enable_snapshot_compression%': 0,
 
     # Enable control-flow integrity features, such as pointer authentication
     # for ARM64.
