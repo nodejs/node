@@ -16,7 +16,7 @@ import dgram from 'node:dgram';
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
-  console.log(`server error:\n${err.stack}`);
+  console.error(`server error:\n${err.stack}`);
   server.close();
 });
 
@@ -38,7 +38,7 @@ const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
-  console.log(`server error:\n${err.stack}`);
+  console.error(`server error:\n${err.stack}`);
   server.close();
 });
 
@@ -268,7 +268,7 @@ import dgram from 'node:dgram';
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
-  console.log(`server error:\n${err.stack}`);
+  console.error(`server error:\n${err.stack}`);
   server.close();
 });
 
@@ -290,7 +290,7 @@ const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
-  console.log(`server error:\n${err.stack}`);
+  console.error(`server error:\n${err.stack}`);
   server.close();
 });
 

@@ -272,7 +272,7 @@ const { exec } = require('node:child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = exec('grep ssh', { signal }, (error) => {
-  console.log(error); // an AbortError
+  console.error(error); // an AbortError
 });
 controller.abort();
 ```
@@ -384,7 +384,7 @@ const { execFile } = require('node:child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = execFile('node', ['--version'], { signal }, (error) => {
-  console.log(error); // an AbortError
+  console.error(error); // an AbortError
 });
 controller.abort();
 ```
