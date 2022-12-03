@@ -1380,15 +1380,15 @@ added:
   - v18.3.0
   - v16.17.0
 changes:
-  - version: v18.11.0
-    pr-url: https://github.com/nodejs/node/pull/44631
-    description: Add support for default values in input `config`.
-  - version:
+- version:
     - v18.7.0
     - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/43459
     description: add support for returning detailed parse information
                  using `tokens` in input `config` and returned properties.
+  - version: v18.11.0
+    pr-url: https://github.com/nodejs/node/pull/44631
+    description: Add support for default values in input `config`.
 -->
 
 > Stability: 1 - Experimental
