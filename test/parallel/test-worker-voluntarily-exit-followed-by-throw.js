@@ -5,10 +5,10 @@ const { Worker, isMainThread } = require('worker_threads');
 
 if (isMainThread) {
   const workerData = new Int32Array(new SharedArrayBuffer(4));
-  const w = new Worker(__filename, {
+  new Worker(__filename, {
     workerData,
   });
-  w.on('beforeExit', common.mustCall(() => {
+  process.on('beforeExit', common.mustCall(() => {
     assert.strictEqual(workerData[0], 0);
   }));
 } else {

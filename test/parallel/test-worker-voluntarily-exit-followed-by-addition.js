@@ -5,7 +5,7 @@ const { Worker, isMainThread } = require('worker_threads');
 
 if (isMainThread) {
   const workerData = new Int32Array(new SharedArrayBuffer(4));
-  const w = new Worker(__filename, {
+  new Worker(__filename, {
     workerData,
   });
   process.on('beforeExit', common.mustCall(() => {
