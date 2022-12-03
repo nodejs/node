@@ -8,7 +8,7 @@ if (isMainThread) {
   const w = new Worker(__filename, {
     workerData,
   });
-  w.on('exit', common.mustCall(() => {
+  w.on('beforeExit', common.mustCall(() => {
     assert.strictEqual(workerData[0], 0);
   }));
 } else {
