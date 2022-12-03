@@ -856,6 +856,9 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44731
+    description: Added the `autoSelectFamily` option.
   - version:
     - v17.7.0
     - v16.15.0
@@ -902,6 +905,20 @@ For TCP connections, available `options` are:
   **Default:** `false`.
 * `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
   the first keepalive probe is sent on an idle socket.**Default:** `0`.
+* `autoSelectFamily` {boolean}: If set to `true`, it enables a family autodetection algorithm
+  that loosely implements section 5 of [RFC 8305][].
+  The `all` option passed to lookup is set to `true` and the sockets attempts to connect to all
+  obtained IPv6 and IPv4 addresses, in sequence, until a connection is established.
+  The first returned AAAA address is tried first, then the first returned A address and so on.
+  Each connection attempt is given the amount of time specified by the `autoSelectFamilyAttemptTimeout`
+  option before timing out and trying the next address.
+  Ignored if the `family` option is not `0` or if `localAddress` is set.
+  Connection errors are not emitted if at least one connection succeeds.
+  **Default:** `false`.
+* `autoSelectFamilyAttemptTimeout` {number}: The amount of time in milliseconds to wait
+  for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option.
+  If set to a positive integer less than `10`, then the value `10` will be used instead.
+  **Default:** `250`.
 
 For [IPC][] connections, available `options` are:
 
@@ -1630,6 +1647,7 @@ net.isIPv6('fhqwhgads'); // returns false
 
 [IPC]: #ipc-support
 [Identifying paths for IPC connections]: #identifying-paths-for-ipc-connections
+[RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
 [Readable Stream]: stream.md#class-streamreadable
 [`'close'`]: #event-close
 [`'connect'`]: #event-connect
